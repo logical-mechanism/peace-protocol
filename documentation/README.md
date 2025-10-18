@@ -4,5 +4,5 @@ This folder contains all documentation.
 
 ## *Markdown to PDF*
 ```bash
-pandoc example.md -o example.pdf
+pandoc technical_report.md --citeproc -o technical_report.pdf
 ````
