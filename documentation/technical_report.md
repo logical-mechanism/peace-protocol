@@ -33,6 +33,7 @@ keywords:
   - AES-GCM
 rights: © 2025 Logical Mechanism LLC. All rights reserved.
 header-includes:
+  - \usepackage{fancyhdr}
   - \usepackage{amsmath,amssymb}
   - \numberwithin{equation}{section}
   - \usepackage{etoolbox}
@@ -51,7 +52,49 @@ header-includes:
 
 \clearpage
 \pagenumbering{arabic}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\footnotesize \today}
+
 
 # Abstract
 
-This will be the abstract. Test Citation [@schnorr1991]
+Test Citation [@schnorr1991]
+
+Inline sanity: let $x\in\mathbb{Z}_q$, $u\in\mathbf{G}_1$, $Q\in\mathbf{G}_2$, and $E=mc^2$.
+
+\begin{equation}\label{eq:aead}
+c \;=\; \mathrm{AEAD}_{k}\!\big(m;\ \mathsf{nonce},\ \mathsf{ad}\big).
+\end{equation}
+
+As in \eqref{eq:aead}, we encrypt with key $k$ derived via HKDF:
+\begin{align}
+\mathrm{ikm} &= H\!\left(\mathrm{ECDH}\big(u,\ \mathrm{pk}_B\big)\right),\\
+k &= \mathrm{HKDF}\!\left(\mathrm{salt},\ \mathrm{ikm},\ \text{``PEACE-AES-GCM''},\ 32\right). \tag{\*}
+\end{align}
+
+\begin{equation*}
+\mathrm{Dec}_k(c) \;=\;
+\begin{cases}
+m, & \text{if } \mathrm{AEAD\_Dec}_k(c;\ \mathsf{nonce},\ \mathsf{ad}) \text{ verifies},\\[0.25em]
+\perp, & \text{otherwise.}
+\end{cases}
+\end{equation*}
+
+\begin{equation*}
+M \;=\;
+\begin{bmatrix}
+1 & 0\\
+0 & 1
+\end{bmatrix},
+\qquad
+\lVert u \rVert_2 \leq 1,
+\qquad
+\Pr[\text{forge}] \le 2^{-\lambda}.
+\end{equation*}
+
+\begin{equation*}
+S(n)=\sum_{i=1}^n i \;=\; \frac{n(n+1)}{2},
+\qquad
+\int_0^1 x^2\,dx=\frac{1}{3}.
+\end{equation*}
