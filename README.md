@@ -6,7 +6,7 @@ This project was funded in Fund 14 of Project Catalyst.
 
 [Milestones](https://milestones.projectcatalyst.io/projects/1499999)
 
-This repository will hold all documentation and code.
+[Technical Report](./documentation/technical_report.pdf)
 
 **Copyright (C) 2025 Logical Mechanism LLC**
 
