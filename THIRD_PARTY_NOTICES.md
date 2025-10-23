@@ -9,3 +9,6 @@
 - **License:** CC BY-SA 3.0 (SPDX: `CC-BY-SA-3.0`)
 - **Authors:** Michael Berkowitz; Julian Onions; Rintze Zelle; Stephen Frank; Sebastian Karcher; Giuseppe Silano; Patrick O'Brien; Brenton M. Wiernik; Oliver Couch
 - **Changes:** None (unmodified)
+
+**Copyright (C) 2025 Logical Mechanism LLC**
+**SPDX-License-Identifier: CC-BY-4.0**
