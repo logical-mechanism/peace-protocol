@@ -6,3 +6,7 @@ This folder contains all documentation.
 ```bash
 pandoc technical_report.md --citeproc -o technical_report.pdf
 ````
+
+**Copyright (C) 2025 Logical Mechanism LLC**
+
+**SPDX-License-Identifier: GPL-3.0-only**
