@@ -2,11 +2,10 @@
 
 This folder contains all documentation.
 
-## *Markdown to PDF*
+## Markdown to PDF
 ```bash
 pandoc technical_report.md --citeproc -o technical_report.pdf
 ````
 
 **Copyright (C) 2025 Logical Mechanism LLC**
-
-**SPDX-License-Identifier: GPL-3.0-only**
+**SPDX-License-Identifier: CC-BY-4.0**
