@@ -1,8 +1,11 @@
-# PEACE Documentation
+# Documentation
 
-This folder contains all documentation.
+This folder contains all documentation for the PEACE protcol.
 
 ## Markdown to PDF
+
+[Installing Pandoc](https://pandoc.org/installing.html)
+
 ```bash
 pandoc technical_report.md --citeproc -o technical_report.pdf
 ````
