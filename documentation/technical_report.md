@@ -63,42 +63,38 @@ header-includes:
 
 # Abstract
 
-Test Citation [@schnorr1991]
+# Introduction
 
-Inline sanity: let $x\in\mathbb{Z}_q$, $u\in\mathbf{G}_1$, $Q\in\mathbf{G}_2$, and $E=mc^2$.
+# Background And Preliminaries
 
-\begin{equation}\label{eq:aead}
-c \;=\; \mathrm{AEAD}_{k}\!\big(m;\ \mathsf{nonce},\ \mathsf{ad}\big).
-\end{equation}
+# Cryptographic Primitives Overview
 
-As in \eqref{eq:aead}, we encrypt with key $k$ derived via HKDF:
-\begin{align}
-\mathrm{ikm} &= H\!\left(\mathrm{ECDH}\big(u,\ \mathrm{pk}_B\big)\right),\\
-k &= \mathrm{HKDF}\!\left(\mathrm{salt},\ \mathrm{ikm},\ \text{``PEACE-AES-GCM''},\ 32\right). \tag{\*}
-\end{align}
+## ECIES
 
-\begin{equation*}
-\mathrm{Dec}_k(c) \;=\;
-\begin{cases}
-m, & \text{if } \mathrm{AEAD\_Dec}_k(c;\ \mathsf{nonce},\ \mathsf{ad}) \text{ verifies},\\[0.25em]
-\perp, & \text{otherwise.}
-\end{cases}
-\end{equation*}
+## AES-GCM
 
-\begin{equation*}
-M \;=\;
-\begin{bmatrix}
-1 & 0\\
-0 & 1
-\end{bmatrix},
-\qquad
-\lVert u \rVert_2 \leq 1,
-\qquad
-\Pr[\text{forge}] \le 2^{-\lambda}.
-\end{equation*}
+## Proxy Re-Encryption
 
-\begin{equation*}
-S(n)=\sum_{i=1}^n i \;=\; \frac{n(n+1)}{2},
-\qquad
-\int_0^1 x^2\,dx=\frac{1}{3}.
-\end{equation*}
+# Protocol Overview
+
+## Design Goals And Requirements
+
+## On-Chain And Off-Chain Architecture
+
+## Key Management And Identity
+
+## Protocol Specification
+
+# Security Model
+
+## Trust Model
+
+# Threat Analysis
+
+## Metadata Leakage
+
+# Limitations And Risks
+
+## Performance And On-Chain Cost
+
+# Conclusion
