@@ -4,7 +4,7 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 ---
 title: "The PEACE Protocol\\thanks{This project was funded in Fund 14 of Project Catalyst.}"
-subtitle: "A protocol for decentralized encrypted data exchange."
+subtitle: "A protocol for transferable encryption rights."
 author: "Logical Mechanism LLC\\thanks{Contact: support@logicalmechanism.io}"
 date: \today
 lang: en-US
@@ -63,6 +63,8 @@ header-includes:
 
 # Abstract
 
+In this report, we introduce the PEACE protocol, an ECIES-based, multi-hop, bidirectional proxy re-encryption scheme for Cardano. PEACE solves the encrypted-NFT problem by providing a decentralized, open-source protocol for transferable encryption rights, enabling creators, collectors, and developers to manage encrypted NFTs without relying on centralized decryption services. This work fills a significant gap in secure, private access to NFTs on Cardano.
+
 # Introduction
 
 # Background And Preliminaries
@@ -88,6 +90,8 @@ header-includes:
 # Security Model
 
 ## Trust Model
+
+### Assumptions
 
 # Threat Analysis
 
