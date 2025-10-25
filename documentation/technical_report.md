@@ -23,6 +23,8 @@ toc-title: Contents
 colorlinks: true
 links-as-notes: false
 link-citations: true
+linkReferences: true
+nameInLink: true
 urlcolor: MidnightBlue
 linkcolor: MidnightBlue
 citecolor: MidnightBlue
@@ -78,6 +80,41 @@ The solution the PEACE protocol will implement is an ambitious yet well-defined 
 The remainder of this report is as follows. Section 4 discusses the preliminaries and background required for this project. Section 5 will be a brief overview of the required cryptographic primitives. Section 6 will be a detailed description of the protocol. Sections 7, 8, and 9 will dive into the security and threat analysis, and limitations of the protocol, respectively. The goal of this report will be to serve as a go-to reference and description of the PEACE protocol.
 
 # Background And Preliminaries
+
+Understanding the protocol will require some technical knowledge of modern cryptographic methods, a small amount of the arithmetic of elliptic curves, and just a pinch of knowledge about smart contracts on Cardano. Anyone comfortable with these topics will find this report very useful and easy to follow. The report will attempt to use research standards for terminology and notation. The elliptic curve used in this protocol will be BLS12-381 [@bowe-bls12-381-2017].
+
+Table: Symbol Description [@elmrabet-joye-2017]
+
+| Symbol | Description |
+|:-----:|-------------|
+| $\delta$ | A non-zero integer |
+| $p$ | A prime number |
+| $\mathbb{F}_{p}$ | The finite field of characteristic $p$ |
+| $E(\mathbb{F}_{p})$ | An elliptic curve $E$ defined over $\mathbb{F}_{p}$ |
+| $E'$ | A twisted elliptic curve of $E$ |
+| $\#E(\mathbb{F}_{p})$ | The order of $E(\mathbb{F}_{p})$ (also denoted $n$) |
+| $r$ | A prime number dividing $\#E(\mathbb{F}_{p})$ |
+| $\mathcal{O}$ | The point at infinity of an elliptic curve $E$ |
+| $\mathbb{G}_{1}$ | A subgroup of order $r$ of $E(\mathbb{F}_{p})$ |
+| $\mathbb{G}_{2}$ | A subgroup of order $r$ of the twist $E'(\mathbb{F}_{p^{2}})$ |
+| $\mathbb{G}_{T}$ | The multiplicative target group of the pairing: $\mu_r \subset \mathbb{F}_{p^{12}}^{\*}$ |
+| $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A bilinear pairing |
+
+The protocol, both the on-chain and off-chain components, will make heavy use of the `Register` type. The `Register` stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T} \ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
+
+The `Register` type in Aiken:
+
+```rust
+pub type Register {
+  // the generator, #<Bls12_381, G1>
+  generator: ByteArray,
+  // the public value, #<Bls12_381, G1>
+  public_value: ByteArray,
+}
+```
+
+Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly.
+
 
 # Cryptographic Primitives Overview
 
