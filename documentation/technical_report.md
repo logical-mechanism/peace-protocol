@@ -23,8 +23,6 @@ toc-title: Contents
 colorlinks: true
 links-as-notes: false
 link-citations: true
-linkReferences: true
-nameInLink: true
 urlcolor: MidnightBlue
 linkcolor: MidnightBlue
 citecolor: MidnightBlue
