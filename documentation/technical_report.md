@@ -79,7 +79,7 @@ The remainder of this report is as follows. Section 4 discusses the preliminarie
 
 # Background And Preliminaries
 
-Understanding the protocol will require some technical knowledge of modern cryptographic methods, a small amount of the arithmetic of elliptic curves, and just a pinch of knowledge about smart contracts on Cardano. Anyone comfortable with these topics will find this report very useful and easy to follow. The report will attempt to use research standards for terminology and notation. The elliptic curve used in this protocol will be BLS12-381 [@bowe-bls12-381-2017].
+Understanding the protocol will require some technical knowledge of modern cryptographic methods, a small amount of the arithmetic of elliptic curves, and just a pinch of knowledge about smart contracts on Cardano. Anyone comfortable with these topics will find this report very useful and easy to follow. The report will attempt to use research standards for terminology and notation. The elliptic curve used in this protocol will be BLS12-381 [@bowe-bls12-381-2017]. Aiken is used to write all required smart contracts for the protocol.
 
 Table: Symbol Description [@elmrabet-joye-2017]
 
@@ -98,7 +98,7 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $\mathbb{G}_{T}$ | The multiplicative target group of the pairing: $\mu_r \subset \mathbb{F}_{p^{12}}^{\*}$ |
 | $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A bilinear pairing |
 
-The protocol, both the on-chain and off-chain components, will make heavy use of the `Register` type. The `Register` stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T} \ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
+The protocol, both the on-chain and off-chain components, will make heavy use of the `Register` type. The `Register` stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
 The `Register` type in Aiken:
 
@@ -112,7 +112,6 @@ pub type Register {
 ```
 
 Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly.
-
 
 # Cryptographic Primitives Overview
 
