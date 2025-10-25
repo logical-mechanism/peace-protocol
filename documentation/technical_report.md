@@ -42,6 +42,7 @@ header-includes:
   - \numberwithin{equation}{section}
   - \usepackage{etoolbox}
   - \usepackage[dvipsnames]{xcolor}
+  - \usepackage[ruled,vlined,linesnumbered]{algorithm2e}
   - \AtBeginDocument{\pagenumbering{gobble}}
   - \AtBeginDocument{\hypersetup{pdfinfo={/Copyright=(© 2025 Logical Mechanism LLC. All rights reserved.)}}}
 ---
@@ -85,13 +86,13 @@ Table: Symbol Description [@elmrabet-joye-2017]
 
 | Symbol | Description |
 |:-----:|-------------|
-| $\delta$ | A non-zero integer |
 | $p$ | A prime number |
 | $\mathbb{F}_{p}$ | The finite field of characteristic $p$ |
 | $E(\mathbb{F}_{p})$ | An elliptic curve $E$ defined over $\mathbb{F}_{p}$ |
 | $E'$ | A twisted elliptic curve of $E$ |
 | $\#E(\mathbb{F}_{p})$ | The order of $E(\mathbb{F}_{p})$ (also denoted $n$) |
 | $r$ | A prime number dividing $\#E(\mathbb{F}_{p})$ |
+| $\delta$ | A non-zero integer in $\mathbb{Z}_{n}$ |
 | $\mathcal{O}$ | The point at infinity of an elliptic curve $E$ |
 | $\mathbb{G}_{1}$ | A subgroup of order $r$ of $E(\mathbb{F}_{p})$ |
 | $\mathbb{G}_{2}$ | A subgroup of order $r$ of the twist $E'(\mathbb{F}_{p^{2}})$ |
@@ -114,6 +115,23 @@ pub type Register {
 Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly.
 
 # Cryptographic Primitives Overview
+
+This section will contain brief explanations of the required cryptographic primities for the protocol. Where applicable, an algorithm describing the primitives will be shown.
+
+\begin{algorithm}[H]
+
+\caption{Re-randomization of the Register type}
+\label{alg:rerandom}
+\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$}
+\KwOut{$\ ($ $g', u'\ )$}
+
+select a random $\delta' \in \mathbb{Z}_{n}$
+
+compute $g' = [\delta']g$ and $u' = [\delta']u$
+
+output $\ ($ $g', u'\ )$
+
+\end{algorithm}
 
 ## ECIES
 
