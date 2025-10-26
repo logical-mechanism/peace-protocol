@@ -98,6 +98,7 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $\mathbb{G}_{2}$ | A subgroup of order $r$ of the twist $E'(\mathbb{F}_{p^{2}})$ |
 | $\mathbb{G}_{T}$ | The multiplicative target group of the pairing: $\mu_r \subset \mathbb{F}_{p^{12}}^{\*}$ |
 | $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A bilinear pairing |
+| $R$ | A random oracle as the Fiat-Shamir transform |
 
 The protocol, both the on-chain and off-chain components, will make heavy use of the `Register` type. The `Register` stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
@@ -112,14 +113,15 @@ pub type Register {
 }
 ```
 
-Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly.
+Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly. There will be instances where the Fiat-Shamir transform will be applied to a $/Sigma$-protocols for non-interactive purposes. In theses cases, the hash function will be the Blake2b-256 hash function [@rfc7693].
 
 # Cryptographic Primitives Overview
 
 This section will contain brief explanations of the required cryptographic primities for the protocol. Where applicable, an algorithm describing the primitives will be shown.
 
-\begin{algorithm}[H]
+Creating a new `Register` from an existing `Register` [@ergo-sigma-join].
 
+\begin{algorithm}[H]
 \caption{Re-randomization of the Register type}
 \label{alg:rerandom}
 \KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$}
@@ -130,7 +132,25 @@ select a random $\delta' \in \mathbb{Z}_{n}$
 compute $g' = [\delta']g$ and $u' = [\delta']u$
 
 output $\ ($ $g', u'\ )$
+\end{algorithm}
 
+Proving knowledge a user's secret [@thaler-pazk-2022] [@schnorr1991] [@fiat-shamir-1986].
+
+\begin{algorithm}[H]
+\caption{Non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation}
+\label{alg:schnorrsig}
+\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$}
+\KwOut{\textsf{bool}}
+
+select a random $\delta' \in \mathbb{Z}_{n}$
+
+compute $a = [\delta']g$
+
+calculate $c = R(g, u, a)$
+
+compute $z = \delta*c + \delta'$
+
+output $[z]g = a + [c]u$
 \end{algorithm}
 
 ## ECIES
