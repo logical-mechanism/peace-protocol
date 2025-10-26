@@ -113,7 +113,7 @@ pub type Register {
 }
 ```
 
-Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly. There will be instances where the Fiat-Shamir transform will be applied to a $/Sigma$-protocols for non-interactive purposes. In theses cases, the hash function will be the Blake2b-256 hash function [@rfc7693].
+Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly. There will be instances where the Fiat-Shamir transform will be applied to a $\Sigma$-protocols for non-interactive purposes. In theses cases, the hash function will be the Blake2b-256 hash function [@rfc7693].
 
 # Cryptographic Primitives Overview
 
