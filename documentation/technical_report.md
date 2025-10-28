@@ -164,7 +164,7 @@ with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption 
 
 \begin{algorithm}[H]
 \caption{Encryption using ECIES + AES}
-\label{alg:eciesaes}
+\label{alg:encrypt-eciesaes}
 
 \KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, m as the message}
 \KwOut{$\ ($ $r, c, h\ )$ }
@@ -179,6 +179,28 @@ generate $k = KDF(s | r)$
 
 encrypt $c = AES(m, k)$
 
+compute $h = BLAKE2b(m)$
+
+output $\ ($ $r, c, h\ )$
+
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Decryption using ECIES + AES}
+\label{alg:decrypt-eciesaes}
+
+\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $\ ($ $r, c, h\ )$ as the cypher text}
+\KwOut{$\ ($ $m$,\textsf{bool} $\ )$ }
+
+compute $s' = [\delta]r$
+
+generate $k' = KDF(s' | r)$
+
+compute $m' = AES(c, k')$
+
+compute $h' = H(m')$
+
+output $\ ($ $m'$, h' = h $\ )$
 
 \end{algorithm}
 
@@ -235,7 +257,7 @@ Correctness for Algorithm~\ref{alg:schnorrsig}, a non-interactive Schnorr's $\Si
 
 \begin{proof}
 
-We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $g \in \mathbb{G}_1$, and $z \in \mathbb{Z}_{n}$. Let us assume that $z = r + c * \delta$.
+We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $a \in \mathbb{G}_1$, and $z \in \mathbb{Z}_{n}$. Let us assume that $z = r + c * \delta$ and $a = [r]g$.
 
 Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, a)$.
 
