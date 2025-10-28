@@ -221,11 +221,32 @@ Algorithm~\ref{alg:rerandom} re-randomizes a \texttt{Register}.
 
 \begin{proof}
 
-We start with $\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$ and $u=[\delta]g \in \mathbb{G}_1$ and we are given $\ ($ $g', u'\ )$. Lets assume that $k \in \mathbb{Z}_{n}$ is a random integer.
+We start with $\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$ and $u=[\delta]g \in \mathbb{G}_1$ and we are given $\ ($ $g', u'\ )$. Let us assume that $k \in \mathbb{Z}_{n}$ is a random integer.
 
 Let's assume $g' = [k]g$ and $u' = [k]u$. We know $u = [\delta]g$ so $u' = [k][\delta]g = [\delta][k]g = [\delta]g'$.
 
 Thus the discrete-logrithm relation that binds $\ ($ $g, u\ )$, $u=[\delta]g$, is the same relationship between $\ ($ $g', u'\ )$, $u'=[\delta]g'$.
+
+\end{proof}
+
+\begin{lemma}\label{lem:correct-schnorr}
+Correctness for Algorithm~\ref{alg:schnorrsig}, a non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation.
+\end{lemma}
+
+\begin{proof}
+
+We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $g \in \mathbb{G}_1$, and $z \in \mathbb{Z}_{n}$. Let us assume that $z = r + c * \delta$.
+
+Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, a)$.
+
+$[z]g = [r + c * x]g$
+
+$[z]g = [r]g + [c][x]g$
+
+$[z]g = a + [c]u$
+
+An honest \texttt{Register} can produce an $a$ and $z$ that will satisfy $[z]g = a + [c]u$ proving knowledge of the secret $/delta$.
+
 \end{proof}
 
 <!-- Add a page between the appendix and the bib -->
