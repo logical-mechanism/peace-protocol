@@ -38,7 +38,7 @@ keywords:
 rights: © 2025 Logical Mechanism LLC. All rights reserved.
 header-includes:
   - \usepackage{fancyhdr}
-  - \usepackage{amsmath,amssymb}
+  - \usepackage{amsmath,amssymb,amsthm}
   - \numberwithin{equation}{section}
   - \usepackage{etoolbox}
   - \usepackage[dvipsnames]{xcolor}
@@ -117,7 +117,7 @@ Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimizat
 
 # Cryptographic Primitives Overview
 
-This section provides brief explanations of the cryptographic primitives required by the protocol. Where applicable, an algorithm describing the primitives will be in its respective algorithm segment. The `Register` type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the $\mathbb{G}_1$ points is a given.
+This section provides brief explanations of the cryptographic primitives required by the protocol. Where applicable, an algorithm describing the primitives will be in its respective algorithm segment. The `Register` type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the $\mathbb{G}_1$ points is a given. Proofs for many algorithms are in Appendix A.
 
 There may be instances where we need to create a new `Register` from an existing `Register` [@ergo-sigma-join] via a re-randomization. The random integer $\delta'$ is considered toxic waste. Randomization allows a public register to remain stealthy, which can be beneficial for data privacy and ownership.
 
@@ -161,13 +161,22 @@ The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol inv
 with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES combined with a key derivation function (KDF) like Argon2 [@rfc9106] create a complete encryption system.
 
 \begin{algorithm}[H]
-\caption{ECIES+AES}
+\caption{Encryption using ECIES + AES}
 \label{alg:eciesaes}
 
-\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$}
+\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, m as the message}
 \KwOut{$\ ($ $r, c, h\ )$ }
 
 select a random $\delta' \in \mathbb{Z}_{n}$
+
+compute $r = [\delta']g$
+
+compute $s = [\delta']u$
+
+generate $k = KDF(s | r)$
+
+encrypt $c = AES(m, k)$
+
 
 \end{algorithm}
 
@@ -198,3 +207,15 @@ select a random $\delta' \in \mathbb{Z}_{n}$
 ## Performance And On-Chain Cost
 
 # Conclusion
+
+\clearpage
+\appendix
+
+# Appendix A — Security Proofs {#app:proofs}
+
+\begin{proof}
+Since $Z=[r]X=[r][y]g=[y][r]g=[y]R=Z'$, both parties derive the same $K$; AEAD decryption then yields $m$.
+\end{proof}
+
+<!-- Add a page between the appendix and the bib -->
+\clearpage
