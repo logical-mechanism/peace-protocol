@@ -117,13 +117,14 @@ Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimizat
 
 # Cryptographic Primitives Overview
 
-This section will contain brief explanations of the required cryptographic primities for the protocol. Where applicable, an algorithm describing the primitives will be shown.
+This section provides brief explanations of the cryptographic primitives required by the protocol. Where applicable, an algorithm describing the primitives will be in its respective algorithm segment. The `Register` type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the $\mathbb{G}_1$ points is a given.
 
-Creating a new `Register` from an existing `Register` [@ergo-sigma-join].
+There may be instances where we need to create a new `Register` from an existing `Register` [@ergo-sigma-join] via a re-randomization. The random integer $\delta'$ is considered toxic waste. Randomization allows a public register to remain stealthy, which can be beneficial for data privacy and ownership.
 
 \begin{algorithm}[H]
 \caption{Re-randomization of the Register type}
 \label{alg:rerandom}
+
 \KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$}
 \KwOut{$\ ($ $g', u'\ )$}
 
@@ -134,11 +135,12 @@ compute $g' = [\delta']g$ and $u' = [\delta']u$
 output $\ ($ $g', u'\ )$
 \end{algorithm}
 
-Proving knowledge a user's secret [@thaler-pazk-2022] [@schnorr1991].
+The protocol may require proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is perfectly complete and zero-knowledge, which is precisely what we need in this context. We can use simple Ed25519 signatures for spendability, and then use the Schnorr $\Sigma$-protocol for knowledge proofs for encryption. We will make the protocol non-interacting via the Fiat-Shamir transform.
 
 \begin{algorithm}[H]
 \caption{Non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation}
 \label{alg:schnorrsig}
+
 \KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$}
 \KwOut{\textsf{bool}}
 
@@ -153,9 +155,21 @@ compute $z = \delta*c + \delta'$
 output $[z]g = a + [c]u$
 \end{algorithm}
 
-## ECIES
+## ECIES + AES-GCM
 
-## AES-GCM
+The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography
+with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES combined with a key derivation function (KDF) like Argon2 [@rfc9106] create a complete encryption system.
+
+\begin{algorithm}[H]
+\caption{ECIES+AES}
+\label{alg:eciesaes}
+
+\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$}
+\KwOut{$\ ($ $r, c, h\ )$ }
+
+select a random $\delta' \in \mathbb{Z}_{n}$
+
+\end{algorithm}
 
 ## Proxy Re-Encryption
 
