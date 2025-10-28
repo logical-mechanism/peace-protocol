@@ -39,6 +39,8 @@ rights: © 2025 Logical Mechanism LLC. All rights reserved.
 header-includes:
   - \usepackage{fancyhdr}
   - \usepackage{amsmath,amssymb,amsthm}
+  - \newtheorem{lemma}{Lemma}
+  - \numberwithin{lemma}{section}
   - \numberwithin{equation}{section}
   - \usepackage{etoolbox}
   - \usepackage[dvipsnames]{xcolor}
@@ -100,9 +102,9 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A type-3 bilinear pairing |
 | $R$ | A random oracle for the Fiat-Shamir transform |
 
-The protocol, both the on-chain and off-chain components, will make heavy use of the `Register` type. The `Register` stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
+The protocol, both the on-chain and off-chain components, will make heavy use of the \texttt{Register} type. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
-The `Register` type in Aiken:
+The \texttt{Register} type in Aiken:
 
 ```rust
 pub type Register {
@@ -117,9 +119,9 @@ Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimizat
 
 # Cryptographic Primitives Overview
 
-This section provides brief explanations of the cryptographic primitives required by the protocol. Where applicable, an algorithm describing the primitives will be in its respective algorithm segment. The `Register` type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the $\mathbb{G}_1$ points is a given. Proofs for many algorithms are in Appendix A.
+This section provides brief explanations of the cryptographic primitives required by the protocol. Where applicable, an algorithm describing the primitives will be in its respective algorithm segment. The \texttt{Register} type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the $\mathbb{G}_1$ points is a given. Proofs for many algorithms are in Appendix A.
 
-There may be instances where we need to create a new `Register` from an existing `Register` [@ergo-sigma-join] via a re-randomization. The random integer $\delta'$ is considered toxic waste. Randomization allows a public register to remain stealthy, which can be beneficial for data privacy and ownership.
+There may be instances where we need to create a new \texttt{Register} from an existing \texttt{Register} [@ergo-sigma-join] via a re-randomization. The random integer $\delta'$ is considered toxic waste. Randomization allows a public register to remain stealthy, which can be beneficial for data privacy and ownership.
 
 \begin{algorithm}[H]
 \caption{Re-randomization of the Register type}
@@ -213,8 +215,17 @@ encrypt $c = AES(m, k)$
 
 # Appendix A — Security Proofs {#app:proofs}
 
+\begin{lemma}\label{lem:correct-rerandom}
+Algorithm~\ref{alg:rerandom} re-randomizes a \texttt{Register}.
+\end{lemma}
+
 \begin{proof}
-Since $Z=[r]X=[r][y]g=[y][r]g=[y]R=Z'$, both parties derive the same $K$; AEAD decryption then yields $m$.
+
+We start with $\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$ and $u=[\delta]g \in \mathbb{G}_1$ and we are given $\ ($ $g', u'\ )$. Lets assume that $k \in \mathbb{Z}_{n}$ is a random integer.
+
+Let's assume $g' = [k]g$ and $u' = [k]u$. We know $u = [\delta]g$ so $u' = [k][\delta]g = [\delta][k]g = [\delta]g'$.
+
+Thus the discrete-logrithm relation that binds $\ ($ $g, u\ )$, $u=[\delta]g$, is the same relationship between $\ ($ $g', u'\ )$, $u'=[\delta]g'$.
 \end{proof}
 
 <!-- Add a page between the appendix and the bib -->
