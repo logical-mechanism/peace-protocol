@@ -158,13 +158,13 @@ compute $z = \delta*c + \delta'$
 output $[z]g = a + [c]u$
 \end{algorithm}
 
-There will be times when the protocol requires proving some equality using a pairing. In these cases, we can use something akin to the BLS signature, allowing only someone with the knowledge of the secret to prove the pairing equivalence. A straightforward but important signature scheme for the protocol, as it allows public confirmation of knowledge of a complex relationship beyond the limits of Schnorr's $\Sigma$-protocol.
+There will be times when the protocol requires proving some equality using a pairing. In these cases, we can use something akin to the BLS signature, allowing only someone with the knowledge of the secret to prove the pairing equivalence. BLS signatures are a straightforward but important signature scheme for the protocol, as it allows public confirmation of knowledge of a complex relationship beyond the limits of Schnorr's $\Sigma$-protocol. BLS signatures work because of the bilinearity [@Menezes1993ECPKC] of the pairing.
 
 \begin{algorithm}[H]
 \caption{Boneh-Lynn-Shacham (BLS) signature method}
 \label{alg:blssig}
 
-\KwIn{$\ ($ $g, u, c, w\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $c = H_{2}(m) \in \mathbb{G}_2$, and $w = [\delta]c \in \mathbb{G}_2$}
+\KwIn{$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $c = H_{2}(m) \in \mathbb{G}_2$, $w = [\delta]c \in \mathbb{G}_2$, and $m\in\{0,1\}^{*}$}
 \KwOut{\textsf{bool}}
 
 $e(u, c) = e(g, w)$
