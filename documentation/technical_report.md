@@ -82,16 +82,16 @@ The remainder of this report is as follows. Section 4 discusses the preliminarie
 
 # Background And Preliminaries
 
-Understanding the protocol will require some technical knowledge of modern cryptographic methods, a small amount of the arithmetic of elliptic curves, and just a pinch of knowledge about smart contracts on Cardano. Anyone comfortable with these topics will find this report very useful and easy to follow. The report will attempt to use research standards for terminology and notation. The elliptic curve used in this protocol will be BLS12-381 [@bowe-bls12-381-2017]. Aiken [@aiken-lang-site] is used to write all required smart contracts for the protocol.
+Understanding the protocol will require some technical knowledge of modern cryptographic methods, a basic understanding of elliptic curve arithmetic, and a general understanding of smart contracts on Cardano. Anyone comfortable with these topics will find this report very useful and easy to follow. The report will attempt to use research standards for terminology and notation. The elliptic curve used in this protocol will be BLS12-381 [@bowe-bls12-381-2017]. Aiken is used to write all required smart contracts for the protocol.
 
 Table: Symbol Description [@elmrabet-joye-2017]
 
 | Symbol | Description |
 |:-----:|-------------|
 | $p$ | A prime number |
-| $\mathbb{F}_{p}$ | The finite field of characteristic $p$ |
+| $\mathbb{F}_{p}$ | The finite field with characteristic $p$ |
 | $E(\mathbb{F}_{p})$ | An elliptic curve $E$ defined over $\mathbb{F}_{p}$ |
-| $E'$ | A twisted elliptic curve of $E$ |
+| $E'$ | A twisted elliptic curve |
 | $\#E(\mathbb{F}_{p})$ | The order of $E(\mathbb{F}_{p})$ (also denoted $n$) |
 | $r$ | A prime number dividing $\#E(\mathbb{F}_{p})$ |
 | $\delta$ | A non-zero integer in $\mathbb{Z}_{n}$ |
@@ -103,7 +103,7 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $R$ | The Fiat-Shamir transformer |
 | $H_{\kappa}$ | A hash to group function for $\mathbb{G}_{\kappa}$ |
 
-The protocol, both the on-chain and off-chain components, will make heavy use of the \texttt{Register} type. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
+The protocol, both the on-chain and off-chain components, will make heavy use of the \texttt{Register} type. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
 The \texttt{Register} type in Aiken:
 
@@ -116,7 +116,7 @@ pub type Register {
 }
 ```
 
-Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocols for non-interactive purposes. In theses cases, the hash function will be the Blake2b-256 hash function [@rfc7693].
+Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol for non-interactive purposes. In these cases, the hash function will be the Blake2b-256 hash function [@rfc7693].
 
 # Cryptographic Primitives Overview
 
@@ -138,7 +138,7 @@ compute $g' = [\delta']g$ and $u' = [\delta']u$
 output $\ ($ $g', u'\ )$
 \end{algorithm}
 
-The protocol may require proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is perfectly complete and zero-knowledge, which is precisely what we need in this context. We can use simple Ed25519 signatures for spendability, and then use the Schnorr $\Sigma$-protocol for knowledge proofs for encryption. We will make the protocol non-interacting via the Fiat-Shamir transform.
+The protocol may require proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is both complete and zero-knowledge, precisely what we need in this context. We can use simple Ed25519 signatures for spendability, and then utilize the Schnorr $\Sigma$-protocol for knowledge proofs related to encryption. We will make the protocol non-interacting via the Fiat-Shamir transform.
 
 \begin{algorithm}[H]
 \caption{Non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation}
@@ -158,7 +158,7 @@ compute $z = \delta*c + \delta'$
 output $[z]g = a + [c]u$
 \end{algorithm}
 
-There will be times when the protocol requires proving some equality using a pairing. In these cases, we can use something akin to the BLS signature, allowing only someone with the knowledge of the secret to prove the pairing equivalence. BLS signatures are a straightforward but important signature scheme for the protocol, as it allows public confirmation of knowledge of a complex relationship beyond the limits of Schnorr's $\Sigma$-protocol. BLS signatures work because of the bilinearity [@Menezes1993ECPKC] of the pairing.
+There will be times when the protocol requires proving some equality using a pairing. In these cases, we can use something akin to the BLS signature, allowing only someone with the knowledge of the secret to prove the pairing equivalence. BLS signatures are a straightforward yet important signature scheme for the protocol, as they enable public confirmation of knowledge of a complex relationship beyond the limitations of Schnorr's $\Sigma$-protocol. BLS signatures work because of the bilinearity [@Menezes1993ECPKC] of the pairing.
 
 \begin{algorithm}[H]
 \caption{Boneh-Lynn-Shacham (BLS) signature method}
@@ -176,7 +176,7 @@ $e(q^{\delta}, c) = e(q, c^{\delta}) = e(q, c)^{\delta}$
 
 ## ECIES + AES-GCM
 
-The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES combined with a key derivation function (KDF) like HKDF [@cryptoeprint:2010/264] create a complete encryption system.
+The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES, combined with a key derivation function (KDF) such as HKDF [@cryptoeprint:2010/264], form a complete encryption system.
 
 \begin{algorithm}[H]
 \caption{Encryption using ECIES + AES}
@@ -201,7 +201,7 @@ output $\ ($ $r, c, h\ )$
 
 \end{algorithm}
 
-Decrypting the cyphertext requires rebuilding the data encryption key (DEK), $k$, from the KDF. The DEK may be rebuilt because $r$ is public and the secret $\delta$ is known to the user who may decrypt the data.
+Decrypting the ciphertext requires rebuilding the data encryption key (DEK), $k$, from the KDF. The DEK is rebuildable because $r$ is public and the secret $\delta$ is known to the user, who can then decrypt the data.
 
 \begin{algorithm}[H]
 \caption{Decryption using ECIES + AES}
@@ -222,7 +222,7 @@ output $\ ($ $m'$, h' = h $\ )$
 
 \end{algorithm}
 
-Algorithm \ref{alg:encrypt-eciesaes} describes the case where a \texttt{Register} is used to generate the DEK, $k$, from the KDF function. Anyone with knowledge of $k$ may decrypt the cyphertext. This differs slightly from the PEACE protocol as the protocol allows transferring $k$ to another \texttt{Register} but the general flow is the same. The key take away here is that a KDF is required to encrypt some message and to decrypt the cyphertext. Both algorithms \ref{alg:encrypt-eciesaes} and \ref{alg:decrypt-eciesaes} use a simple hash function for authentication. In the PEACE protocol, we will use AES-GCM with authenticated encryption with associated data (AEAD) for authencation.
+Algorithm \ref{alg:encrypt-eciesaes} describes the case where a \texttt{Register} is used to generate the DEK, $k$, from the KDF function. Anyone with knowledge of $k$ may decrypt the ciphertext. The algorithm shown differs slightly from the PEACE protocol as the protocol allows transferring $k$ to another \texttt{Register}, but the general flow is the same. The key takeaway here is that a KDF is required to both encrypt a message and decrypt the ciphertext. Both algorithms \ref{alg:encrypt-eciesaes} and \ref{alg:decrypt-eciesaes} use a simple hash function for authentication. In the PEACE protocol, we will use AES-GCM with authenticated encryption with associated data (AEAD) for authentication.
 
 ## Proxy Re-Encryption
 
