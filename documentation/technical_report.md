@@ -101,6 +101,7 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $\mathbb{G}_{T}$ | The multiplicative target group of the pairing: $\mu_r \subset \mathbb{F}_{p^{12}}^{\*}$ |
 | $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A type-3 bilinear pairing |
 | $R$ | A random oracle for the Fiat-Shamir transform |
+| $H_{\kappa}$ | A hash to group function for $\mathbb{G}_{\kappa}$ |
 
 The protocol, both the on-chain and off-chain components, will make heavy use of the \texttt{Register} type. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{1}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
@@ -156,6 +157,22 @@ compute $z = \delta*c + \delta'$
 
 output $[z]g = a + [c]u$
 \end{algorithm}
+
+There will be times when the protocol requires proving some equality using a pairing. In these cases, we can use something akin to the BLS signature, allowing only someone with the knowledge of the secret to prove the pairing equivalence. A straightforward but important signature scheme for the protocol, as it allows public confirmation of knowledge of a complex relationship beyond the limits of Schnorr's $\Sigma$-protocol.
+
+\begin{algorithm}[H]
+\caption{Boneh-Lynn-Shacham (BLS) signature method}
+\label{alg:blssig}
+
+\KwIn{$\ ($ $g, u, c, w\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $c = H_{2}(m) \in \mathbb{G}_2$, and $w = [\delta]c \in \mathbb{G}_2$}
+\KwOut{\textsf{bool}}
+
+$e(u, c) = e(g, w)$
+
+$e(q^{\delta}, c) = e(q, c^{\delta}) = e(q, c)^{\delta}$
+
+\end{algorithm}
+
 
 ## ECIES + AES-GCM
 
@@ -235,7 +252,7 @@ output $\ ($ $m'$, h' = h $\ )$
 \clearpage
 \appendix
 
-# Appendix A — Security Proofs {#app:proofs}
+# Appendix A - Proofs {#app:proofs}
 
 \begin{lemma}\label{lem:correct-rerandom}
 Algorithm~\ref{alg:rerandom} re-randomizes a \texttt{Register}.
