@@ -176,8 +176,7 @@ $e(q^{\delta}, c) = e(q, c^{\delta}) = e(q, c)^{\delta}$
 
 ## ECIES + AES-GCM
 
-The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography
-with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES combined with a key derivation function (KDF) like Argon2 [@rfc9106] create a complete encryption system.
+The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES combined with a key derivation function (KDF) like HKDF [@cryptoeprint:2010/264] create a complete encryption system.
 
 \begin{algorithm}[H]
 \caption{Encryption using ECIES + AES}
