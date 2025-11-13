@@ -1,0 +1,123 @@
+{
+    "title": "Cardano PRE-ECIES-AES-GCM Encryption using BLS12-381",
+    "objective": "Design and implement a fully on-chain (smart-contract-mediated) unidirectional, multi-hop proxy re-encryption (PRE) protocol on Cardano using the BLS12-381 curve available with plutusv3. The protocol enables transfer of decryption rights (Alice -> Bob -> Alice, and more generally current-owner -> next-owner) without exposing plaintext or private keys.",
+    "scope": {
+        "in_scope": [
+            "Unidirectional PRE flow (delegator -> delegatee).",
+            "Multi-hop re-encryption (repeated transfers in one direction).",
+            "KEM/DEM construction: PRE encapsulates a random key; DEM uses AES-GCM for payload.",
+            "On-chain capsule/rekey validation by the smart contract (proxy role).",
+            "On-chain storage model compatible with Cardano Tx size constraints (~16 KB/Tx).",
+            "BLS12-381 as the elliptic curve with all standard operations available."
+        ],
+        "out_of_scope": [
+            "Bidirectional PRE (not required).",
+            "Full smart contract application development beyond what is needed to support the PRE flow and minimal validation.",
+            "Revocation that cryptographically guarantees past owners cannot decrypt already-issued ciphertexts (not guaranteed; treated as a known limitation)."
+        ]
+    },
+    "actors": {
+        "delegator": "Current decryption-rights owner (e.g., Alice).",
+        "delegatee": "Next decryption-rights owner (e.g., Bob).",
+        "proxy": "Cardano smart contract that validates and applies re-encryption to produce a new capsule.",
+        "verifiers": "Any on-chain validator logic checking signatures/tags for correctness (e.g., the contract itself)."
+    },
+    "crypto_primitives": {
+        "pairing_curve": "BLS12-381 (Type-3 asymmetric bilinear groups).",
+        "kem": "Proxy Re-Encryption (Wang-Cao/Cai-Liu class or equivalent Type-3 instantiation) providing encapsulated GT key material.",
+        "dem": "AES-GCM with 12-byte nonce; key derived via HKDF(SHA3-256).",
+        "hashes": [
+            "SHA3-256 for HKDF and transcript hashing.",
+            "Structured domain-separated hash-to-scalar/curve where needed."
+        ],
+        "signatures": "One-time / per-hop signatures over capsule headers (as per scheme) to ensure CCA security and hop integrity."
+    },
+    "security_requirements": {
+        "confidentiality": "Only the intended holder of the current capsule (delegatee) can decapsulate the KEM key.",
+        "unidirectionality": "Rekeys flow from current owner to next owner; no backwards decryption ability is granted.",
+        "multi_hop": "Capsules can be re-encrypted multiple times (multi-hop) while preserving CCA security.",
+        "cca_security": "Capsule and rekey construction must resist chosen-ciphertext attacks.",
+        "binding": "HKDF salt/AAD must bind to capsule header bytes (and domain tag) so ciphertext authenticity ties to the correct capsule.",
+        "domain_separation": "All hashes include explicit domain tags to avoid cross-protocol attacks."
+    },
+    "blockchain_constraints": {
+        "platform": "Cardano (Plutus V3 smart contracts).",
+        "on_chain_role": "Smart contract acts as proxy to verify capsule integrity, apply re-encryption, and hold or reference the ciphertext.",
+        "data_limits": {
+            "tx_size_hint_bytes": 16384,
+            "note": "Capsule + rekey + ciphertext + signatures must fit; design for chunking if needed. Assume small messages for encryption for now (e.g., short strings) and treat large data as future work."
+        },
+        "serialization": "All PRE artifacts carried as hex-encoded bytes on-chain; NEVER treated as curve points by on-chain arithmetic unless explicitly supported. Cardano holds bytearrays on-chain."
+    },
+    "data_model": {
+        "register_types": {
+            "capsule": "Opaque hex blob (level-1 or level-k capsule).",
+            "rekey": "Opaque hex blob (delegator->delegatee).",
+            "ciphertext": {
+                "nonce": "12-byte nonce (hex).",
+                "ct": "AES-GCM ciphertext (hex).",
+                "aad": "Deterministic AAD (hex) derived from capsule bytes + domain tag."
+            }
+        },
+        "capsule_layout": "Opaque (defined by PRE engine); stored and transported as-is.",
+        "domain_tag": "Short ASCII/hex tag (e.g., 'acab-pre-v1') included in hashes/HKDF info."
+    },
+    "protocol_flows": {
+        "encrypt_to_self": [
+            "Delegator generates random KEM key via PRE MessageGen (or equivalent key encapsulation step).",
+            "Build capsule level-1 for delegator's public key.",
+            "Derive AES key = HKDF(SHA3-256, input=KEM key, salt=Hash(capsule header), info=domain_tag).",
+            "Encrypt payload with AES-GCM (nonce = 12 bytes, AAD binds capsule header).",
+            "Publish {capsule_L1, nonce, ct, aad} on-chain."
+        ],
+        "rekey_and_reencrypt": [
+            "Delegator computes rekey for delegatee: rk(A->B).",
+            "Proxy (smart contract) validates rekey/capsule tags and applies ReEnc to produce capsule_L2.",
+            "Publish capsule_L2 (and optionally archive capsule_L1). Ciphertext stays unchanged."
+        ],
+        "decapsulate_and_decrypt": [
+            "Delegatee decapsulates capsule_Lk to recover KEM key.",
+            "Derive AES key with same HKDF parameters.",
+            "Decrypt AES-GCM ciphertext using stored nonce/AAD."
+        ]
+    },
+    "engineering_guidelines": {
+        "libecc_engine": "Use a vetted PRE engine that instantiates Wang-Cao/Cai-Liu on BLS12-381 (e.g., libecc pre_schema1).",
+        "python_adapter": "Expose PRE as small dataclasses (PreKeyPair, PreCapsule, PreReKey) returning/accepting raw bytes; do not reinterpret as py_ecc points.",
+        "register_bridge": "Wrap PRE bytes in the on-chain Register type as hex (container only). Never call scale/combine/pair on PRE blobs.",
+        "hkdf_aad_rules": [
+            "Salt = Hash(capsule header bytes || domain_tag).",
+            "HKDF info = domain_tag.",
+            "AAD = domain_tag || Truncate(Hash(capsule header)) or the capsule header bytes themselves (bounded)."
+        ],
+        "testing": [
+            "Level-1 decrypt by delegator.",
+            "Rekey + level-2 decrypt by delegatee equals original plaintext.",
+            "Multi-hop chain test: A -> B -> C -> ... with consistent plaintext recovery at current owner.",
+            "Negative tests: wrong rekey, tampered capsule header, AAD mismatch, nonce reuse detection."
+        ]
+    },
+    "known_limitations": [
+        "Once a party has legitimately obtained the KEM key for a given ciphertext, the protocol cannot force them to 'forget' it; resale does not retroactively revoke prior decryption ability for already-received data.",
+        "On-chain pairing-heavy verification may be cost-prohibitive; the design may need minimized on-chain checks or proof-carrying capsules if full checks aren't feasible. This will only be known after implementation."
+    ],
+    "success_criteria": [
+        "End-to-end tests pass for Encrypt -> ReKey -> ReEnc -> Decapsulate across multiple hops.",
+        "Capsule/rekey/ciphertext fit within Cardano transaction size and cost budgets. This should be fine as we assume small messages like 'Hello, World!' for proof of concept.",
+        "All tag/signature verifications prevent generic malleability and unauthorized decapsulation.",
+        "Implementation adheres to unidirectional semantics and KEM/DEM binding rules."
+    ],
+    "open_questions": [
+        "Exact set of on-chain verifications feasible under Plutus cost model for BLS12-381 operations.",
+        "Preferred capsule/rekey byte-size budget per hop to target (e.g., ≤ 4-6 KB each).",
+        "Whether to include per-hop proxy signatures on-chain or compress via aggregate proof.",
+        "Is this truly possible on Cardano in a production setting."
+    ],
+    "next_actions": [
+        "Confirm PRE engine choice (e.g., libecc pre_schema1) and its Python binding availability.",
+        "Define precise serialization for capsule/rekey registers (hex, field names, chunking).",
+        "Lock HKDF/AAD transcript derivation (deterministic, domain-separated).",
+        "Prototype minimal e2e path (L1 encrypt, A->B rekey+reencrypt, B decrypt) in tests.",
+        "Benchmark capsule sizes and contract costs; iterate on on-chain validation strategy."
+    ]
+}

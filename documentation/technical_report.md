@@ -32,7 +32,7 @@ reference-section-title: Bibliography
 keywords:
   - encryption
   - decentralized systems
-  - proxy re-encryption
+  - re-encryption
   - ECIES
   - AES-GCM
 rights: © 2025 Logical Mechanism LLC. All rights reserved.
@@ -66,7 +66,7 @@ header-includes:
 
 # Abstract
 
-In this report, we introduce the PEACE protocol, an ECIES-based, multi-hop, bidirectional proxy re-encryption scheme for the Cardano blockchain. PEACE solves the encrypted-NFT problem by providing a decentralized, open-source protocol for transferable encryption rights, enabling creators, collectors, and developers to manage encrypted NFTs without relying on centralized decryption services. This work fills a significant gap in secure, private access to NFTs on Cardano. Project Catalyst[^fund] funded the PEACE protocol in fund 14.
+In this report, we introduce the PEACE protocol, an ECIES-based, multi-hop, bidirectional re-encryption scheme for the Cardano blockchain. PEACE solves the encrypted-NFT problem by providing a decentralized, open-source protocol for transferable encryption rights, enabling creators, collectors, and developers to manage encrypted NFTs without relying on centralized decryption services. This work fills a significant gap in secure, private access to NFTs on Cardano. Project Catalyst[^fund] funded the PEACE protocol in fund 14.
 
 [^fund]: https://projectcatalyst.io/funds/14/cardano-use-cases-concepts/decentralized-on-chain-data-encryption
 
@@ -76,7 +76,7 @@ The encrypted NFT problem is one of the most significant issues with current NFT
 
 There are several requirements for the protocol to function as intended. The encryption protocol must allow tradability of both the NFT itself and the right to decrypt the NFT data, implying that the solution must involve smart contracts and a form of encryption that allows data to be re-encrypted for another user without revealing the encrypted content in the process. The contract side of the protocol should be reasonably straightforward. The contract needs a way to price some the token where the datum holds the encrypted data and allow other users to purchase the token. To ensure decryptability, the tokens will need to be soulbound. On the encryption side of the protocol is some form of encryption that enables the process of re-encrypting the data to function correctly. Luckily, this type of encryption has been in cryptography research for quite some time [@mambo-okamoto-1997] [@blaze-bleumer-strauss-1998] [@ateniese-et-al-ndss2005]. There are even patented cloud-based solutions already in existence [@ironcore-recrypt-rs]. There is no open-source, fully on-chain, decentralized re-encryption protocol for encrypting NFT data on the Cardano blockchain. The PEACE protocol aims to solve this problem.
 
-The PEACE protocol will implement an ambitious yet well-defined, bidirectional, multi-hop proxy re-encryption scheme that utilizes ECIES [@ieee-1363a-2004] and AES [@fips-197]. Bidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt back to Alice. Bidirectionality is important for tradability, as there should be no restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that the data cannot be re-encrypted for some new user. Multi-hopping is also important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption mechanisms used in the protocol are considered industry standards at the time of this report.
+The PEACE protocol will implement an ambitious yet well-defined, bidirectional, multi-hop re-encryption scheme that utilizes ECIES [@ieee-1363a-2004] and AES [@fips-197]. Bidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt back to Alice. Bidirectionality is important for tradability, as there should be no restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that the data cannot be re-encrypted for some new user. Multi-hopping is also important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption mechanisms used in the protocol are considered industry standards at the time of this report.
 
 The remainder of this report is as follows. Section 4 discusses the preliminaries and background required for this project. Section 5 will be a brief overview of the required cryptographic primitives. Section 6 will be a detailed description of the protocol. Sections 7, 8, and 9 will delve into the security and threat analysis, and the limitations of the protocol, respectively. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
 
@@ -224,7 +224,54 @@ output $\ ($ $m'$, h' = h $\ )$
 
 Algorithm \ref{alg:encrypt-eciesaes} describes the case where a \texttt{Register} is used to generate the DEK, $k$, from the KDF function. Anyone with knowledge of $k$ may decrypt the ciphertext. The algorithm shown differs slightly from the PEACE protocol as the protocol allows transferring $k$ to another \texttt{Register}, but the general flow is the same. The key takeaway here is that a KDF is required to both encrypt a message and decrypt the ciphertext. Both algorithms \ref{alg:encrypt-eciesaes} and \ref{alg:decrypt-eciesaes} use a simple hash function for authentication. In the PEACE protocol, we will use AES-GCM with authenticated encryption with associated data (AEAD) for authentication.
 
-## Proxy Re-Encryption
+## Re-Encryption
+
+\begin{algorithm}[H]
+\caption{Owner-mediated re-encryption from Alice to Bob}
+\label{alg:reencrypt-alice-bob}
+
+\KwIn{
+  $(g, u_A)$ where $g \in \mathbb{G}_1$, $u_A = [x_A]g \in \mathbb{G}_1$ (Alice's public key),\\
+  $(u_B, v_B)$ where $u_B \in \mathbb{G}_1$, $v_B = [x_B]h \in \mathbb{G}_2$ (Bob's public keys),\\
+  $R_{\mathsf{msg}} = [s_{\mathsf{msg}}]g \in \mathbb{G}_1$ (fixed message capsule header),\\
+  $k_{\mathsf{msg}} \in \{0,1\}^\lambda$ (symmetric message key already in use),\\
+  $\mathsf{tag}_{\mathsf{key}}$ (domain separation tag for key capsules),\\
+  Alice's secret key $x_A \in \mathbb{Z}_n$
+}
+\KwOut{
+  Bob's key capsule $(R_{\mathsf{key}}, \mathsf{nonce}_{AB}, c_{AB}, \mathsf{aad}_{AB})$ and re-encryption key $\mathsf{rk}_{A \rightarrow B}$
+}
+
+\BlankLine
+
+select a random $s_{\mathsf{key}} \xleftarrow{\$} \mathbb{Z}_n$
+
+compute $R_{\mathsf{key}} = [s_{\mathsf{key}}] g$
+
+compute $S_{AB} = [s_{\mathsf{key}}] u_B \in \mathbb{G}_1$
+
+compute $\mathsf{kem\_key} = \mathsf{BLAKE2B}(S_{AB})$
+
+compute $\mathsf{salt}_{AB} = \mathsf{BLAKE2B}(R_{\mathsf{key}} \,\|\, R_{\mathsf{msg}} \,\|\, \mathsf{tag}_{\mathsf{key}})$
+
+derive $k_{AB} = \mathsf{HKDF}(\mathsf{kem\_key}, \mathsf{salt}_{AB}, \mathsf{tag}_{\mathsf{key}})$
+
+compute $\mathsf{h}_{\mathsf{key}} = \mathsf{BLAKE2B}(R_{\mathsf{key}})$ and $\mathsf{h}_{\mathsf{msg}} = \mathsf{BLAKE2B}(R_{\mathsf{msg}})$
+
+set $\mathsf{aad}_{AB} = \mathsf{h}_{\mathsf{key}} \,\|\, \mathsf{h}_{\mathsf{msg}} \,\|\, \mathsf{tag}_{\mathsf{key}}$
+
+select a random $\mathsf{nonce}_{AB} \in \{0,1\}^{96}$
+
+encrypt $c_{AB} = \mathsf{AES\mbox{-}GCM}_{k_{AB}}(k_{\mathsf{msg}}, \mathsf{nonce}_{AB}, \mathsf{aad}_{AB})$
+
+compute $x_A^{-1} \gets x_A^{-1} \bmod n$
+
+compute $\mathsf{rk}_{A \rightarrow B} = [x_A^{-1}] v_B \in \mathbb{G}_2$
+
+\KwRet{$(R_{\mathsf{key}}, \mathsf{nonce}_{AB}, c_{AB}, \mathsf{aad}_{AB})$, $\mathsf{rk}_{A \rightarrow B}$}
+
+\end{algorithm}
+
 
 # Protocol Overview
 
