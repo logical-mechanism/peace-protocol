@@ -120,7 +120,9 @@ Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimizat
 
 # Cryptographic Primitives Overview
 
-This section provides brief explanations of the cryptographic primitives required by the protocol. Where applicable, an algorithm describing the primitives will be in its respective algorithm segment. The \texttt{Register} type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the $\mathbb{G}_1$ and $\mathbb{G}_1$ points are a given. Proofs for many algorithms are in Appendix A. In any algorithm, either $\mathbb{G}_{1}$ or $\mathbb{G}_{2}$ may be used in the algorithm.
+This section provides brief explanations of the cryptographic primitives required by the protocol. If a primitive has an algorithmic description, then it should be included in the respective section. The \texttt{Register} type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the $\mathbb{G}_1$ points is a given. Proofs for many algorithms are in Appendix A. In any algorithm, $\mathbb{G}_{1}$ may be switched with $\mathbb{G}_{1}$ without any required changes.
+
+## Register-based
 
 There may be instances where we need to create a new \texttt{Register} from an existing \texttt{Register} [@ergo-sigma-join] via a re-randomization. The random integer $\delta'$ is considered toxic waste. Randomization allows a public register to remain stealthy, which can be beneficial for data privacy and ownership.
 
