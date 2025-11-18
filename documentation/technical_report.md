@@ -240,7 +240,7 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
 
 \KwIn{
   $(g, u_A)$ where $g \in \mathbb{G}_1$, $u_A = [x_A]g \in \mathbb{G}_1$ (Alice's public key),\\
-  $(u_B, v_B)$ where $u_B \in \mathbb{G}_1$, $v_B = [x_B]h \in \mathbb{G}_2$ (Bob's public keys),\\
+  $(u_B, v_B)$ where $u_B = [x_B]g \in \mathbb{G}_1$, $v_B = [x_B]h \in \mathbb{G}_2$ (Bob's public keys),\\
   $R_{\mathsf{msg}} = [s_{\mathsf{msg}}]g \in \mathbb{G}_1$ (fixed message capsule header),\\
   $k_{\mathsf{msg}} \in \{0,1\}^\lambda$ (symmetric message key already in use),\\
   $\mathsf{tag}_{\mathsf{key}}$ (domain separation tag for key capsules),\\
@@ -252,33 +252,27 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
 
 \BlankLine
 
-select a random $s_{\mathsf{key}} \xleftarrow{\$} \mathbb{Z}_n$
+select a random $s_{\mathsf{key}} \xleftarrow{\$} \mathbb{Z}_n$\\
+compute $R_{\mathsf{key}} = [s_{\mathsf{key}}] g$\\
+compute $S_{AB} = [s_{\mathsf{key}}] u_B \in \mathbb{G}_1$\\
+compute $\mathsf{kem\_key} = \mathsf{BLAKE2B}(\mathsf{enc}(S_{AB}))$\\[4pt]
 
-compute $R_{\mathsf{key}} = [s_{\mathsf{key}}] g$
+compute $\mathsf{salt}_{AB} = \mathsf{BLAKE2B}(\mathsf{enc}(R_{\mathsf{key}}) \,\|\, \mathsf{enc}(R_{\mathsf{msg}}) \,\|\, \mathsf{tag}_{\mathsf{key}})$\\
+derive $k_{AB} = \mathsf{HKDF}_{\mathsf{SHA3\mbox{-}256}}(\mathsf{kem\_key}, \mathsf{salt}_{AB}, \mathsf{tag}_{\mathsf{key}})$\\[4pt]
 
-compute $S_{AB} = [s_{\mathsf{key}}] u_B \in \mathbb{G}_1$
+compute $\mathsf{h}_{\mathsf{key}} = \mathsf{BLAKE2B}(\mathsf{enc}(R_{\mathsf{key}}))$ and $\mathsf{h}_{\mathsf{msg}} = \mathsf{BLAKE2B}(\mathsf{enc}(R_{\mathsf{msg}}))$\\
+set $\mathsf{aad}_{AB} = \mathsf{h}_{\mathsf{key}} \,\|\, \mathsf{h}_{\mathsf{msg}} \,\|\, \mathsf{tag}_{\mathsf{key}}$\\[4pt]
 
-compute $\mathsf{kem\_key} = \mathsf{BLAKE2B}(S_{AB})$
+select a random $\mathsf{nonce}_{AB} \xleftarrow{\$} \{0,1\}^{96}$\\
+encrypt $c_{AB} = \mathsf{AES\mbox{-}GCM}_{k_{AB}}(k_{\mathsf{msg}}, \mathsf{nonce}_{AB}, \mathsf{aad}_{AB})$\\[4pt]
 
-compute $\mathsf{salt}_{AB} = \mathsf{BLAKE2B}(R_{\mathsf{key}} \,\|\, R_{\mathsf{msg}} \,\|\, \mathsf{tag}_{\mathsf{key}})$
+compute $x_A^{-1} \gets x_A^{-1} \bmod n$\\
+compute $\mathsf{rk}_{A \rightarrow B} = [x_A^{-1}] v_B \in \mathbb{G}_2$\\[4pt]
 
-derive $k_{AB} = \mathsf{HKDF}(\mathsf{kem\_key}, \mathsf{salt}_{AB}, \mathsf{tag}_{\mathsf{key}})$
-
-compute $\mathsf{h}_{\mathsf{key}} = \mathsf{BLAKE2B}(R_{\mathsf{key}})$ and $\mathsf{h}_{\mathsf{msg}} = \mathsf{BLAKE2B}(R_{\mathsf{msg}})$
-
-set $\mathsf{aad}_{AB} = \mathsf{h}_{\mathsf{key}} \,\|\, \mathsf{h}_{\mathsf{msg}} \,\|\, \mathsf{tag}_{\mathsf{key}}$
-
-select a random $\mathsf{nonce}_{AB} \in \{0,1\}^{96}$
-
-encrypt $c_{AB} = \mathsf{AES\mbox{-}GCM}_{k_{AB}}(k_{\mathsf{msg}}, \mathsf{nonce}_{AB}, \mathsf{aad}_{AB})$
-
-compute $x_A^{-1} \gets x_A^{-1} \bmod n$
-
-compute $\mathsf{rk}_{A \rightarrow B} = [x_A^{-1}] v_B \in \mathbb{G}_2$
-
-\KwRet{$(R_{\mathsf{key}}, \mathsf{nonce}_{AB}, c_{AB}, \mathsf{aad}_{AB})$, $\mathsf{rk}_{A \rightarrow B}$}
+\KwRet{$(R_{\mathsf{key}}, \mathsf{nonce}_{AB}, c_{AB}, \mathsf{aad}_{AB}),\ \mathsf{rk}_{A \rightarrow B}$}
 
 \end{algorithm}
+
 
 Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption process for Alice, giving the decryption rights to Bob.
 
