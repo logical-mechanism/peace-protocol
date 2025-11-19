@@ -362,6 +362,14 @@ The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn}
 
 ## Key Management And Identity
 
+Each user in the protocol has a long-term BLS12-381 keypair represented by \texttt{Register} values in both $\mathbb{G}{1}$ and $\mathbb{G}{2}$. The $\mathbb{G}{1}$ is used as the user's on-chain identity for encryption and signature verification. The $\mathbb{G}{2}$ is used for zero-knowledge and re-encryption-related checks. The corresponding secret scalar $x \in \mathbb{Z}_n$ is held off-chain by the user's wallet or client software and is never published on-chain. These long-term keys should be stable over many trades. A \texttt{Register} as an on-chain identity can be constant or randomized. If constant, a user and \texttt{Register} are linked; otherwise, the user is anonymous. The PEACE protocol allows for stealthy encryption.
+
+The BLS12-381 keys used for encryption and re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both: Ed25519 keys to authorize UTxO spending, and BLS12-381 scalars to obtain and delegate decryption rights. Losing the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
+
+The proof-of-concept does not implement a full key rotation or revocation mechanism. If a user's long-term BLS12-381 secret key is compromised, an attacker can decrypt all current and future capsules addressed to that key, but cannot retroactively remove or alter on-chain history. Handling key rotation, partial recovery, and revocation across many encrypted positions is left as future work for a production deployment.
+
+For each encrypted item, the protocol derives or samples a fresh symmetric key $k_msg$ for AES-GCM encryption of the actual payload. This key is not stored on-chain; only its ciphertext and associated data are stored in the re-encryption datum. Each re-encryption hop (e.g., Alice $\rightarrow$ Bob) introduces a fresh ephemeral Diffie–Hellman secret and a derived wrapping key $k_{AB}$ that is used only to encrypt $k_msg$ for that specific hop. The on-chain capsule contains the public header $R_key$, the AES-GCM nonce, ciphertext, and associated data. These per-hop keys are never stored on-chain.
+
 ## Protocol Specification
 
 # Security Model
