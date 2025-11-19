@@ -294,7 +294,7 @@ The protocol will use an owner-mediated re-encryption flow (hybrid PRE), which i
 
 ## On-Chain And Off-Chain Architecture
 
-There will be two user focused smart contracts, one for hanlding re-encryption and the other to hold bids for a sale. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract and current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality a reference data contract must exist as it will allow the circular dependency problem to be circumvented. The reference datum will contain the contract script hashes for the re-encryption and bid contracts.
+There will be two user-focused smart contracts: one for re-encryption and the other for bid storage during a sale. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the contract script hashes for the re-encryption and bid contracts.
 
 The bid contract structure:
 ```rust
@@ -306,7 +306,7 @@ pub type BidDatum {
 }
 ```
 
-The bid datum contains all of the required information for re-encryption. The owner of a bid will be type \texttt{Register} both in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. The \texttt{pointer} is the NFT name on the bid UTxO and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} is used here to assign the bid to a specific token.
+The bid datum contains all of the required information for re-encryption. The owner of a bid will be type \texttt{Register} both in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. The \texttt{pointer} is the NFT name on the bid UTxO, and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} forces the bid to apply only to a specific token.
 
 ```rust
 pub type BidMintRedeemer {
@@ -321,7 +321,7 @@ pub type BidSpendRedeemer {
 }
 ```
 
-Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} existence check, and a BLS signature using \texttt{owner\_g1} and \texttt{owner\_g2}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. When a user selects a bid they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
+Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} existence check, and a BLS signature using \texttt{owner\_g1} and \texttt{owner\_g2}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
 
 The re-encryption contract structure:
 ```rust
@@ -340,7 +340,7 @@ pub type Capsule {
 }
 ```
 
-The re-encryption datum contains all of the required information for decryption. The owner of a bid will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} is holds the information for decryption. Inside of the capsule is the encrypted data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
+The re-encryption datum contains all of the required information for decryption. The owner of a bid will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the decryption information. Inside the capsule is the encrypted data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
 
 ```rust
 pub type EncryptionMintRedeemer {
@@ -355,7 +355,7 @@ pub type ReputationSpendRedeemer {
 }
 ```
 
-Enter into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, and a BLS signature using \texttt{owner\_g1} and \texttt{owner\_g2} from the entry redeemer. Leaving the re-encryption contract requires using \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers together, triggering a \texttt{token} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. When a user selects a bid they will use \texttt{UseEncryption}, triggering a the proxy re-encryption validation.
+Enter into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, and a BLS signature using \texttt{owner\_g1} and \texttt{owner\_g2} from the entry redeemer. Leaving the re-encryption contract requires using \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers together, triggering a \texttt{token} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. When a user selects a bid, they will use \texttt{UseEncryption}, triggering the proxy re-encryption validation.
 
 The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn} must be used together during re-encryption.
 
