@@ -282,7 +282,17 @@ The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encrypt
 
 ## Design Goals And Requirements
 
+Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction building, cryptographic proof generation, and the usage script flow. The design on both sides will focus on a two-party system: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof of concept, the protocol will not include the general n-party system, as that is future work for a real-world production setting.
+
+The protocol must allow continuous trading via multi-hop trading, meaning that Alice will trade with Bob, who could then trade with Carol. In this setting, Bob will trade back to Alice rather than to Carol without any loss of generality. Each hop will generate new hop data, the owner, and decryption data for the new owner. The storage of previous hop data should not be required. A user may choose not to trade their token by simply selecting no bids for it.
+
+The encryption direction needs to flow in one direction per hop. Alice trades with Bob, and that is the end of their transaction. Bob does not gain any ability to re-encrypt this data back to Alice without a proper bid, basically restarting the re-encryption process. Any bidirectionality here implies symmetry between Alice and Bob, thereby circumventing the re-encryption requirement for trading. The unidirectional requirement forces tradability to follow the typical trading interactions currently found on the Cardano blockchain.
+
+Each UTxO in this system must be uniquely identified via an NFT. The uniqueness requirement works well for the encryption side because the NFT could be a tokenized representation of the encrypted data, something akin to a CIP68 [@ CIP-68] contract, but using a single token. The bid side does work, but the token becomes a pointer rather than having any real data attached, essentially a unique, one-time-use token. Together, they provide the correct uniqueness requirement. UTxOs may be removable at any time by the owner. After the trade, the user owns the encrypted data and may do as they please with it. The protocol does not require the re-encryption contract to store the encrypted data permanently.
+
 ## On-Chain And Off-Chain Architecture
+
+There will be two smart contracts, one for hanlding re-encryption and the other to hold bids for a sale. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the big contract and current owner of the encrypted data may select it as payment for re-encryption.
 
 ## Key Management And Identity
 
