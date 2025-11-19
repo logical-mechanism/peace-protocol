@@ -278,6 +278,8 @@ Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption proce
 
 # Protocol Overview
 
+The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The overview for the protocol should be viewed as a proof of concept, as the data storage layer for the protocol is the Cardano blockchain; thus, ultimately, the storage limit, the maximum size of the encrypted data and required decryption data, is bound by the current parameters of the Cardano blockchain.
+
 ## Design Goals And Requirements
 
 ## On-Chain And Off-Chain Architecture
