@@ -294,7 +294,61 @@ The protocol will use an owner-mediated re-encryption flow (hybrid PRE), which i
 
 ## On-Chain And Off-Chain Architecture
 
-There will be two smart contracts, one for hanlding re-encryption and the other to hold bids for a sale. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the big contract and current owner of the encrypted data may select it as payment for re-encryption.
+There will be two user focused smart contracts, one for hanlding re-encryption and the other to hold bids for a sale. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract and current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality a reference data contract must exist as it will allow the circular dependency problem to be circumvented. The reference datum will contain the contract script hashes for the re-encryption and bid contracts.
+
+The bid contract structure:
+```rust
+pub type BidDatum {
+  owner_g1: Register,
+  owner_g2: Register,
+  pointer: AssetName,
+  token: AssetName,
+}
+```
+
+The bid datum contains all of the required information for re-encryption. The owner of a bid will be type \texttt{Register} both in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. The \texttt{pointer} is the NFT name on the bid UTxO and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} is used here to assign the bid to a specific token.
+
+```rust
+pub type BidMintRedeemer {
+  EntryBidMint
+  LeaveBidBurn(AssetName)
+}
+
+pub type BidSpendRedeemer {
+  RemoveBid
+  UseBid
+}
+```
+
+Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a texttt{pointer} mint validation, a \texttt{token} existence check, and a BLS signature using \texttt{owner_g1} and \texttt{owner_g2}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a texttt{pointer} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner_g1}. When a user selects a bid they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a texttt{pointer} burn validation and the proxy re-encryption validation.
+
+The re-encryption contract structure:
+```rust
+pub type EncryptionDatum {
+  owner_g1: Register,
+  token: AssetName,
+  capsule: Capsule,
+}
+
+pub type Capsule {
+  nonce: ByteArray,
+  cipher: ByteArray,
+  aad: ByteArray,
+  r_key: ByteArray,
+}
+```
+
+```rust
+pub type EncryptionMintRedeemer {
+  EntryEncryptionMint
+  LeaveEncryptionBurn(AssetName)
+}
+
+pub type ReputationSpendRedeemer {
+  RemoveEncryption
+  UseEncryption
+}
+```
 
 ## Key Management And Identity
 
