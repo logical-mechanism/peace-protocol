@@ -313,14 +313,15 @@ pub type BidMintRedeemer {
   EntryBidMint
   LeaveBidBurn(AssetName)
 }
-
+```
+```rust
 pub type BidSpendRedeemer {
   RemoveBid
   UseBid
 }
 ```
 
-Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a texttt{pointer} mint validation, a \texttt{token} existence check, and a BLS signature using \texttt{owner_g1} and \texttt{owner_g2}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a texttt{pointer} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner_g1}. When a user selects a bid they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a texttt{pointer} burn validation and the proxy re-encryption validation.
+Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} existence check, and a BLS signature using \texttt{owner\_g1} and \texttt{owner\_g2}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. When a user selects a bid they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
 
 The re-encryption contract structure:
 ```rust
@@ -329,26 +330,35 @@ pub type EncryptionDatum {
   token: AssetName,
   capsule: Capsule,
 }
-
+```
+```rust
 pub type Capsule {
-  nonce: ByteArray,
   cipher: ByteArray,
+  nonce: ByteArray,
   aad: ByteArray,
   r_key: ByteArray,
 }
 ```
 
+The re-encryption datum contains all of the required information for decryption. The owner of a bid will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} is holds the information for decryption. Inside of the capsule is the encrypted data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
+
 ```rust
 pub type EncryptionMintRedeemer {
-  EntryEncryptionMint
+  EntryEncryptionMint(Register)
   LeaveEncryptionBurn(AssetName)
 }
-
+```
+```rust
 pub type ReputationSpendRedeemer {
   RemoveEncryption
   UseEncryption
 }
 ```
+
+Enter into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, and a BLS signature using \texttt{owner\_g1} and \texttt{owner\_g2} from the entry redeemer. Leaving the re-encryption contract requires using \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers together, triggering a \texttt{token} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. When a user selects a bid they will use \texttt{UseEncryption}, triggering a the proxy re-encryption validation.
+
+The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn} must be used together during re-encryption.
+
 
 ## Key Management And Identity
 
