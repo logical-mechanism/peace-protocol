@@ -282,21 +282,21 @@ The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encrypt
 
 ## Design Goals And Requirements
 
-Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction building, cryptographic proof generation, and the usage script flow. The design on both sides will focus on a two-party system: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof of concept, the protocol will not include the general n-party system, as that is future work for a real-world production setting.
+Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction building, cryptographic proof generation, and the happy path flow. The design on both sides will focus on a two-party system: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof of concept, the protocol will not include the general n-party system, as that is future work for a real-world production setting.
 
-The protocol must allow continuous trading via multi-hop trading, meaning that Alice will trade with Bob, who could then trade with Carol. In this setting, Bob will trade back to Alice rather than to Carol without any loss of generality. Each hop will generate new hop data, the owner and decryption data, for the new owner. The storage of previous hop data should not be required. Users will use a basic bid system for token trading. A user may choose not to trade their token by simply not selecting a bid.
+The protocol must allow continuous trading via multi-hop trading, meaning that Alice will trade with Bob, who could then trade with Carol. In this setting, Alice will trade to bob then Bob will trade back to Alice rather than to Carol without any loss of generality. Each hop will generate new owner and decryption data. The storage of previous hop data should not be required. Users will use a basic bid system for token trading. A user may choose not to trade their token by simply not selecting a bid.
 
-The encryption direction needs to flow in one direction per hop. Alice trades with Bob, and that is the end of their transaction. Bob does not gain any ability to re-encrypt this data back to Alice without a proper bid, basically restarting the re-encryption process. Any bidirectionality here implies symmetry between Alice and Bob, thereby circumventing the re-encryption requirement for trading. The unidirectional requirement forces tradability to follow the typical trading interactions currently found on the Cardano blockchain.
+The encryption direction needs to flow in one direction per hop. Alice trades with Bob, and that is the end of their transaction. Bob does not gain any ability to re-encrypt the data back to Alice without a new bid made by Alice, basically restarting the re-encryption process. Any bidirectionality here implies symmetry between Alice and Bob, thereby circumventing the re-encryption requirement via token trading. The unidirectional requirement forces tradability to follow the typical trading interactions currently found on the Cardano blockchain.
 
-Each UTxO in this system must be uniquely identified via an NFT. The uniqueness requirement works well for the encryption side because the NFT could be a tokenized representation of the encrypted data, something akin to a CIP68 [@CIP-68] contract, but using a single token. The bid side does work, but the token becomes a pointer rather than having any real data attached, essentially a unique, one-time-use token. Together, they provide the correct uniqueness requirement. UTxOs may be removable at any time by the owner. After the trade, the user owns the encrypted data and may do with it as they please. The protocol does not require the re-encryption contract to store the encrypted data permanently.
+Each UTxO in this system must be uniquely identified via an NFT. The uniqueness requirement works well for the encryption side because the NFT could be a tokenized representation of the encrypted data, something akin to a CIP68 [@CIP-68] contract, but using a single token. The bid side does work, but the token becomes a pointer rather than having any real data attached, essentially a unique, one-time-use token. Together, they provide the correct uniqueness requirement. UTxOs may be remvoed from the contract at any time by the owner. After the trade, the user owns the encrypted data may do whatever they want with that data. The protocol does not require the re-encryption contract to store the encrypted data permanently.
 
-The protocol will use an owner-mediated re-encryption flow (hybrid PRE), which is UX-equivalent to a classical proxy re-encryption scheme in this setting, since smart contracts on Cardano are passive validators and do not initiate actions. Ultimately, a user must act as the proxy, the one doing the re-encryption, because the contract cannot do it on its own. The smart contract must act as the proxy's validator, not solely as the proxy itself. To simplify the proof of concept, the owner will act as their own proxy in the protocol.
+The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which is UX-equivalent to a classical proxy re-encryption scheme in this setting, since smart contracts on Cardano are passive validators and do not initiate actions. Ultimately, a user must act as the proxy, the one doing the re-encryption, because the contract cannot do it on its own. The smart contract must act as the proxy's validator, not solely as the proxy itself. To simplify this proof of concept implementation, the owner will act as their own proxy in the protocol.
 
 ## On-Chain And Off-Chain Architecture
 
-There will be two user-focused smart contracts: one for re-encryption and the other for bid storage during a sale. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the contract script hashes for the re-encryption and bid contracts.
+There will be two user-focused smart contracts: one for re-encryption and the other for bid management. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the contract script hashes for the re-encryption and bid contracts.
 
-The bid contract structure:
+The bid contract data structure:
 ```rust
 pub type BidDatum {
   owner_g1: Register,
@@ -306,7 +306,7 @@ pub type BidDatum {
 }
 ```
 
-The bid datum contains all of the required information for re-encryption. The owner of a bid will be type \texttt{Register} both in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. The \texttt{pointer} is the NFT name on the bid UTxO, and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} forces the bid to apply only to a specific token.
+The bid datum contains all of the required information for re-encryption. The owner of a bid UTxO will be type \texttt{Register} both in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. The \texttt{pointer} is the NFT name on the bid UTxO, and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} forces the bid to apply only to a specific token.
 
 ```rust
 pub type BidMintRedeemer {
@@ -323,7 +323,7 @@ pub type BidSpendRedeemer {
 
 Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} existence check, and a BLS signature using \texttt{owner\_g1} and \texttt{owner\_g2}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
 
-The re-encryption contract structure:
+The re-encryption contract data structure:
 ```rust
 pub type EncryptionDatum {
   owner_g1: Register,
@@ -340,7 +340,7 @@ pub type Capsule {
 }
 ```
 
-The re-encryption datum contains all of the required information for decryption. The owner of a bid will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the decryption information. Inside the capsule is the encrypted data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
+The re-encryption datum contains all of the required information for decryption. The owner of an encrypted data UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the decryption information. Inside the capsule is the encrypted data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
 
 ```rust
 pub type EncryptionMintRedeemer {
