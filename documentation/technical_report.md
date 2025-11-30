@@ -104,7 +104,7 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $q: A fixed generator in \mathbb{G}_{2}$ |
 | $R$ | The Fiat-Shamir transformer |
 | $H_{\kappa}$ | A hash to group function for $\mathbb{G}_{\kappa}$ |
-| $m$ | The order of Curve25519 |
+| $m$ | The order of Ed25519 |
 | $\gamma$ | A non-zero integer in $\mathbb{Z}_{m}$ |
 
 The protocol, including both on-chain and off-chain components, will heavily utilize the \texttt{Register} type. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over subgroups, $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
@@ -336,19 +336,19 @@ pub type EncryptionDatum {
   owner_g1: Register,
   token: AssetName,
   ciphertext: Capsule,
-  capsule: Capsule,
+  envelope: Capsule,
 }
 ```
 ```rust
 pub type Capsule {
-  cipher: ByteArray,
+  ct: ByteArray,
   nonce: ByteArray,
   aad: ByteArray,
   r_key: ByteArray,
 }
 ```
 
-The re-encryption datum contains all of the required information for decryption. The owner of an encrypted data UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{ciphertext} contains the encryption information and the \texttt{capsule} contains the decryption information. Inside the \texttt{capsule} is the encrypted DEK data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
+The re-encryption datum contains all of the required information for decryption. The owner of an encrypted data UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{ciphertext} contains the encryption information and the \texttt{envelope} contains the decryption information. Inside the \texttt{envelope} is the encrypted DEK data, \texttt{ct}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
 
 ```rust
 pub type EncryptionMintRedeemer {
@@ -372,7 +372,7 @@ The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn}
 
 Each user in the protocol has a long-term BLS12-381 keypair represented by \texttt{Register} values in both $\mathbb{G}{1}$ and $\mathbb{G}{2}$. The $\mathbb{G}{1}$ is used as the user's on-chain identity for encryption and signature verification. The $\mathbb{G}{2}$ is used for zero-knowledge and re-encryption-related checks. The corresponding secret scalar $x \in \mathbb{Z}_n$ is held off-chain by the user's wallet or client software and is never published on-chain. These long-term keys should be stable over many trades. A \texttt{Register} as an on-chain identity can be constant or randomized. If constant, a user and \texttt{Register} are linked; otherwise, the user is anonymous. The PEACE protocol allows for stealthy encryption.
 
-The BLS12-381 keys used for encryption and re-encryption are logically separate from the Curve25519 keys used to sign Cardano transactions. A wallet must manage both: Curve25519 keys to authorize UTxO spending, and BLS12-381 scalars to obtain and delegate decryption rights. Losing the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
+The BLS12-381 keys used for encryption and re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both: Ed25519 keys to authorize UTxO spending, and BLS12-381 scalars to obtain and delegate decryption rights. Losing the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
 
 The proof-of-concept does not implement a full key rotation or revocation mechanism. If a user's long-term BLS12-381 secret key is compromised, an attacker can decrypt all current and future capsules addressed to that key, but cannot retroactively remove or alter on-chain history. Handling key rotation, partial recovery, and revocation across many encrypted positions is left as future work for a production deployment.
 
@@ -380,7 +380,7 @@ For each encrypted item, the protocol generates a fresh symmetric key $k_{msg}$ 
 
 ## Protocol Specification
 
-The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used in the ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in both $\mathbb{G}{1}$ and $\mathbb{G}{2}$ using the fixed generators, $g$, and $q$ respectively. Alice will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for both the change UTxO and the contract UTxO, and the transaction fee. Alice may then build the entry to the re-encryption contract transaction.
+The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in both $\mathbb{G}{1}$ and $\mathbb{G}{2}$ using the fixed generators, $g$, and $q$ respectively. Alice will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for both the change UTxO and the contract UTxO, and the transaction fee. Alice may then build the entry to the re-encryption contract transaction.
 
 The entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the code and example below. The specification for the protocol assumes a single input but in general many inputs may be used in this transaction. If more than one input exists then the first lexicographical sorted input will be used for the name generation.
 
@@ -401,7 +401,7 @@ input = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef#24"
 token_name = "181234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
 ```
 
-Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{ciphertext} and \texttt{capsule}. Since Alice is the first owner, she will encrypt to herself. This will force the required Lovelace for some given encrypted message to remain constant, meaning new owners do not have to contribute to the minimum required Lovelace for the encrypted data. 
+Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{ciphertext} and \texttt{envelope}. Since Alice is the first owner, she will encrypt to herself. This will force the required Lovelace for some given encrypted message to remain constant, meaning new owners do not have to contribute to the minimum required Lovelace for the encrypted data. 
 
 Alice will encrypt the original data by generating a \texttt{Register} in $\mathbb{G}{1}$ and will produce a shared secret with her own public value. The shared secret will be used to derive the KEM used in the KDF to produce a valid AES key. Now the message may be encrypted use AESGCM. The resulting information is stored in the \texttt{Capsule} type for the \texttt{ciphertext} field. Below is a pythonic psuedocode for generating the original encrypted data.
 
@@ -419,14 +419,14 @@ ciphertext = aesgcm.encrypt(nonce, message, aad)
 
 ```rust
 pub type Capsule {
-  cipher: ciphertext,
+  ct: ciphertext,
   nonce,
   aad,
   r_key: r.u,
 }
 ```
 
-Now that the original data is encrypted, alice can then re-encrypt the encrypted data to herself to generate the \texttt{capsule} field. Alice will generate a new random \texttt{Register} and will following the encryption pattern from the \texttt{ciphertext} field. Below is a pythonic psuedocode for generating the decryption capsule data.
+Now that the original data is encrypted, alice can then re-encrypt the encrypted data to herself to generate the \texttt{envelope} field. Alice will generate a new random \texttt{Register} and will following the encryption pattern from the \texttt{ciphertext} field but instead of encrypting the message, she will encrypt the aes key. Below is a pythonic psuedocode for generating the decryption capsule data.
 
 ```py
 r = random_register()
@@ -442,14 +442,14 @@ self_ct_key = aesgcm.encrypt(self_nonce, aes_key, self_aad)
 
 ```rust
 pub type Capsule {
-  cipher: self_ct_key,
+  ct: self_ct_key,
   nonce: self_nonce,
   aad: self_aad,
   r_key: r.u,
 }
 ```
 
-Alice can prove to herself that the encryption is valid by verifying
+Alice can prove to herself that the encryption is valid by verifying the pairing below.
 
 ```py
 inv = pow(alice.x, -1, curve_order)
@@ -465,13 +465,13 @@ pub type EncryptionDatum {
   owner_g1,
   token: generate_token_name(inputs),
   ciphertext: Capsule {
-    cipher: ciphertext,
+    ct: ciphertext,
     nonce,
     aad,
     r_key: r.u,
   },
   capsule: Capsule {
-    cipher: self_ct_key,
+    ct: self_ct_key,
     nonce: self_nonce,
     aad: self_aad,
     r_key: r.u,
@@ -479,7 +479,7 @@ pub type EncryptionDatum {
 }
 ```
 
-The entry redeemer verifies that Alice's verification key (Curve25519 key) is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol. Alice needs this to decrypt her own data. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
+The entry redeemer verifies that Alice's verification key (Ed25519 key hash) is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol. Alice needs this to decrypt her own data. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
 
 Bob will now place a bid into the bid contract. Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vk} but instead of verifying only the \texttt{Register} values in $\mathbb{G}{1}$, a BLS signature is used to verify both the \texttt{Register} values in $\mathbb{G}{1}$ and $\mathbb{G}{2}$. This is important as the validity of these points will determine if Bob can decrypt the data. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one may be selected by Alice for the re-encryption process. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary adjustments. Bob may remove his bid at any time.
 
