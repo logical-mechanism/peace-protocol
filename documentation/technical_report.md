@@ -479,15 +479,32 @@ pub type EncryptionDatum {
 }
 ```
 
-The entry redeemer verifies that Alice's verification key (Ed25519 key hash) is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol. Alice needs this to decrypt her own data. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
+The entry redeemer verifies that Alice's verification key (Ed25519 key hash) is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol \ref{alg:schnorrsig} as Alice needs this to decrypt her own data. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
 
 Bob may now place a bid into the bid contract in an attempt to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarily to Alice, the secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in both $\mathbb{G}{1}$ and $\mathbb{G}{2}$ using the fixed generators, $g$, and $q$ respectively. Bob will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for both the change UTxO and the contract UTxO, and the transaction fee. Bob may then build the entry to the bid contract transaction.
 
 The structure of the bid entry transaction is similar to the re-encryption entry transaction but using \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The \texttt{pointer} token name is generated in the exact some way as the \texttt{token} name.
 
+Now, Bob can create the \texttt{BidDatum}. The \texttt{token} name may be referenced on-chain from the re-encryption contract and the \texttt{pointer} is derived from the inputs.
 
-Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} but instead of just verifying the \texttt{Register} values in $\mathbb{G}{1}$, a BLS-style proof is used to verify both the \texttt{Register} values in $\mathbb{G}{1}$ and $\mathbb{G}{2}$. This is important as the validity of these points will determine if Bob can decrypt the data. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register} data. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
 
+```rust
+pub type BidDatum {
+  owner_vkh,
+  owner_g1,
+  owner_g2,
+  pointer: generate_token_name(inputs),
+  token,
+}
+```
+
+The BLS-style proof here is an equivalence check between \texttt{owner\_g1} and \texttt{owner\_g2}. When combined with a Schnorr $\Sigma$-protocol these prove both knowledge of the owners secret and that the relationship, $ u = g^{x}$ holds between the different subgroups.
+
+```bash
+e(owner_g1.g, owner_g2.u) == e(owner_g1.u, owner_g2.g)
+```
+
+Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} but instead of just verifying the \texttt{Register} values in $\mathbb{G}{1}$, a BLS-style proof is used to verify both the \texttt{Register} values in $\mathbb{G}{1}$ and $\mathbb{G}{2}$ as shown aboce. This is important as the validity of these points will determine if Bob can decrypt the data. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register} data. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
 
 
 Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs for the capsule hand off. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings between the original owner's \texttt{Register} values in $\mathbb{G}{1}$ and the new owner's \texttt{Register} values in $\mathbb{G}{2}$, proving that the new owner's \texttt{Register} was used during the re-encryption process, resulting in a transfer of ownership and decryption rights. Bob now owns the data and may remove his encrypted data at any time.
