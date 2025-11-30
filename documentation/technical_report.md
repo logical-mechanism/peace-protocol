@@ -100,6 +100,8 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $\mathbb{G}_{2}$ | A subgroup of order $r$ of the twist $E'(\mathbb{F}_{p^{2}})$ |
 | $\mathbb{G}_{T}$ | The multiplicative target group of the pairing: $\mu_r \subset \mathbb{F}_{p^{12}}^{\*}$ |
 | $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A type-3 bilinear pairing |
+| $g: A fixed generator in \mathbb{G}_{1}$ |
+| $q: A fixed generator in \mathbb{G}_{2}$ |
 | $R$ | The Fiat-Shamir transformer |
 | $H_{\kappa}$ | A hash to group function for $\mathbb{G}_{\kappa}$ |
 | $m$ | The order of Curve25519 |
@@ -369,7 +371,7 @@ The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn}
 
 Each user in the protocol has a long-term BLS12-381 keypair represented by \texttt{Register} values in both $\mathbb{G}{1}$ and $\mathbb{G}{2}$. The $\mathbb{G}{1}$ is used as the user's on-chain identity for encryption and signature verification. The $\mathbb{G}{2}$ is used for zero-knowledge and re-encryption-related checks. The corresponding secret scalar $x \in \mathbb{Z}_n$ is held off-chain by the user's wallet or client software and is never published on-chain. These long-term keys should be stable over many trades. A \texttt{Register} as an on-chain identity can be constant or randomized. If constant, a user and \texttt{Register} are linked; otherwise, the user is anonymous. The PEACE protocol allows for stealthy encryption.
 
-The BLS12-381 keys used for encryption and re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both: Ed25519 keys to authorize UTxO spending, and BLS12-381 scalars to obtain and delegate decryption rights. Losing the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
+The BLS12-381 keys used for encryption and re-encryption are logically separate from the Curve25519 keys used to sign Cardano transactions. A wallet must manage both: Curve25519 keys to authorize UTxO spending, and BLS12-381 scalars to obtain and delegate decryption rights. Losing the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
 
 The proof-of-concept does not implement a full key rotation or revocation mechanism. If a user's long-term BLS12-381 secret key is compromised, an attacker can decrypt all current and future capsules addressed to that key, but cannot retroactively remove or alter on-chain history. Handling key rotation, partial recovery, and revocation across many encrypted positions is left as future work for a production deployment.
 
@@ -377,7 +379,9 @@ For each encrypted item, the protocol generates a fresh symmetric key $k_{msg}$ 
 
 ## Protocol Specification
 
-The protocol flow starts with Alice selecting a secret $[\delta]$   creating an entry in the re-encryption contract with a \texttt{token} mint. This involves validating the required keys and generating valid capsule information. For maximum privacy, Alice will generate a new \texttt{VerificationKeyHash}
+The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate the \texttt{VerificationKeyHash} used in the ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in both $\mathbb{G}{1}$ and $\mathbb{G}{2}$ using fixed generators.
+
+creating an entry in the re-encryption contract with a \texttt{token} mint. This involves validating the required keys and generating valid capsule information. For maximum privacy, Alice will generate a new \texttt{VerificationKeyHash}
 
 
 The entry redeemer verifies that Alice's verification key (ed25519 key) is valid via a simple Ed25519 signature. Alice needs a valid \texttt{vk} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol. Alice needs this to decrypt her own data. The generation of the capsule is a completely off-chain. Alice will encrypt the data to herself using the re-enryption algorithm as if she was Bob. This means she will need access to her \texttt{Register} values in $\mathbb{G}{2}$. The $\mathbb{G}{2}$ point is not stored on-chain. At this point the data is encrypted and ready to be traded. Alice may remove her encrypted data at any time.
