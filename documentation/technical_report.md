@@ -331,6 +331,7 @@ pub type EncryptionDatum {
   owner_vkh: VerificationKeyHash,
   owner_g1: Register,
   token: AssetName,
+  ciphertext: ByteArray,
   capsule: Capsule,
 }
 ```
@@ -343,7 +344,7 @@ pub type Capsule {
 }
 ```
 
-The re-encryption datum contains all of the required information for decryption. The owner of an encrypted data UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the decryption information. Inside the capsule is the encrypted data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
+The re-encryption datum contains all of the required information for decryption. The owner of an encrypted data UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the decryption information. Inside the capsule is the encrypted DEK data, \texttt{cipher}. The \texttt{nonce}, \texttt{aad}, and \texttt{r\_key} are required for decryption.
 
 ```rust
 pub type EncryptionMintRedeemer {
@@ -373,6 +374,12 @@ The proof-of-concept does not implement a full key rotation or revocation mechan
 For each encrypted item, the protocol generates a fresh symmetric key $k_{msg}$ for AES-GCM encryption of the actual payload. This key is not stored on-chain; only its ciphertext and associated data are stored in the re-encryption datum. Each re-encryption hop (e.g., Alice $\rightarrow$ Bob) introduces a fresh ephemeral Diffie–Hellman secret and a derived wrapping key $k_{AB}$ that is used only to encrypt $k_{msg}$ for that specific hop. The on-chain capsule contains the public header $r_{key}$, the AES-GCM nonce, ciphertext, and associated data. These per-hop keys are never stored on-chain.
 
 ## Protocol Specification
+
+The protocol flow starts with Alice creating an entry in the re-encryption contract with a \texttt{token} mint. This involves validating the required keys and generating valid capsule information. The entry redeemer verifies that Alice's verification key (ed25519 key) is valid via a simple Ed25519 signature. Alice needs a valid \texttt{vk} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol. Alice needs this to decrypt her own data. The generation of the capsule is a completely off-chain. Alice will encrypt the data to herself using the re-enryption algorithm as if she was Bob. This means she will need access to her \texttt{Register} values in $\mathbb{G}{2}$. The $\mathbb{G}{2}$ point is not stored on-chain. At this point the data is encrypted and ready to be traded. Alice may remove her encrypted data at any time.
+
+Bob will now place a bid into the bid contract. Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vk} but instead of verifying only the \texttt{Register} values in $\mathbb{G}{1}$, a BLS signature is used to verify both the \texttt{Register} values in $\mathbb{G}{1}$ and $\mathbb{G}{2}$. This is important as the validity of these points will determine if Bob can decrypt the data. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one may be selected by Alice for the re-encryption process. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary adjustments. Bob may remove his bid at any time.
+
+Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs for the capsule hand off. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs.
 
 # Security Model
 
