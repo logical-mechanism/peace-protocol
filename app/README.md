@@ -14,6 +14,12 @@ Testing with pytest
 pytest
 ```
 
+```bash
+ruff format .
+ruff check . --fix
+mypy .
+```
+
 Compile the contracts with
 
 ```bash
