@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+echo -e "\033[1;36m\nRequirements Check\n\033[0m"
+
 if command -v jq &> /dev/null; then
     echo -e "\033[1;35m jq is installed and available on the PATH. \033[0m"
 else
@@ -57,6 +59,12 @@ else
     exit 1;
 fi
 
+# set up the python env
+echo -e "\033[1;36m\nPython Env Setup\n\033[0m"
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
 source .env
 
 mkdir -p wallets
@@ -64,6 +72,8 @@ mkdir -p wallets
 ###############################################################################
 # Build contracts
 ###############################################################################
+echo -e "\033[1;36m\nContract Building\n\033[0m"
+
 cd contracts
 
 # remove all traces for production
@@ -79,6 +89,8 @@ cd ..
 ###############################################################################
 # Wallet Creation
 ###############################################################################
+
+echo -e "\033[1;36m\nWallet Creation \033[0m"
 
 # create alice
 folder=wallets/alice
@@ -114,8 +126,8 @@ if [ ! -f ${folder}/payment.skey ]; then
 fi
 echo -e "\033[1;33mCollateral: $(cat ${folder}/payment.hash) \033[0m"
 
-# create reference
-folder=wallets/reference
+# create holder
+folder=wallets/holder
 mkdir -p ${folder}
 
 if [ ! -f ${folder}/payment.skey ]; then
@@ -123,4 +135,27 @@ if [ ! -f ${folder}/payment.skey ]; then
     ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
     ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 fi
-echo -e "\033[1;33mReference: $(cat ${folder}/payment.hash) \033[0m"
+echo -e "\033[1;33mHolder: $(cat ${folder}/payment.hash) \033[0m"
+
+###############################################################################
+# Data Initialization
+###############################################################################
+
+echo -e "\033[1;36m\nData Initialization \033[0m"
+
+jq \
+--arg ref_hash "$(cat contracts/hashes/reference.hash)" \
+--arg enc_hash "$(cat contracts/hashes/encryption.hash)" \
+--arg bid_hash "$(cat contracts/hashes/bidding.hash)" \
+'.fields[0].bytes=$ref_hash |
+.fields[1].bytes=$enc_hash |
+.fields[2].bytes=$bid_hash' \
+./data/reference/reference-datum.json | sponge ./data/reference/reference-datum.json
+
+reference_hash=$(${cli} conway transaction hash-script-data --script-data-file ./data/reference/reference-datum.json)
+
+echo -e "\033[1;33m\nReference Datum Hash: $(cat ${folder}/payment.hash) \033[0m"
+
+###############################################################################
+
+echo -e "\033[1;32m\nBuilding Complete! \033[0m"

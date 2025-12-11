@@ -1,13 +1,5 @@
 # Application
 
-This folder contains the application code for the PEACE protcol.
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
 Testing with pytest
 
 ```bash
@@ -20,8 +12,8 @@ ruff check . --fix
 mypy .
 ```
 
-Compile the contracts with
+## Setup
 
 ```bash
-./contracts/compile.sh
+./setup.sh
 ```
