@@ -1,5 +1,4 @@
 backend/
-commands/
 venv/
 .mypy_cache/
 .ruff_cache/

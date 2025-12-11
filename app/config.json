@@ -1,6 +1,7 @@
 {
   "genesis_tx_id": "d4e4be345528b3f75720e0171a407ca97af274c3a9f761cde72a0a1860e2da5c",
   "genesis_tx_idx": 1,
+  "stake_key": "86c769419aaa673c963da04e4b5bae448d490e2ceac902cb82e4da76",
   "path_to_cardano_cli": "cardano-cli",
   "path_to_node_socket": "/home/logic/Documents/LogicalMechanism/testnets/node-preprod/db-testnet/node.socket"
 }
