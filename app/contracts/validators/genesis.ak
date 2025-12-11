@@ -12,7 +12,7 @@ use search
 use types/reference.{ReferenceDatum}
 
 validator contract(tx_id: TransactionId, tx_idx: Int) {
-  mint(_redeemer: Void, policy_id: PolicyId, self: Transaction) {
+  mint(_redeemer: Data, policy_id: PolicyId, self: Transaction) {
     let Transaction { inputs, outputs, mint, .. } = self
     let token_name: AssetName =
       bytearray.slice(bytearray.push(tx_id, tx_idx), 0, 31)

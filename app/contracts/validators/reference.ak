@@ -7,7 +7,7 @@ use cardano/transaction.{OutputReference, Transaction}
 validator contract(_genesis_pid: PolicyId, _genesis_tkn: AssetName) {
   spend(
     _maybe_datum: Option<Data>,
-    _redeemer: Void,
+    _redeemer: Data,
     _utxo: OutputReference,
     _self: Transaction,
   ) {
