@@ -137,6 +137,17 @@ if [ ! -f ${folder}/payment.skey ]; then
 fi
 echo -e "\033[1;33mHolder: $(cat ${folder}/payment.hash) \033[0m"
 
+# create genesis
+folder=wallets/genesis
+mkdir -p ${folder}
+
+if [ ! -f ${folder}/payment.skey ]; then
+    ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
+    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
+    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
+fi
+echo -e "\033[1;33mGenesis: $(cat ${folder}/payment.hash) \033[0m"
+
 ###############################################################################
 # Data Initialization
 ###############################################################################
