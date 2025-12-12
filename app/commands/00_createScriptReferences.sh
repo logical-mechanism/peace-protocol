@@ -10,7 +10,7 @@ ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.jso
 # Addresses
 payment_wallet_name="holder"
 payment_address=$(cat ../wallets/${payment_wallet_name}/payment.addr)
-script_reference_output_address=$(cat ./wallets/${payment_wallet_name}/payment.addr)
+script_reference_output_address=$(cat ../wallets/${payment_wallet_name}/payment.addr)
 
 echo -e "\033[0;35m\nGathering UTxO Information  \033[0m"
 ${cli} conway query utxo \
@@ -60,13 +60,12 @@ do
 
     size=$(jq -r '.cborHex' ${contract} | awk '{print length($0)*8}')
 
-    FEE=$(${cli} conway transaction calculate-min-fee \
+    fee=$(${cli} conway transaction calculate-min-fee \
         --tx-body-file ./tmp/tx.draft \
         --protocol-params-file ./tmp/protocol.json \
         --reference-script-size ${size} \
-        --witness-count 1)
-    echo -e "\033[0;35mFEE: ${FEE} \033[0m"
-    fee=$(echo $FEE | rev | cut -c 9- | rev)
+        --witness-count 1 | jq -r '.fee')
+    echo -e "\033[0;35mFee: ${fee} \033[0m"
 
     changeAmount=$((${changeAmount} - ${min_utxo} - ${fee}))
 
@@ -80,12 +79,12 @@ do
         --fee ${fee}
 
     ${cli} conway transaction sign \
-        --signing-key-file ./wallets/${payment_wallet_name}/payment.skey \
+        --signing-key-file ../wallets/${payment_wallet_name}/payment.skey \
         --tx-body-file ./tmp/tx.draft \
         --out-file ./tmp/${filename}-reference-utxo.signed \
         ${network}
 
-    txid=$(${cli} conway transaction txid --tx-body-file ./tmp/tx.draft)
+    txid=$(${cli} conway transaction txid --tx-body-file ./tmp/tx.draft | jq -r '.txhash')
     ref_tx_in=${txid}#0
     echo 
     echo -e "\033[0;36mScript UTxO: ${txid}#1 \033[0m"
