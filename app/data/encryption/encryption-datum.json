@@ -2,7 +2,7 @@
   "constructor": 0,
   "fields": [
     {
-      "bytes": ""
+      "bytes": "321d06fc921582742bc6336ef6ca74d650ef80daede2978cd15f0980"
     },
     {
       "constructor": 0,
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "bytes": ""
+      "bytes": "001e681e51cbe60cdb8aec3da451afae58e92fb41611d3e5fe6ad12de425cd5a"
     },
     {
       "list": []
