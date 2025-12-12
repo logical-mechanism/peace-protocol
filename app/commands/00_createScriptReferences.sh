@@ -47,7 +47,7 @@ do
     --tx-out="${script_reference_output_address} + 1000000" | tr -dc '0-9')
     # build the utxo
     script_reference_utxo="${script_reference_output_address} + ${min_utxo}"
-    echo -e "\033[0;32m\nCreating ${file_name} Script:\n" ${script_reference_utxo} " \033[0m"
+    echo -e "\033[0;32m\nCreating ${filename} Script:\n" ${script_reference_utxo} " \033[0m"
 
     ${cli} conway transaction build-raw \
     --protocol-params-file ./tmp/protocol.json \
