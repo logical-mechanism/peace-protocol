@@ -44,13 +44,13 @@ pub fn derive(
 ) -> G1Element {
   when vk_ic is {
     [] -> result
-    [i, ..rest_vk_ic] ->
+    [i, ..vk_ic] ->
       when public is {
         [] -> fail
-        [scalar, ..rest_public] ->
+        [scalar, ..public] ->
           derive(
-            rest_vk_ic,
-            rest_public,
+            vk_ic,
+            public,
             bls12_381_g1_add(
               result,
               bls12_381_g1_scalar_mul(scalar, bls12_381_g1_uncompress(i)),
@@ -82,5 +82,5 @@ pub fn groth_verify(
   let mlr1 = bls12_381_mul_miller_loop_result(eAlphaBeta, eIGamma)
   let mlr2 = bls12_381_mul_miller_loop_result(mlr1, eCDelta)
 
-  bls12_381_final_verify(eAB, mlr2)?
+  bls12_381_final_verify(eAB, mlr2)
 }
