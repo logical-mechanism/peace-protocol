@@ -3,7 +3,7 @@
 Testing with pytest
 
 ```bash
-pytest
+pytest -s -vv
 ```
 
 ```bash

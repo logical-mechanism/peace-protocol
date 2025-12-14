@@ -4,12 +4,18 @@ use types/level.{EncryptionLevel}
 use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
 
+pub type Capsule {
+  nonce: ByteArray,
+  aad: ByteArray,
+  ct: ByteArray,
+}
+
 pub type EncryptionDatum {
   owner_vkh: VerificationKeyHash,
   owner_g1: Register,
   token: AssetName,
   levels: List<EncryptionLevel>,
-  ciper_text: ByteArray,
+  capsule: Capsule,
 }
 
 pub type EncryptionMintRedeemer {

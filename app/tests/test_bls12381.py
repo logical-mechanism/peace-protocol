@@ -1,0 +1,72 @@
+import pytest
+from src.constants import H0, F12_DOMAIN_TAG
+from src.hashing import generate
+from src.bls12381 import (
+    g1_identity,
+    g1_point,
+    g2_identity,
+    g2_point,
+    compress,
+    uncompress,
+    combine,
+    scale,
+    pair,
+    fq12_encoding,
+    to_int
+)
+
+
+def test_g1_identity():
+    g0 = g1_point(0)
+    assert g0 == g1_identity
+
+
+def test_g2_identity():
+    g0 = g2_point(0)
+    assert g0 == g2_identity
+
+def test_g1_compress_is_uncompressed():
+    scalar = 123456789  # Example scalar value
+    compressed_g1_point = g1_point(scalar)
+    uncompressed_g1_point = uncompress(compressed_g1_point)
+    recompressed_g1_point = compress(uncompressed_g1_point)
+    assert recompressed_g1_point == compressed_g1_point
+
+def test_uncompress_and_scale():
+    scalar = 123456789  # Example scalar value
+    compressed_g1_point = scale(H0, scalar)
+    assert compressed_g1_point == "b6081e4d6b7de4b0683efb76a6383212e811d455a28174cd2da6ee665b77d8e5367a7a46507287b1f9585dfdb7ca27ca07765a8e778e6c4a3923e74432e6060578d2f4afabaf30ccece9ddcac9ff1c09da189974656c0ccc7b8f10b20b1bf288"
+
+def test_g2_compress_is_uncompressed():
+    scalar = 123456789  # Example scalar value
+    compressed_g2_point = g2_point(scalar)
+    uncompressed_g2_point = uncompress(compressed_g2_point)
+    recompressed_g2_point = compress(uncompressed_g2_point)
+    assert recompressed_g2_point == compressed_g2_point
+
+def test_g1_one_plus_one_equals_two():
+    g1 = g1_point(1)
+    added_g1 = combine(g1, g1)
+    assert added_g1 == g1_point(2)
+
+
+def test_g2_one_plus_one_equals_two():
+    g2 = g2_point(1)
+    added_g2 = combine(g2, g2)
+    assert added_g2 == g2_point(2)
+
+def test_printing_fq12():
+    u1g1 = g1_point(1)
+    v1g2 = g2_point(1)
+
+    kappa = pair(scale(u1g1, 31), scale(v1g2, 7))
+    assert fq12_encoding(kappa, F12_DOMAIN_TAG) == "32cfbc6d8a8b53438f77a2e14b30026fae940e5f394147720e5d7d3abefa9ec8"
+
+
+def test_hash_to_int():
+    h = generate("Hello, world!")
+    n = to_int(h)
+    assert n == 29818393178993300635705205059572349092710937787488053916899811019109097101679
+
+if __name__ == "__main__":
+    pytest.main()
