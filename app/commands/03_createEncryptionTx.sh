@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # SET UP VARS HERE
 source ../.env
 
-secret_message="This is a secret message."
+
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # get params
 ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.json
@@ -46,18 +47,58 @@ first_utxo=$(jq -r 'keys[0]' ./tmp/alice_utxo.json)
 string=${first_utxo}
 IFS='#' read -ra array <<< "$string"
 
-tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${array[1]});print(encoded.hex())")
+tx_idx_cbor=$(../venv/bin/python -c "import cbor2;encoded=cbor2.dumps(${array[1]});print(encoded.hex())")
 full_tkn="${tx_idx_cbor}${array[0]}"
 token_name="${full_tkn:0:64}"
 encryption_asset="1 ${encryption_pid}.${token_name}"
 echo -e "\033[1;36m\nEncryption Token: ${encryption_asset} \033[0m"
 
 # encrypt the message
+secret_message="This is a secret message."
+
+# generate the register
+PYTHONPATH="$PROJECT_ROOT" \
+"$PROJECT_ROOT/venv/bin/python" -c \
+"
+from src.constants import KEY_DOMAIN_TAG, H1, H2, H3
+from src.files import extract_key
+from src.bls12381 import to_int, rng, random_fq12, scale, g1_point, combine
+from src.hashing import generate
+from src.register import Register
+from src.ecies import encrypt, capsule_to_file
+from src.level import half_level_to_file
+
+# these are secrets
+a0 = rng()
+r0 = rng()
+m0 = random_fq12(a0)
+
+key = extract_key('${alice_wallet_path}/payment.skey');
+sk = to_int(generate(KEY_DOMAIN_TAG + key))
+user = Register(x=sk)
+user.to_file()
+
+r1b = scale(g1_point(1), r0)
+r2_g1b = scale(g1_point(1), a0 + r0*sk)
+
+c0 = combine(combine(H1, H2), H3)
+r4b = scale(c0, r0)
+
+half_level_to_file(r1b, r2_g1b, r4b)
+
+nonce, aad, ct = encrypt(r1b, m0, '${secret_message}')
+capsule_to_file(nonce, aad, ct)
+"
 
 jq \
 --arg alice_pkh "${alice_pkh}" \
 --arg token_name "${token_name}" \
+--argjson register "$(cat ../data/register.json)" \
+--argjson capsule "$(cat ../data/capsule.json)" \
+--argjson half_level "$(cat ../data/half-level.json)" \
 '.fields[0].bytes=$alice_pkh |
+.fields[1]=$register |
 .fields[2].bytes=$token_name |
-.fields[3].list=[]' \
+.fields[3].list=[$half_level] |
+.fields[4]=$capsule' \
 ../data/encryption/encryption-datum.json | sponge ../data/encryption/encryption-datum.json

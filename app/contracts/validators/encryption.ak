@@ -91,7 +91,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             redeemers,
             ..
           }: Transaction = self
-          let EncryptionDatum { owner_vkh, owner_g1, token, levels, ciper_text } =
+          let EncryptionDatum { owner_vkh, owner_g1, token, levels, capsule } =
             this_datum
           expect Some(this_input): Option<Input> =
             inputs
@@ -142,7 +142,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 owner_g1: next_owner_g1,
                 token: next_token,
                 levels: next_levels,
-                ciper_text: next_cipher_text,
+                capsule: next_capsule,
               }: EncryptionDatum = output_datum_data
               // get the bidding contract hash from the reference datum
               let ReferenceDatum { bid, .. }: ReferenceDatum =
@@ -180,7 +180,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               //
               and {
                 // cipher text can not change
-                (ciper_text == next_cipher_text)?,
+                (capsule == next_capsule)?,
                 // bid owner is new owner
                 (bid_owner_vkh == next_owner_vkh)?,
                 // bid owner is new owner
