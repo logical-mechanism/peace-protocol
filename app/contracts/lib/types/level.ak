@@ -75,7 +75,7 @@ pub type EncryptionLevel {
 
 pub fn hash_scalar(msg: ByteArray) -> State<Scalar> {
   // Use 256-bit hash so scalar.from_bytes has a full-width input.
-  msg |> crypto.blake2b_256 |> scalar.from_bytes
+  msg |> crypto.blake2b_224 |> scalar.from_bytes
 }
 
 pub fn concat_embedded_gt(gt: EmbeddedGt) -> ByteArray {

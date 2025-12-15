@@ -60,13 +60,13 @@ def test_printing_fq12():
     v1g2 = g2_point(1)
 
     kappa = pair(scale(u1g1, 31), scale(v1g2, 7))
-    assert fq12_encoding(kappa, F12_DOMAIN_TAG) == "32cfbc6d8a8b53438f77a2e14b30026fae940e5f394147720e5d7d3abefa9ec8"
+    assert fq12_encoding(kappa, F12_DOMAIN_TAG) == "f057b04a6426f94e73ecc34ed81c604a259bddcd556a047fdb1986d7"
 
 
 def test_hash_to_int():
-    h = generate("Hello, world!")
+    h = generate("acab")
     n = to_int(h)
-    assert n == 29818393178993300635705205059572349092710937787488053916899811019109097101679
+    assert n == 1028703146767339290293633951186123731886171864122866591065320629138
 
 if __name__ == "__main__":
     pytest.main()

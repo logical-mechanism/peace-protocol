@@ -167,6 +167,13 @@ def to_int(hash_digest: str) -> int:
     """
     return int(hash_digest, 16) % curve_order
 
+def from_int(integer: int) -> str:
+    if integer == 0:
+        return "00"
+    length = (integer.bit_length() + 7) // 8
+    return integer.to_bytes(length, "big").hex()
+
+
 # identity elements
 g1_identity = compress(Z1)
 g2_identity = compress(Z2)

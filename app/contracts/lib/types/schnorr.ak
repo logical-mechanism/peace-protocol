@@ -7,7 +7,9 @@ use cardano/assets.{AssetName}
 use types/register.{Register}
 
 /// we can change this later
-pub const schnorr_domain_tag: ByteArray = #""
+pub const schnorr_domain_tag: ByteArray = #"5343484e4f52527c50524f4f467c76317c"
+
+pub const binding_domain_tag: ByteArray = #"42494e44494e477c50524f4f467c76317c"
 
 pub type SchnorrProof {
   // this is z = r + c * x as a bytearray
@@ -68,7 +70,7 @@ pub fn binding_fiat_shamir_heuristic(
   r2_b: ByteArray,
   token_name: ByteArray,
 ) -> ByteArray {
-  schnorr_domain_tag
+  binding_domain_tag
     |> bytearray.concat(user.generator)
     |> bytearray.concat(user.public_value)
     |> bytearray.concat(proof.t_1_b)
