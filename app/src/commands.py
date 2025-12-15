@@ -39,3 +39,12 @@ def create_encryption_tx(alice_wallet_path: str, plaintext: str, token_name: str
     
     zab, zrb, t1b, t2b = binding_proof(a0, r0, r1b, r2_g1b, user, token_name)
     binding_to_file(zab, zrb, t1b, t2b)
+
+def create_bidding_tx(bob_wallet_path: str) -> None:
+    key = extract_key(bob_wallet_path);
+    sk = to_int(generate(KEY_DOMAIN_TAG + key))
+    user = Register(x=sk)
+    user.to_file()
+
+    zb, grb = schnorr_proof(user)
+    schnorr_to_file(zb, grb)

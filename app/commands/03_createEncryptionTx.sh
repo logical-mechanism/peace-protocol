@@ -50,6 +50,7 @@ IFS='#' read -ra array <<< "$string"
 tx_idx_cbor=$(../venv/bin/python -c "import cbor2;encoded=cbor2.dumps(${array[1]});print(encoded.hex())")
 full_tkn="${tx_idx_cbor}${array[0]}"
 token_name="${full_tkn:0:64}"
+echo $token_name > ../data/encryption.token
 encryption_asset="1 ${encryption_pid}.${token_name}"
 echo -e "\033[1;36m\nEncryption Token: ${encryption_asset} \033[0m"
 
