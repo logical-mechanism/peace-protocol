@@ -126,3 +126,26 @@ FEE=$(${cli} conway transaction build \
     ${network})
 
 echo -e "\033[0;35m${FEE}\033[0m"
+
+#
+# exit
+#
+
+${cli} conway transaction sign \
+    --signing-key-file ../wallets/collat/payment.skey \
+    --signing-key-file ../wallets/alice/payment.skey \
+    --tx-body-file ./tmp/tx.draft \
+    --out-file ./tmp/tx.signed \
+    ${network}
+
+#
+# exit
+#
+
+echo -e "\033[1;36m\nSubmitting\033[0m"
+    # Perform operations on each file
+    ${cli} conway transaction submit \
+        ${network} \
+        --tx-file ./tmp/tx.signed
+
+echo -e "\033[0;32m\nDone!\033[0m"
