@@ -60,34 +60,9 @@ secret_message="This is a secret message."
 PYTHONPATH="$PROJECT_ROOT" \
 "$PROJECT_ROOT/venv/bin/python" -c \
 "
-from src.constants import KEY_DOMAIN_TAG, H1, H2, H3
-from src.files import extract_key
-from src.bls12381 import to_int, rng, random_fq12, scale, g1_point, combine
-from src.hashing import generate
-from src.register import Register
-from src.ecies import encrypt, capsule_to_file
-from src.level import half_level_to_file
+from src.commands import create_encryption_tx
 
-# these are secrets
-a0 = rng()
-r0 = rng()
-m0 = random_fq12(a0)
-
-key = extract_key('${alice_wallet_path}/payment.skey');
-sk = to_int(generate(KEY_DOMAIN_TAG + key))
-user = Register(x=sk)
-user.to_file()
-
-r1b = scale(g1_point(1), r0)
-r2_g1b = scale(g1_point(1), a0 + r0*sk)
-
-c0 = combine(combine(H1, H2), H3)
-r4b = scale(c0, r0)
-
-half_level_to_file(r1b, r2_g1b, r4b)
-
-nonce, aad, ct = encrypt(r1b, m0, '${secret_message}')
-capsule_to_file(nonce, aad, ct)
+create_encryption_tx('${alice_wallet_path}/payment.skey', '${secret_message}', '${token_name}')
 "
 
 jq \
@@ -102,3 +77,52 @@ jq \
 .fields[3].list=[$half_level] |
 .fields[4]=$capsule' \
 ../data/encryption/encryption-datum.json | sponge ../data/encryption/encryption-datum.json
+
+jq \
+--argjson schnorr "$(cat ../data/schnorr.json)" \
+--argjson binding "$(cat ../data/binding.json)" \
+'.fields[0]=$schnorr |
+.fields[1]=$binding' \
+../data/encryption/encryption-mint-redeemer.json | sponge ../data/encryption/encryption-mint-redeemer.json
+
+# should be able to build the tx now
+echo -e "\033[0;36m Gathering Collateral UTxO Information  \033[0m"
+${cli} conway query utxo \
+    ${network} \
+    --address ${collat_address} \
+    --out-file ./tmp/collat_utxo.json
+TXNS=$(jq length ./tmp/collat_utxo.json)
+if [ "${TXNS}" -eq "0" ]; then
+   echo -e "\n \033[0;31m NO UTxOs Found At ${collat_address} \033[0m \n";
+   exit;
+fi
+collat_utxo=$(jq -r 'keys[0]' ./tmp/collat_utxo.json)
+
+utxo_value=$(${cli} conway transaction calculate-min-required-utxo \
+    --protocol-params-file ./tmp/protocol.json \
+    --tx-out-inline-datum-file ../data/encryption/encryption-datum.json \
+    --tx-out="${encryption_script_address} + 5000000 + ${encryption_asset}" | tr -dc '0-9')
+encryption_script_output="${encryption_script_address} + ${utxo_value} + ${encryption_asset}"
+
+echo -e "\033[0;35m\nEncryption Output: ${encryption_script_output}\033[0m"
+
+encryption_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/encryption_contract-reference-utxo.signed | jq -r '.txhash')
+
+echo -e "\033[0;36m Building Tx \033[0m"
+FEE=$(${cli} conway transaction build \
+    --out-file ./tmp/tx.draft \
+    --change-address ${alice_address} \
+    --tx-in-collateral="${collat_utxo}" \
+    --tx-in ${alice_utxo} \
+    --tx-out="${encryption_script_output}" \
+    --tx-out-inline-datum-file ../data/encryption/encryption-datum.json \
+    --required-signer-hash ${collat_pkh} \
+    --required-signer-hash ${alice_pkh} \
+    --mint="${encryption_asset}" \
+    --mint-tx-in-reference="${encryption_ref_utxo}#1" \
+    --mint-plutus-script-v3 \
+    --policy-id="${encryption_pid}" \
+    --mint-reference-tx-in-redeemer-file ../data/encryption/encryption-mint-redeemer.json \
+    ${network})
+
+echo -e "\033[0;35m${FEE}\033[0m"

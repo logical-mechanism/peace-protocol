@@ -9,7 +9,7 @@ def test_e2e():
     kem = "cafe"
 
     nonce, aad, ct = encrypt(ctx, kem, msg)
-    print(nonce, aad, ct)
+    # print(nonce, aad, ct)
     message = decrypt(ctx, kem, nonce, ct, aad)
     assert msg.encode("utf-8") == message
 

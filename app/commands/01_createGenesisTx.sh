@@ -63,7 +63,7 @@ if [ "${TXNS}" -eq "0" ]; then
 fi
 collat_utxo=$(jq -r 'keys[0]' ./tmp/collat_utxo.json)
 
-genesis_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/genesis_contract-reference-utxo.signed| jq -r '.txhash')
+genesis_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/genesis_contract-reference-utxo.signed | jq -r '.txhash')
 
 echo -e "\033[0;36m Building Tx \033[0m"
 FEE=$(${cli} conway transaction build \

@@ -1,10 +1,12 @@
 # domain tags
-KEY_DOMAIN_TAG = "ED25519|To|BLS12381|v1|"
-F12_DOMAIN_TAG = "F12|To|Hex|v1|"
-SLT_DOMAIN_TAG = "SLT|ECIES|AES-GCM|v1|"
-KEM_DOMAIN_TAG = "KEM|ECIES|AES-GCM|v1|"
-AAD_DOMAIN_TAG = "AAD|ECIES|AES-GCM|v1|"
-MSG_DOMAIN_TAG = "MSG|ECIES|AES-GCM|v1|"
+KEY_DOMAIN_TAG = "ED25519|To|BLS12381|v1|".encode("utf-8").hex()
+F12_DOMAIN_TAG = "F12|To|Hex|v1|".encode("utf-8").hex()
+SLT_DOMAIN_TAG = "SLT|ECIES|AES-GCM|v1|".encode("utf-8").hex()
+KEM_DOMAIN_TAG = "KEM|ECIES|AES-GCM|v1|".encode("utf-8").hex()
+AAD_DOMAIN_TAG = "AAD|ECIES|AES-GCM|v1|".encode("utf-8").hex()
+MSG_DOMAIN_TAG = "MSG|ECIES|AES-GCM|v1|".encode("utf-8").hex()
+SCH_DOMAIN_TAG = "SCHNORR|PROOF|v1|".encode("utf-8").hex()
+BND_DOMAIN_TAG = "BINDING|PROOF|v1|".encode("utf-8").hex()
 
 # wang public G2 points
 H0 = "a5acbe8bdb762cf7b4bfa9171b9ffa23b6ed710b290280b271a0258e285354aac338bb9e5a9ee41b4454e4c410f40eea16c82b493986bfc754aa789e1408b2b526f8b92e9ddcd4eee1a6c4daa84d561a6ceb452afc4559fe81a1c7f3f26715db"
