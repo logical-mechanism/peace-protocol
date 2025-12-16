@@ -166,10 +166,10 @@ pub fn add_new_level(
 
 /// This can be some proof that shows r5 is authentic
 ///
-/// Right now it only proves
+/// Right now it only proves:
 /// e(q, R5) * e(u, g1) = e(q^H(k), p)
 ///
-/// We need to combine this with a snark that proves
+/// We need to combine this with a snark that proves:
 /// hk = H(k) where k and hk are secrets
 /// P = q^hk where P is public and q is the g1 generator
 ///
