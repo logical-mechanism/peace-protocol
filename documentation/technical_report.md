@@ -47,6 +47,44 @@ header-includes:
   - \usepackage[ruled,vlined,linesnumbered]{algorithm2e}
   - \AtBeginDocument{\pagenumbering{gobble}}
   - \AtBeginDocument{\hypersetup{pdfinfo={/Copyright=(© 2025 Logical Mechanism LLC. All rights reserved.)}}}
+  - \usepackage{listings}
+  - \usepackage{xcolor}
+  - \usepackage{float}
+  - |
+    \lstdefinestyle{python}{
+      language=Python,
+      basicstyle=\ttfamily\small,
+      keywordstyle=\color{MidnightBlue},
+      commentstyle=\color{Gray},
+      stringstyle=\color{OliveGreen},
+      numbers=left,
+      numberstyle=\tiny,
+      breaklines=true,
+      frame=single,
+      captionpos=b
+    }
+  - |
+    \lstdefinelanguage{Aiken}{
+      keywords={pub,type,fn,let,expect, ByteArray},
+      sensitive=true,
+      comment=[l]{//},
+      morestring=[b]",
+    }
+  - |
+    \lstdefinestyle{rust}{
+      language=Aiken,
+      basicstyle=\ttfamily\small,
+      keywordstyle=\color{MidnightBlue},
+      commentstyle=\color{Gray},
+      stringstyle=\color{OliveGreen},
+      numbers=left,
+      numberstyle=\tiny,
+      stepnumber=1,
+      breaklines=true,
+      frame=single,
+      tabsize=2,
+      captionpos=b
+    }
 ---
 
 
@@ -111,13 +149,21 @@ The protocol, including both on-chain and off-chain components, will heavily uti
 
 The \texttt{Register} type in Aiken:
 
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Register type},
+  label={lst:registertype},
+  float,
+  floatplacement=H
+]
 pub type Register {
   // the generator, #<Bls12_381, G1> or #<Bls12_381, G2> 
   generator: ByteArray,
   // the public value, #<Bls12_381, G1> or #<Bls12_381, G2> 
   public_value: ByteArray,
 }
+\end{lstlisting}
 ```
 
 Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol for non-interactive purposes. In these cases, the hash function will be Blake2b-224 [@rfc7693].
@@ -414,7 +460,7 @@ The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn}
 
 ## Key Management And Identity
 
-Each user in the protocol has the ability to deterministically generate BLS12-381 keypairs represented by \texttt{Register} value in $\mathbb{G}{1}$. The $\mathbb{G}{1}$ points are used as the user's on-chain identity for encryption and signature verification. The corresponding secret scalar $\delta \in \mathbb{Z}_n$ is held off-chain by the user's wallet or client software and is never published on-chain.
+Each user in the protocol has the ability to deterministically generate BLS12-381 keypairs represented by \texttt{Register} value in $\mathbb{G}_{1}$. The $\mathbb{G}_{1}$ points are used as the user's on-chain identity for encryption and signature verification. The corresponding secret scalar $\delta \in \mathbb{Z}_n$ is held off-chain by the user's wallet or client software and is never published on-chain.
 
 The BLS12-381 keys used for re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both: Ed25519 keys to authorize UTxO spending, and BLS12-381 scalars to obtain and delegate decryption rights. Losing or compromising the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
 
@@ -424,7 +470,7 @@ For each encrypted item, the protocol generates a fresh symmetric key for AES-GC
 
 ## Protocol Specification
 
-The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}{1}$ using the fixed generator, $g$. Alice will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for both the change and contract UTxO, and the transaction fee. Alice may then build the entry to the re-encryption contract transaction.
+The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Alice will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for both the change and contract UTxO, and the transaction fee. Alice may then build the entry to the re-encryption contract transaction.
 
 The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the code and example below. The specification for the protocol assumes a single input but in general many inputs may be used in this transaction. If more than one input exists then the first lexicographical sorted input will be used for the name generation.
 
@@ -447,7 +493,9 @@ generate_token_name(input) = "181234567890abcdef1234567890abcdef1234567890abcdef
 
 Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{levels} and \texttt{capsule}. Since Alice is the first owner, she will encrypt to herself. Alice will encrypt the original data by generating a root $\kappa$ in $\mathbb{G}_{T}$. The root secret will be used in the KDF to produce a valid AES key. The message can now be encrypted using AES-GCM. The resulting information is stored in the \texttt{Capsule} type. Below is a pythonic psuedocode for generating the original encrypted data and the first encryption level.
 
-```py
+```{=latex}
+\begin{lstlisting}[style=python, caption={Creating the Encrypted data and first encryption level}, label={lst:first-level}, float, floatplacement=H]
+
 message = "This is a secret message."
 
 # generate random data for the first encryption level
@@ -470,6 +518,8 @@ r4b = scale(c, r0)
 
 # encrypt the message
 nonce, aad, ct = encrypt(r1, k0, message)
+
+\end{lstlisting}
 ```
 
 The sub-types can be populated as shown below:
@@ -491,7 +541,12 @@ pub type Capsule {
 }
 ```
 
-Alice can prove to herself that the encryption level is valid by verifying:.
+The contract will validate the first encryption level using:
+```py
+assert pair(g, r4b) = pair(r1b, c)
+```
+
+Alice can prove to herself that the encryption level is valid by verifying:
 ```py
 expected_k0 = pair(r2_g1b, H0) / pair(r1b, scale(H0, sk))
 assert k0 == expected_k0
@@ -524,7 +579,7 @@ pub type EncryptionDatum {
 
 The entry redeemer verifies that Alice's verification key (Ed25519 key hash) is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol \ref{alg:schnorrsig} as Alice needs this to decrypt her own data and it verifies that Alice binds her public value to the first encryption level via a binding proof \ref{alg:bindingsig}. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
 
-Bob may now place a bid into the bid contract in an attempt to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarily to Alice, the secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}{1}$ using the fixed generator, $g$. Bob will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the change and the contract UTxO, and the transaction fee. Bob may then build the entry to the bid contract transaction. Note that the protocol grows linearly thus the required Lovelace for some given encrypted message will increase over time, meaning Bob should contribute to the minimum required Lovelace for the encrypted data though this is not required on-chain.
+Bob may now place a bid into the bid contract in an attempt to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarily to Alice, the secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Bob will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the change and the contract UTxO, and the transaction fee. Bob may then build the entry to the bid contract transaction. Note that the protocol grows linearly thus the required Lovelace for some given encrypted message will increase over time, meaning Bob should contribute to the minimum required Lovelace for the encrypted data though this is not required on-chain.
 
 The structure of the bid entry transaction is similar to the re-encryption entry transaction but using \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The \texttt{pointer} token name is generated in the exact some way as the \texttt{token} name.
 
@@ -539,9 +594,9 @@ pub type BidDatum {
   token,
 }
 ```
-Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}{1}$. This is important as the validity of these points will determine if Bob can decrypt the data after the re-encryption process. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
+Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. This is important as the validity of these points will determine if Bob can decrypt the data after the re-encryption process. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
 
-Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings between the original owner's \texttt{Register} values in $\mathbb{G}{1}$, proving that the new owner's \texttt{Register} was used during the re-encryption process, resulting in a transfer of ownership and decryption rights. Below is a pythonic psuedocode for generating the next encryption level.
+Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings between the original owner's \texttt{Register} values in $\mathbb{G}_{1}$, proving that the new owner's \texttt{Register} was used during the re-encryption process, resulting in a transfer of ownership and decryption rights. Below is a pythonic psuedocode for generating the next encryption level.
 
 ```py
 a1 = rng()
@@ -549,6 +604,102 @@ r1 = rng()
 k1 = random_fq12(a1)
 
 hk = to_int(k1)
+
+r1b = scale(g, r1)
+r2_g1b = combine(scale(g, a1), scale(bob_public_value, r1))
+
+a = to_int(generate(r1b))
+b = to_int(generate(r1b + r2_g1b))
+c = combine(scale(H1, a), scale(H2, b))
+r4b = scale(c, r1)
+
+r5b = combine(scale(q, hk), scale(invert(H0), sk))
+```
+
+Bob's encryption level is now
+
+```rust
+pub type EncryptionLevel {
+  r1b,
+  r2: EmbeddedGt {
+    g1b: r2_g1b,
+    g2b: None,
+  },
+  r4b,
+}
+```
+
+and Alice's encryption level is now
+
+```rust
+pub type EncryptionLevel {
+  r1b: alice.r1B,
+  r2: EmbeddedGt {
+    g1b: alice.r2_g1b,
+    g2b: Some(r5b),
+  },
+  r4b: alice.r4b,
+}
+```
+
+Now the next datum can be constructed.
+```rust
+pub type EncryptionDatum {
+  owner_vkh: bob.owner_vkh,
+  owner_g1: bob.owner_g1,
+  token,
+  levels: [
+    EncryptionLevel {
+      r1b,
+      r2: EmbeddedGt {
+        g1b: r2_g1b,
+        g2b: None,
+      },
+      r4b,
+    },
+    EncryptionLevel {
+      r1b: alice.r1B,
+      r2: EmbeddedGt {
+        g1b: alice.r2_g1b,
+        g2b: Some(r5b),
+      },
+      r4b: alice.r4b,
+    }
+  ],
+  capsule: Capsule {
+    nonce,
+    aad,
+    ct: ciphertext,
+  },
+}
+```
+
+The contract will validate the re-encryption using a binding proof and two pairing proofs as shown below. The first assertion follows the Alice's validation, ensuring that the encryption level terms are consistent. The second assertion hows that Alice create the $r_{5}$ term correctly. Adding a SNARK for valid witness creation is left for later work.
+```py
+assert pair(g, bob.r4b) = pair(bob.r1b, c)
+assert pair(g, alice.r5b) * pair(alice.u, H0) = pair(alice.witness, p)
+```
+
+Bob can now decrypt the root key by recursiving computing all the random $\mathbb{G}_{T}$ points.
+
+```py
+h0x = scale(H0, sk)
+shared = h0x
+
+for entry in encryption_levels:
+    r1 = entry.r1
+
+    if is_half_level(entry.r2):
+        r2 = pair(entry.r2.g1, H0)
+    else:
+        r2 = pair(entry.r2.g1, H0) * pair(r1, entry.r2.g2)
+
+    b = pair(r1, shared)
+    key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
+    k = to_int(key)
+    shared = scale(q, k)
+
+message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
 ```
 
 # Security Model
