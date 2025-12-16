@@ -759,19 +759,105 @@ message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
 
 # Security Model
 
+The PEACE protocol needs to have reasonable security. In a real-world production setting, the protocol has a minimal attack surface. As a proof of concept, the protocol needs additional security to be production grade.
+
+## Assumptions
+
+This protocol is presented as a proof of concept and inherits standard assumptions from public-key cryptography and public blockchains. The assumptions below describe what must hold for the security claims in this document to be meaningful.
+
+- Cryptographic assumptions hold: The security of the construction relies on standard hardness assumptions for the chosen primitives (pairing groups / discrete log), collision resistance / preimage resistance of the hash functions used (including domain separation), and unforgeability of any signature schemes used.
+
+- Correct domain separation: All hashes used for hashing-to-scalar, Fiat–Shamir transcripts, and key derivations use fixed domain tags and unambiguous encodings. A domain-separation bug is treated as a critical security failure.
+
+- Well-formed randomness: All secret scalars and nonces are sampled with high entropy and never reused where uniqueness is required. Randomness failures (poor RNG, nonce reuse, low-entropy secrets) are treated as catastrophic.
+
+- Endpoint key safety: Alice’s and Bob’s long-term secret keys remain confidential. If keys are extracted from the wallet/device, confidentiality and authenticity guarantees for those parties do not hold.
+
+- On-chain validation is authoritative: The ledger enforces the validator exactly as written (Aiken/Plutus semantics). Any check that is only performed off-chain is treated as advisory and not part of the security boundary.
+
+- Proof system assumptions: If SNARKs/NIZKs are used, their required assumptions hold (soundness, and any additional properties needed for adversarial settings). If a trusted setup is used, the corresponding trapdoor (“toxic waste”) is assumed destroyed; otherwise, a transparent proof system must be used at the cost of performance.
+
+- Chain security: The blockchain provides finality and censorship-resistance to the degree normally assumed for Cardano. Prolonged reorgs, validator bugs, or sustained censorship are out of scope.
+
+- Scope boundary: The protocol does not assume (and does not attempt to enforce) that the plaintext has any particular meaning or quality, nor does it assume Bob will keep plaintext private after decryption. Those are handled as marketplace/legal/economic concerns rather than cryptographic properties.
+
 ## Trust Model
 
-### Assumptions
+The protocol is designed to minimize trust between Alice and Bob. The smart contract is the source of truth for what is accepted as a valid re-encryption hop. Anything not enforced by the on-chain validator is treated as advisory.
 
-# Threat Analysis
+We do not assume Alice or Bob are honest. Either party may attempt to cheat, submit malformed data, or abort mid-protocol. The proxy will be treated as semi-trusted at best: they may be offline, malicious, or compromised. Any compromised keys are treated as a serious failure.
+
+We assume standard cryptographic hardness of the underlying primitives (pairings / discrete log, collision resistance of hashes, and signature unforgeability), and we assume endpoint key material is protected by the wallet/OS. A compromise of long-term keys (Alice/Bob/etc) is out of scope except where explicitly mitigated (e.g., domain separation and on-chain binding checks).
+
+## Threat Analysis
+
+**Adversary capabilities**
+
+- Full network observer: can read all on-chain data, replay transactions, and correlate timing/amount patterns.
+
+- Active attacker: can submit arbitrary transactions, craft malformed ciphertext/proofs, and attempt to use validator failures/success as an oracle.
+
+- Insider attacker: Alice or Bob may act maliciously (sell garbage, withhold finalization, attempt to claim funds without delivering the correct re-encryption).
+
+- Key compromise: theft of a participant’s secret keys is possible.
+
+**Primary threats and mitigations**
+
+- Invalid re-encryption accepted on-chain: mitigated by strict on-chain validation that binds ciphertext components, public keys, and transcript hashes to the expected relations.
+
+- Related-ciphertext / CCA-style probing: mitigated by making ciphertexts and re-encryption steps non-malleable under the on-chain checks (proofs must bind all relevant fields so “tweaks” are rejected).
+
+- Multi-hop bypass: if downstream decryption reveals intermediate artifacts that can be used to decrypt upstream ciphertexts without the proxy, it breaks the intended delegation boundary; mitigation is hop-level re-randomization / re-encapsulation and careful design to ensure decryption yields only plaintext (not reusable upstream capabilities).
+
+- Fairness failure (abort/grief): either party can stop cooperating; mitigations are economic (bonding/escrow) and protocol flow design, not cryptography alone.
 
 ## Metadata Leakage
 
-# Limitations And Risks
+The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
+
+**Potential leakage includes:**
+
+- Transaction graph linkage: repeated verification keys, registers, UTxO patterns, and timing can link multiple protocol runs to the same actors or workflow.
+
+- Protocol fingerprinting: ciphertext sizes, hop count, and datum/redeemer structure can reveal which step the protocol is in and correlate participants across transactions.
+
+- Value and timing leakage: amounts, fees, and time between steps can reveal trade size, urgency, and repeated counterparties.
+
+- Key / identity linkage via commitments: even when values are hashed, fixed-format commitments and domain tags can still be fingerprinted if reused or if inputs have low entropy.
+
+**Mitigations are partial and operational:**
+
+- Rotate addresses and avoid stable identifiers where possible
+
+- Minimize on-chain datum content.
+
+- Keep encodings fixed-size and avoid optional fields that create distinct shapes.
+
+- Treat privacy as a separate layer (mixing, batching, relayers) rather than something the core protocol guarantees.
+
+## Limitations And Risks
+
+- No guarantee of data semantics or quality: the protocol can prove key-binding and correct re-encryption relations, but it cannot prove that the encrypted content is “valuable” or matches an off-chain description. Disputes about semantics require external mechanisms.
+
+- No protection after decryption: once Bob decrypts plaintext, Bob can copy or leak it. Cryptography cannot prevent exfiltration; only economic/legal controls can reduce this risk.
+
+- Fair exchange is not automatic: either party can abort or grief at different stages. Achieving strong fairness typically requires escrow/bonding, timeouts, and explicit protocol-level incentives.
+
+- Key compromise is catastrophic: theft of Alice/Bob secret keys breaks confidentiality for those assets; compromise of any proxy signing keys (if used) may enable malformed ciphertext acceptance unless the system is publicly verifiable.
+
+- CCA security depends on strict non-malleability: if any ciphertext/proof field can be modified while still passing on-chain checks, an attacker may use acceptance/rejection or decryption behavior as an oracle. Proofs must bind the full transcript and all ciphertext components.
+
+- Multi-hop complexity: limiting hops by UTxO size reduces state growth, but multi-hop designs are error-prone; additional formal review is recommended before treating multi-use delegation as production-secure.
+
+- Cost and reliability risk: pairing-heavy verification and SNARK verification can approach the CPU budget, requiring multi-transaction validation flows. This increases complexity and can reduce UX reliability under network congestion.
 
 ## Performance And On-Chain Cost
 
+The performance of the re-encryption process is really good. The generation of the proofs are quick. The encryption setup is easy. The pre flow is simple. The cost of running the re-encryption validation leans towards the expensive side. The Schnorr and binding proofs are relatively cheap but the pairing proofs are expensive. A single pairing proof cost almost 15% of the total cpu budget per transaction. In a real-world production setting, the re-encryption step may max out the cpu budget completely because of the SNARK requirement. In that case, the re-encryption validation may need to be broken up into multiple transaction such that the cpu budget per transaction remains low enough to be valid on-chain.
+
 # Conclusion
+
+The PEACE protocol multi-use, unidirectional pre for the Cardano blockchain with reasonable security guantees. This proof of concept should serve well for production grade implementations. A real-world production grade PEACE protocol will allow creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services.
 
 \clearpage
 \appendix
