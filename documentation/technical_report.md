@@ -134,7 +134,7 @@ The protocol requires proving knowledge of a user's secret using a Schnorr $\Sig
 \caption{Non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation}
 \label{alg:schnorrsig}
 
-\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{\kappa}$, $u=[\delta]g \in \mathbb{G}_{\kappa}$}
+\KwIn{\\ $\ ($ $g, u\ )$ where $g \in \mathbb{G}_{\kappa}$, $u=[\delta]g \in \mathbb{G}_{\kappa}$}
 \KwOut{\textsf{bool}}
 
 select a random $\delta' \in \mathbb{Z}_{n}$
@@ -154,7 +154,7 @@ There will be times when the protocol requires proving some equality using a pai
 \caption{Boneh-Lynn-Shacham (BLS) signature method}
 \label{alg:blssig}
 
-\KwIn{$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $c = H_{2}(m) \in \mathbb{G}_2$, $w = [\delta]c \in \mathbb{G}_2$, and $m\in\{0,1\}^{*}$}
+\KwIn{\\$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, \\ $c = H_{2}(m) \in \mathbb{G}_2$, $w = [\delta]c \in \mathbb{G}_2$, and $m\in\{0,1\}^{*}$}
 \KwOut{\textsf{bool}}
 
 $e(u, c) = e(g, w)$
@@ -172,7 +172,7 @@ The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol inv
 \caption{Encryption using ECIES + AES}
 \label{alg:encrypt-eciesaes}
 
-\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{\kappa}$, $u=[\delta]g \in \mathbb{G}_{\kappa}$, m as the message}
+\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{\kappa}$, $u=[\delta]g \in \mathbb{G}_{\kappa}$, m as the message}
 \KwOut{$\ ($ $r, c, h\ )$ }
 
 select a random $\delta' \in \mathbb{Z}_{n}$
@@ -197,7 +197,7 @@ Decrypting the ciphertext requires rebuilding the data encryption key (DEK), $k$
 \caption{Decryption using ECIES + AES}
 \label{alg:decrypt-eciesaes}
 
-\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $\ ($ $r, c, h\ )$ as the cypher text}
+\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $\ ($ $r, c, h\ )$ as the cypher text}
 \KwOut{$\ ($ $\{0,1\}^{*}$,\textsf{bool} $\ )$ }
 
 compute $s' = [\delta]r$
@@ -216,9 +216,9 @@ Algorithm \ref{alg:encrypt-eciesaes} describes the case where a \texttt{Register
 
 ## Re-Encryption
 
-There are various types of re-encryption schemes, ranging from classical proxy re-encryption to hybrid methods. These re-encryption schemes involve a proxy, an entity that performs the re-encryption process and verification. The PRE used in the PEACE protocol is modeled as an interactive flow between the current owner and a prospective buyer, utilizing a smart contract as part of the proxy. We need an interactive scheme because in many real-world use cases, there are numerous off-chain checks, such as KYC/AML and various legal requirements, that must occur before transferring the decryption rights to the new owner. The PEACE protocol obtains interactivity via the owner agreeing to the exchange.
+There are various types of re-encryption schemes, ranging from classical proxy re-encryption to hybrid methods. These re-encryption schemes involve a proxy, an entity that performs the re-encryption and verification processes. The PRE used in the PEACE protocol is modeled as an interactive flow between the current owner and a prospective buyer, utilizing a smart contract as part of the proxy. We need an interactive scheme because in many real-world use cases, there are numerous off-chain checks, such as KYC/AML and various legal requirements, that must occur before transferring the decryption rights to the new owner. The PEACE protocol obtains interactivity via a bidding system and having the owner agreeing to the exchange.
 
-The method described below is a hybrid approach. The current owner's wallet performs the re-encryption of the symmetric content key for the buyer (decapsulation + re-wrapping). At the same time, the Cardano smart contract acts as a proxy, verifying BLS12-381 re-encryption keys, enforcing the correct binding between capsules and ciphertext, and updating the on-chain owner field. This design explicitly supports off-chain processes, such as KYC or contractual agreements, before delegation: the owner only submits the re-encryption transaction once these off-chain conditions are satisfied. This method will allow for the most use cases for real-world assets. This type of method is unidirectional, meaning the re-encryption flow is one-way: from the current owner to the next owner. If Alice delegates to Bob, Bob does not automatically gain the ability to 'go backwards' and create ciphertexts for Alice using the same re-encryption material. This flow differs from a bidirectional method, where the PRE is symmetric, enabling a two-way encryption relationship between the parties. So, Alice can transform a ciphertext into one for Bob, and Bob can transform a ciphertext into one for Alice, without either Alice or Bob having to re-run the entire encryption flow. That is not what we want for this implementation. Each direction is a separate, explicit delegation with its own re-encryption material, matching the tradability requirements.
+The method described below is a hybrid approach. The current owner's wallet performs the re-encryption process for the buyer. At the same time, the Cardano smart contract acts as a proxy, verifying various cryptographic proofs, enforcing the correct bindings, handling payments, and updating the on-chain owner field. This design explicitly supports off-chain processes, such as KYC or contractual agreements, before delegation: the owner only submits the re-encryption transaction once these off-chain conditions are satisfied. This method will allow for the most use cases for real-world assets. This type of method is unidirectional, meaning the re-encryption flow is one-way: from the current owner to the next owner. If Alice delegates to Bob, Bob does not automatically gain the ability to 'go backwards' and create ciphertexts for Alice using the same re-encryption material. This flow differs from a bidirectional method, where the PRE is symmetric, enabling a two-way encryption relationship between the parties. So, Alice can transform a ciphertext into one for Bob, and Bob can transform a ciphertext into one for Alice, without either Alice or Bob having to re-run the entire re-encryption flow. That is not what we want for this implementation. Each direction is a separate, explicit delegation with its own re-encryption material, matching the tradability requirements.
 
 Note that in the original Catalyst proposal, the protocol defines itself as a bidirectional, multi-hop PRE. However, during the design phase, it became clear that the actual Cardano use case requires a unidirectional, multi-hop PRE. This change is fully compatible with the original proposal's PRE goals (transfer of decryption rights without exposing plaintext or private keys), but reflects the reality of trading tokens via Cardano smart contracts within the PRE landscape.
 
@@ -227,42 +227,41 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
 \label{alg:reencrypt-alice-bob}
 
 \KwIn{
-  $(g, u_A)$ where $g \in \mathbb{G}_1$, $u_A = [x_A]g \in \mathbb{G}_1$ (Alice's public key),\\
-  $(u_B, v_B)$ where $u_B = [x_B]g \in \mathbb{G}_1$, $v_B = [x_B]h \in \mathbb{G}_2$ (Bob's public keys),\\
-  $R_{\mathsf{msg}} = [s_{\mathsf{msg}}]g \in \mathbb{G}_1$ (fixed message capsule header),\\
-  $k_{\mathsf{msg}} \in \{0,1\}^\lambda$ (symmetric message key already in use),\\
-  $\mathsf{tag}_{\mathsf{key}}$ (domain separation tag for key capsules),\\
-  Alice's secret key $x_A \in \mathbb{Z}_n$
+  \\
+  $(g, u)$ where $g \in \mathbb{G}_1$, $u = [\delta_{a}]g \in \mathbb{G}_1$ (Alice's public key),\\
+  $(g, v)$ where $v = [\delta_{b}]g \in \mathbb{G}_1$ (Bob's public keys),\\
+  Alice's secret key $\delta_{a} \in \mathbb{Z}_n$ \\
+  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_T$, and  $r_{3} \in \mathbb{G}_2$ \\
+  $(h_{0}, h_{1}, h_{2}, h_{3})$, where $h_{i} \in \mathbb{G}_2$ are public points.
 }
 \KwOut{
-  Bob's key capsule $(R_{\mathsf{key}}, \mathsf{nonce}_{AB}, c_{AB}, \mathsf{aad}_{AB})$ and re-encryption key $\mathsf{rk}_{A \rightarrow B}$
+  $(r_{1,b}, r_{2,b}, r_{3,b})$ and $(r_{1,a}', r_{2,a}', r_{3,a}')$
 }
 
 \BlankLine
 
-select a random $s_{\mathsf{key}} \xleftarrow{\$} \mathbb{Z}_n$\\
-compute $R_{\mathsf{key}} = [s_{\mathsf{key}}] g$\\
-compute $S_{AB} = [s_{\mathsf{key}}] u_B \in \mathbb{G}_1$\\
-compute $\mathsf{kem\_key} = \mathsf{BLAKE2B}(\mathsf{enc}(S_{AB}))$\\[4pt]
+select a random $\kappa \in \mathbb{G}_{T}$, $\kappa = e(q^{a}, h_{0})$
 
-compute $\mathsf{salt}_{AB} = \mathsf{BLAKE2B}(\mathsf{enc}(R_{\mathsf{key}}) \,\|\, \mathsf{enc}(R_{\mathsf{msg}}) \,\|\, \mathsf{tag}_{\mathsf{key}})$\\
-derive $k_{AB} = \mathsf{HKDF}_{\mathsf{SHA3\mbox{-}256}}(\mathsf{kem\_key}, \mathsf{salt}_{AB}, \mathsf{tag}_{\mathsf{key}})$\\[4pt]
+select a random $r \in \mathbb{Z}_{n}$
 
-compute $\mathsf{h}_{\mathsf{key}} = \mathsf{BLAKE2B}(\mathsf{enc}(R_{\mathsf{key}}))$ and $\mathsf{h}_{\mathsf{msg}} = \mathsf{BLAKE2B}(\mathsf{enc}(R_{\mathsf{msg}}))$\\
-set $\mathsf{aad}_{AB} = \mathsf{h}_{\mathsf{key}} \,\|\, \mathsf{h}_{\mathsf{msg}} \,\|\, \mathsf{tag}_{\mathsf{key}}$\\[4pt]
+compute $r_{1,b} = [r]q$
 
-select a random $\mathsf{nonce}_{AB} \xleftarrow{\$} \{0,1\}^{96}$\\
-encrypt $c_{AB} = \mathsf{AES\mbox{-}GCM}_{k_{AB}}(k_{\mathsf{msg}}, \mathsf{nonce}_{AB}, \mathsf{aad}_{AB})$\\[4pt]
+compute $r_{2,b} = e(q^{a}, h_{0}) * e(v^{r}, h_{0}) = e(q^{a}v^{r}, h_{0})$
 
-compute $x_A^{-1} \gets x_A^{-1} \bmod n$\\
-compute $\mathsf{rk}_{A \rightarrow B} = [x_A^{-1}] v_B \in \mathbb{G}_2$\\[4pt]
+compute $c = [BLAKE2b(r_{1,b})]h_{1} + [BLAKE2b(r_{1,b} || r_{2,b})]h_{2}$
 
-\KwRet{$(R_{\mathsf{key}}, \mathsf{nonce}_{AB}, c_{AB}, \mathsf{aad}_{AB}),\ \mathsf{rk}_{A \rightarrow B}$}
+compute $r_{4,b} = [r]c$
+
+compute $r_{5,b} = [BLAKE2b(\kappa)]p + [\delta_{a}]h_{0}$
+
+update $r_{2,a}' = r_{2,a} * e(r_{1,a}, r_{5,b})$
+
+output $(r_{1,b}, r_{2,b}, r_{4,b})$ and $(r_{1,a}, r_{2,a}', r_{3,a})$
 
 \end{algorithm}
 
 
-Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption process for Alice, giving the decryption rights to Bob.
+Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption process for Alice, giving the decryption rights to Bob. Bob can then use this information to recursive calculate the secret $\kappa$ and eventually the original secret used in the encryption process.
 
 # Protocol Overview
 
