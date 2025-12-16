@@ -119,5 +119,6 @@ test trace_wang_params() {
 
 test trace_none() {
   trace None
+  trace Some(#"acab")
   True
 }

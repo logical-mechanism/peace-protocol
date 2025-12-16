@@ -104,6 +104,18 @@ def scale(element: str, scalar: int) -> str:
     """
     return compress(multiply(uncompress(element), scalar))
 
+def invert(element: str) -> str:
+    """
+    Calculates the inverse of a BLS12-381 point.
+
+    Args:
+        element (str): A compressed point.
+
+    Returns:
+        str: The resulting combined point.
+    """
+    return compress(neg(uncompress(element)))
+
 def combine(left_element: str, right_element: str) -> str:
     """
     Combines two BLS12-381 points using addition.

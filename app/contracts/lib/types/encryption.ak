@@ -25,6 +25,7 @@ pub type EncryptionMintRedeemer {
 
 pub type EncryptionSpendRedeemer {
   RemoveEncryption
-  // #<Bls12_381, G1>, #<Bls12_381, G2>, Bid Token, binding proof
+  // #<Bls12_381, G1>, #<Bls12_381, G2>, bid token, binding proof
+  // R5 witness      , R5              , bid token, binding proof
   UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
 }
