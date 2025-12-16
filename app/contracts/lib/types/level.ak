@@ -42,9 +42,6 @@ pub const base_seed: ByteArray =
 // WANG:h0 -> in paper its the g1 point
 pub const wang_h0: G2Element = g2.hash_to_group(base_seed, #"57414e473a6830")
 
-pub const wang_g0: G1Element =
-  g1.generator |> g1.scale(scalar.from_int(69 + 1337 * 44203))
-
 // WANG:h1
 pub const wang_h1: G2Element = g2.hash_to_group(base_seed, #"57414e473a6831")
 
@@ -167,9 +164,17 @@ pub fn add_new_level(
   }
 }
 
-/// this can be some proof that shows r5 is authentic
+/// This can be some proof that shows r5 is authentic
+///
+/// Right now it only proves
+/// e(q, R5) * e(u, g1) = e(q^H(k), p)
+///
+/// We need to combine this with a snark that proves
+/// hk = H(k) where k and hk are secrets
+/// P = q^hk where P is public and q is the g1 generator
+///
+/// Then it would be a complete proof for the r5 term.
 pub fn verify_r5(user: Register, r5: ByteArray, witness: ByteArray) -> Bool {
-  // e(q, R5) * e(u, g1) = e(q^H(k), p)
   let l1 = miller_loop(user.generator |> g1.decompress, r5 |> g2.decompress)
   let l2 = miller_loop(user.public_value |> g1.decompress, wang_h0)
   let left = builtin.bls12_381_mul_miller_loop_result(l1, l2)
