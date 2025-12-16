@@ -8,7 +8,7 @@ def test_binding_proof():
     a = rng()
     r = rng()
 
-    user = Register()
+    user = Register(x=1234567890)
     token_name = "acab"
     x = (a + user.x*r) % curve_order
     r1b = scale(g1_point(1), r)

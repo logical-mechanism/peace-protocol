@@ -105,7 +105,7 @@ echo -e "\033[0;35m${FEE}\033[0m"
 
 ${cli} conway transaction sign \
     --signing-key-file ../wallets/collat/payment.skey \
-    --signing-key-file ../wallets/alice/payment.skey \
+    --signing-key-file ${alice_wallet_path}/payment.skey \
     --tx-body-file ./tmp/tx.draft \
     --out-file ./tmp/tx.signed \
     ${network}
