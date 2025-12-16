@@ -13,7 +13,10 @@ from src.bls12381 import (
     pair,
     fq12_encoding,
     to_int,
-    invert
+    invert,
+    curve_order,
+    rng,
+    random_fq12
 )
 
 
@@ -64,6 +67,18 @@ def test_printing_fq12():
     assert fq12_encoding(kappa, F12_DOMAIN_TAG) == "f057b04a6426f94e73ecc34ed81c604a259bddcd556a047fdb1986d7"
 
 
+def test_dividing_pairing():
+    u1g1 = g1_point(1)
+    v1g2 = g2_point(1)
+
+    a = pair(scale(u1g1, 31), scale(v1g2, 7))
+    b = pair(scale(u1g1, 7), scale(v1g2, 7))
+    c = pair(scale(u1g1, 168), scale(v1g2, 1))
+    d = a / b
+
+    assert c == d
+
+
 def test_hash_to_int():
     h = generate("acab")
     n = to_int(h)
@@ -82,6 +97,28 @@ def test_g2_invert_of_an_invert_is_equal():
     gi = invert(g2)
     g = invert(gi)
     assert uncompress(g2) == uncompress(g)
+
+def test_pairing_division():
+    a0 = rng()
+    r0 = rng()
+    m0 = random_fq12(a0)
+    print(f"SECRET: {m0}")
+
+    sk = 123456789
+    h0x = scale(H0, sk)
+
+    r1b = scale(g1_point(1), r0)
+    r2_g1b = scale(g1_point(1), a0 + r0*sk)
+
+    r2 = pair(r2_g1b, H0)
+    b = pair(r1b, h0x)
+
+    key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
+    print(key)
+
+    kappa = pair(scale(g1_point(1), a0), H0)
+    m = fq12_encoding(kappa, F12_DOMAIN_TAG)
+    assert m0 == m
 
 if __name__ == "__main__":
     pytest.main()
