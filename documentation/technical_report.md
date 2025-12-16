@@ -82,7 +82,7 @@ The remainder of this report is as follows. Section 4 discusses the preliminarie
 
 # Background And Preliminaries
 
-Understanding the protocol will require some technical knowledge of modern cryptographic methods, a basic understanding of elliptic curve arithmetic, and a general understanding of smart contracts on the Cardano blockchain. Anyone comfortable with these topics will find this report very useful and easy to follow. The report will attempt to use research standards for terminology and notation. The elliptic curve used in this protocol will be BLS12-381 [@bowe-bls12-381-2017]. Aiken is used to write all required smart contracts for the protocol.
+Understanding the protocol will require some technical knowledge of modern cryptographic methods, a basic understanding of elliptic curve arithmetic, and a general understanding of smart contracts on the Cardano blockchain. Anyone comfortable with these topics will find this report very useful and easy to follow. The report will attempt to use research standards for terminology and notation. The elliptic curve used in this protocol will be BLS12-381 [@bowe-bls12-381-2017]. All smart contracts required for the protocol are written in Aiken.
 
 Table: Symbol Description [@elmrabet-joye-2017]
 
@@ -128,7 +128,7 @@ This section provides brief explanations of the cryptographic primitives require
 
 ## Register-based
 
-The protocol requires proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is both complete and zero-knowledge, precisely what we need in this context. We can use simple Ed25519 signatures for spendability, and then utilize the Schnorr $\Sigma$-protocol for knowledge proofs related to encryption. We will make the protocol non-interacting via the Fiat-Shamir transform.
+The protocol requires proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is both complete and zero-knowledge. We can use simple Ed25519 signatures for spendability, and then utilize the Schnorr $\Sigma$-protocol for knowledge proofs related to encryption. We will make the protocol non-interacting via the Fiat-Shamir transform.
 
 \begin{algorithm}[H]
 \caption{Non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation}
