@@ -65,7 +65,7 @@ header-includes:
     }
   - |
     \lstdefinelanguage{Aiken}{
-      keywords={pub,type,fn,let,expect, ByteArray},
+      keywords={pub,type,fn,let,expect, const},
       sensitive=true,
       comment=[l]{//},
       morestring=[b]",
@@ -357,36 +357,54 @@ The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which
 
 There will be two user-focused smart contracts: one for re-encryption and the other for bid management. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the contract script hashes for the re-encryption and bid contracts.
 
-The bid contract datum structure:
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Bid datum type},
+  label={lst:biddatumtype},
+  float,
+  floatplacement=H
+]
 pub type BidDatum {
   owner_vkh: VerificationKeyHash,
   owner_g1: Register,
   pointer: AssetName,
   token: AssetName,
 }
+\end{lstlisting}
 ```
 
-The bid datum contains all of the required information for re-encryption. The owner of a bid UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{pointer} is the NFT name on the bid UTxO, and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} forces the bid to apply only to a specific encrypted data sale.
+The bid contract datum structure is defined in Listing \ref{lst:biddatumtype}. The bid datum contains all of the required information for re-encryption. The owner of a bid UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{pointer} is the NFT name on the bid UTxO, and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} forces the bid to apply only to a specific encrypted data sale.
 
-The bid contract redeemer structure:
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Bid redeemer types},
+  label={lst:bidredeemertypes},
+  float,
+  floatplacement=H
+]
 pub type BidMintRedeemer {
   EntryBidMint(SchnorrProof)
   LeaveBidBurn(AssetName)
 }
-```
-```rust
 pub type BidSpendRedeemer {
   RemoveBid
   UseBid
 }
+\end{lstlisting}
 ```
 
-Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} existence check, a Ed25519 signature with \texttt{owner\_vkh}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
+The bid contract redeemer structures are defined in Listing \ref{lst:bidredeemertypes}. Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} existence check, a Ed25519 signature with \texttt{owner\_vkh}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
 
-The re-encryption contract datum structure:
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Encryption datum type},
+  label={lst:encdatumtype},
+  float,
+  floatplacement=H
+]
 pub type EncryptionDatum {
   owner_vkh: VerificationKeyHash,
   owner_g1: Register,
@@ -394,67 +412,57 @@ pub type EncryptionDatum {
   levels: List<EncryptionLevel>,
   capsule: Capsule,
 }
-```
-
-The ciphertext and related data are held in the capsule sub-type:
-```rust
 pub type Capsule {
   nonce: ByteArray,
   aad: ByteArray,
   ct: ByteArray,
 }
-```
-
-Each hop generates a new encryption level sub-type:
-```rust
 pub type EncryptionLevel {
   r1b: ByteArray,
   r2: EmbeddedGt,
   r4b: ByteArray,
 }
-```
-We can’t store or do full arithmetic on $\mathbb{G}_T$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_T$ elements during validation, while everything else is treated as an implied constant or a value that can be referenced elsewhere.
-```rust
 pub type EmbeddedGt {
   g1b: ByteArray,
   g2b: Option<ByteArray>,
 }
+\end{lstlisting}
 ```
+
+The re-encryption contract datum structure is defined in Listing \ref{lst:encdatumtype}. The ciphertext and related data are held in the \texttt{capsule} sub-type and each hop generates a new encryption level sub-type. We can’t store or do full arithmetic on $\mathbb{G}_T$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_T$ elements during validation, while everything else is treated as an implied constant or a value that can be referenced elsewhere.
+
 The re-encryption datum contains all of the required information for decryption. The owner of an encrypted data UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the encryption information and \texttt{levels} contains the decryption information. Inside the \texttt{capsule} is the \texttt{nonce}, \texttt{aad}, and \texttt{ct}.
 
-The re-encryption contract redeemer structure:
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Encryption redeemer types},
+  label={lst:encredeemertypes},
+  float,
+  floatplacement=H
+]
 pub type EncryptionMintRedeemer {
   EntryEncryptionMint(SchnorrProof, BindingProof)
   LeaveEncryptionBurn(AssetName)
 }
-```
-
-```rust
 pub type EncryptionSpendRedeemer {
   RemoveEncryption
   UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
 }
-```
-
-```rust
 pub type SchnorrProof {
   z_b: ByteArray,
   g_r_b: ByteArray,
 }
-```
-
-The binding proof is two schnorr proofs combined together.
-```rust
 pub type BindingProof {
   z_a_b: ByteArray,
   z_r_b: ByteArray,
   t_1_b: ByteArray,
   t_2_b: ByteArray,
 }
+\end{lstlisting}
 ```
 
-Entering into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, a Ed25519 signature with \texttt{owner\_vkh}, a binding proof using \texttt{owner\_g1} and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the re-encryption contract requires using \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers together, triggering a \texttt{token} burn validation and a Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseEncryption}, triggering the proxy re-encryption validation.
+The re-encryption contract redeemer structures are defined in Listing \ref{lst:encredeemertypes}. Entering into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, a Ed25519 signature with \texttt{owner\_vkh}, a binding proof using \texttt{owner\_g1} and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the re-encryption contract requires using \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers together, triggering a \texttt{token} burn validation and a Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseEncryption}, triggering the proxy re-encryption validation.
 
 The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn} must be used together during re-encryption.
 
@@ -472,23 +480,29 @@ For each encrypted item, the protocol generates a fresh symmetric key for AES-GC
 
 The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Alice will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for both the change and contract UTxO, and the transaction fee. Alice may then build the entry to the re-encryption contract transaction.
 
-The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the code and example below. The specification for the protocol assumes a single input but in general many inputs may be used in this transaction. If more than one input exists then the first lexicographical sorted input will be used for the name generation.
+The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the Listing \ref{lst:gentkn}. The specification for the protocol assumes a single input but in general many inputs may be used in this transaction. If more than one input exists then the first lexicographical sorted input will be used for the name generation.
 
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Token name generation},
+  label={lst:gentkn},
+  float,
+  floatplacement=H
+]
 pub fn generate_token_name(inputs: List<Input>) -> AssetName {
   let input: Input = builtin.head_list(inputs)
   let id: TransactionId = input.output_reference.transaction_id
   let idx: Int = input.output_reference.output_index
   id |> bytearray.push(idx) |> bytearray.slice(0, 31)
 }
+\end{lstlisting}
 ```
 
+The example below shows the token name generation output.
 ```bash
-# the 24th output of the transaction 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
 input = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef#24"
-# note: 24 is 18 in base 16
-# concat the index and id then trim to 32 bytes.
-generate_token_name(input) = "181234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
+token_name = "181234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
 ```
 
 Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{levels} and \texttt{capsule}. Since Alice is the first owner, she will encrypt to herself. Alice will encrypt the original data by generating a root $\kappa$ in $\mathbb{G}_{T}$. The root secret will be used in the KDF to produce a valid AES key. The message can now be encrypted using AES-GCM. The resulting information is stored in the \texttt{Capsule} type. Below is a pythonic psuedocode for generating the original encrypted data and the first encryption level.
@@ -522,8 +536,15 @@ nonce, aad, ct = encrypt(r1, k0, message)
 \end{lstlisting}
 ```
 
-The sub-types can be populated as shown below:
-```rust
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Encryption data format},
+  label={lst:actualfirstlevel},
+  float,
+  floatplacement=H
+]
 pub type EncryptionLevel {
   r1b,
   r2: EmbeddedGt {
@@ -532,29 +553,37 @@ pub type EncryptionLevel {
   },
   r4b,
 }
-```
-```rust
 pub type Capsule {
   nonce,
   aad,
   ct: ciphertext,
 }
+\end{lstlisting}
 ```
 
-The contract will validate the first encryption level using:
-```py
+The sub-types can be populated as shown in Listing \ref{lst:actualfirstlevel}. The contract will validate the first encryption level using the assertion from Listing \ref{lst:validatefirstlevel}. Alice can prove to herself that the encryption level is valid by verifying the assertion in Listing \ref{lst:decryptfirstlevel}. Alice may now construct the full \texttt{EncryptionDatum} as shown in Listing \ref{lst:fullfirstdatum}.
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={First level validation}, label={lst:validatefirstlevel}, float, floatplacement=H]
 assert pair(g, r4b) = pair(r1b, c)
+\end{lstlisting}
 ```
 
-Alice can prove to herself that the encryption level is valid by verifying:
-```py
+```{=latex}
+\begin{lstlisting}[style=python, caption={Alice can decrypt the key}, label={lst:decryptfirstlevel}, float, floatplacement=H]
 expected_k0 = pair(r2_g1b, H0) / pair(r1b, scale(H0, sk))
 assert k0 == expected_k0
+\end{lstlisting}
 ```
 
-Alice may now construct the full \texttt{EncryptionDatum}.
-
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Full first level datum},
+  label={lst:fullfirstdatum},
+  float,
+  floatplacement=H
+]
 pub type EncryptionDatum {
   owner_vkh,
   owner_g1,
@@ -575,6 +604,7 @@ pub type EncryptionDatum {
     ct: ciphertext,
   },
 }
+\end{lstlisting}
 ```
 
 The entry redeemer verifies that Alice's verification key (Ed25519 key hash) is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol \ref{alg:schnorrsig} as Alice needs this to decrypt her own data and it verifies that Alice binds her public value to the first encryption level via a binding proof \ref{alg:bindingsig}. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
@@ -583,22 +613,30 @@ Bob may now place a bid into the bid contract in an attempt to purchase the encr
 
 The structure of the bid entry transaction is similar to the re-encryption entry transaction but using \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The \texttt{pointer} token name is generated in the exact some way as the \texttt{token} name.
 
-Now, Bob can create the \texttt{BidDatum}. The \texttt{token} name may be referenced on-chain from the re-encryption contract and the \texttt{pointer} is derived from the inputs.
+Now, Bob can create the \texttt{BidDatum}. The \texttt{token} name may be referenced on-chain from the re-encryption contract and the \texttt{pointer} is derived from the inputs as shown in Listing \ref{lst:fullbiddatum}.
 
-
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Full Bid datum},
+  label={lst:fullbiddatum},
+  float,
+  floatplacement=H
+]
 pub type BidDatum {
   owner_vkh,
   owner_g1,
   pointer: generate_token_name(inputs),
   token,
 }
+\end{lstlisting}
 ```
 Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. This is important as the validity of these points will determine if Bob can decrypt the data after the re-encryption process. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
 
-Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings between the original owner's \texttt{Register} values in $\mathbb{G}_{1}$, proving that the new owner's \texttt{Register} was used during the re-encryption process, resulting in a transfer of ownership and decryption rights. Below is a pythonic psuedocode for generating the next encryption level.
+Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings between the original owner's \texttt{Register} values in $\mathbb{G}_{1}$, proving that the new owner's \texttt{Register} was used during the re-encryption process, resulting in a transfer of ownership and decryption rights. Listing \ref{lst:createnextlevel} is a pythonic psuedocode for generating the next encryption level.
 
-```py
+```{=latex}
+\begin{lstlisting}[style=python, caption={Generate the next level}, label={lst:createnextlevel}, float, floatplacement=H]
 a1 = rng()
 r1 = rng()
 k1 = random_fq12(a1)
@@ -614,11 +652,19 @@ c = combine(scale(H1, a), scale(H2, b))
 r4b = scale(c, r1)
 
 r5b = combine(scale(q, hk), scale(invert(H0), sk))
+\end{lstlisting}
 ```
 
-Bob's encryption level is now
+Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
 
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Bob's and Alice's encryption levels},
+  label={lst:encryptionlevels},
+  float,
+  floatplacement=H
+]
 pub type EncryptionLevel {
   r1b,
   r2: EmbeddedGt {
@@ -627,11 +673,6 @@ pub type EncryptionLevel {
   },
   r4b,
 }
-```
-
-and Alice's encryption level is now
-
-```rust
 pub type EncryptionLevel {
   r1b: alice.r1B,
   r2: EmbeddedGt {
@@ -640,10 +681,17 @@ pub type EncryptionLevel {
   },
   r4b: alice.r4b,
 }
+\end{lstlisting}
 ```
 
-Now the next datum can be constructed.
-```rust
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Bob's encryption datum},
+  label={lst:nextencryptiondatum},
+  float,
+  floatplacement=H
+]
 pub type EncryptionDatum {
   owner_vkh: bob.owner_vkh,
   owner_g1: bob.owner_g1,
@@ -672,17 +720,23 @@ pub type EncryptionDatum {
     ct: ciphertext,
   },
 }
+\end{lstlisting}
 ```
 
-The contract will validate the re-encryption using a binding proof and two pairing proofs as shown below. The first assertion follows the Alice's validation, ensuring that the encryption level terms are consistent. The second assertion hows that Alice create the $r_{5}$ term correctly. Adding a SNARK for valid witness creation is left for later work.
-```py
+The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first assertion follows the Alice's validation, ensuring that the encryption level terms are consistent. The second assertion hows that Alice create the $r_{5}$ term correctly. Adding a SNARK for valid witness creation is left for later work.
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={Validate the re-encryption process}, label={lst:validatereencryption}, float, floatplacement=H]
 assert pair(g, bob.r4b) = pair(bob.r1b, c)
 assert pair(g, alice.r5b) * pair(alice.u, H0) = pair(alice.witness, p)
+\end{lstlisting}
 ```
 
-Bob can now decrypt the root key by recursiving computing all the random $\mathbb{G}_{T}$ points.
+Bob can now decrypt the root key by recursiving computing all the random $\mathbb{G}_{T}$ points as shown in Listing \ref{lst:decrypting}.
 
-```py
+```{=latex}
+\begin{lstlisting}[style=python, caption={Decrypting the secret message}, label={lst:decrypting}, float, floatplacement=H]
+
 h0x = scale(H0, sk)
 shared = h0x
 
@@ -700,6 +754,7 @@ for entry in encryption_levels:
     shared = scale(q, k)
 
 message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
+\end{lstlisting}
 ```
 
 # Security Model
