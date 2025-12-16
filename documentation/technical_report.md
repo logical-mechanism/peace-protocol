@@ -100,14 +100,14 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $\mathbb{G}_{2}$ | A subgroup of order $r$ of the twist $E'(\mathbb{F}_{p^{2}})$ |
 | $\mathbb{G}_{T}$ | The multiplicative target group of the pairing: $\mu_r \subset \mathbb{F}_{p^{12}}^{\*}$ |
 | $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A type-3 bilinear pairing |
-| $g: A fixed generator in \mathbb{G}_{1}$ |
-| $q: A fixed generator in \mathbb{G}_{2}$ |
+| $g$ | A fixed generator in $\mathbb{G}_{1}$ |
+| $q$ | A fixed generator in $\mathbb{G}_{2}$ |
 | $R$ | The Fiat-Shamir transformer |
 | $H_{\kappa}$ | A hash to group function for $\mathbb{G}_{\kappa}$ |
 | $m$ | The order of Ed25519 |
 | $\gamma$ | A non-zero integer in $\mathbb{Z}_{m}$ |
 
-The protocol, including both on-chain and off-chain components, will heavily utilize the \texttt{Register} type. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over subgroups, $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
+The protocol, including both on-chain and off-chain components, will heavily utilize the \texttt{Register} type. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ will result in the inability to recover the secret $\delta \in \mathbb{Z}_{n}$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over the subgroups $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
 The \texttt{Register} type in Aiken:
 
@@ -120,7 +120,7 @@ pub type Register {
 }
 ```
 
-Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol for non-interactive purposes. In these cases, the hash function will be Blake2b-256 [@rfc7693].
+Where required, we will verify Ed25519 signatures [@rfc8032] as a cost-minimization approach; relying solely on pure BLS12-381 for simple signatures becomes costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol for non-interactive purposes. In these cases, the hash function will be Blake2b-224 [@rfc7693].
 
 # Cryptographic Primitives Overview
 
@@ -128,23 +128,7 @@ This section provides brief explanations of the cryptographic primitives require
 
 ## Register-based
 
-There may be instances where we need to create a new \texttt{Register} from an existing \texttt{Register} via a re-randomization [@ergo-sigma-join]. The random integer $\delta'$ is considered toxic waste. Randomization allows a public register to remain stealthy, which can be beneficial for data privacy and ownership.
-
-\begin{algorithm}[H]
-\caption{Re-randomization of the Register type}
-\label{alg:rerandom}
-
-\KwIn{$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{\kappa}$, $u=[\delta]g \in \mathbb{G}_{\kappa}$}
-\KwOut{$\ ($ $g', u'\ )$}
-
-select a random $\delta' \in \mathbb{Z}_{n}$
-
-compute $g' = [\delta']g$ and $u' = [\delta']u$
-
-output $\ ($ $g', u'\ )$
-\end{algorithm}
-
-The protocol may require proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is both complete and zero-knowledge, precisely what we need in this context. We can use simple Ed25519 signatures for spendability, and then utilize the Schnorr $\Sigma$-protocol for knowledge proofs related to encryption. We will make the protocol non-interacting via the Fiat-Shamir transform.
+The protocol requires proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is both complete and zero-knowledge, precisely what we need in this context. We can use simple Ed25519 signatures for spendability, and then utilize the Schnorr $\Sigma$-protocol for knowledge proofs related to encryption. We will make the protocol non-interacting via the Fiat-Shamir transform.
 
 \begin{algorithm}[H]
 \caption{Non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation}
@@ -529,20 +513,6 @@ Alice will select a bid UTxO from the bid contract and will do the re-encryption
 \appendix
 
 # Appendix A - Proofs {#app:proofs}
-
-\begin{lemma}\label{lem:correct-rerandom}
-Algorithm~\ref{alg:rerandom} re-randomizes a \texttt{Register}.
-\end{lemma}
-
-\begin{proof}
-
-We start with $\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$ and $u=[\delta]g \in \mathbb{G}_1$ and we are given $\ ($ $g', u'\ )$. Let us assume that $k \in \mathbb{Z}_{n}$ is a random integer.
-
-Let's assume $g' = [k]g$ and $u' = [k]u$. We know $u = [\delta]g$ so $u' = [k][\delta]g = [\delta][k]g = [\delta]g'$.
-
-Thus the discrete-logrithm relation that binds $\ ($ $g, u\ )$, $u=[\delta]g$, is the same relationship between $\ ($ $g', u'\ )$, $u'=[\delta]g'$, showing that $\ ($ $g', u'\ )$ is just the re-randomization of $\ ($ $g, u\ )$.
-
-\end{proof}
 
 \begin{lemma}\label{lem:correct-schnorr}
 Correctness for Algorithm~\ref{alg:schnorrsig}, a non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation.
