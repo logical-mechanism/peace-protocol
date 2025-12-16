@@ -61,7 +61,7 @@ jq \
 ../data/encryption/encryption-burn-redeemer.json | sponge ../data/encryption/encryption-burn-redeemer.json
 
 # get script utxo
-echo -e "\033[0;36m Gathering Script UTxO Information  \033[0m"
+echo -e "\033[0;36m Gathering Encryption UTxO Information  \033[0m"
 ${cli} conway query utxo \
     --address ${encryption_script_address} \
     ${network} \
