@@ -4,7 +4,6 @@ set -euo pipefail
 # SET UP VARS HERE
 source ../.env
 
-
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # get params
