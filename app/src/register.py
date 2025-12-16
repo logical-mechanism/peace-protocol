@@ -9,14 +9,19 @@ from pathlib import Path
 @dataclass
 class Register:
     x: int | None = None
-    g: str = field(init=False)
-    u: str = field(init=False)
+    g: str | None = None
+    u: str | None = None
 
     def __post_init__(self):
-        if self.x is None:
-            self.x = rng()
-        self.g = g1_point(1)
-        self.u = g1_point(self.x)
+        # Secret-known construction
+        if self.x is not None:
+            self.g = g1_point(1)
+            self.u = g1_point(self.x)
+            return
+
+        # Public-only construction
+        if self.g is None or self.u is None:
+            raise ValueError("Must provide (g, u) if x is not known")
     
     def __eq__(self, other):
         if not isinstance(other, Register):

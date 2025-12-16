@@ -81,7 +81,7 @@ def create_reencryption_tx(alice_wallet_path: str, bob_public_value: str, token_
 
     # update the last element
     encryption_datum = load_json("../data/encryption/encryption-datum.json")
-    last_entry = encryption_datum[3]["list"][0]
+    last_entry = encryption_datum['fields'][3]["list"][0]
     old_r1b = last_entry['fields'][0]["bytes"]
     old_r2_g1b = last_entry['fields'][1]["fields"][0]["bytes"]
     old_r4b = last_entry['fields'][2]["bytes"]

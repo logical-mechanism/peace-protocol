@@ -172,7 +172,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               expect BidDatum {
                 owner_vkh: bid_owner_vkh,
                 owner_g1: bid_owner_g1,
-                token: bid_token,
                 ..
               }: BidDatum = bidding_datum_data
               //
@@ -183,8 +182,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 (capsule == next_capsule)?,
                 // this token can not chnage
                 (token == next_token)?,
-                // the selected bid token is the bid token
-                (bid_token == selected_bid_token)?,
                 // bid owner is new owner
                 (bid_owner_vkh == next_owner_vkh)?,
                 (bid_owner_g1 == next_owner_g1)?,

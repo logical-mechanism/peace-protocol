@@ -5,7 +5,7 @@ from src.schnorr import schnorr_proof, fiat_shamir_heuristic
 
 
 def test_schnorr_proof():
-    user = Register()
+    user = Register(x=1234567890)
     z, gr = schnorr_proof(user)
     c = to_int(fiat_shamir_heuristic(user.g, gr, user.u))
 

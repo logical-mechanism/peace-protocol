@@ -40,6 +40,18 @@ fi
 TXIN=$(jq -r --arg alltxin "" 'keys[] | . + $alltxin + " --tx-in"' ./tmp/alice_utxo.json)
 alice_utxo=${TXIN::-8}
 
+echo -e "\033[0;36m Gathering Collateral UTxO Information  \033[0m"
+${cli} conway query utxo \
+    ${network} \
+    --address ${collat_address} \
+    --out-file ./tmp/collat_utxo.json
+TXNS=$(jq length ./tmp/collat_utxo.json)
+if [ "${TXNS}" -eq "0" ]; then
+   echo -e "\n \033[0;31m NO UTxOs Found At ${collat_address} \033[0m \n";
+   exit;
+fi
+collat_utxo=$(jq -r 'keys[0]' ./tmp/collat_utxo.json)
+
 # find token name from inputs
 first_utxo=$(jq -r 'keys[0]' ./tmp/alice_utxo.json)
 
@@ -86,18 +98,6 @@ jq \
 ../data/encryption/encryption-mint-redeemer.json | sponge ../data/encryption/encryption-mint-redeemer.json
 
 # should be able to build the tx now
-echo -e "\033[0;36m Gathering Collateral UTxO Information  \033[0m"
-${cli} conway query utxo \
-    ${network} \
-    --address ${collat_address} \
-    --out-file ./tmp/collat_utxo.json
-TXNS=$(jq length ./tmp/collat_utxo.json)
-if [ "${TXNS}" -eq "0" ]; then
-   echo -e "\n \033[0;31m NO UTxOs Found At ${collat_address} \033[0m \n";
-   exit;
-fi
-collat_utxo=$(jq -r 'keys[0]' ./tmp/collat_utxo.json)
-
 utxo_value=$(${cli} conway transaction calculate-min-required-utxo \
     --protocol-params-file ./tmp/protocol.json \
     --tx-out-inline-datum-file ../data/encryption/encryption-datum.json \
@@ -133,7 +133,7 @@ echo -e "\033[0;35m${FEE}\033[0m"
 
 ${cli} conway transaction sign \
     --signing-key-file ../wallets/collat/payment.skey \
-    --signing-key-file ../wallets/alice/payment.skey \
+    --signing-key-file ${alice_wallet_path}/payment.skey \
     --tx-body-file ./tmp/tx.draft \
     --out-file ./tmp/tx.signed \
     ${network}
