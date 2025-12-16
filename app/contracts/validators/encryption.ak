@@ -181,14 +181,13 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               and {
                 // cipher text can not change
                 (capsule == next_capsule)?,
-                // bid owner is new owner
-                (bid_owner_vkh == next_owner_vkh)?,
-                // bid owner is new owner
-                (bid_owner_g1 == next_owner_g1)?,
                 // this token can not chnage
                 (token == next_token)?,
                 // the selected bid token is the bid token
                 (bid_token == selected_bid_token)?,
+                // bid owner is new owner
+                (bid_owner_vkh == next_owner_vkh)?,
+                (bid_owner_g1 == next_owner_g1)?,
                 // check if correct script hashes
                 (Script(this_script) == payment_credential)?,
                 (Script(bid) == bid_payment_credential)?,

@@ -12,7 +12,8 @@ from src.bls12381 import (
     scale,
     pair,
     fq12_encoding,
-    to_int
+    to_int,
+    invert
 )
 
 
@@ -67,6 +68,20 @@ def test_hash_to_int():
     h = generate("acab")
     n = to_int(h)
     assert n == 1028703146767339290293633951186123731886171864122866591065320629138
+
+
+def test_g1_invert_of_an_invert_is_equal():
+    g1 = g1_point(1)
+    gi = invert(g1)
+    g = invert(gi)
+    assert uncompress(g1) == uncompress(g)
+
+
+def test_g2_invert_of_an_invert_is_equal():
+    g2 = g2_point(1)
+    gi = invert(g2)
+    g = invert(gi)
+    assert uncompress(g2) == uncompress(g)
 
 if __name__ == "__main__":
     pytest.main()

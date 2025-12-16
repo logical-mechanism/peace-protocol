@@ -31,6 +31,10 @@ class Register:
     def __rmul__(self, other):
         return self.__mul__(other)
     
+    @classmethod
+    def from_public(cls, g: str, u: str) -> "Register":
+        return cls(x=None, g=g, u=u)
+    
     def to_file(self) -> None:
         path = "../data/register.json"
         data = {
