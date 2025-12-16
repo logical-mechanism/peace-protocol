@@ -1,13 +1,16 @@
-from src.constants import KEY_DOMAIN_TAG, H0, H1, H2, H3
+from src.constants import KEY_DOMAIN_TAG, H0, H1, H2, H3, F12_DOMAIN_TAG
 from src.files import extract_key
-from src.bls12381 import to_int, rng, random_fq12, scale, g1_point, combine, curve_order, g2_point, invert
+from src.bls12381 import to_int, rng, random_fq12, scale, g1_point, combine, curve_order, g2_point, invert, pair, fq12_encoding
 from src.hashing import generate
 from src.register import Register
-from src.ecies import encrypt, capsule_to_file
+from src.ecies import encrypt, capsule_to_file, decrypt
 from src.level import half_level_to_file, full_level_to_file
 from src.schnorr import schnorr_proof, schnorr_to_file
 from src.binding import binding_proof, binding_to_file
 from src.files import save_string, load_json
+import os
+import json
+
 
 def create_encryption_tx(alice_wallet_path: str, plaintext: str, token_name: str) -> None:
 
@@ -15,6 +18,7 @@ def create_encryption_tx(alice_wallet_path: str, plaintext: str, token_name: str
     a0 = rng()
     r0 = rng()
     m0 = random_fq12(a0)
+    print(f"SECRET: {m0}")
 
     key = extract_key(alice_wallet_path);
     sk = to_int(generate(KEY_DOMAIN_TAG + key))
@@ -87,3 +91,39 @@ def create_reencryption_tx(alice_wallet_path: str, bob_public_value: str, token_
     old_r4b = last_entry['fields'][2]["bytes"]
 
     full_level_to_file(old_r1b, old_r2_g1b, r5b, old_r4b)
+
+def recursive_decrypt(alice_wallet_path: str) -> None:
+    key = extract_key(alice_wallet_path);
+    sk = to_int(generate(KEY_DOMAIN_TAG + key))
+
+    encryption_datum = load_json("../data/encryption/encryption-datum.json")
+    all_entries = encryption_datum['fields'][3]["list"]
+
+    h0x = scale(H0, sk)
+    shared = h0x
+
+    for entry in all_entries:
+
+        # print(json.dumps(entry, indent=2))
+        r1 = entry['fields'][0]['bytes']
+        if entry['fields'][1]['fields'][1]['constructor'] == 1:
+            r2 = pair(entry['fields'][1]['fields'][0]['bytes'], H0)
+        else:
+            r2 = pair(entry['fields'][1]['fields'][0]['bytes'], H0) * pair(r1, entry['fields'][1]['fields'][1]['fields'][0]['bytes'])
+
+        b = pair(r1, shared)
+
+
+        key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
+        # print(key)
+        k = to_int(key)
+        shared = scale(g2_point(1), k)
+    capsule = encryption_datum['fields'][4]
+
+    nonce = capsule['fields'][0]['bytes']
+    aad = capsule['fields'][1]['bytes']
+    ct = capsule['fields'][2]['bytes']
+    message = decrypt(r1, key, nonce, ct, aad)
+    print(message)
+
+    
