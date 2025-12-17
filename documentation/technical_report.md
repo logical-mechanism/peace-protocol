@@ -170,7 +170,7 @@ Where required, we will verify Ed25519 signatures [@rfc8032] for cost-minimizati
 
 # Cryptographic Primitives Overview
 
-This section provides brief explanations of the cryptographic primitives required by the protocol. If a primitive has an algorithmic description, then it will be included in the respective section. The \texttt{Register} type will be represented as a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the compression and uncompression of the elliptic curve points are canonical [@ZcashProtocolSpec2022NU5]. Correctness proofs for many algorithms are in Appendix A. In any algorithm, $\mathbb{G}_{1}$ may be switched with $\mathbb{G}_{2}$ without any required changes.
+This section provides brief explanations of the cryptographic primitives required by the protocol. If a primitive has an algorithmic description, then it will be included in the respective section. The \texttt{Register} type will be represented as a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the compression and uncompression of the elliptic curve points are canonical [@ZcashProtocolSpec2022NU5]. Correctness proofs for many algorithms are in Appendix A.
 
 ## Register-based
 
@@ -219,7 +219,7 @@ compute $z_{a} = a*c + \alpha$
 
 compute $z_{r} = r*c + \rho$
 
-output $[z_{a}]g + [z_{r}]u = t_{2} + [c]\chi$ AND $[z_{r}]g = t_{1} + [c]r_{1}$
+output $[z_{a}]g + [z_{r}]u = t_{2} + [c]\chi \land [z_{r}]g = t_{1} + [c]r_{1}$
 \end{algorithm}
 
 There will be times when the protocol requires proving some equality using a pairing. In these cases, we can use something akin to the BLS signature, allowing only someone with the knowledge of the secret to prove the pairing equivalence. BLS signatures are a straightforward yet important signature scheme for the protocol, as they enable public confirmation of knowledge of a complex relationship beyond the limitations of Schnorr's $\Sigma$-protocol. BLS signatures work because of the bilinearity of the pairing [@Menezes1993ECPKC].
@@ -246,7 +246,7 @@ The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol inv
 \caption{Encryption using ECIES + AES}
 \label{alg:encrypt-eciesaes}
 
-\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{\kappa}$, $u=[\delta]g \in \mathbb{G}_{\kappa}$, m as the message}
+\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{\kappa}$, $u=[\delta]g \in \mathbb{G}_{\kappa}$, $m \in \{0,1\}^{*}$}
 \KwOut{$\ ($ $r, c, h\ )$ }
 
 select a random $\delta' \in \mathbb{Z}_{n}$
@@ -271,7 +271,7 @@ Decrypting the ciphertext requires rebuilding the data encryption key (DEK), $k$
 \caption{Decryption using ECIES + AES}
 \label{alg:decrypt-eciesaes}
 
-\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $\ ($ $r, c, h\ )$ as the cypher text}
+\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$,\\$\ ($ $r, c, h\ )$ as the capsule}
 \KwOut{$\ ($ $\{0,1\}^{*}$,\textsf{bool} $\ )$ }
 
 compute $s' = [\delta]r$
@@ -290,9 +290,9 @@ Algorithm \ref{alg:encrypt-eciesaes} describes the case where a \texttt{Register
 
 ## Re-Encryption
 
-There are various types of re-encryption schemes, ranging from classical proxy re-encryption to hybrid methods. These re-encryption schemes involve a proxy, an entity that performs the re-encryption and verification processes. The PRE used in the PEACE protocol is modeled as an interactive flow between the current owner and a prospective buyer, utilizing a smart contract as part of the proxy. We need an interactive scheme because in many real-world use cases, there are numerous off-chain checks, such as KYC/AML and various legal requirements, that must occur before transferring the decryption rights to the new owner. The PEACE protocol obtains interactivity via a bidding system and having the owner agreeing to the exchange.
+There are various types of re-encryption schemes, ranging from classical proxy re-encryption to hybrid methods. These re-encryption schemes involve a proxy, an entity that performs the re-encryption and verification processes. The PRE used in the PEACE protocol is modeled as an interactive flow between the current owner and a prospective buyer, utilizing a smart contract as part of the proxy. We need an interactive scheme because in many real-world use cases there are numerous off-chain checks such as KYC/AML regulations and various legal requirements that must occur before transferring the right to decrypt to the new owner. The PEACE protocol obtains interactivity via a bidding system and requiring the owner to agree to the exchange.
 
-The method described below is a hybrid approach. The current owner's wallet performs the re-encryption process for the buyer. At the same time, the Cardano smart contract acts as a proxy, verifying various cryptographic proofs, enforcing the correct bindings, handling payments, and updating the on-chain owner field. This design explicitly supports off-chain processes, such as KYC or contractual agreements, before delegation: the owner only submits the re-encryption transaction once these off-chain conditions are satisfied. This method will allow for the most use cases for real-world assets. This type of method is unidirectional, meaning the re-encryption flow is one-way: from the current owner to the next owner. If Alice delegates to Bob, Bob does not automatically gain the ability to 'go backwards' and create ciphertexts for Alice using the same re-encryption material. This flow differs from a bidirectional method, where the PRE is symmetric, enabling a two-way encryption relationship between the parties. So, Alice can transform a ciphertext into one for Bob, and Bob can transform a ciphertext into one for Alice, without either Alice or Bob having to re-run the entire re-encryption flow. That is not what we want for this implementation. Each direction is a separate, explicit delegation with its own re-encryption material, matching the tradability requirements.
+The method described below is a hybrid approach. The current owner's wallet performs the re-encryption process for the buyer. At the same time, the Cardano smart contract acts as a proxy, verifying various cryptographic proofs, enforcing the correct bindings, handling payments, and updating the on-chain owner fields. This design explicitly supports off-chain processes before the transfer of decryption rights. The owner only submits the re-encryption transaction once these off-chain conditions are satisfied. This method will allow for the most use cases for real-world assets. This type of method is unidirectional, meaning the re-encryption flow is one-way: from the current owner to the next owner. If Alice delegates to Bob, Bob does not automatically gain the ability to 'go backwards' and create ciphertexts for Alice using the same re-encryption material. This flow differs from a bidirectional method, where the PRE is symmetric, enabling a two-way encryption relationship between the parties. This means that Alice can transform a ciphertext into one for Bob, and Bob can transform a ciphertext into one for Alice, without either Alice or Bob having to re-run the entire re-encryption flow. That is not what we want for this implementation. Each direction is a separate, explicit transfer of rights with its own re-encryption material, matching the tradability requirements required by the protocol.
 
 Note that in the original Catalyst proposal, the protocol defines itself as a bidirectional, multi-hop PRE. However, during the design phase, it became clear that the actual Cardano use case requires a unidirectional, multi-hop PRE. This change is fully compatible with the original proposal's PRE goals (transfer of decryption rights without exposing plaintext or private keys), but reflects the reality of trading tokens via Cardano smart contracts within the PRE landscape.
 
@@ -306,7 +306,7 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
   $(g, v)$ where $v = [\delta_{b}]g \in \mathbb{G}_1$ (Bob's public keys),\\
   Alice's secret key $\delta_{a} \in \mathbb{Z}_n$ \\
   $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_T$, and  $r_{3} \in \mathbb{G}_2$ \\
-  $(h_{0}, h_{1}, h_{2}, h_{3})$, where $h_{i} \in \mathbb{G}_2$ are public points.
+  $(h_{0}, h_{1}, h_{2})$, where $h_{i} \in \mathbb{G}_2$ are public points.
 }
 \KwOut{
   $(r_{1,b}, r_{2,b}, r_{3,b})$ and $(r_{1,a}', r_{2,a}', r_{3,a}')$
@@ -314,7 +314,9 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
 
 \BlankLine
 
-select a random $\kappa \in \mathbb{G}_{T}$, $\kappa = e(q^{a}, h_{0})$
+select a random $a \in \mathbb{Z}_{n}$
+
+compute $\kappa = e(q^{a}, h_{0})$
 
 select a random $r \in \mathbb{Z}_{n}$
 
@@ -335,7 +337,7 @@ output $(r_{1,b}, r_{2,b}, r_{4,b})$ and $(r_{1,a}, r_{2,a}', r_{3,a})$
 \end{algorithm}
 
 
-Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption process for Alice, giving the decryption rights to Bob. Bob can then use this information to recursive calculate the secret $\kappa$ and eventually the original secret used in the encryption process.
+Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption process for Alice. This will transfer the decryption rights to Bob. Bob can then use this information to recursive calculate the secret $\kappa$ and eventually the original secret used in the encryption process.
 
 # Protocol Overview
 
@@ -345,7 +347,7 @@ The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encrypt
 
 Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction building, cryptographic proof generation, and the happy path flow. The design on both sides will focus on a two-party system: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof of concept, the protocol will not include the general n-party system, as that is future work for a real-world production setting.
 
-The protocol must allow continuous trading via a multi-hop pre, meaning that Alice will trade with Bob, who could then trade with Carol. In this setting, Alice will trade to Bob then Bob will trade back to Alice rather than to Carol without any loss of generality. Each hop will generate new owner and decryption data. The storage of previous hop data should grow at most linearly. Users will use a basic bid system for token trading. A user may choose to not trade their token by simply not selecting a bid if one exists.
+The protocol must allow continuous trading via a multi-hop PRE, meaning that Alice will trade with Bob, who could then trade with Carol. In this setting, Alice will trade to Bob then Bob will trade back to Alice rather than to Carol without any loss of generality. Each hop will generate new owner and decryption data. The storage of previous hop data should grow at most linearly. Users will use a basic bid system for token trading. A user may choose to not trade their token by simply not selecting a bid if one exists.
 
 The encryption direction needs to flow in one direction per hop. Alice trades with Bob, and that is the end of their transaction. Bob does not gain any ability to re-encrypt the data back to Alice without a new bid made by Alice, restarting the re-encryption process. Any bidirectionality here implies symmetry between Alice and Bob, thereby circumventing the re-encryption requirement via token trading. The unidirectional requirement forces tradability to follow the typical trading interactions currently found on the Cardano blockchain.
 
@@ -853,11 +855,11 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 ## Performance And On-Chain Cost
 
-The performance of the re-encryption process is really good. The generation of the proofs are quick. The encryption setup is easy. The pre flow is simple. The cost of running the re-encryption validation leans towards the expensive side. The Schnorr and binding proofs are relatively cheap but the pairing proofs are expensive. A single pairing proof cost almost 15% of the total cpu budget per transaction. In a real-world production setting, the re-encryption step may max out the cpu budget completely because of the SNARK requirement. In that case, the re-encryption validation may need to be broken up into multiple transaction such that the cpu budget per transaction remains low enough to be valid on-chain.
+The performance of the re-encryption process is really good. The generation of the proofs are quick. The encryption setup is easy. The PRE flow is simple. The cost of running the re-encryption validation leans towards the expensive side. The Schnorr and binding proofs are relatively cheap but the pairing proofs are expensive. A single pairing proof cost almost 15% of the total cpu budget per transaction. In a real-world production setting, the re-encryption step may max out the cpu budget completely because of the SNARK requirement. In that case, the re-encryption validation may need to be broken up into multiple transaction such that the cpu budget per transaction remains low enough to be valid on-chain.
 
 # Conclusion
 
-The PEACE protocol multi-use, unidirectional pre for the Cardano blockchain with reasonable security guantees. This proof of concept should serve well for production grade implementations. A real-world production grade PEACE protocol will allow creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services.
+The PEACE protocol multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guantees. This proof of concept should serve well for production grade implementations. A real-world production grade PEACE protocol will allow creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services.
 
 \clearpage
 \appendix
