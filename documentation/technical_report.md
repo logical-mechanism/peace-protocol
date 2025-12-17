@@ -292,7 +292,7 @@ Algorithm \ref{alg:encrypt-eciesaes} describes the case where a \texttt{Register
 
 There are various types of re-encryption schemes, ranging from classical proxy re-encryption to hybrid methods. These re-encryption schemes involve a proxy, an entity that performs the re-encryption and verification processes. The PRE used in the PEACE protocol is modeled as an interactive flow between the current owner and a prospective buyer, utilizing a smart contract as part of the proxy. We need an interactive scheme because in many real-world use cases there are numerous off-chain checks such as KYC/AML regulations and various legal requirements that must occur before transferring the right to decrypt to the new owner. The PEACE protocol obtains interactivity via a bidding system and requiring the owner to agree to the exchange.
 
-The method described below is a hybrid approach. The current owner's wallet performs the re-encryption process for the buyer. At the same time, the Cardano smart contract acts as a proxy, verifying various cryptographic proofs, enforcing the correct bindings, handling payments, and updating the on-chain owner fields. This design explicitly supports off-chain processes before the transfer of decryption rights. The owner only submits the re-encryption transaction once these off-chain conditions are satisfied. This method will allow for the most use cases for real-world assets. This type of method is unidirectional, meaning the re-encryption flow is one-way: from the current owner to the next owner. If Alice delegates to Bob, Bob does not automatically gain the ability to 'go backwards' and create ciphertexts for Alice using the same re-encryption material. This flow differs from a bidirectional method, where the PRE is symmetric, enabling a two-way encryption relationship between the parties. This means that Alice can transform a ciphertext into one for Bob, and Bob can transform a ciphertext into one for Alice, without either Alice or Bob having to re-run the entire re-encryption flow. That is not what we want for this implementation. Each direction is a separate, explicit transfer of rights with its own re-encryption material, matching the tradability requirements required by the protocol.
+The method described below is a hybrid approach. The current owner's wallet performs the re-encryption process for the buyer. At the same time, the Cardano smart contract acts as a proxy, verifying various cryptographic proofs, enforcing the correct bindings, handling payments, and updating the on-chain owner fields. This design explicitly supports off-chain processes before the transfer of decryption rights. The owner only submits the re-encryption transaction once these off-chain conditions are satisfied. This method will allow for the most use cases for real-world assets. The PRE is unidirectional, meaning the re-encryption flow is one-way: from the current owner to the next owner. If Alice delegates to Bob, Bob does not automatically gain the ability to 'go backwards' and create ciphertexts for Alice using the same re-encryption material. This flow differs from a bidirectional method, where the PRE is symmetric, enabling a two-way encryption relationship between the parties. This means that Alice can transform a ciphertext into one for Bob, and Bob can transform a ciphertext into one for Alice, without either Alice or Bob having to re-run the entire re-encryption flow. That is not what we want for this implementation. Each direction is a separate, explicit transfer of rights with its own re-encryption material, matching the tradability requirements required by the protocol.
 
 Note that in the original Catalyst proposal, the protocol defines itself as a bidirectional, multi-hop PRE. However, during the design phase, it became clear that the actual Cardano use case requires a unidirectional, multi-hop PRE. This change is fully compatible with the original proposal's PRE goals (transfer of decryption rights without exposing plaintext or private keys), but reflects the reality of trading tokens via Cardano smart contracts within the PRE landscape.
 
@@ -305,7 +305,7 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
   $(g, u)$ where $g \in \mathbb{G}_1$, $u = [\delta_{a}]g \in \mathbb{G}_1$ (Alice's public key),\\
   $(g, v)$ where $v = [\delta_{b}]g \in \mathbb{G}_1$ (Bob's public keys),\\
   Alice's secret key $\delta_{a} \in \mathbb{Z}_n$ \\
-  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_T$, and  $r_{3} \in \mathbb{G}_2$ \\
+  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_{T}$, and  $r_{3} \in \mathbb{G}_2$ \\
   $(h_{0}, h_{1}, h_{2})$, where $h_{i} \in \mathbb{G}_2$ are public points.
 }
 \KwOut{
@@ -341,23 +341,23 @@ Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption proce
 
 # Protocol Overview
 
-The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The protocol should be viewed as a proof of concept, as the data storage layer for the protocol is the Cardano blockchain; thus, ultimately, the storage limit, the maximum size of the encrypted data and required decryption data, is bound by the current parameters of the Cardano blockchain. In a production setting, the data storage layer should allow for arbitrary file sizes.
+The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The protocol should be viewed as a proof-of-concept, as the data storage layer for the protocol is the Cardano blockchain; thus, ultimately, the storage limit, the maximum size of the encrypted data and the required decryption data, is bound by the current parameters of the Cardano blockchain. In a production setting, the data storage layer should allow for arbitrary file sizes.
 
 ## Design Goals And Requirements
 
-Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction building, cryptographic proof generation, and the happy path flow. The design on both sides will focus on a two-party system: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof of concept, the protocol will not include the general n-party system, as that is future work for a real-world production setting.
+Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction building, cryptographic proof generation, and the happy path flow. The design on both sides will focus on a two-party system: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof-of-concept, the off-chain will not include the general n-party system, as that is future work for a real-world production setting.
 
-The protocol must allow continuous trading via a multi-hop PRE, meaning that Alice will trade with Bob, who could then trade with Carol. In this setting, Alice will trade to Bob then Bob will trade back to Alice rather than to Carol without any loss of generality. Each hop will generate new owner and decryption data. The storage of previous hop data should grow at most linearly. Users will use a basic bid system for token trading. A user may choose to not trade their token by simply not selecting a bid if one exists.
+The protocol must allow continuous trading via a multi-hop PRE, meaning that Alice will trade with Bob, who could then trade with Carol. In this setting, Alice will trade to Bob then Bob will trade back to Alice rather than Carol without any loss of generality. Each hop will generate new owner and decryption data for the encryption UTxO. The storage of previous hop data should grow at most linearly. Users will use a basic bid system for token trading. A user may choose to not trade their token by simply not selecting a bid if one exists.
 
-The encryption direction needs to flow in one direction per hop. Alice trades with Bob, and that is the end of their transaction. Bob does not gain any ability to re-encrypt the data back to Alice without a new bid made by Alice, restarting the re-encryption process. Any bidirectionality here implies symmetry between Alice and Bob, thereby circumventing the re-encryption requirement via token trading. The unidirectional requirement forces tradability to follow the typical trading interactions currently found on the Cardano blockchain.
+The encryption direction needs to flow in one direction per hop. Alice trades with Bob and that is the end of their transaction. Bob does not gain any ability to re-encrypt the data back to Alice without a new bid made by Alice, restarting the re-encryption process. Any bidirectionality here implies symmetry between Alice and Bob, thereby circumventing the re-encryption requirement via token trading. The unidirectional requirement forces tradability to follow the typical trading interactions currently found on the Cardano blockchain.
 
 Each UTxO in this system must be uniquely identified via an NFT. The uniqueness requirement works well for the encryption side because the NFT could be a tokenized representation of the encrypted data, something akin to a CIP68 [@CIP-68] contract, but using a single token. The bid side does work, but the token becomes a pointer rather than having any real data attached, essentially a unique, one-time-use token. Together, they provide the correct uniqueness requirement. UTxOs may be removed from the contract at any time by the owner. After the trade, the owner of the encrypted data may do whatever they want with that data. The protocol does not require the re-encryption contract to store the encrypted data permanently.
 
-The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which is UX-equivalent to a classical proxy re-encryption scheme in this setting, since smart contracts on Cardano are passive validators and do not initiate actions. Ultimately, a user must act as the proxy, the one doing the re-encryption, because the contract cannot do it on its own. The smart contract must act as the proxy's validator, not solely as the proxy itself. To simplify this proof of concept implementation, the owner will act as their own proxy in the protocol.
+The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which is UX-equivalent to a classical proxy re-encryption scheme in this setting, since smart contracts on Cardano are passive validators and do not initiate actions. Ultimately, some user must act as the proxy, the one doing the re-encryption, because the contract cannot do it on its own. The smart contract must act as the proxy's validator, not solely as the proxy itself. To simplify this proof-of-concept implementation, the owner will act as their own proxy in the protocol.
 
 ## On-Chain And Off-Chain Architecture
 
-There will be two user-focused smart contracts: one for re-encryption and the other for bid management. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the contract script hashes for the re-encryption and bid contracts.
+There will be two user-focused smart contracts: one for re-encryption and the other for bid management. Any UtxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the script hashes for the re-encryption and bid contracts.
 
 ```{=latex}
 \begin{lstlisting}[
@@ -394,10 +394,14 @@ pub type BidSpendRedeemer {
   RemoveBid
   UseBid
 }
+pub type SchnorrProof {
+  z_b: ByteArray,
+  g_r_b: ByteArray,
+}
 \end{lstlisting}
 ```
 
-The bid contract redeemer structures are defined in Listing \ref{lst:bidredeemertypes}. Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} existence check, a Ed25519 signature with \texttt{owner\_vkh}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
+The bid contract redeemer structures are defined in Listing \ref{lst:bidredeemertypes}. Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} UTxO existence check, a Ed25519 signature with \texttt{owner\_vkh}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
 
 ```{=latex}
 \begin{lstlisting}[
@@ -431,7 +435,7 @@ pub type EmbeddedGt {
 \end{lstlisting}
 ```
 
-The re-encryption contract datum structure is defined in Listing \ref{lst:encdatumtype}. The ciphertext and related data are held in the \texttt{capsule} sub-type and each hop generates a new encryption level sub-type. We can’t store or do full arithmetic on $\mathbb{G}_T$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_T$ elements during validation, while everything else is treated as an implied constant or a value that can be referenced elsewhere.
+The re-encryption contract datum structure is defined in Listing \ref{lst:encdatumtype}. The ciphertext and related data are held in the \texttt{capsule} sub-type and each hop generates a new encryption level sub-type. We can’t store or do full arithmetic on $\mathbb{G}_{T}$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_{T}$ elements during validation, while everything else is treated as an implied constant or a value that can be referenced elsewhere.
 
 The re-encryption datum contains all of the required information for decryption. The owner of an encrypted data UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the encryption information and \texttt{levels} contains the decryption information. Inside the \texttt{capsule} is the \texttt{nonce}, \texttt{aad}, and \texttt{ct}.
 
@@ -451,10 +455,6 @@ pub type EncryptionSpendRedeemer {
   RemoveEncryption
   UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
 }
-pub type SchnorrProof {
-  z_b: ByteArray,
-  g_r_b: ByteArray,
-}
 pub type BindingProof {
   z_a_b: ByteArray,
   z_r_b: ByteArray,
@@ -472,17 +472,17 @@ The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn}
 
 Each user in the protocol has the ability to deterministically generate BLS12-381 keypairs represented by \texttt{Register} value in $\mathbb{G}_{1}$. The $\mathbb{G}_{1}$ points are used as the user's on-chain identity for encryption and signature verification. The corresponding secret scalar $\delta \in \mathbb{Z}_n$ is held off-chain by the user's wallet or client software and is never published on-chain.
 
-The BLS12-381 keys used for re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both: Ed25519 keys to authorize UTxO spending, and BLS12-381 scalars to obtain and delegate decryption rights. Losing or compromising the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
+The BLS12-381 keys used for re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both: Ed25519 keys to authorize UTxO spending and BLS12-381 scalars to obtain and delegate decryption rights. Losing or compromising the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
 
 The proof-of-concept does not implement a full key rotation or revocation mechanism. If a user's BLS12-381 secret key is compromised, an attacker can decrypt all current and future capsules addressed to that key, but cannot retroactively remove or alter on-chain history. Handling key rotation, partial recovery, and revocation across many encrypted positions is left as future work for a real-world production deployment.
 
-For each encrypted item, the protocol generates a fresh symmetric key for AES-GCM encryption of the actual payload. This key is not stored on-chain. The on-chain capsule contains the AES-GCM nonce, associated data, and ciphertext.
+For each encrypted item, the protocol generates a fresh KEM used inside of the encryption level. The KEM is never directly stored on-chain. The on-chain capsule contains the AES-GCM nonce, associated data, and ciphertext.
 
 ## Protocol Specification
 
-The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Alice will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for both the change and contract UTxO, and the transaction fee. Alice may then build the entry to the re-encryption contract transaction.
+The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair. The \texttt{VerificationKeyHash}, \texttt{vkh}, is used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Alice will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the minimum required Lovelace for the contract UTxO, the change UTxO, and the transaction fee. Alice may then build the re-encryption entry transaction.
 
-The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the Listing \ref{lst:gentkn}. The specification for the protocol assumes a single input but in general many inputs may be used in this transaction. If more than one input exists then the first lexicographical sorted input will be used for the name generation.
+The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the Listing \ref{lst:gentkn}. The specification for the protocol assumes a single input but in general many inputs may be used in this transaction. If more than one input exists then the first input of a lexicographically sorted input list will be used for the name generation.
 
 ```{=latex}
 \begin{lstlisting}[
@@ -507,7 +507,7 @@ input = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef#24"
 token_name = "181234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
 ```
 
-Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{levels} and \texttt{capsule}. Since Alice is the first owner, she will encrypt to herself. Alice will encrypt the original data by generating a root $\kappa$ in $\mathbb{G}_{T}$. The root secret will be used in the KDF to produce a valid AES key. The message can now be encrypted using AES-GCM. The resulting information is stored in the \texttt{Capsule} type. Below is a pythonic psuedocode for generating the original encrypted data and the first encryption level.
+Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{levels} and \texttt{capsule} fields. Since Alice is the first owner, she will encrypt to herself. Alice will encrypt the original data by generating a root $\kappa$ in $\mathbb{G}_{T}$. The root secret will be used in the KDF to produce a valid AES key. The message will be encrypted using AES-GCM. The resulting information is stored in the \texttt{Capsule} type. Listing \ref{lst:first-level} is a pythonic psuedocode for generating the original encrypted data and the first encryption level.
 
 ```{=latex}
 \begin{lstlisting}[style=python, caption={Creating the Encrypted data and first encryption level}, label={lst:first-level}, float, floatplacement=H]
@@ -609,13 +609,11 @@ pub type EncryptionDatum {
 \end{lstlisting}
 ```
 
-The entry redeemer verifies that Alice's verification key (Ed25519 key hash) is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol \ref{alg:schnorrsig} as Alice needs this to decrypt her own data and it verifies that Alice binds her public value to the first encryption level via a binding proof \ref{alg:bindingsig}. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
+The entry redeemer verifies that Alice's \texttt{owner\_vkh} is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol \ref{alg:schnorrsig} as Alice needs this to decrypt her own data and it verifies that Alice binds her public value to the first encryption level via a binding proof \ref{alg:bindingsig}. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
 
-Bob may now place a bid into the bid contract in an attempt to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarily to Alice, the secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Bob will fund the address associated with \texttt{vkh} with enough Lovelace to pay for the change and the contract UTxO, and the transaction fee. Bob may then build the entry to the bid contract transaction. Note that the protocol grows linearly thus the required Lovelace for some given encrypted message will increase over time, meaning Bob should contribute to the minimum required Lovelace for the encrypted data though this is not required on-chain.
+Bob may now place a bid into the bid contract in an attempt to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarily to Alice, the secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Bob will fund the address associated with \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the protocol grows linearly thus the required Lovelace for some given encrypted message will increase over time, meaning Bob should contribute to the minimum required Lovelace for the encrypted data though this is not required on-chain.
 
-The structure of the bid entry transaction is similar to the re-encryption entry transaction but using \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The \texttt{pointer} token name is generated in the exact some way as the \texttt{token} name.
-
-Now, Bob can create the \texttt{BidDatum}. The \texttt{token} name may be referenced on-chain from the re-encryption contract and the \texttt{pointer} is derived from the inputs as shown in Listing \ref{lst:fullbiddatum}.
+The structure of the bid entry transaction is similar to the re-encryption entry transaction but using \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The \texttt{pointer} token name is generated in the exact some way as the \texttt{token} name. Bob will create the \texttt{BidDatum}. The \texttt{token} name may be referenced on-chain from the re-encryption contract and the \texttt{pointer} is derived from the inputs as shown in Listing \ref{lst:fullbiddatum}.
 
 ```{=latex}
 \begin{lstlisting}[
@@ -633,7 +631,7 @@ pub type BidDatum {
 }
 \end{lstlisting}
 ```
-Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. This is important as the validity of these points will determine if Bob can decrypt the data after the re-encryption process. The value of the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
+Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. This is important as the validity of these points will determine if Bob can decrypt the data after the re-encryption process. The value on the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
 
 Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings between the original owner's \texttt{Register} values in $\mathbb{G}_{1}$, proving that the new owner's \texttt{Register} was used during the re-encryption process, resulting in a transfer of ownership and decryption rights. Listing \ref{lst:createnextlevel} is a pythonic psuedocode for generating the next encryption level.
 
@@ -725,7 +723,7 @@ pub type EncryptionDatum {
 \end{lstlisting}
 ```
 
-The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first assertion follows the Alice's validation, ensuring that the encryption level terms are consistent. The second assertion hows that Alice create the $r_{5}$ term correctly. Adding a SNARK for valid witness creation is left for later work.
+The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first assertion follows Alice's first level validation, ensuring that the encryption level terms are consistent. The second assertion shows that Alice created the $r_{5}$ term correctly. Adding a SNARK for valid witness creation is left for later work.
 
 ```{=latex}
 \begin{lstlisting}[style=python, caption={Validate the re-encryption process}, label={lst:validatereencryption}, float, floatplacement=H]
@@ -761,11 +759,11 @@ message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
 
 # Security Model
 
-The PEACE protocol needs to have reasonable security. In a real-world production setting, the protocol has a minimal attack surface. As a proof of concept, the protocol needs additional security to be production grade.
+The PEACE protocol needs to have reasonable security. In a real-world production setting, the protocol has a minimal attack surface. As a proof-of-concept, the protocol needs additional security to be production grade.
 
 ## Assumptions
 
-This protocol is presented as a proof of concept and inherits standard assumptions from public-key cryptography and public blockchains. The assumptions below describe what must hold for the security claims in this document to be meaningful.
+This protocol is presented as a proof-of-concept and inherits standard assumptions from public-key cryptography and public blockchains. The assumptions below describe what must hold for the security claims in this document to be meaningful.
 
 - Cryptographic assumptions hold: The security of the construction relies on standard hardness assumptions for the chosen primitives (pairing groups / discrete log), collision resistance / preimage resistance of the hash functions used (including domain separation), and unforgeability of any signature schemes used.
 
@@ -859,7 +857,7 @@ The performance of the re-encryption process is really good. The generation of t
 
 # Conclusion
 
-The PEACE protocol multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guantees. This proof of concept should serve well for production grade implementations. A real-world production grade PEACE protocol will allow creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services.
+The PEACE protocol multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guantees. This proof-of-concept should serve well for production grade implementations. A real-world production grade PEACE protocol will allow creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services.
 
 \clearpage
 \appendix
