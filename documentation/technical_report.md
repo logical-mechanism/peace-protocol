@@ -170,7 +170,7 @@ Where required, we will verify Ed25519 signatures [@rfc8032] for cost-minimizati
 
 # Cryptographic Primitives Overview
 
-This section provides brief explanations of the cryptographic primitives required by the protocol. If a primitive has an algorithmic description, then it should be included in the respective section. The \texttt{Register} type will be a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the decompression of the elliptic curve points are a given. Correctness proofs for many algorithms are in Appendix A. In any algorithm, $\mathbb{G}_{1}$ may be switched with $\mathbb{G}_{2}$ without any required changes.
+This section provides brief explanations of the cryptographic primitives required by the protocol. If a primitive has an algorithmic description, then it will be included in the respective section. The \texttt{Register} type will be represented as a tuple, $\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the compression and uncompression of the elliptic curve points are canonical [@ZcashProtocolSpec2022NU5]. Correctness proofs for many algorithms are in Appendix A. In any algorithm, $\mathbb{G}_{1}$ may be switched with $\mathbb{G}_{2}$ without any required changes.
 
 ## Register-based
 
