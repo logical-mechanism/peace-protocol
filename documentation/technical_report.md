@@ -402,7 +402,7 @@ This protocol is presented as a proof-of-concept and inherits standard assumptio
 
 - On-chain validation is authoritative: The ledger enforces the validator exactly as written (Aiken/Plutus semantics). Any check that is only performed off-chain is treated as advisory and not part of the security boundary.
 
-- Proof system assumptions: If SNARKs/NIZKs are used, their required assumptions hold (soundness, and any additional properties needed for adversarial settings). If a trusted setup is used, the corresponding trapdoor (“toxic waste”) is assumed destroyed; otherwise, a transparent proof system must be used at the cost of performance.
+- Proof system assumptions: In a production settings SNARKs must be used, their required assumptions hold (soundness, and any additional properties needed for adversarial settings). If the SNARK requries a trusted setup then the corresponding trapdoor (“toxic waste”) is assumed destroyed; otherwise, a transparent proof system must be used.
 
 - Chain security: The blockchain provides finality and censorship-resistance to the degree normally assumed for Cardano. Prolonged reorgs, validator bugs, or sustained censorship are out of scope.
 
@@ -436,7 +436,7 @@ We assume standard cryptographic hardness of the underlying primitives (pairings
 
 - Multi-hop bypass: if downstream decryption reveals intermediate artifacts that can be used to decrypt upstream ciphertexts without the proxy, it breaks the intended delegation boundary; mitigation is hop-level re-randomization / re-encapsulation and careful design to ensure decryption yields only plaintext (not reusable upstream capabilities).
 
-- Fairness failure (abort/grief): either party can stop cooperating; mitigations are economic (bonding/escrow) and protocol flow design, not cryptography alone.
+- Fairness failure (abort/grief): either party can stop cooperating; mitigations are economic and protocol flow design, not cryptography alone.
 
 ## Metadata Leakage
 
@@ -456,27 +456,25 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 - Rotate addresses and avoid stable identifiers where possible
 
-- Minimize on-chain datum content.
-
-- Keep encodings fixed-size and avoid optional fields that create distinct shapes.
-
 - Treat privacy as a separate layer (mixing, batching, relayers) rather than something the core protocol guarantees.
 
 ## Limitations And Risks
 
-- No guarantee of data semantics or quality: the protocol can prove key-binding and correct re-encryption relations, but it cannot prove that the encrypted content is “valuable” or matches an off-chain description. Disputes about semantics require external mechanisms.
+- The proof-of-concept protocol does not include a SNARK that proves the published $H(\kappa)$-dependent terms are derived from the actual pairing secret $\kappa = e(q^{a_{0}}, H_{0})$. Algebraic pairing and Schnorr checks only enforce consistency with some exponent, a malicious Alice can choose an arbitrary H(k) and still pass on-chain validation even when the hash is incorrect. A production-grade design should add a ZK proof over a canonical encoding that enforces $hk = H(e(q^{a_{0}}, H_{0}))$ and $W = q^{hk}$ without revealing $\kappa$ or $a_{0}$.
 
-- No protection after decryption: once Bob decrypts plaintext, Bob can copy or leak it. Cryptography cannot prevent exfiltration; only economic/legal controls can reduce this risk.
+- The protocol can prove key-binding and correct re-encryption relations, but it cannot prove that the encrypted content is “valuable” or matches an off-chain description. Disputes about semantics require external mechanisms.
 
-- Fair exchange is not automatic: either party can abort or grief at different stages. Achieving strong fairness typically requires escrow/bonding, timeouts, and explicit protocol-level incentives.
+- The protocol does not protect the data after decryption. If Bob decrypts plaintext, Bob can copy or leak it. Cryptography cannot prevent exfiltration. Only economic or legal controls can reduce this risk.
 
-- Key compromise is catastrophic: theft of Alice/Bob secret keys breaks confidentiality for those assets; compromise of any proxy signing keys (if used) may enable malformed ciphertext acceptance unless the system is publicly verifiable.
+- The protocol does not ensure a fair exchange. Either party can abort or grief at different stages. Achieving strong fairness typically requires escrow, bonding, or timeouts.
 
-- CCA security depends on strict non-malleability: if any ciphertext/proof field can be modified while still passing on-chain checks, an attacker may use acceptance/rejection or decryption behavior as an oracle. Proofs must bind the full transcript and all ciphertext components.
+- Key compromise is catastrophic. Any theft of secret keys breaks confidentiality for those assets. Losing secrets keys prevents decrypting.
 
-- Multi-hop complexity: limiting hops by UTxO size reduces state growth, but multi-hop designs are error-prone; additional formal review is recommended before treating multi-use delegation as production-secure.
+- The proof-of-concept protocol does not guarentee CCA security. If any proof field can be modified while still passing on-chain checks then an attacker may use acceptance/rejection or decryption behavior as an oracle.
 
-- Cost and reliability risk: pairing-heavy verification and SNARK verification can approach the CPU budget, requiring multi-transaction validation flows. This increases complexity and can reduce UX reliability under network congestion.
+- The protocol does not limit hops directly. The Cardano blockchain limits the UTxO size thus limits the maximum number of hops naturally.
+
+- Pairing-heavy verification and SNARK verification can approach the CPU budget, requiring multi-transaction validation flows. This increases complexity and can reduce UX reliability under network congestion.
 
 ## Performance And On-Chain Cost
 
