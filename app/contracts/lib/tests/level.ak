@@ -101,7 +101,7 @@ test is_carol_verified() {
   level.verify_level_k(token_name, carol_level)
 }
 
-// test trace_encryption_level() {
+// test display_encryption_level() {
 //   trace cbor.serialise([alice_level])
 //   trace cbor.serialise([alice_filled, bob_level])
 //   trace cbor.serialise([alice_filled, alice_filled, carol_level])
@@ -109,7 +109,7 @@ test is_carol_verified() {
 //   True
 // }
 
-test trace_wang_params() {
+test display_wang_params() {
   trace level.wang_h0
   trace level.wang_h1
   trace level.wang_h2
@@ -117,7 +117,7 @@ test trace_wang_params() {
   True
 }
 
-test trace_none() {
+test display_none() {
   trace None
   trace Some(#"acab")
   True
