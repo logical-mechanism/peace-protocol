@@ -1,0 +1,117 @@
+{
+  "constructor": 0,
+  "fields": [
+    {
+      "bytes": "321d06fc921582742bc6336ef6ca74d650ef80daede2978cd15f0980"
+    },
+    {
+      "constructor": 0,
+      "fields": [
+        {
+          "bytes": "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+        },
+        {
+          "bytes": "8a3396e314bc2754efea28d34e74a38b4006991bd68c8705d455a624b7721905a95969f704681b4d0e3a9716fb1a0963"
+        }
+      ]
+    },
+    {
+      "bytes": "0098394d13efef31251100028a0986cdac1558b213ee6986900b7e3ab411d587"
+    },
+    {
+      "list": [
+        {
+          "constructor": 0,
+          "fields": [
+            {
+              "bytes": "b95532734be631a769429b0614bf365349334638d88026225443e5f87a37a43a0a105a33248bfef4710f693056997052"
+            },
+            {
+              "constructor": 0,
+              "fields": [
+                {
+                  "bytes": "b482048b8b99ad19a4abc7024030749e6974955acfa540ad71aa7b0d600a2910febe529207e437e14a782fb0a33cb1d6"
+                },
+                {
+                  "constructor": 1,
+                  "fields": []
+                }
+              ]
+            },
+            {
+              "bytes": "984f839b761f1b59ff1fb7576c1e9a3689c54dff5362405a488ea8244acbcf187c78814dbbe6ef36407b4491bb29f8920ed6d0a7a89e91979696bbc1c8553b9cccd295eb859538625343cfbda2f5b766e925f2b92d17b57eba5d6a77e3142d3d"
+            }
+          ]
+        },
+        {
+          "constructor": 0,
+          "fields": [
+            {
+              "bytes": "93ffb0a75f5072ef6a98e3a03e6b9a35b274d4e3b72da645c0f452926baf5d96f173bb93a624caa18723564ddccb7fc2"
+            },
+            {
+              "constructor": 0,
+              "fields": [
+                {
+                  "bytes": "b3054becff27ef9fd6546407203016acdcca0e1308dd4bd29f35b700a80608381088feae70f187825224ab8b245668dc"
+                },
+                {
+                  "constructor": 0,
+                  "fields": [
+                    {
+                      "bytes": "b4351533fd3ac56d02540040a1b8d27b1e6ccc16cb02c7eca53773545f6c8beea7105d35edfcfe88bb7630337a220e530164f6168fa9d5a6bdfe6d77e8d72212064a83a10a77f4c75a56001a1032566add31204f8642fdf35814bbb733d2acab"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "bytes": "a9b60e14eb86abe6a1cf451509ae35c9739be322135c485d3d99100a87a4a67f1806d7f4ad7bb95b36c0479babb478c610019e14f83e46d9633fdbd258982ed6078e4da4dd77c44767e40992d97645fbf9b6d1386b4c243a05e70f20abcff4e7"
+            }
+          ]
+        },
+        {
+          "constructor": 0,
+          "fields": [
+            {
+              "bytes": "8c3ef846b843521795af601dc532675a9c34c3628caecc36bce37aa9a937e6fe5614d823092c863c351f1371309e3e6e"
+            },
+            {
+              "constructor": 0,
+              "fields": [
+                {
+                  "bytes": "aa11064bb98872241b0a2cde76b004f0e579ba02e3dc488a47377fbfc492b655cad0f27e2e959195405a99da6e83b853"
+                },
+                {
+                  "constructor": 0,
+                  "fields": [
+                    {
+                      "bytes": "a92ec3ccc14e43d0f46d16516811ffabb187239d30a8875a125dfe742617cb59bcda0050089ce9aa90152aef661a440012fc230fcbd9b631531374fa6fa53bcac8c44edb4c90bd692e6fa8f23dc82a18f5f5a6369b5dbefd13af57c89ded8879"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "bytes": "a01c5434046c0f024a438d3f43b07849f567f34f6b530f7c578558e3f070762e5e0810a7b4a08365ac8107e99de34a370f1cb4dcdd2a86a2a039e40090475aa842aa4371843da5e747cd1a7b2c546516437b3fc074d5c5943691a7161101c98a"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "constructor": 0,
+      "fields": [
+        {
+          "bytes": "dca989f9a5edb01c0aa4374e"
+        },
+        {
+          "bytes": "094805cabc1d44c43dbec790a60ec03ee80b6ee2371202bc8b6d41b4"
+        },
+        {
+          "bytes": "ca5daadc020f2c4a03ade8ce88ae7c105c1c535e605e5fe779281df954929c468156b8fc2b09a26404"
+        }
+      ]
+    }
+  ]
+}
