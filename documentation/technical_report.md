@@ -216,7 +216,7 @@ $e(q^{\delta}, c) = e(q, c^{\delta})$
 
 ## ECIES + AES-GCM
 
-The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES, combined with a key derivation function (KDF) such as HKDF [@cryptoeprint:2010/264], form a complete encryption system. Below is a simple ECIES algorithm to demonstrate the basic functionality.
+The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES, combined with a key derivation function (KDF) such as HKDF [@cryptoeprint:2010/264], form a complete encryption system. Below is a simple ECIES algorithm to demonstrate the basic functionality. For readability, we present a simplified ECIES sketch here. The reference implementation provides the exact PEACE instantiation and serialization rules.
 
 \begin{algorithm}[H]
 \caption{Encryption using ECIES + AES}
@@ -280,8 +280,9 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
   \\
   $(g, u)$ where $g \in \mathbb{G}_1$, $u = [\delta_{a}]g \in \mathbb{G}_1$ (Alice's public key),\\
   $(g, v)$ where $v = [\delta_{b}]g \in \mathbb{G}_1$ (Bob's public keys),\\
- Alice's secret key $\delta_{a} \in \mathbb{Z}_n$ \\
-  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_{T}$, and  $r_{3} \in \mathbb{G}_2$ \\
+ Alice's secret key $\delta_{a} \in \mathbb{Z}_n$\\
+  $p \in \mathbb{G}_2$\\
+  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_{T}$, and  $r_{3} \in \mathbb{G}_2$\\
   $(h_{0}, h_{1}, h_{2})$, where $h_{i} \in \mathbb{G}_2$ are fixed public points.
 }
 \KwOut{
@@ -486,7 +487,7 @@ The re-encryption process performs excellently. The generation of the proofs is 
 
 # Conclusion
 
-The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guarantees. As a proof of concept, PEACE emphasizes correctness, composability, and an auditable trust boundary. The current design still requires a scoped trust assumption in the re-encryption behavior by the current owner, and we treat this as an engineering constraint rather than an unresolved ambiguity. The protocol limitations vanish by integrating a zero-knowledge proof of correct re-encryption in a future revision. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what needs to be kept off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
+The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guarantees. As a proof of concept, PEACE emphasizes correctness, composability, and an auditable trust boundary. The current design still requires a scoped trust assumption in the re-encryption behavior by the current owner, and we treat this as an engineering constraint rather than an unresolved ambiguity. The protocol limitations vanish by integrating a zero-knowledge proof of correct re-encryption in a future revision. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what should remain off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
 
 \clearpage
 \appendix
