@@ -147,30 +147,11 @@ Table: Symbol Description [@elmrabet-joye-2017]
 
 The protocol, including both on-chain and off-chain components, will heavily utilize the \texttt{Register} type shown in Listing \ref{lst:registertype}. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ will result in the inability to recover the secret $\delta$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over the subgroups $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
-
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={The Register type},
-  label={lst:registertype},
-  float,
-  floatplacement=H
-]
-pub type Register {
-  // the generator, #<Bls12_381, G1> or #<Bls12_381, G2> 
-  generator: ByteArray,
-  // the public value, #<Bls12_381, G1> or #<Bls12_381, G2> 
-  public_value: ByteArray,
-}
-\end{lstlisting}
-```
-
 Where required, we will verify Ed25519 signatures [@rfc8032] for cost-minimization as relying solely on pure BLS12-381 for simple signatures becomes too costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol to transform it into a non-interactive variant. In these cases, the hash function will be Blake2b-224 [@rfc7693].
 
 # Cryptographic Primitives Overview
 
-This section provides brief explanations of the cryptographic primitives required by the protocol. If a primitive has an algorithmic description, then it will be included in the respective sub-section. The \texttt{Register} type will be represented as a tuple,$\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the compression and uncompression of the elliptic curve points are canonical [@ZcashProtocolSpec2022NU5]. Correctness proofs for many algorithms are in Appendix A.
+This section provides brief explanations of the cryptographic primitives required by the protocol. If a primitive has an algorithmic description, then it will be included in the respective sub-section. The \texttt{Register} type will be represented as a tuple,$\ ($ $g, u\ )$, for simplicity inside the algorithms. We shall assume that the compression and uncompression of the elliptic curve points are canonical [@ZcashProtocolSpec2022NU5]. Correctness proofs for many algorithms are in Appendix B.
 
 ## Register-based
 
@@ -359,110 +340,13 @@ The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which
 
 There will be two user-focused smart contracts: one for re-encryption and the other for bid management. Any UTxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the script hashes for the re-encryption and bid contracts.
 
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={The Bid datum type},
-  label={lst:biddatumtype},
-  float,
-  floatplacement=H
-]
-pub type BidDatum {
-  owner_vkh: VerificationKeyHash,
-  owner_g1: Register,
-  pointer: AssetName,
-  token: AssetName,
-}
-\end{lstlisting}
-```
-
 The bid contract datum structure is defined in Listing \ref{lst:biddatumtype}. The bid datum contains all of the required information for re-encryption. The owner of a bid UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{pointer} is the NFT name on the bid UTxO, and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} forces the bid to only apply to a specific sale.
 
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={The Bid redeemer types},
-  label={lst:bidredeemertypes},
-  float,
-  floatplacement=H
-]
-pub type BidMintRedeemer {
-  EntryBidMint(SchnorrProof)
-  LeaveBidBurn(AssetName)
-}
-pub type BidSpendRedeemer {
-  RemoveBid
-  UseBid
-}
-pub type SchnorrProof {
-  z_b: ByteArray,
-  g_r_b: ByteArray,
-}
-\end{lstlisting}
-```
-
 The bid contract redeemer structures are defined in Listing \ref{lst:bidredeemertypes}. Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} UTxO existence check, a Ed25519 signature with \texttt{owner\_vkh}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={The Encryption datum type},
-  label={lst:encdatumtype},
-  float,
-  floatplacement=H
-]
-pub type EncryptionDatum {
-  owner_vkh: VerificationKeyHash,
-  owner_g1: Register,
-  token: AssetName,
-  levels: List<EncryptionLevel>,
-  capsule: Capsule,
-}
-pub type Capsule {
-  nonce: ByteArray,
-  aad: ByteArray,
-  ct: ByteArray,
-}
-pub type EncryptionLevel {
-  r1b: ByteArray,
-  r2: EmbeddedGt,
-  r4b: ByteArray,
-}
-pub type EmbeddedGt {
-  g1b: ByteArray,
-  g2b: Option<ByteArray>,
-}
-\end{lstlisting}
-```
 
 The re-encryption contract datum structure is defined in Listing \ref{lst:encdatumtype}. The ciphertext and related data are held in the \texttt{capsule} sub-type and each hop generates a new encryption level sub-type. We can’t store or do full arithmetic on $\mathbb{G}_{T}$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_{T}$ elements during validation, while everything else is treated as an implied constant or a value that can be referenced elsewhere.
 
 The re-encryption datum contains all of the required information for decryption. The owner of the re-encryption UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{capsule} contains the encryption information and \texttt{levels} contains the decryption information. Inside the \texttt{capsule} is the \texttt{nonce}, \texttt{aad}, and \texttt{ct}.
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={The Encryption redeemer types},
-  label={lst:encredeemertypes},
-  float,
-  floatplacement=H
-]
-pub type EncryptionMintRedeemer {
-  EntryEncryptionMint(SchnorrProof, BindingProof)
-  LeaveEncryptionBurn(AssetName)
-}
-pub type EncryptionSpendRedeemer {
-  RemoveEncryption
-  UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
-}
-pub type BindingProof {
-  z_a_b: ByteArray,
-  z_r_b: ByteArray,
-  t_1_b: ByteArray,
-  t_2_b: ByteArray,
-}
-\end{lstlisting}
-```
 
 The re-encryption contract redeemer structures are defined in Listing \ref{lst:encredeemertypes}. Entering into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, a Ed25519 signature with \texttt{owner\_vkh}, a binding proof using \texttt{owner\_g1} and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the re-encryption contract requires using \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers together, triggering a \texttt{token} burn validation and a Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use the \texttt{UseEncryption} redeemer, triggering the proxy re-encryption validation.
 
@@ -480,280 +364,25 @@ For each encrypted item, the protocol generates a fresh KEM used inside of the e
 
 ## Protocol Specification
 
-The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Alice will fund the address associated with the \texttt{VerificationKeyHash} with enough Lovelace to pay for the minimum required Lovelace for the contract UTxO, the change UTxO, and the transaction fee. Alice may then build the re-encryption entry transaction.
+The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate a Ed25519 keypair. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Alice will fund the address associated with the \texttt{VerificationKeyHash}, the \texttt{vkh}, with enough Lovelace to pay for the minimum required Lovelace for the contract UTxO, the change UTxO, and the transaction fee. Alice may then build the re-encryption entry transaction.
 
-The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the Listing \ref{lst:gentkn}. The specification for the protocol assumes a single input but in general many inputs may be used in this transaction. If more than one input exists then the first input of a lexicographically sorted input list will be used for the name generation.
+The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatentation of the input's output index and transaction id as shown in the Listing \ref{lst:gentkn}. The specification for the protocol assumes a single input but many inputs may be used in this transaction. If more than one input exists then the first input of a lexicographically sorted input list will be used for the name generation.
 
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={Token name generation},
-  label={lst:gentkn},
-  float,
-  floatplacement=H
-]
-/// Example Usage:
-/// input = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef#24"
-/// token_name = "181234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd"
-///
-pub fn generate_token_name(inputs: List<Input>) -> AssetName {
-  let input: Input = builtin.head_list(inputs)
-  let id: TransactionId = input.output_reference.transaction_id
-  let idx: Int = input.output_reference.output_index
-  id |> bytearray.push(idx) |> bytearray.slice(0, 31)
-}
-\end{lstlisting}
-```
+Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{levels} and \texttt{capsule} fields. Since Alice is the first owner, she will encrypt to herself. Alice will encrypt the original data by generating a root secret $\kappa_{0} \in \mathbb{G}_{T}$. The root secret, $\kappa_{0}$, will be used in the KDF to produce a valid DEK. The message will be encrypted using AES-GCM. The resulting information is stored in the \texttt{Capsule} type. Listing \ref{lst:first-level} is a pythonic psuedocode for generating the original encrypted data and the first encryption level. The sub-types of the \texttt{EncryptionDatum} can be populated as shown in Listing \ref{lst:actualfirstlevel}. The contract will validate the first encryption level using the assertion from Listing \ref{lst:validatefirstlevel}. Alice can prove to herself that the encryption level is valid by verifying the assertion in Listing \ref{lst:decryptfirstlevel}. Alice may now construct the full \texttt{EncryptionDatum} as shown in Listing \ref{lst:fullfirstdatum}.
 
-Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{levels} and \texttt{capsule} fields. Since Alice is the first owner, she will encrypt to herself. Alice will encrypt the original data by generating a root $\kappa$ in $\mathbb{G}_{T}$. The root secret will be used in the KDF to produce a valid AES key. The message will be encrypted using AES-GCM. The resulting information is stored in the \texttt{Capsule} type. Listing \ref{lst:first-level} is a pythonic psuedocode for generating the original encrypted data and the first encryption level.
+The entry redeemer verifies that Alice's \texttt{owner\_vkh} is valid via an Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol as shown in Algorithm \ref{alg:schnorrsig}. Alice needs this to decrypt her own data and it is used to verify that Alice binds her public value to the first encryption level via a binding proof as shown in Algorithm \ref{alg:bindingsig}. The encrypted data is ready to be traded after successfully creating a valid entry transaction and submitting it to the Cardano blockchain.
 
-```{=latex}
-\begin{lstlisting}[style=python, caption={Creating the Encrypted data and first encryption level}, label={lst:first-level}, float, floatplacement=H]
+Bob may now place a bid into the bid contract in an attempt to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarily to Alice, the secret $\gamma$ will generate a Ed25519 keypair and the secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Bob will fund the address associated with his \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the protocol grows the encryption datum linearly in size with each encryption level addition thus the required Lovelace for some given encrypted message will increase over time. Bob should contribute to the minimum required Lovelace for the encrypted data though this is not required on-chain.
 
-message = "This is a secret message."
+The structure of the bid entry transaction is similar to the re-encryption entry transaction but using \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The \texttt{pointer} token name is generated in the exact some way as the \texttt{token} name. The \texttt{token} name may be referenced on-chain from the re-encryption contract and the \texttt{pointer} is derived from the inputs. Bob may then create the \texttt{BidDatum} as shown in Listing \ref{lst:fullbiddatum}.
 
-# generate random data for the first encryption level
-a0 = rng()
-r0 = rng()
-k0 = random_fq12(a0)
+Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. This is important as the validity of the $\mathbb{G}_{1}$ point will determine if Bob can decrypt the data after the re-encryption process. The value on the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the proof-of-concept, Bob will need to remove his old or unused bids then recreate the bids for any nessecary price or \texttt{token} adjustments. Bob may remove his bid at any time.
 
-# alice as a register, sk is the secret key
-alice = Register(sk)
+Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create the re-encryption proofs. This is the most important step of the protocol as this is the trading of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings using the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level, proving that the old and new owner's \texttt{Register} was used during the re-encryption process and everything is consistent, resulting in a transfer of ownership and decryption rights. Listing \ref{lst:createnextlevel} is a pythonic psuedocode for generating the next encryption level. Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
 
-# generate the r terms
-r1b = scale(g, r0)
-r2_g1b = scale(g, a0 + r0*sk)
-
-a = to_int(blake2b(r1b))
-b = to_int(blake2b(r1b + r2_g1b))
-
-c = combine(combine(scale(H1, a), scale(H2, b)), H3)
-r4b = scale(c, r0)
-
-# encrypt the message
-nonce, aad, ct = encrypt(r1, k0, message)
-
-\end{lstlisting}
-```
-
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={Encryption data format},
-  label={lst:actualfirstlevel},
-  float,
-  floatplacement=H
-]
-pub type EncryptionLevel {
-  r1b,
-  r2: EmbeddedGt {
-    g1b: r2_g1b,
-    g2b: None,
-  },
-  r4b,
-}
-pub type Capsule {
-  nonce,
-  aad,
-  ct: ciphertext,
-}
-\end{lstlisting}
-```
-
-The sub-types can be populated as shown in Listing \ref{lst:actualfirstlevel}. The contract will validate the first encryption level using the assertion from Listing \ref{lst:validatefirstlevel}. Alice can prove to herself that the encryption level is valid by verifying the assertion in Listing \ref{lst:decryptfirstlevel}. Alice may now construct the full \texttt{EncryptionDatum} as shown in Listing \ref{lst:fullfirstdatum}.
-
-```{=latex}
-\begin{lstlisting}[style=python, caption={First level validation}, label={lst:validatefirstlevel}, float, floatplacement=H]
-assert pair(g, r4b) = pair(r1b, c)
-\end{lstlisting}
-```
-
-```{=latex}
-\begin{lstlisting}[style=python, caption={Alice can decrypt the key}, label={lst:decryptfirstlevel}, float, floatplacement=H]
-expected_k0 = pair(r2_g1b, H0) / pair(r1b, scale(H0, sk))
-assert k0 == expected_k0
-\end{lstlisting}
-```
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={Full first level datum},
-  label={lst:fullfirstdatum},
-  float,
-  floatplacement=H
-]
-pub type EncryptionDatum {
-  owner_vkh,
-  owner_g1,
-  token: generate_token_name(inputs),
-  levels: [
-    EncryptionLevel {
-      r1b,
-      r2: EmbeddedGt {
-        g1b: r2_g1b,
-        g2b: None,
-      },
-      r4b,
-    }
-  ],
-  capsule: Capsule {
-    nonce,
-    aad,
-    ct: ciphertext,
-  },
-}
-\end{lstlisting}
-```
-
-The entry redeemer verifies that Alice's \texttt{owner\_vkh} is valid via a simple Ed25519 signature as Alice needs a valid \texttt{vkh} to be able to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol \ref{alg:schnorrsig} as Alice needs this to decrypt her own data and it verifies that Alice binds her public value to the first encryption level via a binding proof \ref{alg:bindingsig}. After successfully creating a valid entry transaction and submitting it to the Cardano blockchain the encrypted data is ready to be traded.
-
-Bob may now place a bid into the bid contract in an attempt to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarily to Alice, the secret $\gamma$ will generate a Ed25519 keypair that will in turn generate the \texttt{VerificationKeyHash}, \texttt{vkh}, used on-chain in the Ed25519 signatures. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $g$. Bob will fund the address associated with \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the protocol grows linearly thus the required Lovelace for some given encrypted message will increase over time, meaning Bob should contribute to the minimum required Lovelace for the encrypted data though this is not required on-chain.
-
-The structure of the bid entry transaction is similar to the re-encryption entry transaction but using \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The \texttt{pointer} token name is generated in the exact some way as the \texttt{token} name. Bob will create the \texttt{BidDatum}. The \texttt{token} name may be referenced on-chain from the re-encryption contract and the \texttt{pointer} is derived from the inputs as shown in Listing \ref{lst:fullbiddatum}.
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={Full Bid datum},
-  label={lst:fullbiddatum},
-  float,
-  floatplacement=H
-]
-pub type BidDatum {
-  owner_vkh,
-  owner_g1,
-  pointer: generate_token_name(inputs),
-  token,
-}
-\end{lstlisting}
-```
-Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. This is important as the validity of these points will determine if Bob can decrypt the data after the re-encryption process. The value on the UTxO is price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids but only one can be selected by Alice for the re-encryption transaction. For simplicity of the protocol, Bob will need to remove their old bids and recreate the bids for any nessecary price adjustments. Bob may remove his bid at any time.
-
-Alice will select a bid UTxO from the bid contract and will do the re-encryption process using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create re-encryption proofs. This is the most important step as this is the tradability of both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs are pairings between the original owner's \texttt{Register} values in $\mathbb{G}_{1}$, proving that the new owner's \texttt{Register} was used during the re-encryption process, resulting in a transfer of ownership and decryption rights. Listing \ref{lst:createnextlevel} is a pythonic psuedocode for generating the next encryption level.
-
-```{=latex}
-\begin{lstlisting}[style=python, caption={Generate the next level}, label={lst:createnextlevel}, float, floatplacement=H]
-a1 = rng()
-r1 = rng()
-k1 = random_fq12(a1)
-
-hk = to_int(k1)
-
-r1b = scale(g, r1)
-r2_g1b = combine(scale(g, a1), scale(bob_public_value, r1))
-
-a = to_int(generate(r1b))
-b = to_int(generate(r1b + r2_g1b))
-c = combine(scale(H1, a), scale(H2, b))
-r4b = scale(c, r1)
-
-r5b = combine(scale(q, hk), scale(invert(H0), sk))
-\end{lstlisting}
-```
-
-Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={Bob's and Alice's encryption levels},
-  label={lst:encryptionlevels},
-  float,
-  floatplacement=H
-]
-pub type EncryptionLevel {
-  r1b,
-  r2: EmbeddedGt {
-    g1b: r2_g1b,
-    g2b: None,
-  },
-  r4b,
-}
-pub type EncryptionLevel {
-  r1b: alice.r1B,
-  r2: EmbeddedGt {
-    g1b: alice.r2_g1b,
-    g2b: Some(r5b),
-  },
-  r4b: alice.r4b,
-}
-\end{lstlisting}
-```
-
-```{=latex}
-\begin{lstlisting}[
-  style=rust,
-  caption={Bob's encryption datum},
-  label={lst:nextencryptiondatum},
-  float,
-  floatplacement=H
-]
-pub type EncryptionDatum {
-  owner_vkh: bob.owner_vkh,
-  owner_g1: bob.owner_g1,
-  token,
-  levels: [
-    EncryptionLevel {
-      r1b,
-      r2: EmbeddedGt {
-        g1b: r2_g1b,
-        g2b: None,
-      },
-      r4b,
-    },
-    EncryptionLevel {
-      r1b: alice.r1B,
-      r2: EmbeddedGt {
-        g1b: alice.r2_g1b,
-        g2b: Some(r5b),
-      },
-      r4b: alice.r4b,
-    }
-  ],
-  capsule: Capsule {
-    nonce,
-    aad,
-    ct: ciphertext,
-  },
-}
-\end{lstlisting}
-```
-
-The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first assertion follows Alice's first level validation, ensuring that the encryption level terms are consistent. The second assertion shows that Alice created the $r_{5}$ term correctly. Adding a SNARK for valid witness creation is left for later work.
-
-```{=latex}
-\begin{lstlisting}[style=python, caption={Validate the re-encryption process}, label={lst:validatereencryption}, float, floatplacement=H]
-assert pair(g, bob.r4b) = pair(bob.r1b, c)
-assert pair(g, alice.r5b) * pair(alice.u, H0) = pair(alice.witness, p)
-\end{lstlisting}
-```
+The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first assertion follows Alice's first level validation, ensuring that the encryption level terms are consistent. The second assertion shows that Alice created the $r_{5}$ term correctly. Adding a SNARK for valid witness creation is left as future work for a real-world production deployment as it is out of scope for the proof-of-concept implmentation.
 
 Bob can now decrypt the root key by recursiving computing all the random $\mathbb{G}_{T}$ points as shown in Listing \ref{lst:decrypting}.
-
-```{=latex}
-\begin{lstlisting}[style=python, caption={Decrypting the secret message}, label={lst:decrypting}, float, floatplacement=H]
-
-h0x = scale(H0, sk)
-shared = h0x
-
-for entry in encryption_levels:
-    r1 = entry.r1
-
-    if is_half_level(entry.r2):
-        r2 = pair(entry.r2.g1, H0)
-    else:
-        r2 = pair(entry.r2.g1, H0) * pair(r1, entry.r2.g2)
-
-    b = pair(r1, shared)
-    key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
-    k = to_int(key)
-    shared = scale(q, k)
-
-message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
-\end{lstlisting}
-```
 
 # Security Model
 
@@ -860,7 +489,369 @@ The PEACE protocol multi-use, unidirectional PRE for the Cardano blockchain with
 \clearpage
 \appendix
 
-# Appendix A - Proofs {#app:proofs}
+# Appendix A - Listings {#app:types}
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Register type},
+  label={lst:registertype}
+]
+pub type Register {
+  // the generator, #<Bls12_381, G1> or #<Bls12_381, G2> 
+  generator: ByteArray,
+  // the public value, #<Bls12_381, G1> or #<Bls12_381, G2> 
+  public_value: ByteArray,
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Bid datum type},
+  label={lst:biddatumtype}
+]
+pub type BidDatum {
+  owner_vkh: VerificationKeyHash,
+  owner_g1: Register,
+  pointer: AssetName,
+  token: AssetName,
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Bid redeemer types},
+  label={lst:bidredeemertypes}
+]
+pub type BidMintRedeemer {
+  EntryBidMint(SchnorrProof)
+  LeaveBidBurn(AssetName)
+}
+pub type BidSpendRedeemer {
+  RemoveBid
+  UseBid
+}
+pub type SchnorrProof {
+  z_b: ByteArray,
+  g_r_b: ByteArray,
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Encryption datum type},
+  label={lst:encdatumtype},
+  float
+]
+pub type EncryptionDatum {
+  owner_vkh: VerificationKeyHash,
+  owner_g1: Register,
+  token: AssetName,
+  levels: List<EncryptionLevel>,
+  capsule: Capsule,
+}
+pub type Capsule {
+  nonce: ByteArray,
+  aad: ByteArray,
+  ct: ByteArray,
+}
+pub type EncryptionLevel {
+  r1b: ByteArray,
+  r2: EmbeddedGt,
+  r4b: ByteArray,
+}
+pub type EmbeddedGt {
+  g1b: ByteArray,
+  g2b: Option<ByteArray>,
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={The Encryption redeemer types},
+  label={lst:encredeemertypes},
+  float
+]
+pub type EncryptionMintRedeemer {
+  EntryEncryptionMint(SchnorrProof, BindingProof)
+  LeaveEncryptionBurn(AssetName)
+}
+pub type EncryptionSpendRedeemer {
+  RemoveEncryption
+  UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
+}
+pub type BindingProof {
+  z_a_b: ByteArray,
+  z_r_b: ByteArray,
+  t_1_b: ByteArray,
+  t_2_b: ByteArray,
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Token name generation},
+  label={lst:gentkn},
+  float
+]
+/// Example Usage:
+///
+/// input:
+/// 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef#24
+///
+/// token_name:
+/// 181234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd
+///
+pub fn generate_token_name(inputs: List<Input>) -> AssetName {
+  let input: Input = builtin.head_list(inputs)
+  let id: TransactionId = input.output_reference.transaction_id
+  let idx: Int = input.output_reference.output_index
+  id |> bytearray.push(idx) |> bytearray.slice(0, 31)
+}
+\end{lstlisting}
+```
+
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={Creating the Encrypted data and first encryption level}, label={lst:first-level}, float, floatplacement=H]
+
+message = "This is a secret message."
+
+# generate random data for the first encryption level
+a0 = rng()
+r0 = rng()
+k0 = random_fq12(a0)
+
+# alice as a register, sk is the secret key
+alice = Register(sk)
+
+# generate the r terms
+r1b = scale(g, r0)
+r2_g1b = scale(g, a0 + r0*sk)
+
+a = to_int(blake2b(r1b))
+b = to_int(blake2b(r1b + r2_g1b))
+
+c = combine(combine(scale(H1, a), scale(H2, b)), H3)
+r4b = scale(c, r0)
+
+# encrypt the message
+nonce, aad, ct = encrypt(r1, k0, message)
+
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Encryption data format},
+  label={lst:actualfirstlevel},
+  float
+]
+pub type EncryptionLevel {
+  r1b,
+  r2: EmbeddedGt {
+    g1b: r2_g1b,
+    g2b: None,
+  },
+  r4b,
+}
+pub type Capsule {
+  nonce,
+  aad,
+  ct: ciphertext,
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={First level validation}, label={lst:validatefirstlevel}, float, floatplacement=H]
+assert pair(g, r4b) = pair(r1b, c)
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={Alice can decrypt the key}, label={lst:decryptfirstlevel}, float, floatplacement=H]
+expected_k0 = pair(r2_g1b, H0) / pair(r1b, scale(H0, sk))
+assert k0 == expected_k0
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Full first level datum},
+  label={lst:fullfirstdatum},
+  float
+]
+pub type EncryptionDatum {
+  owner_vkh,
+  owner_g1,
+  token: generate_token_name(inputs),
+  levels: [
+    EncryptionLevel {
+      r1b,
+      r2: EmbeddedGt {
+        g1b: r2_g1b,
+        g2b: None,
+      },
+      r4b,
+    }
+  ],
+  capsule: Capsule {
+    nonce,
+    aad,
+    ct: ciphertext,
+  },
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Full Bid datum},
+  label={lst:fullbiddatum},
+  float
+]
+pub type BidDatum {
+  owner_vkh,
+  owner_g1,
+  pointer: generate_token_name(inputs),
+  token,
+}
+\end{lstlisting}
+```
+
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={Generate the next level}, label={lst:createnextlevel}, float, floatplacement=H]
+a1 = rng()
+r1 = rng()
+k1 = random_fq12(a1)
+
+hk = to_int(k1)
+
+r1b = scale(g, r1)
+r2_g1b = combine(scale(g, a1), scale(bob_public_value, r1))
+
+a = to_int(generate(r1b))
+b = to_int(generate(r1b + r2_g1b))
+c = combine(scale(H1, a), scale(H2, b))
+r4b = scale(c, r1)
+
+r5b = combine(scale(q, hk), scale(invert(H0), sk))
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Bob's and Alice's encryption levels},
+  label={lst:encryptionlevels},
+  float
+]
+pub type EncryptionLevel {
+  r1b,
+  r2: EmbeddedGt {
+    g1b: r2_g1b,
+    g2b: None,
+  },
+  r4b,
+}
+pub type EncryptionLevel {
+  r1b: alice.r1B,
+  r2: EmbeddedGt {
+    g1b: alice.r2_g1b,
+    g2b: Some(r5b),
+  },
+  r4b: alice.r4b,
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[
+  style=rust,
+  caption={Bob's encryption datum},
+  label={lst:nextencryptiondatum},
+  float
+]
+pub type EncryptionDatum {
+  owner_vkh: bob.owner_vkh,
+  owner_g1: bob.owner_g1,
+  token,
+  levels: [
+    EncryptionLevel {
+      r1b,
+      r2: EmbeddedGt {
+        g1b: r2_g1b,
+        g2b: None,
+      },
+      r4b,
+    },
+    EncryptionLevel {
+      r1b: alice.r1B,
+      r2: EmbeddedGt {
+        g1b: alice.r2_g1b,
+        g2b: Some(r5b),
+      },
+      r4b: alice.r4b,
+    }
+  ],
+  capsule: Capsule {
+    nonce,
+    aad,
+    ct: ciphertext,
+  },
+}
+\end{lstlisting}
+```
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={Validate the re-encryption process}, label={lst:validatereencryption}, float, floatplacement=H]
+assert pair(g, bob.r4b) = pair(bob.r1b, c)
+assert pair(g, alice.r5b) * pair(alice.u, H0) = pair(alice.witness, p)
+\end{lstlisting}
+```
+
+
+```{=latex}
+\begin{lstlisting}[style=python, caption={Decrypting the secret message}, label={lst:decrypting}, float, floatplacement=H]
+
+h0x = scale(H0, sk)
+shared = h0x
+
+for entry in encryption_levels:
+    r1 = entry.r1
+
+    if is_half_level(entry.r2):
+        r2 = pair(entry.r2.g1, H0)
+    else:
+        r2 = pair(entry.r2.g1, H0) * pair(r1, entry.r2.g2)
+
+    b = pair(r1, shared)
+    key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
+    k = to_int(key)
+    shared = scale(q, k)
+
+message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
+\end{lstlisting}
+```
+
+\clearpage
+
+# Appendix B - Proofs {#app:proofs}
 
 \begin{lemma}\label{lem:correct-schnorr}
 Correctness for Algorithm~\ref{alg:schnorrsig}, a non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation.
