@@ -170,16 +170,15 @@ compute $z = \delta*c + \delta'$
 output $[z]g = a + [c]u$
 \end{algorithm}
 
-The protocol requires proving a binding relationship between a user's public value and other known elliptic-curve elements. The binding proof is a combination of multiple Schnorr's $\ Sigma$-protocols. The value $\chi$ is the $\mathbb{G}_{1}$ element of the second term in the encryption level, specifically, \texttt{r2.g1b}.
+The protocol requires proving a binding relationship between a user's public value and other known elliptic-curve elements. The binding proof is a combination of multiple Schnorr's $\Sigma$-protocols. The value $\chi$ is the $\mathbb{G}_{1}$ element of the second term in the encryption level, specifically, \texttt{r2.g1b}.
 
 \begin{algorithm}[H]
 \caption{Non-interactive Binding $\Sigma$-protocol}
 \label{alg:bindingsig}
 
-\KwIn{
-  \\ $\ ($ $g, u\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$ \\
-  $(r_{1}, \chi)$ where $r_{1} \in \mathbb{G}_{1}$, $\chi \in \mathbb{G}_{1}$ \\
-  $(a, r)$ where $a \in \mathbb{Z}_{n}$ and $r \in \mathbb{Z}_{n}$
+\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$\\
+  \ $(r_{1}, \chi)$ where $r_{1} \in \mathbb{G}_{1}$, $\chi \in \mathbb{G}_{1}$\\
+  \ $(a, r)$ where $a \in \mathbb{Z}_{n}$ and $r \in \mathbb{Z}_{n}$
 }
 \KwOut{\textsf{bool}}
 
@@ -204,7 +203,8 @@ There will be times when the protocol requires proving some equality using pairi
 \caption{Boneh-Lynn-Shacham (BLS) signature method}
 \label{alg:blssig}
 
-\KwIn{\\$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, \\ $c = p^{H(m)} \in \mathbb{G}_2$, $w = [\delta]c \in \mathbb{G}_2$, and $m\in\{0,1\}^{*}$}
+\KwIn{\\$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$,\\
+  \ $c = p^{H(m)} \in \mathbb{G}_2$, $w = [\delta]c \in \mathbb{G}_2$, and $m\in\{0,1\}^{*}$}
 \KwOut{\textsf{bool}}
 
 $e(u, c) = e(g, w)$
@@ -216,7 +216,7 @@ $e(q^{\delta}, c) = e(q, c^{\delta})$
 
 ## ECIES + AES-GCM
 
-The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES, combined with a key derivation function (KDF) such as HKDF [@cryptoeprint:2010/264], form a complete encryption system. Below is a simple ECIES algorithm to demonstrate the basic functionality. For readability, we present a simplified ECIES sketch here. The reference implementation provides the exact PEACE instantiation and serialization rules.
+The Elliptic Curve Integrated Encryption Scheme (ECIES) is a hybrid protocol involving asymmetric cryptography with symmetric ciphers. The encryption used in ECIES is the Advanced Encryption Standard (AES). ECIES and AES, combined with a key derivation function (KDF) such as HKDF [@cryptoeprint:2010/264], form a complete encryption system. For readability, we present a simplified ECIES sketch here. The reference implementation provides the exact PEACE instantiation and serialization rules.
 
 \begin{algorithm}[H]
 \caption{Encryption using ECIES + AES}
@@ -278,8 +278,8 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
 
 \KwIn{
   \\
-  $(g, u)$ where $g \in \mathbb{G}_1$, $u = [\delta_{a}]g \in \mathbb{G}_1$ (Alice's public key),\\
-  $(g, v)$ where $v = [\delta_{b}]g \in \mathbb{G}_1$ (Bob's public keys),\\
+  $(q, u)$ where $q \in \mathbb{G}_1$, $u = [\delta_{a}]q \in \mathbb{G}_1$ (Alice's public key),\\
+  $(q, v)$ where $v = [\delta_{b}]q \in \mathbb{G}_1$ (Bob's public keys),\\
  Alice's secret key $\delta_{a} \in \mathbb{Z}_n$\\
   $p \in \mathbb{G}_2$\\
   $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_{T}$, and  $r_{3} \in \mathbb{G}_2$\\
@@ -297,7 +297,7 @@ compute $\kappa = e(q^{a}, h_{0})$
 
 select a random $r \in \mathbb{Z}_{n}$
 
-compute $r_{1,b} = [r]g$
+compute $r_{1,b} = [r]q$
 
 compute $r_{2,b} = e(q^{a}, h_{0}) * e(v^{r}, h_{0}) = e(q^{a}v^{r}, h_{0})$
 
@@ -337,13 +337,13 @@ The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which
 
 ## On-Chain And Off-Chain Architecture
 
-There will be two user-focused smart contracts: one for re-encryption and the other for bid management. Any UTxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the script hashes for the re-encryption and bid contracts.
+There will be two user-focused smart contracts: one for re-encryption and the other for bid management. Any UTxO inside the re-encryption contract is for sale via the bidding system. A user may place a bid into the bid contract, and the current owner of the encrypted data may select it as payment for re-encrypting the data to the new owner. To ensure functionality, a reference data contract must exist, as it resolves circular dependencies. The reference datum will contain the script hashes for the re-encryption and bid contracts. Data structures are in Appendix A.
 
 The bid contract datum structure is shown in Listing \ref{lst:biddatumtype}. The bid datum contains all of the required information for re-encryption. The owner of a bid UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{pointer} is the NFT name on the bid UTxO, and \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{token} forces the bid to only apply to a specific sale.
 
 The bid contract redeemer structures are shown in Listing \ref{lst:bidredeemertypes}. Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} UTxO existence check, an Ed25519 signature with \texttt{owner\_vkh}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
 
-Listing \ref{lst:encdatumtype} shows the re-encryption contract datum structure. The ciphertext and related data are in the \texttt{Capsule} subtype, and each hop generates a new encryption-level subtype. We cannot store or do arithmetic on $\mathbb{G}_{T}$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_{T}$ elements during validation. The user may reference any required constants.
+Listing \ref{lst:encdatumtype} shows the re-encryption contract datum structure. The ciphertext and related data are in the \texttt{Capsule} subtype, and each hop generates a new \texttt{EncryptionLevel} subtype. We cannot store or do arithmetic on $\mathbb{G}_{T}$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_{T}$ elements during validation. The user may reference any required constants.
 
 The re-encryption datum contains all of the required information for decryption. The owner of the re-encryption UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The \texttt{Capsule} contains the encryption information, and \texttt{levels} contains the decryption information. Inside the \texttt{capsule} is the \texttt{nonce}, \texttt{aad}, and \texttt{ct}.
 
@@ -383,9 +383,9 @@ Similar to the re-encryption contract, the entry redeemer will verify Bob's \tex
 
 ### Phase 3: Bid Selection And Re-Encryption
 
-Alice will select a bid UTxO from the bid contract and re-encrypt it using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create the re-encryption proofs. The re-encryption is the most important step of the protocol, as it involves trading both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. Everything is consistent, resulting in a transfer of ownership and decryption rights. Listing \ref{lst:createnextlevel} is a Pythonic pseudocode for generating the next encryption level. Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
+Alice will select a bid UTxO from the bid contract and re-encrypt it using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create the re-encryption proofs. The re-encryption is the most important step of the protocol, as it involves trading both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. If everything is consistent then the ownership and decryption rights are transferred. Listing \ref{lst:createnextlevel} is a Pythonic pseudocode for generating the next encryption level. Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
 
-The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first assertion follows Alice's first-level validation, ensuring that the encryption level terms are consistent. The second assertion shows that Alice correctly created the $r_{5}$ term. Adding a SNARK for valid witness creation is left as future work for a real-world production deployment, as it is out of scope for the proof-of-concept implementation. The SNARK will need to prove that the secret $\kappa$ truly does the witness when you hash it, $W = q^{H(\kappa)}$
+The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first assertion follows Alice's first-level validation, ensuring that the encryption level terms are consistent. The second assertion shows that Alice correctly created the $r_{5}$ term. Adding a SNARK for valid witness creation is left as future work for a real-world production deployment, as it is out of scope for the proof-of-concept implementation. The SNARK will need to prove that the secret $\kappa$ truly does equal the witness when you hash it, $W = q^{H(\kappa)}$, where $H(\kappa)$ and $\kappa$ are secrets and $W$ is public.
 
 ### Phase 4: Decryption
 
@@ -393,7 +393,7 @@ Bob can now decrypt the root key by recursively computing all the random $\mathb
 
 # Security Model
 
-The PEACE protocol needs to have reasonable security. In a real-world production setting, the protocol has a minimal attack surface. As a proof-of-concept, the protocol needs additional security to be production-grade.
+The PEACE protocol needs to have reasonable security. In a real-world production setting, the protocol must have a minimal attack surface.
 
 ## Assumptions
 
@@ -407,7 +407,7 @@ This protocol is presented as a proof-of-concept and inherits standard assumptio
 
 - Well-formed randomness: All secret scalars and nonces are sampled with high entropy and never reused where uniqueness is required. Randomness failures (poor RNG, nonce reuse, low-entropy secrets) are catastrophic.
 
-- Endpoint key safety: Alice's and Bob's long-term secret keys remain confidential. The extraction of keys from the wallet/device provides confidentiality and authenticity guarantees for parties that do not hold them.
+- Endpoint key safety: Alice's and Bob's long-term secret keys remain confidential. The extraction of keys from the wallet/device destroys confidentiality and authenticity guarantees.
 
 - On-chain validation is authoritative: The ledger enforces the validator exactly as written (Aiken/Plutus semantics). Any check performed only off-chain is advisory and not part of the security boundary.
 
@@ -433,7 +433,7 @@ The protocol design minimizes trust between Alice and Bob. The smart contract is
 
 - Key compromise: theft of a participant's secret keys is possible.
 
-**Primary threats and mitigations**
+**Primary threats and production mitigations**
 
 - Invalid re-encryption accepted on-chain: mitigated by strict on-chain validation that binds ciphertext components, public keys, and transcript hashes to the expected relations.
 
@@ -492,7 +492,7 @@ The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain
 \clearpage
 \appendix
 
-# Appendix A - Listings {#app:types}
+# Appendix A - Data Structures {#app:types}
 
 ```{=latex}
 \begin{lstlisting}[
