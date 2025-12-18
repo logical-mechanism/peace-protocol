@@ -299,7 +299,7 @@ select a random $r \in \mathbb{Z}_{n}$
 
 compute $r_{1,b} = [r]q$
 
-compute $r_{2,b} = e(q^{a}, h_{0}) * e(v^{r}, h_{0}) = e(q^{a}v^{r}, h_{0})$
+compute $r_{2,b} = e(q^{a}, h_{0}) \cdot e(v^{r}, h_{0}) = e(q^{a}v^{r}, h_{0})$
 
 compute $c = [BLAKE2b(r_{1,b})]h_{1} + [BLAKE2b(r_{1,b} || r_{2,b})]h_{2}$
 
@@ -307,7 +307,7 @@ compute $r_{4,b} = [r]c$
 
 compute $r_{5,b} = [BLAKE2b(\kappa)]p + [\delta_{a}]h_{0}$
 
-update $r_{2,a}' = r_{2,a} * e(r_{1,a}, r_{5,b})$
+update $r_{2,a}' = r_{2,a} \cdot e(r_{1,a}, r_{5,b})$
 
 output $(r_{1,b}, r_{2,b}, r_{4,b})$ and $(r_{1,a}, r_{2,a}', r_{3,a})$
 
@@ -628,7 +628,7 @@ pub fn generate_token_name(inputs: List<Input>) -> AssetName {
 ```{=latex}
 \begin{lstlisting}[style=python, caption={Creating the Encrypted data and first encryption level}, label={lst:first-level}, float, floatplacement=H]
 
-message = "This is a secret message."
+message = "ThisIsASecretMessage."
 
 # generate random data for the first encryption level
 a0 = rng()
@@ -824,7 +824,7 @@ pub type EncryptionDatum {
 ```{=latex}
 \begin{lstlisting}[style=python, caption={Validate the re-encryption process}, label={lst:validatereencryption}, float, floatplacement=H]
 assert pair(g, bob.r4b) = pair(bob.r1b, c)
-assert pair(g, alice.r5b) * pair(alice.u, H0) = pair(alice.witness, p)
+assert pair(g, alice.r5b) \cdot pair(alice.u, H0) = pair(alice.witness, p)
 \end{lstlisting}
 ```
 
@@ -841,7 +841,7 @@ for entry in encryption_levels:
     if is_half_level(entry.r2):
         r2 = pair(entry.r2.g1, H0)
     else:
-        r2 = pair(entry.r2.g1, H0) * pair(r1, entry.r2.g2)
+        r2 = pair(entry.r2.g1, H0) \cdot pair(r1, entry.r2.g2)
 
     b = pair(r1, shared)
     key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
@@ -889,17 +889,48 @@ Correctness for Algorithm~\ref{alg:schnorrsig}, a non-interactive Schnorr's $\Si
 
 \begin{proof}
 
-We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $a \in \mathbb{G}_1$, and $z \in \mathbb{Z}_{n}$. Let us assume that $z = r + c * \delta$ and $a = [r]g$.
+We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $a=[r]g \in \mathbb{G}_1$, and $z=r + c*\delta \in \mathbb{Z}_{n}$. 
 
 Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, a)$.
 
-$[z]g = [r + c * x]g$
+$[z]g = a + [c]u$
 
 $[z]g = [r]g + [c][x]g$
 
-$[z]g = a + [c]u$
+$[z]g = [r + c \cdot x]g$
 
-An honest \texttt{Register} can produce an $a$ and $z$ that will satisfy $[z]g = a + [c]u$ proving knowledge of the secret $/delta$.
+An honest \texttt{Register} can produce an $a$ and $z$ that will satisfy $[z]g = a + [c]u$ proving knowledge of the secret $\delta$.
+
+\end{proof}
+
+\begin{lemma}\label{lem:correct-binding}
+Correctness for Algorithm~\ref{alg:bindingsig}, a non-interactive $\Sigma$-protocol for binding user data to encryption data.
+\end{lemma}
+
+\begin{proof}
+
+We start with $\ ($ $g, u, t_{1}, t_{2}, z_{a}, z_{r}, r_{1}, \chi\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $t_{1}=[\rho]g \in \mathbb{G}_1$, $t_{2}=[\alpha]g + [\rho]u \in \mathbb{G}_1$, $z_{a}=\alpha + c \cdot a \in \mathbb{Z}_{n}$, $z_{r}=\rho + c \cdot r \in \mathbb{Z}_{n}$, $r_{1}=[r]g \in \mathbb{G}_1$, and $\chi=[a + r \cdot \delta]g \in \mathbb{G}_1$. 
+
+Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, t_{1}, t_{2})$.
+
+$[z_{a}]g + [z_{r}]u = t_{2} + [c]\chi \land  [z_{r}]g = t_{1} + [c]r_{1}$
+
+$[z_{a}]g + [z_{r}][\delta]g = [\alpha]g + [\rho][\delta]g  + [c][a + r \cdot \delta]g \land  [z_{r}]g = [\rho]g + [c][r]g$
+
+$[z_{a} + z_{r} \cdot \delta]g = [\alpha + \rho \cdot \delta + c \cdot a + c \cdot r \cdot \delta]g \land  [z_{r}]g = [\rho + c \cdot r]g$
+
+$[z_{a} + z_{r} \cdot \delta]g = [\alpha + c \cdot a + \rho \cdot \delta  + c \cdot r \cdot \delta]g \land  [z_{r}]g = [\rho + c \cdot r]g$
+
+
+An honest \texttt{Register} can produce an $t_{1}$, $t_{2}$, $z_{a}$, and $z_{r}$ that will satisfy $z_{a} + z_{r} \cdot \delta = \alpha + c \cdot a + \rho \cdot \delta  + c \cdot r \cdot \delta$ and $z_{r}=\rho + c \cdot r$ proving knowledge of the secret $a$ and $r$ while using $u$.
+
+\end{proof}
+
+\begin{lemma}\label{lem:correct-decrypt}
+Correctness for Algorithm~\ref{alg:reencrypt-alice-bob}, recursive decryption
+\end{lemma}
+
+\begin{proof}
 
 \end{proof}
 
