@@ -1,0 +1,12 @@
+# Aiken compilation artifacts
+artifacts/
+# Aiken's project working directory
+build/
+# Aiken's default documentation export
+docs/
+
+
+contracts/
+hashes/
+plutus.json
+aiken.lock

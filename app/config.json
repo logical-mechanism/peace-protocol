@@ -1,0 +1,8 @@
+{
+  "genesis_tx_id": "3d677f44a026ad0d7a88219d11274b7cf7db3345617edf9045c25206890fc41e",
+  "genesis_tx_idx": 0,
+  "genesis_change_address": "addr_test1qrwejm9pza929cedhwkcsprtgs8l2carehs8z6jkse2qp344c43tmm0md55r4ufmxknr24kq6jkvt6spq60edeuhtf4sn2scds",
+  "stake_key": "86c769419aaa673c963da04e4b5bae448d490e2ceac902cb82e4da76",
+  "path_to_cardano_cli": "cardano-cli",
+  "path_to_node_socket": "/home/logic/Documents/LogicalMechanism/testnets/node-preprod/db-testnet/node.socket"
+}

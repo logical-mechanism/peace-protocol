@@ -1,0 +1,19 @@
+name = "logical-mechanism/peace-protocol"
+version = "0.0.1"
+compiler = "v1.1.21"
+plutus = "v3"
+license = "Apache-2.0"
+description = "Aiken contracts for project 'logical-mechanism/peace-protocol'"
+
+[repository]
+user = "logical-mechanism"
+project = "peace-protocol"
+platform = "github"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v3.0.0"
+source = "github"
+
+
+[config]

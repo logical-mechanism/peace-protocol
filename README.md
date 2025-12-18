@@ -4,7 +4,7 @@ This project was funded in Fund 14 of Project Catalyst.
 
 [Proposal](https://projectcatalyst.io/funds/14/cardano-use-cases-concepts/decentralized-on-chain-data-encryption)
 
-[Milestones](https://milestones.projectcatalyst.io/projects/1499999)
+[Milestones](https://milestones.projectcatalyst.io/projects/1400046)
 
 [Technical Report](./documentation/technical_report.pdf)
 
