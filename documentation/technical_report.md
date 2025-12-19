@@ -165,7 +165,7 @@ compute $a = [\delta']g$
 
 calculate $c = R(g, u, a)$
 
-compute $z = \delta*c + \delta'$
+compute $z = \delta \cdot c + \delta'$
 
 output $[z]g = a + [c]u$
 \end{algorithm}
@@ -190,9 +190,9 @@ compute $t_{2} = [\alpha]g + [\rho]u$
 
 calculate $c = R(g, u, t_{1}, t_{2})$
 
-compute $z_{a} = a*c + \alpha$
+compute $z_{a} = a \cdot c + \alpha$
 
-compute $z_{r} = r*c + \rho$
+compute $z_{r} = r \cdot c + \rho$
 
 output $[z_{a}]g + [z_{r}]u = t_{2} + [c]\chi \land [z_{r}]g = t_{1} + [c]r_{1}$
 \end{algorithm}
@@ -203,8 +203,8 @@ There will be times when the protocol requires proving some equality using pairi
 \caption{Boneh-Lynn-Shacham (BLS) signature method}
 \label{alg:blssig}
 
-\KwIn{\\$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$,\\
-  \ $c = p^{H(m)} \in \mathbb{G}_2$, $w = [\delta]c \in \mathbb{G}_2$, and $m\in\{0,1\}^{*}$}
+\KwIn{\\$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$,\\
+  \ $c = p^{H(m)} \in \mathbb{G}_{2}$, $w = [\delta]c \in \mathbb{G}_{2}$, and $m\in\{0,1\}^{*}$}
 \KwOut{\textsf{bool}}
 
 $e(u, c) = e(g, w)$
@@ -247,7 +247,7 @@ Decrypting the ciphertext requires rebuilding the data encryption key (DEK), $k$
 \caption{Decryption using ECIES + AES}
 \label{alg:decrypt-eciesaes}
 
-\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$,\\$\ ($ $r, c, h\ )$ as the capsule}
+\KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$,\\$\ ($ $r, c, h\ )$ as the capsule}
 \KwOut{$\ ($ $\{0,1\}^{*}$,\textsf{bool} $\ )$ }
 
 compute $s' = [\delta]r$
@@ -278,12 +278,12 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
 
 \KwIn{
   \\
-  $(q, u)$ where $q \in \mathbb{G}_1$, $u = [\delta_{a}]q \in \mathbb{G}_1$ (Alice's public key),\\
-  $(q, v)$ where $v = [\delta_{b}]q \in \mathbb{G}_1$ (Bob's public keys),\\
+  $(q, u)$ where $q \in \mathbb{G}_{1}$, $u = [\delta_{a}]q \in \mathbb{G}_{1}$ (Alice's public key),\\
+  $(q, v)$ where $v = [\delta_{b}]q \in \mathbb{G}_{1}$ (Bob's public keys),\\
  Alice's secret key $\delta_{a} \in \mathbb{Z}_n$\\
-  $p \in \mathbb{G}_2$\\
-  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_1$, $r_{2} \in \mathbb{G}_{T}$, and  $r_{3} \in \mathbb{G}_2$\\
-  $(h_{0}, h_{1}, h_{2})$, where $h_{i} \in \mathbb{G}_2$ are fixed public points.
+  $p \in \mathbb{G}_{2}$\\
+  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_{1}$, $r_{2} \in \mathbb{G}_{T}$, and  $r_{3} \in \mathbb{G}_{2}$\\
+  $(h_{0}, h_{1}, h_{2})$, where $h_{i} \in \mathbb{G}_{2}$ are fixed public points.
 }
 \KwOut{
   $(r_{1,b}, r_{2,b}, r_{3,b})$ and $(r_{1,a}', r_{2,a}', r_{3,a}')$
@@ -465,7 +465,7 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 ## Limitations And Risks
 
-- The proof-of-concept protocol does not include a SNARK that proves the published $H(\kappa)$-dependent terms are derived from the actual pairing secret $\kappa = e(q^{a_{0}}, H_{0})$. Algebraic pairing and Schnorr checks only enforce consistency with some exponent. A malicious Alice can choose an arbitrary $H(\kappa)$ and still pass on-chain validation even when the hash is incorrect. A production-grade design should add a ZK proof over a canonical encoding that enforces $hk = H(e(q^{a_{0}}, H_{0}))$ and $W = q^{hk}$ without revealing $\kappa$ or $a_{0}$.
+- The proof-of-concept protocol does not include a SNARK that proves the published $H(\kappa)$-dependent terms are derived from the actual pairing secret $\kappa = e(q^{a_{0}}, h_{0})$. Algebraic pairing and Schnorr checks only enforce consistency with some exponent. A malicious Alice can choose an arbitrary $H(\kappa)$ and still pass on-chain validation even when the hash is incorrect. A production-grade design should add a ZK proof over a canonical encoding that enforces $hk = H(e(q^{a_{0}}, h_{0}))$ and $W = q^{hk}$ without revealing $\kappa$ or $a_{0}$.
 
 - The protocol can prove key-binding and correct re-encryption relations, but it cannot prove that the encrypted content is "valuable" or matches an off-chain description. Disputes about semantics require external mechanisms.
 
@@ -640,7 +640,7 @@ alice = Register(sk)
 
 # generate the r terms
 r1b = scale(g, r0)
-r2_g1b = scale(g, a0 + r0*sk)
+r2_g1b = scale(g, a0 + r0 \cdot sk)
 
 a = to_int(blake2b(r1b))
 b = to_int(blake2b(r1b + r2_g1b))
@@ -889,7 +889,7 @@ Correctness for Algorithm~\ref{alg:schnorrsig}, a non-interactive Schnorr's $\Si
 
 \begin{proof}
 
-We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $a=[r]g \in \mathbb{G}_1$, and $z=r + c*\delta \in \mathbb{Z}_{n}$. 
+We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$, $a=[r]g \in \mathbb{G}_{1}$, and $z=r + c \cdot \delta \in \mathbb{Z}_{n}$. 
 
 Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, a)$.
 
@@ -909,7 +909,7 @@ Correctness for Algorithm~\ref{alg:bindingsig}, a non-interactive $\Sigma$-proto
 
 \begin{proof}
 
-We start with $\ ($ $g, u, t_{1}, t_{2}, z_{a}, z_{r}, r_{1}, \chi\ )$ where $g \in \mathbb{G}_1$, $u=[\delta]g \in \mathbb{G}_1$, $t_{1}=[\rho]g \in \mathbb{G}_1$, $t_{2}=[\alpha]g + [\rho]u \in \mathbb{G}_1$, $z_{a}=\alpha + c \cdot a \in \mathbb{Z}_{n}$, $z_{r}=\rho + c \cdot r \in \mathbb{Z}_{n}$, $r_{1}=[r]g \in \mathbb{G}_1$, and $\chi=[a + r \cdot \delta]g \in \mathbb{G}_1$. 
+We start with $\ ($ $g, u, t_{1}, t_{2}, z_{a}, z_{r}, r_{1}, \chi\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$, $t_{1}=[\rho]g \in \mathbb{G}_{1}$, $t_{2}=[\alpha]g + [\rho]u \in \mathbb{G}_{1}$, $z_{a}=\alpha + c \cdot a \in \mathbb{Z}_{n}$, $z_{r}=\rho + c \cdot r \in \mathbb{Z}_{n}$, $r_{1}=[r]g \in \mathbb{G}_{1}$, and $\chi=[a + r \cdot \delta]g \in \mathbb{G}_{1}$. 
 
 Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, t_{1}, t_{2})$.
 
@@ -931,6 +931,30 @@ Correctness for Algorithm~\ref{alg:reencrypt-alice-bob}, recursive decryption
 \end{lemma}
 
 \begin{proof}
+
+Lets assume we have a single full encryption level and a half encryption level given by $\ (\ r_{1,a}, r_{2,a}\ )$ and $\ (\ r_{1,b}, r_{2,b}\ )$, respectively, where $r_{1,i} \in \mathbb{G}_{1}$, and $r_{2,i} \in \mathbb{G}_{2}$. The owner of the half level has secret $y \in \mathbb{Z}_{n}$ and the owner of the full level as secret $x \in \mathbb{Z}_{n}$. The point $h_{0}=[s_{0}]p \in \mathbb{G}_{2}$ is a fixed public element.
+
+Calculate $\kappa_{1}$ from the half level.
+
+$\kappa_{1} = \frac{r_{2,b}}{e(r_{1,b}, h_{0}^{y})} = \frac{e(q^{a_{1} + y \cdot r_{1}}, h_{0})}{e(q^{r_{1}}, h_{0}^{y})} = e(q^{a_{1} + y \cdot r_{1}}, h_{0}) \cdot e(q^{r_{1}}, h_{0}^{y})^{-1}$
+
+$\kappa_{1} = e(q^{a_{1} + y \cdot r_{1}}, h_{0}) \cdot e(q^{-r_{1} \cdot y}, h_{0})$
+
+$\kappa_{1} = e(q^{a_{1}}, h_{0})$
+
+Calculate $\kappa_{0}$ from the full level.
+
+$\kappa_{0} = \frac{r_{2,a}}{e(r_{1,a}, p^{H(\kappa_{1})})} = \frac{e(q^{a_{0} + x \cdot r_{0}}, h_{0}) \cdot e(q^{r_{0}}, p^{H(\kappa_{1})} \cdot h_{0}^{-x})}{e(q^{r_{0}}, p^{H(\kappa_{1})})}$
+
+$\kappa_{0} = e(q^{a_{0} + x \cdot r_{0}}, h_{0}) \cdot e(q^{r_{0}}, p^{H(\kappa_{1})} \cdot h_{0}^{x}) \cdot e(q^{-r_{0} \cdot H(\kappa_{1})}, p)$
+
+$\kappa_{0} = e(q^{s \cdot a_{0} + s \cdot x \cdot r_{0}}, p) \cdot e(q^{r_{0} \cdot H(\kappa_{1}) - r_{0} \cdot s \cdot x}, p) \cdot e(q^{-r_{0} \cdot H(\kappa_{1})}, p)$
+
+$\kappa_{0} = e(q^{s \cdot a_{0}}, p) = e(q^{a_{0}}, h_{0})$
+
+Any user with $\kappa_{0}$ may decrypt the original message. When many full levels exist then the recursive relationship holds in general.
+
+$\kappa_{i-1} = \frac{r_{2, i-1}}{e(r_{1, i-1}, p^{H(\kappa_{i})})} = e(q^{a_{i-1}}, h_{0})$
 
 \end{proof}
 
