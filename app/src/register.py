@@ -1,10 +1,10 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
 
-from dataclasses import dataclass, field
-from src.bls12381 import g1_point, rng, scale
+from dataclasses import dataclass
+from src.bls12381 import g1_point, scale
 from src.files import save_json
-from pathlib import Path
+
 
 @dataclass
 class Register:
@@ -22,7 +22,7 @@ class Register:
         # Public-only construction
         if self.g is None or self.u is None:
             raise ValueError("Must provide (g, u) if x is not known")
-    
+
     def __eq__(self, other):
         if not isinstance(other, Register):
             return NotImplemented
@@ -32,14 +32,14 @@ class Register:
         if not isinstance(other, int):
             return NotImplemented
         return scale(self.u, other)
-    
+
     def __rmul__(self, other):
         return self.__mul__(other)
-    
+
     @classmethod
     def from_public(cls, g: str, u: str) -> "Register":
         return cls(x=None, g=g, u=u)
-    
+
     def to_file(self) -> None:
         path = "../data/register.json"
         data = {

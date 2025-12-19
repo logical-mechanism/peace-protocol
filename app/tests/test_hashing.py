@@ -12,5 +12,6 @@ def test_hash():
     h = generate("acab")
     assert h == "09c4a38a350818fcabc9eba223519d9539f072185bb6e7c0e29ea392"
 
+
 if __name__ == "__main__":
     pytest.main()

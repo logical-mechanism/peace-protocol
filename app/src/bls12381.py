@@ -22,6 +22,7 @@ from py_ecc.optimized_bls12_381 import (
     pairing,
 )
 
+
 def rng() -> int:
     """
     Generates a random hex string of the specified length using the secrets module.
@@ -46,6 +47,7 @@ def g1_point(scalar: int) -> str:
     """
     return G1_to_pubkey(multiply(G1, scalar)).hex()
 
+
 def g2_point(scalar: int) -> str:
     """
     Generates a BLS12-381 point from the G2 generator using scalar multiplication
@@ -58,6 +60,7 @@ def g2_point(scalar: int) -> str:
         bytes: The resulting BLS12-381 G2 point in compressed format.
     """
     return G2_to_signature(multiply(G2, scalar)).hex()
+
 
 def uncompress(element: str) -> tuple:
     """
@@ -104,6 +107,7 @@ def scale(element: str, scalar: int) -> str:
     """
     return compress(multiply(uncompress(element), scalar))
 
+
 def invert(element: str) -> str:
     """
     Calculates the inverse of a BLS12-381 point.
@@ -115,6 +119,7 @@ def invert(element: str) -> str:
         str: The resulting combined point.
     """
     return compress(neg(uncompress(element)))
+
 
 def combine(left_element: str, right_element: str) -> str:
     """
@@ -128,6 +133,7 @@ def combine(left_element: str, right_element: str) -> str:
         str: The resulting combined point.
     """
     return compress(add(uncompress(left_element), uncompress(right_element)))
+
 
 def pair(g1_element: str, g2_element: str, final_exponentiate: bool = True) -> FQ12:
     """
@@ -161,23 +167,26 @@ def fq12_encoding(value: FQ12, domain_tag: str) -> str:
     byte_data = b""
     for fq_component in value.coeffs:
         byte_data += int(fq_component).to_bytes(48, "big")
-    return generate(byte_data.hex() + domain_tag.encode('utf-8').hex())
+    return generate(byte_data.hex() + domain_tag.encode("utf-8").hex())
+
 
 def random_fq12(a: int) -> str:
     kappa = pair(scale(g1_point(1), a), H0)
     return fq12_encoding(kappa, F12_DOMAIN_TAG)
 
+
 def to_int(hash_digest: str) -> int:
     """
     TODO
     Docstring for to_int
-    
+
     :param hash_digest: Description
     :type hash_digest: str
     :return: Description
     :rtype: int
     """
     return int(hash_digest, 16) % curve_order
+
 
 def from_int(integer: int) -> str:
     if integer == 0:

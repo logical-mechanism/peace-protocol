@@ -1,5 +1,6 @@
 from src.files import save_json
 
+
 def full_level_to_file(r1b: str, r2_g1b: str, r2_g2b: str, r4b: str):
     path = "../data/full-level.json"
     data = {
@@ -12,9 +13,7 @@ def full_level_to_file(r1b: str, r2_g1b: str, r2_g2b: str, r4b: str):
                     {"bytes": r2_g1b},
                     {
                         "constructor": 0,
-                        "fields": [
-                            {"bytes": r2_g2b}
-                        ],
+                        "fields": [{"bytes": r2_g2b}],
                     },
                 ],
             },
