@@ -8,6 +8,8 @@ This project was funded in Fund 14 of Project Catalyst.
 
 [Technical Report](./documentation/technical_report.pdf)
 
+[MVP](./app/README.md)
+
 **Copyright (C) 2025 Logical Mechanism LLC**
 
 **SPDX-License-Identifier: CC-BY-4.0**
