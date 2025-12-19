@@ -102,6 +102,7 @@ header-includes:
 \fancyhf{}
 \fancyfoot[C]{\footnotesize \today}
 
+
 # Abstract
 
 In this report, we introduce the PEACE protocol, an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain. PEACE solves the encrypted-NFT problem by providing a decentralized, open-source protocol for transferable encryption rights, enabling creators, collectors, and developers to manage encrypted NFTs without relying on centralized decryption services. This work fills a significant gap in secure, private access to NFTs on Cardano. Project Catalyst[^fund] funded the PEACE protocol in round 14.
@@ -177,8 +178,8 @@ The protocol requires proving a binding relationship between a user's public val
 \label{alg:bindingsig}
 
 \KwIn{\\$\ ($ $g, u\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$\\
-  \ $(r_{1}, \chi)$ where $r_{1} \in \mathbb{G}_{1}$, $\chi \in \mathbb{G}_{1}$\\
-  \ $(a, r)$ where $a \in \mathbb{Z}_{n}$ and $r \in \mathbb{Z}_{n}$
+ \ $(r_{1}, \chi)$ where $r_{1} \in \mathbb{G}_{1}$, $\chi \in \mathbb{G}_{1}$\\
+ \ $(a, r)$ where $a \in \mathbb{Z}_{n}$ and $r \in \mathbb{Z}_{n}$
 }
 \KwOut{\textsf{bool}}
 
@@ -204,7 +205,7 @@ There will be times when the protocol requires proving some equality using pairi
 \label{alg:blssig}
 
 \KwIn{\\$\ ($ $g, u, c, w, m\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$,\\
-  \ $c = p^{H(m)} \in \mathbb{G}_{2}$, $w = [\delta]c \in \mathbb{G}_{2}$, and $m\in\{0,1\}^{*}$}
+ \ $c = p^{H(m)} \in \mathbb{G}_{2}$, $w = [\delta]c \in \mathbb{G}_{2}$, and $m\in\{0,1\}^{*}$}
 \KwOut{\textsf{bool}}
 
 $e(u, c) = e(g, w)$
@@ -318,14 +319,14 @@ Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption proce
 
 # Protocol Overview
 
-The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The protocol should be viewed as a proof-of-concept, as the data storage layer is the Cardano blockchain. The current Cardano chain parameters bound the storage limit to less than 16kb. In a production setting, the data storage layer should allow for arbitrary file sizes.
+The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The protocol should be viewed as a proof-of-concept, as the data storage layer is the Cardano blockchain. The current Cardano chain parameters limit storage to less than 16 KB. In a production setting, the data storage layer should allow for arbitrary file sizes.
 
 ![Protocol state flow](./images/statemachine-flowchart.png){ width=40% float=true }
 
 
 ## Design Goals And Requirements
 
-Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction construction, cryptographic proof generation, and the happy-path flow. The design on both sides will focus on an example two-party system: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof-of-concept, the off-chain will not include the general n-party system, as that is future work for a real-world production setting.
+Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction construction, cryptographic proof generation, and the happy-path flow. The design on both sides will focus on a two-party example: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof-of-concept, the off-chain will not include the general n-party system, as that is future work for a real-world production setting.
 
 The protocol must allow continuous trading via a multi-hop PRE, meaning that Alice trades with Bob, who can then trade with Carol. In this setting, Alice will trade to Bob, then Bob will trade back to Alice, rather than Carol, without any loss of generality. Each hop will generate a new owner and decryption data for the encryption UTxO. The storage of previous encryption levels should grow at most linearly. Users will use a basic bid system for token trading. A user may choose not to trade their token by simply not selecting a bid if one exists.
 
@@ -373,7 +374,7 @@ The entry redeemer verifies that Alice's \texttt{owner\_vkh} is valid via an Ed2
 
 ### Phase 2: Creating The Bid UTxO
 
-Bob may now create a bid UTxO in the bid contract in hopes to to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarly to Alice, the secret $\gamma$ will generate an Ed25519 keypair and the secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $q$. Bob will fund the address associated with his \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the proof-of-concept protocol grows the encryption datum linearly in size with each additional encryption level, so the required Lovelace for a given encrypted message will increase over time. Bob should contribute to the minimum required Lovelace for the encrypted data, though this is not an on-chain requirement.
+Bob may now create a bid UTxO in the bid contract to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarly to Alice, the secret $\gamma$ will generate an Ed25519 keypair and the secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $q$. Bob will fund the address associated with his \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the proof-of-concept protocol grows the encryption datum linearly in size with each additional encryption level, so the required Lovelace for a given encrypted message will increase over time. Bob should contribute to the minimum required Lovelace for the encrypted data, though this is not an on-chain requirement.
 
 The structure of the bid entry transaction is similar to that of the re-encryption entry transaction, but uses \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The transaction input derives the \texttt{pointer} token name in the same way as the \texttt{token} name. A user may reference the \texttt{token} name on-chain from the re-encryption contract. Bob may then create the \texttt{BidDatum} as shown in Listing \ref{lst:fullbiddatum}.
 
@@ -381,9 +382,9 @@ Similar to the re-encryption contract, the entry redeemer will verify Bob's \tex
 
 ### Phase 3: Bid Selection And Re-Encryption
 
-Alice will select a bid UTxO from the bid contract and will re-encrypt the encryption data using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create the re-encryption proofs. The re-encryption is the most important step of the protocol, as it involves trading both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. If everything is consistent then the ownership and decryption rights are transferred. Listing \ref{lst:createnextlevel} is a Pythonic pseudocode for generating the next encryption level. Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
+Alice will select a bid UTxO from the bid contract and will re-encrypt the encryption data using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create the re-encryption proofs. The re-encryption is the most important step of the protocol, as it involves trading both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. If everything is consistent, then the ownership and decryption rights are transferred. Listing \ref{lst:createnextlevel} is a Pythonic pseudocode for generating the next encryption level. Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
 
-The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first pairing assertion follows Alice's first-level validation, ensuring that the encryption level terms are consistent. The second pairing assertion shows that Alice correctly created the $r_{5}$ term. Adding a SNARK for valid witness creation is left as future work for a real-world production deployment, as it is out of scope for the proof-of-concept implementation. The SNARK will need to prove that the secret $\kappa$ truly does equal the witness when you hash it, $W = q^{H(\kappa)}$, where $H(\kappa)$ and $\kappa$ are secrets and $W$ is public.
+The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first pairing assertion follows Alice's first-level validation, ensuring that the encryption level terms are consistent. The second pairing assertion shows that Alice correctly created the $r_{5}$ term. Adding a SNARK for valid witness creation is left as future work for a real-world production deployment, as it is out of scope for the proof-of-concept implementation. The SNARK will need to prove that the secret $\kappa$ truly does equal the witness when hashed, $W = q^{H(\kappa)}$, where $H(\kappa)$ and $\kappa$ are secrets and $W$ is public.
 
 ### Phase 4: Decryption
 
@@ -405,7 +406,7 @@ This protocol is presented as a proof-of-concept and inherits standard assumptio
 
 - Well-formed randomness: All secret scalars and nonces are sampled with high entropy and never reused where uniqueness is required. Randomness failures (poor RNG, nonce reuse, low-entropy secrets) are catastrophic.
 
-- Endpoint key safety: Alice's and Bob's long-term secret keys must remain confidential. The extraction of keys from the wallet/device destroys confidentiality and authenticity guarantees.
+- Endpoint key safety: Alice's and Bob's long-term secret keys must remain confidential. Extracting keys from the wallet/device undermines the confidentiality and authenticity guarantees.
 
 - On-chain validation is authoritative: The ledger enforces the validator exactly as written (Aiken/Plutus semantics). Any check performed only off-chain is advisory and not part of the security boundary.
 
