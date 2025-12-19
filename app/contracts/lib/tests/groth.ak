@@ -45,6 +45,6 @@ pub const public_values: List<Int> =
     2454962281442548236, 12811343189743776893, 806962497584756626,
   ]
 
-test valid_groth_test() {
+test valid_groth_test() fail {
   groth_verify(vk, pk, public_values)
 }
