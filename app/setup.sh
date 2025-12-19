@@ -67,8 +67,6 @@ pip install -r requirements.txt
 
 source .env
 
-mkdir -p wallets
-
 ###############################################################################
 # Build contracts
 ###############################################################################
@@ -87,68 +85,6 @@ aiken build --trace-level verbose --trace-filter all
 cd ..
 
 ###############################################################################
-# Wallet Creation
-###############################################################################
-
-echo -e "\033[1;36m\nWallet Creation \033[0m"
-
-# create alice
-folder=wallets/alice
-mkdir -p ${folder}
-
-if [ ! -f ${folder}/payment.skey ]; then
-    ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
-fi
-echo -e "\033[1;33m\nAlice: $(cat ${folder}/payment.hash) \033[0m"
-
-
-# create bob
-folder=wallets/bob
-mkdir -p ${folder}
-
-if [ ! -f ${folder}/payment.skey ]; then
-    ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
-fi
-echo -e "\033[1;33mBob: $(cat ${folder}/payment.hash) \033[0m"
-
-# create collat
-folder=wallets/collat
-mkdir -p ${folder}
-
-if [ ! -f ${folder}/payment.skey ]; then
-    ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
-fi
-echo -e "\033[1;33mCollateral: $(cat ${folder}/payment.hash) \033[0m"
-
-# create holder
-folder=wallets/holder
-mkdir -p ${folder}
-
-if [ ! -f ${folder}/payment.skey ]; then
-    ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
-fi
-echo -e "\033[1;33mHolder: $(cat ${folder}/payment.hash) \033[0m"
-
-# create genesis
-folder=wallets/genesis
-mkdir -p ${folder}
-
-if [ ! -f ${folder}/payment.skey ]; then
-    ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
-fi
-echo -e "\033[1;33mGenesis: $(cat ${folder}/payment.hash) \033[0m"
-
-###############################################################################
 # Data Initialization
 ###############################################################################
 
@@ -165,7 +101,7 @@ jq \
 
 reference_hash=$(${cli} conway transaction hash-script-data --script-data-file ./data/reference/reference-datum.json)
 
-echo -e "\033[1;33m\nReference Datum Hash: $(cat ${folder}/payment.hash) \033[0m"
+echo -e "\033[1;33m\nReference Datum Hash: ${reference_hash} \033[0m"
 
 ###############################################################################
 
