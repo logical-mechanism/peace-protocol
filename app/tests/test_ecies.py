@@ -1,7 +1,7 @@
 import pytest
 
-from src.register import Register
 from src.ecies import encrypt, decrypt
+
 
 def test_e2e():
     msg = "This is a secret message that only Alice knows."

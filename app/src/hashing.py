@@ -4,6 +4,7 @@
 import hashlib
 import binascii
 
+
 def generate(input_string: str) -> str:
     """
     Calculates the blake2b_224 hash digest of the input string.
@@ -15,7 +16,8 @@ def generate(input_string: str) -> str:
         str: The blake2b_224 hash digest of the input string.
     """
     # Calculate the hash digest using blake2b_224
-    hash_digest = hashlib.blake2b(binascii.unhexlify(input_string), digest_size=28).hexdigest()
+    hash_digest = hashlib.blake2b(
+        binascii.unhexlify(input_string), digest_size=28
+    ).hexdigest()
 
     return hash_digest
-
