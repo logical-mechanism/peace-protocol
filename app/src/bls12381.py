@@ -173,24 +173,67 @@ def fq12_encoding(value: FQ12, domain_tag: str) -> str:
 
 
 def random_fq12(a: int) -> str:
+    """
+    Derive a deterministic Fq12 element from a scalar and encode it as hex.
+
+    This computes a pairing value:
+
+        kappa = e([a]G1, H0)
+
+    and then serializes/encodes that Fq12 element using `fq12_encoding` with
+    the `F12_DOMAIN_TAG`.
+
+    Despite the name, this is not random unless `a` is sampled randomly.
+
+    Args:
+        a: Scalar used to multiply the canonical G1 generator before pairing.
+
+    Returns:
+        A hex string representing the domain-tagged encoding of the resulting
+        Fq12 element.
+    """
     kappa = pair(scale(g1_point(1), a), H0)
     return fq12_encoding(kappa, F12_DOMAIN_TAG)
 
 
 def to_int(hash_digest: str) -> int:
     """
-    TODO
-    Docstring for to_int
+    Interpret a hex digest as a scalar reduced modulo the curve order.
 
-    :param hash_digest: Description
-    :type hash_digest: str
-    :return: Description
-    :rtype: int
+    This is typically used to map a hash output (produced as a hex string)
+    into the scalar field used by the protocol:
+
+        c = int(hash_digest, 16) mod curve_order
+
+    Args:
+        hash_digest: Hex-encoded digest string (no '0x' prefix expected).
+
+    Returns:
+        An integer scalar in the range [0, curve_order - 1].
     """
     return int(hash_digest, 16) % curve_order
 
 
 def from_int(integer: int) -> str:
+    """
+    Encode a non-negative integer as a minimal-length big-endian hex string.
+
+    - The encoding is *minimal* (no leading zero bytes).
+    - The special case `0` is encoded as `"00"` to ensure a non-empty byte
+      representation.
+
+    This is useful for serializing scalars/integers into a compact hex form.
+
+    Args:
+        integer: Non-negative integer to encode.
+
+    Returns:
+        A hex string representing the integer in big-endian byte order.
+
+    Notes:
+        If callers require a fixed width (e.g., always 32 bytes / 64 hex chars),
+        this function is intentionally not doing that.
+    """
     if integer == 0:
         return "00"
     length = (integer.bit_length() + 7) // 8
