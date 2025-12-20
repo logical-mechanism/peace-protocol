@@ -1,6 +1,6 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
-from src.constants import KEY_DOMAIN_TAG, H0, H1, H2, H3, F12_DOMAIN_TAG
+from src.constants import KEY_DOMAIN_TAG, H0, H1, H2, H3, F12_DOMAIN_TAG, H2I_DOMAIN_TAG
 from src.files import extract_key
 from src.bls12381 import (
     to_int,
@@ -44,8 +44,8 @@ def create_encryption_tx(
     r1b = scale(g1_point(1), r0)
     r2_g1b = scale(g1_point(1), (a0 + r0 * sk) % curve_order)
 
-    a = to_int(generate(r1b))
-    b = to_int(generate(r1b + r2_g1b + token_name))
+    a = to_int(generate(H2I_DOMAIN_TAG + r1b))
+    b = to_int(generate(H2I_DOMAIN_TAG + r1b + r2_g1b + token_name))
 
     c = combine(combine(scale(H1, a), scale(H2, b)), H3)
     r4b = scale(c, r0)
@@ -84,8 +84,8 @@ def create_reencryption_tx(
     r1b = scale(g1_point(1), r1)
     r2_g1b = combine(scale(g1_point(1), a1), scale(bob_public_value, r1))
 
-    a = to_int(generate(r1b))
-    b = to_int(generate(r1b + r2_g1b + token_name))
+    a = to_int(generate(H2I_DOMAIN_TAG + r1b))
+    b = to_int(generate(H2I_DOMAIN_TAG + r1b + r2_g1b + token_name))
     c = combine(scale(H1, a), scale(H2, b))
     r4b = scale(c, r1)
 

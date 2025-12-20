@@ -2,15 +2,14 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
-use aiken/crypto
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1
 use aiken/crypto/bls12_381/scalar.{Scalar}
 use aiken/primitive/bytearray
 use cardano/assets.{AssetName}
+use digest
 use types/register.{Register}
 
-/// we can change this later
 pub const schnorr_domain_tag: ByteArray = #"5343484e4f52527c50524f4f467c76317c"
 
 pub const binding_domain_tag: ByteArray = #"42494e44494e477c50524f4f467c76317c"
@@ -35,7 +34,7 @@ pub fn fiat_shamir_heuristic(
     |> bytearray.concat(g_b)
     |> bytearray.concat(g_r_b)
     |> bytearray.concat(u_b)
-    |> crypto.blake2b_224()
+    |> digest.hash
 }
 
 pub fn verify(user: Register, proof: SchnorrProof) -> Bool {
@@ -82,7 +81,7 @@ pub fn binding_fiat_shamir_heuristic(
     |> bytearray.concat(r1_b)
     |> bytearray.concat(r2_b)
     |> bytearray.concat(token_name)
-    |> crypto.blake2b_224
+    |> digest.hash
 }
 
 pub fn binding_verify(

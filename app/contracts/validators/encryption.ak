@@ -57,7 +57,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           // owner g1 point must be known
           schnorr.verify(owner_g1, schnorr_proof)?,
           // must be valid level 1
-          level.verify_level_one(token_name, entry)?,
+          level.verify_level_one(entry, token_name)?,
           // must be using original owner
           schnorr.binding_verify(
             owner_g1,
