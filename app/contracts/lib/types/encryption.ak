@@ -1,3 +1,7 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use aiken/crypto.{VerificationKeyHash}
 use cardano/assets.{AssetName}
 use types/level.{EncryptionLevel}

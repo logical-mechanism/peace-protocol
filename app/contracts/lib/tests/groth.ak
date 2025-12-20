@@ -1,3 +1,7 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use types/groth.{GrothProof, SnarkVerificationKey, groth_verify}
 
 // Test (Prove Hash and check relation)
