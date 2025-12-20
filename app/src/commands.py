@@ -31,7 +31,6 @@ def create_encryption_tx(
     a0 = rng()
     r0 = rng()
     m0 = random_fq12(a0)
-    print(f"SECRET: {m0}")
 
     key = extract_key(alice_wallet_path)
     sk = to_int(generate(KEY_DOMAIN_TAG + key))

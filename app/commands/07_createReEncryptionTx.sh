@@ -143,9 +143,6 @@ cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-d
 
 
 old_list=$(jq -r '.fields[3].list' ../data/encryption/encryption-datum.json)
-echo "$old_list" | jq type
-echo "$old_list" | jq length
-
 
 jq \
 --arg bob_pkh "${bob_pkh}" \
@@ -226,7 +223,7 @@ FEE=$(${cli} conway transaction build \
 echo -e "\033[0;35m${FEE}\033[0m"
 
 #
-# exit
+exit
 #
 
 ${cli} conway transaction sign \
