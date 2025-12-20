@@ -100,7 +100,7 @@ jq \
 
 reference_hash=$(${cli} conway transaction hash-script-data --script-data-file ./data/reference/reference-datum.json)
 
-echo -e "\033[1;33m\nReference Datum Hash: ${reference_hash} \033[0m"
+echo -e "\033[1;33mReference Datum Hash: ${reference_hash} \033[0m"
 
 ###############################################################################
 
