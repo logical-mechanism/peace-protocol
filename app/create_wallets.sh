@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -e
 
 echo -e "\033[1;36m\nRequirements Check\n\033[0m"

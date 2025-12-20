@@ -59,3 +59,7 @@ The script references must be created upon first use of the happy path with `00_
 Alice may create the encryption UTxO with `03_createEncryptionTx.sh` and may remove it with `04_removeEncryptionTx.sh`. Bob may create the bid UTxO with `05_createBidTx.sh` and may remove it with `06_removeBidTx.sh`. Using the encryption UTxO and bid UTxO, alice may use `07_createReEncryptionTx.sh` to re-encrypt the data to Bob. Bob can decrypt the data using `08_decryptMessage.sh`.
 
 The roles for Alice and Bob can be switched by changing the wallet paths inside the happy path.
+
+**Copyright (C) 2025 Logical Mechanism LLC**
+
+**SPDX-License-Identifier: CC-BY-4.0**
