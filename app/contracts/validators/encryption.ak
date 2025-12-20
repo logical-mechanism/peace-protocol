@@ -17,6 +17,7 @@ use types/encryption.{
 }
 use types/level.{EncryptionLevel}
 use types/reference.{ReferenceDatum}
+use types/register
 use types/schnorr
 use util
 
@@ -56,6 +57,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           list.has(extra_signatories, owner_vkh)?,
           // owner g1 point must be known
           schnorr.verify(owner_g1, schnorr_proof)?,
+          // owner g1 point must be valid
+          register.is_register_valid(owner_g1)?,
           // must be valid level 1
           level.verify_level_one(entry, token_name)?,
           // must be using original owner
