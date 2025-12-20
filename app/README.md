@@ -9,9 +9,7 @@ pytest -s -vv
 ## Formatting
 
 ```bash
-ruff format .
-ruff check . --fix
-mypy .
+./lint.sh
 ```
 
 ## Happy Path Setup
