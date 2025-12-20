@@ -1,3 +1,5 @@
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
 # domain tags
 KEY_DOMAIN_TAG = "ED25519|To|BLS12381|v1|".encode("utf-8").hex()
 F12_DOMAIN_TAG = "F12|To|Hex|v1|".encode("utf-8").hex()

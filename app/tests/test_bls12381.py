@@ -1,3 +1,5 @@
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
 import pytest
 from src.constants import H0, F12_DOMAIN_TAG
 from src.hashing import generate
