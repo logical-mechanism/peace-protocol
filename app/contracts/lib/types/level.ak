@@ -1,3 +1,6 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
 //// Cardano implementation of
 //// A Fully Secure Unidirectional and Multi-use Proxy Re-encryption Scheme by Wang & Cao
 ////

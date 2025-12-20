@@ -1,3 +1,7 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use aiken/builtin.{
   bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_scalar_mul,
   bls12_381_g1_uncompress, bls12_381_g2_uncompress, bls12_381_miller_loop,
