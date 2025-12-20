@@ -30,14 +30,14 @@ const alice_level: EncryptionLevel = {
     // a = H(r1b)
     let a =
       r1b
-        |> level.hash_scalar
+        |> level.hash_to_scalar
 
     // b = H(r1b || r2_bytes)
     let b =
       r1b
         |> bytearray.concat(level.concat_embedded_gt(r2))
         |> bytearray.concat(token_name)
-        |> level.hash_scalar
+        |> level.hash_to_scalar
 
     // exp = h1^a * h2^b * h3   (written additively in G2)
     let exp =
@@ -93,15 +93,15 @@ pub const carol_level: EncryptionLevel = {
   }
 
 test is_alice_verified() {
-  level.verify_level_one(token_name, alice_level)
+  level.verify_level_one(alice_level, token_name)
 }
 
 test is_bob_verified() {
-  level.verify_level_k(token_name, bob_level)
+  level.verify_level_k(bob_level, token_name)
 }
 
 test is_carol_verified() {
-  level.verify_level_k(token_name, carol_level)
+  level.verify_level_k(carol_level, token_name)
 }
 // test display_encryption_level() {
 //   trace cbor.serialise([alice_level])
