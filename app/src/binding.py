@@ -1,3 +1,5 @@
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
 from src.register import Register
 from src.constants import BND_DOMAIN_TAG
 from src.hashing import generate
