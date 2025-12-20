@@ -21,6 +21,12 @@ pub type SchnorrProof {
   g_r_b: ByteArray,
 }
 
+/// Concat all of the terms together then hash the value. This is used to
+/// generate a challenge value for the proof.
+///
+/// ```aiken
+/// schnorr.fiat_shamir_heuristic(g, gr, u)
+/// ```
 pub fn fiat_shamir_heuristic(
   // compressed g element
   g_b: ByteArray,
@@ -37,6 +43,12 @@ pub fn fiat_shamir_heuristic(
     |> digest.hash
 }
 
+/// Verify a Schnorr Sigma Protocol using the Fiat-Shamir heuristic for
+/// non-interactivity.
+///
+/// ```aiken
+/// schnorr.verify(datum.register, redeemer.proof)
+/// ```
 pub fn verify(user: Register, proof: SchnorrProof) -> Bool {
   //
   let z: State<Scalar> = scalar.from_bytes(proof.z_b)
@@ -66,6 +78,12 @@ pub type BindingProof {
   t_2_b: ByteArray,
 }
 
+/// Concat all of the terms together then hash the value. This is used to
+/// generate a challenge value for the proof.
+///
+/// ```aiken
+/// schnorr.binding_fiat_shamir_heuristic(datum.register, redeemer.proof, entry.r1b, entry.r2, tkn)
+/// ```
 pub fn binding_fiat_shamir_heuristic(
   user: Register,
   proof: BindingProof,
@@ -84,6 +102,12 @@ pub fn binding_fiat_shamir_heuristic(
     |> digest.hash
 }
 
+/// Verify a Sigma Protocol using the binding Fiat-Shamir heuristic for
+/// non-interactivity.
+///
+/// ```aiken
+/// schnorr.binding_verify(datum.register, redeemer.proof)
+/// ```
 pub fn binding_verify(
   user: Register,
   proof: BindingProof,

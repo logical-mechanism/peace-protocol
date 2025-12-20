@@ -16,6 +16,7 @@ use types/bidding.{
 }
 use types/encryption.{UseEncryption}
 use types/reference.{ReferenceDatum}
+use types/register
 use types/schnorr
 use util
 
@@ -64,6 +65,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           list.has(extra_signatories, owner_vkh)?,
           // owner g1 point must be known
           schnorr.verify(owner_g1, schnorr_proof)?,
+          // owner g1 point must be valid
+          register.is_register_valid(owner_g1)?,
           // token name needs to be in the datum
           (pointer == token_name)?,
         }
