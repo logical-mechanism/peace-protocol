@@ -78,12 +78,7 @@ echo -e "\033[1;36m\nContract Building\n\033[0m"
 
 cd contracts
 
-# remove all traces for production
-# aiken build --trace-level silent --trace-filter user-defined
-
-# keep all traces for development
-aiken build --trace-level verbose --trace-filter all
-
+# change aiken build parameters inside of compile.sh
 ./compile.sh
 
 cd ..

@@ -1,6 +1,5 @@
 # PEACE Protocol Smart Contracts
 
-
 ## Testing
 
 ```sh
