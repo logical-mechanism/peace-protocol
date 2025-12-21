@@ -52,8 +52,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         expect Some(_) =
           search.for_input_by_token(reference_inputs, encryption, token)
         //
-        //
-        //
         and {
           // script output can not have a reference script
           option.is_none(reference_script)?,
@@ -115,8 +113,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                     },
                   )
                 //
-                // Burn the token and get a signature from the keeper.
-                //
                 and {
                   // owner_vkh must sign
                   list.has(extra_signatories, owner_vkh)?,
@@ -176,8 +172,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   output_reference,
                 )
               expect UseEncryption(_, _, selected_bid_token, _) = spend_redeemer
-              //
-              //
               //
               and {
                 burn_token?,

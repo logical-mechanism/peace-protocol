@@ -42,8 +42,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           output_datum_data
         expect [entry]: List<EncryptionLevel> = levels
         //
-        //
-        //
         and {
           // token name needs to be in the datum
           (token == token_name)?,
@@ -116,10 +114,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                     },
                   )
                 //
-                // Burn the token and get a signature from the keeper.
-                //
-                // This assumes the owner vkh is wellformed.
-                //
                 and {
                   // owner_vkh must sign
                   list.has(extra_signatories, owner_vkh)?,
@@ -178,8 +172,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 owner_g1: bid_owner_g1,
                 ..
               }: BidDatum = bidding_datum_data
-              //
-              //
               //
               and {
                 // cipher text can not change
