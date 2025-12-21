@@ -27,7 +27,7 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${payment_address} \033[0m \n";
    exit;
 fi
-alltxin=""
+
 TXIN=$(jq -r --arg alltxin "" 'to_entries[] | select(.value.value | length < 2) | .key | . + $alltxin + " --tx-in"' ./tmp/payment_utxo.json)
 ref_tx_in=${TXIN::-8}
 

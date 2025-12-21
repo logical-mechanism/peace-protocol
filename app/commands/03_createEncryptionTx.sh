@@ -72,7 +72,6 @@ echo -e "\033[1;36m\nEncryption Token: ${encryption_asset} \033[0m"
 # encrypt the message
 secret_message="This is a secret message."
 
-# generate the register
 PYTHONPATH="$PROJECT_ROOT" \
 "$PROJECT_ROOT/venv/bin/python" -c \
 "
@@ -101,13 +100,11 @@ jq \
 .fields[1]=$binding' \
 ../data/encryption/encryption-mint-redeemer.json | sponge ../data/encryption/encryption-mint-redeemer.json
 
-# should be able to build the tx now
 utxo_value=$(${cli} conway transaction calculate-min-required-utxo \
     --protocol-params-file ./tmp/protocol.json \
     --tx-out-inline-datum-file ../data/encryption/encryption-datum.json \
     --tx-out="${encryption_script_address} + 5000000 + ${encryption_asset}" | tr -dc '0-9')
 encryption_script_output="${encryption_script_address} + ${utxo_value} + ${encryption_asset}"
-
 echo -e "\033[0;35m\nEncryption Output: ${encryption_script_output}\033[0m"
 
 encryption_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/encryption_contract-reference-utxo.signed | jq -r '.txhash')
@@ -147,9 +144,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

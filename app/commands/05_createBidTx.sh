@@ -43,6 +43,7 @@ reference_script_address=$(${cli} conway address build --payment-script-file ${r
 # the genesis token information
 tx_id=$(jq -r '.genesis_tx_id' ../config.json)
 tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
 tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")
 full_genesis_tkn="${tx_idx_cbor}${tx_id}"
@@ -63,7 +64,7 @@ if [ "${TXNS}" -eq "0" ]; then
 fi
 collat_utxo=$(jq -r 'keys[0]' ./tmp/collat_utxo.json)
 
-# get script utxo
+# get script utxos
 echo -e "\033[0;36m Gathering Encryption UTxO Information  \033[0m"
 ${cli} conway query utxo \
     --address ${encryption_script_address} \
@@ -74,7 +75,6 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${reference_script_address} \033[0m \n";
 .   exit;
 fi
-alltxin=""
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$encryption_pid" --arg token_name "$encryption_token" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/encryption_utxo.json)
 encryption_tx_in=${TXIN::-8}
 
@@ -88,7 +88,7 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${reference_script_address} \033[0m \n";
 .   exit;
 fi
-alltxin=""
+
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$genesis_pid" --arg token_name "$genesis_tkn" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/reference_utxo.json)
 reference_tx_in=${TXIN::-8}
 
@@ -189,9 +189,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

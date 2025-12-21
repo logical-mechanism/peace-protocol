@@ -42,7 +42,6 @@ fi
 TXIN=$(jq -r --arg alltxin "" 'keys[] | . + $alltxin + " --tx-in"' ./tmp/alice_utxo.json)
 alice_utxo=${TXIN::-8}
 
-# should be able to build the tx now
 echo -e "\033[0;36m Gathering Collateral UTxO Information  \033[0m"
 ${cli} conway query utxo \
     ${network} \
@@ -75,7 +74,6 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${encryption_script_address} \033[0m \n";
 .   exit;
 fi
-
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$encryption_pid" --arg token_name "$token_name" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/encryption_utxo.json)
 encryption_tx_in=${TXIN::-8}
 
@@ -119,9 +117,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

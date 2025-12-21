@@ -119,9 +119,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"
