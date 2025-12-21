@@ -223,7 +223,7 @@ FEE=$(${cli} conway transaction build \
 echo -e "\033[0;35m${FEE}\033[0m"
 
 #
-exit
+# exit
 #
 
 ${cli} conway transaction sign \
