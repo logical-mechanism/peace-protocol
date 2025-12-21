@@ -25,12 +25,11 @@ change_address=$(jq -r '.genesis_change_address' ../config.json)
 # the genesis token information
 tx_id=$(jq -r '.genesis_tx_id' ../config.json)
 tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
 tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")
 full_genesis_tkn="${tx_idx_cbor}${tx_id}"
 genesis_tkn="${full_genesis_tkn:0:64}"
-
-asset="1 ${genesis_pid}.${genesis_tkn}"
 
 # get script utxo
 echo -e "\033[0;36m Gathering Script UTxO Information  \033[0m"

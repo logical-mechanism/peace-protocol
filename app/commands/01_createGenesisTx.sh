@@ -24,7 +24,7 @@ genesis_pkh=$(${cli} conway address key-hash --payment-verification-key-file ../
 collat_address=$(cat ../wallets/collat/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ../wallets/collat/payment.vkey)
 
-# return leftover ada address
+# change address for left funds
 change_address=$(jq -r '.genesis_change_address' ../config.json)
 
 # the genesis token information
