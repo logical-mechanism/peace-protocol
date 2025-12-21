@@ -11,7 +11,7 @@ source ../.env
 mkdir -p ./tmp
 ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.json
 
-# Addresses
+# payment address
 payment_wallet_name="holder"
 payment_address=$(cat ../wallets/${payment_wallet_name}/payment.addr)
 script_reference_output_address=$(cat ../wallets/${payment_wallet_name}/payment.addr)
@@ -49,6 +49,7 @@ do
     --protocol-params-file ./tmp/protocol.json \
     --tx-out-reference-script-file ${contract} \
     --tx-out="${script_reference_output_address} + 1000000" | tr -dc '0-9')
+
     # build the utxo
     script_reference_utxo="${script_reference_output_address} + ${min_utxo}"
     echo -e "\033[0;32m\nCreating ${filename} Script:\n" ${script_reference_utxo} " \033[0m"
@@ -62,7 +63,7 @@ do
     --tx-out-reference-script-file ${contract} \
     --fee 1000000
 
-    size=$(jq -r '.cborHex' ${contract} | awk '{print length($0)*8}')
+    size=$(jq -r '.cborHex' ${contract} | awk '{print length($0)*15}')
 
     fee=$(${cli} conway transaction calculate-min-fee \
         --tx-body-file ./tmp/tx.draft \
