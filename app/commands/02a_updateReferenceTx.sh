@@ -60,7 +60,7 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${reference_script_address} \033[0m \n";
 .   exit;
 fi
-alltxin=""
+
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$genesis_pid" --arg token_name "$genesis_tkn" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/script_utxo.json)
 reference_tx_in=${TXIN::-8}
 
@@ -123,9 +123,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"
