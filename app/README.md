@@ -2,8 +2,16 @@
 
 ## Testing
 
+The Python code has tests ran from the app folder.
+
 ```bash
 pytest -s -vv
+```
+
+The Aiken code has tests ran from the contracts folder.
+
+```bash
+aiken check
 ```
 
 ## Formatting
