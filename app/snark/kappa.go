@@ -267,6 +267,10 @@ func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 		return fmt.Errorf("verify failed: %w", err)
 	}
 
+	if err := ExportAll(vk, proof, publicWitness, "out"); err != nil {
+		return fmt.Errorf("export: %w", err)
+	}
+
 	return nil
 }
 

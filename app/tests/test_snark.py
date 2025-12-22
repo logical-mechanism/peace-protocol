@@ -6,12 +6,13 @@ from src.bls12381 import (
     to_int,
 )
 
-from src.snark import gt_to_hash, decrypt_to_hash, generate_snark_proof
+from src.snark import gt_to_hash, decrypt_to_hash, generate_snark_proof, verify_snark_proof
 import os
 
 
 a0 = 44203
 snark_path = f"{os.getcwd()}/snark/snark"
+out_path = f"{os.getcwd()}/out"
 
 
 def test_print_g1_point():
@@ -43,10 +44,11 @@ def test_half_level_decrypt_hash():
     a = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
     assert a == "4493d2fcf250e229a5cc2c46189e0b97d9501a0d5128178253c1ade2"
 
-def test_prove():
+def test_snark_prove():
     a = gt_to_hash(a0, snark_path)
     w = g1_point(to_int(a))
     generate_snark_proof(a0, w, snark_path)
+    verify_snark_proof(out_path)
 
 if __name__ == "__main__":
     pytest.main()
