@@ -45,5 +45,18 @@ def decrypt_to_hash(
     return output.stdout.strip()
 
 
-def generate_snark_proof():
+def generate_snark_proof(a: int, w: str, snark_path: str | Path) -> None:
+    snark = Path(snark_path)
+
+    cmd = [
+        str(snark),
+        "prove",
+        "-a", str(a),
+        "-w", w,
+    ]
+
+    output = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    print(output.stdout.strip())
+
+def verify_snark_proof():
     pass
