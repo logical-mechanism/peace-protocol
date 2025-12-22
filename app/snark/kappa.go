@@ -24,16 +24,19 @@ import (
 // Fixed, public G2 point (compressed hex).
 const H0Hex = "a5acbe8bdb762cf7b4bfa9171b9ffa23b6ed710b290280b271a0258e285354aac338bb9e5a9ee41b4454e4c410f40eea16c82b493986bfc754aa789e1408b2b526f8b92e9ddcd4eee1a6c4daa84d561a6ceb452afc4559fe81a1c7f3f26715db"
 
-// IMPORTANT: you said this is FIXED and should be appended as BYTES.
-// This is a hex string, so we must hex-decode it to bytes before appending.
+// IMPORTANT: FIXED and appended as BYTES (hex-decoded) before hashing.
 const DomainTagHex = "4631327c546f7c4865787c76317c"
 
 // --- out-of-circuit helpers ---
 
-func g1MulBase(a uint64) bls12381.G1Affine {
-	s := new(big.Int).SetUint64(a)
+// g1MulBase computes [a]q where q is the G1 generator.
+// a can be arbitrarily large (e.g., 255 bytes); gnark-crypto will effectively reduce mod group order.
+func g1MulBase(a *big.Int) bls12381.G1Affine {
+	if a == nil {
+		a = new(big.Int)
+	}
 	var p bls12381.G1Affine
-	p.ScalarMultiplicationBase(s)
+	p.ScalarMultiplicationBase(new(big.Int).Set(a))
 	return p
 }
 
@@ -117,7 +120,11 @@ func blake2b224(msg []byte) []byte {
 // Returns:
 // - hkHex (lowercase hex, 56 chars)
 // - kappaEncHex (lowercase hex, 12*48*2 = 1152 chars)
-func gtToHash(a uint64) (hkHex string, kappaEncHex string, err error) {
+func gtToHash(a *big.Int) (hkHex string, kappaEncHex string, err error) {
+	if a == nil || a.Sign() == 0 {
+		return "", "", fmt.Errorf("a must be > 0")
+	}
+
 	tagBytes, err := hex.DecodeString(DomainTagHex)
 	if err != nil {
 		return "", "", fmt.Errorf("decode DomainTagHex: %w", err)
@@ -145,7 +152,11 @@ func gtToHash(a uint64) (hkHex string, kappaEncHex string, err error) {
 	return hex.EncodeToString(hk), hex.EncodeToString(enc), nil
 }
 
-func hkScalarFromA(a uint64) (*big.Int, error) {
+func hkScalarFromA(a *big.Int) (*big.Int, error) {
+	if a == nil || a.Sign() == 0 {
+		return nil, fmt.Errorf("a must be > 0")
+	}
+
 	tagBytes, err := hex.DecodeString(DomainTagHex)
 	if err != nil {
 		return nil, fmt.Errorf("decode DomainTagHex: %w", err)
@@ -154,6 +165,7 @@ func hkScalarFromA(a uint64) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	qa := g1MulBase(a)
 	kappa, err := bls12381.Pair([]bls12381.G1Affine{qa}, []bls12381.G2Affine{h0})
 	if err != nil {
@@ -197,7 +209,7 @@ func (c *wFromHKCircuit) Define(api frontend.API) error {
 
 // ProveAndVerifyW builds the circuit proof and immediately verifies it.
 // Prints/returns success if the public W matches hk derived from `a`.
-func ProveAndVerifyW(a uint64, wCompressedHex string) error {
+func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 	// 1) Compute hk scalar from a (out-of-circuit)
 	hkBi, err := hkScalarFromA(a)
 	if err != nil {
@@ -209,9 +221,6 @@ func ProveAndVerifyW(a uint64, wCompressedHex string) error {
 	if err != nil {
 		return err
 	}
-	// Optional sanity check (off-circuit): W should be in subgroup
-	// (uncomment if you want it strict)
-	// if !wAff.IsInSubGroup() { return fmt.Errorf("W not in G1 prime subgroup") }
 
 	// Convert W.X, W.Y to big.Int in regular form.
 	var wx, wy big.Int
@@ -293,7 +302,7 @@ func gtDiv(num, den bls12381.GT) bls12381.GT {
 	return out
 }
 
-// DecryptToHash computes the hop key hash that matches your Python:
+// DecryptToHash computes the hop key hash that matches your Python.
 //
 //	if constructor==1:
 //	    r2 = pair(g1b, H0)
