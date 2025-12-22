@@ -1,19 +1,16 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
-from src.constants import KEY_DOMAIN_TAG, H0, H1, H2, H3, F12_DOMAIN_TAG, H2I_DOMAIN_TAG
+from src.constants import KEY_DOMAIN_TAG, H0, H1, H2, H3, H2I_DOMAIN_TAG
 from src.files import extract_key
 from src.bls12381 import (
     to_int,
     rng,
-    random_fq12,
     scale,
     g1_point,
     combine,
     curve_order,
     g2_point,
     invert,
-    pair,
-    fq12_encoding,
 )
 from src.hashing import generate
 from src.register import Register
@@ -22,6 +19,8 @@ from src.level import half_level_to_file, full_level_to_file
 from src.schnorr import schnorr_proof, schnorr_to_file
 from src.binding import binding_proof, binding_to_file
 from src.files import save_string, load_json
+from src.snark import gt_to_hash, decrypt_to_hash
+from pathlib import Path
 
 
 def create_encryption_tx(
@@ -70,10 +69,13 @@ def create_encryption_tx(
         - All point/scalar encodings are assumed to be the ones your `src.*`
           modules expect (hex strings / serialized points).
     """
+    current = Path(__file__).resolve().parent.parent
+    snark_path = current / "snark" / "snark"
+
     # these are secrets
     a0 = rng()
     r0 = rng()
-    m0 = random_fq12(a0)
+    m0 = gt_to_hash(a0, snark_path)
 
     key = extract_key(alice_wallet_path)
     sk = to_int(generate(KEY_DOMAIN_TAG + key))
@@ -178,9 +180,13 @@ def create_reencryption_tx(
         - `invert(H0)` is assumed to represent the group inverse of `H0` in the
           representation expected by your BLS helpers.
     """
+    current = Path(__file__).resolve().parent.parent
+    snark_path = current / "snark" / "snark"
+
     a1 = rng()
     r1 = rng()
-    m1 = random_fq12(a1)
+    # m1 = random_fq12(a1)
+    m1 = gt_to_hash(a1, snark_path)
 
     hk = to_int(m1)
 
@@ -260,28 +266,29 @@ def recursive_decrypt(
         - `fq12_encoding` is assumed to be deterministic and compatible with
           the key derivation expected by `decrypt`.
     """
+    current = Path(__file__).resolve().parent.parent
+    snark_path = current / "snark" / "snark"
+
     key = extract_key(alice_wallet_path)
     sk = to_int(generate(KEY_DOMAIN_TAG + key))
 
     encryption_datum = load_json(encryption_datum_path)
     all_entries = encryption_datum["fields"][3]["list"]
 
-    h0x = scale(H0, sk)
-    shared = h0x
+    shared = scale(H0, sk)
 
     for entry in all_entries:
-        # print(json.dumps(entry, indent=2))
         r1 = entry["fields"][0]["bytes"]
+        r2_g1b = entry["fields"][1]["fields"][0]["bytes"]
+
         if entry["fields"][1]["fields"][1]["constructor"] == 1:
-            r2 = pair(entry["fields"][1]["fields"][0]["bytes"], H0)
+            # print(f"Half Level: r1={r1}, r2_g1b={r2_g1b}, shared={shared}")
+            key = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
         else:
-            r2 = pair(entry["fields"][1]["fields"][0]["bytes"], H0) * pair(
-                r1, entry["fields"][1]["fields"][1]["fields"][0]["bytes"]
-            )
+            r2_g2b = entry["fields"][1]["fields"][1]["fields"][0]["bytes"]
+            key = decrypt_to_hash(r1, r2_g1b, r2_g2b, shared, snark_path)
+            # print(f"Full Level: r1={r1}, r2_g1b={r2_g1b}, r2_g2b={r2_g2b}, shared={shared}")
 
-        b = pair(r1, shared)
-
-        key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
         # print(key)
         k = to_int(key)
         shared = scale(g2_point(1), k)

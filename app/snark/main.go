@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
 )
 
@@ -14,13 +15,19 @@ func main() {
 	switch os.Args[1] {
 	case "hash":
 		hashCmd := flag.NewFlagSet("hash", flag.ExitOnError)
-		var a uint64
-		hashCmd.Uint64Var(&a, "a", 0, "secret integer a")
+		var aStr string
+		hashCmd.StringVar(&aStr, "a", "", "secret integer a (decimal by default; or 0x... hex)")
 		_ = hashCmd.Parse(os.Args[2:])
 
-		if a == 0 {
+		if aStr == "" {
 			fmt.Fprintln(os.Stderr, "error: -a is required")
 			hashCmd.Usage()
+			os.Exit(2)
+		}
+
+		a := new(big.Int)
+		if _, ok := a.SetString(aStr, 0); !ok || a.Sign() == 0 {
+			fmt.Fprintln(os.Stderr, "error: could not parse -a (must be a non-zero integer; decimal or 0x.. hex)")
 			os.Exit(2)
 		}
 
@@ -63,15 +70,26 @@ func main() {
 
 	case "prove":
 		proveCmd := flag.NewFlagSet("prove", flag.ExitOnError)
-		var a uint64
+		var aStr string
 		var w string
-		proveCmd.Uint64Var(&a, "a", 0, "secret integer a")
+		proveCmd.StringVar(&aStr, "a", "", "secret integer a (decimal by default; or 0x... hex)")
 		proveCmd.StringVar(&w, "w", "", "public G1 point W (compressed hex, 96 chars)")
 		_ = proveCmd.Parse(os.Args[2:])
 
-		if w == "" {
-			fmt.Fprintln(os.Stderr, "error: -w is required")
+		if aStr == "" || w == "" {
+			if aStr == "" {
+				fmt.Fprintln(os.Stderr, "error: -a is required")
+			}
+			if w == "" {
+				fmt.Fprintln(os.Stderr, "error: -w is required")
+			}
 			proveCmd.Usage()
+			os.Exit(2)
+		}
+
+		a := new(big.Int)
+		if _, ok := a.SetString(aStr, 0); !ok || a.Sign() == 0 {
+			fmt.Fprintln(os.Stderr, "error: could not parse -a (must be a non-zero integer; decimal or 0x.. hex)")
 			os.Exit(2)
 		}
 

@@ -15,9 +15,9 @@ go mod tidy
 ```
 
 ```bash
-go run snark -a 44203 -w acab
+go test tests/*
 ```
 
 ```bash
-go test tests/*
+go build -o snark
 ```

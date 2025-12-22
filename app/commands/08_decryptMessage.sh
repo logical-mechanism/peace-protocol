@@ -9,7 +9,7 @@ set -euo pipefail
 source ../.env
 
 # alice
-alice_wallet_path="../wallets/alice"
+alice_wallet_path="../wallets/bob"
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
