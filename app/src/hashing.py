@@ -40,7 +40,9 @@ def public_inputs_from_w_hex(w_hex: str) -> list[str]:
 
     w_bytes = bytes.fromhex(w_hex)
     if len(w_bytes) != 48:
-        raise ValueError(f"compressed W must be 48 bytes (96 hex chars), got {len(w_bytes)} bytes")
+        raise ValueError(
+            f"compressed W must be 48 bytes (96 hex chars), got {len(w_bytes)} bytes"
+        )
 
     d = hashlib.sha256(w_bytes).digest()
     i0 = int.from_bytes(d[:16], "big")
