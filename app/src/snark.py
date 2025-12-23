@@ -1,19 +1,17 @@
 import subprocess
-from typing import Any, cast
+from typing import cast
 from src.files import load_json
 from pathlib import Path
 from py_ecc.optimized_bls12_381 import (
-    FQ,
-    FQ2,
     add,
     multiply,
     pairing,
     final_exponentiate,
 )
-from py_ecc.bls.point_compression import decompress_G1, decompress_G2
 from eth_typing import BLSPubkey, BLSSignature
 from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2
 from py_ecc.bls.g2_primitives import G1_to_pubkey
+
 
 def gt_to_hash(a: int, snark_path: str | Path) -> str:
     snark = Path(snark_path)
@@ -63,8 +61,10 @@ def generate_snark_proof(a: int, w: str, snark_path: str | Path) -> None:
     cmd = [
         str(snark),
         "prove",
-        "-a", str(a),
-        "-w", w,
+        "-a",
+        str(a),
+        "-w",
+        w,
     ]
 
     output = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -104,17 +104,21 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
         raise TypeError("public.json: 'inputs' must be a list")
 
     alpha = _g1_from_compressed_hex(vk["vkAlpha"])
-    beta  = _g2_from_compressed_hex(vk["vkBeta"])
+    beta = _g2_from_compressed_hex(vk["vkBeta"])
     gamma = _g2_from_compressed_hex(vk["vkGamma"])
     delta = _g2_from_compressed_hex(vk["vkDelta"])
     IC = [_g1_from_compressed_hex(p) for p in vk["vkIC"]]
 
     n_public = int(vk["nPublic"])
     if len(inputs) != n_public:
-        raise ValueError(f"public input count mismatch: len(inputs)={len(inputs)} vs vk.nPublic={n_public}")
+        raise ValueError(
+            f"public input count mismatch: len(inputs)={len(inputs)} vs vk.nPublic={n_public}"
+        )
 
     if len(IC) != len(inputs) + 1:
-        raise ValueError(f"IC length mismatch: len(IC)={len(IC)} vs len(inputs)+1={len(inputs)+1}")
+        raise ValueError(
+            f"IC length mismatch: len(IC)={len(IC)} vs len(inputs)+1={len(inputs) + 1}"
+        )
 
     A = _g1_from_compressed_hex(proof["piA"])
     B = _g2_from_compressed_hex(proof["piB"])
@@ -123,7 +127,7 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     vk_x = IC[0]
     for i, s in enumerate(inputs):
         vk_x = add(vk_x, multiply(IC[i + 1], int(s)))
-    
+
     print(G1_to_pubkey(vk_x).hex())
 
     left = pairing(B, A, final_exponentiate=False)

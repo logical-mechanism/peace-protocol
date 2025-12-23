@@ -7,7 +7,12 @@ from src.bls12381 import (
 )
 from src.hashing import public_inputs_from_w_hex
 
-from src.snark import gt_to_hash, decrypt_to_hash, generate_snark_proof, verify_snark_proof
+from src.snark import (
+    gt_to_hash,
+    decrypt_to_hash,
+    generate_snark_proof,
+    verify_snark_proof,
+)
 import os
 
 
@@ -45,6 +50,7 @@ def test_half_level_decrypt_hash():
     a = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
     assert a == "4493d2fcf250e229a5cc2c46189e0b97d9501a0d5128178253c1ade2"
 
+
 def test_snark_prove():
     a = gt_to_hash(a0, snark_path)
     w = g1_point(to_int(a))
@@ -56,6 +62,7 @@ def test_snark_prove():
         "86721980652443005217719496642694247237",
         "158132697557323219579992358050637845714",
     ]
+
 
 if __name__ == "__main__":
     pytest.main()
