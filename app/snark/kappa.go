@@ -197,11 +197,12 @@ func hkScalarFromA(a *big.Int) (*big.Int, error) {
 
 type wFromHKCircuit struct {
 	// private scalar hk (Fr)
-	HK emulated.Element[emparams.BLS12381Fr]
+	// IMPORTANT: force this entire composite value to be SECRET (prevents stray public limbs)
+	HK emulated.Element[emparams.BLS12381Fr] `gnark:"hk,secret"`
 
 	// public: sha2_256(compressed W), split into 2×16-byte big-endian integers
-	HW0 frontend.Variable `gnark:",public"`
-	HW1 frontend.Variable `gnark:",public"`
+	HW0 frontend.Variable `gnark:"hw0,public"`
+	HW1 frontend.Variable `gnark:"hw1,public"`
 }
 
 func (c *wFromHKCircuit) Define(api frontend.API) error {
