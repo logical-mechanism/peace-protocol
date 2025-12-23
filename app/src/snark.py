@@ -1,5 +1,5 @@
 import subprocess
-
+from typing import Any, cast
 from src.files import load_json
 from pathlib import Path
 from py_ecc.optimized_bls12_381 import (
@@ -10,7 +10,10 @@ from py_ecc.optimized_bls12_381 import (
     pairing,
     final_exponentiate,
 )
-
+from py_ecc.bls.point_compression import decompress_G1, decompress_G2
+from eth_typing import BLSPubkey, BLSSignature
+from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2
+from py_ecc.bls.g2_primitives import G1_to_pubkey
 
 def gt_to_hash(a: int, snark_path: str | Path) -> str:
     snark = Path(snark_path)
@@ -68,76 +71,62 @@ def generate_snark_proof(a: int, w: str, snark_path: str | Path) -> None:
     print(output.stderr.strip())
     print(output.stdout.strip())
 
-def _g1_from_xy_dec(xy: list[str] | tuple[str, str]):
-    """
-    xy: ["x_dec", "y_dec"]
-    returns Jacobian (x,y,z) with z=1
-    """
-    x = FQ(int(xy[0]))
-    y = FQ(int(xy[1]))
-    return (x, y, FQ.one())
+
+def _hex_to_bytes(h: str) -> bytes:
+    h = h.strip().lower()
+    if h.startswith("0x"):
+        h = h[2:]
+    return bytes.fromhex(h)
 
 
-def _g2_from_xy_dec(xy: list[list[str]] | tuple[tuple[str, str], tuple[str, str]]):
-    """
-    xy: [[x0_dec, x1_dec], [y0_dec, y1_dec]]
-    where Fp2 = c0 + c1*u (py_ecc uses [c0, c1])
-    returns Jacobian (x,y,z) with z=1
-    """
-    x = FQ2([int(xy[0][0]), int(xy[0][1])])
-    y = FQ2([int(xy[1][0]), int(xy[1][1])])
-    return (x, y, FQ2.one())
+def _g1_from_compressed_hex(h: str):
+    raw = _hex_to_bytes(h)
+    if len(raw) != 48:
+        raise ValueError(f"G1 compressed must be 48 bytes, got {len(raw)}")
+    return pubkey_to_G1(cast(BLSPubkey, raw))
+
+
+def _g2_from_compressed_hex(h: str):
+    raw = _hex_to_bytes(h)
+    if len(raw) != 96:
+        raise ValueError(f"G2 compressed must be 96 bytes, got {len(raw)}")
+    return signature_to_G2(cast(BLSSignature, raw))
 
 
 def verify_snark_proof(out_dir: str | Path = "out") -> bool:
-    """
-    Verify Groth16 proof exported by your Go ExportAll().
-
-    Expects:
-      - out/vk.json     (alpha_g1, beta_g2, gamma_g2, delta_g2, ic[])
-      - out/proof.json  (a, b, c)
-      - out/public.json (inputs[])
-
-    Returns:
-      True if valid, False otherwise.
-    """
     out_dir = Path(out_dir)
 
     vk = load_json(out_dir / "vk.json")
     proof = load_json(out_dir / "proof.json")
     public = load_json(out_dir / "public.json")
 
-    # --- parse vk ---
-    alpha = _g1_from_xy_dec(vk["alpha_g1"])
-    beta = _g2_from_xy_dec(vk["beta_g2"])
-    gamma = _g2_from_xy_dec(vk["gamma_g2"])
-    delta = _g2_from_xy_dec(vk["delta_g2"])
-    IC = [_g1_from_xy_dec(p) for p in vk["ic"]]
-
-    # --- parse proof ---
-    A = _g1_from_xy_dec(proof["a"])
-    B = _g2_from_xy_dec(proof["b"])
-    C = _g1_from_xy_dec(proof["c"])
-
-    # --- public inputs (already Fr elements as decimal strings) ---
-    inputs = public["inputs"]
+    inputs = public.get("inputs")
     if not isinstance(inputs, list):
         raise TypeError("public.json: 'inputs' must be a list")
-    
+
+    alpha = _g1_from_compressed_hex(vk["vkAlpha"])
+    beta  = _g2_from_compressed_hex(vk["vkBeta"])
+    gamma = _g2_from_compressed_hex(vk["vkGamma"])
+    delta = _g2_from_compressed_hex(vk["vkDelta"])
+    IC = [_g1_from_compressed_hex(p) for p in vk["vkIC"]]
+
+    n_public = int(vk["nPublic"])
+    if len(inputs) != n_public:
+        raise ValueError(f"public input count mismatch: len(inputs)={len(inputs)} vs vk.nPublic={n_public}")
+
     if len(IC) != len(inputs) + 1:
-        # Must match groth16: IC[0] + sum(inputs[i] * IC[i+1])
         raise ValueError(f"IC length mismatch: len(IC)={len(IC)} vs len(inputs)+1={len(inputs)+1}")
 
-    # Compute vk_x in G1
+    A = _g1_from_compressed_hex(proof["piA"])
+    B = _g2_from_compressed_hex(proof["piB"])
+    C = _g1_from_compressed_hex(proof["piC"])
+
     vk_x = IC[0]
     for i, s in enumerate(inputs):
         vk_x = add(vk_x, multiply(IC[i + 1], int(s)))
+    
+    print(G1_to_pubkey(vk_x).hex())
 
-    # Groth16 check (pairing wants (Q in G2, P in G1))
-    # We compute:
-    #   e(B, A) ?= e(beta, alpha) * e(gamma, vk_x) * e(delta, C)
-    #
-    # Do pairings without final exponentiation, then final-exponentiate once.
     left = pairing(B, A, final_exponentiate=False)
     right = pairing(beta, alpha, final_exponentiate=False)
     right *= pairing(gamma, vk_x, final_exponentiate=False)

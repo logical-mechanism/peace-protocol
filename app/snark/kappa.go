@@ -1,6 +1,8 @@
+// kappa.go
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -17,8 +19,12 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 
 	"github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
+	"github.com/consensys/gnark/std/conversion"
+	"github.com/consensys/gnark/std/hash/sha2"
+	"github.com/consensys/gnark/std/math/bits"
 	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/std/math/emulated/emparams"
+	"github.com/consensys/gnark/std/math/uints"
 )
 
 // Fixed, public G2 point (compressed hex).
@@ -187,13 +193,15 @@ func hkScalarFromA(a *big.Int) (*big.Int, error) {
 	return &bi, nil
 }
 
-// --- in-circuit: prove W == [hk]G1 ---
+// --- in-circuit: prove sha2_256(compress([hk]G1)) == public digest ---
 
 type wFromHKCircuit struct {
 	// private scalar hk (Fr)
 	HK emulated.Element[emparams.BLS12381Fr]
-	// public point W (Fp coords)
-	W sw_emulated.AffinePoint[emparams.BLS12381Fp] `gnark:",public"`
+
+	// public: sha2_256(compressed W), split into 2×16-byte big-endian integers
+	HW0 frontend.Variable `gnark:",public"`
+	HW1 frontend.Variable `gnark:",public"`
 }
 
 func (c *wFromHKCircuit) Define(api frontend.API) error {
@@ -202,51 +210,123 @@ func (c *wFromHKCircuit) Define(api frontend.API) error {
 		return err
 	}
 
-	wCalc := curve.ScalarMulBase(&c.HK) // W' = [hk]G
-	curve.AssertIsEqual(wCalc, &c.W)    // W' == W
+	// W = [hk]G
+	w := curve.ScalarMulBase(&c.HK)
+
+	// X,Y -> 48-byte big-endian each
+	xBytes, err := conversion.EmulatedToBytes(api, &w.X)
+	if err != nil {
+		return fmt.Errorf("X to bytes: %w", err)
+	}
+	yBytes, err := conversion.EmulatedToBytes(api, &w.Y)
+	if err != nil {
+		return fmt.Errorf("Y to bytes: %w", err)
+	}
+	if len(xBytes) != 48 || len(yBytes) != 48 {
+		return fmt.Errorf("unexpected fp byte length: X=%d Y=%d", len(xBytes), len(yBytes))
+	}
+
+	// Build compressed G1:
+	// out = X (48 bytes), set:
+	//   out[0] |= 0x80 (compression)
+	//   out[0] |= 0x20 iff y is odd
+	bapi, err := uints.NewBytes(api)
+	if err != nil {
+		return fmt.Errorf("NewBytes: %w", err)
+	}
+
+	// yLSB from last byte bit0
+	lastY := bapi.Value(yBytes[47])
+	yBits := bits.ToBinary(api, lastY, bits.WithNbDigits(8))
+	yLSB := yBits[0] // 0/1
+
+	signMask := api.Mul(yLSB, 0x20)
+	first := bapi.Or(xBytes[0], bapi.ValueOf(0x80), bapi.ValueOf(signMask))
+	xBytes[0] = first
+
+	compressed := xBytes // 48 bytes
+
+	// SHA256(compressed)
+	h, err := sha2.New(api)
+	if err != nil {
+		return fmt.Errorf("sha2.New: %w", err)
+	}
+	h.Write(compressed)
+	digest := h.Sum() // 32 bytes (uints.U8)
+
+	// Public HW0/HW1 are 16-byte integers; compare to digest bytewise.
+	// NativeToBytes returns 32 bytes; we use the least-significant 16 bytes. (big-endian)
+	hw0b, err := conversion.NativeToBytes(api, c.HW0)
+	if err != nil {
+		return fmt.Errorf("HW0 to bytes: %w", err)
+	}
+	hw1b, err := conversion.NativeToBytes(api, c.HW1)
+	if err != nil {
+		return fmt.Errorf("HW1 to bytes: %w", err)
+	}
+
+	pubBytes := append(hw0b[16:], hw1b[16:]...) // 32 bytes
+	if len(pubBytes) != len(digest) {
+		return fmt.Errorf("pubBytes len %d != digest len %d", len(pubBytes), len(digest))
+	}
+
+	for i := range digest {
+		bapi.AssertIsEqual(pubBytes[i], digest[i])
+	}
+
 	return nil
 }
 
 // ProveAndVerifyW builds the circuit proof and immediately verifies it.
-// Prints/returns success if the public W matches hk derived from `a`.
+// It binds the proof to the provided compressed point by using public inputs:
+//
+//	HW0,HW1 = sha256(wCompressedBytes) split into 2×16-byte big-endian ints.
 func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 	// 1) Compute hk scalar from a (out-of-circuit)
 	hkBi, err := hkScalarFromA(a)
 	if err != nil {
 		return err
 	}
-
-	// 2) Parse public W (out-of-circuit)
-	wAff, err := parseG1CompressedHex(wCompressedHex)
-	if err != nil {
-		return err
+	if hkBi.Sign() == 0 {
+		return fmt.Errorf("hk reduced to 0; refuse (W would be infinity)")
 	}
 
-	// Convert W.X, W.Y to big.Int in regular form.
-	var wx, wy big.Int
-	wAff.X.ToBigIntRegular(&wx)
-	wAff.Y.ToBigIntRegular(&wy)
+	// 2) Decode compressed W bytes and sanity-check it parses
+	rawW, err := hex.DecodeString(wCompressedHex)
+	if err != nil {
+		return fmt.Errorf("decode -w hex: %w", err)
+	}
+	if len(rawW) != 48 {
+		return fmt.Errorf("invalid -w length: got %d bytes, want 48", len(rawW))
+	}
+	if _, err := parseG1CompressedHex(wCompressedHex); err != nil {
+		return fmt.Errorf("invalid compressed G1: %w", err)
+	}
 
-	// 3) Compile circuit over BLS12-381 scalar field
+	// 3) Public inputs = sha256(W_compressed) split into two 16-byte big-endian ints
+	d := sha256.Sum256(rawW)
+	var hw0, hw1 big.Int
+	hw0.SetBytes(d[:16])
+	hw1.SetBytes(d[16:])
+
+	// 4) Compile circuit over BLS12-381 scalar field
 	var circuit wFromHKCircuit
 	ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
 		return fmt.Errorf("compile: %w", err)
 	}
 
-	// 4) Setup keys
+	// 5) Setup keys
 	pk, vk, err := groth16.Setup(ccs)
 	if err != nil {
 		return fmt.Errorf("setup: %w", err)
 	}
 
-	// 5) Create witness assignment
+	// 6) Create witness assignment
 	assignment := wFromHKCircuit{
-		HK: emulated.ValueOf[emparams.BLS12381Fr](hkBi),
-		W: sw_emulated.AffinePoint[emparams.BLS12381Fp]{
-			X: emulated.ValueOf[emparams.BLS12381Fp](&wx),
-			Y: emulated.ValueOf[emparams.BLS12381Fp](&wy),
-		},
+		HK:  emulated.ValueOf[emparams.BLS12381Fr](hkBi),
+		HW0: &hw0,
+		HW1: &hw1,
 	}
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
@@ -258,7 +338,7 @@ func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 		return fmt.Errorf("public witness: %w", err)
 	}
 
-	// 6) Prove + verify
+	// 7) Prove + verify
 	proof, err := groth16.Prove(ccs, pk, witness)
 	if err != nil {
 		return fmt.Errorf("prove: %w", err)
