@@ -1,5 +1,7 @@
 # Application
 
+Application tested on Ubuntu 24.
+
 ## Testing
 
 The Python code has tests ran from the app folder.
