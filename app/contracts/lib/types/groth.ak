@@ -16,7 +16,7 @@ pub fn public_inputs_from_w(w: ByteArray) -> List<Int> {
   let i0 = bytearray.to_int_big_endian(left)
   let i1 = bytearray.to_int_big_endian(right)
 
-  [i0, i1, 0]
+  [i0, i1]
 }
 
 pub type SnarkVerificationKey {

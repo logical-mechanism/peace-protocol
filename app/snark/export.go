@@ -11,11 +11,14 @@ import (
 	"reflect"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
+	blsfr "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+
 	"github.com/consensys/gnark/backend/groth16"
+	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
 	backend_witness "github.com/consensys/gnark/backend/witness"
 )
 
-// ---------- JSON shapes (snarkjs-like, but minimal) ----------
+// ---------- JSON shapes ----------
 
 type VKJSON struct {
 	NPublic int      `json:"nPublic"`
@@ -23,7 +26,7 @@ type VKJSON struct {
 	VkBeta  string   `json:"vkBeta"`  // G2 compressed hex
 	VkGamma string   `json:"vkGamma"` // G2 compressed hex
 	VkDelta string   `json:"vkDelta"` // G2 compressed hex
-	VkIC    []string `json:"vkIC"`    // list of G1 compressed hex
+	VkIC    []string `json:"vkIC"`    // list of G1 compressed hex (len = nPublic+1)
 }
 
 type ProofJSON struct {
@@ -33,71 +36,26 @@ type ProofJSON struct {
 }
 
 type PublicJSON struct {
-	Inputs []string `json:"inputs"` // decimal strings in Fr (limb-expanded)
+	Inputs []string `json:"inputs"` // decimal strings in Fr
 }
 
-// ---------- helpers to stringify points ----------
-
-func fpToDec(x interface{}) (string, error) {
-	// expects gnark-crypto fp.Element-like with ToBigIntRegular(*big.Int)
-	v := reflect.ValueOf(x)
-	m := v.MethodByName("ToBigIntRegular")
-	if !m.IsValid() {
-		return "", fmt.Errorf("no ToBigIntRegular on %T", x)
-	}
-	var bi big.Int
-	out := m.Call([]reflect.Value{reflect.ValueOf(&bi)})
-	_ = out
-	return bi.String(), nil
-}
-
-func g1ToXYDec(p bls12381.G1Affine) ([2]string, error) {
-	var x, y big.Int
-	p.X.ToBigIntRegular(&x)
-	p.Y.ToBigIntRegular(&y)
-	return [2]string{x.String(), y.String()}, nil
-}
-
-func g2ToXYDec(p bls12381.G2Affine) ([2][2]string, error) {
-	// gnark-crypto: Fp2 element is typically {A0, A1} meaning A0 + A1*u
-	var x0, x1, y0, y1 big.Int
-	p.X.A0.ToBigIntRegular(&x0)
-	p.X.A1.ToBigIntRegular(&x1)
-	p.Y.A0.ToBigIntRegular(&y0)
-	p.Y.A1.ToBigIntRegular(&y1)
-	return [2][2]string{
-		{x0.String(), x1.String()},
-		{y0.String(), y1.String()},
-	}, nil
-}
-
-// ---------- reflect-extract vk/proof in a curve-agnostic-ish way ----------
+// ---------- extract proof/vk using concrete BLS12-381 Groth16 types ----------
 
 func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
-	rv := reflect.ValueOf(proof)
-	if rv.Kind() == reflect.Pointer {
-		rv = rv.Elem()
-	}
-	ar := rv.FieldByName("Ar")
-	bs := rv.FieldByName("Bs")
-	krs := rv.FieldByName("Krs")
-	if !ar.IsValid() || !bs.IsValid() || !krs.IsValid() {
-		return ProofJSON{}, fmt.Errorf("unexpected proof layout: %T", proof)
+	p, ok := proof.(*groth16bls.Proof)
+	if !ok {
+		return ProofJSON{}, fmt.Errorf("unexpected proof type (need *groth16/bls12-381.Proof): %T", proof)
 	}
 
-	A := ar.Interface().(bls12381.G1Affine)
-	B := bs.Interface().(bls12381.G2Affine)
-	C := krs.Interface().(bls12381.G1Affine)
-
-	piA, err := g1CompressedHex(A)
+	piA, err := g1CompressedHex(p.Ar)
 	if err != nil {
 		return ProofJSON{}, err
 	}
-	piB, err := g2CompressedHex(B)
+	piB, err := g2CompressedHex(p.Bs)
 	if err != nil {
 		return ProofJSON{}, err
 	}
-	piC, err := g1CompressedHex(C)
+	piC, err := g1CompressedHex(p.Krs)
 	if err != nil {
 		return ProofJSON{}, err
 	}
@@ -105,49 +63,41 @@ func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
 	return ProofJSON{PiA: piA, PiB: piB, PiC: piC}, nil
 }
 
+// IMPORTANT CHANGE: nPublic is provided by ExportAll (derived from public witness),
+// and we slice IC to exactly nPublic+1.
 func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
-	rv := reflect.ValueOf(vk)
-	if rv.Kind() == reflect.Pointer {
-		rv = rv.Elem()
+	v, ok := vk.(*groth16bls.VerifyingKey)
+	if !ok {
+		return VKJSON{}, fmt.Errorf("unexpected vk type (need *groth16/bls12-381.VerifyingKey): %T", vk)
+	}
+	if nPublic < 0 {
+		return VKJSON{}, fmt.Errorf("invalid nPublic: %d", nPublic)
+	}
+	if len(v.G1.K) < nPublic+1 {
+		return VKJSON{}, fmt.Errorf("vk IC too short: len(IC)=%d, need at least %d", len(v.G1.K), nPublic+1)
 	}
 
-	g1 := rv.FieldByName("G1")
-	g2 := rv.FieldByName("G2")
-	if !g1.IsValid() || !g2.IsValid() {
-		return VKJSON{}, fmt.Errorf("unexpected vk layout: %T", vk)
-	}
-
-	alpha := g1.FieldByName("Alpha").Interface().(bls12381.G1Affine)
-	icField := g1.FieldByName("K") // IC vector
-	if !icField.IsValid() {
-		return VKJSON{}, fmt.Errorf("vk missing G1.K (IC vector): %T", vk)
-	}
-
-	beta := g2.FieldByName("Beta").Interface().(bls12381.G2Affine)
-	gamma := g2.FieldByName("Gamma").Interface().(bls12381.G2Affine)
-	delta := g2.FieldByName("Delta").Interface().(bls12381.G2Affine)
-
-	vkAlpha, err := g1CompressedHex(alpha)
+	vkAlpha, err := g1CompressedHex(v.G1.Alpha)
 	if err != nil {
 		return VKJSON{}, err
 	}
-	vkBeta, err := g2CompressedHex(beta)
+	vkBeta, err := g2CompressedHex(v.G2.Beta)
 	if err != nil {
 		return VKJSON{}, err
 	}
-	vkGamma, err := g2CompressedHex(gamma)
+	vkGamma, err := g2CompressedHex(v.G2.Gamma)
 	if err != nil {
 		return VKJSON{}, err
 	}
-	vkDelta, err := g2CompressedHex(delta)
+	vkDelta, err := g2CompressedHex(v.G2.Delta)
 	if err != nil {
 		return VKJSON{}, err
 	}
 
-	ic := make([]string, 0, icField.Len())
-	for i := 0; i < icField.Len(); i++ {
-		p := icField.Index(i).Interface().(bls12381.G1Affine)
-		h, err := g1CompressedHex(p)
+	// Slice ONLY what corresponds to the exported public inputs.
+	ic := make([]string, 0, nPublic+1)
+	for i := 0; i < nPublic+1; i++ {
+		h, err := g1CompressedHex(v.G1.K[i])
 		if err != nil {
 			return VKJSON{}, err
 		}
@@ -164,9 +114,27 @@ func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 	}, nil
 }
 
-func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error) {
-	vecAny := publicWitness.Vector()
+// ---------- public inputs extraction ----------
 
+// Returns the *raw* public vector from witness.
+// (We normalize in ExportAll once we know vk.IC capacity.)
+func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error) {
+	// Fast path: []fr.Element
+	if vecAny := publicWitness.Vector(); vecAny != nil {
+		switch v := vecAny.(type) {
+		case []blsfr.Element:
+			out := make([]string, 0, len(v))
+			for i := range v {
+				var bi big.Int
+				v[i].BigInt(&bi)
+				out = append(out, bi.String())
+			}
+			return out, nil
+		}
+	}
+
+	// Fallback: reflection
+	vecAny := publicWitness.Vector()
 	rv := reflect.ValueOf(vecAny)
 	if rv.Kind() != reflect.Slice {
 		return nil, fmt.Errorf("unexpected publicWitness.Vector() type %T (not a slice)", vecAny)
@@ -176,24 +144,18 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 	for i := 0; i < rv.Len(); i++ {
 		ev := rv.Index(i)
 
-		// We want to call BigInt(*big.Int) on the element.
-		// BigInt is commonly defined on *Element (pointer receiver).
 		var bi big.Int
 
-		// Try pointer receiver first: (&ev).BigInt(&bi)
 		var m reflect.Value
 		if ev.CanAddr() {
 			m = ev.Addr().MethodByName("BigInt")
 		}
-		// Fallback: value receiver (rare)
 		if !m.IsValid() {
 			m = ev.MethodByName("BigInt")
 		}
 		if !m.IsValid() {
 			return nil, fmt.Errorf("public input elem[%d] type %T has no BigInt method", i, ev.Interface())
 		}
-
-		// Expect signature BigInt(*big.Int)
 		mt := m.Type()
 		if mt.NumIn() != 1 || mt.In(0) != reflect.TypeOf(&big.Int{}) {
 			return nil, fmt.Errorf(
@@ -209,33 +171,56 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 	return out, nil
 }
 
-// Call this right after you produce proof/vk/publicWitness
+// ---------- main export ----------
+
 func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backend_witness.Witness, dir string) error {
-	vkj, err := exportVKBLS(vk, 3)
-	if err != nil {
-		return err
-	}
+	// 1) Export proof first (simple)
 	pj, err := exportProofBLS(proof)
 	if err != nil {
 		return err
 	}
-	pub, err := exportPublicInputs(publicWitness)
+
+	// 2) Export raw publics
+	pubRaw, err := exportPublicInputs(publicWitness)
 	if err != nil {
 		return err
 	}
 
-	expected := len(vkj.VkIC) - 1
-	if len(pub) < expected {
-		// pad missing publics with zeros
-		for len(pub) < expected {
-			pub = append(pub, "0")
+	// 3) Decide whether to drop a leading one-wire element.
+	// Some builds include a leading 0/1; some don't.
+	// We only drop it if that makes it fit within VK IC capacity.
+	v, ok := vk.(*groth16bls.VerifyingKey)
+	if !ok {
+		return fmt.Errorf("unexpected vk type (need *groth16/bls12-381.VerifyingKey): %T", vk)
+	}
+	icCap := len(v.G1.K) - 1 // maximum possible publics representable by IC entries
+
+	pub := pubRaw
+	if len(pubRaw) > 0 && (pubRaw[0] == "0" || pubRaw[0] == "1") {
+		// If dropping makes the count more reasonable with IC capacity, drop it.
+		if len(pubRaw)-1 <= icCap {
+			pub = pubRaw[1:]
 		}
 	}
-	if len(pub) > expected {
-		// truncate extras (shouldn't happen, but keeps verifier consistent)
-		pub = pub[:expected]
+	if len(pub) > icCap {
+		return fmt.Errorf("public inputs too long: got %d, but vk.IC capacity is %d", len(pub), icCap)
 	}
 
+	// 4) Now nPublic is the actual exported public input count
+	nPublic := len(pub)
+
+	// 5) Export VK with IC sliced to exactly nPublic+1
+	vkj, err := exportVKBLS(vk, nPublic)
+	if err != nil {
+		return err
+	}
+
+	// 6) Final consistency checks
+	if len(vkj.VkIC) != nPublic+1 {
+		return fmt.Errorf("IC length mismatch: len(IC)=%d, expected %d", len(vkj.VkIC), nPublic+1)
+	}
+
+	// 7) Write JSONs
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -264,8 +249,10 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	return nil
 }
 
+// ---------- compression helpers ----------
+
 func g1CompressedHex(p bls12381.G1Affine) (string, error) {
-	b := p.Bytes() // should be 48 bytes compressed
+	b := p.Bytes() // 48 bytes compressed
 	if len(b) != 48 {
 		return "", fmt.Errorf("unexpected G1 compressed length: %d", len(b))
 	}
@@ -273,7 +260,7 @@ func g1CompressedHex(p bls12381.G1Affine) (string, error) {
 }
 
 func g2CompressedHex(p bls12381.G2Affine) (string, error) {
-	b := p.Bytes() // should be 96 bytes compressed
+	b := p.Bytes() // 96 bytes compressed
 	if len(b) != 96 {
 		return "", fmt.Errorf("unexpected G2 compressed length: %d", len(b))
 	}

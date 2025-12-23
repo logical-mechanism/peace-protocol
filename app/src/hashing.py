@@ -45,4 +45,4 @@ def public_inputs_from_w_hex(w_hex: str) -> list[str]:
     d = hashlib.sha256(w_bytes).digest()
     i0 = int.from_bytes(d[:16], "big")
     i1 = int.from_bytes(d[16:], "big")
-    return [str(i0), str(i1), "0"]
+    return [str(i0), str(i1)]

@@ -68,7 +68,6 @@ def generate_snark_proof(a: int, w: str, snark_path: str | Path) -> None:
     ]
 
     output = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    print(output.stderr.strip())
     print(output.stdout.strip())
 
 
