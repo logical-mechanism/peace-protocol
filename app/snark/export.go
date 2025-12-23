@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -17,17 +18,18 @@ import (
 // ---------- JSON shapes (snarkjs-like, but minimal) ----------
 
 type VKJSON struct {
-	AlphaG1 [2]string    `json:"alpha_g1"` // [x,y]
-	BetaG2  [2][2]string `json:"beta_g2"`  // [[x0,x1],[y0,y1]] where Fp2 = x0 + x1*u
-	GammaG2 [2][2]string `json:"gamma_g2"`
-	DeltaG2 [2][2]string `json:"delta_g2"`
-	IC      [][2]string  `json:"ic"` // IC[i] = [x,y]
+	NPublic int      `json:"nPublic"`
+	VkAlpha string   `json:"vkAlpha"` // G1 compressed hex
+	VkBeta  string   `json:"vkBeta"`  // G2 compressed hex
+	VkGamma string   `json:"vkGamma"` // G2 compressed hex
+	VkDelta string   `json:"vkDelta"` // G2 compressed hex
+	VkIC    []string `json:"vkIC"`    // list of G1 compressed hex
 }
 
 type ProofJSON struct {
-	A [2]string    `json:"a"` // Ar
-	B [2][2]string `json:"b"` // Bs
-	C [2]string    `json:"c"` // Krs
+	PiA string `json:"piA"` // G1 compressed hex
+	PiB string `json:"piB"` // G2 compressed hex
+	PiC string `json:"piC"` // G1 compressed hex
 }
 
 type PublicJSON struct {
@@ -72,7 +74,6 @@ func g2ToXYDec(p bls12381.G2Affine) ([2][2]string, error) {
 // ---------- reflect-extract vk/proof in a curve-agnostic-ish way ----------
 
 func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
-	// In gnark groth16, proof typically has fields Ar (G1), Bs (G2), Krs (G1)
 	rv := reflect.ValueOf(proof)
 	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
@@ -84,28 +85,27 @@ func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
 		return ProofJSON{}, fmt.Errorf("unexpected proof layout: %T", proof)
 	}
 
-	A, ok := ar.Interface().(bls12381.G1Affine)
-	if !ok {
-		return ProofJSON{}, fmt.Errorf("unexpected Ar type: %T", ar.Interface())
+	A := ar.Interface().(bls12381.G1Affine)
+	B := bs.Interface().(bls12381.G2Affine)
+	C := krs.Interface().(bls12381.G1Affine)
+
+	piA, err := g1CompressedHex(A)
+	if err != nil {
+		return ProofJSON{}, err
 	}
-	B, ok := bs.Interface().(bls12381.G2Affine)
-	if !ok {
-		return ProofJSON{}, fmt.Errorf("unexpected Bs type: %T", bs.Interface())
+	piB, err := g2CompressedHex(B)
+	if err != nil {
+		return ProofJSON{}, err
 	}
-	C, ok := krs.Interface().(bls12381.G1Affine)
-	if !ok {
-		return ProofJSON{}, fmt.Errorf("unexpected Krs type: %T", krs.Interface())
+	piC, err := g1CompressedHex(C)
+	if err != nil {
+		return ProofJSON{}, err
 	}
 
-	a, _ := g1ToXYDec(A)
-	b, _ := g2ToXYDec(B)
-	c, _ := g1ToXYDec(C)
-
-	return ProofJSON{A: a, B: b, C: c}, nil
+	return ProofJSON{PiA: piA, PiB: piB, PiC: piC}, nil
 }
 
-func exportVKBLS(vk groth16.VerifyingKey) (VKJSON, error) {
-	// gnark’s Groth16 verifying key usually has sub-structs G1 and G2 and an IC/K vector
+func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 	rv := reflect.ValueOf(vk)
 	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
@@ -117,58 +117,50 @@ func exportVKBLS(vk groth16.VerifyingKey) (VKJSON, error) {
 		return VKJSON{}, fmt.Errorf("unexpected vk layout: %T", vk)
 	}
 
-	alphaAny := g1.FieldByName("Alpha").Interface()
-	alpha, ok := alphaAny.(bls12381.G1Affine)
-	if !ok {
-		return VKJSON{}, fmt.Errorf("unexpected vk.G1.Alpha type: %T", alphaAny)
-	}
-
-	// IC vector is often called K in gnark’s Groth16 vk (vk.G1.K)
-	icField := g1.FieldByName("K")
+	alpha := g1.FieldByName("Alpha").Interface().(bls12381.G1Affine)
+	icField := g1.FieldByName("K") // IC vector
 	if !icField.IsValid() {
 		return VKJSON{}, fmt.Errorf("vk missing G1.K (IC vector): %T", vk)
 	}
 
-	betaAny := g2.FieldByName("Beta").Interface()
-	gammaAny := g2.FieldByName("Gamma").Interface()
-	deltaAny := g2.FieldByName("Delta").Interface()
+	beta := g2.FieldByName("Beta").Interface().(bls12381.G2Affine)
+	gamma := g2.FieldByName("Gamma").Interface().(bls12381.G2Affine)
+	delta := g2.FieldByName("Delta").Interface().(bls12381.G2Affine)
 
-	beta, ok := betaAny.(bls12381.G2Affine)
-	if !ok {
-		return VKJSON{}, fmt.Errorf("unexpected vk.G2.Beta type: %T", betaAny)
+	vkAlpha, err := g1CompressedHex(alpha)
+	if err != nil {
+		return VKJSON{}, err
 	}
-	gamma, ok := gammaAny.(bls12381.G2Affine)
-	if !ok {
-		return VKJSON{}, fmt.Errorf("unexpected vk.G2.Gamma type: %T", gammaAny)
+	vkBeta, err := g2CompressedHex(beta)
+	if err != nil {
+		return VKJSON{}, err
 	}
-	delta, ok := deltaAny.(bls12381.G2Affine)
-	if !ok {
-		return VKJSON{}, fmt.Errorf("unexpected vk.G2.Delta type: %T", deltaAny)
+	vkGamma, err := g2CompressedHex(gamma)
+	if err != nil {
+		return VKJSON{}, err
+	}
+	vkDelta, err := g2CompressedHex(delta)
+	if err != nil {
+		return VKJSON{}, err
 	}
 
-	alphaXY, _ := g1ToXYDec(alpha)
-	betaXY, _ := g2ToXYDec(beta)
-	gammaXY, _ := g2ToXYDec(gamma)
-	deltaXY, _ := g2ToXYDec(delta)
-
-	// IC slice
-	ic := make([][2]string, 0, icField.Len())
+	ic := make([]string, 0, icField.Len())
 	for i := 0; i < icField.Len(); i++ {
-		pAny := icField.Index(i).Interface()
-		p, ok := pAny.(bls12381.G1Affine)
-		if !ok {
-			return VKJSON{}, fmt.Errorf("unexpected vk.G1.K[%d] type: %T", i, pAny)
+		p := icField.Index(i).Interface().(bls12381.G1Affine)
+		h, err := g1CompressedHex(p)
+		if err != nil {
+			return VKJSON{}, err
 		}
-		xy, _ := g1ToXYDec(p)
-		ic = append(ic, xy)
+		ic = append(ic, h)
 	}
 
 	return VKJSON{
-		AlphaG1: alphaXY,
-		BetaG2:  betaXY,
-		GammaG2: gammaXY,
-		DeltaG2: deltaXY,
-		IC:      ic,
+		NPublic: nPublic,
+		VkAlpha: vkAlpha,
+		VkBeta:  vkBeta,
+		VkGamma: vkGamma,
+		VkDelta: vkDelta,
+		VkIC:    ic,
 	}, nil
 }
 
@@ -219,7 +211,7 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 
 // Call this right after you produce proof/vk/publicWitness
 func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backend_witness.Witness, dir string) error {
-	vkj, err := exportVKBLS(vk)
+	vkj, err := exportVKBLS(vk, 3)
 	if err != nil {
 		return err
 	}
@@ -232,7 +224,7 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 		return err
 	}
 
-	expected := len(vkj.IC) - 1
+	expected := len(vkj.VkIC) - 1
 	if len(pub) < expected {
 		// pad missing publics with zeros
 		for len(pub) < expected {
@@ -270,4 +262,20 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	}
 
 	return nil
+}
+
+func g1CompressedHex(p bls12381.G1Affine) (string, error) {
+	b := p.Bytes() // should be 48 bytes compressed
+	if len(b) != 48 {
+		return "", fmt.Errorf("unexpected G1 compressed length: %d", len(b))
+	}
+	return hex.EncodeToString(b[:]), nil
+}
+
+func g2CompressedHex(p bls12381.G2Affine) (string, error) {
+	b := p.Bytes() // should be 96 bytes compressed
+	if len(b) != 96 {
+		return "", fmt.Errorf("unexpected G2 compressed length: %d", len(b))
+	}
+	return hex.EncodeToString(b[:]), nil
 }
