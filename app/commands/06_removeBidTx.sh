@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -e
 
 # SET UP VARS HERE
@@ -18,11 +22,11 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-stake_key=$(jq -r '.stake_key' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ../config.json)
 
 # bidding
 bidding_script_path="../contracts/contracts/bidding_contract.plutus"
-bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} --stake-key-hash ${stake_key} ${network})
+bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} --stake-key-hash ${staking_credential} ${network})
 bidding_pid=$(cat ../contracts/hashes/bidding.hash)
 
 echo -e "\033[0;36m Gathering Bob UTxO Information  \033[0m"
@@ -115,9 +119,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

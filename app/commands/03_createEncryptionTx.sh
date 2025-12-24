@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -euo pipefail
 
 # SET UP VARS HERE
@@ -20,11 +24,11 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-stake_key=$(jq -r '.stake_key' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ../config.json)
 
 # encryption
 encryption_script_path="../contracts/contracts/encryption_contract.plutus"
-encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${stake_key} ${network})
+encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${staking_credential} ${network})
 encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 
 echo -e "\033[0;36m Gathering Alice UTxO Information  \033[0m"
@@ -68,7 +72,6 @@ echo -e "\033[1;36m\nEncryption Token: ${encryption_asset} \033[0m"
 # encrypt the message
 secret_message="This is a secret message."
 
-# generate the register
 PYTHONPATH="$PROJECT_ROOT" \
 "$PROJECT_ROOT/venv/bin/python" -c \
 "
@@ -97,13 +100,11 @@ jq \
 .fields[1]=$binding' \
 ../data/encryption/encryption-mint-redeemer.json | sponge ../data/encryption/encryption-mint-redeemer.json
 
-# should be able to build the tx now
 utxo_value=$(${cli} conway transaction calculate-min-required-utxo \
     --protocol-params-file ./tmp/protocol.json \
     --tx-out-inline-datum-file ../data/encryption/encryption-datum.json \
     --tx-out="${encryption_script_address} + 5000000 + ${encryption_asset}" | tr -dc '0-9')
 encryption_script_output="${encryption_script_address} + ${utxo_value} + ${encryption_asset}"
-
 echo -e "\033[0;35m\nEncryption Output: ${encryption_script_output}\033[0m"
 
 encryption_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/encryption_contract-reference-utxo.signed | jq -r '.txhash')
@@ -143,9 +144,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

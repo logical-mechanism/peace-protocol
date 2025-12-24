@@ -1,4 +1,5 @@
-////
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
 ////
 
 use aiken/collection/list
@@ -16,6 +17,7 @@ use types/encryption.{
 }
 use types/level.{EncryptionLevel}
 use types/reference.{ReferenceDatum}
+use types/register
 use types/schnorr
 use util
 
@@ -40,8 +42,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           output_datum_data
         expect [entry]: List<EncryptionLevel> = levels
         //
-        //
-        //
         and {
           // token name needs to be in the datum
           (token == token_name)?,
@@ -55,8 +55,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           list.has(extra_signatories, owner_vkh)?,
           // owner g1 point must be known
           schnorr.verify(owner_g1, schnorr_proof)?,
+          // owner g1 point must be valid
+          register.is_register_valid(owner_g1)?,
           // must be valid level 1
-          level.verify_level_one(token_name, entry)?,
+          level.verify_level_one(entry, token_name)?,
           // must be using original owner
           schnorr.binding_verify(
             owner_g1,
@@ -111,10 +113,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                       assets.quantity_of(output.value, this_script, token) == 0
                     },
                   )
-                //
-                // Burn the token and get a signature from the keeper.
-                //
-                // This assumes the owner vkh is wellformed.
                 //
                 and {
                   // owner_vkh must sign
@@ -174,8 +172,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 owner_g1: bid_owner_g1,
                 ..
               }: BidDatum = bidding_datum_data
-              //
-              //
               //
               and {
                 // cipher text can not change

@@ -1,3 +1,5 @@
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
 import secrets
 from eth_typing import BLSPubkey, BLSSignature
 from src.hashing import generate
@@ -21,6 +23,7 @@ from py_ecc.optimized_bls12_381 import (
     neg,
     pairing,
 )
+
 
 def rng() -> int:
     """
@@ -46,6 +49,7 @@ def g1_point(scalar: int) -> str:
     """
     return G1_to_pubkey(multiply(G1, scalar)).hex()
 
+
 def g2_point(scalar: int) -> str:
     """
     Generates a BLS12-381 point from the G2 generator using scalar multiplication
@@ -58,6 +62,7 @@ def g2_point(scalar: int) -> str:
         bytes: The resulting BLS12-381 G2 point in compressed format.
     """
     return G2_to_signature(multiply(G2, scalar)).hex()
+
 
 def uncompress(element: str) -> tuple:
     """
@@ -104,6 +109,7 @@ def scale(element: str, scalar: int) -> str:
     """
     return compress(multiply(uncompress(element), scalar))
 
+
 def invert(element: str) -> str:
     """
     Calculates the inverse of a BLS12-381 point.
@@ -115,6 +121,7 @@ def invert(element: str) -> str:
         str: The resulting combined point.
     """
     return compress(neg(uncompress(element)))
+
 
 def combine(left_element: str, right_element: str) -> str:
     """
@@ -128,6 +135,7 @@ def combine(left_element: str, right_element: str) -> str:
         str: The resulting combined point.
     """
     return compress(add(uncompress(left_element), uncompress(right_element)))
+
 
 def pair(g1_element: str, g2_element: str, final_exponentiate: bool = True) -> FQ12:
     """
@@ -161,25 +169,71 @@ def fq12_encoding(value: FQ12, domain_tag: str) -> str:
     byte_data = b""
     for fq_component in value.coeffs:
         byte_data += int(fq_component).to_bytes(48, "big")
-    return generate(byte_data.hex() + domain_tag.encode('utf-8').hex())
+    return generate(byte_data.hex() + domain_tag.encode("utf-8").hex())
+
 
 def random_fq12(a: int) -> str:
+    """
+    Derive a deterministic Fq12 element from a scalar and encode it as hex.
+
+    This computes a pairing value:
+
+        kappa = e([a]G1, H0)
+
+    and then serializes/encodes that Fq12 element using `fq12_encoding` with
+    the `F12_DOMAIN_TAG`.
+
+    Despite the name, this is not random unless `a` is sampled randomly.
+
+    Args:
+        a: Scalar used to multiply the canonical G1 generator before pairing.
+
+    Returns:
+        A hex string representing the domain-tagged encoding of the resulting
+        Fq12 element.
+    """
     kappa = pair(scale(g1_point(1), a), H0)
     return fq12_encoding(kappa, F12_DOMAIN_TAG)
 
+
 def to_int(hash_digest: str) -> int:
     """
-    TODO
-    Docstring for to_int
-    
-    :param hash_digest: Description
-    :type hash_digest: str
-    :return: Description
-    :rtype: int
+    Interpret a hex digest as a scalar reduced modulo the curve order.
+
+    This is typically used to map a hash output (produced as a hex string)
+    into the scalar field used by the protocol:
+
+        c = int(hash_digest, 16) mod curve_order
+
+    Args:
+        hash_digest: Hex-encoded digest string (no '0x' prefix expected).
+
+    Returns:
+        An integer scalar in the range [0, curve_order - 1].
     """
     return int(hash_digest, 16) % curve_order
 
+
 def from_int(integer: int) -> str:
+    """
+    Encode a non-negative integer as a minimal-length big-endian hex string.
+
+    - The encoding is *minimal* (no leading zero bytes).
+    - The special case `0` is encoded as `"00"` to ensure a non-empty byte
+      representation.
+
+    This is useful for serializing scalars/integers into a compact hex form.
+
+    Args:
+        integer: Non-negative integer to encode.
+
+    Returns:
+        A hex string representing the integer in big-endian byte order.
+
+    Notes:
+        If callers require a fixed width (e.g., always 32 bytes / 64 hex chars),
+        this function is intentionally not doing that.
+    """
     if integer == 0:
         return "00"
     length = (integer.bit_length() + 7) // 8

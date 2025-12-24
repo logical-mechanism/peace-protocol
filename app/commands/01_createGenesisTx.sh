@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -e
 
 # SET UP VARS HERE
@@ -20,7 +24,7 @@ genesis_pkh=$(${cli} conway address key-hash --payment-verification-key-file ../
 collat_address=$(cat ../wallets/collat/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ../wallets/collat/payment.vkey)
 
-# return leftover ada address
+# genesis change address
 change_address=$(jq -r '.genesis_change_address' ../config.json)
 
 # the genesis token information
@@ -100,9 +104,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

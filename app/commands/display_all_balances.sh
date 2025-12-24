@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -e
 
 # SET UP VARS HERE
@@ -10,7 +14,7 @@ ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.jso
 ${cli} conway query tip ${network} | jq
 
 # stake key
-stake_key=$(jq -r '.stake_key' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ../config.json)
 
 # Loop the contract in the contract folder
 for script_file in ../contracts/contracts/*.plutus; do
@@ -25,7 +29,7 @@ for script_file in ../contracts/contracts/*.plutus; do
     if [ "$contract" == "reference_contract.plutus" ]; then
         script_address=$(${cli} conway address build --payment-script-file ${script_file} ${network})
     else
-        script_address=$(${cli} conway address build --payment-script-file ${script_file} --stake-key-hash ${stake_key} ${network})
+        script_address=$(${cli} conway address build --payment-script-file ${script_file} --stake-key-hash ${staking_credential} ${network})
     fi
 
     echo -e "\033[1;37m\n--------------------------------------------------------------------------------\033[0m"
