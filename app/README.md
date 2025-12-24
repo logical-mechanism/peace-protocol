@@ -45,7 +45,7 @@ Alice and Bob need enough Lovelace to interact with the contracts. 50 ADA is mor
 
 The genesis UTxO (Unspent Transaction Output) determines the `genesis_tx_id` and `genesis_tx_idx` fields. The change from the reference token mint will go to `genesis_change_address`. The `staking_credential` is the StakeKeyHash (a hash of a staking key) for an address. The path fields need to point to the cli and node socket.
 
-The contracts can be set up after the config.json is filled out correctly.
+The contracts can be set up after the `config.json` is filled out correctly.
 
 ```bash
 ./setup.sh
