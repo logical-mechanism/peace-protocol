@@ -26,13 +26,6 @@ def generate(input_string: str) -> str:
 def public_inputs_from_w_hex(w_hex: str) -> list[str]:
     """
     Mimic gnark's public input derivation from compressed W.
-
-    Steps:
-      1) w_bytes = bytes.fromhex(w_hex)              # 48 bytes expected
-      2) d = sha256(w_bytes).digest()                # 32 bytes
-      3) i0 = int.from_bytes(d[0:16], "big")
-         i1 = int.from_bytes(d[16:32], "big")
-      4) inputs = [str(i0), str(i1), "0"]            # trailing 0 matches your export
     """
     w_hex = w_hex.strip().lower()
     if w_hex.startswith("0x"):
