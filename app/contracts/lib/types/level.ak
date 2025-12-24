@@ -208,11 +208,7 @@ pub fn add_new_level(
 /// Right now it only proves:
 /// e(q, R5) * e(u, g1) = e(q^H(k), p)
 ///
-/// We need to combine this with a snark that proves:
-/// hk = H(k) where k and hk are secrets
-/// W = q^hk where W is public and q is the g1 generator
-///
-/// Then it would be a complete proof for the r5 term.
+/// We need to combine this with a snark.
 ///
 /// ```aiken
 /// level.verify_r5(datum.register, redeemer.r5, redeemer.witness)
