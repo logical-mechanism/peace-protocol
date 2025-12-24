@@ -72,7 +72,7 @@ ${cli} conway query utxo \
 TXNS=$(jq length ./tmp/encryption_utxo.json)
 if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${encryption_script_address} \033[0m \n";
-.   exit;
+   exit;
 fi
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$encryption_pid" --arg token_name "$token_name" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/encryption_utxo.json)
 encryption_tx_in=${TXIN::-8}

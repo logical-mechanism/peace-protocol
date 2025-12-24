@@ -116,7 +116,7 @@ full_tkn="${tx_idx_cbor}${array[0]}"
 token_name="${full_tkn:0:64}"
 echo $token_name > ../data/bidding.token
 bidding_asset="1 ${bidding_pid}.${token_name}"
-echo -e "\033[1;36m\nbidding Token: ${bidding_asset} \033[0m"
+echo -e "\033[1;36m\nBidding Token: ${bidding_asset} \033[0m"
 
 PYTHONPATH="$PROJECT_ROOT" \
 "$PROJECT_ROOT/venv/bin/python" -c \
@@ -148,7 +148,7 @@ utxo_value=$(${cli} conway transaction calculate-min-required-utxo \
     --tx-out="${bidding_script_address} + 5000000 + ${bidding_asset}" | tr -dc '0-9')
 bidding_script_output="${bidding_script_address} + $((${utxo_value} + 5000000)) + ${bidding_asset}"
 
-echo -e "\033[0;35m\nbidding Output: ${bidding_script_output}\033[0m"
+echo -e "\033[0;35m\nBidding Output: ${bidding_script_output}\033[0m"
 
 bidding_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/bidding_contract-reference-utxo.signed | jq -r '.txhash')
 
