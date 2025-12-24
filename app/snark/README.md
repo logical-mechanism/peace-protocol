@@ -44,3 +44,7 @@ go mod tidy
 ```bash
 go build -o snark
 ```
+
+**Copyright (C) 2025 Logical Mechanism LLC**
+
+**SPDX-License-Identifier: CC-BY-4.0**

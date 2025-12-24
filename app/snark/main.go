@@ -1,3 +1,8 @@
+// main.go
+
+// Copyright (C) 2025 Logical Mechanism LLC
+// SPDX-License-Identifier: GPL-3.0-only
+
 package main
 
 import (
