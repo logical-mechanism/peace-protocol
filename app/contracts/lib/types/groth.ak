@@ -119,6 +119,6 @@ pub fn verify_groth16(
     let right12 = bls12_381_mul_miller_loop_result(r1, r2)
     let right = bls12_381_mul_miller_loop_result(right12, r3)
 
-    bls12_381_final_verify(left, right)?
+    bls12_381_final_verify(left, right)
   }
 }

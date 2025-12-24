@@ -29,7 +29,7 @@ test valid_groth_proof() fail {
   let pk: GrothProof =
     GrothProof {
       piA: #"a23e55176bd908b2c2c9da958e5c5ab752a6f6e668d47a7fd9f9d0d012747f2cbdcaa1832c1c888d032c3f833a7434a4",
-      piB: #"8cbde958e5973bbe4860035ac1027e543bc4113d7ece6d4d6ceb7c77ff262b27c109160516694fc                                                                                                                                                                                                                                                                                                                                                                            5e7a454808adfa06f0ef497c5ccb307d631cac268b04b1b63f56308924ad35c6cfd101df971fc465079d01d2c45d144e32deb95495bd28700",
+      piB: #"8cbde958e5973bbe4860035ac1027e543bc4113d7ece6d4d6ceb7c77ff262b27c109160516694fc5e7a454808adfa06f0ef497c5ccb307d631cac268b04b1b63f56308924ad35c6cfd101df971fc465079d01d2c45d144e32deb95495bd28700",
       piC: #"82d831097b284252e77c3cb56c6d20df5634f2adc725eb53022421b228d47335020b810db7c2c1eccab6c30272b9f313",
     }
 

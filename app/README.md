@@ -1,19 +1,11 @@
-# Application
+# The PEACE App
 
-Application tested on Ubuntu 24.
+Happy path tested on Ubuntu 24.
 
 ## Testing
 
-The Python code has tests ran from the app folder.
-
 ```bash
-pytest -s -vv
-```
-
-The Aiken code has tests ran from the contracts folder.
-
-```bash
-aiken check
+./run_tests.sh
 ```
 
 ## Formatting
@@ -32,11 +24,11 @@ First, create the wallets and fund with Lovelace.
 
 ```bash
 wallets
-├── alice ← 50 ADA
-├── bob ← 50 ADA
-├── collat ← 5 ADA
-├── genesis ← 5 ADA
-└── holder ← 150 ADA
+├── alice   ← 50  ADA
+├── bob     ← 50  ADA
+├── collat  ← 5   ADA
+├── genesis ← 5   ADA
+└── holder  ← 150 ADA
 ```
 
 Alice and Bob need enough lovelace to interact with the contracts. 50 ADA is more than enough here. Collateral will be its own address with 5 ADA in it. Alice and Bob will share the collateral. Genesis needs 5 ADA to mint the reference token. The holder address needs enough ADA to hold all of the script references. The `config.json` file can now be filled out after the wallets are prepped with enough ADA.
@@ -52,7 +44,7 @@ Alice and Bob need enough lovelace to interact with the contracts. 50 ADA is mor
 }
 ```
 
-The UTxO holding the 5 ADA determines the `genesis_tx_id` and `genesis_tx_idx` fields. The change from the reference token mint will go to `genesis_change_address`. The staking credential is the StakeKeyHash of an address. The path fields need to point to the cli and node socket.
+The genesis UTxO determines the `genesis_tx_id` and `genesis_tx_idx` fields. The change from the reference token mint will go to `genesis_change_address`. The staking credential is the StakeKeyHash of an address. The path fields need to point to the cli and node socket.
 
 The contracts can be setup after the `config.json` is filled out correctly.
 
