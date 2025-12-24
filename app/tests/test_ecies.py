@@ -1,7 +1,9 @@
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
 import pytest
 
-from src.register import Register
 from src.ecies import encrypt, decrypt
+
 
 def test_e2e():
     msg = "This is a secret message that only Alice knows."

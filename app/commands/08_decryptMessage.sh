@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -euo pipefail
 
 # SET UP VARS HERE
 source ../.env
 
 # alice
-alice_wallet_path="../wallets/alice"
+alice_wallet_path="../wallets/bob"
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 

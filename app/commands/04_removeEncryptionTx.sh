@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -e
 
 # SET UP VARS HERE
@@ -18,11 +22,11 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-stake_key=$(jq -r '.stake_key' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ../config.json)
 
 # encryption
 encryption_script_path="../contracts/contracts/encryption_contract.plutus"
-encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${stake_key} ${network})
+encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${staking_credential} ${network})
 encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 
 echo -e "\033[0;36m Gathering Alice UTxO Information  \033[0m"
@@ -38,7 +42,6 @@ fi
 TXIN=$(jq -r --arg alltxin "" 'keys[] | . + $alltxin + " --tx-in"' ./tmp/alice_utxo.json)
 alice_utxo=${TXIN::-8}
 
-# should be able to build the tx now
 echo -e "\033[0;36m Gathering Collateral UTxO Information  \033[0m"
 ${cli} conway query utxo \
     ${network} \
@@ -69,9 +72,8 @@ ${cli} conway query utxo \
 TXNS=$(jq length ./tmp/encryption_utxo.json)
 if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${encryption_script_address} \033[0m \n";
-.   exit;
+   exit;
 fi
-
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$encryption_pid" --arg token_name "$token_name" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/encryption_utxo.json)
 encryption_tx_in=${TXIN::-8}
 
@@ -115,9 +117,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

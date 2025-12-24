@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -e
 
 # SET UP VARS HERE
@@ -21,18 +25,16 @@ reference_hash=$(cat ../contracts/hashes/reference.hash)
 collat_address=$(cat ../wallets/collat/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ../wallets/collat/payment.vkey)
 
-# return leftover ada address
-change_address=$(jq -r '.genesis_change_address' ../config.json)
-
 # the genesis token information
 tx_id=$(jq -r '.genesis_tx_id' ../config.json)
 tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
 tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")
 full_genesis_tkn="${tx_idx_cbor}${tx_id}"
 genesis_tkn="${full_genesis_tkn:0:64}"
 
-asset="1 ${genesis_pid}.${genesis_tkn}"
+genesis_asset="1 ${genesis_pid}.${genesis_tkn}"
 
 echo -e "\033[0;36m Gathering Alice UTxO Information  \033[0m"
 ${cli} conway query utxo \
@@ -58,7 +60,7 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${reference_script_address} \033[0m \n";
 .   exit;
 fi
-alltxin=""
+
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$genesis_pid" --arg token_name "$genesis_tkn" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/script_utxo.json)
 reference_tx_in=${TXIN::-8}
 
@@ -79,14 +81,11 @@ collat_tx_in=$(jq -r 'keys[0]' tmp/collat_utxo.json)
 # script reference utxo
 reference_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/reference_contract-reference-utxo.signed | jq -r '.txhash')
 
-genesis_asset="1 ${genesis_pid}.${genesis_tkn}"
-
 utxo_value=$(${cli} conway transaction calculate-min-required-utxo \
     --protocol-params-file ./tmp/protocol.json \
     --tx-out-inline-datum-file ../data/reference/reference-datum.json \
     --tx-out="${reference_script_address} + 5000000 + ${genesis_asset}" | tr -dc '0-9')
 reference_script_output="${reference_script_address} + ${utxo_value} + ${genesis_asset}"
-
 echo -e "\033[0;35m\nGenesis Output: ${reference_script_output}\033[0m"
 
 echo -e "\033[0;36m Building Tx \033[0m"
@@ -124,9 +123,8 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 echo -e "\033[0;32m\nDone!\033[0m"

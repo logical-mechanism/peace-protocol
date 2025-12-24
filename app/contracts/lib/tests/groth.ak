@@ -1,50 +1,42 @@
-use types/groth.{GrothProof, SnarkVerificationKey, groth_verify}
+use types/groth.{GrothProof, SnarkVerificationKey}
 
-// Test (Prove Hash and check relation)
-
-//  Template of VK
-pub const vk: SnarkVerificationKey =
-  SnarkVerificationKey {
-    nPublic: 12,
-    vkAlpha: #"a8f7d80aecaebd21b5e1b7771b6ef5d411834a797532585493489f927a11eee9d50bf581b6bd6937622370e6d219be4a",
-    vkBeta: #"950fb670fec3d5e81c30fdbe398c92f4528e94d3012d0a345725200a87775e3e7f8657aed0a186afe23d3525d57a2faa0abdf433feaff63b9352494a030a3ea041fbfad428d12203fdb1bd9dac68b75a4a98d6bdb48d933b0a9549a641f21c52",
-    vkGamma: #"94cec3a77061243221adab49fa8ed5bbfdc08cefb68fb2b04541fe5a19ce2109d8847a37d92925b81edab9a9afb1318c164f988f56ab67f693ef5511ef8c7e2c5226f05c90744e171f53b3bfe01c5739c8cf72f5e5a6e3c6f09a0eca118c9b82",
-    vkDelta: #"844478f997bc614e904111b278c9750997fb22bbce22451fdc7be6a53eec23ddd9aad2b67f37d0769476cf9c790600aa00161324fb1efbb2ea6851c375d72318df542caa5746ea5465593a872fca1607608f84a066d505cbb0e295943a2dc20c",
-    vkAlphaBeta: [],
-    vkIC: [
-      #"86a572b204bdda6c5941ddcab69a252d005635ce59d837ff472bb06e3a890e3703d354c59de810cfd9ce970f3b6c4534",
-      #"801592258c2844dbfff13fbd53c057a351b94b98e6fdc346436d7fab124ca28cd12b3248b96b59da07392b60a2e7cd7b",
-      #"8cd8a78636d856aa3ff285fc7d3e418990c7d21bfd26e8e0fdad9ac274df13d1c940a214189f681a8fdf3e2e5a8864e5",
-      #"a905731d49c2ec51f5d868330f9c64da8b9210e3877145fc0c7ef8ed72631ea96f023daf8d6962cac1444df42fd6b1b8",
-      #"8948002328cf6d7ff980f2072237e4cc3aec5372d30e7a8fc9ab4af470ef7b966709bcb5c9432173badc8ddf8ddbe364",
-      #"a5716f6718a9a5b320047d5dc39118d7ae19286486624834399861d6c9414a5829371967605959ead4e5352eb8f93ed9",
-      #"97db20b30fa73375724d79f09875d0aa48939cfd4ce323ccefc02c445141de362c1ad4dc3b8930b3faec3ffd92b733a1",
-      #"958ff5623d07b50d4ada87c07740af7b6971f53ebed1a2c14e3dfb4e99fde0f6318a1678d0007a42aa27f32b6c715f65",
-      #"8eb323190cba5f74d001c7d439bcfab71538dbced043b9711b01a548805f981d481c91924011437c18c52a672bb3fb2b",
-      #"8a1805b78ee99c0d47c2bc567ddc2c34840baa5b997daab2cb935297d295a3d1efa7d460aaff3e6da71a11f6f5b6686f",
-      #"a16cbb681d5069c773454796f35a88eca43740f9674aa252df510b8339499a1a65e9a5a6af4da91a25d9362e2eade049",
-      #"b001a5dcb56cd00cc0517acb368f442e28d6c01be37a0bcca3b5d2b167c43cec7c0774cbbe2bc1a093f7267de1c1ec27",
-      #"901278326cb3b4473b385e01a0db8fc012b1c9e60be3baa8593b72097563b677bdc9b1dc207241419471fc8e2462ae73",
-    ],
-  }
-
-//  Template of Proof
-pub const pk: GrothProof =
-  GrothProof {
-    piA: #"8eb0fad8288a497b4f9b6138ba739c91f3670da469a4b49504eb627f68083ccaf8d197b1a92780fbb2dd4cc05c56ff94",
-    piB: #"85cef566da4098b82c50aa296781583a4edc98f8ec7914a31f0660947c648ff3c07fb223394687e66de0c3fc4e2f4a5e06e21d81c14c4fff8d5c37fc8cd242867555310e26eb7892e254b217691d756e8e306827efeeb83f0272548a4a085915",
-    piC: #"ae70311a72f100534c70d4015bad4d929a47f8e5e3907b307fbba38cb9717cccc2921f8aef3bfa131d3a3c5b16ecd55d",
-  }
-
-// Template of public values
-pub const public_values: List<Int> =
-  [
-    1943819926531509050, 13345408681956004856, 258910035034047774,
-    15538776265467318057, 3970902504219539610, 1181976699477530928,
-    15759095568169404850, 7496680135549042083, 9717976788619672049,
-    2454962281442548236, 12811343189743776893, 806962497584756626,
+test point_to_hash_to_int_list() {
+  let w: ByteArray =
+    #"a1588e31d17d31785a4ce1a882ca92a3f1bbb7fdd9953398ff53fca38ade891c075f9e7eefc9d1396298c6f680539c69"
+  let public_ints: List<Int> = groth.public_inputs_from_w(w)
+  public_ints == [
+    86721980652443005217719496642694247237,
+    158132697557323219579992358050637845714,
   ]
+}
 
-test valid_groth_test() fail {
-  groth_verify(vk, pk, public_values)
+/// This is failing. Need to investigate groth proofs more.
+test valid_groth_proof() fail {
+  let vk: SnarkVerificationKey =
+    SnarkVerificationKey {
+      nPublic: 2,
+      vkAlpha: #"a096f5643b2685d5fccf45278ce8a1a50caddf9de45b5da1c7cd08452b21eb1ed0ab5932e679ddc63f22f52ad301b7b5",
+      vkBeta: #"b5f00083826c3a5e8b5c9a5a14a9cf0fa414b0aa8551eaafd42ab39c54d5ccef3dfe32e0fd27f43c2e05705ea77522500ac149566a7f6aee1e4747c6fb162509777d598ee6968df2942845e424fa200766d91f2abd857aa2d9eb3729471b5e83",
+      vkGamma: #"a2e1bf70280041d0367d0eb0a902343559e9e8a27d1c5c26a17f314d4b9da88ebb57560efe41630a16f56c5e3c5448ce0dc16731ca13a8aab6e76994f20e6129cbbc69d8dcd71d9dcfc2eb4acebf12488c224ed1f68129d624c05a6f77ed16dc",
+      vkDelta: #"88c39b7ea8af4fffc562c038023fcce386057383cdbe01ab9dbe13b7f60eaf5aadfb1cf45e7ea56a5f919cf8545d6cd40cd47b991da3b16c36a545a3059e084fe9b3c04e6a8e80c019ed0c5d7e5674304e31d2e6f6ed1b9453d62cec84f8b55d",
+      vkIC: [
+        #"8c61ffb1b4a1e81eb7f344a8b8cc8e1d68da3101b8ed66eda37433b97a1fa97a1fd4d1b293dc3256e0d56fc2486b5fac",
+        #"84df5251d0f8803913216116cf3e2d02c24868e8940cc8060aced966253052e1947b13318ef80c8a33f46d68e69c7985",
+        #"a1a5c63e4290e5b28b112fbf6e2d3caca435a969f415bf93fb538636b9f3dacba7bdcc9dafd94678ba914b4e44feed91",
+      ],
+    }
+
+  let pk: GrothProof =
+    GrothProof {
+      piA: #"a23e55176bd908b2c2c9da958e5c5ab752a6f6e668d47a7fd9f9d0d012747f2cbdcaa1832c1c888d032c3f833a7434a4",
+      piB: #"8cbde958e5973bbe4860035ac1027e543bc4113d7ece6d4d6ceb7c77ff262b27c109160516694fc                                                                                                                                                                                                                                                                                                                                                                            5e7a454808adfa06f0ef497c5ccb307d631cac268b04b1b63f56308924ad35c6cfd101df971fc465079d01d2c45d144e32deb95495bd28700",
+      piC: #"82d831097b284252e77c3cb56c6d20df5634f2adc725eb53022421b228d47335020b810db7c2c1eccab6c30272b9f313",
+    }
+
+  let public_values: List<Int> =
+    [
+      86721980652443005217719496642694247237,
+      158132697557323219579992358050637845714,
+    ]
+  groth.verify_groth16(vk, pk, public_values)
 }

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -euo pipefail
 
 # SET UP VARS HERE
@@ -25,16 +29,16 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-stake_key=$(jq -r '.stake_key' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ../config.json)
 
 # bidding
 bidding_script_path="../contracts/contracts/bidding_contract.plutus"
-bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} --stake-key-hash ${stake_key} ${network})
+bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} --stake-key-hash ${staking_credential} ${network})
 bidding_pid=$(cat ../contracts/hashes/bidding.hash)
 
 # encryption
 encryption_script_path="../contracts/contracts/encryption_contract.plutus"
-encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${stake_key} ${network})
+encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${staking_credential} ${network})
 encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 
 # reference
@@ -44,6 +48,7 @@ reference_script_address=$(${cli} conway address build --payment-script-file ${r
 # the genesis token information
 tx_id=$(jq -r '.genesis_tx_id' ../config.json)
 tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
 tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")
 full_genesis_tkn="${tx_idx_cbor}${tx_id}"
@@ -78,7 +83,6 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${bidding_script_address} \033[0m \n";
 .   exit;
 fi
-
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$bidding_pid" --arg token_name "$bidding_token" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/bidding_utxo.json)
 bidding_tx_in=${TXIN::-8}
 
@@ -93,7 +97,6 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${reference_script_address} \033[0m \n";
 .   exit;
 fi
-alltxin=""
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$encryption_pid" --arg token_name "$encryption_token" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/encryption_utxo.json)
 encryption_tx_in=${TXIN::-8}
 
@@ -107,7 +110,6 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${reference_script_address} \033[0m \n";
 .   exit;
 fi
-alltxin=""
 TXIN=$(jq -r --arg alltxin "" --arg policy_id "$genesis_pid" --arg token_name "$genesis_tkn" 'to_entries[] | select(.value.value[$policy_id][$token_name] == 1) | .key | . + $alltxin + " --tx-in"' tmp/reference_utxo.json)
 reference_tx_in=${TXIN::-8}
 
@@ -139,9 +141,6 @@ cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-d
 
 
 old_list=$(jq -r '.fields[3].list' ../data/encryption/encryption-datum.json)
-echo "$old_list" | jq type
-echo "$old_list" | jq length
-
 
 jq \
 --arg bob_pkh "${bob_pkh}" \
@@ -237,10 +236,9 @@ ${cli} conway transaction sign \
 #
 
 echo -e "\033[1;36m\nSubmitting\033[0m"
-    # Perform operations on each file
-    ${cli} conway transaction submit \
-        ${network} \
-        --tx-file ./tmp/tx.signed
+${cli} conway transaction submit \
+    ${network} \
+    --tx-file ./tmp/tx.signed
 
 cp ../data/encryption/next-encryption-datum.json ../data/encryption/encryption-datum.json
 

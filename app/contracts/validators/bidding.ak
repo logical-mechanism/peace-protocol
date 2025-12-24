@@ -1,4 +1,5 @@
-////
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
 ////
 
 use aiken/collection/list
@@ -15,6 +16,7 @@ use types/bidding.{
 }
 use types/encryption.{UseEncryption}
 use types/reference.{ReferenceDatum}
+use types/register
 use types/schnorr
 use util
 
@@ -50,8 +52,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         expect Some(_) =
           search.for_input_by_token(reference_inputs, encryption, token)
         //
-        //
-        //
         and {
           // script output can not have a reference script
           option.is_none(reference_script)?,
@@ -63,6 +63,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           list.has(extra_signatories, owner_vkh)?,
           // owner g1 point must be known
           schnorr.verify(owner_g1, schnorr_proof)?,
+          // owner g1 point must be valid
+          register.is_register_valid(owner_g1)?,
           // token name needs to be in the datum
           (pointer == token_name)?,
         }
@@ -110,8 +112,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                       assets.quantity_of(output.value, this_script, pointer) == 0
                     },
                   )
-                //
-                // Burn the token and get a signature from the keeper.
                 //
                 and {
                   // owner_vkh must sign
@@ -172,8 +172,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   output_reference,
                 )
               expect UseEncryption(_, _, selected_bid_token, _) = spend_redeemer
-              //
-              //
               //
               and {
                 burn_token?,

@@ -1,12 +1,15 @@
-use aiken/crypto
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use aiken/crypto/bitwise.{State}
 use aiken/crypto/bls12_381/g1
 use aiken/crypto/bls12_381/scalar.{Scalar}
 use aiken/primitive/bytearray
 use cardano/assets.{AssetName}
+use digest
 use types/register.{Register}
 
-/// we can change this later
 pub const schnorr_domain_tag: ByteArray = #"5343484e4f52527c50524f4f467c76317c"
 
 pub const binding_domain_tag: ByteArray = #"42494e44494e477c50524f4f467c76317c"
@@ -18,6 +21,12 @@ pub type SchnorrProof {
   g_r_b: ByteArray,
 }
 
+/// Concat all of the terms together then hash the value. This is used to
+/// generate a challenge value for the proof.
+///
+/// ```aiken
+/// schnorr.fiat_shamir_heuristic(g, gr, u)
+/// ```
 pub fn fiat_shamir_heuristic(
   // compressed g element
   g_b: ByteArray,
@@ -31,9 +40,15 @@ pub fn fiat_shamir_heuristic(
     |> bytearray.concat(g_b)
     |> bytearray.concat(g_r_b)
     |> bytearray.concat(u_b)
-    |> crypto.blake2b_224()
+    |> digest.hash
 }
 
+/// Verify a Schnorr Sigma Protocol using the Fiat-Shamir heuristic for
+/// non-interactivity.
+///
+/// ```aiken
+/// schnorr.verify(datum.register, redeemer.proof)
+/// ```
 pub fn verify(user: Register, proof: SchnorrProof) -> Bool {
   //
   let z: State<Scalar> = scalar.from_bytes(proof.z_b)
@@ -63,6 +78,12 @@ pub type BindingProof {
   t_2_b: ByteArray,
 }
 
+/// Concat all of the terms together then hash the value. This is used to
+/// generate a challenge value for the proof.
+///
+/// ```aiken
+/// schnorr.binding_fiat_shamir_heuristic(datum.register, redeemer.proof, entry.r1b, entry.r2, tkn)
+/// ```
 pub fn binding_fiat_shamir_heuristic(
   user: Register,
   proof: BindingProof,
@@ -78,9 +99,15 @@ pub fn binding_fiat_shamir_heuristic(
     |> bytearray.concat(r1_b)
     |> bytearray.concat(r2_b)
     |> bytearray.concat(token_name)
-    |> crypto.blake2b_224
+    |> digest.hash
 }
 
+/// Verify a Sigma Protocol using the binding Fiat-Shamir heuristic for
+/// non-interactivity.
+///
+/// ```aiken
+/// schnorr.binding_verify(datum.register, redeemer.proof)
+/// ```
 pub fn binding_verify(
   user: Register,
   proof: BindingProof,

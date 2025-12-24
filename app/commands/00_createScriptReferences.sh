@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
 set -e
 
 # SET UP VARS HERE
@@ -7,7 +11,7 @@ source ../.env
 mkdir -p ./tmp
 ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.json
 
-# Addresses
+# payment address
 payment_wallet_name="holder"
 payment_address=$(cat ../wallets/${payment_wallet_name}/payment.addr)
 script_reference_output_address=$(cat ../wallets/${payment_wallet_name}/payment.addr)
@@ -23,7 +27,7 @@ if [ "${TXNS}" -eq "0" ]; then
    echo -e "\n \033[0;31m NO UTxOs Found At ${payment_address} \033[0m \n";
    exit;
 fi
-alltxin=""
+
 TXIN=$(jq -r --arg alltxin "" 'to_entries[] | select(.value.value | length < 2) | .key | . + $alltxin + " --tx-in"' ./tmp/payment_utxo.json)
 ref_tx_in=${TXIN::-8}
 
@@ -45,6 +49,7 @@ do
     --protocol-params-file ./tmp/protocol.json \
     --tx-out-reference-script-file ${contract} \
     --tx-out="${script_reference_output_address} + 1000000" | tr -dc '0-9')
+
     # build the utxo
     script_reference_utxo="${script_reference_output_address} + ${min_utxo}"
     echo -e "\033[0;32m\nCreating ${filename} Script:\n" ${script_reference_utxo} " \033[0m"
@@ -58,7 +63,7 @@ do
     --tx-out-reference-script-file ${contract} \
     --fee 1000000
 
-    size=$(jq -r '.cborHex' ${contract} | awk '{print length($0)*8}')
+    size=$(jq -r '.cborHex' ${contract} | awk '{print length($0)*15}')
 
     fee=$(${cli} conway transaction calculate-min-fee \
         --tx-body-file ./tmp/tx.draft \
