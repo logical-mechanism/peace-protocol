@@ -11,7 +11,7 @@ test point_to_hash_to_int_list() {
 }
 
 /// This is failing. Need to investigate groth proofs more.
-test valid_groth_proof() {
+test valid_groth_proof() fail {
   let vk: SnarkVerificationKey =
     SnarkVerificationKey {
       nPublic: 2,

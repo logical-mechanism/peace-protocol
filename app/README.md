@@ -39,7 +39,7 @@ wallets
 └── holder ← 150 ADA
 ```
 
-Alice and Bob need enough lovelace to interact with the contracts. 50 ADA is more than enough here. Collateral will be its own address with 5 ADA in it. Alice and Bob will share the collateral. Genesis needs 5 ADA to mint the reference token. The holder address needs enough ADA to hold all of the script references. The `confile.json` file can now be filled out after the wallets are prepped with enough ADA.
+Alice and Bob need enough lovelace to interact with the contracts. 50 ADA is more than enough here. Collateral will be its own address with 5 ADA in it. Alice and Bob will share the collateral. Genesis needs 5 ADA to mint the reference token. The holder address needs enough ADA to hold all of the script references. The `config.json` file can now be filled out after the wallets are prepped with enough ADA.
 
 ```js
 {
