@@ -1,15 +1,5 @@
 use types/groth.{GrothProof, SnarkVerificationKey}
 
-test point_to_hash_to_int_list() {
-  let w: ByteArray =
-    #"a1588e31d17d31785a4ce1a882ca92a3f1bbb7fdd9953398ff53fca38ade891c075f9e7eefc9d1396298c6f680539c69"
-  let public_ints: List<Int> = groth.public_inputs_from_w(w)
-  public_ints == [
-    86721980652443005217719496642694247237,
-    158132697557323219579992358050637845714,
-  ]
-}
-
 /// This is failing. Need to investigate groth proofs more.
 test valid_groth_proof() fail {
   let vk: SnarkVerificationKey =

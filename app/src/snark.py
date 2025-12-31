@@ -148,8 +148,6 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     return final_exponentiate(left) == final_exponentiate(right)
 
 
-
-
 def _strip0x(h: str) -> str:
     h = h.strip().lower()
     return h[2:] if h.startswith("0x") else h
