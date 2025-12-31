@@ -1,44 +1,29 @@
 use aiken/builtin.{
-  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_compress,
-  bls12_381_g1_scalar_mul, bls12_381_g1_uncompress, bls12_381_g2_uncompress,
-  bls12_381_miller_loop, bls12_381_mul_miller_loop_result, head_list, null_list,
-  tail_list,
-}
-use aiken/crypto
-use aiken/primitive/bytearray
-
-pub fn public_inputs_from_w(w: ByteArray) -> List<Int> {
-  let d = crypto.sha2_256(w)
-
-  let left = bytearray.take(d, n: 16)
-  let right = bytearray.drop(d, n: 16)
-
-  let i0 = bytearray.to_int_big_endian(left)
-  let i1 = bytearray.to_int_big_endian(right)
-
-  [i0, i1]
+  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_scalar_mul,
+  bls12_381_g1_uncompress, bls12_381_g2_uncompress, bls12_381_miller_loop,
+  bls12_381_mul_miller_loop_result, head_list, null_list, tail_list,
 }
 
 pub type SnarkVerificationKey {
   nPublic: Int,
-  // G1
+  // G1 (compressed)
   vkAlpha: ByteArray,
-  // G2
+  // G2 (compressed)
   vkBeta: ByteArray,
-  // G2
+  // G2 (compressed)
   vkGamma: ByteArray,
-  // G2
+  // G2 (compressed)
   vkDelta: ByteArray,
-  // IC[0..nPublic]
+  // IC[0..nPublic] (each compressed G1)
   vkIC: List<ByteArray>,
 }
 
 pub type GrothProof {
-  // G1
+  // G1 (compressed)
   piA: ByteArray,
-  // G2
+  // G2 (compressed)
   piB: ByteArray,
-  // G1
+  // G1 (compressed)
   piC: ByteArray,
 }
 
@@ -49,8 +34,8 @@ fn len_list(xs: List<a>) -> Int {
   }
 }
 
+// Compute vk_x = IC0 + sum_{j=0..n-1} inputs[j] * IC[j+1]
 fn compute_vk_x(vkIC: List<ByteArray>, inputs: List<Int>) -> G1Element {
-  // enforce non-empty IC
   expect !null_list(vkIC)
 
   let ic0_bytes = head_list(vkIC)
@@ -67,10 +52,13 @@ fn compute_vk_x_go(
   ic_tail: List<ByteArray>,
 ) -> G1Element {
   when inputs is {
-    [] -> acc
+    [] ->
+      // At this point, ic_tail should be empty (because vkIC len == inputs len + 1)
+      // We don't *need* to enforce it here since verify_groth16 checks lengths,
+      // but keeping it tight makes debugging simpler.
+      acc
 
     [i, ..rest_inputs] -> {
-      // “expect …” must be tied to an expression result.
       expect !null_list(ic_tail)
 
       let ic_i_bytes = head_list(ic_tail)
@@ -90,23 +78,27 @@ pub fn verify_groth16(
   proof: GrothProof,
   inputs: List<Int>,
 ) -> Bool {
+  // These must match the exact JSON you export:
+  // - public.json Inputs length == vk.nPublic
+  // - vk.vkIC length == vk.nPublic + 1
   if vk.nPublic != len_list(inputs) {
     False
   } else if len_list(vk.vkIC) != len_list(inputs) + 1 {
     False
   } else {
+    // Uncompress proof elements
     let a: G1Element = bls12_381_g1_uncompress(proof.piA)
     let b: G2Element = bls12_381_g2_uncompress(proof.piB)
     let c: G1Element = bls12_381_g1_uncompress(proof.piC)
 
+    // Uncompress vk elements
     let alpha: G1Element = bls12_381_g1_uncompress(vk.vkAlpha)
     let beta: G2Element = bls12_381_g2_uncompress(vk.vkBeta)
     let gamma: G2Element = bls12_381_g2_uncompress(vk.vkGamma)
     let delta: G2Element = bls12_381_g2_uncompress(vk.vkDelta)
 
+    // vk_x from IC + public inputs
     let vk_x: G1Element = compute_vk_x(vk.vkIC, inputs)
-
-    trace bls12_381_g1_compress(vk_x)
 
     // left = e(A, B)
     let left = bls12_381_miller_loop(a, b)
