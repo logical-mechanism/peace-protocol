@@ -4,19 +4,27 @@ import pytest
 from src.bls12381 import (
     g1_point,
     to_int,
+    scale,
+    combine,
 )
-from src.hashing import public_inputs_from_w_hex
 
 from src.snark import (
     gt_to_hash,
     decrypt_to_hash,
     generate_snark_proof,
     verify_snark_proof,
+    public_inputs_from_w0_w1_hex,
 )
 import os
 
-
+# random secrets
 a0 = 44203
+r0 = 12345
+
+# bobs secret
+x0 = 54321
+
+# paths
 snark_path = f"{os.getcwd()}/snark/snark"
 out_path = f"{os.getcwd()}/out"
 
@@ -53,15 +61,60 @@ def test_half_level_decrypt_hash():
 
 def test_snark_prove():
     a = gt_to_hash(a0, snark_path)
-    w = g1_point(to_int(a))
-    x = public_inputs_from_w_hex(w)
-    generate_snark_proof(a0, w, snark_path)
+    v = g1_point(x0)
+    w0 = g1_point(to_int(a))
+
+    qa = g1_point(a0)
+    vr = scale(v, r0)
+    w1 = combine(qa, vr)
+
+    print(f"v={v}")
+    print(f"w0={w0}")
+    print(f"w1={w1}")
+    public_integers = public_inputs_from_w0_w1_hex(w0, w1, v)
+
+    generate_snark_proof(a0, r0, v, w0, w1, snark_path)
     verify_snark_proof(out_path)
 
-    assert x == [
-        "86721980652443005217719496642694247237",
-        "158132697557323219579992358050637845714",
+    expected_public_integers = [
+        "17500288565172873801",
+        "9411633287470898589",
+        "11539752139897092681",
+        "14117566851138557178",
+        "11732854847018214359",
+        "149328769413022752",
+        "12743184510663640417",
+        "3586972869393599483",
+        "1162853564816257447",
+        "13963573845061158233",
+        "8519358064772266323",
+        "300849905542043934",
+        "7104647174194175081",
+        "531317549079056697",
+        "18398326682078316828",
+        "17418718284690568088",
+        "6506823675508593315",
+        "96983736607650168",
+        "8432226084900007735",
+        "5235044846752215991",
+        "6273261425546858814",
+        "10840774659462574510",
+        "1798301395639797391",
+        "1136440148908638917",
+        "7138643491626859436",
+        "5505419637978662744",
+        "7017732200911399991",
+        "6377522435931897794",
+        "18011877622578215533",
+        "776479359663048414",
+        "10288726997180865397",
+        "18352781759426245713",
+        "17860951621094200122",
+        "3645999937606863567",
+        "7588265706522355601",
+        "337242724379907695",
     ]
+    assert public_integers == expected_public_integers
 
 
 if __name__ == "__main__":

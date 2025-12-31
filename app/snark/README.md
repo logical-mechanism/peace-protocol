@@ -42,6 +42,10 @@ go mod tidy
 go build -o snark
 ```
 
+## Testing
+
+
+
 **Copyright (C) 2025 Logical Mechanism LLC**
 
 **SPDX-License-Identifier: CC-BY-4.0**

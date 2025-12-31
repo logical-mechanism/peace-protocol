@@ -6,6 +6,7 @@
 set -e
 
 # run python tests
+source venv/bin/activate
 pytest -s -vv
 
 # run the aiken tests

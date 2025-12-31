@@ -461,3 +461,201 @@ func DecryptToHash(g1bHex, g2bHex, r1Hex, sharedHex string) (string, error) {
 	// fq12_encoding(k, DomainTagHex) => hash hex
 	return gtToHashFromGT(k)
 }
+
+// --- in-circuit: prove
+//
+//	w0 == [hk]q
+//	w1 == [a]q + [r]v
+//
+// where (a, r, hk) are secret scalars in Fr
+// and (v, w0, w1) are public G1 points (provided as public X/Y in Fp).
+type vw0w1Circuit struct {
+	// secrets (Fr)
+	A  emulated.Element[emparams.BLS12381Fr] `gnark:"a,secret"`
+	R  emulated.Element[emparams.BLS12381Fr] `gnark:"r,secret"`
+	HK emulated.Element[emparams.BLS12381Fr] `gnark:"hk,secret"`
+
+	// publics (Fp) : V, W0, W1 as affine coordinates
+	VX emulated.Element[emparams.BLS12381Fp] `gnark:"vx,public"`
+	VY emulated.Element[emparams.BLS12381Fp] `gnark:"vy,public"`
+
+	W0X emulated.Element[emparams.BLS12381Fp] `gnark:"w0x,public"`
+	W0Y emulated.Element[emparams.BLS12381Fp] `gnark:"w0y,public"`
+
+	W1X emulated.Element[emparams.BLS12381Fp] `gnark:"w1x,public"`
+	W1Y emulated.Element[emparams.BLS12381Fp] `gnark:"w1y,public"`
+}
+
+func (c *vw0w1Circuit) Define(api frontend.API) error {
+	curve, err := sw_emulated.New[emparams.BLS12381Fp, emparams.BLS12381Fr](api, sw_emulated.GetBLS12381Params())
+	if err != nil {
+		return err
+	}
+
+	v := sw_emulated.AffinePoint[emparams.BLS12381Fp]{X: c.VX, Y: c.VY}
+	w0 := sw_emulated.AffinePoint[emparams.BLS12381Fp]{X: c.W0X, Y: c.W0Y}
+	w1 := sw_emulated.AffinePoint[emparams.BLS12381Fp]{X: c.W1X, Y: c.W1Y}
+
+	// Optional (but strongly recommended): ensure the public points are valid curve points.
+	// If these methods aren’t available in your gnark version, remove these lines.
+	curve.AssertIsOnCurve(&v)
+	curve.AssertIsOnCurve(&w0)
+	curve.AssertIsOnCurve(&w1)
+
+	// p0 = [hk]q
+	p0 := curve.ScalarMulBase(&c.HK)
+
+	// enforce: w0 == p0
+	curve.AssertIsEqual(p0, &w0)
+
+	// p1 = [a]q + [r]v
+	qa := curve.ScalarMulBase(&c.A)
+	rv := curve.ScalarMul(&v, &c.R)
+	p1 := curve.Add(qa, rv)
+
+	// enforce: w1 == p1
+	curve.AssertIsEqual(p1, &w1)
+
+	return nil
+}
+
+// ProveAndVerifyVW0W1 builds the circuit proof and immediately verifies it.
+//
+// Inputs (hex):
+//   - vHex, w0Hex, w1Hex are compressed G1 (48 bytes => 96 hex chars)
+//
+// Secrets:
+//   - a, r (big.Int)
+//   - hk is derived from a via hkScalarFromA(a) (your existing helper)
+//
+// Exports:
+//   - writes vk.json / proof.json / public.json to outDir via ExportAll(...)
+func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error {
+	if a == nil || a.Sign() == 0 {
+		return fmt.Errorf("a must be > 0")
+	}
+	if r == nil {
+		r = new(big.Int)
+	}
+
+	// 1) Parse public points (and sanity-check compressed form)
+	parse48 := func(name, h string) ([]byte, error) {
+		raw, err := hex.DecodeString(h)
+		if err != nil {
+			return nil, fmt.Errorf("decode %s hex: %w", name, err)
+		}
+		if len(raw) != 48 {
+			return nil, fmt.Errorf("invalid %s length: got %d bytes, want 48", name, len(raw))
+		}
+		return raw, nil
+	}
+	if _, err := parse48("v", vHex); err != nil {
+		return err
+	}
+	if _, err := parse48("w0", w0Hex); err != nil {
+		return err
+	}
+	if _, err := parse48("w1", w1Hex); err != nil {
+		return err
+	}
+
+	vAff, err := parseG1CompressedHex(vHex)
+	if err != nil {
+		return fmt.Errorf("invalid compressed G1 v: %w", err)
+	}
+	w0Aff, err := parseG1CompressedHex(w0Hex)
+	if err != nil {
+		return fmt.Errorf("invalid compressed G1 w0: %w", err)
+	}
+	w1Aff, err := parseG1CompressedHex(w1Hex)
+	if err != nil {
+		return fmt.Errorf("invalid compressed G1 w1: %w", err)
+	}
+
+	// 2) Reduce secrets into Fr (important if caller passes huge ints)
+	var aFr, rFr fr.Element
+	aFr.SetBigInt(a)
+	rFr.SetBigInt(r)
+
+	var aRed, rRed big.Int
+	aFr.BigInt(&aRed)
+	rFr.BigInt(&rRed)
+
+	// 3) Compute hk from a (already reduced mod Fr in hkScalarFromA via fr.SetBytes)
+	hkBi, err := hkScalarFromA(a)
+	if err != nil {
+		return err
+	}
+	if hkBi.Sign() == 0 {
+		return fmt.Errorf("hk reduced to 0; refuse (W0 would be infinity)")
+	}
+
+	// (Optional) normalize hk into Fr as well (belt & suspenders)
+	var hkFr fr.Element
+	hkFr.SetBigInt(hkBi)
+	var hkRed big.Int
+	hkFr.BigInt(&hkRed)
+
+	// 4) Extract affine coords to big.Int (regular big-endian)
+	var vx, vy, w0x, w0y, w1x, w1y big.Int
+	vAff.X.ToBigIntRegular(&vx)
+	vAff.Y.ToBigIntRegular(&vy)
+	w0Aff.X.ToBigIntRegular(&w0x)
+	w0Aff.Y.ToBigIntRegular(&w0y)
+	w1Aff.X.ToBigIntRegular(&w1x)
+	w1Aff.Y.ToBigIntRegular(&w1y)
+
+	// 5) Compile circuit over BLS12-381 scalar field
+	var circuit vw0w1Circuit
+	ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		return fmt.Errorf("compile: %w", err)
+	}
+
+	// 6) Setup keys
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		return fmt.Errorf("setup: %w", err)
+	}
+
+	// 7) Create witness assignment
+	assignment := vw0w1Circuit{
+		A:  emulated.ValueOf[emparams.BLS12381Fr](&aRed),
+		R:  emulated.ValueOf[emparams.BLS12381Fr](&rRed),
+		HK: emulated.ValueOf[emparams.BLS12381Fr](&hkRed),
+
+		VX: emulated.ValueOf[emparams.BLS12381Fp](&vx),
+		VY: emulated.ValueOf[emparams.BLS12381Fp](&vy),
+
+		W0X: emulated.ValueOf[emparams.BLS12381Fp](&w0x),
+		W0Y: emulated.ValueOf[emparams.BLS12381Fp](&w0y),
+
+		W1X: emulated.ValueOf[emparams.BLS12381Fp](&w1x),
+		W1Y: emulated.ValueOf[emparams.BLS12381Fp](&w1y),
+	}
+
+	witness, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
+	if err != nil {
+		return fmt.Errorf("new witness: %w", err)
+	}
+	publicWitness, err := witness.Public()
+	if err != nil {
+		return fmt.Errorf("public witness: %w", err)
+	}
+
+	// 8) Prove + verify
+	proof, err := groth16.Prove(ccs, pk, witness)
+	if err != nil {
+		return fmt.Errorf("prove: %w", err)
+	}
+	if err := groth16.Verify(proof, vk, publicWitness); err != nil {
+		return fmt.Errorf("verify failed: %w", err)
+	}
+
+	// 9) Export artifacts
+	if err := ExportAll(vk, proof, publicWitness, outDir); err != nil {
+		return fmt.Errorf("export: %w", err)
+	}
+
+	return nil
+}
