@@ -9,7 +9,7 @@ from py_ecc.optimized_bls12_381 import (
     final_exponentiate,
 )
 from eth_typing import BLSPubkey, BLSSignature
-from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2
+from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2, G1_to_pubkey
 import re
 from py_ecc.fields import optimized_bls12_381_FQ as FQ
 from py_ecc.optimized_bls12_381 import field_modulus
@@ -138,7 +138,7 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     for i, s in enumerate(inputs):
         vk_x = add(vk_x, multiply(IC[i + 1], int(s)))
 
-    # print(G1_to_pubkey(vk_x).hex())
+    print(G1_to_pubkey(vk_x).hex())
 
     left = pairing(B, A, final_exponentiate=False)
     right = pairing(beta, alpha, final_exponentiate=False)

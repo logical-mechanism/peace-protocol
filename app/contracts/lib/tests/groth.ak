@@ -1,3 +1,7 @@
+use aiken/builtin.{
+  bls12_381_final_verify, bls12_381_g1_scalar_mul, bls12_381_g1_uncompress,
+  bls12_381_g2_compress, bls12_381_g2_uncompress, bls12_381_miller_loop,
+}
 use types/groth.{GrothProof, SnarkVerificationKey}
 
 /// This is failing. Need to investigate groth proofs more.
@@ -73,4 +77,36 @@ test valid_groth_proof() {
       3645999937606863567, 7588265706522355601, 337242724379907695,
     ]
   groth.verify_groth16(vk, pk, public_values)
+}
+
+test g2_roundtrip_beta() {
+  let beta =
+    #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90"
+  // vkBeta bytes from gnark
+  bls12_381_g2_compress(bls12_381_g2_uncompress(beta)) == beta
+}
+
+test g2_roundtrip_piB() {
+  let piB =
+    #"8bd6079422d7fb42eb0edf2be206769ea83ba8205a7f7ec7c6b07af27eac66cbe80664a2dd589bc30e95bb8cb9df389c0390772856be15677e5603a3495e7aa771795ff91f4ecc10de478843c9657a7093fca52f01f5aef1abb461a08f1322e2"
+  // proof.piB bytes from gnark
+  bls12_381_g2_compress(bls12_381_g2_uncompress(piB)) == piB
+}
+
+test ml_one_is_identity() {
+  let alpha =
+    bls12_381_g1_uncompress(
+      #"93c22fff819156d362d91460285786eb59c5e11b48f00edd8dd2d0bea081c2af48e94c87504ca55a8f9486ed6cd113f5",
+    )
+  let beta =
+    bls12_381_g2_uncompress(
+      #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90",
+    )
+
+  let g1_zero = bls12_381_g1_scalar_mul(0, alpha)
+  let one = bls12_381_miller_loop(g1_zero, beta)
+
+  // If final_verify is equality-after-final-exp, one==one should be true.
+  // If final_verify is product-to-one, one*one?? is not checked here; still true for equality.
+  bls12_381_final_verify(one, one)
 }
