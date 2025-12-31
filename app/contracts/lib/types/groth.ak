@@ -1,29 +1,30 @@
 use aiken/builtin.{
-  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_scalar_mul,
-  bls12_381_g1_uncompress, bls12_381_g2_uncompress, bls12_381_miller_loop,
+  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_compress,
+  bls12_381_g1_neg, bls12_381_g1_scalar_mul, bls12_381_g1_uncompress,
+  bls12_381_g2_uncompress, bls12_381_miller_loop,
   bls12_381_mul_miller_loop_result, head_list, null_list, tail_list,
 }
 
 pub type SnarkVerificationKey {
   nPublic: Int,
-  // G1 (compressed)
+  // G1
   vkAlpha: ByteArray,
-  // G2 (compressed)
+  // G2
   vkBeta: ByteArray,
-  // G2 (compressed)
+  // G2
   vkGamma: ByteArray,
-  // G2 (compressed)
+  // G2
   vkDelta: ByteArray,
-  // IC[0..nPublic] (each compressed G1)
+  // IC[0..nPublic]
   vkIC: List<ByteArray>,
 }
 
 pub type GrothProof {
-  // G1 (compressed)
+  // G1
   piA: ByteArray,
-  // G2 (compressed)
+  // G2
   piB: ByteArray,
-  // G1 (compressed)
+  // G1
   piC: ByteArray,
 }
 
@@ -34,7 +35,6 @@ fn len_list(xs: List<a>) -> Int {
   }
 }
 
-// Compute vk_x = IC0 + sum_{j=0..n-1} inputs[j] * IC[j+1]
 fn compute_vk_x(vkIC: List<ByteArray>, inputs: List<Int>) -> G1Element {
   expect !null_list(vkIC)
 
@@ -42,7 +42,6 @@ fn compute_vk_x(vkIC: List<ByteArray>, inputs: List<Int>) -> G1Element {
   let ic_tail = tail_list(vkIC)
 
   let acc0: G1Element = bls12_381_g1_uncompress(ic0_bytes)
-
   compute_vk_x_go(acc0, inputs, ic_tail)
 }
 
@@ -52,12 +51,7 @@ fn compute_vk_x_go(
   ic_tail: List<ByteArray>,
 ) -> G1Element {
   when inputs is {
-    [] ->
-      // At this point, ic_tail should be empty (because vkIC len == inputs len + 1)
-      // We don't *need* to enforce it here since verify_groth16 checks lengths,
-      // but keeping it tight makes debugging simpler.
-      acc
-
+    [] -> acc
     [i, ..rest_inputs] -> {
       expect !null_list(ic_tail)
 
@@ -73,44 +67,48 @@ fn compute_vk_x_go(
   }
 }
 
+// Produce a MillerLoopResult that is the identity under final exponentiation.
+// e(0_G1, Q) = 1 for any valid Q in G2.
+fn ml_one(any_g1: G1Element, any_g2: G2Element) -> MillerLoopResult {
+  let g1_zero: G1Element = bls12_381_g1_scalar_mul(0, any_g1)
+  bls12_381_miller_loop(g1_zero, any_g2)
+}
+
 pub fn verify_groth16(
   vk: SnarkVerificationKey,
   proof: GrothProof,
   inputs: List<Int>,
 ) -> Bool {
-  // These must match the exact JSON you export:
-  // - public.json Inputs length == vk.nPublic
-  // - vk.vkIC length == vk.nPublic + 1
   if vk.nPublic != len_list(inputs) {
     False
   } else if len_list(vk.vkIC) != len_list(inputs) + 1 {
     False
   } else {
-    // Uncompress proof elements
     let a: G1Element = bls12_381_g1_uncompress(proof.piA)
     let b: G2Element = bls12_381_g2_uncompress(proof.piB)
     let c: G1Element = bls12_381_g1_uncompress(proof.piC)
 
-    // Uncompress vk elements
     let alpha: G1Element = bls12_381_g1_uncompress(vk.vkAlpha)
     let beta: G2Element = bls12_381_g2_uncompress(vk.vkBeta)
     let gamma: G2Element = bls12_381_g2_uncompress(vk.vkGamma)
     let delta: G2Element = bls12_381_g2_uncompress(vk.vkDelta)
 
-    // vk_x from IC + public inputs
     let vk_x: G1Element = compute_vk_x(vk.vkIC, inputs)
+    trace bls12_381_g1_compress(vk_x)
 
-    // left = e(A, B)
-    let left = bls12_381_miller_loop(a, b)
+    // Build the "should equal 1" product:
+    // e(A,B) * e(-alpha,beta) * e(-vk_x,gamma) * e(-C,delta)
+    let p1 = bls12_381_miller_loop(a, b)
+    let p2 = bls12_381_miller_loop(bls12_381_g1_neg(alpha), beta)
+    let p3 = bls12_381_miller_loop(bls12_381_g1_neg(vk_x), gamma)
+    let p4 = bls12_381_miller_loop(bls12_381_g1_neg(c), delta)
 
-    // right = e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
-    let r1 = bls12_381_miller_loop(alpha, beta)
-    let r2 = bls12_381_miller_loop(vk_x, gamma)
-    let r3 = bls12_381_miller_loop(c, delta)
+    let p12 = bls12_381_mul_miller_loop_result(p1, p2)
+    let p123 = bls12_381_mul_miller_loop_result(p12, p3)
+    let prod = bls12_381_mul_miller_loop_result(p123, p4)
 
-    let right12 = bls12_381_mul_miller_loop_result(r1, r2)
-    let right = bls12_381_mul_miller_loop_result(right12, r3)
+    let one = ml_one(alpha, beta)
 
-    bls12_381_final_verify(left, right)
+    bls12_381_final_verify(prod, one)
   }
 }

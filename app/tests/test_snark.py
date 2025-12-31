@@ -117,5 +117,9 @@ def test_snark_prove():
     assert public_integers == expected_public_integers
 
 
+def test_snark_verify():
+    verify_snark_proof(out_path)
+
+
 if __name__ == "__main__":
     pytest.main()
