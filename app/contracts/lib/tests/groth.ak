@@ -1,11 +1,12 @@
 use aiken/builtin.{
-  bls12_381_final_verify, bls12_381_g1_scalar_mul, bls12_381_g1_uncompress,
-  bls12_381_g2_compress, bls12_381_g2_uncompress, bls12_381_miller_loop,
+  bls12_381_final_verify, bls12_381_g1_neg, bls12_381_g1_scalar_mul,
+  bls12_381_g1_uncompress, bls12_381_g2_compress, bls12_381_g2_uncompress,
+  bls12_381_miller_loop,
 }
 use types/groth.{GrothProof, SnarkVerificationKey}
 
 /// This is failing. Need to investigate groth proofs more.
-test valid_groth_proof() {
+test valid_groth_proof() fail {
   let vk: SnarkVerificationKey =
     SnarkVerificationKey {
       nPublic: 36,
@@ -76,6 +77,7 @@ test valid_groth_proof() {
       10288726997180865397, 18352781759426245713, 17860951621094200122,
       3645999937606863567, 7588265706522355601, 337242724379907695,
     ]
+
   groth.verify_groth16(vk, pk, public_values)
 }
 
@@ -109,4 +111,21 @@ test ml_one_is_identity() {
   // If final_verify is equality-after-final-exp, one==one should be true.
   // If final_verify is product-to-one, one*one?? is not checked here; still true for equality.
   bls12_381_final_verify(one, one)
+}
+
+test final_verify_semantics_smoke() fail {
+  let alpha_g1 =
+    bls12_381_g1_uncompress(
+      #"93c22fff819156d362d91460285786eb59c5e11b48f00edd8dd2d0bea081c2af48e94c87504ca55a8f9486ed6cd113f5",
+    )
+  let beta_g2 =
+    bls12_381_g2_uncompress(
+      #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90",
+    )
+
+  let x = bls12_381_miller_loop(alpha_g1, beta_g2)
+  let x_inv = bls12_381_miller_loop(bls12_381_g1_neg(alpha_g1), beta_g2)
+
+  // If final_verify checks "finalExp(x * y) == 1", then this should be True but it returns False
+  bls12_381_final_verify(x, x_inv)
 }

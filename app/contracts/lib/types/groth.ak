@@ -1,8 +1,8 @@
 use aiken/builtin.{
-  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_compress,
-  bls12_381_g1_neg, bls12_381_g1_scalar_mul, bls12_381_g1_uncompress,
-  bls12_381_g2_uncompress, bls12_381_miller_loop,
-  bls12_381_mul_miller_loop_result, head_list, null_list, tail_list,
+  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_neg,
+  bls12_381_g1_scalar_mul, bls12_381_g1_uncompress, bls12_381_g2_uncompress,
+  bls12_381_miller_loop, bls12_381_mul_miller_loop_result, head_list, null_list,
+  tail_list,
 }
 
 pub type SnarkVerificationKey {
@@ -67,13 +67,6 @@ fn compute_vk_x_go(
   }
 }
 
-// Produce a MillerLoopResult that is the identity under final exponentiation.
-// e(0_G1, Q) = 1 for any valid Q in G2.
-fn ml_one(any_g1: G1Element, any_g2: G2Element) -> MillerLoopResult {
-  let g1_zero: G1Element = bls12_381_g1_scalar_mul(0, any_g1)
-  bls12_381_miller_loop(g1_zero, any_g2)
-}
-
 pub fn verify_groth16(
   vk: SnarkVerificationKey,
   proof: GrothProof,
@@ -94,21 +87,17 @@ pub fn verify_groth16(
     let delta: G2Element = bls12_381_g2_uncompress(vk.vkDelta)
 
     let vk_x: G1Element = compute_vk_x(vk.vkIC, inputs)
-    trace bls12_381_g1_compress(vk_x)
 
-    // Build the "should equal 1" product:
-    // e(A,B) * e(-alpha,beta) * e(-vk_x,gamma) * e(-C,delta)
-    let p1 = bls12_381_miller_loop(a, b)
-    let p2 = bls12_381_miller_loop(bls12_381_g1_neg(alpha), beta)
-    let p3 = bls12_381_miller_loop(bls12_381_g1_neg(vk_x), gamma)
-    let p4 = bls12_381_miller_loop(bls12_381_g1_neg(c), delta)
+    // Groth16 check as: e(-A, B) * e(alpha, beta) * e(vk_x, gamma) * e(C, delta) == 1
+    let ml_left = bls12_381_miller_loop(bls12_381_g1_neg(a), b)
 
-    let p12 = bls12_381_mul_miller_loop_result(p1, p2)
-    let p123 = bls12_381_mul_miller_loop_result(p12, p3)
-    let prod = bls12_381_mul_miller_loop_result(p123, p4)
+    let ml_r1 = bls12_381_miller_loop(alpha, beta)
+    let ml_r2 = bls12_381_miller_loop(vk_x, gamma)
+    let ml_r3 = bls12_381_miller_loop(c, delta)
 
-    let one = ml_one(alpha, beta)
+    let ml_right12 = bls12_381_mul_miller_loop_result(ml_r1, ml_r2)
+    let ml_right = bls12_381_mul_miller_loop_result(ml_right12, ml_r3)
 
-    bls12_381_final_verify(prod, one)
+    bls12_381_final_verify(ml_left, ml_right)
   }
 }
