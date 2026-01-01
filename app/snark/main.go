@@ -1,5 +1,5 @@
 // main.go
-
+//
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
@@ -74,20 +74,52 @@ func main() {
 		fmt.Println(out)
 
 	case "prove":
+		// New proof statement:
+		// secrets: a, r
+		// publics: v, w0, w1 (all compressed G1 hex)
+		//
+		// k = e([a]q, h0)
+		// hk = H(k)              (computed out-of-circuit with hkScalarFromA)
+		// p0 = [hk]q             check w0 == p0
+		// p1 = [a]q + [r]v       check w1 == p1
 		proveCmd := flag.NewFlagSet("prove", flag.ExitOnError)
 		var aStr string
-		var w string
+		var rStr string
+		var v string
+		var w0 string
+		var w1 string
+		var outDir string
+
 		proveCmd.StringVar(&aStr, "a", "", "secret integer a (decimal by default; or 0x... hex)")
-		proveCmd.StringVar(&w, "w", "", "public G1 point W (compressed hex, 96 chars)")
+		proveCmd.StringVar(&rStr, "r", "", "secret integer r (decimal by default; or 0x... hex; can be 0)")
+		proveCmd.StringVar(&v, "v", "", "public G1 point V (compressed hex, 96 chars)")
+		proveCmd.StringVar(&w0, "w0", "", "public G1 point W0 (compressed hex, 96 chars)")
+		proveCmd.StringVar(&w1, "w1", "", "public G1 point W1 (compressed hex, 96 chars)")
+		proveCmd.StringVar(&outDir, "out", "out", "output directory for vk.json / proof.json / public.json")
 		_ = proveCmd.Parse(os.Args[2:])
 
-		if aStr == "" || w == "" {
-			if aStr == "" {
-				fmt.Fprintln(os.Stderr, "error: -a is required")
-			}
-			if w == "" {
-				fmt.Fprintln(os.Stderr, "error: -w is required")
-			}
+		missing := false
+		if aStr == "" {
+			fmt.Fprintln(os.Stderr, "error: -a is required")
+			missing = true
+		}
+		if rStr == "" {
+			fmt.Fprintln(os.Stderr, "error: -r is required")
+			missing = true
+		}
+		if v == "" {
+			fmt.Fprintln(os.Stderr, "error: -v is required")
+			missing = true
+		}
+		if w0 == "" {
+			fmt.Fprintln(os.Stderr, "error: -w0 is required")
+			missing = true
+		}
+		if w1 == "" {
+			fmt.Fprintln(os.Stderr, "error: -w1 is required")
+			missing = true
+		}
+		if missing {
 			proveCmd.Usage()
 			os.Exit(2)
 		}
@@ -98,12 +130,19 @@ func main() {
 			os.Exit(2)
 		}
 
-		if err := ProveAndVerifyW(a, w); err != nil {
-			fmt.Println("FAIL:", err)
+		r := new(big.Int)
+		if _, ok := r.SetString(rStr, 0); !ok {
+			fmt.Fprintln(os.Stderr, "error: could not parse -r (must be an integer; decimal or 0x.. hex)")
+			os.Exit(2)
+		}
+
+		// This function is implemented in kappa.go (listed below).
+		if err := ProveAndVerifyVW0W1(a, r, v, w0, w1, outDir); err != nil {
+			fmt.Fprintln(os.Stderr, "FAIL:", err)
 			os.Exit(1)
 		}
 
-		fmt.Println("SUCCESS: proof verified (W == [hk]q)")
+		fmt.Println("SUCCESS: proof verified (w0 == [hk]q AND w1 == [a]q + [r]v)")
 
 	default:
 		os.Exit(2)
