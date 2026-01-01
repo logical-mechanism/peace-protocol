@@ -53,6 +53,8 @@ The contracts can be set up after the `config.json` is filled out correctly.
 
 The happy path is ready after the contracts are set up. The happy path requires access to a fully synced Cardano node. All happy path interactions are in the commands folder.
 
+## Happy Path Usage
+
 The script references must be created upon first use of the happy path with `00_createScriptReferences.sh`. This will use the holder wallet to recursively store the contracts on-chain. These transactions must be on-chain before the reference token is minted. The reference token must be minted during the first happy-path run with `01_createGenesisTx.sh`. This action only happens once, similar to the script reference creation. This will mint the reference token into the reference contract. Since this is a proof-of-concept, the reference contract is not intended as permanent storage for the token. It's just a simple, always true. If the reference datum needs updating, use `02a_updateReferenceTx.sh`. If the reference datum needs to be removed, then use `02b_removeReferenceTx.sh`, removing the reference token from the reference contract will break the happy path, and the happy path setup will need to be restarted.
 
 Alice may create or remove the encryption UTxO using `03_createEncryptionTx.sh` and `04_removeEncryptionTx.sh`, respectively. Bob may create or remove the bid UTxO using `05_createBidTx.sh` and `06_removeBidTx.sh`, respectively. After both UTxOs are created, Alice may use `07_createReEncryptionTx.sh` to re-encrypt the data for Bob, who can then decrypt it using `08_decryptMessage.sh`.
