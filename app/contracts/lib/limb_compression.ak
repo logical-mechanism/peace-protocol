@@ -1,9 +1,8 @@
 use aiken/collection/list
 use aiken/primitive/bytearray
 
-const pow2_26: Int = 18446744073709551616
-
 // 2^64
+const pow2_26: Int = 18446744073709551616
 
 // BLS12-381 base field modulus p (Fp), 48 bytes
 const bls12_381_fp_modulus: ByteArray =
