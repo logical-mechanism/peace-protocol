@@ -74,7 +74,7 @@ source .env
 ###############################################################################
 # Build contracts
 ###############################################################################
-echo -e "\033[1;36m\nContract Building\n\033[0m"
+echo -e "\033[1;36m\nBegin Contract Building\n\033[0m"
 
 cd contracts
 
@@ -104,4 +104,4 @@ echo -e "\033[1;33mReference Datum Hash: ${reference_hash} \033[0m"
 
 ###############################################################################
 
-echo -e "\033[1;32m\nBuilding Complete! \033[0m"
+echo -e "\033[1;36m\nBuilding Complete! \033[0m"
