@@ -1,5 +1,5 @@
 {
-  "genesis_tx_id": "8333c28724f4ec353f022f2a3f71d4e2b4c84ba0f940a35d1b2265dfc6f3107d",
+  "genesis_tx_id": "20c45870e99f19fdd1be73c956aff84338bcd793cda3d182e57d522d388a03d7",
   "genesis_tx_idx": 0,
   "genesis_change_address": "addr_test1qrwejm9pza929cedhwkcsprtgs8l2carehs8z6jkse2qp344c43tmm0md55r4ufmxknr24kq6jkvt6spq60edeuhtf4sn2scds",
   "staking_credential": "86c769419aaa673c963da04e4b5bae448d490e2ceac902cb82e4da76",
