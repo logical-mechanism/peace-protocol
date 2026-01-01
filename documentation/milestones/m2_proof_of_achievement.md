@@ -70,4 +70,4 @@ H. Output: Timestamped publication evidence (immutable).
 Acceptance criteria: Evidence is tied to a specific public commit/tag/release so reviewers can verify exactly what was delivered at milestone submission time.
 
 Evidence:
-- Milestone 2 PR: <PR_LINK>
+- Milestone 2 PR: https://github.com/logical-mechanism/peace-protocol/pull/7
