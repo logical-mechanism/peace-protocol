@@ -35,15 +35,16 @@ This SNARK combined with the binding proofs should be enough to make it CCA secu
 
 (Getting Started)[https://docs.gnark.consensys.net/HowTo/get_started]
 
-## Running
+## Building
 
 ```bash
 go mod tidy
-```
-
-```bash
 go build -o snark
 ```
+
+## Testing
+
+
 
 **Copyright (C) 2025 Logical Mechanism LLC**
 

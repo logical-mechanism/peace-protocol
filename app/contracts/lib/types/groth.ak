@@ -1,46 +1,32 @@
 use aiken/builtin.{
-  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_compress,
+  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_neg,
   bls12_381_g1_scalar_mul, bls12_381_g1_uncompress, bls12_381_g2_uncompress,
   bls12_381_miller_loop, bls12_381_mul_miller_loop_result, head_list, null_list,
   tail_list,
 }
-use aiken/crypto
-use aiken/primitive/bytearray
-
-pub fn public_inputs_from_w(w: ByteArray) -> List<Int> {
-  let d = crypto.sha2_256(w)
-
-  let left = bytearray.take(d, n: 16)
-  let right = bytearray.drop(d, n: 16)
-
-  let i0 = bytearray.to_int_big_endian(left)
-  let i1 = bytearray.to_int_big_endian(right)
-
-  [i0, i1]
-}
 
 pub type SnarkVerificationKey {
   nPublic: Int,
-  // G1
   vkAlpha: ByteArray,
-  // G2
+  // G1
   vkBeta: ByteArray,
   // G2
   vkGamma: ByteArray,
   // G2
   vkDelta: ByteArray,
-  // IC[0..nPublic]
+  // G2
   vkIC: List<ByteArray>,
 }
 
 pub type GrothProof {
-  // G1
   piA: ByteArray,
-  // G2
-  piB: ByteArray,
   // G1
+  piB: ByteArray,
+  // G2
   piC: ByteArray,
 }
+
+// G1
 
 fn len_list(xs: List<a>) -> Int {
   when xs is {
@@ -50,14 +36,12 @@ fn len_list(xs: List<a>) -> Int {
 }
 
 fn compute_vk_x(vkIC: List<ByteArray>, inputs: List<Int>) -> G1Element {
-  // enforce non-empty IC
   expect !null_list(vkIC)
 
   let ic0_bytes = head_list(vkIC)
   let ic_tail = tail_list(vkIC)
 
   let acc0: G1Element = bls12_381_g1_uncompress(ic0_bytes)
-
   compute_vk_x_go(acc0, inputs, ic_tail)
 }
 
@@ -68,9 +52,7 @@ fn compute_vk_x_go(
 ) -> G1Element {
   when inputs is {
     [] -> acc
-
     [i, ..rest_inputs] -> {
-      // “expect …” must be tied to an expression result.
       expect !null_list(ic_tail)
 
       let ic_i_bytes = head_list(ic_tail)
@@ -84,6 +66,15 @@ fn compute_vk_x_go(
     }
   }
 }
+
+// Compressed infinity for BLS12-381 G1 in the standard “compressed” format is 48 bytes:
+// 0xC0 followed by 47 zero bytes.
+pub const g1_inf: ByteArray =
+  #"c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+// Standard compressed generator for BLS12-381 G2 (96 bytes). This is the one you already used in tests.
+pub const g2_gen: ByteArray =
+  #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90"
 
 pub fn verify_groth16(
   vk: SnarkVerificationKey,
@@ -106,19 +97,21 @@ pub fn verify_groth16(
 
     let vk_x: G1Element = compute_vk_x(vk.vkIC, inputs)
 
-    trace bls12_381_g1_compress(vk_x)
+    // prod = e(A,B) * e(-alpha,beta) * e(-vk_x,gamma) * e(-C,delta)
+    let p1 = bls12_381_miller_loop(a, b)
+    let p2 = bls12_381_miller_loop(bls12_381_g1_neg(alpha), beta)
+    let p3 = bls12_381_miller_loop(bls12_381_g1_neg(vk_x), gamma)
+    let p4 = bls12_381_miller_loop(bls12_381_g1_neg(c), delta)
 
-    // left = e(A, B)
-    let left = bls12_381_miller_loop(a, b)
+    let p12 = bls12_381_mul_miller_loop_result(p1, p2)
+    let p123 = bls12_381_mul_miller_loop_result(p12, p3)
+    let prod = bls12_381_mul_miller_loop_result(p123, p4)
 
-    // right = e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
-    let r1 = bls12_381_miller_loop(alpha, beta)
-    let r2 = bls12_381_miller_loop(vk_x, gamma)
-    let r3 = bls12_381_miller_loop(c, delta)
+    // one = e(infinity, g2_gen)
+    let inf_g1 = bls12_381_g1_uncompress(g1_inf)
+    let gen_g2 = bls12_381_g2_uncompress(g2_gen)
+    let one = bls12_381_miller_loop(inf_g1, gen_g2)
 
-    let right12 = bls12_381_mul_miller_loop_result(r1, r2)
-    let right = bls12_381_mul_miller_loop_result(right12, r3)
-
-    bls12_381_final_verify(left, right)?
+    bls12_381_final_verify(prod, one)
   }
 }

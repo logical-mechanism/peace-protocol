@@ -75,6 +75,7 @@ def create_encryption_tx(
     # these are secrets
     a0 = rng()
     r0 = rng()
+    # use gnark encoding for gt
     m0 = gt_to_hash(a0, snark_path)
 
     key = extract_key(alice_wallet_path)
