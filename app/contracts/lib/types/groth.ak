@@ -7,26 +7,26 @@ use aiken/builtin.{
 
 pub type SnarkVerificationKey {
   nPublic: Int,
-  // G1
   vkAlpha: ByteArray,
-  // G2
+  // G1
   vkBeta: ByteArray,
   // G2
   vkGamma: ByteArray,
   // G2
   vkDelta: ByteArray,
-  // IC[0..nPublic]
+  // G2
   vkIC: List<ByteArray>,
 }
 
 pub type GrothProof {
-  // G1
   piA: ByteArray,
-  // G2
-  piB: ByteArray,
   // G1
+  piB: ByteArray,
+  // G2
   piC: ByteArray,
 }
+
+// G1
 
 fn len_list(xs: List<a>) -> Int {
   when xs is {
@@ -67,6 +67,15 @@ fn compute_vk_x_go(
   }
 }
 
+// Compressed infinity for BLS12-381 G1 in the standard “compressed” format is 48 bytes:
+// 0xC0 followed by 47 zero bytes.
+pub const g1_inf: ByteArray =
+  #"c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+// Standard compressed generator for BLS12-381 G2 (96 bytes). This is the one you already used in tests.
+pub const g2_gen: ByteArray =
+  #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90"
+
 pub fn verify_groth16(
   vk: SnarkVerificationKey,
   proof: GrothProof,
@@ -88,16 +97,21 @@ pub fn verify_groth16(
 
     let vk_x: G1Element = compute_vk_x(vk.vkIC, inputs)
 
-    // Groth16 check as: e(-A, B) * e(alpha, beta) * e(vk_x, gamma) * e(C, delta) == 1
-    let ml_left = bls12_381_miller_loop(bls12_381_g1_neg(a), b)
+    // prod = e(A,B) * e(-alpha,beta) * e(-vk_x,gamma) * e(-C,delta)
+    let p1 = bls12_381_miller_loop(a, b)
+    let p2 = bls12_381_miller_loop(bls12_381_g1_neg(alpha), beta)
+    let p3 = bls12_381_miller_loop(bls12_381_g1_neg(vk_x), gamma)
+    let p4 = bls12_381_miller_loop(bls12_381_g1_neg(c), delta)
 
-    let ml_r1 = bls12_381_miller_loop(alpha, beta)
-    let ml_r2 = bls12_381_miller_loop(vk_x, gamma)
-    let ml_r3 = bls12_381_miller_loop(c, delta)
+    let p12 = bls12_381_mul_miller_loop_result(p1, p2)
+    let p123 = bls12_381_mul_miller_loop_result(p12, p3)
+    let prod = bls12_381_mul_miller_loop_result(p123, p4)
 
-    let ml_right12 = bls12_381_mul_miller_loop_result(ml_r1, ml_r2)
-    let ml_right = bls12_381_mul_miller_loop_result(ml_right12, ml_r3)
+    // one = e(infinity, g2_gen)
+    let inf_g1 = bls12_381_g1_uncompress(g1_inf)
+    let gen_g2 = bls12_381_g2_uncompress(g2_gen)
+    let one = bls12_381_miller_loop(inf_g1, gen_g2)
 
-    bls12_381_final_verify(ml_left, ml_right)
+    bls12_381_final_verify(prod, one)
   }
 }

@@ -1,12 +1,13 @@
 use aiken/builtin.{
-  bls12_381_final_verify, bls12_381_g1_neg, bls12_381_g1_scalar_mul,
-  bls12_381_g1_uncompress, bls12_381_g2_compress, bls12_381_g2_uncompress,
-  bls12_381_miller_loop,
+  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_neg,
+  bls12_381_g1_scalar_mul, bls12_381_g1_uncompress, bls12_381_g2_compress,
+  bls12_381_g2_uncompress, bls12_381_miller_loop,
+  bls12_381_mul_miller_loop_result,
 }
 use types/groth.{GrothProof, SnarkVerificationKey}
 
 /// This is failing. Need to investigate groth proofs more.
-test valid_groth_proof() fail {
+test valid_groth_proof() {
   let vk: SnarkVerificationKey =
     SnarkVerificationKey {
       nPublic: 36,
@@ -116,11 +117,11 @@ test ml_one_is_identity() {
 test final_verify_semantics_smoke() fail {
   let alpha_g1 =
     bls12_381_g1_uncompress(
-      #"93c22fff819156d362d91460285786eb59c5e11b48f00edd8dd2d0bea081c2af48e94c87504ca55a8f9486ed6cd113f5",
+      #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
     )
   let beta_g2 =
     bls12_381_g2_uncompress(
-      #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90",
+      #"93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
     )
 
   let x = bls12_381_miller_loop(alpha_g1, beta_g2)
@@ -128,4 +129,44 @@ test final_verify_semantics_smoke() fail {
 
   // If final_verify checks "finalExp(x * y) == 1", then this should be True but it returns False
   bls12_381_final_verify(x, x_inv)
+}
+
+test final_verify_reflexive() {
+  let a =
+    bls12_381_g1_uncompress(
+      #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
+    )
+  let b =
+    bls12_381_g2_uncompress(
+      #"93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
+    )
+
+  let ml = bls12_381_miller_loop(a, b)
+
+  // MUST be True if final_verify behaves correctly for MlResult equality
+  bls12_381_final_verify(ml, ml)
+}
+
+test ml_mul_matches_g1_add() {
+  // use the same canonical generators you used above
+  let p =
+    bls12_381_g1_uncompress(
+      #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
+    )
+  let q =
+    bls12_381_g2_uncompress(
+      #"93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
+    )
+
+  // x = e(p, q)
+  let x = bls12_381_miller_loop(p, q)
+
+  // x2_by_mul = e(p,q) * e(p,q) = e(p,q)^2
+  let x2_by_mul = bls12_381_mul_miller_loop_result(x, x)
+
+  // x2_by_add = e(p+p, q) = e(2p, q)
+  let p2 = bls12_381_g1_add(p, p)
+  let x2_by_add = bls12_381_miller_loop(p2, q)
+
+  bls12_381_final_verify(x2_by_mul, x2_by_add)
 }
