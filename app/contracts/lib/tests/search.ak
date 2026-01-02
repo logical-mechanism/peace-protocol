@@ -1,145 +1,215 @@
-// tests/search_token_find_test.ak
-//
-// Shared helpers/constants for token-search tests.
-// Add more tests for other search helpers into this file over time.
-
-use cardano/address.{Address, VerificationKey}
-use cardano/assets.{AssetName, PolicyId, add, from_lovelace}
-use cardano/transaction.{Input, NoDatum, Output, OutputReference}
+use aiken/builtin
+use cardano/address.{Address}
+use cardano/assets.{AssetName, PolicyId, Value}
+use cardano/transaction.{
+  Datum, InlineDatum, Input, Mint, NoDatum, Output, OutputReference, Redeemer,
+  ScriptPurpose, Spend,
+}
 use search
+use types/reference.{ReferenceDatum}
 
-fn mk_output(value) -> Output {
-  Output {
-    address: Address {
-      payment_credential: VerificationKey(#"01"),
-      stake_credential: None,
-    },
-    value,
-    datum: NoDatum,
-    reference_script: None,
-  }
+/// ------------------------------------------------------------
+/// Shared helpers (keep in this test file for reuse)
+/// ------------------------------------------------------------
+const genesis_pid: PolicyId =
+  #"01010101010101010101010101010101010101010101010101010101"
+
+const genesis_tkn: AssetName = #"67656e65736973"
+
+// "genesis"
+
+const other_tkn: AssetName = #"6f74686572"
+
+// "other"
+
+const tx_id: ByteArray =
+  #"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+fn mk_addr() -> Address {
+  // address.from_script expects Hash<Blake2b_224, Script>
+  address.from_script(genesis_pid)
 }
 
-fn mk_input(output: Output) -> Input {
-  // If your Aiken/Cardano stdlib version requires different fields for Input,
-  // tweak this constructor to match your project's Input type.
+fn mk_value_with_genesis_nft() -> Value {
+  assets.from_lovelace(2)
+    |> assets.add(genesis_pid, genesis_tkn, 1)
+}
+
+fn mk_output(value: Value, datum: Datum) -> Output {
+  Output { address: mk_addr(), value, datum, reference_script: None }
+}
+
+fn mk_input(output_index: Int, output: Output) -> Input {
   Input {
+    output_reference: OutputReference { transaction_id: tx_id, output_index },
     output,
-    // Common field name in Aiken is `out_ref` (or similar). If your type differs,
-    // update it here and all tests below remain unchanged.
-    output_reference: OutputReference { transaction_id: #"00", output_index: 0 },
   }
 }
 
-const pid: PolicyId =
-  #"000102030405060708090a0b0c0d0e0f101112131415161718191a1b"
-
-const pid2: PolicyId =
-  #"1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637"
-
-const tkn: AssetName = "nft"
-
-const junk: AssetName = "junk"
-
-// -------------------------------
-// for_output_by_token
-// -------------------------------
-
-test for_output_by_token__empty_list_is_none() {
-  expect None = search.for_output_by_token([], pid, tkn)
-  True
+fn mk_output_reference(output_index: Int) -> OutputReference {
+  OutputReference { transaction_id: tx_id, output_index }
 }
 
-test for_output_by_token__no_match_is_none() {
-  // wrong policy id
-  let v0 = from_lovelace(2_000_000) |> add(pid2, tkn, 1)
-
-  // right policy/name, but wrong (non-strict) amount
-  let v1 = from_lovelace(2_000_000) |> add(pid, tkn, 2)
-
-  // right policy/name/amount, but extra token makes it non-strict
-  let v2 =
-    from_lovelace(2_000_000)
-      |> add(pid, tkn, 1)
-      |> add(pid2, junk, 1)
-
-  let outputs = [mk_output(v0), mk_output(v1), mk_output(v2)]
-
-  expect None = search.for_output_by_token(outputs, pid, tkn)
-  True
+/// ------------------------------------------------------------
+/// Tests: for_output_by_token
+/// ------------------------------------------------------------
+test for_output_by_token__empty_list_returns_none() {
+  expect None = search.for_output_by_token([], genesis_pid, genesis_tkn)
 }
 
-test for_output_by_token__finds_first_strict_match() {
-  // looks close, but has an extra token -> not strict
-  let v0 =
-    from_lovelace(2_000_000)
-      |> add(pid, tkn, 1)
-      |> add(pid2, junk, 1)
+test for_output_by_token__finds_first_match_in_order() {
+  let o0 = mk_output(assets.from_lovelace(2), NoDatum)
 
-  // first strict match
-  let v1 = from_lovelace(2_000_000) |> add(pid, tkn, 1)
+  let o1 = mk_output(mk_value_with_genesis_nft(), InlineDatum(1))
 
-  // also a strict match, but later in the list (should NOT be returned)
-  let v2 = from_lovelace(4_000_000) |> add(pid, tkn, 1)
+  let o2 = mk_output(mk_value_with_genesis_nft(), InlineDatum(2))
 
-  let out0 = mk_output(v0)
-  let out1 = mk_output(v1)
-  let out2 = mk_output(v2)
+  let result =
+    search.for_output_by_token([o0, o1, o2], genesis_pid, genesis_tkn)
 
-  let outputs = [out0, out1, out2]
-
-  expect Some(_out1) = search.for_output_by_token(outputs, pid, tkn)
-  True
+  expect Some(Output { datum, .. }) = result
+  datum == InlineDatum(1)
 }
 
-// -------------------------------
-// for_input_by_token
-// -------------------------------
+test for_output_by_token__strict_rejects_extra_tokens() {
+  let value_bad =
+    mk_value_with_genesis_nft()
+      |> assets.add(genesis_pid, other_tkn, 1)
 
-test for_input_by_token__empty_list_is_none() {
-  expect None = search.for_input_by_token([], pid, tkn)
-  True
+  let o = mk_output(value_bad, NoDatum)
+
+  expect None = search.for_output_by_token([o], genesis_pid, genesis_tkn)
 }
 
-test for_input_by_token__no_match_is_none() {
-  // wrong policy id
-  let v0 = from_lovelace(2_000_000) |> add(pid2, tkn, 1)
-
-  // right policy/name, but wrong (non-strict) amount
-  let v1 = from_lovelace(2_000_000) |> add(pid, tkn, 2)
-
-  // right policy/name/amount, but extra token makes it non-strict
-  let v2 =
-    from_lovelace(2_000_000)
-      |> add(pid, tkn, 1)
-      |> add(pid2, junk, 1)
-
-  let inputs =
-    [mk_input(mk_output(v0)), mk_input(mk_output(v1)), mk_input(mk_output(v2))]
-
-  expect None = search.for_input_by_token(inputs, pid, tkn)
-  True
+/// ------------------------------------------------------------
+/// Tests: for_input_by_token
+/// ------------------------------------------------------------
+test for_input_by_token__empty_list_returns_none() {
+  expect None = search.for_input_by_token([], genesis_pid, genesis_tkn)
 }
 
-test for_input_by_token__finds_first_strict_match() {
-  // looks close, but has an extra token -> not strict
-  let v0 =
-    from_lovelace(2_000_000)
-      |> add(pid, tkn, 1)
-      |> add(pid2, junk, 1)
+test for_input_by_token__finds_first_match_in_order() {
+  let i0 = mk_input(0, mk_output(assets.from_lovelace(2), NoDatum))
 
-  // first strict match
-  let v1 = from_lovelace(2_000_000) |> add(pid, tkn, 1)
+  let i1 = mk_input(1, mk_output(mk_value_with_genesis_nft(), InlineDatum(42)))
 
-  // also a strict match, but later in the list
-  let v2 = from_lovelace(4_000_000) |> add(pid, tkn, 1)
+  let i2 = mk_input(2, mk_output(mk_value_with_genesis_nft(), InlineDatum(99)))
 
-  let in0 = mk_input(mk_output(v0))
-  let in1 = mk_input(mk_output(v1))
-  let in2 = mk_input(mk_output(v2))
+  let result = search.for_input_by_token([i0, i1, i2], genesis_pid, genesis_tkn)
 
-  let inputs = [in0, in1, in2]
+  expect Some(Input {
+    output_reference: OutputReference { output_index, .. },
+    ..
+  }) = result
+  output_index == 1
+}
 
-  expect Some(_in1) = search.for_input_by_token(inputs, pid, tkn)
-  True
+test for_input_by_token__strict_rejects_extra_tokens() {
+  let value_bad =
+    mk_value_with_genesis_nft()
+      |> assets.add(genesis_pid, other_tkn, 1)
+
+  let i = mk_input(0, mk_output(value_bad, NoDatum))
+
+  expect None = search.for_input_by_token([i], genesis_pid, genesis_tkn)
+}
+
+/// ------------------------------------------------------------
+/// Tests: for_reference_datum
+/// ------------------------------------------------------------
+test for_reference_datum__returns_reference_datum_on_happy_path() {
+  let expected: ReferenceDatum =
+    ReferenceDatum {
+      reference: #"11111111111111111111111111111111111111111111111111111111",
+      encryption: #"22222222222222222222222222222222222222222222222222222222",
+      bid: #"33333333333333333333333333333333333333333333333333333333",
+    }
+
+  let datum_data: Data = expected
+
+  let ref_input =
+    mk_input(0, mk_output(mk_value_with_genesis_nft(), InlineDatum(datum_data)))
+
+  let got = search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
+
+  got == expected
+}
+
+test for_reference_datum__fails_when_token_missing() fail {
+  let ref_input = mk_input(0, mk_output(assets.from_lovelace(2), NoDatum))
+
+  expect _got =
+    search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
+}
+
+test for_reference_datum__fails_when_datum_not_inline() fail {
+  let ref_input = mk_input(0, mk_output(mk_value_with_genesis_nft(), NoDatum))
+
+  expect _got =
+    search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
+}
+
+test for_reference_datum__fails_when_inline_datum_wrong_shape() fail {
+  let ref_input =
+    mk_input(0, mk_output(mk_value_with_genesis_nft(), InlineDatum(42)))
+
+  expect _got =
+    search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
+}
+
+/// ------------------------------------------------------------
+/// Tests: for_spend_redeemer_by_output_reference
+/// ------------------------------------------------------------
+test for_spend_redeemer_by_output_reference__empty_returns_none() {
+  expect None =
+    search.for_spend_redeemer_by_output_reference([], mk_output_reference(0))
+}
+
+test for_spend_redeemer_by_output_reference__no_match_returns_none() {
+  let redeemers: Pairs<ScriptPurpose, Redeemer> =
+    [
+      Pair(Mint(genesis_pid), builtin.i_data(0)),
+      // different purpose
+      Pair(Spend(mk_output_reference(1)), builtin.i_data(1)),
+    ]
+
+  // spend, but different output ref
+  expect None =
+    search.for_spend_redeemer_by_output_reference(
+      redeemers,
+      mk_output_reference(0),
+    )
+}
+
+test for_spend_redeemer_by_output_reference__returns_some_on_match() {
+  let redeemers: Pairs<ScriptPurpose, Redeemer> =
+    [
+      Pair(Mint(genesis_pid), builtin.i_data(0)),
+      Pair(Spend(mk_output_reference(0)), builtin.i_data(42)),
+      Pair(Spend(mk_output_reference(1)), builtin.i_data(99)),
+    ]
+
+  expect Some(d) =
+    search.for_spend_redeemer_by_output_reference(
+      redeemers,
+      mk_output_reference(0),
+    )
+  d == builtin.i_data(42)
+}
+
+test for_spend_redeemer_by_output_reference__returns_first_when_duplicates_exist() {
+  let redeemers: Pairs<ScriptPurpose, Redeemer> =
+    [
+      Pair(Spend(mk_output_reference(0)), builtin.i_data(1)),
+      Pair(Spend(mk_output_reference(0)), builtin.i_data(2)),
+      Pair(Spend(mk_output_reference(0)), builtin.i_data(3)),
+    ]
+
+  // should return the *first* match
+  expect Some(d) =
+    search.for_spend_redeemer_by_output_reference(
+      redeemers,
+      mk_output_reference(0),
+    )
+  d == builtin.i_data(1)
 }
