@@ -125,6 +125,25 @@ test is_valid_r5_term() {
   level.verify_r5(user, r5 |> g2.compress, w0 |> g1.compress)
 }
 
+test bob_cant_fake_r5() fail {
+  let x: State<Scalar> = scalar.from_int(44203)
+  let y: State<Scalar> = scalar.from_int(12345)
+  let user: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.scale(y) |> g1.compress,
+    }
+
+  let hk: State<Scalar> = level.hash_to_scalar(#"acab")
+  let w0: G1Element = g1.generator |> g1.scale(hk)
+  let r5: G2Element =
+    g2.add(
+      g2.generator |> g2.scale(hk),
+      level.wang_h0 |> builtin.bls12_381_g2_neg |> g2.scale(x),
+    )
+  level.verify_r5(user, r5 |> g2.compress, w0 |> g1.compress)
+}
+
 test display_wang_params() {
   trace level.wang_h0
   trace level.wang_h1
