@@ -3,9 +3,9 @@
 ////
 
 pub type Register {
-  // the generator, #<Bls12_381, G1> or #<Bls12_381, G2> 
+  // the generator
   generator: ByteArray,
-  // the public value, #<Bls12_381, G1> or #<Bls12_381, G2> 
+  // the public value
   public_value: ByteArray,
 }
 
@@ -15,6 +15,12 @@ const g1_generator: ByteArray =
 const g1_zero: ByteArray =
   #"c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 
+/// Check if a register is valid by making sure the generator is the default
+/// g1 generator and that the public value is not the identity element.
+///
+/// ```aiken
+/// register.is_register_valid(datum)
+/// ```
 pub fn is_register_valid(self: Register) -> Bool {
   and {
     self.generator == g1_generator,

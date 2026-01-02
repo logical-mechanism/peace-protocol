@@ -1,5 +1,8 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
+
+# src/commands.py
+
 from src.constants import KEY_DOMAIN_TAG, H0, H1, H2, H3, H2I_DOMAIN_TAG
 from src.files import extract_key
 from src.bls12381 import (

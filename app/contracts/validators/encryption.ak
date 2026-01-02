@@ -69,7 +69,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           )?,
         }
       }
-      // 
       // single token burn here
       LeaveEncryptionBurn(tkn) ->
         (( mint |> assets.flatten ) == [(policy_id, tkn, -1)])?
