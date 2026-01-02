@@ -37,8 +37,7 @@ Alice and Bob must hold at least 50 ADA to interact with the protocol. The Colla
   "genesis_change_address": "CHANGE_ADDRESS_HERE",
   "staking_credential": "STAKING_CREDENTIAL_HERE",
   'path_to_cardano_cli': '/path/to/cardano-cli' (location of Cardano CLI tool to interact with the blockchain),
-
-'path_to_node_socket': '/path/to/node.socket' (file used by Cardano node for communication)
+  'path_to_node_socket': '/path/to/node.socket' (file used by Cardano node for communication)
 }
 ```
 
