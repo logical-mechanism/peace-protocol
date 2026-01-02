@@ -68,4 +68,4 @@ G. Output: Timestamped publication evidence (immutable reference to exactly what
 Acceptance criteria: Evidence is tied to a specific public commit/tag/release so reviewers can verify the exact state at submission time.
 
 Evidence:
-- Milestone 3 PR: <PR_LINK>
+- Milestone 3 PR: https://github.com/logical-mechanism/peace-protocol/pull/8
