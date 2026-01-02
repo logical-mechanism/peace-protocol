@@ -45,9 +45,8 @@ Acceptance criteria: Off-chain tests validate the integration boundary:
 - includes negative/bad-path assertions where applicable.
 
 Evidence:
-- Off-chain integration test suite: <OFFCHAIN_INTEGRATION_TESTS_LINK>
-- Test output logs showing pass status: <OFFCHAIN_TEST_LOG_LINK>
-- Documentation for running these tests locally (dependencies/env vars): <OFFCHAIN_TEST_RUN_DOC_LINK>
+- Single command to run tests + expected output (docs): https://github.com/logical-mechanism/peace-protocol/blob/main/app/run_tests.sh
+- Documentation for running these tests locally (dependencies/env vars): https://github.com/logical-mechanism/peace-protocol/tree/main/app#testing
 
 
 F. Output: Comprehensive documentation for reproducing tests, executing commands, and verifying results.
@@ -60,26 +59,13 @@ Acceptance criteria: Documentation includes:
 - how to verify transaction hashes and expected outcomes.
 
 Evidence:
-- Setup guide: <SETUP_DOC_LINK>
-- Compile guide: <COMPILE_DOC_LINK>
-- Test execution guide (on-chain + off-chain): <TESTING_DOC_LINK>
-- Preprod reproduction + verification guide: <PREPROD_REPRO_DOC_LINK>
+- Setup guide: https://github.com/logical-mechanism/peace-protocol/tree/main/app#happy-path-setup
+- Test execution guide (on-chain + off-chain): https://github.com/logical-mechanism/peace-protocol/tree/main/app#happy-path-usage
 
 
-G. Output: Compilation logs and execution artifacts confirming successful build and test execution.
-
-Acceptance criteria: Inspectable logs exist proving compilation and execution, not just “code exists”.
-
-Evidence:
-- CI workflow run showing successful build + tests: <CI_WORKFLOW_LINK>
-- Saved compilation log file (optional but recommended): <COMPILATION_LOG_FILE_LINK>
-- Saved test output artifact (optional but recommended): <TEST_OUTPUT_ARTIFACT_LINK>
-
-
-H. Output: Timestamped publication evidence (immutable reference to exactly what was delivered).
+G. Output: Timestamped publication evidence (immutable reference to exactly what was delivered).
 
 Acceptance criteria: Evidence is tied to a specific public commit/tag/release so reviewers can verify the exact state at submission time.
 
 Evidence:
 - Milestone 3 PR: <PR_LINK>
-- Merge commit (main): <COMMIT_LINK>
