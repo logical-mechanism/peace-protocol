@@ -53,7 +53,7 @@ Start the happy path after contracts are set up. Access a fully synced Cardano n
 
 ## Happy Path Usage
 
-All of the happy path commands are located in [commands](/commands).
+All of the happy path commands are located in [commands](https://github.com/logical-mechanism/peace-protocol/blob/main/app/commands/README.md).
 
 The script references must be created upon first use of the happy path with `00_createScriptReferences.sh`. This will use the Holder wallet to recursively store the contracts on-chain. These transactions must be on-chain before the reference token is minted. The reference token must be minted during the first happy-path run with `01_createGenesisTx.sh`. This will mint the reference token into the reference contract. Script reference creation and reference token minting actions only happen once. Since this is a proof-of-concept, the reference contract is not intended as permanent storage for the token. It's just a simple, always true contract. If the reference datum needs updating, use `02a_updateReferenceTx.sh`. If the reference datum needs to be removed, use `02b_removeReferenceTx.sh`. Removing the reference token from the reference contract will break the happy path, and the happy path setup flow will need to be restarted.
 
