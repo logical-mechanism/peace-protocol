@@ -44,7 +44,9 @@ go build -o snark
 
 ## Testing
 
-
+```bash
+go test .
+```
 
 **Copyright (C) 2025 Logical Mechanism LLC**
 
