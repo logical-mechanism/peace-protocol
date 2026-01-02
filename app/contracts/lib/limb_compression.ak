@@ -1,8 +1,12 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use aiken/collection/list
 use aiken/primitive/bytearray
 
 // 2^64
-const pow2_26: Int = 18446744073709551616
+const pow2_64: Int = 18_446_744_073_709_551_616
 
 // BLS12-381 base field modulus p (Fp), 48 bytes
 const bls12_381_fp_modulus: ByteArray =
@@ -15,7 +19,7 @@ fn limbs_u64le_to_int(limbs: List<Int>) -> Int {
       (0, 1),
       fn(limb, state) {
         let (sum, factor) = state
-        (sum + limb * factor, factor * pow2_26)
+        (sum + limb * factor, factor * pow2_64)
       },
     )
   acc
@@ -65,4 +69,32 @@ pub fn limbs_match_g1_point(
   y_limbs: List<Int>,
 ) -> Bool {
   g1_compress_from_xy_limbs(x_limbs, y_limbs) == expected_compressed
+}
+
+/// Three G1 points decode into six points, requiring six integers to be 
+/// represented, totallying 36 elements.
+///
+pub fn verify_limb_compression(
+  v: ByteArray,
+  w0: ByteArray,
+  w1: ByteArray,
+  public_integers: List<Int>,
+) -> Bool {
+  and {
+    limbs_match_g1_point(
+      v,
+      list.slice(public_integers, 0, 5),
+      list.slice(public_integers, 6, 11),
+    ),
+    limbs_match_g1_point(
+      w0,
+      list.slice(public_integers, 12, 17),
+      list.slice(public_integers, 18, 23),
+    ),
+    limbs_match_g1_point(
+      w1,
+      list.slice(public_integers, 24, 29),
+      list.slice(public_integers, 30, 35),
+    ),
+  }
 }
