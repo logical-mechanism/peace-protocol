@@ -8,27 +8,42 @@ use aiken/crypto/bls12_381/scalar.{Scalar}
 use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
 
-// test display_z_term() {
-//   let z: State<Scalar> =
-//     scalar.from_bytes(
-//       #"555fe3e3fa91100d89ae55293cb1cf7c7862aff7387a65289bbaca538333005e",
-//     )
-//   trace z
-//   True
-// }
+test test_schnorr_fiat_shamir() {
+  let g =
+    #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+  let gr =
+    #"8dd9e8affcd88844e190397d0746b4ed973504d2002c200790516f798b165f8632fa03901fdc4cc9368f46bae78eba04"
+  let u =
+    #"8d6af734d26f38f603cb3030ed71075d8f23e6c798ddc4897d08d7e2fce68fe37080cb671b3668dcac63dff778dc7dd8"
+  let c = schnorr.fiat_shamir_heuristic(g, gr, u)
+  c == #"ace9c7140e074ae54571dc5707ba6d16287d7ae883bd6062957f04bb"
+}
 
-// test display_fiat_shamir() {
-//   let g =
-//     #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
-//   let gr =
-//     #"8dd9e8affcd88844e190397d0746b4ed973504d2002c200790516f798b165f8632fa03901fdc4cc9368f46bae78eba04"
-//   let u =
-//     #"8d6af734d26f38f603cb3030ed71075d8f23e6c798ddc4897d08d7e2fce68fe37080cb671b3668dcac63dff778dc7dd8"
-//   let c = schnorr.fiat_shamir_heuristic(g, gr, u) |> scalar.from_bytes
-//   trace c
-//   True
-//   // c == #"623a5bda07164bb8459c6ad034ebb508080aa011b8aa00d2bb702a2c2a662edc"
-// }
+test test_binding_fiat_shamir() {
+  let x: State<Scalar> = scalar.from_int(44203)
+  let user: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.scale(x) |> g1.compress,
+    }
+  let alpha: State<Scalar> = scalar.from_int(3456)
+  let rho: State<Scalar> = scalar.from_int(5678)
+  let t1: ByteArray = g1.generator |> g1.scale(rho) |> g1.compress
+  let t2: ByteArray =
+    g1.add(
+      g1.generator |> g1.scale(alpha),
+      g1.generator |> g1.scale(scalar.mul(x, rho)),
+    )
+      |> g1.compress
+  let half_proof = BindingProof { z_a_b: #"", z_r_b: #"", t_1_b: t1, t_2_b: t2 }
+  let r1 =
+    #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+  let r2 =
+    #"8dd9e8affcd88844e190397d0746b4ed973504d2002c200790516f798b165f8632fa03901fdc4cc9368f46bae78eba04"
+  let tkn = #"acab"
+  let c = schnorr.binding_fiat_shamir_heuristic(user, half_proof, r1, r2, tkn)
+  c == #"c8435846499a6e73e7b26ff0d7a5802ebc080e677f138e972a8701db"
+}
 
 // shows how it is constant time
 test simple_schnorr_proof() {

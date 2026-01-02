@@ -69,7 +69,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           (pointer == token_name)?,
         }
       }
-      // 
       // single token burn here
       LeaveBidBurn(tkn) ->
         (( mint |> assets.flatten ) == [(policy_id, tkn, -1)])?
@@ -181,8 +180,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             }
           }
         } else {
+          // bad datum
           True
         }
+      // no datum
       None -> True
     }
   }

@@ -124,24 +124,11 @@ test is_valid_r5_term() {
     )
   level.verify_r5(user, r5 |> g2.compress, w0 |> g1.compress)
 }
-// test display_encryption_level() {
-//   trace cbor.serialise([alice_level])
-//   trace cbor.serialise([alice_filled, bob_level])
-//   trace cbor.serialise([alice_filled, alice_filled, carol_level])
-//   trace cbor.serialise([alice_filled, alice_filled, alice_filled, carol_level])
-//   True
-// }
 
-// test display_wang_params() {
-//   trace level.wang_h0
-//   trace level.wang_h1
-//   trace level.wang_h2
-//   trace level.wang_h3
-//   True
-// }
-
-// test display_none() {
-//   trace None
-//   trace Some(#"acab")
-//   True
-// }
+test display_wang_params() {
+  trace level.wang_h0
+  trace level.wang_h1
+  trace level.wang_h2
+  trace level.wang_h3
+  True
+}
