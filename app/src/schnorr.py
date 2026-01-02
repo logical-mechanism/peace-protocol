@@ -1,5 +1,8 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
+
+# src/schnorr.py
+
 from src.bls12381 import rng, scale, g1_point, to_int, from_int, curve_order
 from src.constants import SCH_DOMAIN_TAG
 from src.hashing import generate
