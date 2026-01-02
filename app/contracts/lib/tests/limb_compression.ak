@@ -1,4 +1,3 @@
-use aiken/collection/list
 use limb_compression.{limbs_match_g1_point}
 
 test test_limb_compression() {
@@ -45,22 +44,5 @@ test test_complete_compression() {
       10288726997180865397, 18352781759426245713, 17860951621094200122,
       3645999937606863567, 7588265706522355601, 337242724379907695,
     ]
-
-  and {
-    limbs_match_g1_point(
-      v,
-      list.slice(public_integers, 0, 5),
-      list.slice(public_integers, 6, 11),
-    ),
-    limbs_match_g1_point(
-      w0,
-      list.slice(public_integers, 12, 17),
-      list.slice(public_integers, 18, 23),
-    ),
-    limbs_match_g1_point(
-      w1,
-      list.slice(public_integers, 24, 29),
-      list.slice(public_integers, 30, 35),
-    ),
-  }
+  limb_compression.verify_limb_compression(v, w0, w1, public_integers)
 }
