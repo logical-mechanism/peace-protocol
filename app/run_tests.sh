@@ -16,5 +16,5 @@ cd ..
 
 # snark is oos for poc
 cd snark
-go test .
+go test ./... -count=1
 cd ..

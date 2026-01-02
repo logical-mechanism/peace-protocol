@@ -1,6 +1,7 @@
 annotated-types==0.7.0
 cbor2==5.7.1
 cffi==2.0.0
+coverage==7.13.1
 cryptography==46.0.3
 cytoolz==1.1.0
 eth-hash==0.7.1
