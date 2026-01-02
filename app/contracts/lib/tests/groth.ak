@@ -1,3 +1,7 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use aiken/builtin.{
   bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_neg,
   bls12_381_g1_scalar_mul, bls12_381_g1_uncompress, bls12_381_g2_compress,
@@ -15,6 +19,7 @@ test valid_groth_proof() fail {
       vkBeta: #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90",
       vkGamma: #"85e7ce95afba3e7c1ec596953831982ca9a61b77dd24d688a8b19b311eaccd9296d5e83849f3a92227574eaff3837ce01101c3ea51d1fd9152798cf24fa4ca2a9f49f47fedbaf17159b516f71c0cde459fa0beb6d3ce72d0ccdb76c0b1063adb",
       vkDelta: #"a0d022f76ee47d0c2e215a60983be5fccec38c74e09313431e3c17812cdc3723471b5a9ef91817e50060243f5a6c195a0da9b43829bd4fd1f3c2109bf4529ed23696f7db8c967213e2fde3d258aabf0151d54b05e155ae7fac819660cef9854c",
+      vkAlphaBeta: [],
       vkIC: [
         #"b8269ba208e735d72413eb19f8599348fdc9d7de67ad6ae26ec30d9bdb8b33cbca24e2ecff0c6d74694db99461c6d6fa",
         #"b75ce460a76807e444ccdccc31ace043873dc233e504d12ab445eb8d48631d92487d9c04e1052facdf6bf9c8ee1a3c2e",

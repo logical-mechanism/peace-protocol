@@ -1,3 +1,7 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use aiken/builtin
 use cardano/address.{Address}
 use cardano/assets.{AssetName, PolicyId, Value}
@@ -16,17 +20,12 @@ const genesis_pid: PolicyId =
 
 const genesis_tkn: AssetName = #"67656e65736973"
 
-// "genesis"
-
 const other_tkn: AssetName = #"6f74686572"
-
-// "other"
 
 const tx_id: ByteArray =
   #"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 fn mk_addr() -> Address {
-  // address.from_script expects Hash<Blake2b_224, Script>
   address.from_script(genesis_pid)
 }
 

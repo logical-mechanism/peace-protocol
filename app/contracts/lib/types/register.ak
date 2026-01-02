@@ -23,7 +23,11 @@ const g1_zero: ByteArray =
 /// ```
 pub fn is_register_valid(self: Register) -> Bool {
   and {
+    // the generator must be the g1 generator
     self.generator == g1_generator,
+    // public value must not be identity
     self.public_value != g1_zero,
+    // generator must not be the public value
+    self.generator != self.public_value,
   }
 }
