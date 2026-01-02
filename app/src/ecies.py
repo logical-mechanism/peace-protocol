@@ -1,5 +1,8 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
+
+# src/ecies.py
+
 from src.hashing import generate
 from src.constants import SLT_DOMAIN_TAG, KEM_DOMAIN_TAG, AAD_DOMAIN_TAG, MSG_DOMAIN_TAG
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM

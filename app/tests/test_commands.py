@@ -3,7 +3,6 @@
 
 # tests/test_commands.py
 
-import pytest
 
 import src.commands as commands_mod
 
@@ -101,7 +100,9 @@ def _setup_common_mocks(monkeypatch):
     def fake_half_level_to_file(r1b: str, r2_g1b: str, r4b: str) -> None:
         calls.append(("half_level_to_file", r1b, r2_g1b, r4b))
 
-    def fake_full_level_to_file(old_r1b: str, old_r2_g1b: str, r5b: str, old_r4b: str) -> None:
+    def fake_full_level_to_file(
+        old_r1b: str, old_r2_g1b: str, r5b: str, old_r4b: str
+    ) -> None:
         calls.append(("full_level_to_file", old_r1b, old_r2_g1b, r5b, old_r4b))
 
     def fake_encrypt(r1b: str, m0: str, plaintext: str) -> tuple[str, str, str]:
@@ -111,7 +112,9 @@ def _setup_common_mocks(monkeypatch):
     def fake_capsule_to_file(nonce: str, aad: str, ct: str) -> None:
         calls.append(("capsule_to_file", nonce, aad, ct))
 
-    def fake_binding_proof(a: int, r: int, r1b: str, r2b: str, register, token_name: str):
+    def fake_binding_proof(
+        a: int, r: int, r1b: str, r2b: str, register, token_name: str
+    ):
         calls.append(("binding_proof", a, r, r1b, r2b, register, token_name))
         return ("zab", "zrb", "t1b", "t2b")
 
@@ -278,7 +281,10 @@ def test_create_reencryption_tx_happy_path(monkeypatch):
                         }
                     ]
                 },
-                {"constructor": 0, "fields": [{"bytes": "N"}, {"bytes": "A"}, {"bytes": "C"}]},
+                {
+                    "constructor": 0,
+                    "fields": [{"bytes": "N"}, {"bytes": "A"}, {"bytes": "C"}],
+                },
             ]
         }
 
@@ -300,7 +306,12 @@ def test_create_reencryption_tx_happy_path(monkeypatch):
     assert isinstance(r4b, str) and r4b.startswith("scale(")
 
     assert any(c[0] == "save_string" and c[1] == "../data/r5.point" for c in calls)
-    assert any(c[0] == "save_string" and c[1] == "../data/witness.point" and c[2] == "scale(G1(1),9)" for c in calls)
+    assert any(
+        c[0] == "save_string"
+        and c[1] == "../data/witness.point"
+        and c[2] == "scale(G1(1),9)"
+        for c in calls
+    )
 
     proof_calls = _calls_of(calls, "binding_proof")
     assert len(proof_calls) == 1
