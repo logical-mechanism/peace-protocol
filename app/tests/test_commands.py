@@ -5,6 +5,8 @@
 
 
 import src.commands as commands_mod
+import os
+from cryptography.exceptions import InvalidTag
 
 
 class DummyRegister:
@@ -415,3 +417,20 @@ def test_recursive_decrypt_walks_entries_and_prints(monkeypatch, capsys):
     assert dt_calls[1][1:4] == ("R1_B", "R2G1_B", "R2G2_B")
 
     assert ("decrypt", "R1_B", "K2", "NONCE", "CT", "AAD") in calls
+
+
+def test_good_recursive_decrypt():
+    commands_mod.recursive_decrypt(
+        f"{os.getcwd()}/wallets/bob/payment.skey",
+        f"{os.getcwd()}/data/encryption/copy.encryption-datum.json",
+    )
+
+
+def test_bad_recursive_decrypt():
+    try:
+        commands_mod.recursive_decrypt(
+            f"{os.getcwd()}/wallets/alice/payment.skey",
+            f"{os.getcwd()}/data/encryption/copy.encryption-datum.json",
+        )
+    except InvalidTag:
+        print("Alice can not decrypt")

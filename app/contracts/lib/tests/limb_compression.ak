@@ -1,3 +1,7 @@
+//// Copyright (C) 2025 Logical Mechanism LLC
+//// SPDX-License-Identifier: GPL-3.0-only
+////
+
 use limb_compression.{limbs_match_g1_point}
 
 test test_limb_compression() {
