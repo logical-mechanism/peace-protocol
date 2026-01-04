@@ -123,7 +123,7 @@ def _pair(q_g2: Any, p_g1: Any) -> Any:
 
 def _gt_inv(x: Any) -> Any:
     # FQ12 supports exponentiation by -1 in py_ecc; keep it simple.
-    return x**-1
+    return 1 / x
 
 
 def verify_snark_proof(out_dir: str | Path = "out") -> bool:
@@ -192,6 +192,10 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
             return True
         if final_exponentiate(_gt_inv(lhs_val)) == final_exponentiate(_gt_inv(rhs_val)):
             if debug:
+                print(f"L={L}")
+                print(f"R={R}")
+                print(f"lhs={lhs_val}")
+                print(f"lhs inv={_gt_inv(lhs_val)}")
                 print(f"[verify] matched: {label} (L^-1 == R^-1)")
             return True
         if debug:
