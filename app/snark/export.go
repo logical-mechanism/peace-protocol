@@ -15,7 +15,6 @@ import (
 	"reflect"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
-	blsfr "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 
 	"github.com/consensys/gnark/backend/groth16"
 	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
@@ -119,33 +118,37 @@ func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 // ---------- public inputs extraction ----------
 
 // exportPublicInputs returns the raw public vector from witness as decimal strings.
+// This MUST reflect gnark's exact public witness vector order.
 func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error) {
 	vecAny := publicWitness.Vector()
 	if vecAny == nil {
 		return nil, fmt.Errorf("publicWitness.Vector() returned nil")
 	}
 
-	// Fast paths.
+	// Common cases first (avoid reflect when possible).
 	switch v := vecAny.(type) {
-	case []blsfr.Element:
-		out := make([]string, 0, len(v))
+	case []*big.Int:
+		out := make([]string, len(v))
 		for i := range v {
-			var bi big.Int
-			v[i].BigInt(&bi)
-			out = append(out, bi.String())
+			if v[i] == nil {
+				return nil, fmt.Errorf("public input[%d] is nil (*big.Int)", i)
+			}
+			out[i] = v[i].String()
 		}
 		return out, nil
-	case blsfr.Vector: // usually Vector is []Element
-		out := make([]string, 0, len(v))
+	case []big.Int:
+		out := make([]string, len(v))
 		for i := range v {
-			var bi big.Int
-			v[i].BigInt(&bi)
-			out = append(out, bi.String())
+			out[i] = new(big.Int).Set(&v[i]).String()
 		}
 		return out, nil
+	case []string:
+		// Already decimal strings.
+		return append([]string(nil), v...), nil
 	}
 
-	// Reflection fallback.
+	// Reflection fallback: slice of elements with a BigInt(*big.Int) method,
+	// or numeric-ish values convertible to *big.Int.
 	rv := reflect.ValueOf(vecAny)
 	if rv.Kind() != reflect.Slice {
 		return nil, fmt.Errorf("unexpected publicWitness.Vector() type %T (not a slice)", vecAny)
@@ -155,8 +158,31 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 	for i := 0; i < rv.Len(); i++ {
 		ev := rv.Index(i)
 
+		// If it's an interface, unwrap.
+		if ev.Kind() == reflect.Interface && !ev.IsNil() {
+			ev = ev.Elem()
+		}
+
 		var bi big.Int
 
+		// If it's *big.Int
+		if ev.IsValid() && ev.Kind() == reflect.Ptr && ev.Type() == reflect.TypeOf(&big.Int{}) {
+			ptr := ev.Interface().(*big.Int)
+			if ptr == nil {
+				return nil, fmt.Errorf("public input[%d] is nil (*big.Int)", i)
+			}
+			out[i] = ptr.String()
+			continue
+		}
+
+		// If it's big.Int
+		if ev.IsValid() && ev.Type() == reflect.TypeOf(big.Int{}) {
+			val := ev.Interface().(big.Int)
+			out[i] = val.String()
+			continue
+		}
+
+		// Try BigInt(*big.Int) method (common for gnark-crypto field elements).
 		var m reflect.Value
 		if ev.CanAddr() {
 			m = ev.Addr().MethodByName("BigInt")
@@ -164,20 +190,33 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 		if !m.IsValid() {
 			m = ev.MethodByName("BigInt")
 		}
-		if !m.IsValid() {
-			return nil, fmt.Errorf("public input elem[%d] type %T has no BigInt method", i, ev.Interface())
+		if m.IsValid() {
+			mt := m.Type()
+			// Bound method => expects exactly one arg: *big.Int
+			if mt.NumIn() != 1 || mt.In(0) != reflect.TypeOf(&big.Int{}) {
+				return nil, fmt.Errorf(
+					"public input elem[%d] BigInt has unexpected signature %s (type %T)",
+					i, mt.String(), ev.Interface(),
+				)
+			}
+			m.Call([]reflect.Value{reflect.ValueOf(&bi)})
+			out[i] = bi.String()
+			continue
 		}
 
-		mt := m.Type()
-		if mt.NumIn() != 1 || mt.In(0) != reflect.TypeOf(&big.Int{}) {
-			return nil, fmt.Errorf(
-				"public input elem[%d] BigInt has unexpected signature %s (type %T)",
-				i, mt.String(), ev.Interface(),
-			)
+		// Last-resort: integers that fit in signed/unsigned machine sizes.
+		switch ev.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			bi.SetInt64(ev.Int())
+			out[i] = bi.String()
+			continue
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			bi.SetUint64(ev.Uint())
+			out[i] = bi.String()
+			continue
 		}
 
-		m.Call([]reflect.Value{reflect.ValueOf(&bi)})
-		out[i] = bi.String()
+		return nil, fmt.Errorf("public input elem[%d] unsupported type %T (no BigInt method)", i, ev.Interface())
 	}
 
 	return out, nil
@@ -186,9 +225,9 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 // choosePublicInputs picks what to export as "public inputs" and ensures they
 // can be represented by the VK IC (capacity = len(IC)-1).
 //
-// We support both witness shapes:
-//   - pubRaw has exactly nbPublic entries
-//   - pubRaw has a leading 0/1 “one-wire” entry (then we drop it)
+// Accepts:
+//   - pubRaw length <= icCap
+//   - or pubRaw length == icCap+1 with leading 0/1 “one-wire” (drops it)
 func choosePublicInputs(pubRaw []string, icCap int) ([]string, error) {
 	if icCap < 0 {
 		return nil, fmt.Errorf("invalid vk IC capacity: %d", icCap)
@@ -222,13 +261,13 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 		return err
 	}
 
-	// 2) Export raw publics.
+	// 2) Export raw publics (ground truth from witness.Vector()).
 	pubRaw, err := exportPublicInputs(publicWitness)
 	if err != nil {
 		return err
 	}
 
-	// 3) Determine IC capacity from VK.
+	// 3) Determine IC capacity from VK (this is what Groth16 expects).
 	v, ok := vk.(*groth16bls.VerifyingKey)
 	if !ok {
 		return fmt.Errorf("unexpected vk type (need *groth16/bls12-381.VerifyingKey): %T", vk)
@@ -238,14 +277,14 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	}
 	icCap := len(v.G1.K) - 1
 
-	// 4) Choose which publics to export (and ensure they fit in IC capacity).
+	// 4) Choose which publics to export (must fit IC capacity exactly).
 	pub, err := choosePublicInputs(pubRaw, icCap)
 	if err != nil {
 		return err
 	}
 	nPublic := len(pub)
 
-	// 5) Export VK sliced to nPublic+1.
+	// 5) Export VK sliced to nPublic+1 (matches the exported public vector).
 	vkj, err := exportVKBLS(vk, nPublic)
 	if err != nil {
 		return err
@@ -288,7 +327,7 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 // ---------- compression helpers ----------
 
 func g1CompressedHex(p bls12381.G1Affine) (string, error) {
-	b := p.Bytes() // 48 bytes compressed
+	b := p.Bytes() // 48 bytes compressed (IETF)
 	if len(b) != 48 {
 		return "", fmt.Errorf("unexpected G1 compressed length: %d", len(b))
 	}
@@ -296,7 +335,7 @@ func g1CompressedHex(p bls12381.G1Affine) (string, error) {
 }
 
 func g2CompressedHex(p bls12381.G2Affine) (string, error) {
-	b := p.Bytes() // 96 bytes compressed
+	b := p.Bytes() // 96 bytes compressed (IETF)
 	if len(b) != 96 {
 		return "", fmt.Errorf("unexpected G2 compressed length: %d", len(b))
 	}
