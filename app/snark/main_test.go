@@ -167,8 +167,8 @@ func TestGTToHash_DeterministicAndMatchesManual(t *testing.T) {
 	if hk1 != hk2 || encHex1 != encHex2 {
 		t.Fatalf("gtToHash not deterministic")
 	}
-	if len(hk1) != 56 { // 224-bit => 28 bytes => 56 hex
-		t.Fatalf("unexpected hk hex length: got %d want 56", len(hk1))
+	if len(hk1) != 64 { // sha256 => 32 bytes => 64 hex
+		t.Fatalf("unexpected hk hex length: got %d want 64", len(hk1))
 	}
 	if len(encHex1) != 12*48*2 {
 		t.Fatalf("unexpected enc hex length: got %d want %d", len(encHex1), 12*48*2)
@@ -177,15 +177,15 @@ func TestGTToHash_DeterministicAndMatchesManual(t *testing.T) {
 		t.Fatalf("expected lowercase hex outputs")
 	}
 
-	// Manual recompute: blake2b-224(encBytes || domainTagBytes)
+	// Manual recompute: sha256(encBytes || domainTagBytes)
 	encBytes := mustHexToBytes(t, encHex1)
 	tagBytes := mustHexToBytes(t, DomainTagHex)
-
 	msg := append(append([]byte{}, encBytes...), tagBytes...)
-	manual := blake2b224Hex(msg)
+
+	manual := sha256Hex(msg)
 
 	if manual != hk1 {
-		t.Fatalf("manual blake2b224 mismatch: got %s want %s", manual, hk1)
+		t.Fatalf("manual sha256 mismatch: got %s want %s", manual, hk1)
 	}
 }
 
@@ -193,20 +193,19 @@ func TestHKScalarFromA_ConsistentWithDigestReduction(t *testing.T) {
 	a := big.NewInt(9999)
 
 	// Compute digest form
-	hkHex, encHex, err := gtToHash(a)
+	_, encHex, err := gtToHash(a)
 	if err != nil {
 		t.Fatalf("gtToHash failed: %v", err)
 	}
-	_ = hkHex
 
 	encBytes := mustHexToBytes(t, encHex)
 	tagBytes := mustHexToBytes(t, DomainTagHex)
 	msg := append(append([]byte{}, encBytes...), tagBytes...)
-	digest := blake2b224(msg) // 28 bytes
+	digest := sha256.Sum256(msg) // 32 bytes
 
 	// Reduce into Fr (exactly what hkScalarFromA does: fr.Element.SetBytes on digest)
 	var s fr.Element
-	s.SetBytes(digest)
+	s.SetBytes(digest[:])
 	var expected big.Int
 	s.BigInt(&expected)
 

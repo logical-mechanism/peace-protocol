@@ -1,6 +1,6 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
-
+//
 // export.go
 
 package main
@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
@@ -66,8 +67,7 @@ func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
 	return ProofJSON{PiA: piA, PiB: piB, PiC: piC}, nil
 }
 
-// IMPORTANT CHANGE: nPublic is provided by ExportAll (derived from public witness),
-// and we slice IC to exactly nPublic+1.
+// exportVKBLS exports the verifying key, slicing IC to exactly nPublic+1.
 func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 	v, ok := vk.(*groth16bls.VerifyingKey)
 	if !ok {
@@ -97,7 +97,6 @@ func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 		return VKJSON{}, err
 	}
 
-	// Slice ONLY what corresponds to the exported public inputs.
 	ic := make([]string, 0, nPublic+1)
 	for i := 0; i < nPublic+1; i++ {
 		h, err := g1CompressedHex(v.G1.K[i])
@@ -119,25 +118,34 @@ func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 
 // ---------- public inputs extraction ----------
 
-// Returns the *raw* public vector from witness.
-// (We normalize in ExportAll once we know vk.IC capacity.)
+// exportPublicInputs returns the raw public vector from witness as decimal strings.
 func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error) {
-	// Fast path: []fr.Element
-	if vecAny := publicWitness.Vector(); vecAny != nil {
-		switch v := vecAny.(type) {
-		case []blsfr.Element:
-			out := make([]string, 0, len(v))
-			for i := range v {
-				var bi big.Int
-				v[i].BigInt(&bi)
-				out = append(out, bi.String())
-			}
-			return out, nil
-		}
+	vecAny := publicWitness.Vector()
+	if vecAny == nil {
+		return nil, fmt.Errorf("publicWitness.Vector() returned nil")
 	}
 
-	// Fallback: reflection
-	vecAny := publicWitness.Vector()
+	// Fast paths.
+	switch v := vecAny.(type) {
+	case []blsfr.Element:
+		out := make([]string, 0, len(v))
+		for i := range v {
+			var bi big.Int
+			v[i].BigInt(&bi)
+			out = append(out, bi.String())
+		}
+		return out, nil
+	case blsfr.Vector: // usually Vector is []Element
+		out := make([]string, 0, len(v))
+		for i := range v {
+			var bi big.Int
+			v[i].BigInt(&bi)
+			out = append(out, bi.String())
+		}
+		return out, nil
+	}
+
+	// Reflection fallback.
 	rv := reflect.ValueOf(vecAny)
 	if rv.Kind() != reflect.Slice {
 		return nil, fmt.Errorf("unexpected publicWitness.Vector() type %T (not a slice)", vecAny)
@@ -159,6 +167,7 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 		if !m.IsValid() {
 			return nil, fmt.Errorf("public input elem[%d] type %T has no BigInt method", i, ev.Interface())
 		}
+
 		mt := m.Type()
 		if mt.NumIn() != 1 || mt.In(0) != reflect.TypeOf(&big.Int{}) {
 			return nil, fmt.Errorf(
@@ -174,69 +183,93 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 	return out, nil
 }
 
+// choosePublicInputs picks what to export as "public inputs" and ensures they
+// can be represented by the VK IC (capacity = len(IC)-1).
+//
+// We support both witness shapes:
+//   - pubRaw has exactly nbPublic entries
+//   - pubRaw has a leading 0/1 “one-wire” entry (then we drop it)
+func choosePublicInputs(pubRaw []string, icCap int) ([]string, error) {
+	if icCap < 0 {
+		return nil, fmt.Errorf("invalid vk IC capacity: %d", icCap)
+	}
+
+	pub := pubRaw
+
+	// If there is a leading 0/1 and dropping it helps fit within IC capacity, drop it.
+	if len(pubRaw) > 0 && (pubRaw[0] == "0" || pubRaw[0] == "1") {
+		if len(pubRaw)-1 <= icCap {
+			pub = pubRaw[1:]
+		}
+	}
+
+	if len(pub) > icCap {
+		return nil, fmt.Errorf(
+			"public inputs too long: got %d, but vk.IC capacity is %d",
+			len(pub), icCap,
+		)
+	}
+
+	return pub, nil
+}
+
 // ---------- main export ----------
 
 func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backend_witness.Witness, dir string) error {
-	// 1) Export proof first (simple)
+	// 1) Export proof.
 	pj, err := exportProofBLS(proof)
 	if err != nil {
 		return err
 	}
 
-	// 2) Export raw publics
+	// 2) Export raw publics.
 	pubRaw, err := exportPublicInputs(publicWitness)
 	if err != nil {
 		return err
 	}
 
-	// 3) Decide whether to drop a leading one-wire element.
-	// Some builds include a leading 0/1; some don't.
-	// We only drop it if that makes it fit within VK IC capacity.
+	// 3) Determine IC capacity from VK.
 	v, ok := vk.(*groth16bls.VerifyingKey)
 	if !ok {
 		return fmt.Errorf("unexpected vk type (need *groth16/bls12-381.VerifyingKey): %T", vk)
 	}
-	icCap := len(v.G1.K) - 1 // maximum possible publics representable by IC entries
-
-	pub := pubRaw
-	if len(pubRaw) > 0 && (pubRaw[0] == "0" || pubRaw[0] == "1") {
-		// If dropping makes the count more reasonable with IC capacity, drop it.
-		if len(pubRaw)-1 <= icCap {
-			pub = pubRaw[1:]
-		}
+	if len(v.G1.K) < 1 {
+		return fmt.Errorf("invalid vk: IC empty")
 	}
-	if len(pub) > icCap {
-		return fmt.Errorf("public inputs too long: got %d, but vk.IC capacity is %d", len(pub), icCap)
-	}
+	icCap := len(v.G1.K) - 1
 
-	// 4) Now nPublic is the actual exported public input count
+	// 4) Choose which publics to export (and ensure they fit in IC capacity).
+	pub, err := choosePublicInputs(pubRaw, icCap)
+	if err != nil {
+		return err
+	}
 	nPublic := len(pub)
 
-	// 5) Export VK with IC sliced to exactly nPublic+1
+	// 5) Export VK sliced to nPublic+1.
 	vkj, err := exportVKBLS(vk, nPublic)
 	if err != nil {
 		return err
 	}
 
-	// 6) Final consistency checks
+	// 6) Final consistency checks.
 	if len(vkj.VkIC) != nPublic+1 {
 		return fmt.Errorf("IC length mismatch: len(IC)=%d, expected %d", len(vkj.VkIC), nPublic+1)
 	}
 
-	// 7) Write JSONs
+	// 7) Write JSONs.
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
-	writeJSON := func(name string, v interface{}) error {
-		f, err := os.Create(dir + "/" + name)
+	writeJSON := func(name string, val interface{}) error {
+		f, err := os.Create(filepath.Join(dir, name))
 		if err != nil {
 			return err
 		}
 		defer f.Close()
 		enc := json.NewEncoder(f)
 		enc.SetIndent("", "  ")
-		return enc.Encode(v)
+		return enc.Encode(val)
 	}
 
 	if err := writeJSON("vk.json", vkj); err != nil {
