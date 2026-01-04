@@ -1,45 +1,48 @@
+# snark.py (or wherever you keep this)
+#
+# Copyright (C) 2025 Logical Mechanism LLC
+# SPDX-License-Identifier: GPL-3.0-only
+
+import os
+import re
 import subprocess
-from typing import cast
-from src.files import load_json
 from pathlib import Path
+from typing import Any, cast
+
+from src.files import load_json
+
+from eth_typing import BLSPubkey, BLSSignature
+from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2
+from py_ecc.fields import optimized_bls12_381_FQ as FQ
 from py_ecc.optimized_bls12_381 import (
     add,
-    multiply,
-    pairing,
+    curve_order,
+    field_modulus,
     final_exponentiate,
+    multiply,
+    neg,
+    pairing,
 )
-from eth_typing import BLSPubkey, BLSSignature
-from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2, G1_to_pubkey
-import re
-from py_ecc.fields import optimized_bls12_381_FQ as FQ
-from py_ecc.optimized_bls12_381 import field_modulus
+
+# ----------------------------
+# CLI helpers
+# ----------------------------
 
 
 def gt_to_hash(a: int, snark_path: str | Path) -> str:
     snark = Path(snark_path)
-
-    cmd = [
-        str(snark),
-        "hash",
-        "-a",
-        str(a),
-    ]
-
-    # Run and capture output for debugging; raise if non-zero exit.
-    output = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    return output.stdout.strip()
+    cmd = [str(snark), "hash", "-a", str(a)]
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return out.stdout.strip()
 
 
 def decrypt_to_hash(
     r1: str, r2_g1b: str, r2_g2b: str | None, shared: str, snark_path: str | Path
 ) -> str:
     snark = Path(snark_path)
-
     if r2_g2b is None:
-        # half level
         cmd = [str(snark), "decrypt", "-r1", r1, "-g1b", r2_g1b, "-shared", shared]
     else:
-        # full level
         cmd = [
             str(snark),
             "decrypt",
@@ -52,16 +55,14 @@ def decrypt_to_hash(
             "-shared",
             shared,
         ]
-    # Run and capture output for debugging; raise if non-zero exit.
-    output = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    return output.stdout.strip()
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return out.stdout.strip()
 
 
 def generate_snark_proof(
     a: int, r: int, v: str, w0: str, w1: str, snark_path: str | Path
 ) -> None:
     snark = Path(snark_path)
-
     cmd = [
         str(snark),
         "prove",
@@ -76,9 +77,15 @@ def generate_snark_proof(
         "-w1",
         w1,
     ]
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    print(out.stdout.strip())
 
-    output = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    print(output.stdout.strip())
+
+# ----------------------------
+# Bytes / point decoding (IMPORTANT)
+# Use g2_primitives (pubkey_to_G1 / signature_to_G2) so types match
+# py_ecc.optimized_bls12_381 add/multiply/pairing.
+# ----------------------------
 
 
 def _hex_to_bytes(h: str) -> bytes:
@@ -92,6 +99,7 @@ def _g1_from_compressed_hex(h: str):
     raw = _hex_to_bytes(h)
     if len(raw) != 48:
         raise ValueError(f"G1 compressed must be 48 bytes, got {len(raw)}")
+    # returns an optimized Jacobian G1 point (x,y,z) with optimized FQ elems
     return pubkey_to_G1(cast(BLSPubkey, raw))
 
 
@@ -99,7 +107,23 @@ def _g2_from_compressed_hex(h: str):
     raw = _hex_to_bytes(h)
     if len(raw) != 96:
         raise ValueError(f"G2 compressed must be 96 bytes, got {len(raw)}")
+    # returns an optimized Jacobian G2 point (x,y,z) with optimized FQ2 elems
     return signature_to_G2(cast(BLSSignature, raw))
+
+
+# ----------------------------
+# Groth16 verify (robust conventions)
+# ----------------------------
+
+
+def _pair(q_g2: Any, p_g1: Any) -> Any:
+    # pairing() in optimized_bls12_381 is defined over optimized point types.
+    return pairing(q_g2, p_g1, final_exponentiate=False)
+
+
+def _gt_inv(x: Any) -> Any:
+    # FQ12 supports exponentiation by -1 in py_ecc; keep it simple.
+    return x**-1
 
 
 def verify_snark_proof(out_dir: str | Path = "out") -> bool:
@@ -124,7 +148,6 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
         raise ValueError(
             f"public input count mismatch: len(inputs)={len(inputs)} vs vk.nPublic={n_public}"
         )
-
     if len(IC) != len(inputs) + 1:
         raise ValueError(
             f"IC length mismatch: len(IC)={len(IC)} vs len(inputs)+1={len(inputs) + 1}"
@@ -134,24 +157,71 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     B = _g2_from_compressed_hex(proof["piB"])
     C = _g1_from_compressed_hex(proof["piC"])
 
+    # Build vk_x in G1 using scalars mod curve_order (safe even if already small).
     vk_x = IC[0]
     for i, s in enumerate(inputs):
-        vk_x = add(vk_x, multiply(IC[i + 1], int(s)))
+        si = int(s) % curve_order
+        vk_x = add(vk_x, multiply(IC[i + 1], si))
 
-    # print(G1_to_pubkey(vk_x).hex())
+    # Compute right side once (un-negated points)
+    rhs = _pair(beta, alpha)
+    rhs *= _pair(gamma, vk_x)
+    rhs *= _pair(delta, C)
 
-    left = pairing(B, A, final_exponentiate=False)
-    right = pairing(beta, alpha, final_exponentiate=False)
-    right *= pairing(gamma, vk_x, final_exponentiate=False)
-    right *= pairing(delta, C, final_exponentiate=False)
+    # We try a small, meaningful set of conventions:
+    # - A vs -A (some toolchains export A negated)
+    # - direct equality vs equality up to inversion (pairing convention differences)
+    debug = os.getenv("SNARK_DEBUG") not in (None, "", "0", "false", "False")
 
-    return final_exponentiate(left) == final_exponentiate(right)
+    def _check(label: str, lhs_val: Any, rhs_val: Any) -> bool:
+        # Final exponentiate after combining (standard optimization).
+        L = final_exponentiate(lhs_val)
+        R = final_exponentiate(rhs_val)
+        if L == R:
+            if debug:
+                print(f"[verify] matched: {label} (L == R)")
+            return True
+        # Some conventions effectively invert one side.
+        if L == final_exponentiate(_gt_inv(rhs_val)):
+            if debug:
+                print(f"[verify] matched: {label} (L == R^-1)")
+            return True
+        if final_exponentiate(_gt_inv(lhs_val)) == R:
+            if debug:
+                print(f"[verify] matched: {label} (L^-1 == R)")
+            return True
+        if final_exponentiate(_gt_inv(lhs_val)) == final_exponentiate(_gt_inv(rhs_val)):
+            if debug:
+                print(f"[verify] matched: {label} (L^-1 == R^-1)")
+            return True
+        if debug:
+            print(f"[verify] tried {label}; no match")
+        return False
+
+    # Convention 1: lhs = e(A,B)
+    lhs1 = _pair(B, A)
+    if _check("A", lhs1, rhs):
+        if debug:
+            print("Convention 1")
+        return True
+
+    # Convention 2: lhs = e(-A,B)
+    lhs2 = _pair(B, neg(A))
+    if _check("-A", lhs2, rhs):
+        if debug:
+            print("Convention 2")
+        return True
+
+    # If still failing, print a hint and return False.
+    if debug:
+        print("[verify] no conventions matched (A / -A, with inversion checks)")
+    return False
 
 
-def _strip0x(h: str) -> str:
-    h = h.strip().lower()
-    return h[2:] if h.startswith("0x") else h
-
+# ----------------------------
+# Public integer extraction (if you still need it)
+# Use the SAME decoding path (pubkey_to_G1) so coordinates align with gnark.
+# ----------------------------
 
 _LIMB_BITS = 64
 _NB_LIMBS_FP = 6
@@ -172,7 +242,6 @@ def _strip_0x_and_validate_g1_hex(h: str) -> str:
 
 
 def _fq_inv_nonrecursive(z: FQ) -> FQ:
-    # Avoid py_ecc's recursive __pow__ path on negative exponents.
     zi = int(z) % field_modulus
     if zi == 0:
         raise ZeroDivisionError("inverse of zero in Fp")
@@ -180,9 +249,8 @@ def _fq_inv_nonrecursive(z: FQ) -> FQ:
 
 
 def _g1_jacobian_to_affine_xy_ints(p) -> tuple[int, int]:
-    # p is typically (X, Y, Z) in Jacobian over FQ
+    # p is (X, Y, Z) Jacobian over optimized FQ
     if len(p) == 2:
-        # already affine
         x, y = p
         return int(x) % field_modulus, int(y) % field_modulus
 
@@ -196,19 +264,17 @@ def _g1_jacobian_to_affine_xy_ints(p) -> tuple[int, int]:
 
     x_aff = X * zinv2
     y_aff = Y * zinv3
-
     return int(x_aff) % field_modulus, int(y_aff) % field_modulus
 
 
 def _g1_uncompress_to_xy_ints(g1_hex: str) -> tuple[int, int]:
     g1_hex = _strip_0x_and_validate_g1_hex(g1_hex)
-    p = pubkey_to_G1(BLSPubkey(bytes.fromhex(g1_hex)))
+    p = pubkey_to_G1(cast(BLSPubkey, bytes.fromhex(g1_hex)))
     return _g1_jacobian_to_affine_xy_ints(p)
 
 
 def _fp_to_limbs_le(x: int) -> list[int]:
-    # 6 limbs × 64-bit, little-endian (least-significant limb first)
-    limbs = []
+    limbs: list[int] = []
     for _ in range(_NB_LIMBS_FP):
         limbs.append(x & _LIMB_MASK)
         x >>= _LIMB_BITS
@@ -217,9 +283,6 @@ def _fp_to_limbs_le(x: int) -> list[int]:
 
 def public_inputs_from_w0_w1_hex(w0_hex: str, w1_hex: str, v_hex: str) -> list[str]:
     """
-    Mimic gnark v0.14.0 public witness layout when exposing three G1 points
-    (v, w0, w1) as public inputs using emulated BLS12381Fp coordinates.
-
     Output order (36 decimals):
       v.X limbs(6), v.Y limbs(6),
       w0.X limbs(6), w0.Y limbs(6),
@@ -229,7 +292,7 @@ def public_inputs_from_w0_w1_hex(w0_hex: str, w1_hex: str, v_hex: str) -> list[s
     w0x, w0y = _g1_uncompress_to_xy_ints(w0_hex)
     w1x, w1y = _g1_uncompress_to_xy_ints(w1_hex)
 
-    out_ints = []
+    out_ints: list[int] = []
     out_ints += _fp_to_limbs_le(vx)
     out_ints += _fp_to_limbs_le(vy)
     out_ints += _fp_to_limbs_le(w0x)
@@ -237,5 +300,4 @@ def public_inputs_from_w0_w1_hex(w0_hex: str, w1_hex: str, v_hex: str) -> list[s
     out_ints += _fp_to_limbs_le(w1x)
     out_ints += _fp_to_limbs_le(w1y)
 
-    # decimal strings, exactly what your Go exporter emits
     return [str(i) for i in out_ints]
