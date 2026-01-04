@@ -55,7 +55,7 @@ func runSnark(t *testing.T, bin string, args ...string) (code int, stdout string
 	return 999, "", ""
 }
 
-var reHex56 = regexp.MustCompile(`^[0-9a-f]{56}\s*$`)
+var reHex64 = regexp.MustCompile(`^[0-9a-f]{64}\s*$`)
 
 // --- tests ---
 
@@ -121,7 +121,7 @@ func TestCLI_Hash_Success_PrintsOnlyHK(t *testing.T) {
 	if errOut != "" {
 		t.Fatalf("expected empty stderr, got %q", errOut)
 	}
-	if !reHex56.MatchString(out) {
+	if !reHex64.MatchString(out) {
 		t.Fatalf("expected 56-hex output, got %q", out)
 	}
 	if strings.TrimSpace(out) != wantHK {

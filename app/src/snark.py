@@ -138,7 +138,7 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     for i, s in enumerate(inputs):
         vk_x = add(vk_x, multiply(IC[i + 1], int(s)))
 
-    print(G1_to_pubkey(vk_x).hex())
+    # print(G1_to_pubkey(vk_x).hex())
 
     left = pairing(B, A, final_exponentiate=False)
     right = pairing(beta, alpha, final_exponentiate=False)

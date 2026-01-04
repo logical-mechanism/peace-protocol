@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // kappa.go
-
 package main
 
 import (
@@ -10,8 +9,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-
-	"golang.org/x/crypto/blake2b"
 
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
@@ -22,7 +19,9 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 
-	"github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
+	fields_bls12381 "github.com/consensys/gnark/std/algebra/emulated/fields_bls12381"
+	sw_bls12381 "github.com/consensys/gnark/std/algebra/emulated/sw_bls12381"
+	sw_emulated "github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
 	"github.com/consensys/gnark/std/conversion"
 	"github.com/consensys/gnark/std/hash/sha2"
 	"github.com/consensys/gnark/std/math/bits"
@@ -110,25 +109,18 @@ func fq12CanonicalBytes(k bls12381.GT) []byte {
 	return out
 }
 
-func blake2b224Hex(msg []byte) string {
-	h, _ := blake2b.New(28, nil) // 224-bit digest
-	_, _ = h.Write(msg)
-	return hex.EncodeToString(h.Sum(nil))
+func sha256Hex(msg []byte) string {
+	d := sha256.Sum256(msg)
+	return hex.EncodeToString(d[:])
 }
 
-func blake2b224(msg []byte) []byte {
-	h, _ := blake2b.New(28, nil)
-	_, _ = h.Write(msg)
-	return h.Sum(nil)
-}
-
-// gtToHash computes:
-// kappa = e([a]q, h0)
-// enc  = fq12CanonicalBytes(kappa)
-// hk   = blake2b-224( enc || domainTagBytes )
+// gtToHash computes (for kappa = e([a]q, h0)):
+//
+//	enc  = fq12CanonicalBytes(kappa)
+//	hk   = sha256( enc || domainTagBytes )
 //
 // Returns:
-// - hkHex (lowercase hex, 56 chars)
+// - hkHex (lowercase hex, 64 chars)
 // - kappaEncHex (lowercase hex, 12*48*2 = 1152 chars)
 func gtToHash(a *big.Int) (hkHex string, kappaEncHex string, err error) {
 	if a == nil || a.Sign() == 0 {
@@ -157,11 +149,13 @@ func gtToHash(a *big.Int) (hkHex string, kappaEncHex string, err error) {
 	msg = append(msg, enc...)
 	msg = append(msg, tagBytes...)
 
-	hk := blake2b224(msg)
-
-	return hex.EncodeToString(hk), hex.EncodeToString(enc), nil
+	d := sha256.Sum256(msg)
+	return hex.EncodeToString(d[:]), hex.EncodeToString(enc), nil
 }
 
+// hkScalarFromA computes hk as a scalar in Fr, derived from:
+// sha256( fq12CanonicalBytes(e([a]q, h0)) || domainTagBytes )
+// reduced via fr.Element.SetBytes (i.e., mod r).
 func hkScalarFromA(a *big.Int) (*big.Int, error) {
 	if a == nil || a.Sign() == 0 {
 		return nil, fmt.Errorf("a must be > 0")
@@ -186,11 +180,12 @@ func hkScalarFromA(a *big.Int) (*big.Int, error) {
 	msg := make([]byte, 0, len(enc)+len(tagBytes))
 	msg = append(msg, enc...)
 	msg = append(msg, tagBytes...)
-	hkDigest := blake2b224(msg)
 
-	// Reduce into Fr
+	d := sha256.Sum256(msg)
+
+	// Reduce into Fr (same semantics you want in-circuit: interpret bytes then mod r)
 	var s fr.Element
-	s.SetBytes(hkDigest)
+	s.SetBytes(d[:])
 
 	var bi big.Int
 	s.BigInt(&bi)
@@ -366,7 +361,7 @@ func domainTagBytes() ([]byte, error) {
 }
 
 // gtToHashFromGT hashes a GT element exactly like gtToHash does:
-// hk = blake2b-224( fq12CanonicalBytes(k) || domainTagBytes )
+// hk = sha256( fq12CanonicalBytes(k) || domainTagBytes )
 func gtToHashFromGT(k bls12381.GT) (string, error) {
 	tagBytes, err := domainTagBytes()
 	if err != nil {
@@ -378,7 +373,7 @@ func gtToHashFromGT(k bls12381.GT) (string, error) {
 	msg = append(msg, enc...)
 	msg = append(msg, tagBytes...)
 
-	return blake2b224Hex(msg), nil
+	return sha256Hex(msg), nil
 }
 
 // gtDiv computes num / den in GT as num * den^{-1}.
@@ -391,7 +386,7 @@ func gtDiv(num, den bls12381.GT) bls12381.GT {
 	return out
 }
 
-// DecryptToHash computes the hop key hash that matches your Python.
+// DecryptToHash computes the hop key hash.
 //
 //	if constructor==1:
 //	    r2 = pair(g1b, H0)
@@ -400,7 +395,7 @@ func gtDiv(num, den bls12381.GT) bls12381.GT {
 //
 //	b = pair(r1, shared)
 //	k = r2 / b
-//	out = fq12_encoding(k, DomainTag)
+//	out = sha256( fq12CanonicalBytes(k) || DomainTag )
 //
 // Inputs are COMPRESSED hex strings:
 //
@@ -458,7 +453,7 @@ func DecryptToHash(g1bHex, g2bHex, r1Hex, sharedHex string) (string, error) {
 	// k = r2 / b
 	k := gtDiv(r2, b)
 
-	// fq12_encoding(k, DomainTagHex) => hash hex
+	// hash(k)
 	return gtToHashFromGT(k)
 }
 
@@ -467,13 +462,16 @@ func DecryptToHash(g1bHex, g2bHex, r1Hex, sharedHex string) (string, error) {
 //	w0 == [hk]q
 //	w1 == [a]q + [r]v
 //
-// where (a, r, hk) are secret scalars in Fr
+// with hk computed IN-CIRCUIT from:
+//
+//	hk = Fr( sha256( fq12CanonicalBytes( e([a]q, H0) ) || DomainTagBytes ) )
+//
+// where (a, r) are secret scalars in Fr
 // and (v, w0, w1) are public G1 points (provided as public X/Y in Fp).
 type vw0w1Circuit struct {
 	// secrets (Fr)
-	A  emulated.Element[emparams.BLS12381Fr] `gnark:"a,secret"`
-	R  emulated.Element[emparams.BLS12381Fr] `gnark:"r,secret"`
-	HK emulated.Element[emparams.BLS12381Fr] `gnark:"hk,secret"`
+	A emulated.Element[emparams.BLS12381Fr] `gnark:"a,secret"`
+	R emulated.Element[emparams.BLS12381Fr] `gnark:"r,secret"`
 
 	// publics (Fp) : V, W0, W1 as affine coordinates
 	VX emulated.Element[emparams.BLS12381Fp] `gnark:"vx,public"`
@@ -486,7 +484,72 @@ type vw0w1Circuit struct {
 	W1Y emulated.Element[emparams.BLS12381Fp] `gnark:"w1y,public"`
 }
 
+// fq12CanonicalBytesInCircuit serializes the pairing output in the SAME order
+// as fq12CanonicalBytes(k bls12381.GT) does out-of-circuit.
+//
+// In gnark v0.14, sw_bls12381.GTEl is an alias to fields_bls12381.E12 (direct extension),
+// so we convert it to the 2-3-2 tower via fields_bls12381.Ext12.ToTower and then
+// serialize the 12 base-field coefficients in tower order.
+func fq12CanonicalBytesInCircuit(api frontend.API, k *sw_bls12381.GTEl) ([]uints.U8, error) {
+	ext12 := fields_bls12381.NewExt12(api)
+	tower := ext12.ToTower(k) // [12]*baseEl (baseEl is an alias to the base-field element type)
+
+	out := make([]uints.U8, 0, 12*48)
+	for i := 0; i < 12; i++ {
+		b, err := conversion.EmulatedToBytes(api, tower[i])
+		if err != nil {
+			return nil, fmt.Errorf("coef[%d] to bytes: %w", i, err)
+		}
+		if len(b) != 48 {
+			return nil, fmt.Errorf("unexpected fp byte length at coef[%d]: got %d want 48", i, len(b))
+		}
+		out = append(out, b...)
+	}
+
+	return out, nil
+}
+
+// hashToFrSha256 reduces sha256(msg) into Fr using emulated.Field.FromBits + Reduce.
+// digest bits are interpreted as a big-endian integer before reduction.
+func hashToFrSha256(api frontend.API, msg []uints.U8) (emulated.Element[emparams.BLS12381Fr], error) {
+	h, err := sha2.New(api)
+	if err != nil {
+		return emulated.Element[emparams.BLS12381Fr]{}, err
+	}
+	h.Write(msg)
+	digest := h.Sum() // 32 bytes (big-endian)
+
+	bapi, err := uints.NewBytes(api)
+	if err != nil {
+		return emulated.Element[emparams.BLS12381Fr]{}, err
+	}
+
+	// Build bit slice (little-endian) representing the big-endian digest integer:
+	// least significant bits first => iterate bytes from last to first, and within each byte use LSB-first.
+	digestBits := make([]frontend.Variable, 0, 256)
+	for i := len(digest) - 1; i >= 0; i-- {
+		bv := bapi.Value(digest[i])
+		bs := bits.ToBinary(api, bv, bits.WithNbDigits(8)) // bs[0] is LSB
+		digestBits = append(digestBits, bs...)
+	}
+
+	frField, err := emulated.NewField[emparams.BLS12381Fr](api)
+	if err != nil {
+		return emulated.Element[emparams.BLS12381Fr]{}, err
+	}
+
+	// IMPORTANT: FromBits is variadic in gnark; expand the slice.
+	hk := frField.FromBits(digestBits...) // ✅ NOT digestBits
+
+	// Reduce mod r (mirrors fr.Element.SetBytes semantics).
+	hk = frField.Reduce(hk)
+
+	// hk is a *Element in this gnark version; return value.
+	return *hk, nil
+}
+
 func (c *vw0w1Circuit) Define(api frontend.API) error {
+	// G1 arithmetic (emulated)
 	curve, err := sw_emulated.New[emparams.BLS12381Fp, emparams.BLS12381Fr](api, sw_emulated.GetBLS12381Params())
 	if err != nil {
 		return err
@@ -496,24 +559,69 @@ func (c *vw0w1Circuit) Define(api frontend.API) error {
 	w0 := sw_emulated.AffinePoint[emparams.BLS12381Fp]{X: c.W0X, Y: c.W0Y}
 	w1 := sw_emulated.AffinePoint[emparams.BLS12381Fp]{X: c.W1X, Y: c.W1Y}
 
-	// Optional (but strongly recommended): ensure the public points are valid curve points.
-	// If these methods aren’t available in your gnark version, remove these lines.
+	// Strongly recommended: validate public points.
 	curve.AssertIsOnCurve(&v)
 	curve.AssertIsOnCurve(&w0)
 	curve.AssertIsOnCurve(&w1)
 
-	// p0 = [hk]q
-	p0 := curve.ScalarMulBase(&c.HK)
+	// qa = [a]q
+	qa := curve.ScalarMulBase(&c.A)
 
-	// enforce: w0 == p0
+	// --- compute hk IN-CIRCUIT from kappa = e(qa, H0) ---
+
+	// Pairing gadget (emulated)
+	pairing, err := sw_bls12381.NewPairing(api)
+	if err != nil {
+		return err
+	}
+
+	h0Native, err := parseG2CompressedHex(H0Hex)
+	if err != nil {
+		return fmt.Errorf("parse H0Hex: %w", err)
+	}
+	h0 := sw_bls12381.NewG2AffineFixed(h0Native)
+
+	qaForPair := sw_bls12381.G1Affine{X: qa.X, Y: qa.Y}
+	pairing.AssertIsOnG1(&qaForPair)
+	pairing.AssertIsOnG2(&h0)
+
+	kappa, err := pairing.Pair([]*sw_bls12381.G1Affine{&qaForPair}, []*sw_bls12381.G2Affine{&h0})
+	if err != nil {
+		return err
+	}
+
+	kappaBytes, err := fq12CanonicalBytesInCircuit(api, kappa)
+	if err != nil {
+		return fmt.Errorf("kappa encode: %w", err)
+	}
+
+	tagRaw, err := hex.DecodeString(DomainTagHex)
+	if err != nil {
+		return fmt.Errorf("decode DomainTagHex: %w", err)
+	}
+	bapi, err := uints.NewBytes(api)
+	if err != nil {
+		return fmt.Errorf("NewBytes: %w", err)
+	}
+
+	msg := make([]uints.U8, 0, len(kappaBytes)+len(tagRaw))
+	msg = append(msg, kappaBytes...)
+	for _, tb := range tagRaw {
+		msg = append(msg, bapi.ValueOf(int(tb)))
+	}
+
+	hk, err := hashToFrSha256(api, msg)
+	if err != nil {
+		return fmt.Errorf("hashToFrSha256: %w", err)
+	}
+
+	// p0 = [hk]q
+	p0 := curve.ScalarMulBase(&hk)
 	curve.AssertIsEqual(p0, &w0)
 
 	// p1 = [a]q + [r]v
-	qa := curve.ScalarMulBase(&c.A)
 	rv := curve.ScalarMul(&v, &c.R)
 	p1 := curve.Add(qa, rv)
-
-	// enforce: w1 == p1
 	curve.AssertIsEqual(p1, &w1)
 
 	return nil
@@ -526,7 +634,12 @@ func (c *vw0w1Circuit) Define(api frontend.API) error {
 //
 // Secrets:
 //   - a, r (big.Int)
-//   - hk is derived from a via hkScalarFromA(a) (your existing helper)
+//
+// Relation proven:
+//   - hk is computed inside the circuit from kappa = e([a]q, H0) and sha256(encode(kappa)||DomainTag),
+//     reduced into Fr,
+//   - w0 == [hk]q
+//   - w1 == [a]q + [r]v
 //
 // Exports:
 //   - writes vk.json / proof.json / public.json to outDir via ExportAll(...)
@@ -581,22 +694,7 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 	aFr.BigInt(&aRed)
 	rFr.BigInt(&rRed)
 
-	// 3) Compute hk from a (already reduced mod Fr in hkScalarFromA via fr.SetBytes)
-	hkBi, err := hkScalarFromA(a)
-	if err != nil {
-		return err
-	}
-	if hkBi.Sign() == 0 {
-		return fmt.Errorf("hk reduced to 0; refuse (W0 would be infinity)")
-	}
-
-	// (Optional) normalize hk into Fr as well (belt & suspenders)
-	var hkFr fr.Element
-	hkFr.SetBigInt(hkBi)
-	var hkRed big.Int
-	hkFr.BigInt(&hkRed)
-
-	// 4) Extract affine coords to big.Int (regular big-endian)
+	// 3) Extract affine coords to big.Int (regular big-endian)
 	var vx, vy, w0x, w0y, w1x, w1y big.Int
 	vAff.X.ToBigIntRegular(&vx)
 	vAff.Y.ToBigIntRegular(&vy)
@@ -605,24 +703,23 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 	w1Aff.X.ToBigIntRegular(&w1x)
 	w1Aff.Y.ToBigIntRegular(&w1y)
 
-	// 5) Compile circuit over BLS12-381 scalar field
+	// 4) Compile circuit over BLS12-381 scalar field
 	var circuit vw0w1Circuit
 	ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
 		return fmt.Errorf("compile: %w", err)
 	}
 
-	// 6) Setup keys
+	// 5) Setup keys
 	pk, vk, err := groth16.Setup(ccs)
 	if err != nil {
 		return fmt.Errorf("setup: %w", err)
 	}
 
-	// 7) Create witness assignment
+	// 6) Create witness assignment
 	assignment := vw0w1Circuit{
-		A:  emulated.ValueOf[emparams.BLS12381Fr](&aRed),
-		R:  emulated.ValueOf[emparams.BLS12381Fr](&rRed),
-		HK: emulated.ValueOf[emparams.BLS12381Fr](&hkRed),
+		A: emulated.ValueOf[emparams.BLS12381Fr](&aRed),
+		R: emulated.ValueOf[emparams.BLS12381Fr](&rRed),
 
 		VX: emulated.ValueOf[emparams.BLS12381Fp](&vx),
 		VY: emulated.ValueOf[emparams.BLS12381Fp](&vy),
@@ -643,7 +740,7 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 		return fmt.Errorf("public witness: %w", err)
 	}
 
-	// 8) Prove + verify
+	// 7) Prove + verify
 	proof, err := groth16.Prove(ccs, pk, witness)
 	if err != nil {
 		return fmt.Errorf("prove: %w", err)
@@ -652,7 +749,7 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 		return fmt.Errorf("verify failed: %w", err)
 	}
 
-	// 9) Export artifacts
+	// 8) Export artifacts
 	if err := ExportAll(vk, proof, publicWitness, outDir); err != nil {
 		return fmt.Errorf("export: %w", err)
 	}

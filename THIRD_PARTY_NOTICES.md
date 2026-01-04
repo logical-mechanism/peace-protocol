@@ -16,7 +16,7 @@
 - **Version/Updated:** main branch (retrieved 2025-01)
 - **License:** Apache License 2.0 (SPDX: `Apache-2.0`)
 - **Authors:** Modulo-P contributors
-- **Changes:** Proof -> GrothProof
+- **Changes:** Proof -> GrothProof, verify_groth -> verify_groth16
 
 **Copyright (C) 2025 Logical Mechanism LLC**
 

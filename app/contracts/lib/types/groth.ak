@@ -10,30 +10,28 @@ use aiken/builtin.{
 
 pub type SnarkVerificationKey {
   nPublic: Int,
-  // G1Element
+  // G1 compressed
   vkAlpha: ByteArray,
-  // G2Element
+  // G2 compressed
   vkBeta: ByteArray,
-  // G2Element
+  // G2 compressed
   vkGamma: ByteArray,
-  // G2Element
+  // G2 compressed
   vkDelta: ByteArray,
-  // List<G2Element>
-  vkAlphaBeta: List<ByteArray>,
-  // List<G1Element>
+  // list of G1 compressed, length = nPublic + 1
   vkIC: List<ByteArray>,
 }
 
 pub type GrothProof {
-  // G1Element
+  // G1 compressed
   piA: ByteArray,
-  // G2Element
+  // G2 compressed
   piB: ByteArray,
-  // G1Element
+  // G1 compressed
   piC: ByteArray,
 }
 
-pub fn pairing(g1: ByteArray, g2: ByteArray) {
+pub fn pairing(g1: ByteArray, g2: ByteArray) -> MillerLoopResult {
   bls12_381_miller_loop(
     bls12_381_g1_uncompress(g1),
     bls12_381_g2_uncompress(g2),
