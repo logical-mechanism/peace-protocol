@@ -17,6 +17,28 @@ from src.snark import (
 )
 import os
 from src.files import load_json
+from typing import Any, cast
+
+from eth_typing import BLSPubkey, BLSSignature
+from py_ecc.bls.g2_primitives import (
+    G1_to_pubkey,
+    G2_to_signature,
+    pubkey_to_G1,
+    signature_to_G2,
+)
+from py_ecc.optimized_bls12_381 import (
+    b,
+    b2,
+    curve_order,
+    is_on_curve,
+    multiply,
+)
+
+# is_inf location varies a bit across versions
+try:
+    from py_ecc.optimized_bls12_381 import is_inf  # type: ignore[attr-defined]
+except Exception:
+    from py_ecc.optimized_bls12_381.optimized_curve import is_inf  # type: ignore
 
 # random secrets
 a0 = 44203
@@ -58,6 +80,7 @@ def test_half_level_decrypt_hash():
 
     a = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
     assert a == "f4336448801f7350116ef845a9556179f46ef31aef8e348cd45cebe60fa95a81"
+
 
 def test_derive_public_points():
     a = gt_to_hash(a0, snark_path)
@@ -110,7 +133,6 @@ def test_derive_public_points():
     assert public_integers == expected_public_integers
 
 
-
 def test_snark_prove():
     a = gt_to_hash(a0, snark_path)
     v = g1_point(x0)
@@ -130,29 +152,6 @@ def test_snark_prove():
 
 def test_snark_verify():
     assert verify_snark_proof(out_path)
-
-from typing import Any, cast
-
-from eth_typing import BLSPubkey, BLSSignature
-from py_ecc.bls.g2_primitives import (
-    G1_to_pubkey,
-    G2_to_signature,
-    pubkey_to_G1,
-    signature_to_G2,
-)
-from py_ecc.optimized_bls12_381 import (
-    b,
-    b2,
-    curve_order,
-    is_on_curve,
-    multiply,
-)
-
-# is_inf location varies a bit across versions
-try:
-    from py_ecc.optimized_bls12_381 import is_inf  # type: ignore[attr-defined]
-except Exception:
-    from py_ecc.optimized_bls12_381.optimized_curve import is_inf  # type: ignore
 
 
 def _hex_to_bytes(h: str, *, expect_len: int) -> bytes:
@@ -194,7 +193,6 @@ def _check_g2(label: str, hex96: str) -> None:
     print(label, "G2 roundtrip ok?", rt == raw)
     print(label, "G2 on_curve?", on_curve)
     print(label, "G2 in_subgroup?", in_subgroup)
-
 
 
 def test_round_trip():
