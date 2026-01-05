@@ -16,6 +16,7 @@ from src.snark import (
     public_inputs_from_w0_w1_hex,
 )
 import os
+from src.files import load_json
 
 # random secrets
 a0 = 44203
@@ -120,6 +121,85 @@ def test_snark_prove():
 
 def test_snark_verify():
     assert verify_snark_proof(out_path)
+
+from typing import Any, cast
+
+from eth_typing import BLSPubkey, BLSSignature
+from py_ecc.bls.g2_primitives import (
+    G1_to_pubkey,
+    G2_to_signature,
+    pubkey_to_G1,
+    signature_to_G2,
+)
+from py_ecc.optimized_bls12_381 import (
+    b,
+    b2,
+    curve_order,
+    is_on_curve,
+    multiply,
+)
+
+# is_inf location varies a bit across versions
+try:
+    from py_ecc.optimized_bls12_381 import is_inf  # type: ignore[attr-defined]
+except Exception:
+    from py_ecc.optimized_bls12_381.optimized_curve import is_inf  # type: ignore
+
+
+def _hex_to_bytes(h: str, *, expect_len: int) -> bytes:
+    h = h.strip().lower()
+    if h.startswith("0x"):
+        h = h[2:]
+    raw = bytes.fromhex(h)
+    if len(raw) != expect_len:
+        raise ValueError(f"expected {expect_len} bytes, got {len(raw)}")
+    return raw
+
+
+def _in_r_subgroup(P: Any) -> bool:
+    # Prime-order subgroup check: [r]P == O
+    return is_inf(multiply(P, curve_order))
+
+
+def _check_g1(label: str, hex48: str) -> None:
+    raw = _hex_to_bytes(hex48, expect_len=48)
+    P = pubkey_to_G1(cast(BLSPubkey, raw))
+    rt = G1_to_pubkey(P)
+
+    on_curve = is_on_curve(P, b)
+    in_subgroup = _in_r_subgroup(P) if on_curve else False
+
+    print(label, "G1 roundtrip ok?", rt == raw)
+    print(label, "G1 on_curve?", on_curve)
+    print(label, "G1 in_subgroup?", in_subgroup)
+
+
+def _check_g2(label: str, hex96: str) -> None:
+    raw = _hex_to_bytes(hex96, expect_len=96)
+    Q = signature_to_G2(cast(BLSSignature, raw))
+    rt = G2_to_signature(Q)
+
+    on_curve = is_on_curve(Q, b2)
+    in_subgroup = _in_r_subgroup(Q) if on_curve else False
+
+    print(label, "G2 roundtrip ok?", rt == raw)
+    print(label, "G2 on_curve?", on_curve)
+    print(label, "G2 in_subgroup?", in_subgroup)
+
+
+
+def test_round_trip():
+    vk = load_json("out/vk.json")
+    proof = load_json("out/proof.json")
+
+    _check_g1("vkAlpha", vk["vkAlpha"])
+    _check_g2("vkBeta", vk["vkBeta"])
+    _check_g2("vkGamma", vk["vkGamma"])
+    _check_g2("vkDelta", vk["vkDelta"])
+
+    _check_g1("piA", proof["piA"])
+    _check_g2("piB", proof["piB"])
+    _check_g1("piC", proof["piC"])
 
 
 if __name__ == "__main__":
