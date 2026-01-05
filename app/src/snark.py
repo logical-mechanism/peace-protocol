@@ -224,6 +224,16 @@ def _gt_inv(x: Any) -> Any:
     return x.inv()
 
 def verify_snark_proof(out_dir: str | Path = "out") -> bool:
+    """
+    Classic Groth16 verifier for the gnark-exported artifacts:
+
+        e(A, B) == e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
+
+    Notes:
+    - We use the existing _pair wrapper, which calls py_ecc.pairing(Q_g2, P_g1, final_exponentiate=False),
+      so we pass (G2, G1) order to _pair().
+    - We keep the exporter invariant: len(vk.IC) == len(inputs) + 1.
+    """
     out_dir = Path(out_dir)
 
     vk = load_json(out_dir / "vk.json")
@@ -234,6 +244,7 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     if not isinstance(inputs, list):
         raise TypeError("public.json: 'inputs' must be a list")
 
+    # --- decode VK ---
     alpha = _g1_from_compressed_hex(vk["vkAlpha"])
     beta = _g2_from_compressed_hex(vk["vkBeta"])
     gamma = _g2_from_compressed_hex(vk["vkGamma"])
@@ -250,11 +261,12 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
             f"IC length mismatch: len(IC)={len(IC)} vs len(inputs)+1={len(inputs) + 1}"
         )
 
+    # --- decode Proof ---
     A = _g1_from_compressed_hex(proof["piA"])
     B = _g2_from_compressed_hex(proof["piB"])
     C = _g1_from_compressed_hex(proof["piC"])
 
-    # Build vk_x in G1
+    # --- build vk_x = IC[0] + sum_i inputs[i] * IC[i+1] ---
     vk_x = IC[0]
     for i, s in enumerate(inputs):
         si = int(s) % curve_order
@@ -265,9 +277,9 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     def fe(x: Any) -> Any:
         return final_exponentiate(x)
 
-    # sanity: inverse works in GT
+    # Optional sanity (kept from your current code style)
     if debug:
-        mill = _pair(B, A)  # NOTE: pairing expects (G2, G1) in our helper
+        mill = _pair(B, A)
         chk = fe(mill * _gt_inv(mill))
 
         # identity via pairing(infinity, B)
@@ -278,87 +290,24 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
         else:
             print("[verify] inverse sanity check ok")
 
-    # Base LHS (A/B signs)
-    def lhs_for(a_pt: Any, b_pt: Any) -> Any:
-        # _pair expects (G2, G1)
-        return _pair(b_pt, a_pt)
+    # --- Classic Groth16 equation ---
+    # LHS = e(A, B)
+    lhs = _pair(B, A)
 
-    # Base RHS (alpha/beta, vkx/gamma, C/delta)
-    def rhs_for(
-        alpha_pt: Any,
-        beta_pt: Any,
-        vkx_pt: Any,
-        gamma_pt: Any,
-        c_pt: Any,
-        delta_pt: Any,
-    ) -> Any:
-        r = _pair(beta_pt, alpha_pt)   # e(beta, alpha)
-        r *= _pair(gamma_pt, vkx_pt)   # e(gamma, vk_x)
-        r *= _pair(delta_pt, c_pt)     # e(delta, C)
-        return r
+    # RHS = e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
+    rhs = _pair(beta, alpha)       # e(alpha, beta) == e(beta, alpha) given _pair(G2, G1)
+    rhs *= _pair(gamma, vk_x)      # e(vk_x, gamma)
+    rhs *= _pair(delta, C)         # e(C, delta)
 
-    # Try ALL 2^8 sign combinations:
-    # {A,B,C, alpha,beta,gamma,delta, vk_x}
-    points = {
-        "A": A,
-        "B": B,
-        "C": C,
-        "alpha": alpha,
-        "beta": beta,
-        "gamma": gamma,
-        "delta": delta,
-        "vkx": vk_x,
-    }
-
-    def maybe_neg(pt: Any, do_neg: bool) -> Any:
-        return neg(pt) if do_neg else pt
-
-    names = ["A", "B", "C", "alpha", "beta", "gamma", "delta", "vkx"]
-
-    tried = 0
-    for mask in range(1 << len(names)):
-        tried += 1
-        sel = {name: bool(mask & (1 << i)) for i, name in enumerate(names)}
-
-        A_ = maybe_neg(points["A"], sel["A"])
-        B_ = maybe_neg(points["B"], sel["B"])
-        C_ = maybe_neg(points["C"], sel["C"])
-        alpha_ = maybe_neg(points["alpha"], sel["alpha"])
-        beta_ = maybe_neg(points["beta"], sel["beta"])
-        gamma_ = maybe_neg(points["gamma"], sel["gamma"])
-        delta_ = maybe_neg(points["delta"], sel["delta"])
-        vkx_ = maybe_neg(points["vkx"], sel["vkx"])
-
-        lhs = lhs_for(A_, B_)
-        rhs = rhs_for(alpha_, beta_, vkx_, gamma_, C_, delta_)
-
-        L = fe(lhs)
-        R = fe(rhs)
-        Linv = fe(_gt_inv(lhs))
-        Rinv = fe(_gt_inv(rhs))
-
-        label = " ".join([f"{k}{'-' if sel[k] else ''}" for k in names])
-
-        if L == R:
-            if debug:
-                print(f"[verify] matched: {label} (L == R)")
-            return True
-        if L == Rinv:
-            if debug:
-                print(f"[verify] matched: {label} (L == R^-1)")
-            return True
-        if Linv == R:
-            if debug:
-                print(f"[verify] matched: {label} (L^-1 == R)")
-            return True
-        if Linv == Rinv:
-            if debug:
-                print(f"[verify] matched: {label} (L^-1 == R^-1)")
-            return True
+    L = fe(lhs)
+    R = fe(rhs)
 
     if debug:
-        print(f"[verify] tried {tried} sign combinations; none matched")
-    return False
+        print(L)
+        print(R)
+        print("[verify] L == R ?", L == R)
+
+    return L == R
 
 
 # ----------------------------
