@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from src.files import load_json
-
+from py_ecc.optimized_bls12_381 import normalize
 from eth_typing import BLSPubkey, BLSSignature
 from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2
 from py_ecc.fields import optimized_bls12_381_FQ as FQ
@@ -115,16 +115,113 @@ def _g2_from_compressed_hex(h: str):
 # Groth16 verify (robust conventions)
 # ----------------------------
 
+def _is_fq2(x: Any) -> bool:
+    """
+    Robust FQ2 detector for py_ecc optimized types.
 
-def _pair(q_g2: Any, p_g1: Any) -> Any:
-    # pairing() in optimized_bls12_381 is defined over optimized point types.
-    return pairing(q_g2, p_g1, final_exponentiate=False)
+    - Sometimes prints like (c0, c1) but is NOT actually a tuple.
+    - Optimized FQ2 objects typically have `.coeffs` (len 2).
+    """
+    if isinstance(x, tuple) and len(x) == 2:
+        return True
+    coeffs = getattr(x, "coeffs", None)
+    return isinstance(coeffs, (list, tuple)) and len(coeffs) == 2
+
+
+def _is_g2_point(p: Any) -> bool:
+    # Accept affine (x,y) or jacobian (x,y,z), where x,y are FQ2-like
+    if not isinstance(p, tuple) or len(p) not in (2, 3):
+        return False
+    x, y = p[0], p[1]
+    return _is_fq2(x) and _is_fq2(y)
+
+
+def _is_g1_point(p: Any) -> bool:
+    # Accept affine (x,y) or jacobian (x,y,z), where x,y are NOT FQ2-like
+    if not isinstance(p, tuple) or len(p) not in (2, 3):
+        return False
+    x, y = p[0], p[1]
+    return (not _is_fq2(x)) and (not _is_fq2(y))
+
+
+def _to_jacobian_g1(p: Any) -> Any:
+    # (x,y) -> (x,y,1)
+    if isinstance(p, tuple) and len(p) == 2:
+        return (p[0], p[1], 1)
+    return p
+
+
+def _g2_one_like(x_fq2: Any) -> Any:
+    """
+    Construct the multiplicative identity in FQ2 matching the runtime type.
+    """
+    # tuple-representation FQ2
+    if isinstance(x_fq2, tuple) and len(x_fq2) == 2:
+        return (1, 0)
+
+    cls = x_fq2.__class__
+
+    # Many py_ecc field types provide classmethod `.one()`
+    one_fn = getattr(cls, "one", None)
+    if callable(one_fn):
+        try:
+            return one_fn()
+        except TypeError:
+            pass
+
+    # Fall back to common constructors
+    try:
+        return cls((1, 0))
+    except Exception:
+        pass
+    try:
+        return cls([1, 0])
+    except Exception:
+        pass
+
+    # Last resort (better than crashing)
+    return (1, 0)
+
+
+def _to_jacobian_g2(p: Any) -> Any:
+    # (x,y) -> (x,y,1_FQ2)
+    if isinstance(p, tuple) and len(p) == 2:
+        x, y = p
+        return (x, y, _g2_one_like(x))
+    return p
+
+
+def _pair(a: Any, b: Any) -> Any:
+    """
+    py_ecc.optimized_bls12_381.pairing expects (Q_g2, P_g1) in Jacobian.
+
+    This wrapper accepts either order and (only if needed) lifts affine->jacobian.
+    """
+    a_is_g2 = _is_g2_point(a)
+    a_is_g1 = _is_g1_point(a)
+    b_is_g2 = _is_g2_point(b)
+    b_is_g1 = _is_g1_point(b)
+
+    if a_is_g2 and b_is_g1:
+        Q_g2 = _to_jacobian_g2(a)
+        P_g1 = _to_jacobian_g1(b)
+    elif b_is_g2 and a_is_g1:
+        Q_g2 = _to_jacobian_g2(b)
+        P_g1 = _to_jacobian_g1(a)
+    else:
+        raise TypeError(
+            "pairing expects one G1 point and one G2 point; "
+            f"got a_is_g1={a_is_g1} a_is_g2={a_is_g2} "
+            f"b_is_g1={b_is_g1} b_is_g2={b_is_g2} "
+            f"(len(a)={len(a) if isinstance(a, tuple) else None}, "
+            f"len(b)={len(b) if isinstance(b, tuple) else None})"
+        )
+
+    return pairing(Q_g2, P_g1, final_exponentiate=False)
 
 
 def _gt_inv(x: Any) -> Any:
-    # FQ12 supports exponentiation by -1 in py_ecc; keep it simple.
-    return 1 / x
-
+    return x.inv()
 
 def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     out_dir = Path(out_dir)
@@ -157,68 +254,110 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     B = _g2_from_compressed_hex(proof["piB"])
     C = _g1_from_compressed_hex(proof["piC"])
 
-    # Build vk_x in G1 using scalars mod curve_order (safe even if already small).
+    # Build vk_x in G1
     vk_x = IC[0]
     for i, s in enumerate(inputs):
         si = int(s) % curve_order
         vk_x = add(vk_x, multiply(IC[i + 1], si))
 
-    # Compute right side once (un-negated points)
-    rhs = _pair(beta, alpha)
-    rhs *= _pair(gamma, vk_x)
-    rhs *= _pair(delta, C)
-
-    # We try a small, meaningful set of conventions:
-    # - A vs -A (some toolchains export A negated)
-    # - direct equality vs equality up to inversion (pairing convention differences)
     debug = os.getenv("SNARK_DEBUG") not in (None, "", "0", "false", "False")
 
-    def _check(label: str, lhs_val: Any, rhs_val: Any) -> bool:
-        # Final exponentiate after combining (standard optimization).
-        L = final_exponentiate(lhs_val)
-        R = final_exponentiate(rhs_val)
+    def fe(x: Any) -> Any:
+        return final_exponentiate(x)
+
+    # sanity: inverse works in GT
+    if debug:
+        mill = _pair(B, A)  # NOTE: pairing expects (G2, G1) in our helper
+        chk = fe(mill * _gt_inv(mill))
+
+        # identity via pairing(infinity, B)
+        g1_zero = multiply(A, 0)  # G1 infinity
+        one = fe(_pair(B, g1_zero))
+        if chk != one:
+            print("[verify] WARNING: FQ12 inverse sanity check failed")
+        else:
+            print("[verify] inverse sanity check ok")
+
+    # Base LHS (A/B signs)
+    def lhs_for(a_pt: Any, b_pt: Any) -> Any:
+        # _pair expects (G2, G1)
+        return _pair(b_pt, a_pt)
+
+    # Base RHS (alpha/beta, vkx/gamma, C/delta)
+    def rhs_for(
+        alpha_pt: Any,
+        beta_pt: Any,
+        vkx_pt: Any,
+        gamma_pt: Any,
+        c_pt: Any,
+        delta_pt: Any,
+    ) -> Any:
+        r = _pair(beta_pt, alpha_pt)   # e(beta, alpha)
+        r *= _pair(gamma_pt, vkx_pt)   # e(gamma, vk_x)
+        r *= _pair(delta_pt, c_pt)     # e(delta, C)
+        return r
+
+    # Try ALL 2^8 sign combinations:
+    # {A,B,C, alpha,beta,gamma,delta, vk_x}
+    points = {
+        "A": A,
+        "B": B,
+        "C": C,
+        "alpha": alpha,
+        "beta": beta,
+        "gamma": gamma,
+        "delta": delta,
+        "vkx": vk_x,
+    }
+
+    def maybe_neg(pt: Any, do_neg: bool) -> Any:
+        return neg(pt) if do_neg else pt
+
+    names = ["A", "B", "C", "alpha", "beta", "gamma", "delta", "vkx"]
+
+    tried = 0
+    for mask in range(1 << len(names)):
+        tried += 1
+        sel = {name: bool(mask & (1 << i)) for i, name in enumerate(names)}
+
+        A_ = maybe_neg(points["A"], sel["A"])
+        B_ = maybe_neg(points["B"], sel["B"])
+        C_ = maybe_neg(points["C"], sel["C"])
+        alpha_ = maybe_neg(points["alpha"], sel["alpha"])
+        beta_ = maybe_neg(points["beta"], sel["beta"])
+        gamma_ = maybe_neg(points["gamma"], sel["gamma"])
+        delta_ = maybe_neg(points["delta"], sel["delta"])
+        vkx_ = maybe_neg(points["vkx"], sel["vkx"])
+
+        lhs = lhs_for(A_, B_)
+        rhs = rhs_for(alpha_, beta_, vkx_, gamma_, C_, delta_)
+
+        L = fe(lhs)
+        R = fe(rhs)
+        Linv = fe(_gt_inv(lhs))
+        Rinv = fe(_gt_inv(rhs))
+
+        label = " ".join([f"{k}{'-' if sel[k] else ''}" for k in names])
+
         if L == R:
             if debug:
                 print(f"[verify] matched: {label} (L == R)")
             return True
-        # Some conventions effectively invert one side.
-        if L == final_exponentiate(_gt_inv(rhs_val)):
+        if L == Rinv:
             if debug:
                 print(f"[verify] matched: {label} (L == R^-1)")
             return True
-        if final_exponentiate(_gt_inv(lhs_val)) == R:
+        if Linv == R:
             if debug:
                 print(f"[verify] matched: {label} (L^-1 == R)")
             return True
-        if final_exponentiate(_gt_inv(lhs_val)) == final_exponentiate(_gt_inv(rhs_val)):
+        if Linv == Rinv:
             if debug:
-                print(f"L={L}")
-                print(f"R={R}")
-                print(f"lhs={lhs_val}")
-                print(f"lhs inv={_gt_inv(lhs_val)}")
                 print(f"[verify] matched: {label} (L^-1 == R^-1)")
             return True
-        if debug:
-            print(f"[verify] tried {label}; no match")
-        return False
 
-    # Convention 1: lhs = e(A,B)
-    lhs1 = _pair(B, A)
-    if _check("A", lhs1, rhs):
-        if debug:
-            print("Convention 1")
-        return True
-
-    # Convention 2: lhs = e(-A,B)
-    lhs2 = _pair(B, neg(A))
-    if _check("-A", lhs2, rhs):
-        if debug:
-            print("Convention 2")
-        return True
-
-    # If still failing, print a hint and return False.
     if debug:
-        print("[verify] no conventions matched (A / -A, with inversion checks)")
+        print(f"[verify] tried {tried} sign combinations; none matched")
     return False
 
 
