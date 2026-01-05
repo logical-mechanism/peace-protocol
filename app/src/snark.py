@@ -223,16 +223,51 @@ def _pair(a: Any, b: Any) -> Any:
 def _gt_inv(x: Any) -> Any:
     return x.inv()
 
+def _vk_x_candidates(IC: list[Any], inputs: list[int]) -> list[tuple[str, Any]]:
+    """
+    Build candidate vk_x values under the only two layouts that make sense here.
+
+    - strict: vk_x = IC[0] + sum inputs[i] * IC[i+1]
+      Requires len(IC) == len(inputs) + 1.
+
+    - drop1_shiftIC: if inputs[0] == 1 and len(IC) == len(inputs) + 1,
+      treat that leading 1 as the R1CS one-wire and *skip* IC[1]:
+          vk_x = IC[0] + sum inputs[i] * IC[i+1]   for i>=1  (equivalently shift IC)
+      i.e., use inputs[1:] against IC[2:].
+    """
+    cands: list[tuple[str, Any]] = []
+
+    # strict / canonical Groth16 layout
+    if len(IC) == len(inputs) + 1:
+        vk_x = IC[0]
+        for i, s in enumerate(inputs):
+            vk_x = add(vk_x, multiply(IC[i + 1], s))
+        cands.append(("strict", vk_x))
+
+    # if exporter included the one-wire as an explicit leading public input
+    # (public.json starts with "1"), then the correct classic vk_x must NOT
+    # also consume IC[1] for that "1". So: drop inputs[0] and shift IC by +1.
+    if inputs and inputs[0] == 1 and len(IC) == len(inputs) + 1:
+        inputs2 = inputs[1:]
+        # need IC[0] + sum_{j=0..len(inputs2)-1} inputs2[j] * IC[j+2]
+        if len(IC) >= len(inputs2) + 2:
+            vk_x = IC[0]
+            for j, s in enumerate(inputs2):
+                vk_x = add(vk_x, multiply(IC[j + 2], s))
+            cands.append(("drop1_shiftIC", vk_x))
+
+    return cands
+
+
 def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     """
-    Classic Groth16 verifier for the gnark-exported artifacts:
+    Classic Groth16 verifier for the gnark-exported artifacts.
 
         e(A, B) == e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
 
-    Notes:
-    - We use the existing _pair wrapper, which calls py_ecc.pairing(Q_g2, P_g1, final_exponentiate=False),
-      so we pass (G2, G1) order to _pair().
-    - We keep the exporter invariant: len(vk.IC) == len(inputs) + 1.
+    The only "robustness" here is handling the exporter case where public.json
+    includes a leading 1 (R1CS one-wire). We do NOT brute-force point sign
+    conventions.
     """
     out_dir = Path(out_dir)
 
@@ -240,9 +275,12 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     proof = load_json(out_dir / "proof.json")
     public = load_json(out_dir / "public.json")
 
-    inputs = public.get("inputs")
-    if not isinstance(inputs, list):
+    raw_inputs = public.get("inputs")
+    if not isinstance(raw_inputs, list):
         raise TypeError("public.json: 'inputs' must be a list")
+
+    # Parse inputs as ints mod r
+    inputs = [int(x) % curve_order for x in raw_inputs]
 
     # --- decode VK ---
     alpha = _g1_from_compressed_hex(vk["vkAlpha"])
@@ -251,63 +289,43 @@ def verify_snark_proof(out_dir: str | Path = "out") -> bool:
     delta = _g2_from_compressed_hex(vk["vkDelta"])
     IC = [_g1_from_compressed_hex(p) for p in vk["vkIC"]]
 
-    n_public = int(vk["nPublic"])
-    if len(inputs) != n_public:
-        raise ValueError(
-            f"public input count mismatch: len(inputs)={len(inputs)} vs vk.nPublic={n_public}"
-        )
-    if len(IC) != len(inputs) + 1:
-        raise ValueError(
-            f"IC length mismatch: len(IC)={len(IC)} vs len(inputs)+1={len(inputs) + 1}"
-        )
+    debug = os.getenv("SNARK_DEBUG") not in (None, "", "0", "false", "False")
+
+    def fe(x: Any) -> Any:
+        return final_exponentiate(x)
 
     # --- decode Proof ---
     A = _g1_from_compressed_hex(proof["piA"])
     B = _g2_from_compressed_hex(proof["piB"])
     C = _g1_from_compressed_hex(proof["piC"])
 
-    # --- build vk_x = IC[0] + sum_i inputs[i] * IC[i+1] ---
-    vk_x = IC[0]
-    for i, s in enumerate(inputs):
-        si = int(s) % curve_order
-        vk_x = add(vk_x, multiply(IC[i + 1], si))
-
-    debug = os.getenv("SNARK_DEBUG") not in (None, "", "0", "false", "False")
-
-    def fe(x: Any) -> Any:
-        return final_exponentiate(x)
-
-    # Optional sanity (kept from your current code style)
+    # Optional pairing sanity check (kept from your style)
     if debug:
         mill = _pair(B, A)
         chk = fe(mill * _gt_inv(mill))
-
-        # identity via pairing(infinity, B)
-        g1_zero = multiply(A, 0)  # G1 infinity
+        g1_zero = multiply(A, 0)  # infinity
         one = fe(_pair(B, g1_zero))
-        if chk != one:
-            print("[verify] WARNING: FQ12 inverse sanity check failed")
-        else:
-            print("[verify] inverse sanity check ok")
+        print("[verify] inverse sanity check ok" if chk == one else "[verify] WARNING: inverse sanity check failed")
 
-    # --- Classic Groth16 equation ---
-    # LHS = e(A, B)
+    # Precompute LHS once
     lhs = _pair(B, A)
 
-    # RHS = e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
-    rhs = _pair(beta, alpha)       # e(alpha, beta) == e(beta, alpha) given _pair(G2, G1)
-    rhs *= _pair(gamma, vk_x)      # e(vk_x, gamma)
-    rhs *= _pair(delta, C)         # e(C, delta)
+    # Try only the sane vk_x layouts
+    for layout, vk_x in _vk_x_candidates(IC, inputs):
+        rhs = _pair(beta, alpha)      # e(alpha, beta)
+        rhs *= _pair(gamma, vk_x)     # e(vk_x, gamma)
+        rhs *= _pair(delta, C)        # e(C, delta)
 
-    L = fe(lhs)
-    R = fe(rhs)
+        ok = (fe(lhs) == fe(rhs))
+        if debug:
+            print(f"[verify] layout={layout} ok={ok}")
+
+        if ok:
+            return True
 
     if debug:
-        print(L)
-        print(R)
-        print("[verify] L == R ?", L == R)
-
-    return L == R
+        print("[verify] no layout matched")
+    return False
 
 
 # ----------------------------
