@@ -222,34 +222,59 @@ func exportPublicInputs(publicWitness backend_witness.Witness) ([]string, error)
 	return out, nil
 }
 
-// choosePublicInputs picks what to export as "public inputs" and ensures they
-// can be represented by the VK IC (capacity = len(IC)-1).
+// choosePublicInputs returns the public input vector we should export such that
+// it matches the verifying key IC length exactly:
 //
-// Accepts:
-//   - pubRaw length <= icCap
-//   - or pubRaw length == icCap+1 with leading 0/1 “one-wire” (drops it)
-func choosePublicInputs(pubRaw []string, icCap int) ([]string, error) {
-	if icCap < 0 {
-		return nil, fmt.Errorf("invalid vk IC capacity: %d", icCap)
+//	len(IC) == len(pub)+1
+//
+// We handle common gnark variants:
+//
+//  1. pubRaw excludes the implicit "one-wire": len(IC) == len(pubRaw)+2
+//     -> prepend "1" to pubRaw
+//
+//  2. pubRaw already includes a leading 0/1 "one-wire": len(IC) == len(pubRaw)+1
+//     -> keep as-is
+//
+//  3. pubRaw includes an extra leading 0/1 beyond what IC expects: len(IC) == len(pubRaw)
+//     -> drop the leading 0/1
+func choosePublicInputs(pubRaw []string, icLen int) ([]string, error) {
+	if icLen < 1 {
+		return nil, fmt.Errorf("invalid vk IC length: %d", icLen)
+	}
+	if pubRaw == nil {
+		pubRaw = nil
 	}
 
-	pub := pubRaw
+	// Target invariant: len(IC) == len(pub)+1
+	switch {
+	// Perfect match already.
+	case icLen == len(pubRaw)+1:
+		return append([]string(nil), pubRaw...), nil
 
-	// If there is a leading 0/1 and dropping it helps fit within IC capacity, drop it.
-	if len(pubRaw) > 0 && (pubRaw[0] == "0" || pubRaw[0] == "1") {
-		if len(pubRaw)-1 <= icCap {
-			pub = pubRaw[1:]
+	// VK expects one more public than witness.Vector() gave us.
+	// Most commonly that's the implicit "1" one-wire.
+	case icLen == len(pubRaw)+2:
+		pub := make([]string, 0, len(pubRaw)+1)
+		pub = append(pub, "1")
+		pub = append(pub, pubRaw...)
+		return pub, nil
+
+	// witness.Vector() may already include a leading 0/1 that VK does not count.
+	case icLen == len(pubRaw):
+		if len(pubRaw) > 0 && (pubRaw[0] == "0" || pubRaw[0] == "1") {
+			return append([]string(nil), pubRaw[1:]...), nil
 		}
-	}
-
-	if len(pub) > icCap {
 		return nil, fmt.Errorf(
-			"public inputs too long: got %d, but vk.IC capacity is %d",
-			len(pub), icCap,
+			"public inputs length mismatch: len(pubRaw)=%d, len(vk.IC)=%d (cannot reconcile)",
+			len(pubRaw), icLen,
+		)
+
+	default:
+		return nil, fmt.Errorf(
+			"public inputs length mismatch: len(pubRaw)=%d, len(vk.IC)=%d (expected IC to be pub+1 or pub+2)",
+			len(pubRaw), icLen,
 		)
 	}
-
-	return pub, nil
 }
 
 // ---------- main export ----------
@@ -267,7 +292,7 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 		return err
 	}
 
-	// 3) Determine IC capacity from VK (this is what Groth16 expects).
+	// 3) Determine IC length from VK.
 	v, ok := vk.(*groth16bls.VerifyingKey)
 	if !ok {
 		return fmt.Errorf("unexpected vk type (need *groth16/bls12-381.VerifyingKey): %T", vk)
@@ -275,14 +300,22 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	if len(v.G1.K) < 1 {
 		return fmt.Errorf("invalid vk: IC empty")
 	}
-	icCap := len(v.G1.K) - 1
+	icLen := len(v.G1.K)
 
-	// 4) Choose which publics to export (must fit IC capacity exactly).
-	pub, err := choosePublicInputs(pubRaw, icCap)
+	// 4) Choose which publics to export (must match IC length semantics).
+	pub, err := choosePublicInputs(pubRaw, icLen)
 	if err != nil {
 		return err
 	}
 	nPublic := len(pub)
+
+	// NEW: insist we are exporting the FULL IC (no truncation).
+	if icLen != nPublic+1 {
+		return fmt.Errorf(
+			"export invariant failed: len(vk.IC)=%d but len(public)+1=%d",
+			icLen, nPublic+1,
+		)
+	}
 
 	// 5) Export VK sliced to nPublic+1 (matches the exported public vector).
 	vkj, err := exportVKBLS(vk, nPublic)

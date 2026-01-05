@@ -59,8 +59,7 @@ def test_half_level_decrypt_hash():
     a = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
     assert a == "f4336448801f7350116ef845a9556179f46ef31aef8e348cd45cebe60fa95a81"
 
-
-def test_snark_prove():
+def test_derive_public_points():
     a = gt_to_hash(a0, snark_path)
     v = g1_point(x0)
     w0 = g1_point(to_int(a))
@@ -68,14 +67,6 @@ def test_snark_prove():
     qa = g1_point(a0)
     vr = scale(v, r0)
     w1 = combine(qa, vr)
-
-    print()
-    print(f"v={v}")
-    print(f"w0={w0}")
-    print(f"w1={w1}")
-
-    generate_snark_proof(a0, r0, v, w0, w1, snark_path)
-    assert verify_snark_proof(out_path)
 
     public_integers = public_inputs_from_w0_w1_hex(w0, w1, v)
     expected_public_integers = [
@@ -117,6 +108,24 @@ def test_snark_prove():
         "337242724379907695",
     ]
     assert public_integers == expected_public_integers
+
+
+
+def test_snark_prove():
+    a = gt_to_hash(a0, snark_path)
+    v = g1_point(x0)
+    w0 = g1_point(to_int(a))
+
+    qa = g1_point(a0)
+    vr = scale(v, r0)
+    w1 = combine(qa, vr)
+
+    print()
+    print(f"v={v}")
+    print(f"w0={w0}")
+    print(f"w1={w1}")
+
+    generate_snark_proof(a0, r0, v, w0, w1, snark_path)
 
 
 def test_snark_verify():
