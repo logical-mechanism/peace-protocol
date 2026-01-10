@@ -28,7 +28,7 @@ This report gives a reviewer-friendly summary of technical and functional progre
 - **Milestone 1:** Research, protocol specification, threat model, and feasibility analysis
 - **Milestone 2:** MVP implementation (on-chain + off-chain) and “happy path” execution
 - **Milestone 3:** Expanded test coverage, reproducibility documentation, and preprod validation evidence
-- **Final close-out:** This report summarizing the full development process and results
+- **Final Milestone:** This report summarizing the full development process and results
 
 ---
 
@@ -128,7 +128,7 @@ Assumptions, threats, and limitations, including metadata risks, were documented
 
 ### Reproducibility treated as a deliverable
 
-Each milestone includes concrete artifacts—documentation, scripts, a test runner, logs, and evidence—making review objective and minimizing narrative claims.
+Artifacts such as documentation, scripts, test runner, logs, and evidence were created for each milestone, supporting objective review and reducing reliance on narrative claims.
 
 ---
 
