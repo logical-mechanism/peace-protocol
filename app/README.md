@@ -63,6 +63,8 @@ Swap Alice and Bob's roles by updating wallet paths in the happy path to re-encr
 
 ## Testing
 
+Running all tests may take a while.
+
 ```bash
 ./run_tests.sh
 ```
