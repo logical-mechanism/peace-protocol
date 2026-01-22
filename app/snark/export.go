@@ -23,19 +23,27 @@ import (
 
 // ---------- JSON shapes ----------
 
+type CommitmentKeyJSON struct {
+	G         string `json:"g"`         // G2 compressed hex
+	GSigmaNeg string `json:"gSigmaNeg"` // G2 compressed hex (called GRootSigmaNeg in some writeups)
+}
+
 type VKJSON struct {
-	NPublic int      `json:"nPublic"`
-	VkAlpha string   `json:"vkAlpha"` // G1 compressed hex
-	VkBeta  string   `json:"vkBeta"`  // G2 compressed hex
-	VkGamma string   `json:"vkGamma"` // G2 compressed hex
-	VkDelta string   `json:"vkDelta"` // G2 compressed hex
-	VkIC    []string `json:"vkIC"`    // list of G1 compressed hex (len = nPublic+1)
+	NPublic        int                 `json:"nPublic"`
+	VkAlpha        string              `json:"vkAlpha"` // G1 compressed hex
+	VkBeta         string              `json:"vkBeta"`  // G2 compressed hex
+	VkGamma        string              `json:"vkGamma"` // G2 compressed hex
+	VkDelta        string              `json:"vkDelta"` // G2 compressed hex
+	VkIC           []string            `json:"vkIC"`    // list of G1 compressed hex (len = nPublic+1)
+	CommitmentKeys []CommitmentKeyJSON `json:"commitmentKeys,omitempty"`
 }
 
 type ProofJSON struct {
-	PiA string `json:"piA"` // G1 compressed hex
-	PiB string `json:"piB"` // G2 compressed hex
-	PiC string `json:"piC"` // G1 compressed hex
+	PiA           string   `json:"piA"`                     // G1 compressed hex
+	PiB           string   `json:"piB"`                     // G2 compressed hex
+	PiC           string   `json:"piC"`                     // G1 compressed hex
+	Commitments   []string `json:"commitments,omitempty"`   // each is G1 compressed hex (D_i)
+	CommitmentPok string   `json:"commitmentPok,omitempty"` // G1 compressed hex (batched PoK)
 }
 
 type PublicJSON struct {
@@ -63,7 +71,26 @@ func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
 		return ProofJSON{}, err
 	}
 
-	return ProofJSON{PiA: piA, PiB: piB, PiC: piC}, nil
+	out := ProofJSON{PiA: piA, PiB: piB, PiC: piC}
+
+	// export commitment extension fields (if present)
+	if len(p.Commitments) > 0 {
+		out.Commitments = make([]string, len(p.Commitments))
+		for i := range p.Commitments {
+			h, err := g1CompressedHex(p.Commitments[i])
+			if err != nil {
+				return ProofJSON{}, err
+			}
+			out.Commitments[i] = h
+		}
+		pok, err := g1CompressedHex(p.CommitmentPok)
+		if err != nil {
+			return ProofJSON{}, err
+		}
+		out.CommitmentPok = pok
+	}
+
+	return out, nil
 }
 
 // exportVKBLS exports the verifying key, slicing IC to exactly nPublic+1.
@@ -105,14 +132,32 @@ func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 		ic = append(ic, h)
 	}
 
-	return VKJSON{
+	out := VKJSON{
 		NPublic: nPublic,
 		VkAlpha: vkAlpha,
 		VkBeta:  vkBeta,
 		VkGamma: vkGamma,
 		VkDelta: vkDelta,
 		VkIC:    ic,
-	}, nil
+	}
+
+	// export pedersen vk(s) used for the PoK check
+	if len(v.CommitmentKeys) > 0 {
+		out.CommitmentKeys = make([]CommitmentKeyJSON, len(v.CommitmentKeys))
+		for i := range v.CommitmentKeys {
+			g, err := g2CompressedHex(v.CommitmentKeys[i].G)
+			if err != nil {
+				return VKJSON{}, err
+			}
+			gs, err := g2CompressedHex(v.CommitmentKeys[i].GSigmaNeg)
+			if err != nil {
+				return VKJSON{}, err
+			}
+			out.CommitmentKeys[i] = CommitmentKeyJSON{G: g, GSigmaNeg: gs}
+		}
+	}
+
+	return out, nil
 }
 
 // ---------- public inputs extraction ----------
