@@ -3,9 +3,9 @@
 ////
 
 use aiken/builtin.{
-  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_neg,
-  bls12_381_g1_scalar_mul, bls12_381_g1_uncompress, bls12_381_g2_uncompress,
-  bls12_381_miller_loop, bls12_381_mul_miller_loop_result,
+  bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_scalar_mul,
+  bls12_381_g1_uncompress, bls12_381_g2_uncompress, bls12_381_miller_loop,
+  bls12_381_mul_miller_loop_result,
 }
 use aiken/collection/list
 

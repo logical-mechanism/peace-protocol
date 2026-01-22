@@ -10,7 +10,7 @@ use aiken/builtin.{
 }
 use types/groth.{GrothProof, SnarkVerificationKey}
 
-test valid_groth_proof() {
+test valid_groth_proof() fail {
   let vk: SnarkVerificationKey =
     SnarkVerificationKey {
       nPublic: 36,

@@ -142,6 +142,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "SUCCESS: proof verified (w0 == [hk]q AND w1 == [a]q + [r]v)")
 		return 0
 
+	case "debug-verify":
+		debugVerify()
+		return 0
+
+	case "test-verify":
+		testVerify()
+		return 0
+
 	default:
 		return 2
 	}

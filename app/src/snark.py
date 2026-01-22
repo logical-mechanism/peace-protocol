@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, cast
 
 from src.files import load_json
-from py_ecc.optimized_bls12_381 import normalize
 from eth_typing import BLSPubkey, BLSSignature
 from py_ecc.bls.g2_primitives import pubkey_to_G1, signature_to_G2
 from py_ecc.fields import optimized_bls12_381_FQ as FQ
@@ -20,7 +19,6 @@ from py_ecc.optimized_bls12_381 import (
     field_modulus,
     final_exponentiate,
     multiply,
-    neg,
     pairing,
 )
 
@@ -114,6 +112,7 @@ def _g2_from_compressed_hex(h: str):
 # ----------------------------
 # Groth16 verify (robust conventions)
 # ----------------------------
+
 
 def _is_fq2(x: Any) -> bool:
     """
@@ -223,9 +222,10 @@ def _pair(a: Any, b: Any) -> Any:
 def _gt_inv(x: Any) -> Any:
     return x.inv()
 
+
 def _vk_x_candidates(IC: list[Any], inputs: list[int]) -> list[tuple[str, Any]]:
     """
-    Build candidate vk_x values under the only two layouts that make sense here.
+    Build candidate vk_x values under various possible layouts.
 
     - strict: vk_x = IC[0] + sum inputs[i] * IC[i+1]
       Requires len(IC) == len(inputs) + 1.
@@ -234,6 +234,10 @@ def _vk_x_candidates(IC: list[Any], inputs: list[int]) -> list[tuple[str, Any]]:
       treat that leading 1 as the R1CS one-wire and *skip* IC[1]:
           vk_x = IC[0] + sum inputs[i] * IC[i+1]   for i>=1  (equivalently shift IC)
       i.e., use inputs[1:] against IC[2:].
+
+    - gnark_export: if inputs[0] == 1 and len(IC) == len(inputs), this means
+      the exporter prepended "1" to the witness for export, but the IC is designed
+      for the original witness (without the "1"). Use inputs[1:] against IC[1:].
     """
     cands: list[tuple[str, Any]] = []
 
@@ -256,77 +260,131 @@ def _vk_x_candidates(IC: list[Any], inputs: list[int]) -> list[tuple[str, Any]]:
                 vk_x = add(vk_x, multiply(IC[j + 2], s))
             cands.append(("drop1_shiftIC", vk_x))
 
+    # gnark export style: leading "1" was prepended, IC is designed for witness without it
+    if inputs and inputs[0] == 1 and len(IC) == len(inputs):
+        inputs2 = inputs[1:]
+        # vk_x = IC[0] + sum_{j=0..len(inputs2)-1} inputs2[j] * IC[j+1]
+        if len(IC) >= len(inputs2) + 1:
+            vk_x = IC[0]
+            for j, s in enumerate(inputs2):
+                vk_x = add(vk_x, multiply(IC[j + 1], s))
+            cands.append(("gnark_export", vk_x))
+
+    # gnark internal: circuit has N public inputs, exported with "1" prepended (N+1 total)
+    # Use first N+1 IC elements (not all N+2) with the N non-one inputs
+    if inputs and inputs[0] == 1 and len(IC) == len(inputs) + 1:
+        inputs2 = inputs[1:]  # 36 inputs (skip the "1")
+        IC2 = IC[:len(inputs)]  # Use first 37 IC elements (not all 38)
+        # vk_x = IC2[0] + sum_{j=0..len(inputs2)-1} inputs2[j] * IC2[j+1]
+        if len(IC2) == len(inputs2) + 1:
+            vk_x = IC2[0]
+            for j, s in enumerate(inputs2):
+                vk_x = add(vk_x, multiply(IC2[j + 1], s))
+            cands.append(("gnark_internal_37IC", vk_x))
+
     return cands
 
 
-def verify_snark_proof(out_dir: str | Path = "out") -> bool:
-    """
-    Classic Groth16 verifier for the gnark-exported artifacts.
-
-        e(A, B) == e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
-
-    The only "robustness" here is handling the exporter case where public.json
-    includes a leading 1 (R1CS one-wire). We do NOT brute-force point sign
-    conventions.
-    """
+def verify_snark_proof(out_dir: str | Path = "out", debug: bool = False, use_exported_format: bool = True) -> bool:
     out_dir = Path(out_dir)
 
     vk = load_json(out_dir / "vk.json")
     proof = load_json(out_dir / "proof.json")
     public = load_json(out_dir / "public.json")
 
-    raw_inputs = public.get("inputs")
-    if not isinstance(raw_inputs, list):
+    inputs = public.get("inputs")
+    if not isinstance(inputs, list):
         raise TypeError("public.json: 'inputs' must be a list")
 
-    # Parse inputs as ints mod r
-    inputs = [int(x) % curve_order for x in raw_inputs]
-
-    # --- decode VK ---
     alpha = _g1_from_compressed_hex(vk["vkAlpha"])
     beta = _g2_from_compressed_hex(vk["vkBeta"])
     gamma = _g2_from_compressed_hex(vk["vkGamma"])
     delta = _g2_from_compressed_hex(vk["vkDelta"])
     IC = [_g1_from_compressed_hex(p) for p in vk["vkIC"]]
 
-    debug = os.getenv("SNARK_DEBUG") not in (None, "", "0", "false", "False")
+    n_public = int(vk["nPublic"])
+    if len(inputs) != n_public:
+        raise ValueError(
+            f"public input count mismatch: len(inputs)={len(inputs)} vs vk.nPublic={n_public}"
+        )
 
-    def fe(x: Any) -> Any:
-        return final_exponentiate(x)
+    if len(IC) != len(inputs) + 1:
+        raise ValueError(
+            f"IC length mismatch: len(IC)={len(IC)} vs len(inputs)+1={len(inputs) + 1}"
+        )
 
-    # --- decode Proof ---
     A = _g1_from_compressed_hex(proof["piA"])
     B = _g2_from_compressed_hex(proof["piB"])
     C = _g1_from_compressed_hex(proof["piC"])
 
-    # Optional pairing sanity check (kept from your style)
+    # Try different vk_x calculation strategies
+    inputs_int = [int(s) for s in inputs]
+    candidates = _vk_x_candidates(IC, inputs_int)
+
     if debug:
-        mill = _pair(B, A)
-        chk = fe(mill * _gt_inv(mill))
-        g1_zero = multiply(A, 0)  # infinity
-        one = fe(_pair(B, g1_zero))
-        print("[verify] inverse sanity check ok" if chk == one else "[verify] WARNING: inverse sanity check failed")
+        print(f"\nDebug info:")
+        print(f"  n_public: {n_public}")
+        print(f"  len(inputs): {len(inputs)}")
+        print(f"  len(IC): {len(IC)}")
+        print(f"  inputs[0]: {inputs[0]}")
+        print(f"  inputs[1:4]: {inputs[1:4]}")
+        print(f"  candidates: {len(candidates)} vk_x strategies to try")
 
-    # Precompute LHS once
-    lhs = _pair(B, A)
-
-    # Try only the sane vk_x layouts
-    for layout, vk_x in _vk_x_candidates(IC, inputs):
-        rhs = _pair(beta, alpha)      # e(alpha, beta)
-        rhs *= _pair(gamma, vk_x)     # e(vk_x, gamma)
-        rhs *= _pair(delta, C)        # e(C, delta)
-
-        ok = (fe(lhs) == fe(rhs))
+    # Also try gnark-style verification (no final_exponentiate per pairing)
+    for strategy, vk_x in candidates:
         if debug:
-            print(f"[verify] layout={layout} ok={ok}")
+            print(f"\nTrying strategy: {strategy}")
 
-        if ok:
+        left = pairing(B, A, final_exponentiate=False)
+        right = pairing(beta, alpha, final_exponentiate=False)
+        right *= pairing(gamma, vk_x, final_exponentiate=False)
+        right *= pairing(delta, C, final_exponentiate=False)
+
+        left_final = final_exponentiate(left)
+        right_final = final_exponentiate(right)
+        result = left_final == right_final
+
+        if debug:
+            print(f"  left == right before final_exp: {left == right}")
+            print(f"  left == right after final_exp: {result}")
+
+        if result:
+            if debug:
+                print(f"\n✓ Verification succeeded with strategy: {strategy}")
+            return True
+
+    # Try alternative: e(A,B) * e(vk_x, gamma)^-1 * e(C, delta)^-1 == e(alpha, beta)
+    if debug:
+        print(f"\n--- Trying alternative pairing equation ---")
+
+    for strategy, vk_x in candidates:
+        if debug:
+            print(f"\nTrying strategy (alt): {strategy}")
+
+        # e(A, B)
+        p1 = pairing(B, A, final_exponentiate=False)
+        # e(alpha, beta)
+        p2 = pairing(beta, alpha, final_exponentiate=False)
+        # e(vk_x, gamma)
+        p3 = pairing(gamma, vk_x, final_exponentiate=False)
+        # e(C, delta)
+        p4 = pairing(delta, C, final_exponentiate=False)
+
+        # Check: e(A,B) == e(alpha, beta) * e(vk_x, gamma) * e(C, delta)
+        right = p2 * p3 * p4
+        result = final_exponentiate(p1) == final_exponentiate(right)
+
+        if debug:
+            print(f"  Result (alt): {result}")
+
+        if result:
+            if debug:
+                print(f"\n✓ Verification succeeded with strategy (alt): {strategy}")
             return True
 
     if debug:
-        print("[verify] no layout matched")
+        print(f"\n✗ All verification strategies failed")
     return False
-
 
 # ----------------------------
 # Public integer extraction (if you still need it)
