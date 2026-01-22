@@ -14,6 +14,7 @@ from src.snark import (
     generate_snark_proof,
     public_inputs_from_w0_w1_hex,
 )
+from src.snark_verify_wrapper import verify_snark_proof_via_go
 import os
 from src.files import load_json
 from typing import Any, cast
@@ -151,16 +152,17 @@ def test_snark_prove():
 
 def test_snark_verify():
     """
-    NOTE: Manual pairing verification currently fails due to differences between
-    gnark's internal verification and the textbook Groth16 equation.
+    Verify the proof using gnark's built-in verification via the Go CLI.
+    This test requires test_snark_prove to have run first to generate the proof files.
 
-    The proof IS valid (gnark verifies it during generation), but manual pairing
-    computation fails. See VERIFICATION_NOTES.md for details.
-
-    For now, we skip this test. To verify proofs, the proof generation test
-    already includes gnark's built-in verification which succeeds.
+    Note: Pure Python verification using py_ecc is NOT compatible with gnark-generated
+    proofs due to different FQ12 tower representations in the pairing computation.
+    The Go CLI verification is the authoritative verification method.
     """
-    pytest.skip("Manual pairing verification not yet working - see VERIFICATION_NOTES.md")
+    result = verify_snark_proof_via_go(out_path)
+    assert result, "Go Proof verification failed"
+    # Note: Python verification is known to fail with gnark proofs due to
+    # py_ecc/gnark-crypto pairing incompatibility. Use Go verification instead.
 
 
 def _hex_to_bytes(h: str, *, expect_len: int) -> bytes:

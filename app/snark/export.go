@@ -14,12 +14,16 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 
 	"github.com/consensys/gnark/backend/groth16"
 	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
 	backend_witness "github.com/consensys/gnark/backend/witness"
 )
+
+// Note: math/big and reflect are used by exportPublicInputs for handling
+// different public witness vector types returned by gnark.
 
 // ---------- JSON shapes ----------
 
@@ -36,6 +40,10 @@ type VKJSON struct {
 	VkDelta        string              `json:"vkDelta"` // G2 compressed hex
 	VkIC           []string            `json:"vkIC"`    // list of G1 compressed hex (len = nPublic+1)
 	CommitmentKeys []CommitmentKeyJSON `json:"commitmentKeys,omitempty"`
+	// PublicAndCommitmentCommitted maps each commitment to the indices of public
+	// inputs that were committed. Used to compute the hash challenge during verification.
+	// PublicAndCommitmentCommitted[i] = indices of public inputs for commitment i.
+	PublicAndCommitmentCommitted [][]int `json:"publicAndCommitmentCommitted,omitempty"`
 }
 
 type ProofJSON struct {
@@ -154,6 +162,14 @@ func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 				return VKJSON{}, err
 			}
 			out.CommitmentKeys[i] = CommitmentKeyJSON{G: g, GSigmaNeg: gs}
+		}
+	}
+
+	// export public/commitment committed indices (needed for challenge computation)
+	if len(v.PublicAndCommitmentCommitted) > 0 {
+		out.PublicAndCommitmentCommitted = make([][]int, len(v.PublicAndCommitmentCommitted))
+		for i := range v.PublicAndCommitmentCommitted {
+			out.PublicAndCommitmentCommitted[i] = append([]int(nil), v.PublicAndCommitmentCommitted[i]...)
 		}
 	}
 
@@ -418,4 +434,95 @@ func g2CompressedHex(p bls12381.G2Affine) (string, error) {
 		return "", fmt.Errorf("unexpected G2 compressed length: %d", len(b))
 	}
 	return hex.EncodeToString(b[:]), nil
+}
+
+// ---------- native binary save/load for standalone verification ----------
+
+// SaveNativeFiles writes gnark's native binary serialization of VK, Proof, and public witness.
+// These files can be loaded later for standalone verification without recompiling the circuit.
+func SaveNativeFiles(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backend_witness.Witness, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	// Write VK
+	vkFile, err := os.Create(filepath.Join(dir, "vk.bin"))
+	if err != nil {
+		return fmt.Errorf("create vk.bin: %w", err)
+	}
+	defer vkFile.Close()
+	if _, err := vk.WriteTo(vkFile); err != nil {
+		return fmt.Errorf("write vk.bin: %w", err)
+	}
+
+	// Write Proof
+	proofFile, err := os.Create(filepath.Join(dir, "proof.bin"))
+	if err != nil {
+		return fmt.Errorf("create proof.bin: %w", err)
+	}
+	defer proofFile.Close()
+	if _, err := proof.WriteTo(proofFile); err != nil {
+		return fmt.Errorf("write proof.bin: %w", err)
+	}
+
+	// Write public witness
+	witnessFile, err := os.Create(filepath.Join(dir, "witness.bin"))
+	if err != nil {
+		return fmt.Errorf("create witness.bin: %w", err)
+	}
+	defer witnessFile.Close()
+	if _, err := publicWitness.WriteTo(witnessFile); err != nil {
+		return fmt.Errorf("write witness.bin: %w", err)
+	}
+
+	return nil
+}
+
+// VerifyFromFiles loads VK, Proof, and public witness from binary files and verifies.
+func VerifyFromFiles(dir string) error {
+	// Load VK
+	vkFile, err := os.Open(filepath.Join(dir, "vk.bin"))
+	if err != nil {
+		return fmt.Errorf("open vk.bin: %w", err)
+	}
+	defer vkFile.Close()
+
+	vk := groth16.NewVerifyingKey(ecc.BLS12_381)
+	if _, err := vk.ReadFrom(vkFile); err != nil {
+		return fmt.Errorf("read vk.bin: %w", err)
+	}
+
+	// Load Proof
+	proofFile, err := os.Open(filepath.Join(dir, "proof.bin"))
+	if err != nil {
+		return fmt.Errorf("open proof.bin: %w", err)
+	}
+	defer proofFile.Close()
+
+	proof := groth16.NewProof(ecc.BLS12_381)
+	if _, err := proof.ReadFrom(proofFile); err != nil {
+		return fmt.Errorf("read proof.bin: %w", err)
+	}
+
+	// Load public witness
+	witnessFile, err := os.Open(filepath.Join(dir, "witness.bin"))
+	if err != nil {
+		return fmt.Errorf("open witness.bin: %w", err)
+	}
+	defer witnessFile.Close()
+
+	witness, err := backend_witness.New(ecc.BLS12_381.ScalarField())
+	if err != nil {
+		return fmt.Errorf("new witness: %w", err)
+	}
+	if _, err := witness.ReadFrom(witnessFile); err != nil {
+		return fmt.Errorf("read witness.bin: %w", err)
+	}
+
+	// Verify using gnark's built-in verification
+	if err := groth16.Verify(proof, vk, witness); err != nil {
+		return fmt.Errorf("verification failed: %w", err)
+	}
+
+	return nil
 }

@@ -142,6 +142,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "SUCCESS: proof verified (w0 == [hk]q AND w1 == [a]q + [r]v)")
 		return 0
 
+	case "verify":
+		verifyCmd := flag.NewFlagSet("verify", flag.ContinueOnError)
+		verifyCmd.SetOutput(stderr)
+
+		var outDir string
+		verifyCmd.StringVar(&outDir, "out", "out", "directory containing vk.bin, proof.bin, and public.json")
+		if err := verifyCmd.Parse(args[1:]); err != nil {
+			return 2
+		}
+
+		if err := VerifyFromFiles(outDir); err != nil {
+			fmt.Fprintln(stderr, "FAIL:", err)
+			return 1
+		}
+
+		fmt.Fprintln(stdout, "SUCCESS: proof verified")
+		return 0
+
 	case "debug-verify":
 		debugVerify()
 		return 0

@@ -754,5 +754,10 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 		return fmt.Errorf("export: %w", err)
 	}
 
+	// 9) Save gnark native binary files for standalone verification
+	if err := SaveNativeFiles(vk, proof, publicWitness, outDir); err != nil {
+		return fmt.Errorf("save native files: %w", err)
+	}
+
 	return nil
 }
