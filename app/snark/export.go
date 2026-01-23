@@ -16,10 +16,13 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc"
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/hash_to_field"
 
 	"github.com/consensys/gnark/backend/groth16"
 	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
 	backend_witness "github.com/consensys/gnark/backend/witness"
+	"github.com/consensys/gnark/constraint"
 )
 
 // Note: math/big and reflect are used by exportPublicInputs for handling
@@ -55,7 +58,8 @@ type ProofJSON struct {
 }
 
 type PublicJSON struct {
-	Inputs []string `json:"inputs"` // decimal strings in Fr
+	Inputs         []string `json:"inputs"`                   // decimal strings in Fr
+	CommitmentWire string   `json:"commitmentWire,omitempty"` // the computed commitment wire value (decimal Fr)
 }
 
 // ---------- extract proof/vk using concrete BLS12-381 Groth16 types ----------
@@ -101,7 +105,7 @@ func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
 	return out, nil
 }
 
-// exportVKBLS exports the verifying key, slicing IC to exactly nPublic+1.
+// exportVKBLS exports the verifying key with ALL IC elements (including commitment wire ICs).
 func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 	v, ok := vk.(*groth16bls.VerifyingKey)
 	if !ok {
@@ -131,8 +135,9 @@ func exportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 		return VKJSON{}, err
 	}
 
-	ic := make([]string, 0, nPublic+1)
-	for i := 0; i < nPublic+1; i++ {
+	// Export ALL IC elements (including commitment wire ICs)
+	ic := make([]string, 0, len(v.G1.K))
+	for i := 0; i < len(v.G1.K); i++ {
 		h, err := g1CompressedHex(v.G1.K[i])
 		if err != nil {
 			return VKJSON{}, err
@@ -338,6 +343,107 @@ func choosePublicInputs(pubRaw []string, icLen int) ([]string, error) {
 	}
 }
 
+// ---------- commitment wire computation ----------
+
+// computeCommitmentWire computes the commitment wire value as gnark does during verification.
+// This is: hash_to_field(D.Marshal() || committed_publics.Marshal()) with DST "bsb22-commitment"
+func computeCommitmentWire(
+	proof *groth16bls.Proof,
+	vk *groth16bls.VerifyingKey,
+	publicWitness backend_witness.Witness,
+) (string, error) {
+	if len(proof.Commitments) == 0 || len(vk.PublicAndCommitmentCommitted) == 0 {
+		return "", nil // No commitment extension
+	}
+
+	// Get public witness as Fr elements
+	vecAny := publicWitness.Vector()
+	if vecAny == nil {
+		return "", fmt.Errorf("publicWitness.Vector() returned nil")
+	}
+
+	// Convert to []fr.Element
+	var pubFr []fr.Element
+	switch v := vecAny.(type) {
+	case []fr.Element:
+		pubFr = v
+	default:
+		// Try reflection to extract Fr elements
+		rv := reflect.ValueOf(vecAny)
+		if rv.Kind() != reflect.Slice {
+			return "", fmt.Errorf("unexpected witness vector type: %T", vecAny)
+		}
+		pubFr = make([]fr.Element, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			ev := rv.Index(i)
+			if ev.Kind() == reflect.Interface && !ev.IsNil() {
+				ev = ev.Elem()
+			}
+			// Try to get the Fr element
+			if ev.Type() == reflect.TypeOf(fr.Element{}) {
+				pubFr[i] = ev.Interface().(fr.Element)
+			} else {
+				// Try BigInt method
+				var bi big.Int
+				m := ev.Addr().MethodByName("BigInt")
+				if m.IsValid() {
+					m.Call([]reflect.Value{reflect.ValueOf(&bi)})
+					pubFr[i].SetBigInt(&bi)
+				} else {
+					return "", fmt.Errorf("cannot convert witness[%d] to Fr: type %T", i, ev.Interface())
+				}
+			}
+		}
+	}
+
+	// Build the prehash: D.RawBytes() || committed_publics.Marshal()
+	// gnark uses uncompressed point serialization (RawBytes, 96 bytes) for the hash
+	for i, commitment := range proof.Commitments {
+		if i >= len(vk.PublicAndCommitmentCommitted) {
+			break
+		}
+
+		// Serialize commitment point
+		// gnark uses Marshal() which returns RawBytes() = uncompressed form (96 bytes)
+		commitmentBytes := commitment.Marshal()
+
+		// Serialize committed public witnesses
+		committedIndices := vk.PublicAndCommitmentCommitted[i]
+		prehash := make([]byte, 0, len(commitmentBytes)+len(committedIndices)*32)
+		prehash = append(prehash, commitmentBytes...)
+
+		for _, idx := range committedIndices {
+			// gnark uses 0-based indexing for public witnesses
+			// But the indices in PublicAndCommitmentCommitted are 1-based (offset by 1)
+			witnessIdx := idx - 1
+			if witnessIdx < 0 || witnessIdx >= len(pubFr) {
+				return "", fmt.Errorf("committed index %d out of range (witness len=%d)", idx, len(pubFr))
+			}
+			frBytes := pubFr[witnessIdx].Marshal()
+			prehash = append(prehash, frBytes...)
+		}
+
+		// Use gnark's hash_to_field with the same DST as in constraint package
+		hFunc := hash_to_field.New([]byte(constraint.CommitmentDst))
+		hFunc.Write(prehash)
+
+		// Hash returns bytes, convert to Fr element
+		hashBytes := hFunc.Sum(nil)
+		if len(hashBytes) == 0 {
+			return "", fmt.Errorf("hash_to_field returned empty result")
+		}
+
+		var wire fr.Element
+		wire.SetBytes(hashBytes)
+
+		var wireBi big.Int
+		wire.BigInt(&wireBi)
+		return wireBi.String(), nil
+	}
+
+	return "", nil
+}
+
 // ---------- main export ----------
 
 func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backend_witness.Witness, dir string) error {
@@ -370,11 +476,16 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	}
 	nPublic := len(pub)
 
-	// NEW: insist we are exporting the FULL IC (no truncation).
-	if icLen != nPublic+1 {
+	// With commitment extension, IC length = nRawPublic + 1 + nCommitments
+	// where nRawPublic is the original circuit's public input count (before any "1" is prepended)
+	// The "1" added by choosePublicInputs is just for export format, not an actual IC element.
+	nRawPublic := len(pubRaw)
+	nCommitments := len(v.CommitmentKeys)
+	expectedICLen := nRawPublic + 1 + nCommitments
+	if icLen != expectedICLen {
 		return fmt.Errorf(
-			"export invariant failed: len(vk.IC)=%d but len(public)+1=%d",
-			icLen, nPublic+1,
+			"export invariant failed: len(vk.IC)=%d but expected %d (nRawPublic=%d, nCommitments=%d)",
+			icLen, expectedICLen, nRawPublic, nCommitments,
 		)
 	}
 
@@ -385,8 +496,8 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	}
 
 	// 6) Final consistency checks.
-	if len(vkj.VkIC) != nPublic+1 {
-		return fmt.Errorf("IC length mismatch: len(IC)=%d, expected %d", len(vkj.VkIC), nPublic+1)
+	if len(vkj.VkIC) != expectedICLen {
+		return fmt.Errorf("IC length mismatch: len(IC)=%d, expected %d", len(vkj.VkIC), expectedICLen)
 	}
 
 	// 7) Write JSONs.
@@ -411,7 +522,18 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	if err := writeJSON("proof.json", pj); err != nil {
 		return err
 	}
-	if err := writeJSON("public.json", PublicJSON{Inputs: pub}); err != nil {
+
+	// 8) Compute commitment wire if applicable
+	p, ok := proof.(*groth16bls.Proof)
+	if !ok {
+		return fmt.Errorf("unexpected proof type: %T", proof)
+	}
+	commitmentWire, err := computeCommitmentWire(p, v, publicWitness)
+	if err != nil {
+		return fmt.Errorf("compute commitment wire: %w", err)
+	}
+
+	if err := writeJSON("public.json", PublicJSON{Inputs: pub, CommitmentWire: commitmentWire}); err != nil {
 		return err
 	}
 
@@ -525,4 +647,49 @@ func VerifyFromFiles(dir string) error {
 	}
 
 	return nil
+}
+
+// ReExportJSON loads VK, Proof, and public witness from binary files and re-exports JSON files.
+func ReExportJSON(dir string) error {
+	// Load VK
+	vkFile, err := os.Open(filepath.Join(dir, "vk.bin"))
+	if err != nil {
+		return fmt.Errorf("open vk.bin: %w", err)
+	}
+	defer vkFile.Close()
+
+	vk := groth16.NewVerifyingKey(ecc.BLS12_381)
+	if _, err := vk.ReadFrom(vkFile); err != nil {
+		return fmt.Errorf("read vk.bin: %w", err)
+	}
+
+	// Load Proof
+	proofFile, err := os.Open(filepath.Join(dir, "proof.bin"))
+	if err != nil {
+		return fmt.Errorf("open proof.bin: %w", err)
+	}
+	defer proofFile.Close()
+
+	proof := groth16.NewProof(ecc.BLS12_381)
+	if _, err := proof.ReadFrom(proofFile); err != nil {
+		return fmt.Errorf("read proof.bin: %w", err)
+	}
+
+	// Load public witness
+	witnessFile, err := os.Open(filepath.Join(dir, "witness.bin"))
+	if err != nil {
+		return fmt.Errorf("open witness.bin: %w", err)
+	}
+	defer witnessFile.Close()
+
+	witness, err := backend_witness.New(ecc.BLS12_381.ScalarField())
+	if err != nil {
+		return fmt.Errorf("new witness: %w", err)
+	}
+	if _, err := witness.ReadFrom(witnessFile); err != nil {
+		return fmt.Errorf("read witness.bin: %w", err)
+	}
+
+	// Re-export JSON files
+	return ExportAll(vk, proof, witness, dir)
 }

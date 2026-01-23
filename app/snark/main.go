@@ -160,6 +160,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "SUCCESS: proof verified")
 		return 0
 
+	case "re-export":
+		reexportCmd := flag.NewFlagSet("re-export", flag.ContinueOnError)
+		reexportCmd.SetOutput(stderr)
+
+		var outDir string
+		reexportCmd.StringVar(&outDir, "out", "out", "directory containing vk.bin, proof.bin, and witness.bin")
+		if err := reexportCmd.Parse(args[1:]); err != nil {
+			return 2
+		}
+
+		if err := ReExportJSON(outDir); err != nil {
+			fmt.Fprintln(stderr, "FAIL:", err)
+			return 1
+		}
+
+		fmt.Fprintln(stdout, "SUCCESS: JSON files re-exported")
+		return 0
+
 	case "debug-verify":
 		debugVerify()
 		return 0
