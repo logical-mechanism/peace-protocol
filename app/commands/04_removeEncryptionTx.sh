@@ -12,7 +12,7 @@ source ../.env
 ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.json
 
 # alice
-alice_wallet_path="../wallets/bob"
+alice_wallet_path="../wallets/alice"
 alice_address=$(cat ${alice_wallet_path}/payment.addr)
 alice_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${alice_wallet_path}/payment.vkey)
 
