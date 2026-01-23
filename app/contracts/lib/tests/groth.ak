@@ -199,7 +199,10 @@ test valid_groth_proof2() {
       25318525522981341336148859294455199719015856475893773867204323554663469803364,
     ]
 
-  groth.verify_groth16(vk, proof, public_values, commitment_wires)
+  groth.verify_groth16(vk, proof, public_values, commitment_wires) && groth.verify_commitments(
+    vk,
+    proof,
+  )
 }
 
 test g1_roundtrip_new_alpha() {
