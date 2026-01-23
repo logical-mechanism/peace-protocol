@@ -58,9 +58,61 @@ def decrypt_to_hash(
     return out.stdout.strip()
 
 
-def generate_snark_proof(
-    a: int, r: int, v: str, w0: str, w1: str, snark_path: str | Path
+def setup_snark(
+    snark_path: str | Path,
+    out_dir: str | Path = "setup",
+    force: bool = False,
 ) -> None:
+    """
+    Run the trusted setup phase. This compiles the circuit and generates
+    the proving key (pk) and verifying key (vk).
+
+    This should be run ONCE and the output files reused for all future proofs.
+
+    Output files:
+      - ccs.bin: compiled constraint system
+      - pk.bin: proving key
+      - vk.bin: verifying key (binary)
+      - vk.json: verifying key (JSON for Aiken)
+    """
+    snark = Path(snark_path)
+    cmd = [str(snark), "setup", "-out", str(out_dir)]
+    if force:
+        cmd.append("-force")
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    print(out.stdout.strip())
+
+
+def generate_snark_proof(
+    a: int,
+    r: int,
+    v: str,
+    w0: str,
+    w1: str,
+    snark_path: str | Path,
+    out_dir: str | Path = "out",
+    setup_dir: str | Path | None = None,
+    no_verify: bool = False,
+) -> None:
+    """
+    Generate a Groth16 proof for the vw0w1 circuit.
+
+    Args:
+        a: Secret scalar a (must be > 0)
+        r: Secret scalar r (can be 0)
+        v: Public G1 point V (compressed hex, 96 chars)
+        w0: Public G1 point W0 (compressed hex, 96 chars)
+        w1: Public G1 point W1 (compressed hex, 96 chars)
+        snark_path: Path to the snark binary
+        out_dir: Output directory for proof files (default: "out")
+        setup_dir: Directory containing setup files (ccs.bin, pk.bin, vk.bin).
+                   If None, compiles the circuit fresh (slower).
+        no_verify: Skip verification after proving (only valid with setup_dir)
+
+    Output files:
+      - vk.json, proof.json, public.json (JSON for Aiken)
+      - vk.bin, proof.bin, witness.bin (binary for Go verification)
+    """
     snark = Path(snark_path)
     cmd = [
         str(snark),
@@ -75,9 +127,42 @@ def generate_snark_proof(
         w0,
         "-w1",
         w1,
+        "-out",
+        str(out_dir),
     ]
+    if setup_dir is not None:
+        cmd.extend(["-setup", str(setup_dir)])
+    if no_verify:
+        cmd.append("-no-verify")
     out = subprocess.run(cmd, capture_output=True, text=True, check=True)
     print(out.stdout.strip())
+
+
+def verify_snark_proof_go(
+    snark_path: str | Path,
+    out_dir: str | Path = "out",
+) -> bool:
+    """
+    Verify a Groth16 proof using the Go snark binary.
+
+    This uses gnark's native verification which is compatible with gnark-generated proofs.
+
+    Args:
+        snark_path: Path to the snark binary
+        out_dir: Directory containing vk.bin, proof.bin, witness.bin
+
+    Returns:
+        True if verification succeeds, False otherwise
+    """
+    snark = Path(snark_path)
+    cmd = [str(snark), "verify", "-out", str(out_dir)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode == 0:
+        print(result.stdout.strip())
+        return True
+    else:
+        print(f"Verification failed: {result.stderr.strip()}")
+        return False
 
 
 # ----------------------------

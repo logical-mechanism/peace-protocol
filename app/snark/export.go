@@ -649,6 +649,137 @@ func VerifyFromFiles(dir string) error {
 	return nil
 }
 
+// ---------- setup file save/load for production workflow ----------
+
+// SaveSetupFiles writes the compiled constraint system, proving key, and verifying key.
+// These files are generated once during setup and reused for all future proofs.
+func SaveSetupFiles(ccs constraint.ConstraintSystem, pk groth16.ProvingKey, vk groth16.VerifyingKey, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	// Write CCS (compiled constraint system)
+	ccsFile, err := os.Create(filepath.Join(dir, "ccs.bin"))
+	if err != nil {
+		return fmt.Errorf("create ccs.bin: %w", err)
+	}
+	defer ccsFile.Close()
+	if _, err := ccs.WriteTo(ccsFile); err != nil {
+		return fmt.Errorf("write ccs.bin: %w", err)
+	}
+
+	// Write PK (proving key)
+	pkFile, err := os.Create(filepath.Join(dir, "pk.bin"))
+	if err != nil {
+		return fmt.Errorf("create pk.bin: %w", err)
+	}
+	defer pkFile.Close()
+	if _, err := pk.WriteTo(pkFile); err != nil {
+		return fmt.Errorf("write pk.bin: %w", err)
+	}
+
+	// Write VK (verifying key)
+	vkFile, err := os.Create(filepath.Join(dir, "vk.bin"))
+	if err != nil {
+		return fmt.Errorf("create vk.bin: %w", err)
+	}
+	defer vkFile.Close()
+	if _, err := vk.WriteTo(vkFile); err != nil {
+		return fmt.Errorf("write vk.bin: %w", err)
+	}
+
+	return nil
+}
+
+// LoadSetupFiles loads the compiled constraint system, proving key, and verifying key from disk.
+// Returns (ccs, pk, vk, error).
+func LoadSetupFiles(dir string) (constraint.ConstraintSystem, groth16.ProvingKey, groth16.VerifyingKey, error) {
+	// Load CCS
+	ccsFile, err := os.Open(filepath.Join(dir, "ccs.bin"))
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("open ccs.bin: %w", err)
+	}
+	defer ccsFile.Close()
+
+	ccs := groth16.NewCS(ecc.BLS12_381)
+	if _, err := ccs.ReadFrom(ccsFile); err != nil {
+		return nil, nil, nil, fmt.Errorf("read ccs.bin: %w", err)
+	}
+
+	// Load PK
+	pkFile, err := os.Open(filepath.Join(dir, "pk.bin"))
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("open pk.bin: %w", err)
+	}
+	defer pkFile.Close()
+
+	pk := groth16.NewProvingKey(ecc.BLS12_381)
+	if _, err := pk.ReadFrom(pkFile); err != nil {
+		return nil, nil, nil, fmt.Errorf("read pk.bin: %w", err)
+	}
+
+	// Load VK
+	vkFile, err := os.Open(filepath.Join(dir, "vk.bin"))
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("open vk.bin: %w", err)
+	}
+	defer vkFile.Close()
+
+	vk := groth16.NewVerifyingKey(ecc.BLS12_381)
+	if _, err := vk.ReadFrom(vkFile); err != nil {
+		return nil, nil, nil, fmt.Errorf("read vk.bin: %w", err)
+	}
+
+	return ccs, pk, vk, nil
+}
+
+// ExportVKOnly exports the verifying key to vk.json without needing a proof or witness.
+// This is useful for getting the constant VK immediately after setup.
+func ExportVKOnly(vk groth16.VerifyingKey, dir string) error {
+	v, ok := vk.(*groth16bls.VerifyingKey)
+	if !ok {
+		return fmt.Errorf("unexpected vk type (need *groth16/bls12-381.VerifyingKey): %T", vk)
+	}
+
+	// Calculate nPublic from VK structure
+	// len(IC) = nPublic + nCommitments, so nPublic = len(IC) - nCommitments
+	nCommitments := len(v.CommitmentKeys)
+	nPublic := len(v.G1.K) - nCommitments
+
+	if nPublic < 1 {
+		return fmt.Errorf("invalid vk: nPublic=%d (IC=%d, commitments=%d)", nPublic, len(v.G1.K), nCommitments)
+	}
+
+	vkj, err := exportVKBLS(vk, nPublic)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	f, err := os.Create(filepath.Join(dir, "vk.json"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	return enc.Encode(vkj)
+}
+
+// SetupFilesExist checks if all setup files exist in the given directory.
+func SetupFilesExist(dir string) bool {
+	for _, name := range []string{"ccs.bin", "pk.bin", "vk.bin"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // ReExportJSON loads VK, Proof, and public witness from binary files and re-exports JSON files.
 func ReExportJSON(dir string) error {
 	// Load VK

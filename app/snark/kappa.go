@@ -761,3 +761,170 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 
 	return nil
 }
+
+// ---------- Production Setup/Prove Workflow ----------
+
+// SetupVW0W1Circuit compiles the vw0w1 circuit and generates the proving/verifying keys.
+// This is the "trusted setup" phase that should be run once and the output files reused.
+// If force is false and setup files already exist, this function returns early.
+//
+// Output files:
+//   - ccs.bin: compiled constraint system
+//   - pk.bin: proving key
+//   - vk.bin: verifying key
+func SetupVW0W1Circuit(outDir string, force bool) error {
+	// Check if setup files already exist
+	if !force && SetupFilesExist(outDir) {
+		return nil // Already set up
+	}
+
+	// Compile circuit over BLS12-381 scalar field
+	var circuit vw0w1Circuit
+	ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		return fmt.Errorf("compile: %w", err)
+	}
+
+	// Setup keys (trusted setup)
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		return fmt.Errorf("setup: %w", err)
+	}
+
+	// Save setup files
+	if err := SaveSetupFiles(ccs, pk, vk, outDir); err != nil {
+		return fmt.Errorf("save setup files: %w", err)
+	}
+
+	// Also export vk.json for easy transfer to Aiken
+	if err := ExportVKOnly(vk, outDir); err != nil {
+		return fmt.Errorf("export vk.json: %w", err)
+	}
+
+	return nil
+}
+
+// ProveVW0W1FromSetup loads the setup files and generates a proof for the given inputs.
+// This is the production proving path that reuses pre-computed setup files.
+//
+// Inputs:
+//   - setupDir: directory containing ccs.bin, pk.bin, vk.bin
+//   - outDir: directory for proof output (proof.bin, witness.bin, JSON files)
+//   - a, r: secret scalars
+//   - vHex, w0Hex, w1Hex: public G1 points as compressed hex
+//   - verify: if true, also verify the proof after generation
+func ProveVW0W1FromSetup(setupDir, outDir string, a, r *big.Int, vHex, w0Hex, w1Hex string, verify bool) error {
+	if a == nil || a.Sign() == 0 {
+		return fmt.Errorf("a must be > 0")
+	}
+	if r == nil {
+		r = new(big.Int)
+	}
+
+	// 1) Parse public points (and sanity-check compressed form)
+	parse48 := func(name, h string) ([]byte, error) {
+		raw, err := hex.DecodeString(h)
+		if err != nil {
+			return nil, fmt.Errorf("decode %s hex: %w", name, err)
+		}
+		if len(raw) != 48 {
+			return nil, fmt.Errorf("invalid %s length: got %d bytes, want 48", name, len(raw))
+		}
+		return raw, nil
+	}
+	if _, err := parse48("v", vHex); err != nil {
+		return err
+	}
+	if _, err := parse48("w0", w0Hex); err != nil {
+		return err
+	}
+	if _, err := parse48("w1", w1Hex); err != nil {
+		return err
+	}
+
+	vAff, err := parseG1CompressedHex(vHex)
+	if err != nil {
+		return fmt.Errorf("invalid compressed G1 v: %w", err)
+	}
+	w0Aff, err := parseG1CompressedHex(w0Hex)
+	if err != nil {
+		return fmt.Errorf("invalid compressed G1 w0: %w", err)
+	}
+	w1Aff, err := parseG1CompressedHex(w1Hex)
+	if err != nil {
+		return fmt.Errorf("invalid compressed G1 w1: %w", err)
+	}
+
+	// 2) Reduce secrets into Fr
+	var aFr, rFr fr.Element
+	aFr.SetBigInt(a)
+	rFr.SetBigInt(r)
+
+	var aRed, rRed big.Int
+	aFr.BigInt(&aRed)
+	rFr.BigInt(&rRed)
+
+	// 3) Extract affine coords to big.Int
+	var vx, vy, w0x, w0y, w1x, w1y big.Int
+	vAff.X.ToBigIntRegular(&vx)
+	vAff.Y.ToBigIntRegular(&vy)
+	w0Aff.X.ToBigIntRegular(&w0x)
+	w0Aff.Y.ToBigIntRegular(&w0y)
+	w1Aff.X.ToBigIntRegular(&w1x)
+	w1Aff.Y.ToBigIntRegular(&w1y)
+
+	// 4) Load setup files
+	ccs, pk, vk, err := LoadSetupFiles(setupDir)
+	if err != nil {
+		return fmt.Errorf("load setup files: %w", err)
+	}
+
+	// 5) Create witness assignment
+	assignment := vw0w1Circuit{
+		A: emulated.ValueOf[emparams.BLS12381Fr](&aRed),
+		R: emulated.ValueOf[emparams.BLS12381Fr](&rRed),
+
+		VX: emulated.ValueOf[emparams.BLS12381Fp](&vx),
+		VY: emulated.ValueOf[emparams.BLS12381Fp](&vy),
+
+		W0X: emulated.ValueOf[emparams.BLS12381Fp](&w0x),
+		W0Y: emulated.ValueOf[emparams.BLS12381Fp](&w0y),
+
+		W1X: emulated.ValueOf[emparams.BLS12381Fp](&w1x),
+		W1Y: emulated.ValueOf[emparams.BLS12381Fp](&w1y),
+	}
+
+	witness, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
+	if err != nil {
+		return fmt.Errorf("new witness: %w", err)
+	}
+	publicWitness, err := witness.Public()
+	if err != nil {
+		return fmt.Errorf("public witness: %w", err)
+	}
+
+	// 6) Prove
+	proof, err := groth16.Prove(ccs, pk, witness)
+	if err != nil {
+		return fmt.Errorf("prove: %w", err)
+	}
+
+	// 7) Optionally verify
+	if verify {
+		if err := groth16.Verify(proof, vk, publicWitness); err != nil {
+			return fmt.Errorf("verify failed: %w", err)
+		}
+	}
+
+	// 8) Export artifacts
+	if err := ExportAll(vk, proof, publicWitness, outDir); err != nil {
+		return fmt.Errorf("export: %w", err)
+	}
+
+	// 9) Save gnark native binary files for standalone verification
+	if err := SaveNativeFiles(vk, proof, publicWitness, outDir); err != nil {
+		return fmt.Errorf("save native files: %w", err)
+	}
+
+	return nil
+}

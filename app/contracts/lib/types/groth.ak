@@ -13,6 +13,9 @@ use aiken/builtin.{
 }
 use aiken/collection/list
 
+// ---------- Constants ----------
+// pub const global_snark_vk: SnarkVerificationKey = SnarkVerificationKey {}
+
 // ---------- Types ----------
 
 pub type CommitmentKey {
