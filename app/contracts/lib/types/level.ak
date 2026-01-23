@@ -55,6 +55,27 @@ pub const wang_h2: G2Element = g2.hash_to_group(base_seed, #"57414e473a6832")
 /// WANG:h3
 pub const wang_h3: G2Element = g2.hash_to_group(base_seed, #"57414e473a6833")
 
+/// split the level list into a half and full level
+pub type HalfEncryptionLevel {
+  // #<Bls12_381, G1>
+  r1b: ByteArray,
+  // #<Bls12_381, G1>
+  r2_g1b: ByteArray,
+  // #<Bls12_381, G2>  in the paper this is c13 for level-1 and R4 for level-k
+  r4b: ByteArray,
+}
+
+pub type FullEncryptionLevel {
+  // #<Bls12_381, G1>
+  r1b: ByteArray,
+  // #<Bls12_381, G1>
+  r2_g1b: ByteArray,
+  // #<Bls12_381, G2>
+  r2_g2b: ByteArray,
+  // #<Bls12_381, G2>  in the paper this is c13 for level-1 and R4 for level-k
+  r4b: ByteArray,
+}
+
 /// e(q^a + x*r, h0) or e(q^a + x*r, h0) * e(q^r, p^h - s*x)
 /// store just q^a + x*r or q^a + x*r and p^h - s*x
 /// h0 is a constant and q^r is r1b so they can be referenced
