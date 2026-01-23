@@ -189,7 +189,8 @@ pub fn ml_one(seed_g1: G1Element, seed_g2: G2Element) -> MillerLoopResult {
 }
 
 // Commitment PoK check as "pairing product == 1":
-//   e(D_sum, g) * e(pok, gSigmaNeg) == 1
+//   e(D_sum, gSigmaNeg) * e(pok, g) == 1
+// Note: This matches gnark's pedersen.Verify equation order
 pub fn verify_commitment_pok(
   vk: SnarkVerificationKey,
   d_sum: G1Element,
@@ -212,10 +213,11 @@ pub fn verify_commitment_pok(
     let g_sigma_neg = bls12_381_g2_uncompress(ck.gSigmaNeg)
     let pok = bls12_381_g1_uncompress(proof.commitmentPok)
 
+    // gnark's equation: e(commitment, GSigmaNeg) * e(knowledgeProof, G) == 1
     let prod =
       bls12_381_mul_miller_loop_result(
-        bls12_381_miller_loop(d_sum, g),
-        bls12_381_miller_loop(pok, g_sigma_neg),
+        bls12_381_miller_loop(d_sum, g_sigma_neg),
+        bls12_381_miller_loop(pok, g),
       )
 
     bls12_381_final_verify(prod, ml_one(alpha, g))?
@@ -310,13 +312,17 @@ pub fn verify_groth16(
 // Verifies the commitment proof of knowledge (PoK) separately from the main
 // Groth16 verification. This can be used to verify commitments independently.
 //
-// The PoK equation is: e(D_sum, g) * e(PoK, gSigmaNeg) == 1
+// gnark's Pedersen commitment PoK verification equation (from pedersen.go):
+//   e(commitment, GSigmaNeg) * e(knowledgeProof, G) == 1
+//
+// For a single commitment D with PoK:
+//   e(D, gSigmaNeg) * e(PoK, g) == 1
 //
 // where:
-//   D_sum = sum of all commitment points D_i
+//   D = commitment point in G1
+//   PoK = proof of knowledge in G1
 //   g = commitment key generator in G2
-//   PoK = batched proof of knowledge
-//   gSigmaNeg = -g^sigma (commitment key element in G2)
+//   gSigmaNeg = g^{-σ} (commitment key element in G2)
 //
 pub fn verify_commitments(
   vk: SnarkVerificationKey,
@@ -343,22 +349,21 @@ pub fn verify_commitments(
     let pok = bls12_381_g1_uncompress(proof.commitmentPok)
 
     // Compute sum of commitments D_sum = D_0 + D_1 + ... + D_n
-    // Use alpha as seed for identity if needed (we use first commitment as starting point)
     let d_sum =
       when proof.commitments is {
         [] -> fail @"no commitments to sum"
         [d0, ..rest] -> sum_commitments_acc(rest, bls12_381_g1_uncompress(d0))
       }
 
-    // Verify: e(D_sum, g) * e(PoK, gSigmaNeg) == 1
+    // Verify: e(D_sum, gSigmaNeg) * e(PoK, g) == 1
+    // Note: Order matters! gnark's equation has gSigmaNeg paired with commitment
     let prod =
       bls12_381_mul_miller_loop_result(
-        bls12_381_miller_loop(d_sum, g),
-        bls12_381_miller_loop(pok, g_sigma_neg),
+        bls12_381_miller_loop(d_sum, g_sigma_neg),
+        bls12_381_miller_loop(pok, g),
       )
 
-    // Compare against identity (using reflexive property: ml == ml)
-    // We compute identity as e(0*g1, g2) where 0*g1 is the identity in G1
+    // Compare against identity: e(0*g1, g2) = 1 in GT
     let identity = bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, d_sum), g)
 
     bls12_381_final_verify(prod, identity)?
