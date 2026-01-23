@@ -302,11 +302,67 @@ pub fn verify_groth16(
     )
 
   // Main Groth16 product == 1
-  // Note: Commitment PoK verification is skipped for now as gnark's BSB22 PoK
-  // uses a more complex batched verification with challenges that would require
-  // additional implementation. The main Groth16 proof verification is sufficient
-  // for verifying the computational statement.
   bls12_381_final_verify(prod, ml_one(alpha, beta))?
+}
+
+// ---------- Standalone Commitment Verification ----------
+//
+// Verifies the commitment proof of knowledge (PoK) separately from the main
+// Groth16 verification. This can be used to verify commitments independently.
+//
+// The PoK equation is: e(D_sum, g) * e(PoK, gSigmaNeg) == 1
+//
+// where:
+//   D_sum = sum of all commitment points D_i
+//   g = commitment key generator in G2
+//   PoK = batched proof of knowledge
+//   gSigmaNeg = -g^sigma (commitment key element in G2)
+//
+pub fn verify_commitments(
+  vk: SnarkVerificationKey,
+  proof: GrothProof,
+) -> Bool {
+  // If no commitments, nothing to verify
+  if list.length(proof.commitments) == 0 {
+    True
+  } else {
+    // Common gnark shape: single commitment key + single batched PoK
+    expect list.length(vk.commitmentKeys) == 1
+
+    let ck =
+      when vk.commitmentKeys is {
+        [] -> fail @"missing commitmentKeys"
+        [x, ..] -> x
+      }
+
+    // Uncompress G2 elements from commitment key
+    let g = bls12_381_g2_uncompress(ck.g)
+    let g_sigma_neg = bls12_381_g2_uncompress(ck.gSigmaNeg)
+
+    // Uncompress PoK from proof
+    let pok = bls12_381_g1_uncompress(proof.commitmentPok)
+
+    // Compute sum of commitments D_sum = D_0 + D_1 + ... + D_n
+    // Use alpha as seed for identity if needed (we use first commitment as starting point)
+    let d_sum =
+      when proof.commitments is {
+        [] -> fail @"no commitments to sum"
+        [d0, ..rest] -> sum_commitments_acc(rest, bls12_381_g1_uncompress(d0))
+      }
+
+    // Verify: e(D_sum, g) * e(PoK, gSigmaNeg) == 1
+    let prod =
+      bls12_381_mul_miller_loop_result(
+        bls12_381_miller_loop(d_sum, g),
+        bls12_381_miller_loop(pok, g_sigma_neg),
+      )
+
+    // Compare against identity (using reflexive property: ml == ml)
+    // We compute identity as e(0*g1, g2) where 0*g1 is the identity in G1
+    let identity = bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, d_sum), g)
+
+    bls12_381_final_verify(prod, identity)?
+  }
 }
 
 // Split a list at index n, returning Pair(first n elements, rest)
