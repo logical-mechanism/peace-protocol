@@ -3,7 +3,6 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
 
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -424,7 +423,7 @@ def _solve_commitment_wire(
     """
     # Get uncompressed commitment point bytes (x || y, each 48 bytes = 96 total)
     x, y = _g1_jacobian_to_affine_xy_ints(commitment_point)
-    commitment_bytes = x.to_bytes(48, 'big') + y.to_bytes(48, 'big')
+    commitment_bytes = x.to_bytes(48, "big") + y.to_bytes(48, "big")
 
     # Append committed public witness values
     data = bytearray(commitment_bytes)
@@ -432,7 +431,7 @@ def _solve_commitment_wire(
         # idx is 1-based, public_witness is 0-indexed
         w = public_witness[idx - 1]
         # Marshal as 32-byte big-endian (Fr element)
-        data.extend(w.to_bytes(32, 'big'))
+        data.extend(w.to_bytes(32, "big"))
 
     # Hash using gnark's hash_to_field (commitment DST)
     # gnark uses hash_to_field with DST = "BSB22-Groth16-Fiat-Shamir" for the prehash
@@ -495,7 +494,7 @@ def verify_snark_proof(out_dir: str | Path = "out", debug: bool = False) -> bool
     commitments = [_g1_from_compressed_hex(h) for h in commitment_hexes]
 
     if debug:
-        print(f"\n=== gnark-style Groth16 Verification ===")
+        print("\n=== gnark-style Groth16 Verification ===")
         print(f"  len(inputs): {len(inputs)}")
         print(f"  len(IC): {len(IC)}")
         print(f"  len(commitments): {len(commitments)}")
@@ -535,7 +534,9 @@ def verify_snark_proof(out_dir: str | Path = "out", debug: bool = False) -> bool
     for i, D in enumerate(commitments):
         if i < len(public_and_commitment_committed):
             committed_indices = public_and_commitment_committed[i]
-            commitment_wire = _solve_commitment_wire(D, committed_indices, public_witness_no_one)
+            commitment_wire = _solve_commitment_wire(
+                D, committed_indices, public_witness_no_one
+            )
             public_witness.append(commitment_wire)
             if debug:
                 print(f"  Computed commitment_wire[{i}]: {commitment_wire}")
@@ -556,7 +557,9 @@ def verify_snark_proof(out_dir: str | Path = "out", debug: bool = False) -> bool
             kSum = add(kSum, term)
 
     if debug:
-        print(f"  Used {min(len(public_witness), len(IC) - 1)} witness elements for IC multiplication")
+        print(
+            f"  Used {min(len(public_witness), len(IC) - 1)} witness elements for IC multiplication"
+        )
 
     # Step 4: Add all commitment points Σ(D_i)
     for i, D in enumerate(commitments):
@@ -566,7 +569,7 @@ def verify_snark_proof(out_dir: str | Path = "out", debug: bool = False) -> bool
 
     if debug:
         kSum_x, kSum_y = _g1_jacobian_to_affine_xy_ints(kSum)
-        print(f"  kSum computed:")
+        print("  kSum computed:")
         print(f"    x: {kSum_x}")
         print(f"    y: {kSum_y}")
 
@@ -602,31 +605,26 @@ def verify_snark_proof(out_dir: str | Path = "out", debug: bool = False) -> bool
     result = left_final == right_final
 
     if debug:
-        print(f"\n  Pairings computed:")
-        print(f"    e(A, B)")
-        print(f"    e(C, -δ)")
-        print(f"    e(kSum, -γ)")
-        print(f"    e(α, β)")
+        print("\n  Pairings computed:")
+        print("    e(A, B)")
+        print("    e(C, -δ)")
+        print("    e(kSum, -γ)")
+        print("    e(α, β)")
         print(f"  Verification result: {result}")
 
     # Also try alternative formulation: negate alpha instead of gamma/delta
     if not result and debug:
-        print(f"\n  --- Trying alternative: negate alpha ---")
-        alpha_neg = neg(alpha)
-        e_alphaNeg_beta = pairing(beta, alpha_neg, final_exponentiate=False)
-        alt_product = e_A_B * e_C_deltaNeg * e_kSum_gammaNeg * e_alphaNeg_beta
-        alt_result = final_exponentiate(alt_product)
-        # Check if alt_result is the identity in GT (all ones)
-        print(f"  Alternative product final exp computed")
+        print("\n  --- Trying alternative: negate alpha ---")
+        print("  Alternative product final exp computed")
 
     if result:
         if debug:
-            print(f"\n✓ Verification succeeded (gnark equation)")
+            print("\n✓ Verification succeeded (gnark equation)")
         return True
 
     # If the above fails, try without commitment handling (for proofs without commitments)
     if debug:
-        print(f"\n--- Trying without commitment extension ---")
+        print("\n--- Trying without commitment extension ---")
 
     # Simple vk_x = IC[0] + Σ(inputs[i] * IC[i+1])
     inputs_int = [int(s) for s in inputs]
@@ -646,12 +644,13 @@ def verify_snark_proof(out_dir: str | Path = "out", debug: bool = False) -> bool
 
     if result_simple:
         if debug:
-            print(f"\n✓ Verification succeeded (simple equation)")
+            print("\n✓ Verification succeeded (simple equation)")
         return True
 
     if debug:
-        print(f"\n✗ Verification failed")
+        print("\n✗ Verification failed")
     return False
+
 
 # ----------------------------
 # Public integer extraction (if you still need it)

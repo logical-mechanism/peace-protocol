@@ -34,7 +34,7 @@ def verify_snark_proof_via_go(out_dir: str | Path = "out") -> bool:
             capture_output=True,
             text=True,
             check=False,
-            timeout=30
+            timeout=30,
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:

@@ -10,11 +10,12 @@ src/commands.py                  94      0   100%
 src/constants.py                 13      0   100%
 src/ecies.py                     24      0   100%
 src/files.py                     21      0   100%
+src/groth_convert.py             38      0   100%
 src/hashing.py                    5      0   100%
 src/level.py                      9      6    33%   37-55, 88-106
 src/register.py                  34      0   100%
 src/schnorr.py                   20      0   100%
-src/snark.py                    343    255    26%   78-83, 134, 136, 157-165, 176-179, 183-187, 191-195, 210-213, 218-221, 226-229, 234-236, 244-268, 273-276, 285-305, 309, 314-318, 324-331, 339-372, 382-394, 402-403, 426-440, 445-447, 467-654, 669, 671, 673, 680-683, 693-694
+src/snark.py                    338    251    26%   77-82, 133, 135, 156-164, 175-178, 182-186, 190-194, 209-212, 217-220, 225-228, 233-235, 243-267, 272-275, 284-304, 308, 313-317, 323-330, 338-371, 381-393, 401-402, 425-439, 444-446, 466-652, 668, 670, 672, 679-682, 692-693
 src/snark_verify_wrapper.py      12      3    75%   40-42
 tests/__init__.py                 0      0   100%
 tests/test_binding.py           155      1    99%   222
@@ -22,12 +23,13 @@ tests/test_bls12381.py          150      1    99%   264
 tests/test_commands.py          232      7    97%   71, 92-93, 130-131, 134-135
 tests/test_ecies.py             118      0   100%
 tests/test_files.py              73      0   100%
+tests/test_groth_convert.py     130      0   100%
 tests/test_hashing.py            28      0   100%
 tests/test_register.py           80      0   100%
 tests/test_schnorr.py           120      0   100%
 tests/test_snark.py              99      5    95%   40-41, 171, 174, 224
 -----------------------------------------------------------
-TOTAL                          1702    278    84%
+TOTAL                          1865    274    85%
 
 ====================
 GO COVERAGE

@@ -149,6 +149,24 @@ def test_snark_prove():
 
     generate_snark_proof(a0, r0, v, w0, w1, snark_path)
 
+def test_snark_prove_and_verify_from_global_circuit():
+    a = gt_to_hash(a0, snark_path)
+    v = g1_point(x0)
+    w0 = g1_point(to_int(a))
+
+    qa = g1_point(a0)
+    vr = scale(v, r0)
+    w1 = combine(qa, vr)
+
+    print()
+    print(f"v={v}")
+    print(f"w0={w0}")
+    print(f"w1={w1}")
+
+    circuit_path = f"{os.getcwd()}/circuit/"
+    generate_snark_proof(a0, r0, v, w0, w1, snark_path, setup_dir=circuit_path)
+    result = verify_snark_proof_via_go(out_path)
+    assert result, "Go Proof verification failed"
 
 def test_snark_verify():
     """
