@@ -149,6 +149,7 @@ def test_snark_prove():
 
     generate_snark_proof(a0, r0, v, w0, w1, snark_path)
 
+
 def test_snark_prove_and_verify_from_global_circuit():
     a = gt_to_hash(a0, snark_path)
     v = g1_point(x0)
@@ -167,6 +168,7 @@ def test_snark_prove_and_verify_from_global_circuit():
     generate_snark_proof(a0, r0, v, w0, w1, snark_path, setup_dir=circuit_path)
     result = verify_snark_proof_via_go(out_path)
     assert result, "Go Proof verification failed"
+
 
 def test_snark_verify():
     """

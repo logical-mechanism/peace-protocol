@@ -90,9 +90,10 @@ pub type SnarkVerificationKey {
   vkDelta: ByteArray,
   // G2 compressed
   vkIC: List<ByteArray>,
-  // len = nPublic + 1 + nCommitments (G1 compressed)
-  // IC[0] = constant, IC[1..nPublic] = public inputs, IC[nPublic+1..] = commitment wires
-
+  // len = nPublic + nCommitments (G1 compressed)
+  // IC[0] = constant term for witness[0]=1
+  // IC[1..nPublic-1] = public inputs (nPublic-1 elements)
+  // IC[nPublic..] = commitment wires (nCommitments elements)
   // gnark commitment-extension verifier material
   commitmentKeys: List<CommitmentKey>,
 }
@@ -113,8 +114,6 @@ pub type GrothProof {
 
 pub type GrothPublic =
   List<Int>
-
-// G1 compressed (batched PoK)
 
 // ---------- Helpers ----------
 
@@ -186,42 +185,6 @@ pub fn add_commitments(
 // 0_G1 is produced safely as (0 * seed_g1).
 pub fn ml_one(seed_g1: G1Element, seed_g2: G2Element) -> MillerLoopResult {
   bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, seed_g1), seed_g2)
-}
-
-// Commitment PoK check as "pairing product == 1":
-//   e(D_sum, gSigmaNeg) * e(pok, g) == 1
-// Note: This matches gnark's pedersen.Verify equation order
-pub fn verify_commitment_pok(
-  vk: SnarkVerificationKey,
-  d_sum: G1Element,
-  proof: GrothProof,
-  alpha: G1Element,
-) -> Bool {
-  if list.length(proof.commitments) == 0 {
-    True
-  } else {
-    // Common gnark shape: single commitment key + single batched PoK
-    expect list.length(vk.commitmentKeys) == 1
-
-    let ck =
-      when vk.commitmentKeys is {
-        [] -> fail @"missing commitmentKeys"
-        [x, ..] -> x
-      }
-
-    let g = bls12_381_g2_uncompress(ck.g)
-    let g_sigma_neg = bls12_381_g2_uncompress(ck.gSigmaNeg)
-    let pok = bls12_381_g1_uncompress(proof.commitmentPok)
-
-    // gnark's equation: e(commitment, GSigmaNeg) * e(knowledgeProof, G) == 1
-    let prod =
-      bls12_381_mul_miller_loop_result(
-        bls12_381_miller_loop(d_sum, g_sigma_neg),
-        bls12_381_miller_loop(pok, g),
-      )
-
-    bls12_381_final_verify(prod, ml_one(alpha, g))?
-  }
 }
 
 // ---------- Main verifier ----------
