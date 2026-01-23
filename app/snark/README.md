@@ -45,7 +45,7 @@ go build -o snark
 ## Testing
 
 ```bash
-go test .
+go test -v -count=1 -timeout=120m 
 ```
 
 **Copyright (C) 2025 Logical Mechanism LLC**
