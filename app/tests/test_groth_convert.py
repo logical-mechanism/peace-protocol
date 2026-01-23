@@ -1,7 +1,7 @@
-# test_groth_convert.py
-#
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
+
+# tests/test_groth_convert.py
 
 import json
 from pathlib import Path

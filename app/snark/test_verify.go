@@ -1,7 +1,7 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// test_verify.go - test gnark's built-in Verify function
+// test_verify.go
 
 package main
 

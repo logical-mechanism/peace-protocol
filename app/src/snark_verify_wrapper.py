@@ -1,7 +1,7 @@
-# snark_verify_wrapper.py
-#
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
+
+# snark_verify_wrapper.py
 
 """
 Wrapper to verify Groth16 proofs using gnark's built-in verification.

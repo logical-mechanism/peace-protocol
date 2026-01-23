@@ -1,5 +1,8 @@
 # Copyright (C) 2025 Logical Mechanism LLC
 # SPDX-License-Identifier: GPL-3.0-only
+
+# tests/test_snark.py
+
 import pytest
 from src.bls12381 import (
     g1_point,

@@ -1,6 +1,7 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
+// cli_inprocess_test.go
 package main
 
 import (

@@ -1,7 +1,7 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// debug_verify.go - prints intermediate verification values
+// debug_verify.go
 
 package main
 
