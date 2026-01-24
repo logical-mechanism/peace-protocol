@@ -65,6 +65,58 @@ pub type HalfEncryptionLevel {
   r4b: ByteArray,
 }
 
+/// Verify the first half encryption level. The token name on the encryption UTxO
+/// is used with the encryption level to bind the everything together.
+///
+/// ```aiken
+/// level.verify_first_half_level(entry, tkn)
+/// ```
+pub fn verify_first_half_level(
+  self: HalfEncryptionLevel,
+  token_name: AssetName,
+) -> Bool {
+  // e(g, R4) == e(R1, h1^{H(R1)} h2^{H(R1||R2||token)} h3)
+  let r4: G2Element = self.r4b |> g2.decompress
+  let left = miller_loop(g1.generator, r4)
+  let a = self.r1b |> hash_to_scalar
+  let b =
+    self.r1b
+      |> bytearray.concat(self.r2_g1b)
+      |> bytearray.concat(token_name)
+      |> hash_to_scalar
+  // level one uses h1, h2, and h3 terms
+  let exp =
+    g2.add(g2.scale(wang_h1, a), g2.scale(wang_h2, b)) |> g2.add(wang_h3)
+  let right = miller_loop(self.r1b |> g1.decompress, exp)
+  final_exponentiation(left, right)
+}
+
+/// Verify the kth encryption level. The token name on the encryption UTxO
+/// is used with the encryption level to bind the everything together.
+///
+/// ```aiken
+/// level.verify_kth_half_level(entry, tkn)
+/// ```
+pub fn verify_kth_half_level(
+  self: HalfEncryptionLevel,
+  token_name: AssetName,
+) -> Bool {
+  // e(g, R4) == e(R1, h1^{H(R1)} h2^{H(R1||R2||token)})
+  let left = miller_loop(g1.generator, self.r4b |> g2.decompress)
+
+  let a4 = self.r1b |> hash_to_scalar
+  let b4 =
+    self.r1b
+      |> bytearray.concat(self.r2_g1b)
+      |> bytearray.concat(token_name)
+      |> hash_to_scalar
+  // level k only uses the h1 and h2 terms
+  let exp = g2.add(g2.scale(wang_h1, a4), g2.scale(wang_h2, b4))
+  let right = miller_loop(self.r1b |> g1.decompress, exp)
+
+  final_exponentiation(left, right)
+}
+
 pub type FullEncryptionLevel {
   // #<Bls12_381, G1>
   r1b: ByteArray,
