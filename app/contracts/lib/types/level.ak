@@ -138,6 +138,37 @@ pub fn mk_kth_half_level(
   HalfEncryptionLevel { r1b, r2_g1b, r4b }
 }
 
+/// Verifies that the new level addition is valid.
+///
+/// ```aiken
+/// level.add_new_level(this.levels, that.levels, redeemer.r4, tkn, datum.register, redeemer.binding_proof)
+/// ```
+pub fn add_new_half_level(
+  self: List<EncryptionLevel>,
+  next: List<EncryptionLevel>,
+  r5: ByteArray,
+  token_name: AssetName,
+  user: Register,
+  proof: BindingProof,
+) -> Bool {
+  expect [entry, expected2, ..tail2] = next
+  expect [head, ..tail] = self
+
+  expect None = head.r2.g2b
+  let expected =
+    EncryptionLevel {
+      ..head,
+      r2: EmbeddedGt { g1b: head.r2.g1b, g2b: Some(r5) },
+    }
+
+  and {
+    binding_verify(user, proof, entry.r1b, entry.r2.g1b, token_name),
+    verify_level_k(entry, token_name),
+    expected2 == expected,
+    tail2 == tail,
+  }
+}
+
 pub type FullEncryptionLevel {
   // #<Bls12_381, G1>
   r1b: ByteArray,
