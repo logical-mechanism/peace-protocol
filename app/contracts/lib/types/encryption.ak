@@ -4,7 +4,7 @@
 
 use aiken/crypto.{VerificationKeyHash}
 use cardano/assets.{AssetName}
-use types/level.{EncryptionLevel}
+use types/level.{FullEncryptionLevel, HalfEncryptionLevel}
 use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
 
@@ -18,7 +18,8 @@ pub type EncryptionDatum {
   owner_vkh: VerificationKeyHash,
   owner_g1: Register,
   token: AssetName,
-  levels: List<EncryptionLevel>,
+  half_level: HalfEncryptionLevel,
+  full_level: Option<FullEncryptionLevel>,
   capsule: Capsule,
 }
 

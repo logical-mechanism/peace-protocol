@@ -144,28 +144,26 @@ pub fn mk_kth_half_level(
 /// level.add_new_level(this.levels, that.levels, redeemer.r4, tkn, datum.register, redeemer.binding_proof)
 /// ```
 pub fn add_new_half_level(
-  self: List<EncryptionLevel>,
-  next: List<EncryptionLevel>,
+  new_half: HalfEncryptionLevel,
+  old_half: HalfEncryptionLevel,
+  new_full: FullEncryptionLevel,
   r5: ByteArray,
   token_name: AssetName,
   user: Register,
   proof: BindingProof,
 ) -> Bool {
-  expect [entry, expected2, ..tail2] = next
-  expect [head, ..tail] = self
-
-  expect None = head.r2.g2b
   let expected =
-    EncryptionLevel {
-      ..head,
-      r2: EmbeddedGt { g1b: head.r2.g1b, g2b: Some(r5) },
+    FullEncryptionLevel {
+      r1b: old_half.r1b,
+      r2_g1b: old_half.r2_g1b,
+      r2_g2b: r5,
+      r4b: old_half.r4b,
     }
 
   and {
-    binding_verify(user, proof, entry.r1b, entry.r2.g1b, token_name),
-    verify_level_k(entry, token_name),
-    expected2 == expected,
-    tail2 == tail,
+    binding_verify(user, proof, new_half.r1b, new_half.r2_g1b, token_name),
+    verify_kth_half_level(new_half, token_name),
+    new_full == expected,
   }
 }
 

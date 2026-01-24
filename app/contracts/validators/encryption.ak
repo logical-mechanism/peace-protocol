@@ -15,7 +15,7 @@ use types/encryption.{
   EncryptionDatum, EncryptionMintRedeemer, EncryptionSpendRedeemer,
   EntryEncryptionMint, LeaveEncryptionBurn, RemoveEncryption, UseEncryption,
 }
-use types/level.{EncryptionLevel}
+use types/level.{FullEncryptionLevel}
 use types/reference.{ReferenceDatum}
 use types/register
 use types/schnorr
@@ -38,9 +38,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         }): Option<Output> =
           search.for_output_by_token(outputs, policy_id, token_name)
         // encryption datum needs to be validated so destruct it
-        expect EncryptionDatum { owner_vkh, owner_g1, token, levels, .. }: EncryptionDatum =
-          output_datum_data
-        expect [entry]: List<EncryptionLevel> = levels
+        expect EncryptionDatum {
+          owner_vkh,
+          owner_g1,
+          token,
+          half_level,
+          full_level,
+          ..
+        }: EncryptionDatum = output_datum_data
         //
         and {
           // token name needs to be in the datum
@@ -58,13 +63,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           // owner g1 point must be valid
           register.is_register_valid(owner_g1)?,
           // must be valid level 1
-          level.verify_level_one(entry, token_name)?,
+          level.verify_first_half_level(half_level, token_name)?,
+          full_level == None,
           // must be using original owner
           schnorr.binding_verify(
             owner_g1,
             binding_proof,
-            entry.r1b,
-            entry.r2.g1b,
+            half_level.r1b,
+            half_level.r2_g1b,
             token_name,
           )?,
         }
@@ -92,8 +98,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             redeemers,
             ..
           }: Transaction = self
-          let EncryptionDatum { owner_vkh, owner_g1, token, levels, capsule } =
-            this_datum
+          let EncryptionDatum {
+            owner_vkh,
+            owner_g1,
+            token,
+            half_level,
+            capsule,
+            ..
+          } = this_datum
           expect Some(this_input): Option<Input> =
             inputs
               |> transaction.find_input(utxo)
@@ -138,7 +150,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 owner_vkh: next_owner_vkh,
                 owner_g1: next_owner_g1,
                 token: next_token,
-                levels: next_levels,
+                half_level: next_half_level,
+                full_level: maybe_next_full_level,
                 capsule: next_capsule,
               }: EncryptionDatum = output_datum_data
               // get the bidding contract hash from the reference datum
@@ -171,6 +184,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 owner_g1: bid_owner_g1,
                 ..
               }: BidDatum = bidding_datum_data
+              expect Some(next_full_level): Option<FullEncryptionLevel> =
+                maybe_next_full_level
               //
               and {
                 // cipher text can not change
@@ -188,9 +203,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 // consistency check; expand here for better r5 validation
                 level.verify_r5(owner_g1, r5, witness)?,
                 // correct level addition
-                level.add_new_level(
-                  levels,
-                  next_levels,
+                level.add_new_half_level(
+                  next_half_level,
+                  half_level,
+                  next_full_level,
                   r5,
                   token,
                   bid_owner_g1,
