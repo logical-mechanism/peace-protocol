@@ -117,6 +117,27 @@ pub fn verify_kth_half_level(
   final_exponentiation(left, right)
 }
 
+/// Internal use only; good for testing.
+pub fn mk_kth_half_level(
+  token_name: AssetName,
+  r: State<Scalar>,
+  r2_g1b: ByteArray,
+) -> HalfEncryptionLevel {
+  let r1b = g1.generator |> g1.scale(r) |> g1.compress
+
+  // R4 uses hashes of (R1) and (R1 || R2 || R3)
+  let a4 = r1b |> hash_to_scalar
+  let b4 =
+    r1b
+      |> bytearray.concat(r2_g1b)
+      |> bytearray.concat(token_name)
+      |> hash_to_scalar
+
+  let base = g2.add(g2.scale(wang_h1, a4), g2.scale(wang_h2, b4))
+  let r4b = base |> g2.scale(r) |> g2.compress
+  HalfEncryptionLevel { r1b, r2_g1b, r4b }
+}
+
 pub type FullEncryptionLevel {
   // #<Bls12_381, G1>
   r1b: ByteArray,
