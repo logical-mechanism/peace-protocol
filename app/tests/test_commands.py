@@ -403,5 +403,3 @@ def test_recursive_decrypt_walks_entries_and_prints(monkeypatch, capsys):
     assert dt_calls[1][1:4] == ("R1_B", "R2G1_B", "R2G2_B")
 
     assert ("decrypt", "R1_B", "K2", "NONCE", "CT", "AAD") in calls
-
-
