@@ -152,7 +152,10 @@ def test_snark_prove():
 
     generate_snark_proof(a0, r0, v, w0, w1, snark_path)
 
-@pytest.mark.skip(reason="this test requires the public binaries that need to be downloaded")
+
+@pytest.mark.skip(
+    reason="this test requires the public binaries that need to be downloaded"
+)
 def test_snark_prove_and_verify_from_global_circuit():
     a = gt_to_hash(a0, snark_path)
     v = g1_point(x0)
