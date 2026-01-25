@@ -4,6 +4,7 @@
 
 use aiken/crypto.{VerificationKeyHash}
 use cardano/assets.{AssetName}
+use types/groth.{GrothPublic}
 use types/level.{FullEncryptionLevel, HalfEncryptionLevel}
 use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
@@ -16,7 +17,7 @@ pub type Capsule {
 
 pub type Status {
   Open
-  Pending(Int)
+  Pending(GrothPublic, Int)
 }
 
 pub type EncryptionDatum {
