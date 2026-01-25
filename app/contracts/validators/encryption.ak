@@ -12,8 +12,9 @@ use cardano/transaction.{
 use search
 use types/bidding.{BidDatum, UseBid}
 use types/encryption.{
-  EncryptionDatum, EncryptionMintRedeemer, EncryptionSpendRedeemer,
-  EntryEncryptionMint, LeaveEncryptionBurn, RemoveEncryption, UseEncryption,
+  CancelEncryption, EncryptionDatum, EncryptionMintRedeemer,
+  EncryptionSpendRedeemer, EntryEncryptionMint, LeaveEncryptionBurn, Open,
+  Pending, RemoveEncryption, UseEncryption, UseSnark,
 }
 use types/level.{FullEncryptionLevel}
 use types/reference.{ReferenceDatum}
@@ -44,10 +45,13 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           token,
           half_level,
           full_level,
+          status,
           ..
         }: EncryptionDatum = output_datum_data
         //
         and {
+          // enter into the open state
+          status == Open,
           // token name needs to be in the datum
           (token == token_name)?,
           // script output can not have a reference script
@@ -104,6 +108,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             token,
             half_level,
             capsule,
+            status,
             ..
           } = this_datum
           expect Some(this_input): Option<Input> =
@@ -126,6 +131,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   )
                 //
                 and {
+                  // cant remove if pending
+                  status == Open,
                   // owner_vkh must sign
                   list.has(extra_signatories, owner_vkh)?,
                   // must burn token
@@ -219,6 +226,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 assets.has_nft(this_input.output.value, this_script, token)?,
               }
             }
+            UseSnark(groth_proof, groth_public) -> True
+            CancelEncryption -> True
           }
         } else {
           // bad datum

@@ -4,7 +4,7 @@
 
 use aiken/crypto.{VerificationKeyHash}
 use cardano/assets.{AssetName}
-use types/groth.{GrothPublic}
+use types/groth.{GrothProof, GrothPublic}
 use types/level.{FullEncryptionLevel, HalfEncryptionLevel}
 use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
@@ -39,4 +39,6 @@ pub type EncryptionSpendRedeemer {
   RemoveEncryption
   // R5 witness, R5, bid token, binding proof
   UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
+  UseSnark(GrothProof, GrothPublic)
+  CancelEncryption
 }
