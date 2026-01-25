@@ -48,10 +48,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           status,
           ..
         }: EncryptionDatum = output_datum_data
+        // enter into the open state
+        expect Open = status
         //
         and {
-          // enter into the open state
-          status == Open,
           // token name needs to be in the datum
           (token == token_name)?,
           // script output can not have a reference script
@@ -129,10 +129,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                       assets.quantity_of(output.value, this_script, token) == 0
                     },
                   )
+                // cant remove if pending
+                expect Open = status
                 //
                 and {
-                  // cant remove if pending
-                  status == Open,
                   // owner_vkh must sign
                   list.has(extra_signatories, owner_vkh)?,
                   // must burn token
@@ -160,7 +160,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 half_level: next_half_level,
                 full_level: maybe_next_full_level,
                 capsule: next_capsule,
-                ..
+                status: next_status,
               }: EncryptionDatum = output_datum_data
               // get the bidding contract hash from the reference datum
               let ReferenceDatum { bid, .. }: ReferenceDatum =
@@ -194,6 +194,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               }: BidDatum = bidding_datum_data
               expect Some(next_full_level): Option<FullEncryptionLevel> =
                 maybe_next_full_level
+              // must be in pending and going to open
+              expect Pending(groth_public, ttl) = status
+              expect Open = next_status
               //
               and {
                 // cipher text can not change
@@ -227,7 +230,37 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               }
             }
             UseSnark(groth_proof, groth_public) -> True
-            CancelEncryption -> True
+            CancelEncryption -> {
+              // this token going back
+              expect Some(Output {
+                address: Address { payment_credential, .. },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                ..
+              }): Option<Output> =
+                search.for_output_by_token(outputs, this_script, token)
+              // datum going back
+              expect EncryptionDatum {
+                owner_vkh: next_owner_vkh,
+                owner_g1: next_owner_g1,
+                token: next_token,
+                half_level: next_half_level,
+                full_level: maybe_next_full_level,
+                capsule: next_capsule,
+                status: next_status,
+              }: EncryptionDatum = output_datum_data
+              // cancel the encryption process if it takes too long
+              expect Pending(_, ttl) = status
+              //
+              and {
+                // check if correct script hashes
+                (Script(this_script) == payment_credential)?,
+                // script output can not have a reference script
+                option.is_none(reference_script)?,
+                // force token to already exist
+                assets.has_nft(this_input.output.value, this_script, token)?,
+              }
+            }
           }
         } else {
           // bad datum
