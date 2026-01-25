@@ -294,7 +294,7 @@ def recursive_decrypt(
 
     full_levels = all_entries[1:]
     for entry in full_levels:
-        entry = entry['fields'][0]
+        entry = entry["fields"][0]
         r1 = entry["fields"][0]["bytes"]
         r2_g1b = entry["fields"][1]["bytes"]
         r2_g2b = entry["fields"][2]["bytes"]
