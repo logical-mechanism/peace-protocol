@@ -153,6 +153,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 half_level: next_half_level,
                 full_level: maybe_next_full_level,
                 capsule: next_capsule,
+                ..
               }: EncryptionDatum = output_datum_data
               // get the bidding contract hash from the reference datum
               let ReferenceDatum { bid, .. }: ReferenceDatum =

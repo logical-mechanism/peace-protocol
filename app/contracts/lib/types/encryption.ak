@@ -14,6 +14,11 @@ pub type Capsule {
   ct: ByteArray,
 }
 
+pub type Status {
+  Open
+  Pending(Int)
+}
+
 pub type EncryptionDatum {
   owner_vkh: VerificationKeyHash,
   owner_g1: Register,
@@ -21,6 +26,7 @@ pub type EncryptionDatum {
   half_level: HalfEncryptionLevel,
   full_level: Option<FullEncryptionLevel>,
   capsule: Capsule,
+  status: Status,
 }
 
 pub type EncryptionMintRedeemer {
