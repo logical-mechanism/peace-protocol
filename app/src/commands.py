@@ -18,7 +18,7 @@ from src.bls12381 import (
 from src.hashing import generate
 from src.register import Register
 from src.ecies import encrypt, capsule_to_file, decrypt
-from src.level import half_level_to_file, full_level_to_file
+from src.level import half_level_to_file, full_level_to_file, empty_full_level_to_file
 from src.schnorr import schnorr_proof, schnorr_to_file
 from src.binding import binding_proof, binding_to_file
 from src.files import save_string, load_json
@@ -99,6 +99,7 @@ def create_encryption_tx(
     r4b = scale(c, r0)
 
     half_level_to_file(r1b, r2_g1b, r4b)
+    empty_full_level_to_file()
 
     nonce, aad, ct = encrypt(r1b, m0, plaintext)
     capsule_to_file(nonce, aad, ct)
@@ -218,9 +219,9 @@ def create_reencryption_tx(
 
     # update the last element
     encryption_datum = load_json("../data/encryption/encryption-datum.json")
-    last_entry = encryption_datum["fields"][3]["list"][0]
+    last_entry = encryption_datum["fields"][3]
     old_r1b = last_entry["fields"][0]["bytes"]
-    old_r2_g1b = last_entry["fields"][1]["fields"][0]["bytes"]
+    old_r2_g1b = last_entry["fields"][1]["bytes"]
     old_r4b = last_entry["fields"][2]["bytes"]
 
     full_level_to_file(old_r1b, old_r2_g1b, r5b, old_r4b)

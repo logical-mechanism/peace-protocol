@@ -140,21 +140,19 @@ create_reencryption_tx('${alice_wallet_path}/payment.skey', '${bob_public_value}
 cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json
 
 
-old_list=$(jq -r '.fields[3].list' ../data/encryption/encryption-datum.json)
-
 jq \
 --arg bob_pkh "${bob_pkh}" \
 --arg token_name "${encryption_token}" \
 --argjson register "${bob_register}" \
 --argjson capsule "$(cat ../data/capsule.json)" \
---argjson old_list "${old_list}" \
 --argjson half_level "$(cat ../data/half-level.json)" \
 --argjson full_level "$(cat ../data/full-level.json)" \
 '.fields[0].bytes=$bob_pkh |
 .fields[1]=$register |
 .fields[2].bytes=$token_name |
-.fields[3].list=[$half_level, $full_level] + (($old_list // []) | .[1:]) |
-.fields[4]=$capsule' \
+.fields[3]=$half_level |
+.fields[4]=$full_level |
+.fields[5]=$capsule' \
 ../data/encryption/next-encryption-datum.json | sponge ../data/encryption/next-encryption-datum.json
 
 jq \
