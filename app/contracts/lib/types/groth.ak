@@ -287,10 +287,7 @@ pub fn verify_groth16(
 //   g = commitment key generator in G2
 //   gSigmaNeg = g^{-σ} (commitment key element in G2)
 //
-pub fn verify_commitments(
-  vk: SnarkVerificationKey,
-  proof: GrothProof,
-) -> Bool {
+pub fn verify_commitments(vk: SnarkVerificationKey, proof: GrothProof) -> Bool {
   // If no commitments, nothing to verify
   if list.length(proof.commitments) == 0 {
     True

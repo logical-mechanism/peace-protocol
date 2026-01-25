@@ -8,13 +8,13 @@ use aiken/crypto/bls12_381/g1
 use aiken/crypto/bls12_381/g2
 use aiken/crypto/bls12_381/scalar.{Scalar}
 use aiken/primitive/bytearray
-use types/level.{EmbeddedGt, EncryptionLevel}
+use types/level.{HalfEncryptionLevel}
 use types/register.{Register}
 
 // this would be the nft name on the utxo
 const token_name: ByteArray = #"acab"
 
-const alice_level: EncryptionLevel = {
+const alice_level: HalfEncryptionLevel = {
     let r = scalar.from_int(44203)
 
     let r1b =
@@ -22,13 +22,10 @@ const alice_level: EncryptionLevel = {
         |> g1.scale(r)
         |> g1.compress
 
-    let r2: EmbeddedGt =
-      EmbeddedGt {
-        g1b: g1.generator
-          |> g1.scale(scalar.from_int(69 + 1337 * 44203))
-          |> g1.compress,
-        g2b: None,
-      }
+    let r2_g1b: ByteArray =
+      g1.generator
+        |> g1.scale(scalar.from_int(69 + 1337 * 44203))
+        |> g1.compress
 
     // a = H(r1b)
     let a =
@@ -38,7 +35,7 @@ const alice_level: EncryptionLevel = {
     // b = H(r1b || r2_bytes)
     let b =
       r1b
-        |> bytearray.concat(level.concat_embedded_gt(r2))
+        |> bytearray.concat(r2_g1b)
         |> bytearray.concat(token_name)
         |> level.hash_to_scalar
 
@@ -53,58 +50,43 @@ const alice_level: EncryptionLevel = {
         |> g2.scale(r)
         |> g2.compress
 
-    EncryptionLevel { r1b, r2, r4b }
+    HalfEncryptionLevel { r1b, r2_g1b, r4b }
   }
 
-pub const alice_filled =
-  EncryptionLevel {
-    ..alice_level,
-    r2: EmbeddedGt {
-      g1b: alice_level.r2.g1b,
-      g2b: Some(
-        g2.generator
-          |> g2.scale(scalar.from_int(69 + 1337 * 44203))
-          |> g2.compress,
-      ),
-    },
-  }
-
-pub const bob_level: EncryptionLevel = {
+pub const bob_level: HalfEncryptionLevel = {
     let r = scalar.from_int(123)
 
-    let r2: EmbeddedGt =
-      EmbeddedGt {
-        g1b: g1.generator
-          |> g1.scale(scalar.from_int(67 + 420 * 123))
-          |> g1.compress,
-        g2b: None,
-      }
-    level.mk_level_k(token_name, r, r2)
+    let r2_g1b: ByteArray =
+      g1.generator
+        |> g1.scale(scalar.from_int(67 + 420 * 123))
+        |> g1.compress
+    level.mk_kth_half_level(token_name, r, r2_g1b)
   }
 
-pub const carol_level: EncryptionLevel = {
+pub const carol_level: HalfEncryptionLevel = {
     let r = scalar.from_int(3)
 
-    let r2: EmbeddedGt =
-      EmbeddedGt {
-        g1b: g1.generator
-          |> g1.scale(scalar.from_int(1 + 2 * 3))
-          |> g1.compress,
-        g2b: None,
-      }
-    level.mk_level_k(token_name, r, r2)
+    let r2_g1b: ByteArray =
+      g1.generator
+        |> g1.scale(scalar.from_int(1 + 2 * 3))
+        |> g1.compress
+    level.mk_kth_half_level(token_name, r, r2_g1b)
   }
 
 test is_alice_verified() {
-  level.verify_level_one(alice_level, token_name)
+  level.verify_first_half_level(alice_level, token_name)
 }
 
 test is_bob_verified() {
-  level.verify_level_k(bob_level, token_name)
+  level.verify_kth_half_level(bob_level, token_name)
+}
+
+test is_bob_verified_incorrectly() fail {
+  level.verify_first_half_level(bob_level, token_name)
 }
 
 test is_carol_verified() {
-  level.verify_level_k(carol_level, token_name)
+  level.verify_kth_half_level(carol_level, token_name)
 }
 
 test is_valid_r5_term() {
