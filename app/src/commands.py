@@ -229,6 +229,7 @@ def create_reencryption_tx(
 
 def recursive_decrypt(
     alice_wallet_path: str,
+    encryption_levels: list,
     encryption_datum_path: str = "../data/encryption/encryption-datum.json",
 ) -> None:
     """
@@ -277,27 +278,32 @@ def recursive_decrypt(
     key = extract_key(alice_wallet_path)
     sk = to_int(generate(KEY_DOMAIN_TAG + key))
 
+    # if we can reproduce this with koios then this function can remain the same.
     encryption_datum = load_json(encryption_datum_path)
-    all_entries = encryption_datum["fields"][3]["list"]
+    all_entries = encryption_levels
 
     shared = scale(H0, sk)
 
-    for entry in all_entries:
-        r1 = entry["fields"][0]["bytes"]
-        r2_g1b = entry["fields"][1]["fields"][0]["bytes"]
+    half_level = all_entries[0]
 
-        if entry["fields"][1]["fields"][1]["constructor"] == 1:
-            # print(f"Half Level: r1={r1}, r2_g1b={r2_g1b}, shared={shared}")
-            key = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
-        else:
-            r2_g2b = entry["fields"][1]["fields"][1]["fields"][0]["bytes"]
-            key = decrypt_to_hash(r1, r2_g1b, r2_g2b, shared, snark_path)
-            # print(f"Full Level: r1={r1}, r2_g1b={r2_g1b}, r2_g2b={r2_g2b}, shared={shared}")
+    r1 = half_level["fields"][0]["bytes"]
+    r2_g1b = half_level["fields"][1]["bytes"]
+    key = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
+    k = to_int(key)
+    shared = scale(g2_point(1), k)
+
+    full_levels = all_entries[1:]
+    for entry in full_levels:
+        entry = entry['fields'][0]
+        r1 = entry["fields"][0]["bytes"]
+        r2_g1b = entry["fields"][1]["bytes"]
+        r2_g2b = entry["fields"][2]["bytes"]
+        key = decrypt_to_hash(r1, r2_g1b, r2_g2b, shared, snark_path)
 
         # print(key)
         k = to_int(key)
         shared = scale(g2_point(1), k)
-    capsule = encryption_datum["fields"][4]
+    capsule = encryption_datum["fields"][5]
 
     nonce = capsule["fields"][0]["bytes"]
     aad = capsule["fields"][1]["bytes"]
