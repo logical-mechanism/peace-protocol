@@ -5,8 +5,11 @@
 use aiken/collection/list
 use aiken/collection/pairs
 use cardano/assets.{AssetName, PolicyId}
+use aiken/crypto.{ScriptHash}
+use cardano/address.{Script}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Redeemer, ScriptPurpose, Spend,
+  Withdraw,
 }
 use types/reference.{ReferenceDatum}
 
@@ -77,4 +80,16 @@ pub fn for_spend_redeemer_by_output_reference(
   output_reference: OutputReference,
 ) -> Option<Redeemer> {
   pairs.get_first(redeemers, Spend(output_reference))
+}
+
+/// Find the withdraw redeemer for a given script hash.
+///
+/// ```aiken
+/// search.for_withdraw_redeemer_by_script_hash(redeemers, script_hash)
+/// ```
+pub fn for_withdraw_redeemer_by_script_hash(
+  redeemers: Pairs<ScriptPurpose, Redeemer>,
+  script_hash: ScriptHash,
+) -> Option<Redeemer> {
+  pairs.get_first(redeemers, Withdraw(Script(script_hash)))
 }

@@ -12,22 +12,11 @@ use aiken/builtin.{
   bls12_381_miller_loop, bls12_381_mul_miller_loop_result,
 }
 use aiken/collection/list
-use aiken/crypto.{VerificationKeyHash}
-use cardano/assets.{AssetName}
 
-pub type GrothMintRedeemer {
-  EntryGrothMint(GrothProof, GrothCommitmentWire, GrothPublic)
-  LeaveGrothBurn(AssetName)
-}
-
-pub type GrothSpendRedeemer {
-  RemoveGroth
-}
-
-pub type GrothDatum {
-  owner_vkh: VerificationKeyHash,
-  token: AssetName,
-  public_integers: GrothPublic,
+pub type GrothWitnessRedeemer {
+  groth_proof: GrothProof,
+  groth_commitment_wire: GrothCommitmentWire,
+  groth_public: GrothPublic,
 }
 
 // ---------- Constants ----------

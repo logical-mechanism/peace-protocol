@@ -3,7 +3,6 @@
 ////
 
 use aiken/collection/list
-use aiken/crypto/bls12_381/scalar
 use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/option
 use cardano/address.{Address, PaymentCredential, Script}
@@ -19,7 +18,7 @@ use types/encryption.{
   EncryptionSpendRedeemer, EntryEncryptionMint, LeaveEncryptionBurn, Open,
   Pending, RemoveEncryption, UseEncryption, UseSnark,
 }
-use types/groth
+use types/groth.{GrothWitnessRedeemer, global_snark_vk, verify_commitments}
 use types/level.{FullEncryptionLevel}
 use types/reference.{ReferenceDatum}
 use types/register
@@ -242,7 +241,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               }
             }
 
-            UseSnark(groth_proof, groth_commitment_wire, groth_public) -> {
+            UseSnark -> {
               expect Open = status
               // this token going back
               expect Some(Output {
@@ -252,6 +251,21 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 ..
               }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
+              // get the groth script hash from the reference datum
+              let ReferenceDatum { groth: groth_script, .. }: ReferenceDatum =
+                search.for_reference_datum(
+                  reference_inputs,
+                  genesis_pid,
+                  genesis_tkn,
+                )
+              // get the groth_witness withdraw redeemer
+              expect Some(withdraw_redeemer): Option<Redeemer> =
+                search.for_withdraw_redeemer_by_script_hash(
+                  redeemers,
+                  groth_script,
+                )
+              expect GrothWitnessRedeemer { groth_proof, groth_public, .. }: GrothWitnessRedeemer =
+                withdraw_redeemer
               // we need to know how to make the ttl
               expect Interval {
                 lower_bound: IntervalBound { bound_type: Finite(lb), .. },
@@ -269,14 +283,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               and {
                 // validity range stuff
                 (finite_interval_length <= encryption.snark_validity_window)?,
-                // do groth stuff
-                groth.verify_groth16(
-                  groth.global_snark_vk,
-                  groth_proof,
-                  groth_public,
-                  [groth_commitment_wire |> scalar.from_bytes |> scalar.to_int],
-                )?,
-                groth.verify_commitments(groth.global_snark_vk, groth_proof)?,
+                // do groth stuff via groth_witness withdraw validator
+                verify_commitments(global_snark_vk, groth_proof)?,
                 // owner must sign it
                 list.has(extra_signatories, owner_vkh)?,
                 // datum must go back to open

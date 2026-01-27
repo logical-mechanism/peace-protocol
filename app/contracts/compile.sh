@@ -15,10 +15,10 @@ rm hashes/* || true
 rm -fr build/ || true
 
 # remove all traces for production
-aiken build --trace-level silent --trace-filter user-defined
+# aiken build --trace-level silent --trace-filter user-defined
 
 # keep all traces for development
-# aiken build --trace-level verbose --trace-filter all
+aiken build --trace-level verbose --trace-filter all
 
 echo -e "\033[1;36m\nBuilding Genesis Contract\033[0m"
 genesis_tx_id=$(jq -r '.genesis_tx_id' ../config.json)
