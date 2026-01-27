@@ -1,0 +1,65 @@
+{
+  "AlonzoGenesisFile": "alonzo-genesis.json",
+  "AlonzoGenesisHash": null,
+  "ByronGenesisFile": "byron-genesis.json",
+  "ByronGenesisHash": null,
+  "ConwayGenesisFile": "conway-genesis.json",
+  "ConwayGenesisHash": null,
+  "ShelleyGenesisFile": "shelley-genesis.json",
+  "ShelleyGenesisHash": null,
+  "EnableP2P": true,
+  "ExperimentalHardForksEnabled": true,
+  "ExperimentalProtocolsEnabled": true,
+  "LastKnownBlockVersion-Alt": 0,
+  "LastKnownBlockVersion-Major": 10,
+  "LastKnownBlockVersion-Minor": 0,
+  "TurnOnLogging": true,
+  "TurnOnLogMetrics": false,
+  "MaxConcurrencyBulkSync": 1,
+  "MaxConcurrencyDeadline": 2,
+  "PBftSignatureThreshold": 1,
+  "Protocol": "Cardano",
+  "RequiresNetworkMagic": "RequiresMagic",
+  "TargetNumberOfActivePeers": 0,
+  "TargetNumberOfEstablishedPeers": 0,
+  "TargetNumberOfKnownPeers": 0,
+  "TargetNumberOfRootPeers": 0,
+  "TestAllegraHardForkAtEpoch": 0,
+  "TestAlonzoHardForkAtEpoch": 0,
+  "TestBabbageHardForkAtEpoch": 0,
+  "TestConwayHardForkAtEpoch": 0,
+  "TestMaryHardForkAtEpoch": 0,
+  "TestShelleyHardForkAtEpoch": 0,
+  "UseTraceDispatcher": true,
+  "TraceOptionForwarder": {
+    "address": {
+      "filePath": "/tmp/forwarder.sock"
+    },
+    "mode": "Initiator"
+  },
+  "TraceOptions": {
+    "": {
+      "severity": "Info",
+      "detail": "DNormal",
+      "backends": ["Stdout HumanFormatColoured"]
+    },
+    "BlockFetch": {
+      "severity": "Info"
+    },
+    "ChainDB": {
+      "severity": "Info"
+    },
+    "ChainSync": {
+      "severity": "Info"
+    },
+    "Forge": {
+      "severity": "Info"
+    },
+    "Mempool": {
+      "severity": "Info"
+    },
+    "Resources": {
+      "severity": "Info"
+    }
+  }
+}

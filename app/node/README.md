@@ -18,20 +18,24 @@ node/
 ├── README.md                 # This file
 ├── start.sh                  # Start the local testnet
 ├── stop.sh                   # Stop and clean up
+├── templates/
+│   └── byron-protocol-params.json  # Byron protocol parameters template
 ├── config/
 │   ├── node-config.json      # Node configuration
 │   ├── topology.json         # Network topology (local only)
-│   ├── byron-genesis.json    # Byron era genesis
+│   ├── byron-genesis.json    # Byron era genesis (generated at startup)
 │   ├── shelley-genesis.json  # Shelley era genesis (maxTxSize here)
 │   ├── alonzo-genesis.json   # Alonzo era genesis
 │   └── conway-genesis.json   # Conway era genesis
 ├── data/                     # Runtime data (auto-cleaned)
 │   ├── db/                   # Node database
 │   ├── node.socket           # Node socket
+│   ├── node.log              # Node log output
 │   └── node.pid              # PID file for cleanup
 └── keys/                     # Generated keys (auto-cleaned)
     ├── genesis/              # Genesis keys
-    └── delegate/             # Delegate keys for block production
+    ├── delegate/             # Delegate keys for block production
+    └── utxo/                 # UTXO keys for fund distribution
 ```
 
 ## Protocol Parameter Changes
@@ -125,12 +129,15 @@ To use the local testnet with existing commands:
    network="--testnet-magic 42"  # Our custom magic number
    ```
 
-Or create a separate `.env.local`:
+Or use the provided `.env.local` (already created in app/):
 ```bash
-source ../.env
-network="--testnet-magic 42"
-export CARDANO_NODE_SOCKET_PATH="${ENV_DIR}/node/data/node.socket"
+# In commands/ directory:
+source ../.env.local
 ```
+
+This file sets:
+- `network="--testnet-magic 42"`
+- `CARDANO_NODE_SOCKET_PATH` pointing to the local node socket
 
 ## Key Configuration Values
 
@@ -143,15 +150,15 @@ export CARDANO_NODE_SOCKET_PATH="${ENV_DIR}/node/data/node.socket"
 
 ## Wallet Funding
 
-On startup, fund each wallet with enough ADA for testing:
+On startup, fund each wallet with 1,000,000,000 lovelace (1000 ADA) from genesis:
 
 | Wallet | Initial Funding | Purpose |
 |--------|----------------|---------|
-| alice | 10,000 ADA | Test user 1 |
-| bob | 10,000 ADA | Test user 2 |
-| holder | 100,000 ADA | Script references, main operations |
-| collat | 1,000 ADA | Collateral for script execution |
-| genesis | 10,000 ADA | Genesis operations |
+| alice | 1,000,000,000 lovelace | Test user 1 |
+| bob | 1,000,000,000 lovelace | Test user 2 |
+| holder | 1,000,000,000 lovelace | Script references, main operations |
+| collat | 1,000,000,000 lovelace | Collateral for script execution |
+| genesis | 1,000,000,000 lovelace | Genesis operations |
 
 ## Dependencies
 
