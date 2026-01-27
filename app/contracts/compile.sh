@@ -15,10 +15,10 @@ rm hashes/* || true
 rm -fr build/ || true
 
 # remove all traces for production
-# aiken build --trace-level silent --trace-filter user-defined
+aiken build --trace-level silent --trace-filter user-defined
 
 # keep all traces for development
-aiken build --trace-level verbose --trace-filter all
+# aiken build --trace-level verbose --trace-filter all
 
 echo -e "\033[1;36m\nBuilding Genesis Contract\033[0m"
 genesis_tx_id=$(jq -r '.genesis_tx_id' ../config.json)
@@ -63,3 +63,8 @@ aiken blueprint apply -o plutus.json -m bidding "${genesis_tkn_cbor}"
 aiken blueprint convert -m bidding > contracts/bidding_contract.plutus
 cardano-cli conway transaction policyid --script-file contracts/bidding_contract.plutus > hashes/bidding.hash
 echo -e "\033[1;37m Bidding Contract Hash: $(cat hashes/bidding.hash) \033[0m"
+
+echo -e "\033[1;36m\nBuilding Groth Contract \033[0m"
+aiken blueprint convert -m groth > contracts/groth_contract.plutus
+cardano-cli conway transaction policyid --script-file contracts/groth_contract.plutus > hashes/groth.hash
+echo -e "\033[1;37m Groth Contract Hash: $(cat hashes/groth.hash) \033[0m"

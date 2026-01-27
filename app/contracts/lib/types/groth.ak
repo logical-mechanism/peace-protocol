@@ -12,6 +12,23 @@ use aiken/builtin.{
   bls12_381_miller_loop, bls12_381_mul_miller_loop_result,
 }
 use aiken/collection/list
+use aiken/crypto.{VerificationKeyHash}
+use cardano/assets.{AssetName}
+
+pub type GrothMintRedeemer {
+  EntryGrothMint(GrothProof, GrothCommitmentWire, GrothPublic)
+  LeaveGrothBurn(AssetName)
+}
+
+pub type GrothSpendRedeemer {
+  RemoveGroth
+}
+
+pub type GrothDatum {
+  owner_vkh: VerificationKeyHash,
+  token: AssetName,
+  public_integers: GrothPublic,
+}
 
 // ---------- Constants ----------
 pub const global_snark_vk: SnarkVerificationKey =
@@ -270,7 +287,7 @@ pub fn verify_groth16(
     )
 
   // Main Groth16 product == 1
-  bls12_381_final_verify(prod, ml_one(alpha, beta))?
+  bls12_381_final_verify(prod, ml_one(alpha, beta))
 }
 
 // ---------- Standalone Commitment Verification ----------
@@ -329,7 +346,7 @@ pub fn verify_commitments(vk: SnarkVerificationKey, proof: GrothProof) -> Bool {
     // Compare against identity: e(0*g1, g2) = 1 in GT
     let identity = bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, d_sum), g)
 
-    bls12_381_final_verify(prod, identity)?
+    bls12_381_final_verify(prod, identity)
   }
 }
 
