@@ -74,8 +74,8 @@ cardano-cli latest genesis key-gen-genesis \
     --verification-key-file "${KEYS_DIR}/genesis/genesis.vkey" \
     --signing-key-file "${KEYS_DIR}/genesis/genesis.skey"
 
-# Generate delegate/cold keys (stake pool style for opcert compatibility)
-echo -e "\033[0;33mGenerating delegate keys...\033[0m"
+# Generate stake pool cold keys (required by node issue-op-cert)
+echo -e "\033[0;33mGenerating delegate/cold keys...\033[0m"
 cardano-cli latest node key-gen \
     --cold-verification-key-file "${KEYS_DIR}/delegate/delegate.vkey" \
     --cold-signing-key-file "${KEYS_DIR}/delegate/delegate.skey" \
@@ -92,6 +92,12 @@ echo -e "\033[0;33mGenerating KES keys...\033[0m"
 cardano-cli latest node key-gen-KES \
     --verification-key-file "${KEYS_DIR}/delegate/kes.vkey" \
     --signing-key-file "${KEYS_DIR}/delegate/kes.skey"
+
+# Generate stake keys (for pool owner/reward account)
+echo -e "\033[0;33mGenerating stake keys...\033[0m"
+cardano-cli latest stake-address key-gen \
+    --verification-key-file "${KEYS_DIR}/delegate/stake.vkey" \
+    --signing-key-file "${KEYS_DIR}/delegate/stake.skey"
 
 # Generate UTXO keys (for initial funds distribution)
 echo -e "\033[0;33mGenerating UTXO keys...\033[0m"
@@ -125,13 +131,17 @@ echo -e "\033[1;33m\n=== Creating Genesis Files ===\033[0m"
 
 # Get key hashes
 GENESIS_VKEY_HASH=$(cardano-cli latest genesis key-hash --verification-key-file "${KEYS_DIR}/genesis/genesis.vkey")
-# For stake pool cold keys (from node key-gen), use stake-pool id to get the correct hash
+# For stake pool cold keys, use stake-pool id to get the correct hash
 DELEGATE_VKEY_HASH=$(cardano-cli latest stake-pool id --cold-verification-key-file "${KEYS_DIR}/delegate/delegate.vkey" --output-format hex)
 VRF_VKEY_HASH=$(cardano-cli latest node key-hash-VRF --verification-key-file "${KEYS_DIR}/delegate/vrf.vkey")
+# Stake key hash for pool owner/reward account
+STAKE_VKEY_HASH=$(cardano-cli latest stake-address key-hash --stake-verification-key-file "${KEYS_DIR}/delegate/stake.vkey")
 
 echo -e "\033[0;36mGenesis key hash: ${GENESIS_VKEY_HASH}\033[0m"
-echo -e "\033[0;36mDelegate key hash: ${DELEGATE_VKEY_HASH}\033[0m"
+echo -e "\033[0;36mDelegate key hash (pool id): ${DELEGATE_VKEY_HASH}\033[0m"
+echo -e "\033[0;36mStake key hash: ${STAKE_VKEY_HASH}\033[0m"
 
+# Debug: show the key types
 # ----------------------------------------------------------------------------
 # Create Byron Genesis
 # ----------------------------------------------------------------------------
@@ -162,6 +172,16 @@ mv "${BYRON_GENESIS_DIR}/genesis.json" "${CONFIG_DIR}/byron-genesis.json"
 # ----------------------------------------------------------------------------
 echo -e "\033[0;33mCreating Shelley genesis...\033[0m"
 
+# Create a staked address for the pool (combines UTXO payment key + pool stake key)
+# This gives the pool stake for block production leadership
+echo -e "\033[0;33mCreating staked address for pool...\033[0m"
+POOL_STAKED_ADDR=$(cardano-cli latest address build \
+    --payment-verification-key-file "${KEYS_DIR}/utxo/utxo.vkey" \
+    --stake-verification-key-file "${KEYS_DIR}/delegate/stake.vkey" \
+    --testnet-magic ${TESTNET_MAGIC})
+POOL_STAKED_ADDR_HEX=$(cardano-cli latest address info --address "${POOL_STAKED_ADDR}" | jq -r '.base16')
+echo -e "\033[0;36mPool staked address: ${POOL_STAKED_ADDR}\033[0m"
+
 # Build initial funds JSON for wallets
 INITIAL_FUNDS_JSON="{"
 FIRST=true
@@ -176,7 +196,10 @@ for wallet_entry in ${WALLET_ADDRESSES}; do
     fi
     INITIAL_FUNDS_JSON="${INITIAL_FUNDS_JSON}\"${WALLET_ADDR}\": ${INITIAL_FUNDS}"
 done
-INITIAL_FUNDS_JSON="${INITIAL_FUNDS_JSON}}"
+
+# Add the pool's staked address with a large amount for stake
+POOL_STAKE_AMOUNT=30000000000000000  # 30 billion ADA to ensure pool has majority stake
+INITIAL_FUNDS_JSON="${INITIAL_FUNDS_JSON},\"${POOL_STAKED_ADDR_HEX}\": ${POOL_STAKE_AMOUNT}}"
 
 # Create Shelley genesis with custom maxTxSize
 cat > "${CONFIG_DIR}/shelley-genesis.json" << EOF
@@ -217,8 +240,27 @@ cat > "${CONFIG_DIR}/shelley-genesis.json" << EOF
   "slotLength": ${SLOT_LENGTH},
   "slotsPerKESPeriod": 129600,
   "staking": {
-    "pools": {},
-    "stake": {}
+    "pools": {
+      "${DELEGATE_VKEY_HASH}": {
+        "cost": 340000000,
+        "margin": 0,
+        "metadata": null,
+        "owners": ["${STAKE_VKEY_HASH}"],
+        "pledge": 0,
+        "publicKey": "${DELEGATE_VKEY_HASH}",
+        "relays": [],
+        "rewardAccount": {
+          "credential": {
+            "keyHash": "${STAKE_VKEY_HASH}"
+          },
+          "network": "Testnet"
+        },
+        "vrf": "${VRF_VKEY_HASH}"
+      }
+    },
+    "stake": {
+      "${STAKE_VKEY_HASH}": "${DELEGATE_VKEY_HASH}"
+    }
   },
   "systemStart": "${START_TIME}",
   "updateQuorum": 1
