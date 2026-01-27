@@ -115,6 +115,9 @@ pub type GrothProof {
 pub type GrothPublic =
   List<Int>
 
+pub type GrothCommitmentWire =
+  ByteArray
+
 // ---------- Helpers ----------
 
 // vk_x = IC[0] + Σ public[i] * IC[i+1]

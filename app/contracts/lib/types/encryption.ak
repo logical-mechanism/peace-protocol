@@ -4,10 +4,16 @@
 
 use aiken/crypto.{VerificationKeyHash}
 use cardano/assets.{AssetName}
-use types/groth.{GrothProof, GrothPublic}
+use types/groth.{GrothCommitmentWire, GrothProof, GrothPublic}
 use types/level.{FullEncryptionLevel, HalfEncryptionLevel}
 use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
+
+// six hours
+pub const pending_ttl: Int = 1000 * 60 * 60 * 6
+
+// one hour
+pub const snark_validity_window: Int = 1000 * 60 * 60
 
 pub type Capsule {
   nonce: ByteArray,
@@ -39,6 +45,6 @@ pub type EncryptionSpendRedeemer {
   RemoveEncryption
   // R5 witness, R5, bid token, binding proof
   UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
-  UseSnark(GrothProof, GrothPublic)
+  UseSnark(GrothProof, GrothCommitmentWire, GrothPublic)
   CancelEncryption
 }

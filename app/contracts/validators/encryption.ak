@@ -3,12 +3,15 @@
 ////
 
 use aiken/collection/list
+use aiken/crypto/bls12_381/scalar
+use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/option
 use cardano/address.{Address, PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Redeemer, Transaction,
 }
+use limb_compression.{verify_limb_compression}
 use search
 use types/bidding.{BidDatum, UseBid}
 use types/encryption.{
@@ -16,6 +19,7 @@ use types/encryption.{
   EncryptionSpendRedeemer, EntryEncryptionMint, LeaveEncryptionBurn, Open,
   Pending, RemoveEncryption, UseEncryption, UseSnark,
 }
+use types/groth
 use types/level.{FullEncryptionLevel}
 use types/reference.{ReferenceDatum}
 use types/register
@@ -100,6 +104,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             extra_signatories,
             reference_inputs,
             redeemers,
+            validity_range,
             ..
           }: Transaction = self
           let EncryptionDatum {
@@ -195,10 +200,17 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               expect Some(next_full_level): Option<FullEncryptionLevel> =
                 maybe_next_full_level
               // must be in pending and going to open
-              expect Pending(groth_public, ttl) = status
+              expect Pending(groth_public, _) = status
               expect Open = next_status
               //
               and {
+                // verify limb compression
+                verify_limb_compression(
+                  bid_owner_g1.public_value,
+                  witness,
+                  next_half_level.r2_g1b,
+                  groth_public,
+                )?,
                 // cipher text can not change
                 (capsule == next_capsule)?,
                 // this token can not chnage
@@ -229,7 +241,55 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 assets.has_nft(this_input.output.value, this_script, token)?,
               }
             }
-            UseSnark(groth_proof, groth_public) -> True
+
+            UseSnark(groth_proof, groth_commitment_wire, groth_public) -> {
+              expect Open = status
+              // this token going back
+              expect Some(Output {
+                address: Address { payment_credential, .. },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                ..
+              }): Option<Output> =
+                search.for_output_by_token(outputs, this_script, token)
+              // we need to know how to make the ttl
+              expect Interval {
+                lower_bound: IntervalBound { bound_type: Finite(lb), .. },
+                upper_bound: IntervalBound { bound_type: Finite(ub), .. },
+              } = validity_range
+              let finite_interval_length: Int = ub - lb
+              let ttl: Int = ub + encryption.pending_ttl
+              // build out the new status
+              let expected_output_datum_data: Data =
+                EncryptionDatum {
+                  ..this_datum,
+                  status: Pending(groth_public, ttl),
+                }
+              //
+              and {
+                // validity range stuff
+                (finite_interval_length <= encryption.snark_validity_window)?,
+                // do groth stuff
+                groth.verify_groth16(
+                  groth.global_snark_vk,
+                  groth_proof,
+                  groth_public,
+                  [groth_commitment_wire |> scalar.from_bytes |> scalar.to_int],
+                )?,
+                groth.verify_commitments(groth.global_snark_vk, groth_proof)?,
+                // owner must sign it
+                list.has(extra_signatories, owner_vkh)?,
+                // datum must go back to open
+                (output_datum_data == expected_output_datum_data)?,
+                // check if correct script hashes
+                (Script(this_script) == payment_credential)?,
+                // script output can not have a reference script
+                option.is_none(reference_script)?,
+                // force token to already exist
+                assets.has_nft(this_input.output.value, this_script, token)?,
+              }
+            }
+
             CancelEncryption -> {
               // this token going back
               expect Some(Output {
@@ -239,20 +299,22 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 ..
               }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
-              // datum going back
-              expect EncryptionDatum {
-                owner_vkh: next_owner_vkh,
-                owner_g1: next_owner_g1,
-                token: next_token,
-                half_level: next_half_level,
-                full_level: maybe_next_full_level,
-                capsule: next_capsule,
-                status: next_status,
-              }: EncryptionDatum = output_datum_data
+              // everything is constant but the status
+              let expected_output_datum_data: Data =
+                EncryptionDatum { ..this_datum, status: Open }
               // cancel the encryption process if it takes too long
               expect Pending(_, ttl) = status
+              // either expired or cancel
+              let expired_or_cancel: Bool = or {
+                  validity_range |> interval.is_entirely_after(ttl),
+                  list.has(extra_signatories, owner_vkh),
+                }
               //
               and {
+                // either owner signs to cancel or it has expired
+                expired_or_cancel?,
+                // datum must go back to open
+                (output_datum_data == expected_output_datum_data)?,
                 // check if correct script hashes
                 (Script(this_script) == payment_credential)?,
                 // script output can not have a reference script
