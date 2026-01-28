@@ -66,7 +66,8 @@ jq \
 
 groth_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/groth_contract-reference-utxo.signed | jq -r '.txhash')
 
-${cli} conway transaction build \
+echo -e "\033[0;36m Building Tx \033[0m"
+FEE=$(${cli} conway transaction build \
   ${network} \
   --tx-in-collateral="${collat_utxo}" \
   --tx-in "$alice_utxo" \
@@ -75,7 +76,9 @@ ${cli} conway transaction build \
   --certificate-tx-in-reference="${groth_ref_utxo}#1" \
   --certificate-plutus-script-v3 \
   --certificate-reference-tx-in-redeemer-file ../data/groth/register-redeemer.json \
-  --out-file ./tmp/tx.reg.raw
+  --out-file ./tmp/tx.reg.raw)
+
+echo -e "\033[0;35m${FEE}\033[0m"
 
 ${cli} conway transaction sign \
   --tx-body-file ./tmp/tx.reg.raw \
@@ -84,6 +87,7 @@ ${cli} conway transaction sign \
   ${network} \
   --out-file ./tmp/tx.reg.signed
 
+echo -e "\033[1;36m\nSubmitting\033[0m"
 ${cli} conway transaction submit \
   ${network} \
   --tx-file ./tmp/tx.reg.signed
