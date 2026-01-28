@@ -2,6 +2,8 @@
 
 The MVP runs on Ubuntu 24 and requires a fully synced Cardano node on the pre-production network.
 
+**true snark implementation will require much larger transaction sizes on preprod/mainnet**
+
 ## Virtual Environment
 
 Activate the virtual environment before starting the happy path.

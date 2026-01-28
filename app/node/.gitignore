@@ -1,0 +1,12 @@
+# Generated at runtime - contains sensitive keys
+keys/
+
+# Runtime data - db, socket, logs, pid
+data/
+
+# Generated genesis files (created by start.sh)
+config/byron-genesis.json
+config/byron-genesis/
+config/shelley-genesis.json
+config/alonzo-genesis.json
+config/conway-genesis.json

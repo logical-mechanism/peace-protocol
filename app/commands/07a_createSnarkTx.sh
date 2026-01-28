@@ -8,6 +8,37 @@ set -euo pipefail
 # SET UP VARS HERE
 source ../.env
 
+TOTAL=130  # a guess
+CMD_PID=
+
+run_with_progress() {
+  "$@" &
+  CMD_PID=$!
+
+  start=$(date +%s)
+
+  while kill -0 "$CMD_PID" 2>/dev/null; do
+    now=$(date +%s)
+    elapsed=$((now - start))
+
+    percent=$((elapsed * 100 / TOTAL))
+    (( percent > 100 )) && percent=100
+
+    filled=$((percent / 2))
+    empty=$((50 - filled))
+
+    printf "\r[%.*s%*s] %3d%%" \
+      "$filled" "##################################################" \
+      "$empty" "" \
+      "$percent"
+    
+    sleep 1
+  done
+
+  printf "\r[%.*s] 100%%\n" "50" "##################################################"
+  wait "$CMD_PID"
+}
+
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # get params
@@ -44,6 +75,17 @@ encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 # reference
 reference_script_path="../contracts/contracts/reference_contract.plutus"
 reference_script_address=$(${cli} conway address build --payment-script-file ${reference_script_path} ${network})
+
+groth_script_path="../contracts/contracts/groth_contract.plutus"
+groth_address=$(${cli} conway stake-address build --stake-script-file ${groth_script_path} ${network})
+
+rewardBalance=$(${cli} conway query stake-address-info \
+    ${network} \
+    --address ${groth_address} | jq -r ".[0].rewardAccountBalance")
+echo rewardBalance: $rewardBalance
+
+withdrawalString="${groth_address}+${rewardBalance}"
+echo "Withdraw: " $withdrawalString
 
 # the genesis token information
 tx_id=$(jq -r '.genesis_tx_id' ../config.json)
@@ -129,50 +171,60 @@ alice_utxo=${TXIN::-8}
 bob_register=$(jq -r '.fields[1]' ../data/bidding/bidding-datum.json)
 bob_public_value=$(jq -r '.fields[1].fields[1].bytes' ../data/bidding/bidding-datum.json)
 
-PYTHONPATH="$PROJECT_ROOT" \
+echo -e "\033[0;35m\nCreating Groth16 Witness \033[0m"
+export PYTHONPATH="$PROJECT_ROOT"
+
+run_with_progress \
 "$PROJECT_ROOT/venv/bin/python" -c \
 "
-from src.commands import create_reencryption_tx
+from src.commands import create_snark_tx, create_reencryption_tx
 
-create_reencryption_tx('${alice_wallet_path}/payment.skey', '${bob_public_value}', '${encryption_token}')
+a1, r1, hk = create_snark_tx('${bob_public_value}')
+
+create_reencryption_tx('${alice_wallet_path}/payment.skey', '${bob_public_value}', '${encryption_token}', a1, r1, hk)
 "
+
+lower_timestamp=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+lower_bound=$(${cli} conway query slot-number ${network} ${lower_timestamp})
+
+upper_timestamp=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) + timedelta(days=0, hours=0, minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+upper_bound=$(${cli} conway query slot-number ${network} ${upper_timestamp})
+
+unix_time=$(python3 -c "from datetime import datetime, timedelta, timezone; print(1000*int((datetime.now(timezone.utc) + timedelta(days=0, hours=0, minutes=20)).timestamp()))")
+
+cp ../data/groth/groth-commitment-wires.json ../data/groth/copy.groth-commitment-wires.json
+wire_bytearray=$(jq -r '.list[0].int' ../data/groth/groth-commitment-wires.json | python3 -c 'import sys; print(hex(int(sys.stdin.read()))[2:])')
+
+jq \
+--arg wire "${wire_bytearray}" \
+'.list[0] | {"bytes":$wire}' \
+../data/groth/groth-commitment-wires.json | sponge ../data/groth/groth-commitment-wires.json
+
+jq \
+--argjson proof "$(cat ../data/groth/groth-proof.json)" \
+--argjson wire "$(cat ../data/groth/groth-commitment-wires.json)" \
+--argjson public "$(cat ../data/groth/groth-public.json)" \
+--argjson ttl "${unix_time}" \
+'.fields[0]=$proof |
+.fields[1]=$wire |
+.fields[2]=$public |
+.fields[3].int=$ttl' \
+../data/groth/witness-redeemer.json | sponge ../data/groth/witness-redeemer.json
+
+jq \
+--argjson public "$(cat ../data/groth/groth-public.json)" \
+--argjson ttl "${unix_time}" \
+'.fields[0]=$public |
+.fields[1].int=$ttl' \
+../data/encryption/pending-status.json | sponge ../data/encryption/pending-status.json
 
 cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json
 
 
 jq \
---arg bob_pkh "${bob_pkh}" \
---arg token_name "${encryption_token}" \
---argjson register "${bob_register}" \
---argjson capsule "$(cat ../data/capsule.json)" \
---argjson half_level "$(cat ../data/half-level.json)" \
---argjson full_level "$(cat ../data/full-level.json)" \
-'.fields[0].bytes=$bob_pkh |
-.fields[1]=$register |
-.fields[2].bytes=$token_name |
-.fields[3]=$half_level |
-.fields[4]=$full_level |
-.fields[5]=$capsule' \
+--argjson status "$(cat ../data/encryption/pending-status.json)" \
+'.fields[6]=$status' \
 ../data/encryption/next-encryption-datum.json | sponge ../data/encryption/next-encryption-datum.json
-
-jq \
---arg tkn "${bidding_token}" \
-'.fields[0].bytes=$tkn' \
-../data/bidding/bidding-burn-redeemer.json | sponge ../data/bidding/bidding-burn-redeemer.json
-
-jq \
---arg r5 "$(cat ../data/r5.point)" \
---arg witness "$(cat ../data/witness.point)" \
---arg tkn "${bidding_token}" \
---argjson binding "$(cat ../data/binding.json)" \
-'.fields[0].bytes=$witness |
-.fields[1].bytes=$r5 |
-.fields[2].bytes=$tkn |
-.fields[3]=$binding' \
-../data/encryption/encryption-use-redeemer.json | sponge ../data/encryption/encryption-use-redeemer.json
-
-bidding_asset="-1 ${bidding_pid}.${bidding_token}"
-echo -e "\033[1;36m\nBurning Bidding Token: ${bidding_asset} \033[0m"
 
 encryption_asset="1 ${encryption_pid}.${encryption_token}"
 echo -e "\033[1;36m\nEncryption Token: ${encryption_asset} \033[0m"
@@ -186,10 +238,12 @@ encryption_script_output="${encryption_script_address} + ${utxo_value} + ${encry
 echo -e "\033[0;35m\nEncryption Output: ${encryption_script_output}\033[0m"
 
 encryption_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/encryption_contract-reference-utxo.signed | jq -r '.txhash')
-bidding_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/bidding_contract-reference-utxo.signed | jq -r '.txhash')
+groth_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/groth_contract-reference-utxo.signed | jq -r '.txhash')
 
 echo -e "\033[0;36m Building Tx \033[0m"
 FEE=$(${cli} conway transaction build \
+    --invalid-before ${lower_bound} \
+    --invalid-hereafter ${upper_bound} \
     --out-file ./tmp/tx.draft \
     --change-address ${alice_address} \
     --read-only-tx-in-reference="${reference_tx_in}" \
@@ -199,21 +253,15 @@ FEE=$(${cli} conway transaction build \
     --spending-tx-in-reference="${encryption_ref_utxo}#1" \
     --spending-plutus-script-v3 \
     --spending-reference-tx-in-inline-datum-present \
-    --spending-reference-tx-in-redeemer-file ../data/encryption/encryption-use-redeemer.json \
-    --tx-in ${bidding_tx_in} \
-    --spending-tx-in-reference="${bidding_ref_utxo}#1" \
-    --spending-plutus-script-v3 \
-    --spending-reference-tx-in-inline-datum-present \
-    --spending-reference-tx-in-redeemer-file ../data/bidding/bidding-use-redeemer.json \
+    --spending-reference-tx-in-redeemer-file ../data/encryption/encryption-snark-redeemer.json \
     --tx-out="${encryption_script_output}" \
     --tx-out-inline-datum-file ../data/encryption/next-encryption-datum.json \
     --required-signer-hash ${collat_pkh} \
     --required-signer-hash ${alice_pkh} \
-    --mint="${bidding_asset}" \
-    --mint-tx-in-reference="${bidding_ref_utxo}#1" \
-    --mint-plutus-script-v3 \
-    --policy-id="${bidding_pid}" \
-    --mint-reference-tx-in-redeemer-file ../data/bidding/bidding-burn-redeemer.json \
+    --withdrawal ${withdrawalString} \
+    --withdrawal-tx-in-reference="${groth_ref_utxo}#1" \
+    --withdrawal-plutus-script-v3 \
+    --withdrawal-reference-tx-in-redeemer-file ../data/groth/witness-redeemer.json \
     ${network})
 
 echo -e "\033[0;35m${FEE}\033[0m"

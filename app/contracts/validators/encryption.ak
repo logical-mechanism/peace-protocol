@@ -3,18 +3,22 @@
 ////
 
 use aiken/collection/list
+use aiken/interval.{Finite, Interval, IntervalBound}
 use aiken/option
 use cardano/address.{Address, PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Redeemer, Transaction,
 }
+use limb_compression.{verify_limb_compression}
 use search
 use types/bidding.{BidDatum, UseBid}
 use types/encryption.{
-  EncryptionDatum, EncryptionMintRedeemer, EncryptionSpendRedeemer,
-  EntryEncryptionMint, LeaveEncryptionBurn, RemoveEncryption, UseEncryption,
+  CancelEncryption, EncryptionDatum, EncryptionMintRedeemer,
+  EncryptionSpendRedeemer, EntryEncryptionMint, LeaveEncryptionBurn, Open,
+  Pending, RemoveEncryption, UseEncryption, UseSnark,
 }
+use types/groth.{GrothWitnessRedeemer, global_snark_vk, verify_commitments}
 use types/level.{FullEncryptionLevel}
 use types/reference.{ReferenceDatum}
 use types/register
@@ -44,8 +48,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           token,
           half_level,
           full_level,
+          status,
           ..
         }: EncryptionDatum = output_datum_data
+        // enter into the open state
+        expect Open = status
         //
         and {
           // token name needs to be in the datum
@@ -96,6 +103,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             extra_signatories,
             reference_inputs,
             redeemers,
+            validity_range,
             ..
           }: Transaction = self
           let EncryptionDatum {
@@ -104,6 +112,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             token,
             half_level,
             capsule,
+            status,
             ..
           } = this_datum
           expect Some(this_input): Option<Input> =
@@ -124,6 +133,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                       assets.quantity_of(output.value, this_script, token) == 0
                     },
                   )
+                // cant remove if pending
+                expect Open = status
                 //
                 and {
                   // owner_vkh must sign
@@ -153,6 +164,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 half_level: next_half_level,
                 full_level: maybe_next_full_level,
                 capsule: next_capsule,
+                status: next_status,
               }: EncryptionDatum = output_datum_data
               // get the bidding contract hash from the reference datum
               let ReferenceDatum { bid, .. }: ReferenceDatum =
@@ -186,8 +198,18 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               }: BidDatum = bidding_datum_data
               expect Some(next_full_level): Option<FullEncryptionLevel> =
                 maybe_next_full_level
+              // must be in pending and going to open
+              expect Pending(groth_public, _) = status
+              expect Open = next_status
               //
               and {
+                // verify limb compression
+                verify_limb_compression(
+                  bid_owner_g1.public_value,
+                  witness,
+                  next_half_level.r2_g1b,
+                  groth_public,
+                )?,
                 // cipher text can not change
                 (capsule == next_capsule)?,
                 // this token can not chnage
@@ -214,6 +236,99 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 )?,
                 // owner_vkh must sign
                 list.has(extra_signatories, owner_vkh)?,
+                // force token to already exist
+                assets.has_nft(this_input.output.value, this_script, token)?,
+              }
+            }
+
+            UseSnark -> {
+              expect Open = status
+              // this token going back
+              expect Some(Output {
+                address: Address { payment_credential, .. },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                ..
+              }): Option<Output> =
+                search.for_output_by_token(outputs, this_script, token)
+              // get the groth script hash from the reference datum
+              let ReferenceDatum { groth: groth_script, .. }: ReferenceDatum =
+                search.for_reference_datum(
+                  reference_inputs,
+                  genesis_pid,
+                  genesis_tkn,
+                )
+              // get the groth_witness withdraw redeemer
+              expect Some(withdraw_redeemer): Option<Redeemer> =
+                search.for_withdraw_redeemer_by_script_hash(
+                  redeemers,
+                  groth_script,
+                )
+              expect GrothWitnessRedeemer { groth_proof, groth_public, ttl, .. }: GrothWitnessRedeemer =
+                withdraw_redeemer
+              // we need to know how to make the ttl
+              expect Interval {
+                lower_bound: IntervalBound { bound_type: Finite(lb), .. },
+                upper_bound: IntervalBound { bound_type: Finite(ub), .. },
+              } = validity_range
+              let finite_interval_length: Int = ub - lb
+              let expected_ttl: Int = ub + encryption.pending_ttl
+              // build out the new status
+              let expected_output_datum_data: Data =
+                EncryptionDatum {
+                  ..this_datum,
+                  status: Pending(groth_public, ttl),
+                }
+              //
+              and {
+                // validity range stuff
+                (expected_ttl <= ttl)?,
+                (ttl <= 2 * expected_ttl)?,
+                (finite_interval_length <= encryption.snark_validity_window)?,
+                // do groth stuff via groth_witness withdraw validator
+                verify_commitments(global_snark_vk, groth_proof)?,
+                // owner must sign it
+                list.has(extra_signatories, owner_vkh)?,
+                // datum must go back to open
+                (output_datum_data == expected_output_datum_data)?,
+                // check if correct script hashes
+                (Script(this_script) == payment_credential)?,
+                // script output can not have a reference script
+                option.is_none(reference_script)?,
+                // force token to already exist
+                assets.has_nft(this_input.output.value, this_script, token)?,
+              }
+            }
+
+            CancelEncryption -> {
+              // this token going back
+              expect Some(Output {
+                address: Address { payment_credential, .. },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                ..
+              }): Option<Output> =
+                search.for_output_by_token(outputs, this_script, token)
+              // everything is constant but the status
+              let expected_output_datum_data: Data =
+                EncryptionDatum { ..this_datum, status: Open }
+              // cancel the encryption process if it takes too long
+              expect Pending(_, ttl) = status
+              // either expired or cancel
+              let expired_or_cancel: Bool = or {
+                  validity_range |> interval.is_entirely_after(ttl),
+                  list.has(extra_signatories, owner_vkh),
+                }
+              //
+              and {
+                // either owner signs to cancel or it has expired
+                expired_or_cancel?,
+                // datum must go back to open
+                (output_datum_data == expected_output_datum_data)?,
+                // check if correct script hashes
+                (Script(this_script) == payment_credential)?,
+                // script output can not have a reference script
+                option.is_none(reference_script)?,
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token)?,
               }

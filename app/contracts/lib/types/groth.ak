@@ -12,6 +12,18 @@ use aiken/builtin.{
   bls12_381_miller_loop, bls12_381_mul_miller_loop_result,
 }
 use aiken/collection/list
+use aiken/crypto.{ScriptHash}
+
+pub type GrothWitnessRedeemer {
+  groth_proof: GrothProof,
+  groth_commitment_wire: GrothCommitmentWire,
+  groth_public: GrothPublic,
+  ttl: Int,
+}
+
+pub type RegisterRedeemer {
+  Register(ScriptHash)
+}
 
 // ---------- Constants ----------
 pub const global_snark_vk: SnarkVerificationKey =
@@ -114,6 +126,9 @@ pub type GrothProof {
 
 pub type GrothPublic =
   List<Int>
+
+pub type GrothCommitmentWire =
+  ByteArray
 
 // ---------- Helpers ----------
 
@@ -267,7 +282,7 @@ pub fn verify_groth16(
     )
 
   // Main Groth16 product == 1
-  bls12_381_final_verify(prod, ml_one(alpha, beta))?
+  bls12_381_final_verify(prod, ml_one(alpha, beta))
 }
 
 // ---------- Standalone Commitment Verification ----------
@@ -326,7 +341,7 @@ pub fn verify_commitments(vk: SnarkVerificationKey, proof: GrothProof) -> Bool {
     // Compare against identity: e(0*g1, g2) = 1 in GT
     let identity = bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, d_sum), g)
 
-    bls12_381_final_verify(prod, identity)?
+    bls12_381_final_verify(prod, identity)
   }
 }
 
