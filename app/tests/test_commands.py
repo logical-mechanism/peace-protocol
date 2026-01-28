@@ -175,6 +175,48 @@ def _calls_of(calls, name: str):
     return [c for c in calls if isinstance(c, tuple) and len(c) >= 1 and c[0] == name]
 
 
+def test_create_snark_tx_happy_path(monkeypatch):
+    calls, set_to_int = _setup_common_mocks(monkeypatch)
+
+    # Mock generate_snark_proof since it's not in _setup_common_mocks
+    def fake_generate_snark_proof(a0, r0, bob_public_value, w0, w1, snark_path, out_dir, setup_dir):
+        calls.append(("generate_snark_proof", a0, r0, bob_public_value, w0, w1, str(snark_path), str(out_dir), str(setup_dir)))
+
+    monkeypatch.setattr(commands_mod, "generate_snark_proof", fake_generate_snark_proof)
+
+    # rng: a0=11, r0=22
+    set_to_int("GT(11)", 9)  # hk = to_int(m0)
+
+    bob_u = "BOB_U"
+
+    commands_mod.create_snark_tx(bob_u)
+
+    # gt_to_hash called with (a0=11, snark_path)
+    gt_calls = _calls_of(calls, "gt_to_hash")
+    assert len(gt_calls) == 1
+    _, a, p = gt_calls[0]
+    assert a == 11
+    assert str(p).endswith("/snark/snark")
+
+    # w0 = scale(g1_point(1), hk) where hk=9
+    # w1 = combine(scale(g1_point(1), a0), scale(bob_public_value, r0))
+    expected_w0 = "scale(G1(1),9)"
+    expected_w1 = "combine(scale(G1(1),11),scale(BOB_U,22))"
+
+    # Check generate_snark_proof was called correctly
+    proof_calls = _calls_of(calls, "generate_snark_proof")
+    assert len(proof_calls) == 1
+    _, a0, r0, bob_pub, w0, w1, snark_p, out_p, setup_p = proof_calls[0]
+    assert a0 == 11
+    assert r0 == 22
+    assert bob_pub == bob_u
+    assert w0 == expected_w0
+    assert w1 == expected_w1
+    assert str(snark_p).endswith("/snark/snark")
+    assert str(out_p).endswith("/out")
+    assert str(setup_p).endswith("/circuit")
+
+
 def test_create_encryption_tx_happy_path(monkeypatch):
     calls, set_to_int = _setup_common_mocks(monkeypatch)
 

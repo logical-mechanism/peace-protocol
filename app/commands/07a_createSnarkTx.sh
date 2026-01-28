@@ -8,6 +8,37 @@ set -euo pipefail
 # SET UP VARS HERE
 source ../.env
 
+TOTAL=150  # a guess
+CMD_PID=
+
+run_with_progress() {
+  "$@" &
+  CMD_PID=$!
+
+  start=$(date +%s)
+
+  while kill -0 "$CMD_PID" 2>/dev/null; do
+    now=$(date +%s)
+    elapsed=$((now - start))
+
+    percent=$((elapsed * 100 / TOTAL))
+    (( percent > 100 )) && percent=100
+
+    filled=$((percent / 2))
+    empty=$((50 - filled))
+
+    printf "\r[%.*s%*s] %3d%%" \
+      "$filled" "##################################################" \
+      "$empty" "" \
+      "$percent"
+    
+    sleep 1
+  done
+
+  printf "\r[%.*s] 100%%\n" "50" "##################################################"
+  wait "$CMD_PID"
+}
+
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # get params
@@ -129,13 +160,34 @@ alice_utxo=${TXIN::-8}
 bob_register=$(jq -r '.fields[1]' ../data/bidding/bidding-datum.json)
 bob_public_value=$(jq -r '.fields[1].fields[1].bytes' ../data/bidding/bidding-datum.json)
 
-PYTHONPATH="$PROJECT_ROOT" \
+echo -e "\033[0;35m\nCreating Groth16 Witness \033[0m"
+export PYTHONPATH="$PROJECT_ROOT"
+
+run_with_progress \
 "$PROJECT_ROOT/venv/bin/python" -c \
 "
-from src.commands import create_reencryption_tx
+from src.commands import create_snark_tx
 
-create_reencryption_tx('${alice_wallet_path}/payment.skey', '${bob_public_value}', '${encryption_token}')
+create_snark_tx('${bob_public_value}')
 "
+
+wire_bytearray=$(jq -r '.list[0].int' ../data/groth/groth-commitment-wires.json | python3 -c 'import sys; print(hex(int(sys.stdin.read()))[2:])')
+
+jq \
+--arg wire "${wire_bytearray}" \
+'.list[0] | {"bytes":$wire}' \
+../data/groth/groth-commitment-wires.json | sponge ../data/groth/groth-commitment-wires.json
+
+jq \
+--argjson proof "$(cat ../data/groth/groth-proof.json)" \
+--argjson wire "$(cat ../data/groth/groth-commitment-wires.json)" \
+--argjson public "$(cat ../data/groth/groth-public.json)" \
+'.fields[0]=$proof |
+.fields[1]=$wire |
+.fields[2]=$public' \
+../data/groth/witness-redeemer.json | sponge ../data/groth/witness-redeemer.json
+
+exit
 
 cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json
 
