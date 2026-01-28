@@ -12,11 +12,16 @@ use aiken/builtin.{
   bls12_381_miller_loop, bls12_381_mul_miller_loop_result,
 }
 use aiken/collection/list
+use aiken/crypto.{ScriptHash}
 
 pub type GrothWitnessRedeemer {
   groth_proof: GrothProof,
   groth_commitment_wire: GrothCommitmentWire,
   groth_public: GrothPublic,
+}
+
+pub type RegisterRedeemer {
+  Register(ScriptHash)
 }
 
 // ---------- Constants ----------

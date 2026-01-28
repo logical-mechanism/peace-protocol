@@ -19,7 +19,7 @@ MAX_TX_SIZE=32768
 SLOT_LENGTH=0.1
 EPOCH_LENGTH=500
 SECURITY_PARAM=432
-INITIAL_FUNDS=1000000000  # 1000 ADA per wallet in lovelace
+INITIAL_FUNDS=100000000000  # 100,000 ADA per wallet in lovelace
 
 echo -e "\033[1;34m=== Starting Local Cardano Testnet ===\033[0m"
 echo -e "\033[0;36mTestnet Magic: ${TESTNET_MAGIC}\033[0m"
