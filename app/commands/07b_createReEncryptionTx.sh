@@ -129,13 +129,13 @@ alice_utxo=${TXIN::-8}
 bob_register=$(jq -r '.fields[1]' ../data/bidding/bidding-datum.json)
 bob_public_value=$(jq -r '.fields[1].fields[1].bytes' ../data/bidding/bidding-datum.json)
 
-PYTHONPATH="$PROJECT_ROOT" \
-"$PROJECT_ROOT/venv/bin/python" -c \
-"
-from src.commands import create_reencryption_tx
+# PYTHONPATH="$PROJECT_ROOT" \
+# "$PROJECT_ROOT/venv/bin/python" -c \
+# "
+# from src.commands import create_reencryption_tx
 
-create_reencryption_tx('${alice_wallet_path}/payment.skey', '${bob_public_value}', '${encryption_token}')
-"
+# create_reencryption_tx('${alice_wallet_path}/payment.skey', '${bob_public_value}', '${encryption_token}')
+# "
 
 cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json
 

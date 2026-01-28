@@ -18,6 +18,7 @@ pub type GrothWitnessRedeemer {
   groth_proof: GrothProof,
   groth_commitment_wire: GrothCommitmentWire,
   groth_public: GrothPublic,
+  ttl: Int,
 }
 
 pub type RegisterRedeemer {

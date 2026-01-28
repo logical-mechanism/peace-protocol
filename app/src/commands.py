@@ -26,7 +26,7 @@ from src.snark import gt_to_hash, decrypt_to_hash, generate_snark_proof
 from src.groth_convert import convert_all
 from pathlib import Path
 
-def create_snark_tx(bob_public_value: str) -> None:
+def create_snark_tx(bob_public_value: str) -> tuple[int, int, int]:
     current = Path(__file__).resolve().parent.parent
     snark_path = current / "snark" / "snark"
     out_path = current / "out"
@@ -48,6 +48,7 @@ def create_snark_tx(bob_public_value: str) -> None:
     w1 = combine(scale(g1_point(1), a0), scale(bob_public_value, r0))
     generate_snark_proof(a0, r0, bob_public_value,w0, w1, snark_path=snark_path, out_dir=out_path, setup_dir=setup_path)
     convert_all(gnark_proof_path, gnark_public_path, datum_path)
+    return a0, r0, hk
 
 
 
@@ -162,7 +163,7 @@ def create_bidding_tx(bob_wallet_path: str) -> None:
 
 
 def create_reencryption_tx(
-    alice_wallet_path: str, bob_public_value: str, token_name: str
+    alice_wallet_path: str, bob_public_value: str, token_name: str, a1: int, r1: int, hk: int
 ) -> None:
     """
     Create the artifacts for a re-encryption hop.
@@ -214,12 +215,11 @@ def create_reencryption_tx(
     current = Path(__file__).resolve().parent.parent
     snark_path = current / "snark" / "snark"
 
-    a1 = rng()
-    r1 = rng()
-    # m1 = random_fq12(a1)
-    m1 = gt_to_hash(a1, snark_path)
+    # a1 = rng()
+    # r1 = rng()
+    # m1 = gt_to_hash(a1, snark_path)
+    # hk = to_int(m1)
 
-    hk = to_int(m1)
 
     key = extract_key(alice_wallet_path)
     sk = to_int(generate(KEY_DOMAIN_TAG + key))

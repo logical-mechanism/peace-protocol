@@ -14,6 +14,7 @@ validator groth_witness {
       groth_proof,
       groth_commitment_wire,
       groth_public,
+      ..
     } = redeemer
     groth.verify_groth16(
       groth.global_snark_vk,

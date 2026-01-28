@@ -264,7 +264,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   redeemers,
                   groth_script,
                 )
-              expect GrothWitnessRedeemer { groth_proof, groth_public, .. }: GrothWitnessRedeemer =
+              expect GrothWitnessRedeemer { groth_proof, groth_public, ttl, .. }: GrothWitnessRedeemer =
                 withdraw_redeemer
               // we need to know how to make the ttl
               expect Interval {
@@ -272,7 +272,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 upper_bound: IntervalBound { bound_type: Finite(ub), .. },
               } = validity_range
               let finite_interval_length: Int = ub - lb
-              let ttl: Int = ub + encryption.pending_ttl
+              let expected_ttl: Int = ub + encryption.pending_ttl
               // build out the new status
               let expected_output_datum_data: Data =
                 EncryptionDatum {
@@ -282,6 +282,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               //
               and {
                 // validity range stuff
+                (expected_ttl <= ttl)?,
+                (ttl <= 2 * expected_ttl)?,
                 (finite_interval_length <= encryption.snark_validity_window)?,
                 // do groth stuff via groth_witness withdraw validator
                 verify_commitments(global_snark_vk, groth_proof)?,

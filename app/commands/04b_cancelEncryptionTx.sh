@@ -55,13 +55,23 @@ fi
 collat_utxo=$(jq -r 'keys[0]' ./tmp/collat_utxo.json)
 
 token_name=$(jq -r '.fields[2].bytes' ../data/encryption/encryption-datum.json)
-encryption_asset="-1 ${encryption_pid}.${token_name}"
-echo -e "\033[1;36m\nBurning Encryption Token: ${encryption_asset} \033[0m"
+encryption_asset="1 ${encryption_pid}.${token_name}"
+echo -e "\033[1;36m\nEncryption Token: ${encryption_asset} \033[0m"
+
+cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json
 
 jq \
---arg tkn "${token_name}" \
-'.fields[0].bytes=$tkn' \
-../data/encryption/encryption-burn-redeemer.json | sponge ../data/encryption/encryption-burn-redeemer.json
+--argjson status "$(cat ../data/encryption/open-status.json)" \
+'.fields[6]=$status' \
+../data/encryption/next-encryption-datum.json | sponge ../data/encryption/next-encryption-datum.json
+
+utxo_value=$(${cli} conway transaction calculate-min-required-utxo \
+    --protocol-params-file ./tmp/protocol.json \
+    --tx-out-inline-datum-file ../data/encryption/next-encryption-datum.json \
+    --tx-out="${encryption_script_address} + 5000000 + ${encryption_asset}" | tr -dc '0-9')
+encryption_script_output="${encryption_script_address} + ${utxo_value} + ${encryption_asset}"
+
+echo -e "\033[0;35m\nEncryption Output: ${encryption_script_output}\033[0m"
 
 # get script utxo
 echo -e "\033[0;36m Gathering Encryption UTxO Information  \033[0m"
@@ -89,14 +99,11 @@ FEE=$(${cli} conway transaction build \
     --spending-tx-in-reference="${encryption_ref_utxo}#1" \
     --spending-plutus-script-v3 \
     --spending-reference-tx-in-inline-datum-present \
-    --spending-reference-tx-in-redeemer-file ../data/encryption/encryption-remove-redeemer.json \
+    --spending-reference-tx-in-redeemer-file ../data/encryption/encryption-cancel-redeemer.json \
+    --tx-out="${encryption_script_output}" \
+    --tx-out-inline-datum-file ../data/encryption/next-encryption-datum.json \
     --required-signer-hash ${collat_pkh} \
     --required-signer-hash ${alice_pkh} \
-    --mint="${encryption_asset}" \
-    --mint-tx-in-reference="${encryption_ref_utxo}#1" \
-    --mint-plutus-script-v3 \
-    --policy-id="${encryption_pid}" \
-    --mint-reference-tx-in-redeemer-file ../data/encryption/encryption-burn-redeemer.json \
     ${network})
 
 echo -e "\033[0;35m${FEE}\033[0m"
