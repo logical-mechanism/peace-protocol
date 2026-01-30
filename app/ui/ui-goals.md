@@ -1,5 +1,31 @@
 # Peace Protocol UI Development Guide
 
+## How to Use This Document
+
+This is a complete specification for building the Peace Protocol UI. Use these sections based on your current task:
+
+| Task | Relevant Sections |
+|------|-------------------|
+| **Project setup** | Overview → Architecture → Phase 1 |
+| **Building pages/components** | Pages → Design System → Component Checklist |
+| **Wallet integration** | Phase 2 → MeshJS Patterns |
+| **Transaction building** | MeshJS Patterns → Data Structures Reference → `commands/*.sh` |
+| **Porting Python crypto to JS** | Data Structures Reference → Crypto Implementation Details → `src/*.py` |
+| **SNARK integration** | Phase 11 → SNARK Asset Delivery → `snark/browser-support.md` |
+| **Understanding user flows** | User Flows → Pages |
+| **API design** | API Endpoints → Blockchain Data Layer |
+
+**Key external files to reference:**
+- `contracts/lib/types/*.ak` - On-chain type definitions (source of truth for datums)
+- `src/*.py` - Python crypto implementations to port
+- `commands/*.sh` - Transaction building patterns via cardano-cli
+- `contracts/plutus.json` - Compiled contract data
+- `snark/browser-support.md` - WASM proving details
+
+**Development without live contracts:** See "Stub Data Strategy" - most UI work can proceed with mock data while contracts are deployed to preprod.
+
+---
+
 ## Overview
 
 A React + Tailwind web application for the Peace Protocol encrypted data marketplace. Users can sell encrypted data and bid on encrypted data using Cardano smart contracts.
@@ -17,6 +43,110 @@ A React + Tailwind web application for the Peace Protocol encrypted data marketp
 - `preprod.website.com` → Preprod network
 - `www.website.com` → Mainnet (future)
 - Single codebase, network determined by subdomain
+
+**Current Limitation:**
+Contracts currently only work on a custom testnet. Preprod deployment pending blockchain parameter updates. Development can proceed using stub data for blockchain interactions.
+
+---
+
+## Development Without Live Contracts
+
+Since contracts aren't yet on preprod, phases are categorized by blockchain dependency:
+
+### Can Build Now (No Contract Dependency)
+
+| Phase | What Can Be Done |
+|-------|------------------|
+| **Phase 1** | Full project setup |
+| **Phase 2** | Wallet connection (works without contracts) |
+| **Phase 3** | Full landing page |
+| **Phase 11** | SNARK WASM proving (independent of chain) |
+
+### Can Build With Stub Data
+
+| Phase | What Can Be Done | What's Stubbed |
+|-------|------------------|----------------|
+| **Phase 4** | Backend structure, API routes | Koios/Blockfrost responses |
+| **Phase 5** | Data layer interfaces | Return hardcoded sample data |
+| **Phase 6-8** | Full dashboard UI | Listings/bids from stub data |
+| **Phase 9** | Form, crypto logic, UI flow | Transaction submission |
+| **Phase 10** | Form, UI flow | Transaction submission |
+| **Phase 13** | Decryption logic | Chain history queries |
+| **Phase 14-15** | Most polish, testing utils | E2E tx tests |
+
+### Blocked Until Preprod Deployment
+
+| Phase | What's Blocked |
+|-------|----------------|
+| **Phase 9** | Actual tx submission & confirmation |
+| **Phase 10** | Actual tx submission & confirmation |
+| **Phase 12** | Full SNARK tx + re-encryption flow |
+| **Phase 14** | Manual E2E transaction testing |
+
+### Stub Data Strategy
+
+Create a `dev/stubs/` directory with sample data:
+
+```typescript
+// fe/src/dev/stubs/encryptions.ts
+export const STUB_ENCRYPTIONS = [
+  {
+    tokenName: "00abc123...",
+    seller: "addr_test1qz...",
+    status: "active",
+    suggestedPrice: 100,
+    createdAt: "2025-01-15T10:00:00Z",
+    // ... datum fields
+  },
+  // More sample listings
+];
+
+// fe/src/dev/stubs/bids.ts
+export const STUB_BIDS = [
+  {
+    tokenName: "00def456...",
+    bidder: "addr_test1qx...",
+    encryptionToken: "00abc123...",
+    amount: 150000000, // lovelace
+    status: "pending",
+  },
+];
+```
+
+```typescript
+// fe/src/services/encryptions.ts
+import { STUB_ENCRYPTIONS } from '../dev/stubs/encryptions';
+
+const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
+
+export async function getEncryptions() {
+  if (USE_STUBS) {
+    return STUB_ENCRYPTIONS;
+  }
+  // Real Koios query
+  return await koios.getEncryptions();
+}
+```
+
+### Environment Flag
+
+```bash
+# fe/.env.development
+VITE_USE_STUBS=true
+
+# fe/.env.production
+VITE_USE_STUBS=false
+```
+
+### What Can Be Fully Tested Now
+
+1. **Wallet connect/disconnect** - Works with any Cardano wallet
+2. **SNARK proving** - Completely independent of chain
+3. **Crypto logic** - Encryption, schnorr proofs, key derivation
+4. **All UI components** - With stub data
+5. **Form validation** - All input validation
+6. **Error handling UI** - Toasts, modals
+7. **Secret storage** - IndexedDB persistence
 
 ---
 
@@ -722,43 +852,282 @@ Headless FE testing is time-consuming for diminishing returns. Focus on shipping
 
 ---
 
-## Design Notes
+## Design Philosophy
 
-### Color Palette (Suggestion)
+**This is not a backend dev's frontend.** The UI must feel modern, polished, and intentional. Every pixel matters. Consistency is non-negotiable.
+
+### Core Principles
+
+1. **Minimal but not empty** - Remove clutter, keep purpose
+2. **Consistent spacing** - Use a spacing scale (4, 8, 12, 16, 24, 32, 48, 64px)
+3. **Subtle depth** - Light shadows, border accents, not flat boxes everywhere
+4. **Purposeful animation** - Micro-interactions that feel responsive, not flashy
+5. **Typography hierarchy** - Clear visual distinction between headings, body, labels
+6. **Generous whitespace** - Let elements breathe
+
+### What to Avoid
+
+- Cramped layouts with elements touching
+- Inconsistent button sizes/styles across pages
+- Generic Bootstrap/Material look
+- Harsh color contrasts
+- Walls of text without visual breaks
+- Misaligned elements (use grid, not eyeballing)
+- Different border radiuses on same-level components
+- Mixing design languages (pick one, stick to it)
+
+### Design System
+
+#### Color Palette
 
 ```css
 /* Dark theme - modern, clean */
---bg-primary: #0f0f0f;
---bg-secondary: #1a1a1a;
---bg-card: #242424;
---text-primary: #ffffff;
---text-secondary: #a0a0a0;
---accent: #6366f1;        /* Indigo */
---accent-hover: #818cf8;
---success: #22c55e;
---warning: #f59e0b;
---error: #ef4444;
+:root {
+  /* Backgrounds - subtle gradation */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-card: #1a1a1a;
+  --bg-card-hover: #222222;
+  --bg-elevated: #242424;
+
+  /* Borders - barely visible, adds definition */
+  --border-subtle: #2a2a2a;
+  --border-default: #333333;
+  --border-focus: #444444;
+
+  /* Text - high contrast for readability */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1a1;
+  --text-muted: #666666;
+
+  /* Accent - single accent color, used sparingly */
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-muted: rgba(99, 102, 241, 0.15);
+
+  /* Semantic */
+  --success: #22c55e;
+  --success-muted: rgba(34, 197, 94, 0.15);
+  --warning: #f59e0b;
+  --warning-muted: rgba(245, 158, 11, 0.15);
+  --error: #ef4444;
+  --error-muted: rgba(239, 68, 68, 0.15);
+}
 ```
 
-### Typography
+#### Typography
 
-- Headers: Inter or similar sans-serif
-- Body: System font stack for performance
-- Monospace: For addresses, hashes
+```css
+/* Font stack */
+--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+--font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 
-### Components to Build
+/* Scale - consistent sizing */
+--text-xs: 0.75rem;    /* 12px - labels, captions */
+--text-sm: 0.875rem;   /* 14px - secondary text */
+--text-base: 1rem;     /* 16px - body */
+--text-lg: 1.125rem;   /* 18px - emphasized body */
+--text-xl: 1.25rem;    /* 20px - card titles */
+--text-2xl: 1.5rem;    /* 24px - section headers */
+--text-3xl: 2rem;      /* 32px - page titles */
 
-- Button (primary, secondary, danger)
-- Card
-- Modal
-- Input/Textarea
-- Select
-- Table
-- Badge/Status indicator
-- Loading spinner
-- Progress bar
-- Tabs
-- Wallet address display (truncated)
+/* Weights */
+--font-normal: 400;
+--font-medium: 500;
+--font-semibold: 600;
+```
+
+#### Spacing Scale
+
+```css
+/* Use consistently - never arbitrary values */
+--space-1: 0.25rem;   /* 4px */
+--space-2: 0.5rem;    /* 8px */
+--space-3: 0.75rem;   /* 12px */
+--space-4: 1rem;      /* 16px */
+--space-6: 1.5rem;    /* 24px */
+--space-8: 2rem;      /* 32px */
+--space-12: 3rem;     /* 48px */
+--space-16: 4rem;     /* 64px */
+```
+
+#### Border Radius
+
+```css
+/* Consistent roundness */
+--radius-sm: 4px;     /* Small elements: badges, chips */
+--radius-md: 8px;     /* Buttons, inputs */
+--radius-lg: 12px;    /* Cards, modals */
+--radius-xl: 16px;    /* Large containers */
+```
+
+#### Shadows
+
+```css
+/* Subtle, not harsh */
+--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+--shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+--shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+--shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);  /* Accent glow */
+```
+
+### Component Specifications
+
+#### Buttons
+
+```
+Primary:    bg-accent, text-white, hover:bg-accent-hover
+            Rounded-md, px-4 py-2, font-medium
+
+Secondary:  bg-transparent, border border-subtle, text-secondary
+            hover:bg-card hover:text-primary
+
+Danger:     bg-error-muted, text-error, hover:bg-error hover:text-white
+
+Ghost:      bg-transparent, text-secondary, hover:text-primary hover:bg-card
+```
+
+All buttons same height (40px default), consistent padding.
+
+#### Cards
+
+```
+- Background: bg-card
+- Border: 1px solid border-subtle
+- Border radius: radius-lg (12px)
+- Padding: space-6 (24px)
+- Hover: bg-card-hover, border-default (subtle lift)
+- No harsh drop shadows - use border for definition
+```
+
+#### Inputs
+
+```
+- Background: bg-secondary
+- Border: 1px solid border-subtle
+- Border radius: radius-md (8px)
+- Padding: space-3 horizontal, space-2 vertical
+- Focus: border-accent, shadow-glow
+- Placeholder: text-muted
+- Height: 40px (matches buttons)
+```
+
+#### Modals
+
+```
+- Overlay: bg-black/60, backdrop-blur-sm
+- Modal: bg-card, border border-subtle, radius-xl
+- Max-width: 480px (forms), 640px (content)
+- Padding: space-6
+- Header: text-xl font-semibold, border-b border-subtle, pb-4
+- Footer: border-t border-subtle, pt-4, flex justify-end gap-3
+```
+
+#### Tables/Lists
+
+```
+- Header: text-muted text-sm font-medium uppercase tracking-wide
+- Rows: border-b border-subtle last:border-0
+- Row hover: bg-card-hover
+- Cell padding: space-4 vertical, space-6 horizontal
+- Alternating backgrounds: NO (use hover instead)
+```
+
+### Layout Guidelines
+
+#### Page Structure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Nav: h-16, border-b border-subtle, px-6                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Content: max-w-6xl mx-auto px-6 py-8                      │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Section: space-y-6 between major sections          │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Grid
+
+```
+- 12-column grid for complex layouts
+- gap-6 (24px) between grid items
+- Cards: span 4 (3-column), span 6 (2-column) on desktop
+- Stack to single column on tablet/mobile
+```
+
+### Micro-interactions
+
+```css
+/* Transitions - consistent timing */
+--transition-fast: 150ms ease;
+--transition-base: 200ms ease;
+--transition-slow: 300ms ease;
+
+/* Apply to interactive elements */
+button, a, input, .card {
+  transition: all var(--transition-fast);
+}
+```
+
+**What to animate:**
+- Button hover/active states
+- Card hover (subtle border/background change)
+- Modal enter/exit (fade + scale)
+- Toast enter/exit (slide from bottom)
+- Loading spinners
+- Focus rings
+
+**What NOT to animate:**
+- Page content (no fade-in on load)
+- Text color changes
+- Layout shifts
+
+### Component Checklist
+
+Build these with design specs above:
+
+- [ ] Button (primary, secondary, danger, ghost, loading state)
+- [ ] Card (default, hoverable, selected states)
+- [ ] Modal (with header, body, footer slots)
+- [ ] Input (text, textarea, with label and error states)
+- [ ] Select/Dropdown
+- [ ] Table (sortable headers, row hover)
+- [ ] Badge/Status (success, warning, error, neutral)
+- [ ] Loading spinner (consistent size and color)
+- [ ] Progress bar (determinate and indeterminate)
+- [ ] Tabs (underline style, not boxed)
+- [ ] Toast (error, success, info variants)
+- [ ] Wallet address (truncated with copy button)
+- [ ] Empty state (icon + message + action)
+
+### Design References
+
+For inspiration (not to copy, but to match quality level):
+
+- **Vercel Dashboard** - Clean, minimal, excellent dark mode
+- **Linear** - Polished micro-interactions, great spacing
+- **Raycast** - Modern feel, consistent components
+- **Stripe Dashboard** - Information density done right
+
+### Consistency Checklist
+
+Before shipping any page:
+
+- [ ] All buttons use the same variants defined above
+- [ ] All cards have the same border radius and padding
+- [ ] All inputs are the same height as buttons
+- [ ] Spacing between elements uses the spacing scale
+- [ ] Text sizes follow the typography scale
+- [ ] Colors only from the palette (no one-off hex values)
+- [ ] Hover states on all interactive elements
+- [ ] Focus states visible for keyboard navigation
+- [ ] Loading states for async actions
+- [ ] Empty states for lists with no data
 
 ### Key UI Patterns
 
@@ -807,13 +1176,27 @@ Use MeshJS's built-in `<CardanoWallet />` component. Don't build custom wallet U
 
 ## Next Steps
 
-1. **Phase 1-3**: Get landing page with wallet connect working
-2. **Phase 4-6**: Backend + basic marketplace display
-3. **Phase 9-10**: Create listing and place bid flows
-4. **Phase 11-12**: SNARK integration (the big one)
-5. **Phase 13-15**: Decrypt, polish, testing
+### Before Preprod Deployment
 
-Start with Phase 1. Each phase builds on the previous.
+1. **Phase 1-3**: Landing page + wallet connect (no stubs needed)
+2. **Phase 4-6**: Backend + marketplace UI (with stub data)
+3. **Phase 11**: SNARK WASM integration (independent of chain)
+4. **Phase 9-10**: Create listing + bid UI (stub tx submission)
+5. **Phase 7-8, 13**: My Sales/Purchases + decrypt UI (stub data)
+
+### After Preprod Deployment
+
+6. **Remove stubs**: Switch `VITE_USE_STUBS=false`
+7. **Phase 12**: Full accept bid flow with real txs
+8. **Phase 14-15**: E2E testing, polish
+
+### Recommended Starting Point
+
+Start with Phases 1-3 + 11 in parallel:
+- **Track A**: Landing page, wallet, dashboard shell
+- **Track B**: SNARK WASM proving in isolation
+
+This lets you validate the hardest technical piece (SNARK in browser) while building out the UI foundation.
 
 ---
 
@@ -987,3 +1370,454 @@ interface ListingDisplay {
   // ... other fields from datum
 }
 ```
+
+---
+
+## Data Structures Reference
+
+### Source Files
+
+| Category | Location | Description |
+|----------|----------|-------------|
+| **Aiken types** | `contracts/lib/types/*.ak` | On-chain datum/redeemer definitions |
+| **Python crypto** | `src/*.py` | Encryption, proofs, key derivation |
+| **Transaction patterns** | `commands/*.sh` | Shell scripts showing exact tx structure |
+| **Compiled contracts** | `contracts/plutus.json` | Contract CBOR and hashes |
+
+### TypeScript Datum Interfaces
+
+Port these from `contracts/lib/types/` - they define what MeshJS must serialize:
+
+```typescript
+// From contracts/lib/types/encryption.ak
+interface EncryptionDatum {
+  owner_vkh: string;              // 28 bytes hex (VerificationKeyHash)
+  owner_g1: Register;             // BLS12-381 public key register
+  token: string;                  // 32 bytes hex (AssetName)
+  half_level: HalfEncryptionLevel;
+  full_level: FullEncryptionLevel | null;  // Option type
+  capsule: Capsule;
+  status: Status;
+}
+
+// From contracts/lib/types/register.ak
+interface Register {
+  generator: string;              // 48 bytes hex (compressed G1, always the standard generator)
+  public_value: string;           // 48 bytes hex (compressed G1, = generator^secret)
+}
+
+// From contracts/lib/types/encryption.ak
+interface Capsule {
+  nonce: string;                  // 24 hex chars (12 bytes, AES-GCM nonce)
+  aad: string;                    // 64 hex chars (32 bytes, additional auth data)
+  ct: string;                     // variable hex (ciphertext + 16-byte GCM tag)
+}
+
+// From contracts/lib/types/level.ak
+interface HalfEncryptionLevel {
+  r1b: string;                    // 96 hex chars (48 bytes, compressed G1)
+  r2_g1b: string;                 // 96 hex chars (48 bytes, compressed G1)
+  r4b: string;                    // 192 hex chars (96 bytes, compressed G2)
+}
+
+interface FullEncryptionLevel {
+  r1b: string;                    // 96 hex chars (compressed G1)
+  r2_g1b: string;                 // 96 hex chars (compressed G1)
+  r2_g2b: string;                 // 192 hex chars (compressed G2)
+  r4b: string;                    // 192 hex chars (compressed G2)
+}
+
+// From contracts/lib/types/encryption.ak
+type Status =
+  | { type: 'Open' }
+  | { type: 'Pending'; groth_public: number[]; ttl: number };
+
+// From contracts/lib/types/bidding.ak
+interface BidDatum {
+  owner_vkh: string;              // 28 bytes hex
+  owner_g1: Register;
+  pointer: string;                // 32 bytes hex (encryption token name this bid is for)
+  token: string;                  // 32 bytes hex (this bid's token name)
+}
+```
+
+### Redeemer Interfaces
+
+```typescript
+// From contracts/lib/types/encryption.ak
+type EncryptionMintRedeemer =
+  | { type: 'EntryEncryptionMint'; schnorr: SchnorrProof; binding: BindingProof }
+  | { type: 'LeaveEncryptionBurn'; token: string };
+
+type EncryptionSpendRedeemer =
+  | { type: 'RemoveEncryption' }
+  | { type: 'UseEncryption'; r5_witness: string; r5: string; bid_token: string; binding: BindingProof }
+  | { type: 'UseSnark' }
+  | { type: 'CancelEncryption' };
+
+// From contracts/lib/types/bidding.ak
+type BidMintRedeemer =
+  | { type: 'EntryBidMint'; schnorr: SchnorrProof }
+  | { type: 'LeaveBidBurn'; token: string };
+
+type BidSpendRedeemer =
+  | { type: 'RemoveBid' }
+  | { type: 'UseBid' };
+
+// From contracts/lib/types/schnorr.ak
+interface SchnorrProof {
+  z_b: string;                    // scalar as hex (variable length, big-endian)
+  g_r_b: string;                  // 96 hex chars (compressed G1)
+}
+
+interface BindingProof {
+  z_a_b: string;                  // scalar as hex
+  z_r_b: string;                  // scalar as hex
+  t_1_b: string;                  // 96 hex chars (compressed G1)
+  t_2_b: string;                  // 96 hex chars (compressed G1)
+}
+```
+
+### Plutus JSON Format
+
+Datums/redeemers use Plutus constructor encoding. See `src/*.py` `*_to_file()` functions for examples:
+
+```typescript
+// Example: Register to Plutus JSON (from src/register.py)
+{
+  "constructor": 0,
+  "fields": [
+    { "bytes": "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb" },  // generator
+    { "bytes": "a1b2c3..." }  // public_value
+  ]
+}
+
+// Example: Capsule to Plutus JSON (from src/ecies.py)
+{
+  "constructor": 0,
+  "fields": [
+    { "bytes": "..." },  // nonce
+    { "bytes": "..." },  // aad
+    { "bytes": "..." }   // ct
+  ]
+}
+
+// Example: Status (Open) - constructor 0, no fields
+{ "constructor": 0, "fields": [] }
+
+// Example: Status (Pending) - constructor 1
+{
+  "constructor": 1,
+  "fields": [
+    { "list": [{ "int": 123 }, { "int": 456 }, ...] },  // groth_public (36 ints)
+    { "int": 1706817600000 }  // ttl (Unix ms)
+  ]
+}
+```
+
+### SNARK Proving Interface
+
+```typescript
+// Input to WASM prover
+interface SnarkProvingInput {
+  // Secrets (from seller's IndexedDB storage)
+  secretA: string;                // Big integer as DECIMAL string (not hex)
+  secretR: string;                // Big integer as DECIMAL string (not hex)
+
+  // Public inputs derived from on-chain data
+  publicInputs: {
+    v: string;                    // 96 hex chars (compressed G1) - buyer's public key
+    w0: string;                   // 96 hex chars (compressed G1) - from encryption datum
+    w1: string;                   // 96 hex chars (compressed G1) - from encryption datum
+  };
+}
+
+// Output from WASM prover (from contracts/lib/types/groth.ak)
+interface SnarkProvingOutput {
+  proof: GrothProof;
+  public: number[];               // 36 field elements as integers
+  commitmentWire: string;         // hex string for IC multiplication
+}
+
+interface GrothProof {
+  piA: string;                    // 96 hex chars (compressed G1)
+  piB: string;                    // 192 hex chars (compressed G2)
+  piC: string;                    // 96 hex chars (compressed G1)
+  commitments: string[];          // list of compressed G1 points
+  commitmentPok: string;          // 96 hex chars (compressed G1)
+}
+```
+
+### Crypto Implementation Details
+
+**Algorithm**: AES-256-GCM with HKDF-SHA3-256 key derivation (see `src/ecies.py`)
+
+```typescript
+// Key derivation (port from src/ecies.py)
+// 1. Compute salt
+const salt = hash(SLT_DOMAIN_TAG + context + KEM_DOMAIN_TAG);
+
+// 2. Derive AES key via HKDF-SHA3-256
+const aesKey = hkdf({
+  algorithm: 'SHA3-256',
+  ikm: kemBytes,           // shared secret from BLS scalar multiplication
+  salt: salt,
+  info: KEM_DOMAIN_TAG,
+  length: 32
+});
+
+// 3. Compute AAD
+const aad = hash(AAD_DOMAIN_TAG + context + MSG_DOMAIN_TAG);
+
+// 4. Encrypt
+const nonce = randomBytes(12);
+const ct = aesGcmEncrypt(aesKey, nonce, plaintext, aad);
+```
+
+**Domain Tags** (from `src/constants.py`):
+- `SCH_DOMAIN_TAG` = `"SCHNORR|PROOF|v1|"` (hex: `5343484e4f52527c50524f4f467c76317c`)
+- `BIND_DOMAIN_TAG` = `"BINDING|PROOF|v1|"` (hex: `42494e44494e477c50524f4f467c76317c`)
+- See `src/constants.py` for full list
+
+**JS Libraries**:
+- BLS12-381: `@noble/curves/bls12-381`
+- AES-GCM: `crypto.subtle` (Web Crypto API) or `@noble/ciphers`
+- HKDF: `@noble/hashes/hkdf` with `@noble/hashes/sha3`
+- CBOR: `cbor-x` or `@meshsdk/core` utilities
+
+**BLS12-381 Constants** (from `contracts/lib/types/register.ak`):
+```typescript
+// G1 generator (compressed)
+const G1_GENERATOR = "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb";
+
+// G1 identity/zero (compressed)
+const G1_ZERO = "c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+```
+
+### Schnorr Proof Generation
+
+Port from `src/schnorr.py`:
+
+```typescript
+// Schnorr proof of knowledge: prove you know x such that u = g^x
+function schnorrProof(register: { g: string; u: string; x: bigint }): SchnorrProof {
+  const r = randomScalar();                    // random in Z_q
+  const g_r_b = scaleG1(register.g, r);        // commitment g^r
+
+  // Fiat-Shamir challenge
+  const transcript = SCH_DOMAIN_TAG + register.g + g_r_b + register.u;
+  const c = hashToScalar(transcript);
+
+  // Response
+  const z = (r + c * register.x) % CURVE_ORDER;
+
+  return {
+    z_b: bigintToHex(z),
+    g_r_b: g_r_b
+  };
+}
+```
+
+### Production Note: CSP Headers
+
+Production deployment requires Content Security Policy headers allowing WASM execution:
+
+```
+Content-Security-Policy: script-src 'self' 'wasm-unsafe-eval';
+```
+
+Or for stricter policies, use `'wasm-eval'` if supported by your target browsers.
+
+---
+
+## Infrastructure & Operations
+
+### SNARK File CDN
+
+The ~720 MB of SNARK files should NOT be served from the same origin as the app **in production**. Use a dedicated CDN:
+
+**Development vs Production:**
+
+| Environment | Strategy |
+|-------------|----------|
+| **Local dev** | Serve from `fe/public/` or local server. No CDN needed. |
+| **Production** | Serve from CDN. Required for performance and cost. |
+
+```typescript
+// Environment config - fallback to local for dev
+const SNARK_CDN_URL = import.meta.env.VITE_SNARK_CDN_URL || '/snark';
+
+// In dev: fetches from /snark/pk.bin (served by Vite from public/)
+// In prod: fetches from https://cdn.example.com/snark/v1/pk.bin
+const pkResponse = await fetch(`${SNARK_CDN_URL}/pk.bin`);
+```
+
+**Local dev setup:**
+```
+fe/public/
+└── snark/
+    ├── pk.bin        # Symlink or copy from circuit/
+    ├── ccs.bin
+    ├── prover.wasm
+    └── wasm_exec.js
+```
+
+Note: Don't commit the large `.bin` files to git. Add to `.gitignore` and document setup.
+
+**Production CDN options:**
+- Cloudflare R2 (S3-compatible, generous free tier)
+- AWS S3 + CloudFront
+- Bunny CDN
+
+**Production requirements:**
+- CORS headers: `Access-Control-Allow-Origin: *` (or specific origin)
+- Compression: Brotli/gzip for `prover.wasm`, raw for `.bin` files (already compressed)
+- Cache headers: Long cache TTL (files are immutable, versioned by hash)
+
+**Versioning:** When proving key changes, deploy to new path (`/snark/v2/`) and update env var. Old versions stay cached for existing users.
+
+### Error Monitoring
+
+Use Sentry (or similar) for production error tracking. Critical for understanding real-world SNARK failures.
+
+```bash
+npm install @sentry/react
+```
+
+```typescript
+// fe/src/main.tsx
+import * as Sentry from '@sentry/react';
+
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.MODE,
+  enabled: import.meta.env.PROD,
+
+  // Capture WASM errors
+  integrations: [
+    new Sentry.BrowserTracing(),
+  ],
+});
+```
+
+**Key events to track:**
+- SNARK proving failures (OOM, timeout, WASM errors)
+- Transaction build failures
+- Transaction submission failures
+- Wallet connection errors
+- IndexedDB storage failures
+
+**Custom context:**
+```typescript
+// Add context before SNARK operations
+Sentry.setContext('snark', {
+  pkSize: pkBytes.length,
+  ccsSize: ccsBytes.length,
+  browserMemory: navigator.deviceMemory,
+});
+```
+
+### Concurrent Action Prevention
+
+Users may accidentally double-click or trigger multiple transactions simultaneously. Prevent this:
+
+```typescript
+// fe/src/hooks/useTransactionLock.ts
+import { create } from 'zustand';
+
+interface TransactionLockState {
+  isLocked: boolean;
+  lockReason: string | null;
+  lock: (reason: string) => void;
+  unlock: () => void;
+}
+
+export const useTransactionLock = create<TransactionLockState>((set) => ({
+  isLocked: false,
+  lockReason: null,
+  lock: (reason) => set({ isLocked: true, lockReason: reason }),
+  unlock: () => set({ isLocked: false, lockReason: null }),
+}));
+```
+
+```typescript
+// Usage in components
+function AcceptBidButton({ bid }) {
+  const { isLocked, lock, unlock } = useTransactionLock();
+
+  const handleAccept = async () => {
+    if (isLocked) return;
+
+    lock('Accepting bid...');
+    try {
+      await acceptBid(bid);
+    } finally {
+      unlock();
+    }
+  };
+
+  return (
+    <button
+      onClick={handleAccept}
+      disabled={isLocked}
+      className={isLocked ? 'opacity-50 cursor-not-allowed' : ''}
+    >
+      {isLocked ? 'Transaction in progress...' : 'Accept Bid'}
+    </button>
+  );
+}
+```
+
+**Rules:**
+- All transaction-triggering buttons check `isLocked` before proceeding
+- Display current lock reason in a global indicator (e.g., in navbar)
+- Unlock on success, failure, or user cancellation
+- Consider a timeout unlock (e.g., 5 minutes) as safety net
+
+### Wallet Session Persistence
+
+MeshJS may or may not persist wallet connection across page refreshes. Verify behavior and implement if needed:
+
+```typescript
+// fe/src/hooks/useWalletPersistence.ts
+import { useWallet } from '@meshsdk/react';
+import { useEffect } from 'react';
+
+const WALLET_KEY = 'peace_protocol_wallet';
+
+export function useWalletPersistence() {
+  const { connected, wallet, connect } = useWallet();
+
+  // Save connected wallet name
+  useEffect(() => {
+    if (connected && wallet) {
+      localStorage.setItem(WALLET_KEY, wallet.name);
+    }
+  }, [connected, wallet]);
+
+  // Attempt reconnect on mount
+  useEffect(() => {
+    const savedWallet = localStorage.getItem(WALLET_KEY);
+    if (savedWallet && !connected) {
+      // Attempt to reconnect to previously used wallet
+      connect(savedWallet).catch(() => {
+        localStorage.removeItem(WALLET_KEY);
+      });
+    }
+  }, []);
+
+  // Clear on disconnect
+  const clearWalletSession = () => {
+    localStorage.removeItem(WALLET_KEY);
+  };
+
+  return { clearWalletSession };
+}
+```
+
+**Test scenarios:**
+- [ ] Fresh visit → connect wallet → refresh page → still connected?
+- [ ] Connect → close tab → reopen → still connected?
+- [ ] Connect → disconnect → refresh → stays disconnected?
+
+If MeshJS handles this natively, remove custom persistence. If not, implement as above.
