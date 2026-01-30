@@ -399,14 +399,14 @@ npm install vite-plugin-node-polyfills                    # Node.js polyfills fo
 
 7. **Node.js Polyfills**: MeshJS dependencies (pbkdf2, readable-stream, etc.) expect Node.js modules. The `vite-plugin-node-polyfills` plugin in `vite.config.ts` handles this - it polyfills `buffer`, `crypto`, `stream`, `util`, `events`, `process` and injects `Buffer`, `global`, and `process` globals. Don't remove this plugin or you'll get runtime errors.
 
-### Phase 2: Wallet Integration
+### Phase 2: Wallet Integration (COMPLETED)
 
-- [ ] Use MeshJS `<CardanoWallet />` component (don't build custom)
-- [ ] Handle wallet state (connected/disconnected)
-- [ ] Display connected address
-- [ ] Store wallet context via MeshJS provider
-- [ ] Implement disconnect functionality
-- [ ] Test with Eternl wallet
+- [x] Use MeshJS `<CardanoWallet />` component (don't build custom)
+- [x] Handle wallet state (connected/disconnected)
+- [x] Display connected address
+- [x] Store wallet context via MeshJS provider
+- [x] Implement disconnect functionality
+- [x] Test with Eternl wallet
 
 ```typescript
 // Use MeshJS built-in wallet component
@@ -439,6 +439,25 @@ function WalletSection() {
 
 **Note**: MeshJS wallet component handles wallet selection UI. No need to build custom wallet picker.
 
+**Phase 2 Implementation Notes (for future phases):**
+
+1. **Wallet Persistence Hook**: Created `fe/src/hooks/useWalletPersistence.ts` that:
+   - Saves the connected wallet name to localStorage on connection
+   - Attempts to reconnect to the saved wallet on page load (with 100ms delay for extension initialization)
+   - Provides `clearWalletSession()` function to clear saved wallet on manual disconnect
+
+2. **Address Display with Copy**: Dashboard shows truncated address (first 12 + last 8 chars) with a copy-to-clipboard button. The button shows a checkmark briefly after successful copy.
+
+3. **Clipboard Utility**: Created `fe/src/utils/clipboard.ts` with `copyToClipboard()` function that uses the modern Clipboard API with a fallback for older browsers.
+
+4. **MeshJS Styling Overrides**: Added CSS in `fe/src/index.css` to style the CardanoWallet component to match our dark theme design system. Uses `!important` overrides on `[class*="mesh-"]` selectors.
+
+5. **Disconnect Flow**: The disconnect button in Dashboard calls both `clearWalletSession()` (to clear localStorage) and `disconnect()` (MeshJS function) to ensure clean disconnection.
+
+6. **Key Hooks Used**:
+   - `useWallet()` - returns `{ connected, disconnect, connect, name }`
+   - `useAddress()` - returns the connected wallet's address directly (no async needed)
+
 ### Phase 3: Landing Page
 
 - [ ] Design hero section
@@ -446,6 +465,58 @@ function WalletSection() {
 - [ ] Add protocol description
 - [ ] Implement redirect to dashboard on connect
 - [ ] Mobile responsive layout
+
+**Phase 3 Implementation Hints:**
+
+1. **Current State**: Landing page already exists at `fe/src/pages/Landing.tsx` with basic structure:
+   - Centered card layout with CardanoWallet component
+   - Basic branding (title + subtitle)
+   - Recommendation text for Eternl wallet
+   - Brief protocol description
+
+2. **What Needs Enhancement**:
+   - **Hero Section**: Add visual elements like an icon/logo, animated background, or illustration
+   - **Feature Highlights**: Add 2-3 feature cards below the wallet connect (e.g., "Encrypted Data", "Zero-Knowledge Proofs", "Decentralized Marketplace")
+   - **Mobile Responsive**: Current layout is centered but check breakpoints for smaller screens
+   - **Redirect**: Already implemented in App.tsx via conditional routing with `connected` state
+
+3. **Design System Components to Use**:
+   - Cards: `bg-[var(--bg-card)]` with `border border-[var(--border-subtle)]` and `rounded-[var(--radius-lg)]`
+   - Spacing: Use `gap-6` between sections, `p-6` for card padding
+   - Text colors: `text-[var(--text-primary)]` for headings, `text-[var(--text-secondary)]` for body
+   - Accent: `text-[var(--accent)]` for highlighted text or icons
+
+4. **Suggested Structure**:
+   ```
+   ┌─────────────────────────────────────────────────────────────┐
+   │  [Logo/Icon]                                                │
+   │                                                             │
+   │  Peace Protocol                                             │
+   │  Encrypted Data Marketplace                                 │
+   │                                                             │
+   │  ┌─────────────────────────────────────────────────────┐   │
+   │  │  [CardanoWallet Component]                          │   │
+   │  │  Recommended: Eternl on Chrome                      │   │
+   │  └─────────────────────────────────────────────────────┘   │
+   │                                                             │
+   │  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
+   │  │ Encrypted │  │   ZK     │  │  Secure  │                 │
+   │  │   Data    │  │  Proofs  │  │  Trading │                 │
+   │  └──────────┘  └──────────┘  └──────────┘                 │
+   └─────────────────────────────────────────────────────────────┘
+   ```
+
+5. **CSS Considerations**:
+   - Use `min-h-screen` with flexbox centering for vertical alignment
+   - Consider `max-w-2xl` or `max-w-3xl` for wider hero on desktop
+   - Use `grid grid-cols-1 md:grid-cols-3 gap-4` for feature cards
+   - Add subtle animations with `transition-all duration-200` on hover states
+
+6. **Optional Enhancements**:
+   - Add a subtle gradient or pattern to the background
+   - Add hover effects to feature cards
+   - Consider a "Learn More" link that scrolls to features or opens a modal
+   - Network indicator showing "Preprod" or "Mainnet" based on subdomain
 
 ### Phase 4: Backend Setup
 

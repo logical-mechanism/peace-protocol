@@ -179,8 +179,22 @@ def test_create_snark_tx_happy_path(monkeypatch):
     calls, set_to_int = _setup_common_mocks(monkeypatch)
 
     # Mock generate_snark_proof since it's not in _setup_common_mocks
-    def fake_generate_snark_proof(a0, r0, bob_public_value, w0, w1, snark_path, out_dir, setup_dir):
-        calls.append(("generate_snark_proof", a0, r0, bob_public_value, w0, w1, str(snark_path), str(out_dir), str(setup_dir)))
+    def fake_generate_snark_proof(
+        a0, r0, bob_public_value, w0, w1, snark_path, out_dir, setup_dir
+    ):
+        calls.append(
+            (
+                "generate_snark_proof",
+                a0,
+                r0,
+                bob_public_value,
+                w0,
+                w1,
+                str(snark_path),
+                str(out_dir),
+                str(setup_dir),
+            )
+        )
 
     monkeypatch.setattr(commands_mod, "generate_snark_proof", fake_generate_snark_proof)
 
