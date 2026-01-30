@@ -362,25 +362,42 @@ ui/
 
 ## Implementation Phases
 
-### Phase 1: Project Setup
+### Phase 1: Project Setup (COMPLETED)
 
-- [ ] Initialize React project with Vite
-- [ ] Configure Tailwind CSS
-- [ ] Set up folder structure
-- [ ] Install MeshJS (`@meshsdk/core`, `@meshsdk/react`)
-- [ ] Create basic routing (react-router-dom)
-- [ ] Set up environment variables
+- [x] Initialize React project with Vite
+- [x] Configure Tailwind CSS (v4 with @tailwindcss/vite plugin)
+- [x] Set up folder structure
+- [x] Install MeshJS (`@meshsdk/core`, `@meshsdk/react`)
+- [x] Create basic routing (react-router-dom)
+- [x] Set up environment variables
 
 ```bash
 # fe/
 npm create vite@latest . -- --template react-ts
-npm install tailwindcss postcss autoprefixer
+npm install tailwindcss @tailwindcss/vite
 npm install @meshsdk/core@1.8.14 @meshsdk/react@1.8.14
 npm install react-router-dom
-npx tailwindcss init -p
+npm install vite-plugin-wasm vite-plugin-top-level-await  # Required for MeshJS WASM
+npm install vite-plugin-node-polyfills                    # Node.js polyfills for browser
 ```
 
-**Important**: Use MeshJS v1.8.14 (stable). Avoid beta versions.
+**Note**: Tailwind v4 uses `@tailwindcss/vite` plugin instead of PostCSS. MeshJS requires WASM plugins and Node.js polyfills for Vite.
+
+**Phase 1 Implementation Notes (for future phases):**
+
+1. **MeshJS WASM Configuration**: The `vite.config.ts` includes a critical alias for `libsodium-wrappers-sumo` pointing to the CJS version (`dist/modules-sumo/libsodium-wrappers.js`). The ESM version has broken imports. Don't remove this alias.
+
+2. **Bundle Size Warning**: The production build is large (~8.5MB JS, ~5.4MB WASM). This is expected due to MeshJS and Cardano serialization libraries. Consider code-splitting in Phase 14 if needed, but it works.
+
+3. **MeshJS Hooks**: Use `useAddress()` to get the connected wallet address (returns string directly). Don't use `wallet.getUsedAddresses()` which is async and awkward in JSX.
+
+4. **Tailwind v4 Syntax**: Uses `@import "tailwindcss"` in CSS (not `@tailwind` directives). The design system CSS variables are defined in `fe/src/index.css`.
+
+5. **Routing Pattern**: App.tsx uses conditional rendering with `Navigate` for auth-gating. When `connected` is true, landing redirects to dashboard; when false, dashboard redirects to landing.
+
+6. **Environment Variables**: All Vite env vars must be prefixed with `VITE_`. Access via `import.meta.env.VITE_*`.
+
+7. **Node.js Polyfills**: MeshJS dependencies (pbkdf2, readable-stream, etc.) expect Node.js modules. The `vite-plugin-node-polyfills` plugin in `vite.config.ts` handles this - it polyfills `buffer`, `crypto`, `stream`, `util`, `events`, `process` and injects `Buffer`, `global`, and `process` globals. Don't remove this plugin or you'll get runtime errors.
 
 ### Phase 2: Wallet Integration
 
