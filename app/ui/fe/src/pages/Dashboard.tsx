@@ -39,7 +39,13 @@ export default function Dashboard() {
     <div className="min-h-screen">
       {/* Navigation */}
       <nav className="h-16 border-b border-[var(--border-subtle)] px-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Peace Protocol</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-lg font-semibold">Veiled</h1>
+          <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>
+            Preprod
+          </span>
+        </div>
         <div className="flex items-center gap-4">
           {/* ADA Balance */}
           <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">

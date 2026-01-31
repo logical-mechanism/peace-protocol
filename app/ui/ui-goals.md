@@ -458,65 +458,47 @@ function WalletSection() {
    - `useWallet()` - returns `{ connected, disconnect, connect, name }`
    - `useAddress()` - returns the connected wallet's address directly (no async needed)
 
-### Phase 3: Landing Page
+### Phase 3: Landing Page (COMPLETED)
 
-- [ ] Design hero section
-- [ ] Add wallet connect component
-- [ ] Add protocol description
-- [ ] Implement redirect to dashboard on connect
-- [ ] Mobile responsive layout
+- [x] Design hero section
+- [x] Add wallet connect component
+- [x] Add protocol description
+- [x] Implement redirect to dashboard on connect
+- [x] Mobile responsive layout (app will only work on desktop)
 
-**Phase 3 Implementation Hints:**
+**Phase 3 Implementation Notes (for future phases):**
 
-1. **Current State**: Landing page already exists at `fe/src/pages/Landing.tsx` with basic structure:
-   - Centered card layout with CardanoWallet component
-   - Basic branding (title + subtitle)
-   - Recommendation text for Eternl wallet
-   - Brief protocol description
+1. **Landing Page Structure** (`fe/src/pages/Landing.tsx`):
+   - Hero section with title "Veiled", subtitle "An Encrypted Data Marketplace", tagline "Powered By The PEACE Protocol"
+   - Custom wallet detection and connection flow (not using MeshJS CardanoWallet component directly - manual detection allows more control)
+   - Three feature cards: "Encrypted Data", "Zero-Knowledge Proofs", "Trustless Trading" with hover effects and centered content
+   - Footer with "Preprod Network" indicator
 
-2. **What Needs Enhancement**:
-   - **Hero Section**: Add visual elements like an icon/logo, animated background, or illustration
-   - **Feature Highlights**: Add 2-3 feature cards below the wallet connect (e.g., "Encrypted Data", "Zero-Knowledge Proofs", "Decentralized Marketplace")
-   - **Mobile Responsive**: Current layout is centered but check breakpoints for smaller screens
-   - **Redirect**: Already implemented in App.tsx via conditional routing with `connected` state
+2. **Branding**:
+   - App name: "Veiled" (placeholder - can be changed later)
+   - No logo icon - clean text-only hero
+   - Protocol reference in tagline rather than title
 
-3. **Design System Components to Use**:
-   - Cards: `bg-[var(--bg-card)]` with `border border-[var(--border-subtle)]` and `rounded-[var(--radius-lg)]`
-   - Spacing: Use `gap-6` between sections, `p-6` for card padding
-   - Text colors: `text-[var(--text-primary)]` for headings, `text-[var(--text-secondary)]` for body
-   - Accent: `text-[var(--accent)]` for highlighted text or icons
+3. **Wallet Connection Flow**:
+   - Click "Connect Wallet" → detects installed wallets via `window.cardano`
+   - Shows wallet list with icons from each wallet's API
+   - "No wallets detected" state includes link to Eternl wallet download
+   - Successful connection triggers redirect via App.tsx routing
 
-4. **Suggested Structure**:
-   ```
-   ┌─────────────────────────────────────────────────────────────┐
-   │  [Logo/Icon]                                                │
-   │                                                             │
-   │  Peace Protocol                                             │
-   │  Encrypted Data Marketplace                                 │
-   │                                                             │
-   │  ┌─────────────────────────────────────────────────────┐   │
-   │  │  [CardanoWallet Component]                          │   │
-   │  │  Recommended: Eternl on Chrome                      │   │
-   │  └─────────────────────────────────────────────────────┘   │
-   │                                                             │
-   │  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
-   │  │ Encrypted │  │   ZK     │  │  Secure  │                 │
-   │  │   Data    │  │  Proofs  │  │  Trading │                 │
-   │  └──────────┘  └──────────┘  └──────────┘                 │
-   └─────────────────────────────────────────────────────────────┘
-   ```
+4. **Network Indicator**:
+   - Landing page: Footer shows "Preprod Network" with warning-colored dot
+   - Dashboard: Nav bar shows "Preprod" badge next to app name
+   - Can be extended to detect network from subdomain (see Environment Variables section)
 
-5. **CSS Considerations**:
-   - Use `min-h-screen` with flexbox centering for vertical alignment
-   - Consider `max-w-2xl` or `max-w-3xl` for wider hero on desktop
-   - Use `grid grid-cols-1 md:grid-cols-3 gap-4` for feature cards
-   - Add subtle animations with `transition-all duration-200` on hover states
+5. **SVG Icons**:
+   - Uses Heroicons-style SVGs inline (no external dependencies)
+   - Icons: lock (encryption), shield-check (ZK proofs), arrows-right-left (trading)
+   - Feature card icons are centered with `flex justify-center`
 
-6. **Optional Enhancements**:
-   - Add a subtle gradient or pattern to the background
-   - Add hover effects to feature cards
-   - Consider a "Learn More" link that scrolls to features or opens a modal
-   - Network indicator showing "Preprod" or "Mainnet" based on subdomain
+6. **Responsive Breakpoints**:
+   - Feature cards: `grid-cols-1 md:grid-cols-3` (stack on mobile, 3-col on desktop)
+   - Title: `text-4xl md:text-5xl`
+   - Padding: `p-6 md:p-8`
 
 ### Phase 4: Backend Setup
 
@@ -533,6 +515,135 @@ npm install express cors dotenv
 npm install @koios-apis/koios-rest
 npm install @blockfrost/blockfrost-js
 ```
+
+**Phase 4 Implementation Hints:**
+
+1. **Directory Structure**:
+   ```
+   be/
+   ├── src/
+   │   ├── index.ts              # Express app entry point
+   │   ├── routes/
+   │   │   ├── index.ts          # Route aggregator
+   │   │   ├── encryptions.ts    # /api/encryptions routes
+   │   │   ├── bids.ts           # /api/bids routes
+   │   │   └── protocol.ts       # /api/protocol routes
+   │   ├── services/
+   │   │   ├── koios.ts          # Koios API client
+   │   │   └── blockfrost.ts     # Blockfrost API client
+   │   └── config/
+   │       └── index.ts          # Environment config
+   ├── .env                       # Environment variables (gitignored)
+   ├── .env.example               # Template for env vars
+   ├── package.json
+   └── tsconfig.json
+   ```
+
+2. **TypeScript Setup**:
+   ```bash
+   npm install typescript ts-node @types/node @types/express --save-dev
+   npx tsc --init
+   ```
+   Configure `tsconfig.json` with `"module": "NodeNext"`, `"moduleResolution": "NodeNext"`, and `"outDir": "./dist"`.
+
+3. **Koios Client Setup**:
+   ```typescript
+   // be/src/services/koios.ts
+   import Koios from '@koios-apis/koios-rest';
+
+   const network = process.env.NETWORK || 'preprod';
+   const baseUrl = network === 'mainnet'
+     ? 'https://api.koios.rest/api/v1'
+     : 'https://preprod.koios.rest/api/v1';
+
+   export const koios = new Koios({ baseUrl });
+   ```
+
+4. **Environment Variables** (`be/.env.example`):
+   ```
+   PORT=3001
+   NODE_ENV=development
+   NETWORK=preprod
+
+   # Koios (free tier, no key needed)
+   KOIOS_URL_PREPROD=https://preprod.koios.rest/api/v1
+
+   # Blockfrost (required for tx building)
+   BLOCKFROST_PROJECT_ID_PREPROD=preprodXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+   # Contract addresses (will be filled after preprod deployment)
+   ENCRYPTION_CONTRACT_ADDRESS=
+   BIDDING_CONTRACT_ADDRESS=
+   ENCRYPTION_POLICY_ID=
+   BIDDING_POLICY_ID=
+   ```
+
+5. **CORS Configuration**:
+   ```typescript
+   // Allow frontend origin (localhost for dev, specific domain for prod)
+   app.use(cors({
+     origin: process.env.NODE_ENV === 'production'
+       ? ['https://preprod.yoursite.com', 'https://www.yoursite.com']
+       : 'http://localhost:5173',
+     credentials: true
+   }));
+   ```
+
+6. **Stub Mode for Development**:
+   Since contracts aren't deployed to preprod yet, implement stub responses:
+   ```typescript
+   // be/src/config/index.ts
+   export const USE_STUBS = process.env.USE_STUBS === 'true';
+
+   // be/src/routes/encryptions.ts
+   import { USE_STUBS } from '../config';
+   import { STUB_ENCRYPTIONS } from '../stubs/encryptions';
+
+   router.get('/', async (req, res) => {
+     if (USE_STUBS) {
+       return res.json(STUB_ENCRYPTIONS);
+     }
+     // Real Koios query...
+   });
+   ```
+
+7. **Frontend API Client**:
+   Update frontend to call backend instead of direct blockchain queries:
+   ```typescript
+   // fe/src/services/api.ts
+   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+   export async function getEncryptions() {
+     const res = await fetch(`${API_URL}/api/encryptions`);
+     return res.json();
+   }
+   ```
+
+8. **Running Both FE and BE**:
+   Consider using `concurrently` for development:
+   ```bash
+   # ui/package.json (root)
+   npm install concurrently --save-dev
+   # Add script: "dev": "concurrently \"cd fe && npm run dev\" \"cd be && npm run dev\""
+   ```
+
+9. **API Response Format**:
+   Use consistent response structure:
+   ```typescript
+   // Success
+   { "data": [...], "meta": { "total": 10 } }
+
+   // Error
+   { "error": { "code": "NOT_FOUND", "message": "Encryption not found" } }
+   ```
+
+10. **Health Check Endpoint**:
+    Always include for monitoring:
+    ```typescript
+    app.get('/health', (req, res) => {
+      res.json({ status: 'ok', network: process.env.NETWORK });
+    });
+    ```
 
 ### Phase 5: Blockchain Data Layer
 
