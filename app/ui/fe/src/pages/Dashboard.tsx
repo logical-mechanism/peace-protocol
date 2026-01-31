@@ -4,7 +4,7 @@ import { useWalletPersistence } from '../hooks/useWalletPersistence'
 import { copyToClipboard } from '../utils/clipboard'
 import MarketplaceTab from '../components/MarketplaceTab'
 import MySalesTab from '../components/MySalesTab'
-import EmptyState, { InboxIcon } from '../components/EmptyState'
+import MyPurchasesTab from '../components/MyPurchasesTab'
 import ScrollToTop from '../components/ScrollToTop'
 import { encryptionsApi, bidsApi } from '../services/api'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
@@ -81,6 +81,18 @@ export default function Dashboard() {
     alert(`Cancel pending coming in Phase 9!\n\nThis will cancel the pending sale and return the encryption to active status.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`)
   }, [])
 
+  const handleCancelBid = useCallback((bid: BidDisplay) => {
+    // TODO: Phase 10 - Implement cancel bid transaction
+    console.log('Cancel bid:', bid.tokenName)
+    alert(`Cancel bid coming in Phase 10!\n\nThis requires a transaction to remove the bid from the contract.\n\nBid: ${(bid.amount / 1_000_000).toLocaleString()} ADA\nToken: ${bid.tokenName.slice(0, 16)}...`)
+  }, [])
+
+  const handleDecrypt = useCallback((bid: BidDisplay) => {
+    // TODO: Phase 13 - Implement decryption flow
+    console.log('Decrypt:', bid.encryptionToken)
+    alert(`Decryption coming in Phase 13!\n\nAfter your bid is accepted, you'll be able to decrypt the message using your private key.\n\nEncryption: ${bid.encryptionToken.slice(0, 16)}...`)
+  }, [])
+
   // Fetch user stats
   useEffect(() => {
     if (!address) return
@@ -131,10 +143,10 @@ export default function Dashboard() {
         )
       case 'my-purchases':
         return (
-          <EmptyState
-            icon={<InboxIcon />}
-            title="My Purchases - Coming Soon"
-            description="View your bids and purchased encryptions here. This feature will be available in Phase 8."
+          <MyPurchasesTab
+            userAddress={address}
+            onCancelBid={handleCancelBid}
+            onDecrypt={handleDecrypt}
           />
         )
       default:

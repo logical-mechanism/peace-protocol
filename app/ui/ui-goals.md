@@ -1038,145 +1038,235 @@ async function getEncryptions() {
     └────────────────────────────────────────────────────────┘
     ```
 
-### Phase 8: Dashboard - My Purchases Tab
+### Phase 8: Dashboard - My Purchases Tab (COMPLETED)
 
-- [ ] List user's bids
-- [ ] Show bid status
-- [ ] Add cancel bid functionality
-- [ ] Add decrypt button (for won bids)
+- [x] List user's bids
+- [x] Show bid status
+- [x] Add cancel bid functionality
+- [x] Add decrypt button (for won bids)
 
-**Phase 8 Implementation Hints:**
+**Phase 8 Implementation Notes (for future phases):**
 
-1. **Component Structure**:
-   - Create `MyPurchasesTab.tsx` in `fe/src/components/`
-   - Create `BidCard.tsx` - displays user's bid with status and actions
-   - Reuse `BidStatusBadge` from `Badge.tsx`
+1. **Components Created** (`fe/src/components/`):
+   - `MyPurchasesTab.tsx` - Main tab component with filtering, sorting, and view modes
+   - `MyPurchaseBidCard.tsx` - Buyer-specific card with actions (Cancel Bid, Decrypt)
 
-2. **Fetching User's Bids**:
+2. **MyPurchasesTab Features**:
+   - **Search**: Filter by token name, encryption token, or encryption description
+   - **Status Filter**: All / Pending / Accepted / Rejected / Cancelled
+   - **Sort Options**: Newest First, Oldest First, Amount High to Low, Amount Low to High
+   - **View Modes**: Grid (3-column) and List (compact)
+   - **Refresh Button**: Manual refresh for bids
+   - **Results Count**: Shows number of matching bids with status indicator
+   - **Encryption Context**: Fetches and displays related encryption data (description, seller, suggested price)
+
+3. **MyPurchaseBidCard Features**:
+   - Grid and compact (list) view modes
+   - Dynamic icon color based on status (success green for accepted, warning orange for pending, muted for others)
+   - Bid amount prominently displayed in ADA (converted from lovelace)
+   - Shows encryption being bid on with description (if available)
+   - Seller address display
+   - Suggested price comparison
+   - Status-specific messaging:
+     - Pending: "Waiting for seller"
+     - Accepted: "Your bid was accepted! You can now decrypt the message."
+     - Rejected: "Your bid was not accepted."
+     - Cancelled: "This bid was cancelled."
+   - Action buttons:
+     - Pending: "Cancel Bid" (placeholder for Phase 10)
+     - Accepted: "Decrypt Message" with unlock icon (placeholder for Phase 13)
+
+4. **Dashboard Integration**:
+   - Added `handleCancelBid` callback (placeholder for Phase 10)
+   - Added `handleDecrypt` callback (placeholder for Phase 13)
+   - `MyPurchasesTab` receives callbacks for all buyer actions
+
+5. **Stub Data Limitation**: Connected wallet addresses won't match stub data bidders. The "My Purchases" tab will show "No bids yet" with a "Browse Marketplace" button for real users. This is expected behavior - users need to place their own bids (Phase 10).
+
+6. **Action Placeholders**:
+   - "Cancel Bid" → Phase 10 (requires `06_removeBidTx.sh` transaction)
+   - "Decrypt Message" → Phase 13 (requires encryption history query + decryption)
+
+7. **Pattern Consistency**: MyPurchasesTab follows the exact same patterns as MySalesTab and MarketplaceTab for consistency - same toolbar layout, same filter/sort controls, same view toggle. This makes the codebase maintainable and provides consistent UX.
+
+8. **Encryption Data Fetching**:
+   - Uses `encryptionsMap` to cache encryption details for all user bids
+   - Fetches all encryptions once and creates a lookup map by token name
+   - Displays encryption description, seller address, and suggested price on bid cards
+
+9. **Type Pattern Used**:
    ```typescript
-   // With stubs, filter all bids client-side
-   const allBids = await bidsApi.getAll();
-   const userBids = allBids.filter(
-     b => b.bidder.toLowerCase() === address.toLowerCase()
-   );
-   // In production: bidsApi.getByUser(pkh)
+   interface MyPurchasesTabProps {
+     userAddress?: string;
+     onCancelBid?: (bid: BidDisplay) => void;
+     onDecrypt?: (bid: BidDisplay) => void;
+   }
    ```
 
-3. **Bid Card Display**:
-   - Token being bid on (link to encryption details)
-   - Bid amount in ADA
-   - Status badge (pending/accepted/rejected/cancelled)
-   - Created date
-   - Action buttons based on status
-
-4. **Status-Based Actions**:
-   - `pending`: Show "Cancel Bid" button (placeholder until Phase 10)
-   - `accepted`: Show "Decrypt" button (Phase 13), green success state
-   - `rejected`: Show "Bid was not accepted" message
-   - `cancelled`: Show "Cancelled" state, no actions
-
-5. **Cancel Bid Transaction (Phase 10 dependency)**:
-   The "Cancel Bid" action requires `06_removeBidTx.sh`. For Phase 8, show button as disabled with tooltip.
-
-6. **Decrypt Flow (Phase 13 dependency)**:
-   When bid is accepted, user can decrypt the message. For Phase 8, show "Decrypt" button as disabled with "Coming in Phase 13" tooltip.
-
-7. **Stub Data Note**: The stub bids use addresses that won't match a real wallet. For development, consider showing all bids or add stub bids with a test address pattern.
-
-8. **Bid Card Design**:
-   ```
-   ┌────────────────────────────────────────────────────────┐
-   │  Bid on: 00abc123...                    [Pending] ●    │
-   │  Amount: 150 ADA                                       │
-   │  Placed: Jan 16, 2025                                  │
-   │                                                        │
-   │  [Cancel Bid]                                          │
-   └────────────────────────────────────────────────────────┘
-   ```
-
-   For accepted bids:
-   ```
-   ┌────────────────────────────────────────────────────────┐
-   │  Bid on: 00abc123...                    [Accepted] ●   │
-   │  Amount: 150 ADA                                       │
-   │  Won: Jan 18, 2025                                     │
-   │                                                        │
-   │  [Decrypt Message]                                     │
-   └────────────────────────────────────────────────────────┘
-   ```
-
-9. **Dashboard Integration**:
-   - Import `MyPurchasesTab` in Dashboard.tsx
-   - Replace EmptyState placeholder in `renderTabContent()` case 'my-purchases'
-   - Pass `userAddress` for filtering
-
-10. **Empty State**: Show encouraging message like "You haven't placed any bids yet. Browse the marketplace to find encryptions to bid on!" with a button to switch to Marketplace tab.
-
-11. **Recommended Implementation Pattern (from Phase 7)**:
-    Follow the same structure as `MySalesTab.tsx`:
-    ```typescript
-    interface MyPurchasesTabProps {
-      userAddress?: string;
-      onCancelBid?: (bid: BidDisplay) => void;
-      onDecrypt?: (bid: BidDisplay, encryption: EncryptionDisplay) => void;
-    }
-    ```
-
-12. **Fetching Related Encryption Data**:
-    When displaying bids, you'll want to show information about the encryption being bid on:
-    ```typescript
-    // Fetch encryption details for display
-    const encryptionDetails = await encryptionsApi.getByToken(bid.encryptionToken);
-    // Show encryption description, suggested price, seller address, etc.
-    ```
-    Consider caching encryption data to avoid repeated fetches.
-
-13. **BidCard Component Structure**:
-    Create a `BidCard.tsx` component similar to `SalesListingCard.tsx`:
-    - Grid and compact (list) view modes
-    - Shows bid amount prominently
-    - Links to the encryption being bid on
-    - Status-specific action buttons and messaging
-    - Reuse `BidStatusBadge` from `Badge.tsx`
-
-14. **Decryption Flow Preview (Phase 13)**:
-    The "Decrypt" button will eventually:
-    - Query encryption history from Koios
-    - Use buyer's private key to decrypt
-    - Display decrypted message in a secure modal
-    For Phase 8, show a disabled button or placeholder modal.
-
-15. **Type Import Pattern**: Use `import type { X }` for type-only imports:
-    ```typescript
-    import { bidsApi, encryptionsApi } from '../services/api';
-    import type { BidDisplay, EncryptionDisplay } from '../services/api';
-    ```
-
-16. **Dashboard Callbacks to Add**:
-    ```typescript
-    const handleCancelBid = useCallback((bid: BidDisplay) => {
-      // TODO: Phase 10 - Implement cancel bid transaction
-      alert(`Cancel bid coming in Phase 10!...`);
-    }, []);
-
-    const handleDecrypt = useCallback((bid: BidDisplay, encryption: EncryptionDisplay) => {
-      // TODO: Phase 13 - Implement decryption flow
-      alert(`Decryption coming in Phase 13!...`);
-    }, []);
-    ```
-
-17. **Sorting Options for Bids**:
-    - Newest First / Oldest First (by createdAt)
-    - Amount: High to Low / Low to High
-    - Status (pending first, then accepted, etc.)
-
-18. **Visual Distinction for Won Bids**:
-    For accepted bids, use success styling to celebrate the win:
-    - Green success badge
-    - Prominent "Decrypt Message" CTA
-    - Show "Won on [date]" instead of "Placed on [date]"
+10. **Visual Distinction for Won Bids**:
+    - Green success styling for accepted bids (icon, badge, amount color)
+    - Success-colored "Decrypt Message" CTA button
+    - Status message box with green background
 
 ### Phase 9: Create Listing Flow
+
+**IMPORTANT: Phase 9 is blocked until contracts are deployed to preprod.** The UI form and crypto logic can be built with stub data, but actual transaction submission requires live contracts.
+
+**What Can Be Built Now:**
+- Create listing form UI with all fields
+- Form validation logic
+- Port Python crypto functions to JavaScript (encryption, key derivation, schnorr proofs)
+- Build transaction structure with MeshJS (will fail on submit but structure can be verified)
+- Success/error UI feedback components
+
+**What's Blocked Until Contract Deployment:**
+- Actual transaction submission and confirmation
+- Reference script UTxO lookups
+- Contract address resolution
+- Token minting to contract
+
+**Phase 9 Implementation Hints:**
+
+1. **Form Component Structure**:
+   - Create `CreateListingModal.tsx` in `fe/src/components/`
+   - Create `CreateListingForm.tsx` for the form logic
+   - Form should be a modal that opens from Dashboard (add "Create Listing" button)
+
+2. **Required Form Fields**:
+   ```typescript
+   interface CreateListingFormData {
+     secretMessage: string;           // The data to encrypt (required)
+     description: string;             // Human-readable description (required)
+     suggestedPrice?: number;         // ADA amount (optional)
+     storageLayer: 'on-chain' | 'ipfs' | 'arweave';  // Default: 'on-chain'
+     ipfsHash?: string;               // Required if storageLayer === 'ipfs'
+     arweaveId?: string;              // Required if storageLayer === 'arweave'
+   }
+   ```
+
+3. **Form Validation**:
+   - `secretMessage`: Required, non-empty
+   - `description`: Required, max 500 chars (CIP-20 metadata size limits)
+   - `suggestedPrice`: Optional, if provided must be positive number
+   - `storageLayer`: Must be valid option
+   - `ipfsHash`: Required if IPFS selected, validate format (starts with "Qm" or "bafy")
+   - `arweaveId`: Required if Arweave selected, validate format (43 chars base64)
+
+4. **Crypto Logic to Port** (from `src/commands/` Python files):
+   - **Key Derivation**: Generate seller's BLS12-381 keys (a, r secrets → register)
+   - **Capsule Generation**: Create encryption capsule from message + keys
+   - **Schnorr Proofs**: Generate proofs for register validity
+   - Use `@noble/curves` library for BLS12-381 operations
+   - Reference: `src/bls_code.py`, `src/encryption.py`
+
+5. **IndexedDB Secret Storage**:
+   - Store (a, r) secrets locally before transaction submission
+   - Key by encryption token name (computed from UTxO)
+   - Encrypt with wallet-derived key (sign a message to derive encryption key)
+   - If secrets are lost, seller cannot complete sales
+   - Create `fe/src/services/secretStorage.ts` service
+
+6. **Transaction Building Pattern**:
+   ```typescript
+   // Step 1: Get a UTxO from wallet to compute token name
+   const utxos = await wallet.getUtxos();
+   const selectedUtxo = utxos[0]; // First UTxO
+   const tokenName = computeTokenName(selectedUtxo);
+
+   // Step 2: Generate crypto materials
+   const { a, r, register, capsule } = await generateEncryption(secretMessage);
+
+   // Step 3: Store secrets in IndexedDB BEFORE tx submission
+   await secretStorage.store(tokenName, { a, r });
+
+   // Step 4: Build datum
+   const datum = buildEncryptionDatum({
+     owner_vkh: extractPkh(address),
+     owner_g1: register,
+     token: tokenName,
+     half_level: buildHalfLevel(r),
+     full_level: null,
+     capsule: capsule,
+     status: { type: 'Open' },
+   });
+
+   // Step 5: Build and submit transaction
+   const tx = new Transaction({ initiator: wallet });
+   // ... mint + send to contract
+   ```
+
+7. **Token Name Computation**:
+   ```typescript
+   // From cardano-cli shell script logic
+   function computeTokenName(utxo: { txHash: string; outputIndex: number }): string {
+     // CBOR encode the output index
+     const indexCbor = cborEncodeInteger(utxo.outputIndex);
+     // Concatenate: cbor(index) + txHash (first 64 hex chars)
+     const combined = indexCbor + utxo.txHash;
+     return combined.slice(0, 64);
+   }
+   ```
+   Need `cbor-x` or similar library for CBOR encoding.
+
+8. **CIP-20 Metadata**:
+   ```typescript
+   // Attach to transaction for off-chain indexing
+   tx.setMetadata(674, {
+     msg: [
+       formData.description,
+       formData.suggestedPrice?.toString() || '0',
+       getStorageLayerUri(formData), // 'on-chain', 'ipfs://Qm...', 'ar://...'
+     ]
+   });
+   ```
+
+9. **MeshJS Considerations**:
+   - MeshJS v1.8.14 API may need low-level access for inline datums
+   - May need to use `tx.txBuilder.tx_builder` for advanced operations
+   - Test transaction structure by serializing to CBOR and comparing with working cardano-cli tx
+   - Reference: `commands/03_createEncryptionTx.sh`
+
+10. **Error Handling**:
+    - Wallet not connected → Prompt to connect
+    - Insufficient funds → Show required ADA amount
+    - Transaction failed → Show error with retry option
+    - User rejected signing → Show cancellation message
+
+11. **Success Flow**:
+    - Show success modal with transaction hash
+    - Link to CardanoScan for tx confirmation
+    - Refresh listings in marketplace
+    - Clear form and close modal
+
+12. **Dashboard Integration**:
+    - Add "Create Listing" button to Dashboard nav or MySalesTab empty state
+    - Modal opens on button click
+    - On success, switch to MySalesTab and refresh
+
+13. **Testing with Stubs**:
+    - Build entire form and crypto logic
+    - Transaction building can be tested up to the point of submission
+    - Use console.log to output transaction CBOR for manual inspection
+    - Compare against `commands/03_createEncryptionTx.sh` output structure
+
+14. **Dependencies to Install**:
+    ```bash
+    npm install @noble/curves cbor-x
+    # @noble/curves for BLS12-381 operations
+    # cbor-x for CBOR encoding (datum, redeemer, token name)
+    ```
+
+15. **Key Files to Reference**:
+    - `commands/03_createEncryptionTx.sh` - Transaction structure
+    - `src/commands/create_encryption.py` - Crypto logic
+    - `src/bls_code.py` - BLS12-381 operations
+    - `contracts/lib/types/encryption.ak` - Datum type definition
+
+16. **Blockers to Note**:
+    - Contract addresses not yet available on preprod
+    - Reference script UTxOs not deployed
+    - Genesis token policy not available
+    - All transaction submissions will fail until deployment
 
 - [ ] Create listing form component
 - [ ] Port Python crypto logic to JS (encryption, schnorr proofs, etc.)
