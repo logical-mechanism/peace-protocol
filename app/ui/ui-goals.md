@@ -500,23 +500,91 @@ function WalletSection() {
    - Title: `text-4xl md:text-5xl`
    - Padding: `p-6 md:p-8`
 
-### Phase 4: Backend Setup
+### Phase 4: Backend Setup (COMPLETED)
 
-- [ ] Initialize Node.js/Express project
-- [ ] Configure Koios client
-- [ ] Configure Blockfrost client
-- [ ] Create API routes structure
-- [ ] Add CORS configuration
+- [x] Initialize Node.js/Express project
+- [x] Configure Koios client
+- [x] Configure Blockfrost client
+- [x] Create API routes structure
+- [x] Add CORS configuration
 
 ```bash
 # be/
 npm init -y
 npm install express cors dotenv
-npm install @koios-apis/koios-rest
 npm install @blockfrost/blockfrost-js
+npm install typescript tsx @types/node @types/express @types/cors --save-dev
 ```
 
-**Phase 4 Implementation Hints:**
+**Note**: The `@koios-apis/koios-rest` package mentioned in original hints doesn't exist. A custom fetch-based Koios client was implemented instead.
+
+**Phase 4 Implementation Notes (for future phases):**
+
+1. **Running the Backend**:
+   ```bash
+   # From ui/ directory
+   npm run dev        # Runs both FE (port 5173) and BE (port 3001)
+   npm run dev:be     # Runs backend only
+   npm run dev:fe     # Runs frontend only
+   ```
+
+2. **Backend Directory Structure**:
+   ```
+   be/
+   ├── src/
+   │   ├── index.ts              # Express app entry point
+   │   ├── config/
+   │   │   └── index.ts          # Environment config with network detection
+   │   ├── routes/
+   │   │   ├── index.ts          # Route aggregator
+   │   │   ├── encryptions.ts    # /api/encryptions routes
+   │   │   ├── bids.ts           # /api/bids routes
+   │   │   └── protocol.ts       # /api/protocol routes
+   │   ├── services/
+   │   │   ├── koios.ts          # Custom fetch-based Koios client
+   │   │   └── blockfrost.ts     # Blockfrost SDK wrapper
+   │   ├── stubs/
+   │   │   ├── index.ts          # Stub exports
+   │   │   ├── encryptions.ts    # 5 sample encryptions
+   │   │   ├── bids.ts           # 5 sample bids
+   │   │   └── protocol.ts       # Protocol config stub
+   │   └── types/
+   │       └── index.ts          # Shared TypeScript types
+   ├── .env                       # Environment variables
+   ├── .env.example               # Template
+   ├── package.json
+   └── tsconfig.json
+   ```
+
+3. **Stub Mode**: Backend uses `USE_STUBS=true` by default. All routes check `config.useStubs` and return sample data. Set `USE_STUBS=false` when contracts are deployed.
+
+4. **API Endpoints Implemented**:
+   - `GET /health` - Health check with network/stub status
+   - `GET /api/encryptions` - List all encryptions
+   - `GET /api/encryptions/:tokenName` - Get specific encryption
+   - `GET /api/encryptions/user/:pkh` - Get user's encryptions
+   - `GET /api/encryptions/status/:status` - Filter by status
+   - `GET /api/bids` - List all bids
+   - `GET /api/bids/:tokenName` - Get specific bid
+   - `GET /api/bids/user/:pkh` - Get user's bids
+   - `GET /api/bids/encryption/:token` - Get bids for encryption
+   - `GET /api/bids/status/:status` - Filter by status
+   - `GET /api/protocol/config` - Get protocol configuration
+   - `GET /api/protocol/reference` - Get reference UTxOs
+   - `GET /api/protocol/scripts` - Get script addresses
+   - `GET /api/protocol/params` - Get protocol parameters
+
+5. **Frontend API Client**: Created `fe/src/services/api.ts` with typed functions for all endpoints:
+   - `encryptionsApi.getAll()`, `encryptionsApi.getByToken()`, etc.
+   - `bidsApi.getAll()`, `bidsApi.getByEncryption()`, etc.
+   - `protocolApi.getConfig()`, etc.
+   - `checkHealth()` for backend health checks
+
+6. **TypeScript Configuration**: Backend uses ESM (`"type": "module"`) with `tsx` for development. File extensions must be `.js` in imports (e.g., `from './config/index.js'`).
+
+7. **Stub Data Quality**: Stub encryptions and bids contain realistic BLS12-381 point placeholders, proper token name formats, and Cardano testnet addresses. Good for UI development but NOT cryptographically valid.
+
+**Phase 4 Implementation Hints (original):**
 
 1. **Directory Structure**:
    ```
@@ -660,6 +728,85 @@ async function getEncryptions() {
   // Parse and return encryptions
 }
 ```
+
+**Phase 5 Implementation Hints:**
+
+1. **BLOCKED UNTIL CONTRACT DEPLOYMENT**: Phase 5 requires contract addresses. Until contracts are deployed to preprod, continue using stub data. The backend routes have TODO comments marking where real queries should go.
+
+2. **When Contracts Are Deployed, Update**:
+   ```bash
+   # be/.env
+   USE_STUBS=false
+   ENCRYPTION_CONTRACT_ADDRESS_PREPROD=addr_test1...
+   BIDDING_CONTRACT_ADDRESS_PREPROD=addr_test1...
+   ENCRYPTION_POLICY_ID_PREPROD=...
+   BIDDING_POLICY_ID_PREPROD=...
+   ```
+
+3. **Koios Query Pattern** (in `be/src/services/koios.ts`):
+   ```typescript
+   // The Koios client is already set up with these methods:
+   // - getAddressUtxos(address) - Get UTxOs at contract address
+   // - getAssetUtxos(policyId, assetName?) - Get UTxOs by asset
+   // - getTxInfo(txHash) - Get transaction details
+   // - getTip() - Get current tip
+   // - getProtocolParams() - Get protocol parameters
+   ```
+
+4. **Parsing Inline Datums**: Koios returns `inline_datum` field with CBOR bytes. Need to:
+   ```typescript
+   // Pseudocode for datum parsing
+   import { Data } from '@meshsdk/core'; // or use cbor-x directly
+
+   function parseEncryptionDatum(inlineDatum: { bytes: string }): EncryptionDatum {
+     // Decode CBOR bytes to Plutus data structure
+     // Map constructor indices to TS types
+     // See contracts/lib/types/*.ak for constructor ordering
+   }
+   ```
+
+5. **Constructor Index Mapping** (from Aiken types):
+   - `Status::Open` = constructor 0
+   - `Status::Pending` = constructor 1
+   - `EncryptionDatum` fields ordered as in `contracts/lib/types/encryption.ak`
+   - `BidDatum` fields ordered as in `contracts/lib/types/bidding.ak`
+
+6. **Suggested Approach**:
+   - Create `be/src/services/parsers.ts` with datum parsing functions
+   - Create `be/src/services/encryptions.ts` for encryption business logic
+   - Create `be/src/services/bids.ts` for bid business logic
+   - Update routes to call service functions when `USE_STUBS=false`
+
+7. **Reference UTxOs**: Query the reference contract address for script references. The UTxO output index indicates which script:
+   - Index 1 = encryption script
+   - Index 1 = bidding script (different tx)
+   - Index 1 = groth script (different tx)
+   - Store these in protocol config or cache after first query
+
+8. **Caching Strategy** (optional but recommended):
+   - In-memory cache with TTL (e.g., 30 seconds)
+   - Clear cache after transaction confirmation
+   - Consider Redis for production if multiple backend instances
+
+9. **Error Handling**: Koios can return errors or empty results. Handle gracefully:
+   ```typescript
+   try {
+     const utxos = await koiosClient.getAddressUtxos(address);
+     if (!utxos.length) return { data: [], meta: { total: 0 } };
+     // Parse and return
+   } catch (error) {
+     if (error.message.includes('404')) {
+       return { data: [], meta: { total: 0 } };
+     }
+     throw error;
+   }
+   ```
+
+10. **Testing with Real Data**: Once contracts are deployed:
+    - First verify health check works: `curl http://localhost:3001/health`
+    - Then test encryptions endpoint: `curl http://localhost:3001/api/encryptions`
+    - Check Koios rate limits (free tier has restrictions)
+    - Consider adding request throttling if needed
 
 ### Phase 6: Dashboard - Marketplace Tab
 
