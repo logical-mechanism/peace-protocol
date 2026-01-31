@@ -808,14 +808,66 @@ async function getEncryptions() {
     - Check Koios rate limits (free tier has restrictions)
     - Consider adding request throttling if needed
 
-### Phase 6: Dashboard - Marketplace Tab
+### Phase 6: Dashboard - Marketplace Tab (COMPLETED)
 
-- [ ] Create encryption card component
-- [ ] Implement grid/list view
-- [ ] Add filtering/sorting
-- [ ] Connect to backend API
-- [ ] Add loading states
-- [ ] Add empty states
+- [x] Create encryption card component
+- [x] Implement grid/list view
+- [x] Add filtering/sorting
+- [x] Connect to backend API
+- [x] Add loading states
+- [x] Add empty states
+
+**Phase 6 Implementation Notes (for future phases):**
+
+1. **Components Created** (`fe/src/components/`):
+   - `LoadingSpinner.tsx` - Animated SVG spinner with size variants (sm/md/lg)
+   - `EmptyState.tsx` - Reusable empty state with icon, title, description, and action slots. Includes `PackageIcon`, `SearchIcon`, `InboxIcon` exports
+   - `Badge.tsx` - Status badges with variants (success/warning/error/neutral/accent). Includes `EncryptionStatusBadge` and `BidStatusBadge` helper components
+   - `EncryptionCard.tsx` - Card for displaying encryption listings with lock icon, price, seller info, and bid button. Supports `compact` prop for list view
+   - `MarketplaceTab.tsx` - Full marketplace with search, filtering, sorting, and view toggle
+   - `ScrollToTop.tsx` - Fixed button in bottom-right corner that appears after scrolling 300px. Uses smooth scroll animation. Dashboard-only (not on Landing)
+
+2. **MarketplaceTab Features**:
+   - **Search**: Filter by token name or seller address
+   - **Status Filter**: All / Active / Pending dropdown
+   - **Sort Options**: Newest First, Oldest First, Price High to Low, Price Low to High
+   - **View Modes**: Grid (3-column on desktop) and List (compact cards)
+   - **Refresh Button**: Manual refresh for listings
+   - **Results Count**: Shows number of matching listings
+   - **Loading State**: Centered spinner with message
+   - **Error State**: Retry button on API failure
+   - **Empty States**: Different messages for "no listings" vs "no matches"
+   - **Scroll to Top**: Fixed button appears after scrolling 300px, useful for long listing pages and future infinite scroll/pagination
+
+3. **Dashboard Updates**:
+   - Tab switching now functional (Marketplace / My Sales / My Purchases)
+   - Stats cards are clickable and navigate to relevant tabs
+   - Stats cards show active highlight when their tab is selected
+   - Stats fetch actual counts from API (filtered by connected wallet address)
+   - `handlePlaceBid` callback ready for Phase 10 implementation
+
+4. **Type Import Pattern**: Use `import type { X }` for type-only imports due to `verbatimModuleSyntax` in tsconfig. Example:
+   ```typescript
+   import { encryptionsApi, bidsApi } from '../services/api'
+   import type { EncryptionDisplay } from '../services/api'
+   ```
+
+5. **Design System Usage**: All components use CSS variables from `index.css`:
+   - Backgrounds: `var(--bg-card)`, `var(--bg-card-hover)`, `var(--bg-secondary)`
+   - Borders: `var(--border-subtle)`, `var(--border-default)`
+   - Colors: `var(--accent)`, `var(--success)`, `var(--warning)`, `var(--error)`
+   - Radius: `var(--radius-md)`, `var(--radius-lg)`
+   - Transitions: `duration-150` for fast interactions
+
+6. **Stub Data Works Well**: The backend stubs provide 5 sample encryptions with realistic data including CIP-20 metadata (description, suggestedPrice, storageLayer). The marketplace displays them correctly with filtering/sorting. No blockchain connection needed for UI development.
+
+7. **CIP-20 Metadata Display**: EncryptionCard now displays:
+   - **Description**: Shown in a muted box below the header (2 lines in grid, 1 line in list)
+   - **Storage Layer**: Badge showing "On-chain", "IPFS", "Arweave", or "External"
+   - **Suggested Price**: Already displayed as main price (unchanged)
+   - Added `line-clamp-1` and `line-clamp-2` CSS utilities for text truncation
+
+8. **Placeholder for Phase 10**: The "Place Bid" button currently shows an alert. Implement bid modal in Phase 10.
 
 ### Phase 7: Dashboard - My Sales Tab
 
@@ -825,6 +877,77 @@ async function getEncryptions() {
 - [ ] Add "View Bids" expand/modal
 - [ ] Implement status indicators
 
+**Phase 7 Implementation Hints:**
+
+1. **Component Structure**:
+   - Create `MySalesTab.tsx` in `fe/src/components/`
+   - Create `SalesListingCard.tsx` - similar to EncryptionCard but with seller actions
+   - Create `BidsModal.tsx` or expandable section to show bids on a listing
+   - Reuse `Badge.tsx`, `LoadingSpinner.tsx`, `EmptyState.tsx` from Phase 6
+
+2. **Fetching User's Listings**:
+   ```typescript
+   // Filter encryptions by connected wallet address
+   const userListings = encryptions.filter(
+     e => e.seller.toLowerCase() === address.toLowerCase()
+   );
+   ```
+   Note: In production with real contracts, use `encryptionsApi.getByUser(pkh)` where `pkh` is extracted from the address. With stubs, filter client-side.
+
+3. **Fetching Bids for Each Listing**:
+   ```typescript
+   // Use bidsApi.getByEncryption(encryptionTokenName)
+   const bidsForListing = await bidsApi.getByEncryption(listing.tokenName);
+   ```
+   Consider fetching bids on demand (when user expands/clicks "View Bids") rather than upfront.
+
+4. **Seller Actions**:
+   - **View Bids**: Show modal/expand with list of bids, each with bidder address and amount
+   - **Accept Bid**: Placeholder button for Phase 12 (SNARK + re-encryption flow)
+   - **Remove Listing**: Placeholder for Phase 9 (requires tx building)
+   - **Cancel Pending**: For listings in "pending" status, show cancel option
+
+5. **Status Handling**:
+   - `active`: Show "View Bids" and "Remove" buttons
+   - `pending`: Show TTL countdown, "Complete Sale" and "Cancel" buttons
+   - `completed`: Show "Sold" indicator, hide action buttons
+
+6. **TTL Countdown for Pending**:
+   ```typescript
+   // datum.status.ttl is Unix timestamp in milliseconds
+   const timeRemaining = datum.status.ttl - Date.now();
+   const minutesLeft = Math.floor(timeRemaining / 60000);
+   // Display: "Complete within X minutes"
+   ```
+
+7. **Dashboard Integration**:
+   - Import `MySalesTab` in Dashboard.tsx
+   - Replace the EmptyState placeholder in `renderTabContent()` case 'my-sales'
+   - Pass `userAddress` prop for filtering
+
+8. **Stub Data Note**: The stub encryptions have 2 sellers with address `addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp` (tokens 00abc..., 02ghi...) and address `addr_test1qpq6z3s7a9qlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yqdxyrt` (tokens 01def..., 04stu...). Connected wallet won't match these, so "My Sales" will show empty for real users. Consider adding a "demo mode" or showing all listings in development.
+
+9. **Remove Listing Transaction (Phase 9 dependency)**:
+   The actual "Remove Listing" action requires building and submitting a transaction (`04a_removeEncryptionTx.sh`). For Phase 7, just show the button as disabled or with tooltip "Coming soon - requires contract deployment".
+
+10. **Bids Modal Design**:
+    ```
+    ┌────────────────────────────────────────────────────────┐
+    │  Bids for Listing 00abc123...                    [×]   │
+    ├────────────────────────────────────────────────────────┤
+    │  ┌──────────────────────────────────────────────────┐ │
+    │  │  addr_test1qx...abc    150 ADA    [Accept Bid]  │ │
+    │  │  Placed: Jan 16, 2025                            │ │
+    │  └──────────────────────────────────────────────────┘ │
+    │  ┌──────────────────────────────────────────────────┐ │
+    │  │  addr_test1qy...def    120 ADA    [Accept Bid]  │ │
+    │  │  Placed: Jan 15, 2025                            │ │
+    │  └──────────────────────────────────────────────────┘ │
+    │                                                        │
+    │  No more bids                                          │
+    └────────────────────────────────────────────────────────┘
+    ```
+
 ### Phase 8: Dashboard - My Purchases Tab
 
 - [ ] List user's bids
@@ -832,14 +955,109 @@ async function getEncryptions() {
 - [ ] Add cancel bid functionality
 - [ ] Add decrypt button (for won bids)
 
+**Phase 8 Implementation Hints:**
+
+1. **Component Structure**:
+   - Create `MyPurchasesTab.tsx` in `fe/src/components/`
+   - Create `BidCard.tsx` - displays user's bid with status and actions
+   - Reuse `BidStatusBadge` from `Badge.tsx`
+
+2. **Fetching User's Bids**:
+   ```typescript
+   // With stubs, filter all bids client-side
+   const allBids = await bidsApi.getAll();
+   const userBids = allBids.filter(
+     b => b.bidder.toLowerCase() === address.toLowerCase()
+   );
+   // In production: bidsApi.getByUser(pkh)
+   ```
+
+3. **Bid Card Display**:
+   - Token being bid on (link to encryption details)
+   - Bid amount in ADA
+   - Status badge (pending/accepted/rejected/cancelled)
+   - Created date
+   - Action buttons based on status
+
+4. **Status-Based Actions**:
+   - `pending`: Show "Cancel Bid" button (placeholder until Phase 10)
+   - `accepted`: Show "Decrypt" button (Phase 13), green success state
+   - `rejected`: Show "Bid was not accepted" message
+   - `cancelled`: Show "Cancelled" state, no actions
+
+5. **Cancel Bid Transaction (Phase 10 dependency)**:
+   The "Cancel Bid" action requires `06_removeBidTx.sh`. For Phase 8, show button as disabled with tooltip.
+
+6. **Decrypt Flow (Phase 13 dependency)**:
+   When bid is accepted, user can decrypt the message. For Phase 8, show "Decrypt" button as disabled with "Coming in Phase 13" tooltip.
+
+7. **Stub Data Note**: The stub bids use addresses that won't match a real wallet. For development, consider showing all bids or add stub bids with a test address pattern.
+
+8. **Bid Card Design**:
+   ```
+   ┌────────────────────────────────────────────────────────┐
+   │  Bid on: 00abc123...                    [Pending] ●    │
+   │  Amount: 150 ADA                                       │
+   │  Placed: Jan 16, 2025                                  │
+   │                                                        │
+   │  [Cancel Bid]                                          │
+   └────────────────────────────────────────────────────────┘
+   ```
+
+   For accepted bids:
+   ```
+   ┌────────────────────────────────────────────────────────┐
+   │  Bid on: 00abc123...                    [Accepted] ●   │
+   │  Amount: 150 ADA                                       │
+   │  Won: Jan 18, 2025                                     │
+   │                                                        │
+   │  [Decrypt Message]                                     │
+   └────────────────────────────────────────────────────────┘
+   ```
+
+9. **Dashboard Integration**:
+   - Import `MyPurchasesTab` in Dashboard.tsx
+   - Replace EmptyState placeholder in `renderTabContent()` case 'my-purchases'
+   - Pass `userAddress` for filtering
+
+10. **Empty State**: Show encouraging message like "You haven't placed any bids yet. Browse the marketplace to find encryptions to bid on!" with a button to switch to Marketplace tab.
+
 ### Phase 9: Create Listing Flow
 
 - [ ] Create listing form component
 - [ ] Port Python crypto logic to JS (encryption, schnorr proofs, etc.)
 - [ ] Build transaction with MeshJS
+- [ ] Attach CIP-20 metadata (description, price, storage layer)
 - [ ] Sign and submit transaction
 - [ ] Show success/error feedback
 - [ ] Refresh listings
+
+**Create Listing Form Fields:**
+```typescript
+interface CreateListingForm {
+  secretMessage: string;          // The data to encrypt
+  description: string;            // Human-readable description (CIP-20)
+  suggestedPrice?: number;        // ADA, optional (CIP-20)
+  storageLayer: 'on-chain' | 'ipfs' | 'arweave';  // Where to store (CIP-20)
+  ipfsHash?: string;              // If storageLayer is 'ipfs'
+  arweaveId?: string;             // If storageLayer is 'arweave'
+}
+```
+
+**CIP-20 Metadata Integration:**
+When building the transaction, attach metadata following CIP-20 standard:
+```typescript
+// Add CIP-20 metadata to transaction
+tx.setMetadata(674, {
+  msg: [
+    formData.description,
+    formData.suggestedPrice?.toString() || '0',
+    getStorageLayerUri(formData),  // 'on-chain', 'ipfs://Qm...', etc.
+  ]
+});
+```
+
+See "CIP-20 Transaction Metadata" section in Critical Implementation Details for full specification.
 
 **Porting Notes:**
 
@@ -857,10 +1075,20 @@ This phase involves porting two things:
    - Test incrementally: build tx → inspect CBOR → compare to working cli tx
 
 ```typescript
-// Example MeshJS transaction building
+// Example MeshJS transaction building with CIP-20 metadata
 import { Transaction } from '@meshsdk/core';
 
 const tx = new Transaction({ initiator: wallet });
+
+// CIP-20 metadata for listing info
+tx.setMetadata(674, {
+  msg: [
+    formData.description,
+    formData.suggestedPrice?.toString() || '0',
+    formData.storageLayer,
+  ]
+});
+
 tx.mintAsset(encryptionScript, asset, redeemer);
 tx.sendAssets(encryptionContractAddress, assets, { datum });
 const unsignedTx = await tx.build();
@@ -1695,27 +1923,112 @@ if (isMobile()) {
 
 **On-chain:** Bid amount is simply the lovelace attached to the bid UTxO.
 
-**Off-chain (UI only):**
-- Seller can set a "suggested price" when creating listing
-- Stored in backend/displayed in UI, NOT on-chain
+**Off-chain (CIP-20 Metadata):**
+- Seller provides metadata when creating listing
+- Stored in transaction metadata (key 674), queryable via Koios/Blockfrost
 - Buyers see suggested price but can bid any amount
 - Seller decides which bid to accept
 
-```typescript
-// Create listing form
-interface ListingForm {
-  secretMessage: string;
-  suggestedPrice?: number;  // ADA, optional, UI-only
-}
+---
 
-// Display in marketplace
-interface ListingDisplay {
-  tokenName: string;
-  seller: string;
-  suggestedPrice?: number;  // From backend, not chain
-  // ... other fields from datum
+### CIP-20 Transaction Metadata
+
+When creating an encryption listing, the transaction includes metadata following the [CIP-20 standard](https://cips.cardano.org/cip/CIP-20). This allows human-readable information to be attached to the listing transaction.
+
+**Metadata Structure:**
+```json
+{
+  "674": {
+    "msg": [
+      "DATA_DESCRIPTION",
+      "SUGGESTED_PRICE",
+      "STORAGE_LAYER_INFO"
+    ]
+  }
 }
 ```
+
+**Fields:**
+| Index | Field | Description | Example |
+|-------|-------|-------------|---------|
+| 0 | `description` | Human-readable description of the encrypted data | "Premium API keys for crypto exchanges" |
+| 1 | `suggestedPrice` | Suggested price in ADA (string) | "100" |
+| 2 | `storageLayer` | Where the actual data is stored | "on-chain", "ipfs://Qm...", "arweave://Tx..." |
+
+**Storage Layer Options:**
+- `"on-chain"` - Encrypted data stored in the datum capsule
+- `"ipfs://..."` - IPFS CID pointing to encrypted data
+- `"arweave://..."` - Arweave transaction ID pointing to encrypted data
+- Other URIs possible for future storage options
+
+**Parsing in Backend (Phase 5):**
+```typescript
+// When querying from Koios, parse CIP-20 metadata
+async function parseEncryptionMetadata(txHash: string): Promise<Cip20Metadata | null> {
+  const txInfo = await koios.getTxInfo(txHash);
+  const metadata = txInfo?.metadata;
+
+  if (!metadata || !metadata['674']?.msg) {
+    return null;
+  }
+
+  const msg = metadata['674'].msg;
+  return {
+    description: msg[0] || undefined,
+    suggestedPrice: msg[1] ? parseFloat(msg[1]) : undefined,
+    storageLayer: msg[2] || undefined,
+  };
+}
+```
+
+**Building in Frontend (Phase 9):**
+```typescript
+// When creating a listing, attach CIP-20 metadata
+import { Transaction } from '@meshsdk/core';
+
+const tx = new Transaction({ initiator: wallet });
+
+// Add CIP-20 metadata
+tx.setMetadata(674, {
+  msg: [
+    formData.description,           // e.g., "Premium API keys"
+    formData.suggestedPrice.toString(), // e.g., "100"
+    formData.storageLayer || 'on-chain', // e.g., "ipfs://Qm..."
+  ]
+});
+
+// ... rest of tx building
+```
+
+**UI Display:**
+- `EncryptionCard` shows description in a muted box below the header
+- Storage layer shown as a badge (On-chain, IPFS, Arweave, External)
+- List view shows truncated description (1 line)
+- Grid view shows truncated description (2 lines)
+
+**TypeScript Types (already in `fe/src/services/api.ts`):**
+```typescript
+// CIP-20 metadata parsed from transaction
+export interface Cip20Metadata {
+  description?: string;
+  suggestedPrice?: number;
+  storageLayer?: string;
+}
+
+export interface EncryptionDisplay {
+  tokenName: string;
+  seller: string;
+  sellerPkh: string;
+  status: 'active' | 'pending' | 'completed';
+  // CIP-20 metadata fields
+  description?: string;
+  suggestedPrice?: number;
+  storageLayer?: string;
+  // ... other fields
+}
+```
+
+**Note:** CIP-20 metadata is immutable once the transaction is on-chain. If seller wants to change description, they must remove listing and create a new one.
 
 ---
 

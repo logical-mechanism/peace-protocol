@@ -17,7 +17,10 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     seller: 'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp',
     sellerPkh: '945d86e1c34b11c345e32d90a8c27c4a2e34f5678901234567890123',
     status: 'active',
+    // CIP-20 metadata
+    description: 'Premium API keys for major crypto exchanges. Includes rate limit bypasses.',
     suggestedPrice: 100,
+    storageLayer: 'on-chain',
     createdAt: '2025-01-15T10:00:00Z',
     utxo: {
       txHash: 'aabbccdd11223344556677889900aabbccdd11223344556677889900aabbccdd',
@@ -49,7 +52,10 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     seller: 'addr_test1qpq6z3s7a9qlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yqdxyrt',
     sellerPkh: '006a1214ff4a07de150060b802930df8501720b829bf8501720b8f50',
     status: 'active',
+    // CIP-20 metadata
+    description: 'Exclusive trading signals from verified whale wallets. Updated daily.',
     suggestedPrice: 250,
+    storageLayer: 'ipfs://QmX7bVbZTv5cR5GzL8wEt3Z9n4YP2J3s8KmC9q4xF1Y2dH',
     createdAt: '2025-01-16T14:30:00Z',
     utxo: {
       txHash: 'bbccddee22334455667788990011aabbccddee22334455667788990011aabbcc',
@@ -81,7 +87,10 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     seller: 'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp',
     sellerPkh: '945d86e1c34b11c345e32d90a8c27c4a2e34f5678901234567890123',
     status: 'pending',
+    // CIP-20 metadata
+    description: 'Zero-day vulnerability report for popular DeFi protocol. Responsible disclosure.',
     suggestedPrice: 500,
+    storageLayer: 'arweave://Tx8vK2pQ3nL5mR7xY9wZ1aB4cD6eF8gH0iJ2kL4mN6oP',
     createdAt: '2025-01-17T09:15:00Z',
     utxo: {
       txHash: 'ccddeeff33445566778899001122aabbccddeeff33445566778899001122aabb',
@@ -122,7 +131,10 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     seller: 'addr_test1qrxhyr2flena4ams5pcx26n0yj4ttpmjq2tmuesu4waw8n0qkvxuy9e4kdpz0s7r67jr8pjl9q6ezm2jgg247y9q3zpqxga37s',
     sellerPkh: 'cd720d49f33ed6f7b8283069a9bcc9556b0ee40297be6619571d71e7',
     status: 'active',
+    // CIP-20 metadata
+    description: 'Historical MEV data and patterns from past 30 days. CSV format.',
     suggestedPrice: 75,
+    storageLayer: 'on-chain',
     createdAt: '2025-01-18T16:45:00Z',
     utxo: {
       txHash: 'ddeeff0044556677889900112233aabbccddeeff0044556677889900112233aa',
@@ -154,7 +166,10 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     seller: 'addr_test1qpq6z3s7a9qlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yqdxyrt',
     sellerPkh: '006a1214ff4a07de150060b802930df8501720b829bf8501720b8f50',
     status: 'active',
+    // CIP-20 metadata
+    description: 'Complete smart contract audit report with fixes. Private audit by top firm.',
     suggestedPrice: 1000,
+    storageLayer: 'ipfs://QmY9cDdZTv5cR5GzL8wEt3Z9n4YP2J3s8KmC9q4xF1Y2eK',
     createdAt: '2025-01-19T11:20:00Z',
     utxo: {
       txHash: 'eeff001155667788990011223344aabbccddeeff001155667788990011223344',

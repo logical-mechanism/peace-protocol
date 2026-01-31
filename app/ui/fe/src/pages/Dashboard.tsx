@@ -1,7 +1,25 @@
 import { useWallet, useAddress, useLovelace } from '@meshsdk/react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useWalletPersistence } from '../hooks/useWalletPersistence'
 import { copyToClipboard } from '../utils/clipboard'
+import MarketplaceTab from '../components/MarketplaceTab'
+import EmptyState, { InboxIcon } from '../components/EmptyState'
+import ScrollToTop from '../components/ScrollToTop'
+import { encryptionsApi, bidsApi } from '../services/api'
+import type { EncryptionDisplay } from '../services/api'
+
+type TabId = 'marketplace' | 'my-sales' | 'my-purchases';
+
+interface Tab {
+  id: TabId;
+  label: string;
+}
+
+const TABS: Tab[] = [
+  { id: 'marketplace', label: 'Marketplace' },
+  { id: 'my-sales', label: 'My Sales' },
+  { id: 'my-purchases', label: 'My Purchases' },
+];
 
 export default function Dashboard() {
   const { disconnect } = useWallet()
@@ -9,6 +27,9 @@ export default function Dashboard() {
   const lovelace = useLovelace()
   const { clearWalletSession } = useWalletPersistence()
   const [copied, setCopied] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabId>('marketplace')
+  const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
+  const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
 
   const truncateAddress = (addr: string) => {
     if (!addr) return ''
@@ -34,6 +55,72 @@ export default function Dashboard() {
     clearWalletSession()
     disconnect()
   }, [clearWalletSession, disconnect])
+
+  const handlePlaceBid = useCallback((encryption: EncryptionDisplay) => {
+    // TODO: Phase 10 - Implement bid placement modal
+    console.log('Place bid on:', encryption.tokenName)
+    alert(`Bid placement coming in Phase 10!\n\nEncryption: ${encryption.tokenName.slice(0, 16)}...`)
+  }, [])
+
+  // Fetch user stats
+  useEffect(() => {
+    if (!address) return
+
+    // For now, we'll just show stub data counts filtered by the connected address
+    // In production, this would use a proper PKH-based query
+    const fetchStats = async () => {
+      try {
+        const encryptions = await encryptionsApi.getAll()
+        const bids = await bidsApi.getAll()
+
+        // Count listings that match the connected address
+        const userListings = encryptions.filter(
+          e => e.seller.toLowerCase() === address.toLowerCase() && e.status === 'active'
+        )
+        setMyListingsCount(userListings.length)
+
+        // Count pending bids (in real usage, would filter by user PKH)
+        const userBids = bids.filter(b => b.status === 'pending')
+        setMyBidsCount(userBids.length)
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+        setMyListingsCount(0)
+        setMyBidsCount(0)
+      }
+    }
+
+    fetchStats()
+  }, [address])
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'marketplace':
+        return (
+          <MarketplaceTab
+            userAddress={address}
+            onPlaceBid={handlePlaceBid}
+          />
+        )
+      case 'my-sales':
+        return (
+          <EmptyState
+            icon={<InboxIcon />}
+            title="My Sales - Coming Soon"
+            description="View and manage your encryption listings here. This feature will be available in Phase 7."
+          />
+        )
+      case 'my-purchases':
+        return (
+          <EmptyState
+            icon={<InboxIcon />}
+            title="My Purchases - Coming Soon"
+            description="View your bids and purchased encryptions here. This feature will be available in Phase 8."
+          />
+        )
+      default:
+        return null
+    }
+  }
 
   return (
     <div className="min-h-screen">
@@ -95,40 +182,61 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
-          <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+          <button
+            onClick={() => setActiveTab('my-sales')}
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+              activeTab === 'my-sales'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+            }`}
+          >
             <h2 className="text-lg font-medium mb-2">My Listings</h2>
-            <p className="text-2xl font-semibold text-[var(--accent)]">0 active</p>
-          </div>
-          <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+            <p className="text-2xl font-semibold text-[var(--accent)]">
+              {myListingsCount === null ? '...' : `${myListingsCount} active`}
+            </p>
+          </button>
+          <button
+            onClick={() => setActiveTab('my-purchases')}
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+              activeTab === 'my-purchases'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+            }`}
+          >
             <h2 className="text-lg font-medium mb-2">My Bids</h2>
-            <p className="text-2xl font-semibold text-[var(--accent)]">0 pending</p>
-          </div>
+            <p className="text-2xl font-semibold text-[var(--accent)]">
+              {myBidsCount === null ? '...' : `${myBidsCount} pending`}
+            </p>
+          </button>
         </div>
 
-        {/* Tabs placeholder */}
+        {/* Tabs */}
         <div className="border-b border-[var(--border-subtle)] mb-6">
           <div className="flex gap-6">
-            <button className="pb-3 text-[var(--text-primary)] border-b-2 border-[var(--accent)] cursor-pointer">
-              Marketplace
-            </button>
-            <button className="pb-3 text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
-              My Sales
-            </button>
-            <button className="pb-3 text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
-              My Purchases
-            </button>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`pb-3 transition-all duration-150 cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Empty state */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-12 text-center">
-          <p className="text-[var(--text-muted)]">No listings available</p>
-          <p className="text-sm text-[var(--text-muted)] mt-2">
-            Listings will appear here once the contracts are deployed to preprod.
-          </p>
-        </div>
+        {/* Tab Content */}
+        {renderTabContent()}
       </main>
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </div>
   )
 }

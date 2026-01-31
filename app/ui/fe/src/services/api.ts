@@ -58,12 +58,22 @@ export interface EncryptionDatum {
   status: EncryptionStatus;
 }
 
+// CIP-20 metadata parsed from transaction (key 674)
+export interface Cip20Metadata {
+  description?: string;
+  suggestedPrice?: number;
+  storageLayer?: string;
+}
+
 export interface EncryptionDisplay {
   tokenName: string;
   seller: string;
   sellerPkh: string;
   status: 'active' | 'pending' | 'completed';
+  // CIP-20 metadata fields (from tx metadata key 674)
+  description?: string;
   suggestedPrice?: number;
+  storageLayer?: string;
   createdAt: string;
   utxo: {
     txHash: string;

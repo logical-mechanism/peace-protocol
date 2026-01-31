@@ -66,13 +66,22 @@ export interface BidDatum {
   token: string;                  // bid token name
 }
 
+// CIP-20 metadata structure (from tx metadata key 674)
+// See: https://cips.cardano.org/cip/CIP-20
+export interface Cip20Metadata {
+  msg: string[];  // [description, suggestedPrice, storageLayer]
+}
+
 // API display types (enriched for UI)
 export interface EncryptionDisplay {
   tokenName: string;
   seller: string;                 // bech32 address
   sellerPkh: string;              // payment key hash
   status: 'active' | 'pending' | 'completed';
-  suggestedPrice?: number;        // ADA (off-chain, UI only)
+  // CIP-20 metadata fields (parsed from tx metadata key 674)
+  description?: string;           // Human-readable description of the encrypted data
+  suggestedPrice?: number;        // ADA, parsed from metadata
+  storageLayer?: string;          // Storage layer info (e.g., "ipfs://...", "arweave://...")
   createdAt: string;              // ISO date
   utxo: {
     txHash: string;
