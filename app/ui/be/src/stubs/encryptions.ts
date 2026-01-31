@@ -196,4 +196,43 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
       status: { type: 'Open' },
     },
   },
+  // Edge case test: long description, missing price, unknown storage layer
+  {
+    tokenName: '05edge999test12345678901234567890123456789012345678901234567890',
+    seller: 'addr_test1qrxhyr2flena4ams5pcx26n0yj4ttpmjq2tmuesu4waw8n0qkvxuy9e4kdpz0s7r67jr8pjl9q6ezm2jgg247y9q3zpqxga37s',
+    sellerPkh: 'cd720d49f33ed6f7b8283069a9bcc9556b0ee40297be6619571d71e7',
+    status: 'active',
+    // CIP-20 metadata - EDGE CASES:
+    // 1. Very long description (over 200 characters)
+    description: 'This is an extremely long description that is designed to test the truncation feature of the encryption cards. It contains more than two hundred characters to ensure that the description modal is triggered when users click on it. This description also includes some technical details about the encrypted data: it contains sensitive financial records, proprietary algorithms, and confidential business intelligence that has been securely encrypted using state-of-the-art cryptographic methods. The buyer will receive full access to all this valuable information upon successful bid acceptance and decryption.',
+    // 2. Missing/undefined price (will fall back to 1 ADA)
+    suggestedPrice: undefined,
+    // 3. Unknown storage layer (not on-chain, ipfs://, or arweave://)
+    storageLayer: 'custom-server://data.example.com/encrypted/12345',
+    createdAt: '2025-01-20T08:00:00Z',
+    utxo: {
+      txHash: 'ff00112266778899aabbccddeeff00112266778899aabbccddeeff0011223344',
+      outputIndex: 0,
+    },
+    datum: {
+      owner_vkh: 'cd720d49f33ed6f7b8283069a9bcc9556b0ee402',
+      owner_g1: {
+        generator: G1_GENERATOR,
+        public_value: SAMPLE_PUBLIC_3,
+      },
+      token: '05edge999test12345678901234567890123456789012345678901234567890',
+      half_level: {
+        r1b: SAMPLE_PUBLIC_1,
+        r2_g1b: SAMPLE_PUBLIC_2,
+        r4b: SAMPLE_G2,
+      },
+      full_level: null,
+      capsule: {
+        nonce: 'ff00112233445566',
+        aad: 'edgecaseedgecaseedgecaseedgecaseedgecaseedgecaseedgecaseedgecase',
+        ct: 'edge_case_test_encrypted_content_with_all_unusual_metadata_values',
+      },
+      status: { type: 'Open' },
+    },
+  },
 ];

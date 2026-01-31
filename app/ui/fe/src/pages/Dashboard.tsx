@@ -3,10 +3,11 @@ import { useState, useCallback, useEffect } from 'react'
 import { useWalletPersistence } from '../hooks/useWalletPersistence'
 import { copyToClipboard } from '../utils/clipboard'
 import MarketplaceTab from '../components/MarketplaceTab'
+import MySalesTab from '../components/MySalesTab'
 import EmptyState, { InboxIcon } from '../components/EmptyState'
 import ScrollToTop from '../components/ScrollToTop'
 import { encryptionsApi, bidsApi } from '../services/api'
-import type { EncryptionDisplay } from '../services/api'
+import type { EncryptionDisplay, BidDisplay } from '../services/api'
 
 type TabId = 'marketplace' | 'my-sales' | 'my-purchases';
 
@@ -62,6 +63,24 @@ export default function Dashboard() {
     alert(`Bid placement coming in Phase 10!\n\nEncryption: ${encryption.tokenName.slice(0, 16)}...`)
   }, [])
 
+  const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
+    // TODO: Phase 9 - Implement remove listing transaction
+    console.log('Remove listing:', encryption.tokenName)
+    alert(`Remove listing coming in Phase 9!\n\nThis requires a transaction to remove the encryption from the contract.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`)
+  }, [])
+
+  const handleAcceptBid = useCallback((encryption: EncryptionDisplay, bid: BidDisplay) => {
+    // TODO: Phase 12 - Implement SNARK proof + re-encryption flow
+    console.log('Accept bid:', bid.tokenName, 'for:', encryption.tokenName)
+    alert(`Accept bid coming in Phase 12!\n\nThis will trigger SNARK proof generation followed by re-encryption transaction.\n\nBid: ${(bid.amount / 1_000_000).toLocaleString()} ADA\nBidder: ${bid.bidder.slice(0, 16)}...`)
+  }, [])
+
+  const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
+    // TODO: Phase 9 - Implement cancel pending transaction
+    console.log('Cancel pending:', encryption.tokenName)
+    alert(`Cancel pending coming in Phase 9!\n\nThis will cancel the pending sale and return the encryption to active status.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`)
+  }, [])
+
   // Fetch user stats
   useEffect(() => {
     if (!address) return
@@ -103,10 +122,11 @@ export default function Dashboard() {
         )
       case 'my-sales':
         return (
-          <EmptyState
-            icon={<InboxIcon />}
-            title="My Sales - Coming Soon"
-            description="View and manage your encryption listings here. This feature will be available in Phase 7."
+          <MySalesTab
+            userAddress={address}
+            onRemoveListing={handleRemoveListing}
+            onAcceptBid={handleAcceptBid}
+            onCancelPending={handleCancelPending}
           />
         )
       case 'my-purchases':

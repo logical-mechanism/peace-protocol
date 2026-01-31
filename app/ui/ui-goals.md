@@ -869,15 +869,105 @@ async function getEncryptions() {
 
 8. **Placeholder for Phase 10**: The "Place Bid" button currently shows an alert. Implement bid modal in Phase 10.
 
-### Phase 7: Dashboard - My Sales Tab
+### Phase 7: Dashboard - My Sales Tab (COMPLETED)
 
-- [ ] List user's encryptions
-- [ ] Show bids on each encryption
-- [ ] Add remove listing functionality
-- [ ] Add "View Bids" expand/modal
-- [ ] Implement status indicators
+- [x] List user's encryptions
+- [x] Show bids on each encryption
+- [x] Add remove listing functionality
+- [x] Add "View Bids" expand/modal
+- [x] Implement status indicators
 
-**Phase 7 Implementation Hints:**
+**Phase 7 Implementation Notes (for future phases):**
+
+1. **Components Created** (`fe/src/components/`):
+   - `MySalesTab.tsx` - Main tab component with filtering, sorting, and view modes
+   - `SalesListingCard.tsx` - Seller-specific card with actions (View Bids, Remove, Cancel)
+   - `BidsModal.tsx` - Modal for viewing and accepting bids on a listing
+
+2. **MySalesTab Features**:
+   - **Search**: Filter by token name or description
+   - **Status Filter**: All / Active / Pending / Completed (includes completed unlike Marketplace)
+   - **Sort Options**: Newest First, Oldest First, Price High to Low, Price Low to High, Most Bids
+   - **View Modes**: Grid (3-column) and List (compact)
+   - **Refresh Button**: Manual refresh for listings
+   - **Results Count**: Shows number of matching listings with status indicator
+   - **Bid Count Display**: Shows pending bid count on each listing card
+   - **TTL Countdown**: For pending listings, shows time remaining until auto-cancel
+
+3. **SalesListingCard Features**:
+   - Grid and compact (list) view modes
+   - Status badge with TTL countdown for pending status
+   - Bid count display for active listings
+   - Action buttons based on status:
+     - Active: "View Bids" (with count badge), "Remove Listing"
+     - Pending: "Cancel Pending Sale" with TTL warning
+     - Completed: No actions, shows "Sale completed" message
+
+4. **BidsModal Features**:
+   - Shows listing summary (suggested price, total bids)
+   - Separates pending bids from past bids
+   - Sorts bids by amount (highest first)
+   - "Accept Bid" button for pending bids (triggers Phase 12 SNARK flow)
+   - Shows bid token name, bidder address, amount in ADA, and placement date
+   - Keyboard support (Escape to close)
+   - Body scroll lock when open
+
+5. **Dashboard Integration**:
+   - Added `handleRemoveListing`, `handleAcceptBid`, `handleCancelPending` callbacks
+   - All transaction-related actions show placeholder alerts until Phases 9/12
+   - MySalesTab receives callbacks for all seller actions
+
+6. **Stub Data Limitation**: Connected wallet addresses won't match stub data sellers. The "My Sales" tab will show "No listings yet" with a "Create Listing" button for real users. This is expected behavior - users need to create their own listings (Phase 9).
+
+7. **Action Placeholders**:
+   - "Remove Listing" → Phase 9 (requires `04a_removeEncryptionTx.sh` transaction)
+   - "Cancel Pending" → Phase 9 (requires `04b_cancelEncryptionTx.sh` transaction)
+   - "Accept Bid" → Phase 12 (requires SNARK proof + re-encryption flow)
+
+8. **Pattern Reuse**: MySalesTab follows the exact same patterns as MarketplaceTab for consistency - same toolbar layout, same filter/sort controls, same view toggle. This makes the codebase maintainable and provides consistent UX.
+
+9. **DescriptionModal Component** (`fe/src/components/DescriptionModal.tsx`):
+   - Modal for viewing full descriptions when truncated
+   - Exports reusable helper functions:
+     ```typescript
+     export const DESCRIPTION_MAX_LENGTH = 200;
+     export function needsTruncation(description: string | undefined): boolean;
+     export function truncateDescription(description: string | undefined): string;
+     ```
+   - Used by both `EncryptionCard` and `SalesListingCard`
+   - Plus icon indicator for expandable descriptions (replaces text link)
+   - Keyboard support (Escape to close), body scroll lock
+
+10. **Edge Case Handling** (in both `EncryptionCard.tsx` and `SalesListingCard.tsx`):
+    - **Long descriptions**: Truncated at 200 chars with `...`, plus icon shows expandability, clicking opens DescriptionModal
+    - **Invalid prices**: Fallback to 1 ADA when `suggestedPrice` is undefined, null, NaN, or negative
+      ```typescript
+      const DEFAULT_FALLBACK_PRICE = 1;
+      const formatPrice = (price?: number): string => {
+        if (price === undefined || price === null || isNaN(price) || price < 0) {
+          return `${DEFAULT_FALLBACK_PRICE} ADA`;
+        }
+        return `${price.toLocaleString()} ADA`;
+      };
+      ```
+    - **Unknown storage layers**: Shows yellow "No data layer" badge for any value that doesn't match `on-chain`, `ipfs://...`, or `arweave://...`
+      ```typescript
+      const isUnknownStorageLayer = (storageLayer?: string): boolean => {
+        if (!storageLayer) return true;
+        if (storageLayer === 'on-chain') return false;
+        if (storageLayer.startsWith('ipfs://')) return false;
+        if (storageLayer.startsWith('arweave://')) return false;
+        return true;
+      };
+      ```
+
+11. **Edge Case Test Data** (`be/src/stubs/encryptions.ts`):
+    - Added test encryption `05edge999test...` that demonstrates all three edge cases:
+      - 580+ character description (triggers truncation + modal)
+      - `suggestedPrice: undefined` (displays "1 ADA" fallback)
+      - `storageLayer: 'custom-server://...'` (shows yellow "No data layer" badge)
+
+**Phase 7 Implementation Hints (original):**
 
 1. **Component Structure**:
    - Create `MySalesTab.tsx` in `fe/src/components/`
@@ -1021,6 +1111,70 @@ async function getEncryptions() {
    - Pass `userAddress` for filtering
 
 10. **Empty State**: Show encouraging message like "You haven't placed any bids yet. Browse the marketplace to find encryptions to bid on!" with a button to switch to Marketplace tab.
+
+11. **Recommended Implementation Pattern (from Phase 7)**:
+    Follow the same structure as `MySalesTab.tsx`:
+    ```typescript
+    interface MyPurchasesTabProps {
+      userAddress?: string;
+      onCancelBid?: (bid: BidDisplay) => void;
+      onDecrypt?: (bid: BidDisplay, encryption: EncryptionDisplay) => void;
+    }
+    ```
+
+12. **Fetching Related Encryption Data**:
+    When displaying bids, you'll want to show information about the encryption being bid on:
+    ```typescript
+    // Fetch encryption details for display
+    const encryptionDetails = await encryptionsApi.getByToken(bid.encryptionToken);
+    // Show encryption description, suggested price, seller address, etc.
+    ```
+    Consider caching encryption data to avoid repeated fetches.
+
+13. **BidCard Component Structure**:
+    Create a `BidCard.tsx` component similar to `SalesListingCard.tsx`:
+    - Grid and compact (list) view modes
+    - Shows bid amount prominently
+    - Links to the encryption being bid on
+    - Status-specific action buttons and messaging
+    - Reuse `BidStatusBadge` from `Badge.tsx`
+
+14. **Decryption Flow Preview (Phase 13)**:
+    The "Decrypt" button will eventually:
+    - Query encryption history from Koios
+    - Use buyer's private key to decrypt
+    - Display decrypted message in a secure modal
+    For Phase 8, show a disabled button or placeholder modal.
+
+15. **Type Import Pattern**: Use `import type { X }` for type-only imports:
+    ```typescript
+    import { bidsApi, encryptionsApi } from '../services/api';
+    import type { BidDisplay, EncryptionDisplay } from '../services/api';
+    ```
+
+16. **Dashboard Callbacks to Add**:
+    ```typescript
+    const handleCancelBid = useCallback((bid: BidDisplay) => {
+      // TODO: Phase 10 - Implement cancel bid transaction
+      alert(`Cancel bid coming in Phase 10!...`);
+    }, []);
+
+    const handleDecrypt = useCallback((bid: BidDisplay, encryption: EncryptionDisplay) => {
+      // TODO: Phase 13 - Implement decryption flow
+      alert(`Decryption coming in Phase 13!...`);
+    }, []);
+    ```
+
+17. **Sorting Options for Bids**:
+    - Newest First / Oldest First (by createdAt)
+    - Amount: High to Low / Low to High
+    - Status (pending first, then accepted, etc.)
+
+18. **Visual Distinction for Won Bids**:
+    For accepted bids, use success styling to celebrate the win:
+    - Green success badge
+    - Prominent "Decrypt Message" CTA
+    - Show "Won on [date]" instead of "Placed on [date]"
 
 ### Phase 9: Create Listing Flow
 
