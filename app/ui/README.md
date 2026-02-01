@@ -17,3 +17,17 @@ I am building an app defined in @ui/ui-goals.md. The fe and be will live in @ui/
 ```
 We must use stub data here since the real contracts can not be launched on preprod at the moment due to protocol parameter restrictions. If something is found to be impossible until contract launch then it must be noted inside @ui/ui-goals.md.
 ```
+
+Remaining:
+
+Phase 11 (SNARK Integration) - Most complex, fully independent, validates the hardest technical piece
+
+Phase 9 (Create Listing - partial) - Build UI + port all crypto logic
+
+Phase 10 (Place Bid - partial) - Build UI + transaction structure
+
+Phase 13 (Decrypt - partial) - Port decryption logic from Python
+
+Phase 14 (Polish - partial) - Toast system, loading states, unit tests
+
+Phase 15 (Dev Setup) - Docker, docs

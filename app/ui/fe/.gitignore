@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SNARK proving files (too large for git - ~720MB total)
+# These should be downloaded/cached at runtime via IndexedDB
+public/snark/pk.bin
+public/snark/ccs.bin
+public/snark/prover.wasm

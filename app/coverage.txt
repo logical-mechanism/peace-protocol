@@ -69,10 +69,10 @@ snark/kappa.go:551:		Define				82.2%
 snark/kappa.go:646:		ProveAndVerifyVW0W1		73.0%
 snark/kappa.go:775:		SetupVW0W1Circuit		71.4%
 snark/kappa.go:816:		ProveVW0W1FromSetup		71.7%
-snark/main.go:15:		main				0.0%
-snark/main.go:19:		run				53.5%
+snark/main.go:17:		main				0.0%
+snark/main.go:21:		run				53.2%
 snark/test_verify.go:20:	testVerify			0.0%
-total:				(statements)			56.0%
+total:				(statements)			55.9%
 snark/debug_verify.go:20:	debugVerify			0.0%
 snark/export.go:67:		exportProofBLS			76.0%
 snark/export.go:109:		exportVKBLS			75.6%
@@ -108,7 +108,7 @@ snark/kappa.go:551:		Define				82.2%
 snark/kappa.go:646:		ProveAndVerifyVW0W1		73.0%
 snark/kappa.go:775:		SetupVW0W1Circuit		71.4%
 snark/kappa.go:816:		ProveVW0W1FromSetup		71.7%
-snark/main.go:15:		main				0.0%
-snark/main.go:19:		run				53.5%
+snark/main.go:17:		main				0.0%
+snark/main.go:21:		run				53.2%
 snark/test_verify.go:20:	testVerify			0.0%
-total:				(statements)			56.0%
+total:				(statements)			55.9%

@@ -1350,17 +1350,22 @@ const txHash = await wallet.submitTx(signedTx);
 - [ ] Show success/error feedback
 - [ ] Refresh bids
 
-### Phase 11: SNARK Integration
+### Phase 11: SNARK Integration (PARTIALLY COMPLETE - NEEDS VERIFICATION)
 
 **This is the most complex phase. See `snark/browser-support.md` for details.**
 
-- [ ] Set up WASM loading infrastructure
-- [ ] Implement IndexedDB caching for pk.bin/ccs.bin
-- [ ] Create download progress UI
-- [ ] Create Web Worker for SNARK proving
-- [ ] Implement proving interface
-- [ ] Build SNARK transaction
-- [ ] Handle proving errors gracefully
+- [x] Set up WASM loading infrastructure
+- [x] Implement IndexedDB caching for pk.bin/ccs.bin
+- [x] Create download progress UI
+- [x] Create Web Worker for SNARK proving
+- [x] Implement proving interface
+- [x] Create WASM entry point (`snark/wasm_main.go`)
+- [x] Compile and deploy prover.wasm (~19MB)
+- [ ] **VERIFY: Setup loading completes** (timed out at 10+ min in test.html)
+- [ ] **VERIFY: Proof generation works end-to-end**
+- [ ] **VERIFY: Web Worker integration performs acceptably**
+- [ ] Build SNARK transaction (BLOCKED: requires contract deployment)
+- [x] Handle proving errors gracefully
 
 ```typescript
 // Web Worker setup
@@ -1380,7 +1385,183 @@ worker.onmessage = (e) => {
 };
 ```
 
+**Phase 11 Implementation Notes (for future phases):**
+
+1. **Files Created**:
+   - `fe/src/services/snark/storage.ts` - IndexedDB caching for large SNARK files
+   - `fe/src/services/snark/worker.ts` - Web Worker for SNARK proving
+   - `fe/src/services/snark/prover.ts` - High-level prover API
+   - `fe/src/services/snark/index.ts` - Module exports
+   - `fe/src/components/SnarkDownloadModal.tsx` - Download progress modal
+   - `fe/src/components/SnarkProvingModal.tsx` - Proving progress modal
+   - `fe/src/hooks/useSnarkProver.ts` - React hook for prover integration
+   - `fe/public/snark/wasm_exec.js` - Go WASM runtime (copied from Go installation)
+   - `fe/public/snark/prover.wasm` - WASM prover binary (from `app/snark/`)
+
+2. **SNARK Files Location**:
+   - Circuit files are stored in `app/circuit/` (NOT in git due to size):
+     - `pk.bin` (~613 MB) - Proving key
+     - `ccs.bin` (~85 MB) - Constraint system
+     - `vk.bin` (2.7 KB) - Verifying key (not needed in browser)
+     - `vk.json` (5.5 KB) - Verifying key in JSON format
+   - These files are cached in IndexedDB after first download
+
+3. **Stub Mode**:
+   - Set `VITE_USE_STUBS=true` in `.env` for development without real SNARK proving
+   - Stub mode simulates proving with configurable delay (default 3 seconds)
+   - Returns placeholder proof data for UI development
+
+4. **Usage Pattern**:
+   ```typescript
+   import { getSnarkProver } from '@/services/snark'
+
+   const prover = getSnarkProver()
+
+   // Check if files need download
+   const { cached } = await prover.checkCache()
+
+   // Download if needed (shows progress modal)
+   if (!cached) {
+     await prover.ensureFilesDownloaded((progress) => {
+       console.log(`${progress.stage}: ${progress.percent}%`)
+     })
+   }
+
+   // Generate proof
+   const proof = await prover.generateProof({
+     secretA: '0x123...',  // Decimal or hex string
+     secretR: '0x456...',
+     publicV: 'compressed_g1_hex',   // 96 chars
+     publicW0: 'compressed_g1_hex',  // 96 chars
+     publicW1: 'compressed_g1_hex',  // 96 chars
+   })
+   ```
+
+5. **React Hook Usage**:
+   ```typescript
+   import { useSnarkProver } from '@/hooks/useSnarkProver'
+
+   function MyComponent() {
+     const {
+       isReady,
+       isCached,
+       isProving,
+       progress,
+       error,
+       generateProof,
+     } = useSnarkProver()
+
+     // Use in component...
+   }
+   ```
+
+6. **WASM Entry Point (IMPLEMENTED)**:
+   The Go WASM entry point is implemented in `snark/wasm_main.go` with build tag `//go:build js && wasm`.
+
+   **Exposed JavaScript functions:**
+   - `gnarkLoadSetup(ccsBytes, pkBytes)` - Load CCS and PK into memory
+   - `gnarkProve(secretA, secretR, publicV, publicW0, publicW1)` - Generate proof
+   - `gnarkIsReady()` - Check if setup is loaded
+
+   **Building the WASM:**
+   ```bash
+   cd app/snark
+   GOOS=js GOARCH=wasm go build -o prover.wasm .
+   cp prover.wasm ../ui/fe/public/snark/
+   ```
+
+   **Input format for secrets (a, r):**
+   - Accepts both hex (`0x123...`) and decimal (`12345...`) strings
+   - Uses `big.Int.SetString(str, 0)` which auto-detects base
+   - `a` must be non-zero; `r` can be zero
+
+7. **File Serving for Development**:
+   For local development with the large circuit files, you have two options:
+
+   a. **Copy to public directory** (simplest):
+      ```bash
+      cp app/circuit/pk.bin app/ui/fe/public/snark/
+      cp app/circuit/ccs.bin app/ui/fe/public/snark/
+      ```
+
+   b. **Serve from separate location**:
+      Configure `circuitFilesUrl` in prover config to point to a file server serving `app/circuit/`
+
+8. **Memory Requirements**:
+   - SNARK proving requires ~2+ GB memory
+   - Desktop browsers only (mobile not supported)
+   - Chrome recommended for best WASM performance
+
+9. **Download UX**:
+   - First-time download shows modal with ~698 MB total
+   - Progress shows for each file individually
+   - Files cached in IndexedDB for return visits
+   - Download modal only appears when user initiates an action that needs SNARK (accepting a bid)
+
+10. **Error Handling**:
+    - Download failures show retry button
+    - Proving failures show error message with retry option
+    - Tab close warning during proving (beforeunload event)
+    - 5-minute timeout for proving operations
+
+11. **Files Added to .gitignore**:
+    ```
+    # SNARK proving files (too large for git - ~720MB total)
+    public/snark/pk.bin
+    public/snark/ccs.bin
+    public/snark/prover.wasm
+    ```
+
+12. **CRITICAL: Performance Issues Discovered**:
+    Testing revealed severe performance issues with WASM proving that need to be addressed:
+
+    **Native vs WASM performance:**
+    - Native Go binary: ~4 minutes for full prove cycle
+    - WASM in browser: Setup loading alone takes 10+ minutes (may never complete)
+
+    **Root cause:**
+    The `gnarkLoadSetup` function deserializes ~720MB of cryptographic data structures:
+    - Parsing millions of BLS12-381 field elements
+    - Reconstructing polynomial commitments
+    - Building constraint system matrices
+    - WASM is typically 2-5x slower than native for CPU-bound work
+    - Main thread blocking causes browser throttling, making it worse
+
+    **Test page created:**
+    `fe/public/snark/test.html` - Simple main-thread test page for debugging.
+    This page causes browser "unresponsive script" warnings because it runs everything
+    on the main thread. The Web Worker-based React integration should perform better
+    since it doesn't block the main thread.
+
+    **TESTING STATUS: INCOMPLETE**
+    - [x] WASM compiles successfully (~19MB prover.wasm)
+    - [x] Test page loads WASM and displays console messages
+    - [ ] Setup loading completes (timed out at 10+ minutes)
+    - [ ] Proof generation works
+    - [ ] Web Worker integration tested
+
+    **Next steps when revisiting:**
+    1. Test the Web Worker-based React integration instead of test.html
+    2. If still too slow, consider:
+       - Server-side proving (move SNARK proving to backend)
+       - Pre-loading setup during idle time
+       - Showing estimated time (10+ minutes) in UI
+       - Investigating gnark WASM optimizations
+    3. The native CLI proves in ~4 minutes, so there may be WASM-specific issues
+
+13. **Manual Test Page** (`fe/public/snark/test.html`):
+    A simple HTML page for testing the WASM prover directly:
+    ```
+    http://localhost:5173/snark/test.html
+    ```
+
+    **Warning:** This page runs on the main thread and will freeze the browser
+    during the ~720MB file loading + parsing phase. Expect browser "unresponsive"
+    warnings. Click "Wait" and be patient (or test the React integration instead).
+
 ### Phase 12: Accept Bid Flow (SNARK + Re-encryption)
+
+**BLOCKED until contracts are deployed to preprod.** The UI components from Phase 11 can be integrated, but actual transaction submission requires live contracts.
 
 - [ ] Trigger SNARK proving modal
 - [ ] Generate proof in Web Worker
@@ -1388,6 +1569,153 @@ worker.onmessage = (e) => {
 - [ ] Wait for confirmation
 - [ ] Build and submit re-encryption tx
 - [ ] Update UI state
+
+**Phase 12 Implementation Hints (for AI/developers):**
+
+1. **Complete Accept Bid Flow**:
+   ```
+   User clicks "Accept Bid"
+   → Check if SNARK files are cached (if not, show SnarkDownloadModal)
+   → Retrieve seller secrets (a, r) from IndexedDB
+   → Get bid details (buyer's public key, amount)
+   → Show SnarkProvingModal and generate proof
+   → Build SNARK transaction (07a_createSnarkTx.sh pattern)
+   → Submit SNARK tx and wait for confirmation
+   → Build re-encryption transaction (07b_createReEncryptionTx.sh pattern)
+   → Submit re-encryption tx
+   → Show success modal with tx hashes
+   ```
+
+2. **Integrating SNARK Prover**:
+   ```typescript
+   import SnarkProvingModal from '../components/SnarkProvingModal'
+   import type { SnarkProofInputs, SnarkProof } from '../services/snark'
+
+   // In Dashboard.tsx, update handleAcceptBid:
+   const [showSnarkModal, setShowSnarkModal] = useState(false)
+   const [snarkInputs, setSnarkInputs] = useState<SnarkProofInputs | null>(null)
+
+   const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
+     // 1. Get seller secrets from IndexedDB
+     const secrets = await secretStorage.get(encryption.tokenName)
+     if (!secrets) {
+       showError('Seller secrets not found. Cannot complete sale.')
+       return
+     }
+
+     // 2. Get buyer's public key from bid datum
+     const buyerG1 = bid.ownerG1.public_value // Compressed G1 hex
+
+     // 3. Prepare SNARK inputs
+     setSnarkInputs({
+       secretA: secrets.a,  // Decimal string
+       secretR: secrets.r,  // Decimal string
+       publicV: buyerG1,    // 96 hex chars
+       publicW0: encryption.halfLevel.r2_g1b,  // From encryption datum
+       publicW1: computeW1(secrets.a, secrets.r, buyerG1), // [a]q + [r]v
+     })
+
+     setShowSnarkModal(true)
+   }, [])
+
+   const handleProofGenerated = useCallback(async (proof: SnarkProof) => {
+     // Continue with SNARK transaction building...
+   }, [])
+   ```
+
+3. **SNARK Transaction Structure** (from 07a_createSnarkTx.sh):
+   - Uses stake withdrawal for on-chain Groth16 verification
+   - Requires validity interval (lower/upper bounds)
+   - Updates encryption datum status to Pending with TTL
+   - MeshJS may require low-level tx building for withdrawal pattern
+
+   ```typescript
+   // Key elements for SNARK tx:
+   const snarkTx = {
+     // Spend the encryption UTxO
+     inputs: [encryptionUtxo],
+
+     // Reference the groth script
+     referenceInputs: [grothScriptRef],
+
+     // Stake withdrawal for on-chain verification
+     withdrawal: {
+       address: grothStakeAddress,
+       amount: rewardBalance, // Must match exactly
+       redeemer: proof, // The generated SNARK proof
+     },
+
+     // Output back to encryption contract with Pending status
+     outputs: [{
+       address: encryptionContractAddress,
+       assets: [{ policyId, tokenName }],
+       datum: {
+         ...existingDatum,
+         status: {
+           type: 'Pending',
+           groth_public: proof.publicInputs, // 36 field elements
+           ttl: Date.now() + 20 * 60 * 1000, // 20 minute TTL
+         },
+       },
+     }],
+
+     // Validity interval
+     validityInterval: {
+       invalidBefore: currentSlot,
+       invalidAfter: currentSlot + 300, // ~5 minutes
+     },
+   }
+   ```
+
+4. **Re-encryption Transaction** (from 07b_createReEncryptionTx.sh):
+   - Burns the bid token
+   - Updates encryption datum with FullEncryptionLevel
+   - Transfers locked ADA to seller
+
+5. **Seller Secret Storage**:
+   Create `fe/src/services/secretStorage.ts` for storing seller secrets:
+   ```typescript
+   // Store secrets when creating encryption (Phase 9)
+   await secretStorage.store(tokenName, { a, r })
+
+   // Retrieve secrets when accepting bid (Phase 12)
+   const secrets = await secretStorage.get(tokenName)
+
+   // Clear after sale completion
+   await secretStorage.remove(tokenName)
+   ```
+
+6. **Computing W1 Value**:
+   W1 = [a]q + [r]V where V is buyer's public key
+   ```typescript
+   import { bls12_381 as bls } from '@noble/curves/bls12-381'
+
+   function computeW1(a: string, r: string, V: string): string {
+     const aBigInt = BigInt(a)
+     const rBigInt = BigInt(r)
+     const vPoint = bls.G1.ProjectivePoint.fromHex(V)
+
+     const aQ = bls.G1.ProjectivePoint.BASE.multiply(aBigInt)
+     const rV = vPoint.multiply(rBigInt)
+     const w1 = aQ.add(rV)
+
+     return w1.toHex(true) // Compressed
+   }
+   ```
+
+7. **TTL Countdown**:
+   After SNARK tx succeeds, show countdown timer:
+   ```typescript
+   const ttl = encryptionDatum.status.ttl
+   const remaining = ttl - Date.now()
+   const minutes = Math.floor(remaining / 60000)
+   // Show: "Complete re-encryption within X minutes"
+   ```
+
+8. **Error Recovery**:
+   - If SNARK tx fails: Allow retry
+   - If re-encryption tx fails: Show "retry" or "cancel" options
+   - If TTL expires: Must cancel and start over
 
 ### Phase 13: Decrypt Flow
 
