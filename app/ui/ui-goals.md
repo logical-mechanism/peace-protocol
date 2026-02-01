@@ -60,7 +60,7 @@ Since contracts aren't yet on preprod, phases are categorized by blockchain depe
 | **Phase 1** | Full project setup |
 | **Phase 2** | Wallet connection (works without contracts) |
 | **Phase 3** | Full landing page |
-| **Phase 11** | SNARK WASM proving (independent of chain) |
+| **Phase 11** | SNARK infrastructure (WASM setup works, but proof generation blocked by 4GB limit - use native CLI instead) |
 
 ### Can Build With Stub Data
 
@@ -80,7 +80,7 @@ Since contracts aren't yet on preprod, phases are categorized by blockchain depe
 |-------|----------------|
 | **Phase 9** | Actual tx submission & confirmation |
 | **Phase 10** | Actual tx submission & confirmation |
-| **Phase 12** | Full SNARK tx + re-encryption flow |
+| **Phase 12** | Full SNARK tx + re-encryption flow (also requires native CLI integration - browser proving not feasible) |
 | **Phase 14** | Manual E2E transaction testing |
 
 ### Stub Data Strategy
@@ -141,7 +141,7 @@ VITE_USE_STUBS=false
 ### What Can Be Fully Tested Now
 
 1. **Wallet connect/disconnect** - Works with any Cardano wallet
-2. **SNARK proving** - Completely independent of chain
+2. **SNARK proving** - Native CLI only (~4 min); browser WASM blocked by 4GB memory limit
 3. **Crypto logic** - Encryption, schnorr proofs, key derivation
 4. **All UI components** - With stub data
 5. **Form validation** - All input validation
@@ -1350,9 +1350,11 @@ const txHash = await wallet.submitTx(signedTx);
 - [ ] Show success/error feedback
 - [ ] Refresh bids
 
-### Phase 11: SNARK Integration (BLOCKED - 4GB WASM Memory Limit)
+### Phase 11: SNARK Integration (BLOCKED - Go Lacks Memory64 Support)
 
 **This is the most complex phase. See `snark/browser-support.md` for details.**
+
+**⚠️ PERMANENTLY BLOCKED FOR BROWSER-BASED PROVING**: After extensive research (January 2026), Go does not support WebAssembly memory64. The `GOWASM` environment variable only accepts `satconv` and `signext` - there is no `memory64` option. This means browser-based SNARK proving is not feasible for this circuit size. See item 18 below for full details and recommended alternatives.
 
 - [x] Set up WASM loading infrastructure
 - [x] Implement IndexedDB caching for pk.bin/ccs.bin
@@ -1363,8 +1365,8 @@ const txHash = await wallet.submitTx(signedTx);
 - [x] Compile and deploy prover.wasm (~19MB)
 - [x] **VERIFIED: Setup loading completes** (~2.3 hours in Web Worker)
 - [x] **VERIFIED: Constraint solver works** (21 seconds after setup)
-- [ ] **BLOCKED: Proof generation hits 4GB WASM memory limit** (see item 18 below)
-- [ ] **TODO: Implement Memory64 (wasm64) support** for >4GB memory
+- [x] **BLOCKED: Proof generation hits 4GB WASM memory limit** (see item 18 below)
+- [x] **CONFIRMED: Go does not support memory64** - no solution available
 - [ ] Build SNARK transaction (BLOCKED: requires contract deployment)
 - [x] Handle proving errors gracefully
 
@@ -1658,7 +1660,7 @@ worker.onmessage = (e) => {
     The SnarkProver class in `fe/src/services/snark/prover.ts` uses this worker.
     To test in the full app, set `VITE_USE_STUBS=false` and trigger a "Accept Bid" flow.
 
-18. **CRITICAL: 4GB WASM Memory Limit - BLOCKING ISSUE**
+18. **CRITICAL: 4GB WASM Memory Limit - PERMANENTLY BLOCKED**
 
     **Problem Discovered:**
     After successful setup loading (~2.3 hours in Web Worker), proof generation fails with:
@@ -1681,50 +1683,61 @@ worker.onmessage = (e) => {
     - The gnark Groth16 prover for 1.6M constraints requires >4GB for the proving phase
     - Native Go CLI works fine because it can use all system RAM
 
-    **Potential Solution: Memory64 (wasm64)**
+    **Memory64 Investigation (January 2026) - NO SOLUTION AVAILABLE**
 
-    WebAssembly Memory64 extends the address space to 64-bit, allowing up to 16GB in browsers:
+    WebAssembly Memory64 would theoretically solve this by extending to 64-bit addressing:
 
     | WASM Type | Max Memory | Browser Support |
     |-----------|------------|-----------------|
     | wasm32 (current) | 4GB | All browsers |
     | wasm64 (Memory64) | 16GB | Chrome, Firefox (not Safari) |
 
+    **However, Go does NOT support memory64:**
+
+    | Compiler | Memory64 Support | gnark Compatible | Notes |
+    |----------|------------------|------------------|-------|
+    | Go (1.25.6) | **NO** | Yes | GOWASM only supports `satconv`, `signext` |
+    | TinyGo | **NO** | Partial | Missing reflect features gnark needs |
+    | Emscripten | Yes | N/A | C/C++ only, not Go |
+    | Rust/LLVM | Yes | N/A | Would need arkworks reimplementation |
+
+    **Research Findings:**
+    - `go help environment | grep GOWASM` shows only `satconv` and `signext` as valid values
+    - There is no `memory64` option in Go's WASM compilation
+    - Go issue [#63131](https://github.com/golang/go/issues/63131) discusses wasm32/wasm64 but focuses on server-side wasip1, not browser js/wasm
+    - No timeline exists for Go to add memory64 support for js/wasm target
+    - [Vocdoni's research](https://hackmd.io/@vocdoni/B1VPA99Z3) shows gnark browser proving works for ~48K constraints, but our circuit has 1.6M constraints (33x larger)
+
     **References:**
     - V8 Blog: https://v8.dev/blog/4gb-wasm-memory
-    - Memory64 status: https://spidermonkey.dev/blog/2025/01/15/is-memory64-actually-worth-using.html
-    - WebAssembly spec issue: https://github.com/WebAssembly/spec/issues/1892
+    - Go WASM issue: https://github.com/golang/go/issues/63131
+    - Vocdoni gnark WASM research: https://hackmd.io/@vocdoni/B1VPA99Z3
 
-    **Implementation Attempt:**
-    Go has experimental `GOWASM=memory64` support, but initial attempt failed:
-    ```bash
-    GOOS=js GOARCH=wasm GOWASM=memory64 go build -o prover_wasm64.wasm .
-    # Exit code 2 (no error output)
-    ```
+    **Recommended Path Forward:**
 
-    **Next Steps for Future Implementation:**
+    Since browser-based SNARK proving is not feasible, use one of these alternatives:
 
-    1. **Investigate Go Memory64 Support:**
-       - Check Go version compatibility (tested with Go 1.25.6)
-       - Research if gnark-crypto library supports wasm64
-       - May need to wait for gnark to add explicit wasm64 support
-       - Consider filing issue with gnark maintainers
+    1. **Native CLI Prover (RECOMMENDED)**
+       - Already works: `app/snark/snark_cli` proves in ~4 minutes
+       - Users download and run locally
+       - Web UI can provide instructions and verify proof output
+       - Maintains trustlessness (secrets never leave user's machine)
 
-    2. **Alternative: Modified wasm_exec.js:**
-       - The Go WASM runtime (`wasm_exec.js`) may need modifications for Memory64
-       - Check if there's a memory64-compatible version
+    2. **Desktop App (Electron/Tauri)**
+       - Bundle native Go binary with web UI
+       - Same UX as browser, but runs natively
+       - More engineering effort but seamless experience
 
-    3. **Performance Note:**
-       Memory64 has a ~10-100% performance penalty vs wasm32 due to required bounds checks.
-       However, this is acceptable if it means the proof can actually complete.
+    3. **Wait for Go Memory64 Support**
+       - No timeline exists
+       - Check periodically for updates to Go issue #63131
 
-    4. **Fallback Options if Memory64 Doesn't Work:**
-       - **Hybrid approach**: Web UI invokes local CLI binary for proving
-       - **Desktop app**: Electron/Tauri app with native Go binary
-       - **Circuit optimization**: Reduce constraint count (significant undertaking)
+    4. **Circuit Optimization**
+       - Reduce constraint count below ~500K (major undertaking)
+       - Would require cryptographic redesign
 
     **Test Values for Verification:**
-    When testing, use these known-good values from `tests/test_snark.py`:
+    When testing the native CLI, use these known-good values from `tests/test_snark.py`:
     ```
     a = 44203
     r = 12345
@@ -1737,12 +1750,23 @@ worker.onmessage = (e) => {
     **Current Status:**
     - [x] Setup loading works (2+ hours but completes)
     - [x] Constraint solver works
-    - [ ] **BLOCKED**: Proof generation fails at 4GB memory limit
-    - [ ] Need Memory64 support in Go WASM + gnark
+    - [x] **CONFIRMED BLOCKED**: Proof generation fails at 4GB memory limit
+    - [x] **CONFIRMED**: Go does not support memory64 (no GOWASM option exists)
+    - [x] **DECISION**: Use native CLI prover as primary solution
 
 ### Phase 12: Accept Bid Flow (SNARK + Re-encryption)
 
-**BLOCKED until contracts are deployed to preprod.** The UI components from Phase 11 can be integrated, but actual transaction submission requires live contracts.
+**BLOCKED until contracts are deployed to preprod.** Additionally, browser-based SNARK proving is not feasible due to Go's lack of memory64 support (see Phase 11 item 18). The Accept Bid flow will need to integrate with the native CLI prover instead.
+
+**Revised Approach (Native CLI Integration):**
+Instead of in-browser WASM proving, the flow should:
+1. Web UI provides download link for native `snark_cli` binary (platform-specific)
+2. User runs CLI locally with their secrets (a, r) and public inputs (v, w0, w1)
+3. CLI outputs proof JSON file
+4. User uploads proof JSON back to web UI
+5. Web UI builds and submits SNARK transaction with the uploaded proof
+
+This maintains trustlessness (secrets never transmitted) while working around the browser memory limit.
 
 - [ ] Trigger SNARK proving modal
 - [ ] Generate proof in Web Worker
