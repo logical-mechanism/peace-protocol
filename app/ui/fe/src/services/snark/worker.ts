@@ -2,7 +2,7 @@
  * SNARK Prover Web Worker
  *
  * This worker runs the Go WASM-based Groth16 prover in a separate thread
- * to keep the UI responsive during the 10-30 second proving time.
+ * to keep the UI responsive during the long setup loading and proving.
  *
  * Communication protocol:
  * - Main thread sends: { type: 'init' | 'prove', ... }
@@ -19,16 +19,17 @@ declare class Go {
   run(instance: WebAssembly.Instance): Promise<void>
 }
 
-// Declare the global gnarkProve function exposed by the WASM module
+// Declare the global functions exposed by the WASM module
+// These are set by wasm_main.go via js.Global().Set(...)
+declare function gnarkLoadSetup(ccsBytes: Uint8Array, pkBytes: Uint8Array): { success?: boolean; error?: string }
 declare function gnarkProve(
   secretA: string,
   secretR: string,
   publicV: string,
   publicW0: string,
-  publicW1: string,
-  pkData: ArrayBuffer,
-  ccsData: ArrayBuffer
-): string
+  publicW1: string
+): string | { error: string }
+declare function gnarkIsReady(): boolean
 
 export interface InitMessage {
   type: 'init'
@@ -80,14 +81,13 @@ export type WorkerResponse = ReadyResponse | ProgressResponse | ProofResponse | 
 
 let go: Go | null = null
 let wasmInstance: WebAssembly.Instance | null = null
-let pkData: ArrayBuffer | null = null
-let ccsData: ArrayBuffer | null = null
 let isInitialized = false
 
 /**
  * Send progress update to main thread
  */
 function sendProgress(stage: ProgressResponse['stage'], message: string, percent?: number) {
+  console.log(`[Worker] Progress: ${stage} - ${message} (${percent ?? '?'}%)`)
   self.postMessage({ type: 'progress', stage, message, percent } as ProgressResponse)
 }
 
@@ -95,6 +95,7 @@ function sendProgress(stage: ProgressResponse['stage'], message: string, percent
  * Send error to main thread
  */
 function sendError(message: string, stage?: string) {
+  console.error(`[Worker] Error in ${stage ?? 'unknown'}: ${message}`)
   self.postMessage({ type: 'error', message, stage } as ErrorResponse)
 }
 
@@ -103,40 +104,82 @@ function sendError(message: string, stage?: string) {
  */
 async function initialize(msg: InitMessage) {
   try {
-    sendProgress('loading-wasm', 'Loading Go WASM runtime...')
+    console.log('[Worker] Starting initialization...')
+    sendProgress('loading-wasm', 'Loading Go WASM runtime...', 0)
 
     // Import wasm_exec.js which defines the Go class
     // Note: In a worker, we need to use importScripts
     const wasmExecUrl = new URL('/snark/wasm_exec.js', self.location.origin).href
+    console.log(`[Worker] Loading wasm_exec.js from: ${wasmExecUrl}`)
     importScripts(wasmExecUrl)
 
     go = new Go()
+    console.log('[Worker] Go runtime object created')
 
-    sendProgress('loading-wasm', 'Loading SNARK prover WASM...', 20)
+    sendProgress('loading-wasm', 'Fetching SNARK prover WASM...', 10)
 
     // Fetch and instantiate the WASM module
+    console.log(`[Worker] Fetching WASM from: ${msg.wasmUrl}`)
     const wasmResponse = await fetch(msg.wasmUrl)
+    if (!wasmResponse.ok) {
+      throw new Error(`Failed to fetch WASM: HTTP ${wasmResponse.status}`)
+    }
     const wasmBytes = await wasmResponse.arrayBuffer()
+    console.log(`[Worker] WASM fetched: ${(wasmBytes.byteLength / 1024 / 1024).toFixed(2)} MB`)
 
-    sendProgress('loading-wasm', 'Instantiating WASM module...', 40)
+    sendProgress('loading-wasm', 'Instantiating WASM module...', 20)
 
     const result = await WebAssembly.instantiate(wasmBytes, go!.importObject)
     wasmInstance = result.instance
+    console.log('[Worker] WASM instantiated')
+
+    sendProgress('loading-wasm', 'Starting Go runtime...', 25)
 
     // Start the Go runtime (runs in background)
+    // This returns a promise that resolves when the Go program exits
     go!.run(wasmInstance).catch((err) => {
-      console.error('Go runtime exited:', err)
+      console.error('[Worker] Go runtime exited with error:', err)
     })
 
-    sendProgress('loading-keys', 'Loading proving keys...', 60)
+    // Wait a moment for Go runtime to initialize and register functions
+    await new Promise(resolve => setTimeout(resolve, 100))
+    console.log('[Worker] Go runtime started')
 
-    // Store the proving keys
-    pkData = msg.pkData
-    ccsData = msg.ccsData
+    // Verify gnarkLoadSetup is available
+    if (typeof gnarkLoadSetup !== 'function') {
+      throw new Error('gnarkLoadSetup function not found - WASM may not have initialized correctly')
+    }
+    console.log('[Worker] gnarkLoadSetup function is available')
 
-    sendProgress('loading-keys', 'Proving keys loaded', 100)
+    sendProgress('loading-keys', 'Loading proving keys into WASM (this takes 10-30+ minutes)...', 30)
+    console.log('[Worker] Calling gnarkLoadSetup with CCS and PK data...')
+    console.log(`[Worker] CCS size: ${(msg.ccsData.byteLength / 1024 / 1024).toFixed(2)} MB`)
+    console.log(`[Worker] PK size: ${(msg.pkData.byteLength / 1024 / 1024).toFixed(2)} MB`)
+
+    // Convert ArrayBuffer to Uint8Array for the WASM function
+    const ccsBytes = new Uint8Array(msg.ccsData)
+    const pkBytes = new Uint8Array(msg.pkData)
+
+    // This is the long-running operation
+    // In a Web Worker, it won't freeze the UI
+    const loadStart = Date.now()
+    const loadResult = gnarkLoadSetup(ccsBytes, pkBytes)
+    const loadElapsed = ((Date.now() - loadStart) / 1000).toFixed(1)
+
+    if (loadResult.error) {
+      throw new Error(`gnarkLoadSetup failed: ${loadResult.error}`)
+    }
+
+    console.log(`[Worker] gnarkLoadSetup completed in ${loadElapsed}s`)
+    sendProgress('loading-keys', 'Proving keys loaded successfully', 100)
+
+    // Verify prover is ready
+    if (typeof gnarkIsReady === 'function' && !gnarkIsReady()) {
+      throw new Error('gnarkLoadSetup returned success but gnarkIsReady() is false')
+    }
 
     isInitialized = true
+    console.log('[Worker] Initialization complete! Ready to generate proofs.')
     self.postMessage({ type: 'ready' } as ReadyResponse)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown initialization error'
@@ -155,6 +198,7 @@ async function prove(msg: ProveMessage) {
 
   try {
     sendProgress('proving', 'Starting proof generation...', 0)
+    console.log('[Worker] Starting proof generation...')
 
     // Check if gnarkProve is available
     if (typeof gnarkProve !== 'function') {
@@ -165,28 +209,40 @@ async function prove(msg: ProveMessage) {
       return
     }
 
-    sendProgress('proving', 'Generating zero-knowledge proof...', 10)
+    sendProgress('proving', 'Generating zero-knowledge proof (this may take a few minutes)...', 10)
 
     // Call the WASM prover
-    const resultJson = gnarkProve(
+    const proveStart = Date.now()
+    const result = gnarkProve(
       msg.secretA,
       msg.secretR,
       msg.publicV,
       msg.publicW0,
-      msg.publicW1,
-      pkData!,
-      ccsData!
+      msg.publicW1
     )
+    const proveElapsed = ((Date.now() - proveStart) / 1000).toFixed(1)
+
+    console.log(`[Worker] gnarkProve completed in ${proveElapsed}s`)
+
+    // Check for error response
+    if (typeof result === 'object' && result.error) {
+      throw new Error(`gnarkProve failed: ${result.error}`)
+    }
+
+    // Result should be a JSON string
+    if (typeof result !== 'string') {
+      throw new Error(`Unexpected result type from gnarkProve: ${typeof result}`)
+    }
 
     sendProgress('proving', 'Proof generation complete', 100)
 
     // Parse the result (expected format: { proof: {...}, public: {...} })
-    const result = JSON.parse(resultJson)
+    const parsed = JSON.parse(result)
 
     self.postMessage({
       type: 'proof',
-      proofJson: JSON.stringify(result.proof),
-      publicJson: JSON.stringify(result.public),
+      proofJson: JSON.stringify(parsed.proof),
+      publicJson: JSON.stringify(parsed.public),
     } as ProofResponse)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown proving error'
@@ -242,6 +298,7 @@ async function stubProve(msg: StubProveMessage) {
  */
 self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
   const msg = event.data
+  console.log(`[Worker] Received message: ${msg.type}`)
 
   switch (msg.type) {
     case 'init':
@@ -259,6 +316,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 }
 
 // Signal that the worker script is loaded
-self.postMessage({ type: 'ready', stage: 'script-loaded' })
+console.log('[Worker] Worker script loaded')
+self.postMessage({ type: 'progress', stage: 'loading-wasm', message: 'Worker script loaded', percent: 0 })
 
 export {}

@@ -1350,7 +1350,7 @@ const txHash = await wallet.submitTx(signedTx);
 - [ ] Show success/error feedback
 - [ ] Refresh bids
 
-### Phase 11: SNARK Integration (PARTIALLY COMPLETE - NEEDS VERIFICATION)
+### Phase 11: SNARK Integration (BLOCKED - 4GB WASM Memory Limit)
 
 **This is the most complex phase. See `snark/browser-support.md` for details.**
 
@@ -1361,9 +1361,10 @@ const txHash = await wallet.submitTx(signedTx);
 - [x] Implement proving interface
 - [x] Create WASM entry point (`snark/wasm_main.go`)
 - [x] Compile and deploy prover.wasm (~19MB)
-- [ ] **VERIFY: Setup loading completes** (timed out at 10+ min in test.html)
-- [ ] **VERIFY: Proof generation works end-to-end**
-- [ ] **VERIFY: Web Worker integration performs acceptably**
+- [x] **VERIFIED: Setup loading completes** (~2.3 hours in Web Worker)
+- [x] **VERIFIED: Constraint solver works** (21 seconds after setup)
+- [ ] **BLOCKED: Proof generation hits 4GB WASM memory limit** (see item 18 below)
+- [ ] **TODO: Implement Memory64 (wasm64) support** for >4GB memory
 - [ ] Build SNARK transaction (BLOCKED: requires contract deployment)
 - [x] Handle proving errors gracefully
 
@@ -1516,8 +1517,8 @@ worker.onmessage = (e) => {
     Testing revealed severe performance issues with WASM proving that need to be addressed:
 
     **Native vs WASM performance:**
-    - Native Go binary: ~4 minutes for full prove cycle
-    - WASM in browser: Setup loading alone takes 10+ minutes (may never complete)
+    - Native Go binary: ~4 minutes for full prove cycle (uses all CPU cores)
+    - WASM in browser: Setup loading alone takes 10+ minutes (single-threaded)
 
     **Root cause:**
     The `gnarkLoadSetup` function deserializes ~720MB of cryptographic data structures:
@@ -1525,6 +1526,7 @@ worker.onmessage = (e) => {
     - Reconstructing polynomial commitments
     - Building constraint system matrices
     - WASM is typically 2-5x slower than native for CPU-bound work
+    - WASM runs single-threaded (cannot parallelize like native Go)
     - Main thread blocking causes browser throttling, making it worse
 
     **Test page created:**
@@ -1533,21 +1535,38 @@ worker.onmessage = (e) => {
     on the main thread. The Web Worker-based React integration should perform better
     since it doesn't block the main thread.
 
-    **TESTING STATUS: INCOMPLETE**
+    **TESTING STATUS: BLOCKED BY MEMORY LIMIT**
     - [x] WASM compiles successfully (~19MB prover.wasm)
     - [x] Test page loads WASM and displays console messages
-    - [ ] Setup loading completes (timed out at 10+ minutes)
-    - [ ] Proof generation works
-    - [ ] Web Worker integration tested
+    - [x] Detailed logging added to track setup progress
+    - [x] Setup loading completes (~2.3 hours in Web Worker)
+    - [x] Constraint solver works (21 seconds)
+    - [ ] **BLOCKED**: Proof generation fails at 4GB WASM memory limit
+    - [x] Web Worker integration tested (keeps UI responsive)
+
+    **See item 18 below for Memory64 investigation notes.**
+
+    **Design Decision: Local-Only Proving**
+    Server-side proving was considered but rejected to maintain PEACE protocol's
+    decentralization principles. Keeping secrets local ensures:
+    - Trustlessness (no server to trust with secrets)
+    - Decentralization (no central point of failure)
+    - Security (no attack vectors from secret transmission)
+
+    Users will experience a 10-30+ minute wait, but this is acceptable for a
+    decentralized protocol. The Web Worker keeps UI responsive during the wait.
 
     **Next steps when revisiting:**
-    1. Test the Web Worker-based React integration instead of test.html
-    2. If still too slow, consider:
-       - Server-side proving (move SNARK proving to backend)
-       - Pre-loading setup during idle time
-       - Showing estimated time (10+ minutes) in UI
-       - Investigating gnark WASM optimizations
-    3. The native CLI proves in ~4 minutes, so there may be WASM-specific issues
+    1. **PRIORITY: Investigate Memory64 (wasm64) support** - See item 18 below
+       - Current wasm32 hits 4GB limit during proof generation
+       - Memory64 allows up to 16GB which should be sufficient
+       - Need to check Go + gnark compatibility with GOWASM=memory64
+    2. If Memory64 works, test full proof generation end-to-end
+    3. Consider UX improvements (only relevant once proving works):
+       - Pre-loading setup during idle time after wallet connect
+       - Showing estimated time (2+ hours) prominently in UI
+       - "Start proving, come back later" messaging
+    4. The native CLI proves in ~4 minutes using all cores; WASM is single-threaded
 
 13. **Manual Test Page** (`fe/public/snark/test.html`):
     A simple HTML page for testing the WASM prover directly:
@@ -1555,9 +1574,171 @@ worker.onmessage = (e) => {
     http://localhost:5173/snark/test.html
     ```
 
+    **Features:**
+    - Timer showing elapsed time during loading
+    - Console output panel capturing Go WASM messages
+    - Clear warnings about expected browser freeze
+    - Step-by-step progress logging from Go code
+
     **Warning:** This page runs on the main thread and will freeze the browser
     during the ~720MB file loading + parsing phase. Expect browser "unresponsive"
     warnings. Click "Wait" and be patient (or test the React integration instead).
+
+14. **Browser "Page Unresponsive" Dialog Behavior**:
+    When the browser shows the "Page Unresponsive" (or "Wait or Kill") dialog:
+
+    - **The JavaScript execution is PAUSED** while the dialog is showing
+    - **Click "Wait"** to resume execution from where it paused
+    - **If you click "Kill Page"**, the script is terminated and loading will fail
+    - **Loading does NOT continue in the background** while the dialog is open
+    - You may need to click "Wait" multiple times (every ~5-10 seconds)
+
+    This is a fundamental limitation of main thread blocking. The Web Worker
+    approach should eliminate these dialogs entirely since the work happens
+    off the main thread.
+
+15. **WASM Logging for Debugging**:
+    The Go WASM code (`snark/wasm_main.go`) now includes detailed step-by-step logging:
+
+    ```
+    [WASM] wasmLoadSetup called with CCS=88829891 bytes, PK=642235779 bytes
+    [WASM] Step 1/4: Creating constraint system object...
+    [WASM] Step 1/4: Done. Constraint system object created.
+    [WASM] Step 2/4: Deserializing CCS (88829891 bytes)... This may take several minutes.
+    [WASM] (If browser shows 'unresponsive' dialog, click 'Wait' - do NOT close the tab)
+    [WASM] Step 2/4: Done. CCS deserialized successfully.
+    [WASM] Step 3/4: Creating proving key object...
+    [WASM] Step 3/4: Done. Proving key object created.
+    [WASM] Step 4/4: Deserializing PK (642235779 bytes)... This is the longest step.
+    [WASM] (The proving key contains millions of elliptic curve points to deserialize)
+    [WASM] Step 4/4: Done. PK deserialized successfully.
+    [WASM] Setup complete! Ready to generate proofs.
+    ```
+
+    This helps identify exactly where the process is getting stuck or timing out.
+
+    To rebuild WASM with logging changes:
+    ```bash
+    cd app/snark
+    GOOS=js GOARCH=wasm go build -o ../ui/fe/public/snark/prover.wasm .
+    ```
+
+16. **Web Worker Test Page** (`fe/public/snark/test-worker.html`):
+    This test page uses a Web Worker to run the prover, which should keep the UI responsive:
+    ```
+    http://localhost:5173/snark/test-worker.html
+    ```
+
+    **Expected behavior:**
+    - Timer continues updating during loading (UI not frozen)
+    - Console shows progress messages from the worker
+    - No "Page Unresponsive" dialogs
+    - Loading still takes 10-30+ minutes (but runs in background)
+
+    **Key difference from test.html:**
+    - `test.html` runs on main thread → browser freezes → "Wait" dialogs
+    - `test-worker.html` runs in Web Worker → UI stays responsive → no dialogs
+
+    **How it works:**
+    1. Downloads ccs.bin (~85MB) and pk.bin (~613MB)
+    2. Creates a Web Worker with inline JavaScript
+    3. Transfers the ArrayBuffers to the worker (zero-copy)
+    4. Worker loads WASM and calls `gnarkLoadSetup()`
+    5. Main thread stays responsive while worker does the heavy lifting
+
+17. **Worker Integration Fixed** (`fe/src/services/snark/worker.ts`):
+    The worker now correctly calls `gnarkLoadSetup(ccsBytes, pkBytes)` to load the
+    proving keys into the WASM module before proof generation. Key fixes:
+    - Added `gnarkLoadSetup` and `gnarkIsReady` function declarations
+    - Removed incorrect pkData/ccsData parameters from `gnarkProve`
+    - Added detailed logging at each step
+    - Properly converts ArrayBuffer to Uint8Array for WASM
+
+    **Testing the React integration:**
+    The SnarkProver class in `fe/src/services/snark/prover.ts` uses this worker.
+    To test in the full app, set `VITE_USE_STUBS=false` and trigger a "Accept Bid" flow.
+
+18. **CRITICAL: 4GB WASM Memory Limit - BLOCKING ISSUE**
+
+    **Problem Discovered:**
+    After successful setup loading (~2.3 hours in Web Worker), proof generation fails with:
+    ```
+    runtime: out of memory: cannot allocate 8388608-byte block (4264493056 in use)
+    fatal error: out of memory
+    ```
+
+    The WASM used ~4.26 GB and couldn't allocate another 8MB. This is a **hard browser limit**
+    for 32-bit WebAssembly, regardless of system RAM (tested on 62GB RAM machine).
+
+    **Timeline of successful test:**
+    - Setup loading completed in ~2.3 hours (8402 seconds)
+    - Constraint system solver completed successfully (21 seconds)
+    - Proof generation started but hit memory limit during the actual proving phase
+
+    **Root Cause:**
+    - 32-bit WebAssembly (wasm32) has a hard 4GB memory limit due to 32-bit addressing
+    - Go compiles to wasm32 by default
+    - The gnark Groth16 prover for 1.6M constraints requires >4GB for the proving phase
+    - Native Go CLI works fine because it can use all system RAM
+
+    **Potential Solution: Memory64 (wasm64)**
+
+    WebAssembly Memory64 extends the address space to 64-bit, allowing up to 16GB in browsers:
+
+    | WASM Type | Max Memory | Browser Support |
+    |-----------|------------|-----------------|
+    | wasm32 (current) | 4GB | All browsers |
+    | wasm64 (Memory64) | 16GB | Chrome, Firefox (not Safari) |
+
+    **References:**
+    - V8 Blog: https://v8.dev/blog/4gb-wasm-memory
+    - Memory64 status: https://spidermonkey.dev/blog/2025/01/15/is-memory64-actually-worth-using.html
+    - WebAssembly spec issue: https://github.com/WebAssembly/spec/issues/1892
+
+    **Implementation Attempt:**
+    Go has experimental `GOWASM=memory64` support, but initial attempt failed:
+    ```bash
+    GOOS=js GOARCH=wasm GOWASM=memory64 go build -o prover_wasm64.wasm .
+    # Exit code 2 (no error output)
+    ```
+
+    **Next Steps for Future Implementation:**
+
+    1. **Investigate Go Memory64 Support:**
+       - Check Go version compatibility (tested with Go 1.25.6)
+       - Research if gnark-crypto library supports wasm64
+       - May need to wait for gnark to add explicit wasm64 support
+       - Consider filing issue with gnark maintainers
+
+    2. **Alternative: Modified wasm_exec.js:**
+       - The Go WASM runtime (`wasm_exec.js`) may need modifications for Memory64
+       - Check if there's a memory64-compatible version
+
+    3. **Performance Note:**
+       Memory64 has a ~10-100% performance penalty vs wasm32 due to required bounds checks.
+       However, this is acceptable if it means the proof can actually complete.
+
+    4. **Fallback Options if Memory64 Doesn't Work:**
+       - **Hybrid approach**: Web UI invokes local CLI binary for proving
+       - **Desktop app**: Electron/Tauri app with native Go binary
+       - **Circuit optimization**: Reduce constraint count (significant undertaking)
+
+    **Test Values for Verification:**
+    When testing, use these known-good values from `tests/test_snark.py`:
+    ```
+    a = 44203
+    r = 12345
+    v  = 821285b97f9c0420a2d37951edbda3d7c3ebac40c6f194faa0256f6e569eba49829cd69c27f1dd9df2dd83bac1f5aa49
+    w0 = b38f50ffcc8c468430e624dc8bd1415011a05b96d0898167ffdf004d2c6f055bc38ed8af069bacda62d908d821623941
+    w1 = 8ac69bdd182386def9f70b444794fa6d588182ddaccdffc26163fe415424ec374c672dfde52d875863118e6ef892bbac
+    ```
+    These values produce a valid proof in the native CLI (~4 minutes).
+
+    **Current Status:**
+    - [x] Setup loading works (2+ hours but completes)
+    - [x] Constraint solver works
+    - [ ] **BLOCKED**: Proof generation fails at 4GB memory limit
+    - [ ] Need Memory64 support in Go WASM + gnark
 
 ### Phase 12: Accept Bid Flow (SNARK + Re-encryption)
 

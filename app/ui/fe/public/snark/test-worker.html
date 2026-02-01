@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SNARK Prover Test (Web Worker)</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #eee; }
+    .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+    .loading { background: #333; }
+    .success { background: #1a4d1a; }
+    .error { background: #4d1a1a; }
+    .info { background: #1a1a4d; border: 1px solid #44f; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    pre { background: #2a2a2a; padding: 10px; overflow-x: auto; max-height: 300px; }
+    input { padding: 8px; margin: 5px; width: 600px; font-family: monospace; }
+    label { display: block; margin-top: 10px; }
+    .timer { font-size: 24px; color: #0ff; margin: 10px 0; }
+    .console-log { background: #111; padding: 10px; margin: 10px 0; max-height: 400px; overflow-y: auto; font-size: 12px; }
+    .console-log .time { color: #888; }
+    .console-log .msg { color: #0f0; }
+    .console-log .worker { color: #0ff; }
+    .console-log .err { color: #f00; }
+    .progress-bar { width: 100%; height: 24px; background: #333; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #0a0, #0f0); transition: width 0.3s; }
+    .progress-text { text-align: center; margin-top: -20px; font-size: 12px; color: #fff; position: relative; }
+  </style>
+</head>
+<body>
+  <h1>SNARK Prover Test (Web Worker)</h1>
+
+  <div class="info">
+    <strong>Web Worker Mode</strong><br>
+    This test uses a Web Worker to run the prover. The UI should remain responsive during loading!<br><br>
+    <strong>Expected behavior:</strong>
+    <ul>
+      <li>Timer continues updating during loading (UI not frozen)</li>
+      <li>Console shows progress messages from the worker</li>
+      <li>No "Page Unresponsive" dialogs</li>
+      <li>Loading still takes 10-30+ minutes (but in background)</li>
+    </ul>
+  </div>
+
+  <div id="status" class="status loading">Initializing...</div>
+  <div id="timer" class="timer">Elapsed: 0:00</div>
+
+  <div class="progress-bar">
+    <div id="progressBar" class="progress-bar-fill" style="width: 0%"></div>
+  </div>
+  <div id="progressText" class="progress-text">0%</div>
+
+  <h2>Console Output</h2>
+  <div id="consoleLog" class="console-log"></div>
+
+  <h2>1. Load Setup Files</h2>
+  <button id="loadBtn" disabled>Initialize Worker + Load Setup (~720MB)</button>
+  <div id="loadStatus"></div>
+
+  <h2>2. Generate Proof</h2>
+  <div>
+    <label>Secret A (decimal integer, must be > 0):</label>
+    <input type="text" id="secretA" placeholder="e.g. 44203" value="44203">
+
+    <label>Secret R (decimal integer, can be 0):</label>
+    <input type="text" id="secretR" placeholder="e.g. 12345" value="12345">
+
+    <label>Public V (G1 compressed hex, 96 chars):</label>
+    <input type="text" id="publicV" placeholder="compressed G1 point..." value="821285b97f9c0420a2d37951edbda3d7c3ebac40c6f194faa0256f6e569eba49829cd69c27f1dd9df2dd83bac1f5aa49">
+
+    <label>Public W0 (G1 compressed hex, 96 chars):</label>
+    <input type="text" id="publicW0" placeholder="compressed G1 point..." value="b38f50ffcc8c468430e624dc8bd1415011a05b96d0898167ffdf004d2c6f055bc38ed8af069bacda62d908d821623941">
+
+    <label>Public W1 (G1 compressed hex, 96 chars):</label>
+    <input type="text" id="publicW1" placeholder="compressed G1 point..." value="8ac69bdd182386def9f70b444794fa6d588182ddaccdffc26163fe415424ec374c672dfde52d875863118e6ef892bbac">
+
+    <p style="color: #888; font-size: 12px;">
+      <strong>Note:</strong> The above values are from the Python test (test_snark_prove) and should produce a valid proof.
+    </p>
+  </div>
+  <button id="proveBtn" disabled>Generate Proof</button>
+  <div id="proveStatus"></div>
+
+  <h2>Result</h2>
+  <pre id="result">No proof generated yet</pre>
+
+  <script>
+    // Timer
+    let timerStart = null;
+    let timerInterval = null;
+    const timerEl = document.getElementById('timer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    function startTimer() {
+      timerStart = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        timerEl.textContent = `Elapsed: ${mins}:${secs.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function updateProgress(percent) {
+      progressBar.style.width = `${percent}%`;
+      progressText.textContent = `${percent}%`;
+    }
+
+    // Console log capture
+    const consoleLogEl = document.getElementById('consoleLog');
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    function logToUI(msg, type = 'msg') {
+      const time = new Date().toISOString().substr(11, 12);
+      const div = document.createElement('div');
+      div.innerHTML = `<span class="time">[${time}]</span> <span class="${type}">${msg}</span>`;
+      consoleLogEl.appendChild(div);
+      consoleLogEl.scrollTop = consoleLogEl.scrollHeight;
+    }
+
+    console.log = function(...args) {
+      originalConsoleLog.apply(console, args);
+      const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+      logToUI(msg, msg.includes('[Worker]') ? 'worker' : 'msg');
+    };
+
+    console.error = function(...args) {
+      originalConsoleError.apply(console, args);
+      logToUI(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'err');
+    };
+
+    let worker = null;
+    let setupLoaded = false;
+
+    const statusEl = document.getElementById('status');
+    const loadBtn = document.getElementById('loadBtn');
+    const proveBtn = document.getElementById('proveBtn');
+    const loadStatus = document.getElementById('loadStatus');
+    const proveStatus = document.getElementById('proveStatus');
+    const resultEl = document.getElementById('result');
+
+    function setStatus(el, msg, type) {
+      el.textContent = msg;
+      el.className = 'status ' + type;
+    }
+
+    // Create worker using a blob (since we can't import the TypeScript file directly)
+    async function createWorker() {
+      // The worker code needs to be served as a separate file
+      // For this test, we'll create an inline worker
+      const workerCode = `
+        // Inline worker for testing
+        let go = null;
+        let isInitialized = false;
+
+        function sendProgress(stage, message, percent) {
+          console.log('[Worker] Progress:', stage, '-', message, '(' + (percent ?? '?') + '%)');
+          self.postMessage({ type: 'progress', stage, message, percent });
+        }
+
+        function sendError(message, stage) {
+          console.error('[Worker] Error in ' + (stage ?? 'unknown') + ':', message);
+          self.postMessage({ type: 'error', message, stage });
+        }
+
+        async function initialize(msg) {
+          try {
+            console.log('[Worker] Starting initialization...');
+            sendProgress('loading-wasm', 'Loading Go WASM runtime...', 0);
+
+            // Import wasm_exec.js (use origin from message since blob workers can't resolve relative URLs)
+            const wasmExecUrl = new URL('/snark/wasm_exec.js', msg.origin).href;
+            console.log('[Worker] Loading wasm_exec.js from:', wasmExecUrl);
+            importScripts(wasmExecUrl);
+
+            go = new Go();
+            console.log('[Worker] Go runtime object created');
+
+            sendProgress('loading-wasm', 'Fetching SNARK prover WASM...', 10);
+
+            // Resolve URL relative to origin (blob workers can't resolve relative URLs)
+            const wasmUrl = new URL(msg.wasmUrl, msg.origin).href;
+            console.log('[Worker] Fetching WASM from:', wasmUrl);
+            const wasmResponse = await fetch(wasmUrl);
+            if (!wasmResponse.ok) {
+              throw new Error('Failed to fetch WASM: HTTP ' + wasmResponse.status);
+            }
+            const wasmBytes = await wasmResponse.arrayBuffer();
+            console.log('[Worker] WASM fetched:', (wasmBytes.byteLength / 1024 / 1024).toFixed(2), 'MB');
+
+            sendProgress('loading-wasm', 'Instantiating WASM module...', 20);
+
+            const result = await WebAssembly.instantiate(wasmBytes, go.importObject);
+            console.log('[Worker] WASM instantiated');
+
+            sendProgress('loading-wasm', 'Starting Go runtime...', 25);
+
+            go.run(result.instance).catch((err) => {
+              console.error('[Worker] Go runtime exited with error:', err);
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+            console.log('[Worker] Go runtime started');
+
+            if (typeof gnarkLoadSetup !== 'function') {
+              throw new Error('gnarkLoadSetup function not found - WASM may not have initialized correctly');
+            }
+            console.log('[Worker] gnarkLoadSetup function is available');
+
+            sendProgress('loading-keys', 'Loading proving keys into WASM (this takes 10-30+ minutes)...', 30);
+            console.log('[Worker] Calling gnarkLoadSetup with CCS and PK data...');
+            console.log('[Worker] CCS size:', (msg.ccsData.byteLength / 1024 / 1024).toFixed(2), 'MB');
+            console.log('[Worker] PK size:', (msg.pkData.byteLength / 1024 / 1024).toFixed(2), 'MB');
+
+            const ccsBytes = new Uint8Array(msg.ccsData);
+            const pkBytes = new Uint8Array(msg.pkData);
+
+            const loadStart = Date.now();
+            const loadResult = gnarkLoadSetup(ccsBytes, pkBytes);
+            const loadElapsed = ((Date.now() - loadStart) / 1000).toFixed(1);
+
+            if (loadResult.error) {
+              throw new Error('gnarkLoadSetup failed: ' + loadResult.error);
+            }
+
+            console.log('[Worker] gnarkLoadSetup completed in', loadElapsed, 's');
+            sendProgress('loading-keys', 'Proving keys loaded successfully', 100);
+
+            if (typeof gnarkIsReady === 'function' && !gnarkIsReady()) {
+              throw new Error('gnarkLoadSetup returned success but gnarkIsReady() is false');
+            }
+
+            isInitialized = true;
+            console.log('[Worker] Initialization complete! Ready to generate proofs.');
+            self.postMessage({ type: 'ready' });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown initialization error';
+            sendError(message, 'init');
+          }
+        }
+
+        async function prove(msg) {
+          if (!isInitialized) {
+            sendError('Worker not initialized. Call init first.', 'prove');
+            return;
+          }
+
+          try {
+            sendProgress('proving', 'Starting proof generation...', 0);
+            console.log('[Worker] Starting proof generation...');
+
+            if (typeof gnarkProve !== 'function') {
+              sendError('gnarkProve function not found.', 'prove');
+              return;
+            }
+
+            sendProgress('proving', 'Generating zero-knowledge proof...', 10);
+
+            const proveStart = Date.now();
+            const result = gnarkProve(msg.secretA, msg.secretR, msg.publicV, msg.publicW0, msg.publicW1);
+            const proveElapsed = ((Date.now() - proveStart) / 1000).toFixed(1);
+
+            console.log('[Worker] gnarkProve completed in', proveElapsed, 's');
+
+            if (typeof result === 'object' && result.error) {
+              throw new Error('gnarkProve failed: ' + result.error);
+            }
+
+            if (typeof result !== 'string') {
+              throw new Error('Unexpected result type from gnarkProve: ' + typeof result);
+            }
+
+            sendProgress('proving', 'Proof generation complete', 100);
+
+            const parsed = JSON.parse(result);
+            self.postMessage({
+              type: 'proof',
+              proofJson: JSON.stringify(parsed.proof),
+              publicJson: JSON.stringify(parsed.public),
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown proving error';
+            sendError(message, 'prove');
+          }
+        }
+
+        self.onmessage = async (event) => {
+          const msg = event.data;
+          console.log('[Worker] Received message:', msg.type);
+
+          switch (msg.type) {
+            case 'init':
+              await initialize(msg);
+              break;
+            case 'prove':
+              await prove(msg);
+              break;
+            default:
+              sendError('Unknown message type: ' + msg.type);
+          }
+        };
+
+        console.log('[Worker] Worker script loaded');
+        self.postMessage({ type: 'progress', stage: 'loading-wasm', message: 'Worker script loaded', percent: 0 });
+      `;
+
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      return new Worker(URL.createObjectURL(blob));
+    }
+
+    // Initialize
+    async function init() {
+      try {
+        setStatus(statusEl, 'Creating Web Worker...', 'loading');
+        console.log('Creating Web Worker...');
+
+        worker = await createWorker();
+
+        worker.onmessage = (event) => {
+          const msg = event.data;
+
+          switch (msg.type) {
+            case 'progress':
+              console.log(`[Worker] ${msg.stage}: ${msg.message}`);
+              loadStatus.textContent = msg.message;
+              loadStatus.style.color = '#ff0';
+              if (msg.percent !== undefined) {
+                updateProgress(msg.percent);
+              }
+              break;
+
+            case 'ready':
+              stopTimer();
+              setupLoaded = true;
+              loadStatus.textContent = 'Setup loaded successfully!';
+              loadStatus.style.color = '#0f0';
+              setStatus(statusEl, 'Ready to generate proofs', 'success');
+              proveBtn.disabled = false;
+              updateProgress(100);
+              break;
+
+            case 'proof':
+              const result = {
+                proof: JSON.parse(msg.proofJson),
+                public: JSON.parse(msg.publicJson),
+              };
+              resultEl.textContent = JSON.stringify(result, null, 2);
+              proveStatus.textContent = 'Proof generated!';
+              proveStatus.style.color = '#0f0';
+              proveBtn.disabled = false;
+              break;
+
+            case 'error':
+              console.error('Worker error:', msg.message);
+              if (msg.stage === 'init') {
+                stopTimer();
+                loadStatus.textContent = 'Error: ' + msg.message;
+                loadStatus.style.color = '#f00';
+                loadBtn.disabled = false;
+              } else {
+                proveStatus.textContent = 'Error: ' + msg.message;
+                proveStatus.style.color = '#f00';
+                proveBtn.disabled = false;
+              }
+              break;
+          }
+        };
+
+        worker.onerror = (error) => {
+          console.error('Worker error:', error);
+          setStatus(statusEl, 'Worker error: ' + error.message, 'error');
+        };
+
+        setStatus(statusEl, 'Ready. Click "Initialize" to start loading.', 'success');
+        loadBtn.disabled = false;
+        console.log('Web Worker created. Ready to initialize.');
+      } catch (err) {
+        console.error('Failed to create worker:', err);
+        setStatus(statusEl, 'Failed to create worker: ' + err.message, 'error');
+      }
+    }
+
+    // Load setup files
+    loadBtn.onclick = async () => {
+      loadBtn.disabled = true;
+      loadStatus.textContent = 'Downloading CCS (~85MB)...';
+      console.log('Starting setup file download...');
+      startTimer();
+
+      try {
+        console.log('Fetching ccs.bin...');
+        const ccsResp = await fetch('ccs.bin');
+        if (!ccsResp.ok) {
+          throw new Error('CCS download failed: HTTP ' + ccsResp.status);
+        }
+        const ccsBuffer = await ccsResp.arrayBuffer();
+        console.log('CCS loaded:', (ccsBuffer.byteLength / 1024 / 1024).toFixed(2), 'MB');
+        loadStatus.textContent = 'CCS loaded. Downloading PK (~613MB)...';
+
+        console.log('Fetching pk.bin...');
+        const pkResp = await fetch('pk.bin');
+        if (!pkResp.ok) {
+          throw new Error('PK download failed: HTTP ' + pkResp.status);
+        }
+        const pkBuffer = await pkResp.arrayBuffer();
+        console.log('PK loaded:', (pkBuffer.byteLength / 1024 / 1024).toFixed(2), 'MB');
+        loadStatus.textContent = 'Files downloaded. Sending to worker...';
+
+        console.log('Sending init message to worker...');
+        worker.postMessage({
+          type: 'init',
+          wasmUrl: '/snark/prover.wasm',
+          origin: window.location.origin,
+          pkData: pkBuffer,
+          ccsData: ccsBuffer,
+        }, [pkBuffer, ccsBuffer]); // Transfer buffers to worker
+
+        loadStatus.textContent = 'Worker is loading setup (UI should stay responsive)...';
+        loadStatus.style.color = '#ff0';
+      } catch (err) {
+        stopTimer();
+        console.error('Load failed:', err);
+        loadStatus.textContent = 'Load failed: ' + err.message;
+        loadStatus.style.color = '#f00';
+        loadBtn.disabled = false;
+      }
+    };
+
+    // Generate proof
+    proveBtn.onclick = async () => {
+      const secretA = document.getElementById('secretA').value;
+      const secretR = document.getElementById('secretR').value;
+      const publicV = document.getElementById('publicV').value;
+      const publicW0 = document.getElementById('publicW0').value;
+      const publicW1 = document.getElementById('publicW1').value;
+
+      if (!publicV || !publicW0 || !publicW1) {
+        proveStatus.textContent = 'Please fill in all public inputs (V, W0, W1)';
+        proveStatus.style.color = '#f00';
+        return;
+      }
+
+      proveBtn.disabled = true;
+      proveStatus.textContent = 'Generating proof...';
+      proveStatus.style.color = '#ff0';
+      console.log('Starting proof generation...');
+
+      worker.postMessage({
+        type: 'prove',
+        secretA,
+        secretR,
+        publicV,
+        publicW0,
+        publicW1,
+      });
+    };
+
+    // Start
+    console.log('Test page initialized. Creating Web Worker...');
+    init();
+  </script>
+</body>
+</html>
