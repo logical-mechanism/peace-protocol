@@ -119,4 +119,27 @@ export const STUB_BIDS: BidDisplay[] = [
       token: '14bid005mno678901234567890123456789012345678901234567890123456',
     },
   },
+  // TEST WALLET: Accepted bid for decrypt modal testing
+  {
+    tokenName: '15bid006test78901234567890123456789012345678901234567890123456',
+    bidder: 'addr_test1qrwejm9pza929cedhwkcsprtgs8l2carehs8z6jkse2qp344c43tmm0md55r4ufmxknr24kq6jkvt6spq60edeuhtf4sn2scds',
+    bidderPkh: 'dd996ca1174aa2e32dbbad88046b440ff563a3cde0716a56865400c6',
+    encryptionToken: '00abc123def456789012345678901234567890123456789012345678901234',
+    amount: 150_000_000, // 150 ADA in lovelace
+    status: 'accepted',
+    createdAt: '2025-01-20T10:00:00Z',
+    utxo: {
+      txHash: '44556677889900aabbccddeeff0011223344556677889900aabbccddeeff0011',
+      outputIndex: 0,
+    },
+    datum: {
+      owner_vkh: 'dd996ca1174aa2e32dbbad88046b440ff563a3cd',
+      owner_g1: {
+        generator: G1_GENERATOR,
+        public_value: BIDDER_PUBLIC_1,
+      },
+      pointer: '00abc123def456789012345678901234567890123456789012345678901234',
+      token: '15bid006test78901234567890123456789012345678901234567890123456',
+    },
+  },
 ];

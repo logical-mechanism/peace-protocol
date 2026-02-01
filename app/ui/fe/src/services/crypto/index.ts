@@ -112,3 +112,14 @@ export {
   verifyBidArtifacts,
 } from './createBid';
 export type { BidArtifacts } from './createBid';
+
+// Decryption
+export {
+  decryptBid,
+  canDecrypt,
+  fetchEncryptionHistory,
+  computeKEM,
+  isStubMode,
+  getDecryptionExplanation,
+} from './decrypt';
+export type { DecryptionResult, EncryptionLevel, EncryptionHistory } from './decrypt';

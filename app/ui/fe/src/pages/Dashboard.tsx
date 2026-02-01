@@ -8,6 +8,7 @@ import MyPurchasesTab from '../components/MyPurchasesTab'
 import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
+import DecryptModal from '../components/DecryptModal'
 import { useToast } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import { createListing, placeBid, cancelBid, getTransactionStubWarning } from '../services/transactionBuilder'
@@ -38,7 +39,9 @@ export default function Dashboard() {
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
   const [showCreateListing, setShowCreateListing] = useState(false)
   const [showPlaceBid, setShowPlaceBid] = useState(false)
+  const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
+  const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const toast = useToast()
 
@@ -181,13 +184,19 @@ export default function Dashboard() {
     }
   }, [wallet, toast])
 
-  const handleDecrypt = useCallback((bid: BidDisplay) => {
-    // TODO: Phase 13 - Implement decryption flow
-    console.log('Decrypt:', bid.encryptionToken)
-    toast.info(
-      'Coming Soon',
-      'Decryption will be implemented in Phase 13 after accepting a bid.'
-    )
+  const handleDecrypt = useCallback(async (bid: BidDisplay) => {
+    // Find the encryption associated with this bid
+    try {
+      const encryptions = await encryptionsApi.getAll()
+      const encryption = encryptions.find(e => e.tokenName === bid.encryptionToken)
+
+      setSelectedBid(bid)
+      setSelectedEncryption(encryption || null)
+      setShowDecrypt(true)
+    } catch (error) {
+      console.error('Failed to fetch encryption details:', error)
+      toast.error('Error', 'Failed to load encryption details')
+    }
   }, [toast])
 
   const handleCreateListing = useCallback(async (formData: CreateListingFormData) => {
@@ -434,6 +443,18 @@ export default function Dashboard() {
           setSelectedEncryption(null)
         }}
         onSubmit={handlePlaceBidSubmit}
+        encryption={selectedEncryption}
+      />
+
+      {/* Decrypt Modal */}
+      <DecryptModal
+        isOpen={showDecrypt}
+        onClose={() => {
+          setShowDecrypt(false)
+          setSelectedBid(null)
+          setSelectedEncryption(null)
+        }}
+        bid={selectedBid}
         encryption={selectedEncryption}
       />
 

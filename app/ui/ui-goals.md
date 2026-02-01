@@ -2322,12 +2322,81 @@ This maintains trustlessness (secrets never transmitted) while working around th
    - If re-encryption tx fails: Show "retry" or "cancel" options
    - If TTL expires: Must cancel and start over
 
-### Phase 13: Decrypt Flow
+### Phase 13: Decrypt Flow (COMPLETED - Stub Mode)
 
-- [ ] Query encryption history from Koios
-- [ ] Implement recursive decryption (port from Python)
-- [ ] Display decrypted message
-- [ ] Handle decryption errors
+- [x] Query encryption history from Koios (stubbed)
+- [x] Implement recursive decryption (port from Python - stubbed)
+- [x] Display decrypted message
+- [x] Handle decryption errors
+
+**Phase 13 Implementation Notes (for future phases):**
+
+1. **DecryptModal Component** (`fe/src/components/DecryptModal.tsx`):
+   - Multi-state modal: idle, decrypting, success, error
+   - Shows stub warning when in development mode
+   - Copy-to-clipboard for decrypted content
+   - Proper error handling with retry option
+
+2. **Decryption Service** (`fe/src/services/crypto/decrypt.ts`):
+   - `decryptBid()` - Main entry point for decryption flow
+   - `canDecrypt()` - Validates if decryption can be attempted
+   - `fetchEncryptionHistory()` - Stubbed Koios query
+   - `computeKEM()` - Blocked - requires native snark binary
+   - Stub messages map for development testing
+
+3. **Critical Blocker - Real Decryption Requires Native Binary**:
+   The Python `recursive_decrypt` function calls `decrypt_to_hash()` which invokes the
+   `snark` CLI binary to compute BLS12-381 pairings and Fq12 hashing in gnark's format.
+
+   **Why this can't be done in browser:**
+   - BLS12-381 pairing operations are computationally expensive
+   - The Fq12 element hashing MUST match gnark's exact encoding
+   - @noble/curves doesn't expose pairing results in the required format
+   - A backend service or WASM port of the decrypt operation would be needed
+
+   **Options for production:**
+   a) Backend API that runs the snark binary with user's derived sk
+   b) WASM compilation of just the decrypt operation (simpler than full SNARK)
+   c) Have user run CLI locally and paste the KEM value (poor UX)
+
+4. **Stubbed Flow vs Real Flow**:
+   ```
+   STUB MODE (current):
+   User clicks Decrypt -> Show stub message for that encryption token
+
+   REAL MODE (requires contract deployment + backend):
+   User clicks Decrypt ->
+     1. Derive sk from wallet signature
+     2. Query Koios for encryption token tx history
+     3. Extract encryption levels from inline datums
+     4. Call backend with (sk, levels) to compute KEM
+     5. Backend runs: snark decrypt -r1 ... -g1b ... -shared ...
+     6. Use returned KEM to decrypt capsule with ECIES
+     7. Display decrypted message
+   ```
+
+5. **Bid Secrets Integration**:
+   - Checks `getBidSecrets(bid.tokenName)` for stored bidder secret
+   - Without bid secrets, decryption fails with clear error message
+   - Warns user if secrets lost (browser data cleared, wrong device)
+
+6. **Files Modified/Created**:
+   - `fe/src/services/crypto/decrypt.ts` - New decryption service
+   - `fe/src/services/crypto/index.ts` - Export decrypt functions
+   - `fe/src/components/DecryptModal.tsx` - New modal component
+   - `fe/src/pages/Dashboard.tsx` - Integrated decrypt modal
+
+7. **Test Wallet Data for Decrypt Modal Testing**:
+   A test bid was added to `be/src/stubs/bids.ts` for testing the decrypt flow:
+   ```
+   Address: addr_test1qrwejm9pza929cedhwkcsprtgs8l2carehs8z6jkse2qp344c43tmm0md55r4ufmxknr24kq6jkvt6spq60edeuhtf4sn2scds
+   PKH: dd996ca1174aa2e32dbbad88046b440ff563a3cde0716a56865400c6
+   Bid Token: 15bid006test78901234567890123456789012345678901234567890123456
+   Encryption Token: 00abc123def456789012345678901234567890123456789012345678901234
+   Status: accepted
+   Amount: 150 ADA
+   ```
+   Connect with this wallet, go to My Purchases tab, and click "Decrypt" to test.
 
 ### Phase 14: Polish & Testing
 
@@ -2337,6 +2406,59 @@ This maintains trustlessness (secrets never transmitted) while working around th
 - [ ] Unit tests for utils/services
 - [ ] Manual E2E testing on Chrome with Eternl
 - [ ] Mobile not required (desktop-focused for SNARK proving)
+
+**Phase 14 Notes (for AI implementing this phase):**
+
+1. **Toast System Already Exists**:
+   - `useToast()` hook from `fe/src/components/Toast.tsx`
+   - Methods: `toast.success()`, `toast.error()`, `toast.warning()`, `toast.info()`
+   - Already integrated in Dashboard for transaction feedback
+   - Review all error paths and ensure they show toasts
+
+2. **CardanoScan Links**:
+   - Preprod: `https://preprod.cardanoscan.io/transaction/{txHash}`
+   - Mainnet: `https://cardanoscan.io/transaction/{txHash}`
+   - Add links to success modals/toasts after tx submission
+   - Consider adding a reusable `TransactionLink` component
+
+3. **Loading States Inventory**:
+   - CreateListingModal - has loading during tx signing (review)
+   - PlaceBidModal - has loading during tx signing (review)
+   - DecryptModal - has loading during decryption (complete)
+   - MySalesTab/MyPurchasesTab/MarketplaceTab - have loading spinners (complete)
+   - SalesListingCard bids modal - may need loading state for bid fetching
+
+4. **Unit Testing Setup**:
+   - Use Vitest (already compatible with Vite)
+   - Priority test targets:
+     a) `fe/src/services/crypto/*.ts` - All crypto operations
+     b) `fe/src/utils/*.ts` - Utility functions
+     c) `fe/src/services/api.ts` - API helpers (mock fetch)
+   - Test crypto functions with known test vectors from Python
+
+5. **E2E Testing Notes**:
+   - Manual testing only (no Playwright/Cypress setup)
+   - Test wallet: Eternl on Chrome
+   - Test flows:
+     a) Wallet connect/disconnect
+     b) Create listing (stub mode)
+     c) Place bid (stub mode)
+     d) Cancel bid (stub mode)
+     e) Decrypt accepted bid (stub mode)
+   - Document any issues found during testing
+
+6. **Error Boundaries**:
+   - Consider adding React Error Boundary for graceful error handling
+   - Wrap main content areas to prevent full app crash
+
+7. **Known Stub Mode Warnings**:
+   - Already in place for CreateListingModal, PlaceBidModal, DecryptModal
+   - Ensure all stub operations are clearly marked in UI
+
+8. **Accessibility Quick Wins**:
+   - Add aria-labels to icon-only buttons
+   - Ensure focus trapping in modals
+   - Keyboard navigation for modals (Escape to close)
 
 ### Phase 15: Local Development Setup
 
