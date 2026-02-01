@@ -6,7 +6,7 @@ Name                          Stmts   Miss  Cover   Missing
 src/__init__.py                   0      0   100%
 src/binding.py                   23      0   100%
 src/bls12381.py                  49      0   100%
-src/commands.py                 101      0   100%
+src/commands.py                 113      0   100%
 src/constants.py                 13      0   100%
 src/ecies.py                     24      0   100%
 src/files.py                     21      0   100%
@@ -20,7 +20,7 @@ src/snark_verify_wrapper.py      12      3    75%   40-42
 tests/__init__.py                 0      0   100%
 tests/test_binding.py           155      1    99%   222
 tests/test_bls12381.py          150      1    99%   264
-tests/test_commands.py          224      7    97%   69, 90-91, 128-129, 132-133
+tests/test_commands.py          247      7    97%   69, 90-91, 128-129, 132-133
 tests/test_ecies.py             118      0   100%
 tests/test_files.py              73      0   100%
 tests/test_groth_convert.py     130      0   100%
@@ -29,7 +29,7 @@ tests/test_register.py           80      0   100%
 tests/test_schnorr.py           120      0   100%
 tests/test_snark.py             115     19    83%   43-44, 160-176, 197, 200, 250
 -----------------------------------------------------------
-TOTAL                          1884    289    85%
+TOTAL                          1919    289    85%
 
 ====================
 GO COVERAGE
@@ -69,10 +69,10 @@ snark/kappa.go:551:		Define				82.2%
 snark/kappa.go:646:		ProveAndVerifyVW0W1		73.0%
 snark/kappa.go:775:		SetupVW0W1Circuit		71.4%
 snark/kappa.go:816:		ProveVW0W1FromSetup		71.7%
-snark/main.go:15:		main				0.0%
-snark/main.go:19:		run				53.5%
+snark/main.go:17:		main				0.0%
+snark/main.go:21:		run				53.2%
 snark/test_verify.go:20:	testVerify			0.0%
-total:				(statements)			56.0%
+total:				(statements)			55.9%
 snark/debug_verify.go:20:	debugVerify			0.0%
 snark/export.go:67:		exportProofBLS			76.0%
 snark/export.go:109:		exportVKBLS			75.6%
@@ -108,7 +108,7 @@ snark/kappa.go:551:		Define				82.2%
 snark/kappa.go:646:		ProveAndVerifyVW0W1		73.0%
 snark/kappa.go:775:		SetupVW0W1Circuit		71.4%
 snark/kappa.go:816:		ProveVW0W1FromSetup		71.7%
-snark/main.go:15:		main				0.0%
-snark/main.go:19:		run				53.5%
+snark/main.go:17:		main				0.0%
+snark/main.go:21:		run				53.2%
 snark/test_verify.go:20:	testVerify			0.0%
-total:				(statements)			56.0%
+total:				(statements)			55.9%

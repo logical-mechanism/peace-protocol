@@ -179,8 +179,22 @@ def test_create_snark_tx_happy_path(monkeypatch):
     calls, set_to_int = _setup_common_mocks(monkeypatch)
 
     # Mock generate_snark_proof since it's not in _setup_common_mocks
-    def fake_generate_snark_proof(a0, r0, bob_public_value, w0, w1, snark_path, out_dir, setup_dir):
-        calls.append(("generate_snark_proof", a0, r0, bob_public_value, w0, w1, str(snark_path), str(out_dir), str(setup_dir)))
+    def fake_generate_snark_proof(
+        a0, r0, bob_public_value, w0, w1, snark_path, out_dir, setup_dir
+    ):
+        calls.append(
+            (
+                "generate_snark_proof",
+                a0,
+                r0,
+                bob_public_value,
+                w0,
+                w1,
+                str(snark_path),
+                str(out_dir),
+                str(setup_dir),
+            )
+        )
 
     monkeypatch.setattr(commands_mod, "generate_snark_proof", fake_generate_snark_proof)
 
@@ -284,8 +298,11 @@ def test_create_bidding_tx_happy_path(monkeypatch):
 def test_create_reencryption_tx_happy_path(monkeypatch):
     calls, set_to_int = _setup_common_mocks(monkeypatch)
 
-    # rng: a1=11, r1=22
-    set_to_int("GT(11)", 9)  # hk
+    # a1, r1, hk are now passed in directly
+    a1 = 11
+    r1 = 22
+    hk = 9
+
     sk_digest = f"hash({commands_mod.KEY_DOMAIN_TAG}WALLET_KEY)"
     set_to_int(sk_digest, 13)
 
@@ -324,13 +341,7 @@ def test_create_reencryption_tx_happy_path(monkeypatch):
 
     monkeypatch.setattr(commands_mod, "load_json", fake_load_json)
 
-    commands_mod.create_reencryption_tx("alice_wallet", bob_u, "TOKEN")
-
-    gt_calls = _calls_of(calls, "gt_to_hash")
-    assert len(gt_calls) == 1
-    _, a, p = gt_calls[0]
-    assert a == 11
-    assert str(p).endswith("/snark/snark")
+    commands_mod.create_reencryption_tx("alice_wallet", bob_u, "TOKEN", a1, r1, hk)
 
     half_calls = _calls_of(calls, "half_level_to_file")
     assert len(half_calls) == 1

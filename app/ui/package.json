@@ -1,0 +1,21 @@
+{
+  "name": "peace-protocol-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Peace Protocol - Encrypted Data Marketplace UI",
+  "scripts": {
+    "dev": "concurrently -n be,fe -c blue,green \"npm run dev:be\" \"npm run dev:fe\"",
+    "dev:fe": "npm --prefix fe run dev",
+    "dev:be": "npm --prefix be run dev",
+    "build": "npm run build:be && npm run build:fe",
+    "build:fe": "npm --prefix fe run build",
+    "build:be": "npm --prefix be run build",
+    "install:all": "npm install && npm --prefix fe install && npm --prefix be install",
+    "lint": "npm run lint:fe && npm run lint:be",
+    "lint:fe": "npm --prefix fe run lint",
+    "lint:be": "npm --prefix be run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

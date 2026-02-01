@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SNARK Prover Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #eee; }
+    .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+    .loading { background: #333; }
+    .success { background: #1a4d1a; }
+    .error { background: #4d1a1a; }
+    .warning { background: #4d4d1a; border: 1px solid #aa0; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    pre { background: #2a2a2a; padding: 10px; overflow-x: auto; max-height: 300px; }
+    input { padding: 8px; margin: 5px; width: 600px; font-family: monospace; }
+    label { display: block; margin-top: 10px; }
+    .timer { font-size: 24px; color: #0ff; margin: 10px 0; }
+    .console-log { background: #111; padding: 10px; margin: 10px 0; max-height: 400px; overflow-y: auto; font-size: 12px; }
+    .console-log .time { color: #888; }
+    .console-log .msg { color: #0f0; }
+    .console-log .err { color: #f00; }
+  </style>
+</head>
+<body>
+  <h1>SNARK Prover Manual Test</h1>
+
+  <div class="warning">
+    <strong>WARNING: Main Thread Execution</strong><br>
+    This test page runs on the main thread. During setup loading (~720MB), the browser WILL become unresponsive for 10-30+ minutes.<br><br>
+    <strong>When the "Page Unresponsive" dialog appears:</strong>
+    <ul>
+      <li>Click "Wait" to continue (do NOT click "Kill Page")</li>
+      <li>The loading is PAUSED while this dialog is shown</li>
+      <li>You may need to click "Wait" multiple times</li>
+    </ul>
+    <strong>Why so slow?</strong> Native Go proves in ~4 minutes using all CPU cores. WASM runs single-threaded and is 2-5x slower for CPU work.
+  </div>
+
+  <div id="status" class="status loading">Initializing...</div>
+  <div id="timer" class="timer">Elapsed: 0:00</div>
+
+  <h2>Console Output</h2>
+  <div id="consoleLog" class="console-log"></div>
+
+  <h2>1. Load Setup Files</h2>
+  <button id="loadBtn" disabled>Load CCS + PK (~720MB) - WILL FREEZE BROWSER</button>
+  <div id="loadStatus"></div>
+
+  <h2>2. Generate Proof</h2>
+  <div>
+    <label>Secret A (hex, e.g. 0x123...):</label>
+    <input type="text" id="secretA" placeholder="0x..." value="0x1234567890abcdef">
+
+    <label>Secret R (hex, can be 0):</label>
+    <input type="text" id="secretR" placeholder="0x..." value="0x0">
+
+    <label>Public V (G1 compressed hex, 96 chars):</label>
+    <input type="text" id="publicV" placeholder="compressed G1 point...">
+
+    <label>Public W0 (G1 compressed hex, 96 chars):</label>
+    <input type="text" id="publicW0" placeholder="compressed G1 point...">
+
+    <label>Public W1 (G1 compressed hex, 96 chars):</label>
+    <input type="text" id="publicW1" placeholder="compressed G1 point...">
+  </div>
+  <button id="proveBtn" disabled>Generate Proof</button>
+  <div id="proveStatus"></div>
+
+  <h2>Result</h2>
+  <pre id="result">No proof generated yet</pre>
+
+  <script src="wasm_exec.js"></script>
+  <script>
+    // Timer
+    let timerStart = null;
+    let timerInterval = null;
+    const timerEl = document.getElementById('timer');
+
+    function startTimer() {
+      timerStart = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        timerEl.textContent = `Elapsed: ${mins}:${secs.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    // Console log capture
+    const consoleLogEl = document.getElementById('consoleLog');
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+
+    function logToUI(msg, isError = false) {
+      const time = new Date().toISOString().substr(11, 12);
+      const div = document.createElement('div');
+      div.innerHTML = `<span class="time">[${time}]</span> <span class="${isError ? 'err' : 'msg'}">${msg}</span>`;
+      consoleLogEl.appendChild(div);
+      consoleLogEl.scrollTop = consoleLogEl.scrollHeight;
+    }
+
+    console.log = function(...args) {
+      originalConsoleLog.apply(console, args);
+      logToUI(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '));
+    };
+
+    console.error = function(...args) {
+      originalConsoleError.apply(console, args);
+      logToUI(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), true);
+    };
+
+    // Capture Go WASM stdout
+    const decoder = new TextDecoder('utf-8');
+    if (typeof globalThis !== 'undefined') {
+      // Go WASM writes to fs.writeSync(1, ...) for stdout
+      // We can't easily intercept this, but console.log in Go maps to console.log
+    }
+
+    const go = new Go();
+    let wasmReady = false;
+    let setupLoaded = false;
+
+    const statusEl = document.getElementById('status');
+    const loadBtn = document.getElementById('loadBtn');
+    const proveBtn = document.getElementById('proveBtn');
+    const loadStatus = document.getElementById('loadStatus');
+    const proveStatus = document.getElementById('proveStatus');
+    const resultEl = document.getElementById('result');
+
+    function setStatus(el, msg, type) {
+      el.textContent = msg;
+      el.className = 'status ' + type;
+    }
+
+    // Load WASM
+    async function initWasm() {
+      try {
+        setStatus(statusEl, 'Loading WASM (~19MB)...', 'loading');
+        console.log('Fetching prover.wasm...');
+        const response = await fetch('prover.wasm');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        console.log('WASM fetched, instantiating...');
+        const buffer = await response.arrayBuffer();
+        console.log(`WASM size: ${(buffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
+        const result = await WebAssembly.instantiate(buffer, go.importObject);
+        console.log('WASM instantiated, starting Go runtime...');
+        go.run(result.instance);
+        wasmReady = true;
+        setStatus(statusEl, 'WASM loaded. Ready to load setup files.', 'success');
+        loadBtn.disabled = false;
+        console.log('Go WASM runtime started. gnarkLoadSetup, gnarkProve, gnarkIsReady are available.');
+      } catch (err) {
+        console.error('WASM load failed:', err);
+        setStatus(statusEl, 'WASM load failed: ' + err.message, 'error');
+      }
+    }
+
+    // Load setup files
+    loadBtn.onclick = async () => {
+      loadBtn.disabled = true;
+      loadStatus.textContent = 'Downloading CCS (~85MB)...';
+      console.log('Starting setup file download...');
+      startTimer();
+
+      try {
+        console.log('Fetching ccs.bin...');
+        const ccsResp = await fetch('ccs.bin');
+        if (!ccsResp.ok) {
+          throw new Error(`CCS download failed: HTTP ${ccsResp.status}`);
+        }
+        const ccsBuffer = await ccsResp.arrayBuffer();
+        const ccsBytes = new Uint8Array(ccsBuffer);
+        console.log(`CCS loaded: ${(ccsBytes.length / 1024 / 1024).toFixed(2)} MB`);
+        loadStatus.textContent = `CCS loaded (${(ccsBytes.length / 1024 / 1024).toFixed(1)} MB). Downloading PK (~613MB)...`;
+
+        console.log('Fetching pk.bin...');
+        const pkResp = await fetch('pk.bin');
+        if (!pkResp.ok) {
+          throw new Error(`PK download failed: HTTP ${pkResp.status}`);
+        }
+        const pkBuffer = await pkResp.arrayBuffer();
+        const pkBytes = new Uint8Array(pkBuffer);
+        console.log(`PK loaded: ${(pkBytes.length / 1024 / 1024).toFixed(2)} MB`);
+        loadStatus.textContent = `PK loaded (${(pkBytes.length / 1024 / 1024).toFixed(1)} MB). Initializing prover...`;
+
+        console.log('Calling gnarkLoadSetup() - this will take a LONG time and freeze the browser...');
+        console.log('Watch the console for [WASM] messages indicating progress.');
+        loadStatus.textContent = 'BROWSER WILL FREEZE NOW - Check console for progress, click "Wait" if prompted';
+        loadStatus.style.color = '#ff0';
+
+        // Give the UI a moment to update before the freeze
+        await new Promise(r => setTimeout(r, 100));
+
+        const result = gnarkLoadSetup(ccsBytes, pkBytes);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        stopTimer();
+        setupLoaded = true;
+        loadStatus.textContent = 'Setup loaded successfully!';
+        loadStatus.style.color = '#0f0';
+        proveBtn.disabled = false;
+        console.log('Setup complete! Prover is ready.');
+      } catch (err) {
+        stopTimer();
+        console.error('Load failed:', err);
+        loadStatus.textContent = 'Load failed: ' + err.message;
+        loadStatus.style.color = '#f00';
+        loadBtn.disabled = false;
+      }
+    };
+
+    // Generate proof
+    proveBtn.onclick = async () => {
+      const secretA = document.getElementById('secretA').value;
+      const secretR = document.getElementById('secretR').value;
+      const publicV = document.getElementById('publicV').value;
+      const publicW0 = document.getElementById('publicW0').value;
+      const publicW1 = document.getElementById('publicW1').value;
+
+      if (!publicV || !publicW0 || !publicW1) {
+        proveStatus.textContent = 'Please fill in all public inputs (V, W0, W1)';
+        proveStatus.style.color = '#f00';
+        return;
+      }
+
+      proveBtn.disabled = true;
+      proveStatus.textContent = 'Generating proof (this may take 10-30 seconds)...';
+      proveStatus.style.color = '#ff0';
+      console.log('Starting proof generation...');
+
+      // Use setTimeout to let UI update
+      setTimeout(() => {
+        try {
+          const start = Date.now();
+          const result = gnarkProve(secretA, secretR, publicV, publicW0, publicW1);
+          const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+
+          if (typeof result === 'string' && result.startsWith('{')) {
+            const parsed = JSON.parse(result);
+            resultEl.textContent = JSON.stringify(parsed, null, 2);
+            proveStatus.textContent = `Proof generated in ${elapsed}s!`;
+            proveStatus.style.color = '#0f0';
+            console.log(`Proof generated successfully in ${elapsed}s`);
+          } else if (result.error) {
+            throw new Error(result.error);
+          } else {
+            resultEl.textContent = JSON.stringify(result, null, 2);
+            proveStatus.textContent = `Proof generated in ${elapsed}s!`;
+            proveStatus.style.color = '#0f0';
+          }
+        } catch (err) {
+          console.error('Proof failed:', err);
+          proveStatus.textContent = 'Proof failed: ' + err.message;
+          proveStatus.style.color = '#f00';
+          resultEl.textContent = 'Error: ' + err.message;
+        }
+        proveBtn.disabled = false;
+      }, 100);
+    };
+
+    // Start
+    console.log('Test page initialized. Loading WASM...');
+    initWasm();
+  </script>
+</body>
+</html>
