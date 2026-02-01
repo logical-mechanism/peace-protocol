@@ -7,9 +7,10 @@ import MySalesTab from '../components/MySalesTab'
 import MyPurchasesTab from '../components/MyPurchasesTab'
 import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
+import PlaceBidModal from '../components/PlaceBidModal'
 import { useToast } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
-import { createListing, getTransactionStubWarning } from '../services/transactionBuilder'
+import { createListing, placeBid, cancelBid, getTransactionStubWarning } from '../services/transactionBuilder'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { CreateListingFormData } from '../components/CreateListingModal'
 
@@ -36,6 +37,8 @@ export default function Dashboard() {
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
   const [showCreateListing, setShowCreateListing] = useState(false)
+  const [showPlaceBid, setShowPlaceBid] = useState(false)
+  const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const toast = useToast()
 
@@ -65,13 +68,46 @@ export default function Dashboard() {
   }, [clearWalletSession, disconnect])
 
   const handlePlaceBid = useCallback((encryption: EncryptionDisplay) => {
-    // TODO: Phase 10 - Implement bid placement modal
-    console.log('Place bid on:', encryption.tokenName)
-    toast.info(
-      'Coming Soon',
-      `Bid placement will be implemented in Phase 10. Encryption: ${encryption.tokenName.slice(0, 12)}...`
-    )
-  }, [toast])
+    setSelectedEncryption(encryption)
+    setShowPlaceBid(true)
+  }, [])
+
+  const handlePlaceBidSubmit = useCallback(async (encryptionTokenName: string, bidAmountAda: number) => {
+    if (!wallet) {
+      throw new Error('Wallet not connected')
+    }
+
+    // Show stub warning if applicable
+    const stubWarning = getTransactionStubWarning()
+    if (stubWarning) {
+      console.warn(stubWarning)
+    }
+
+    const result = await placeBid(wallet, encryptionTokenName, bidAmountAda)
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to place bid')
+    }
+
+    // Show success message
+    if (result.isStub) {
+      toast.warning(
+        'Bid Placed (Stub Mode)',
+        `Bid placed in stub mode. No real transaction submitted. Amount: ${bidAmountAda} ADA`,
+        8000
+      )
+    } else {
+      toast.success(
+        'Bid Placed!',
+        `Transaction submitted: ${result.txHash?.slice(0, 16)}...`,
+        6000
+      )
+    }
+
+    // Refresh and switch to My Purchases tab
+    setRefreshKey(prev => prev + 1)
+    setActiveTab('my-purchases')
+  }, [wallet, toast])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     // TODO: Phase 9 - Implement remove listing transaction
@@ -100,14 +136,50 @@ export default function Dashboard() {
     )
   }, [toast])
 
-  const handleCancelBid = useCallback((bid: BidDisplay) => {
-    // TODO: Phase 10 - Implement cancel bid transaction
-    console.log('Cancel bid:', bid.tokenName)
-    toast.info(
-      'Coming Soon',
-      `Cancel bid will be implemented in Phase 10. Amount: ${(bid.amount / 1_000_000).toLocaleString()} ADA`
-    )
-  }, [toast])
+  const handleCancelBid = useCallback(async (bid: BidDisplay) => {
+    if (!wallet) {
+      toast.error('Error', 'Wallet not connected')
+      return
+    }
+
+    // Show stub warning if applicable
+    const stubWarning = getTransactionStubWarning()
+    if (stubWarning) {
+      console.warn(stubWarning)
+    }
+
+    try {
+      const result = await cancelBid(wallet, bid.tokenName)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to cancel bid')
+      }
+
+      // Show success message
+      if (result.isStub) {
+        toast.warning(
+          'Bid Cancelled (Stub Mode)',
+          `Bid cancelled in stub mode. No real transaction submitted. Amount: ${(bid.amount / 1_000_000).toLocaleString()} ADA`,
+          8000
+        )
+      } else {
+        toast.success(
+          'Bid Cancelled!',
+          `Transaction submitted: ${result.txHash?.slice(0, 16)}...`,
+          6000
+        )
+      }
+
+      // Refresh the bids list
+      setRefreshKey(prev => prev + 1)
+    } catch (error) {
+      console.error('Failed to cancel bid:', error)
+      toast.error(
+        'Failed to Cancel Bid',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      )
+    }
+  }, [wallet, toast])
 
   const handleDecrypt = useCallback((bid: BidDisplay) => {
     // TODO: Phase 13 - Implement decryption flow
@@ -352,6 +424,17 @@ export default function Dashboard() {
         isOpen={showCreateListing}
         onClose={() => setShowCreateListing(false)}
         onSubmit={handleCreateListing}
+      />
+
+      {/* Place Bid Modal */}
+      <PlaceBidModal
+        isOpen={showPlaceBid}
+        onClose={() => {
+          setShowPlaceBid(false)
+          setSelectedEncryption(null)
+        }}
+        onSubmit={handlePlaceBidSubmit}
+        encryption={selectedEncryption}
       />
 
       {/* Toast Notifications */}

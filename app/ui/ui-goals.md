@@ -1485,13 +1485,14 @@ const txHash = await wallet.submitTx(signedTx);
 
 ---
 
-### Phase 10: Place Bid Flow
+### Phase 10: Place Bid Flow (COMPLETED - Stub Mode)
 
-- [ ] Create bid form/modal
-- [ ] Build bid transaction
-- [ ] Sign and submit
-- [ ] Show success/error feedback
-- [ ] Refresh bids
+- [x] Create bid form/modal
+- [x] Build bid transaction
+- [x] Sign and submit (stub mode - actual submission blocked until contract deployment)
+- [x] Show success/error feedback
+- [x] Refresh bids
+- [x] Cancel bid functionality (stub mode)
 
 **Phase 10 Implementation Hints:**
 
@@ -1508,12 +1509,13 @@ const txHash = await wallet.submitTx(signedTx);
    }
    ```
 
-3. **Crypto Operations for Bid**:
-   - Bidder generates their own BLS12-381 keypair: `b` (secret), `B = b·G1` (public)
-   - Bidder's public key `B` is included in bid datum
+3. **Crypto Operations for Bid** (CORRECTED):
+   - Bidder derives secret `b` from wallet signature (same as seller's `sk` derivation)
+   - Uses `deriveSecretFromWallet()` which prompts wallet signing popup
+   - Bidder's public key `B = [b]G1` is included in bid datum as `owner_g1`
+   - **Schnorr proof IS required** - `BidMintRedeemer` has `EntryBidMint(SchnorrProof)`
    - **No ECIES encryption needed** - bidder doesn't encrypt anything
-   - **No Schnorr/binding proofs needed** - simpler than Phase 9
-   - Reference: `commands/05_createBidTx.sh` and `src/commands/create_bid.py`
+   - Reference: `commands/05_createBidTx.sh` and `src/commands.py::create_bidding_tx()`
 
 4. **Bid Datum Structure** (from `contracts/lib/types/bid.ak`):
    ```typescript
@@ -1536,30 +1538,36 @@ const txHash = await wallet.submitTx(signedTx);
    - On success, add bid to `MyPurchasesTab` (refresh bids)
    - Toast notification on success/error
 
-7. **Transaction Building Pattern**:
+7. **Transaction Building Pattern** (CORRECTED):
    ```typescript
-   // Step 1: Generate bidder keypair
-   const b = rng();  // Secret scalar
-   const B = g1Point(b);  // Public key
+   // Step 1: Derive bidder secret from wallet (prompts signing popup)
+   const artifacts = await createBidArtifactsFromWallet(wallet);
+   // artifacts contains: b (secret), register (g, u), schnorr proof, plutusJson
 
    // Step 2: Store secret BEFORE tx submission
-   await bidSecretStorage.store(bidTokenName, { b });
+   await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
 
-   // Step 3: Build datum
-   const datum = buildBidDatum({
+   // Step 3: Build datum (actual structure from bidding.ak)
+   const datum = {
      owner_vkh: extractPkh(bidderAddress),
-     owner_g1: B,
-     encryption_token: encryptionTokenName,
-   });
+     owner_g1: artifacts.plutusJson.register,  // Register type
+     pointer: encryptionTokenName,             // NOT "encryption_token"
+     token: bidTokenName,                      // Bid's own token name
+   };
 
-   // Step 4: Build transaction
-   // - Mint bid token
-   // - Send bid token + ADA to contract
+   // Step 4: Build mint redeemer with Schnorr proof
+   const mintRedeemer = { EntryBidMint: artifacts.plutusJson.schnorr };
+
+   // Step 5: Build transaction
+   // - Mint bid token with Schnorr proof redeemer
+   // - Send bid token + ADA to contract with datum
    // - Reference: commands/05_createBidTx.sh
    ```
 
-8. **Key Differences from Phase 9**:
-   - Simpler crypto (no encryption, no proofs)
+8. **Key Differences from Phase 9** (CORRECTED):
+   - Same secret derivation pattern (wallet signing → `deriveSecretFromWallet()`)
+   - Schnorr proof IS required (for mint redeemer)
+   - No ECIES encryption, no binding proof
    - Only one secret to store (`b` vs `a` and `r`)
    - Bid amount is in UTxO value, not datum
    - No CIP-20 metadata typically needed
@@ -1585,6 +1593,81 @@ const txHash = await wallet.submitTx(signedTx);
     - Bidders don't need `gt_to_hash` - that's only for seller's encryption
     - Bidders only generate a simple G1 public key
     - Phase 10 can be fully completed in stub mode (minus tx submission)
+
+**Phase 10 Implementation Notes (for future phases):**
+
+1. **Files Created**:
+   - `fe/src/components/PlaceBidModal.tsx` - Form modal for bid placement with amount input, quick bid buttons, listing details display
+   - `fe/src/services/crypto/createBid.ts` - Bid-specific crypto operations (keypair + Schnorr proof generation)
+   - `fe/src/services/bidSecretStorage.ts` - IndexedDB storage for bidder secrets (b scalar)
+
+2. **Files Modified**:
+   - `fe/src/services/transactionBuilder.ts` - Added `placeBid()` and `cancelBid()` functions
+   - `fe/src/services/crypto/index.ts` - Exported new createBid functions
+   - `fe/src/pages/Dashboard.tsx` - Integrated PlaceBidModal, updated handlers
+
+3. **Bid Crypto Flow** (matches Python `create_bidding_tx`):
+   - Bidder's secret `b` is derived from wallet signature via `deriveSecretFromWallet()`
+   - This prompts the wallet signing popup (same as seller's Create Listing flow)
+   - Uses `KEY_DOMAIN_TAG` for domain separation (same as seller)
+   - Register created: `g` = G1 generator, `u` = [b]G1
+   - Schnorr proof generated to prove knowledge of `b`
+   - Secret `b` stored in IndexedDB by bid token name (for later decryption if bid wins)
+   - **Note**: Same wallet = same `b` for all bids (deterministic, recoverable)
+
+4. **IndexedDB Schema Update**:
+   - Database version incremented to 2
+   - New object store: `bidder-secrets` with keyPath `bidTokenName`
+   - Index on `encryptionTokenName` for lookup by encryption
+   - Index on `createdAt` for management
+
+5. **BidDatum Structure** (actual vs hints):
+   The actual `bidding.ak` type has different field names than Phase 10 hints:
+   ```typescript
+   // Actual structure from contracts/lib/types/bidding.ak:
+   interface BidDatum {
+     owner_vkh: VerificationKeyHash;  // Bidder's payment key hash
+     owner_g1: Register;              // Bidder's G1 public key register
+     pointer: AssetName;              // Encryption token being bid on (was "encryption_token" in hints)
+     token: AssetName;                // Bid token name (additional field)
+   }
+   ```
+
+6. **Mint Redeemer Requires Schnorr Proof**:
+   The hints incorrectly stated "no proofs needed". The actual `BidMintRedeemer` requires:
+   ```
+   EntryBidMint(SchnorrProof)  // Proof of knowledge of bidder's secret
+   ```
+   This is implemented in `createBid.ts` using the existing `schnorrProof()` function.
+
+7. **UI Features Implemented**:
+   - Quick bid buttons (Suggested price, +10%, +25%)
+   - Minimum bid validation (2 ADA to cover UTxO minimum)
+   - Listing details panel showing token, seller, suggested price, description
+   - Info box explaining what happens when placing a bid
+   - Cancel bid functionality with secret cleanup from IndexedDB
+
+8. **Stub Mode Behavior**:
+   - Generates real cryptographic artifacts (keypair, Schnorr proof)
+   - Stores secrets in IndexedDB (persists across sessions)
+   - Returns fake txHash for UI testing
+   - Simulates 1.5s transaction delay
+   - No actual blockchain interaction
+
+9. **What's Still Blocked Until Contract Deployment**:
+   - Real transaction submission
+   - Reference script UTxO lookups
+   - Bid token minting on-chain
+   - PKH extraction from wallet address (MeshJS can do this, just not tested with contracts)
+
+10. **Wallet-Derived Secrets** (CORRECTED - matches Python implementation):
+    Phase 10 now uses wallet-derived secrets via `deriveSecretFromWallet()`, matching the Python `create_bidding_tx()`:
+    - Same derivation as seller: `sk = toInt(generate(KEY_DOMAIN_TAG + signature))`
+    - Same wallet always produces same bidding identity (deterministic)
+    - All bids from same wallet share the same `owner_g1` register
+    - Secret is recoverable by signing again with same wallet
+    - **Important**: Seller and bidder use same `KEY_DOMAIN_TAG`, so same wallet produces same secret scalar for both roles
+    - `createBidArtifacts()` (random version) still exists but is not used in production flow
 
 ---
 
@@ -1991,6 +2074,85 @@ worker.onmessage = (e) => {
     - [x] **CONFIRMED BLOCKED**: Proof generation fails at 4GB memory limit
     - [x] **CONFIRMED**: Go does not support memory64 (no GOWASM option exists)
     - [x] **DECISION**: Use native CLI prover as primary solution
+
+19. **Notes for AI/Developers Implementing CLI Integration (Phase 11 Continuation):**
+
+    Since browser WASM proving is permanently blocked, here's how to implement native CLI integration:
+
+    **A. CLI Prover Binary Location:**
+    - `app/snark/snark_cli` - The native Go binary that works
+    - Build with: `cd app/snark && go build -o snark_cli .`
+    - Pre-built binaries should be hosted for download (Linux x64, Windows x64, macOS arm64/x64)
+
+    **B. CLI Interface:**
+    ```bash
+    ./snark_cli prove -a <secret_a> -r <secret_r> \
+        -v <public_v_hex> -w0 <public_w0_hex> -w1 <public_w1_hex> \
+        -ccs /path/to/ccs.bin -pk /path/to/pk.bin \
+        -out proof.json
+    ```
+
+    **C. Web UI Flow for Accept Bid:**
+    ```typescript
+    // 1. User clicks "Accept Bid"
+    // 2. Retrieve seller secrets (a, r) from IndexedDB
+    const secrets = await getSecrets(encryption.tokenName);
+
+    // 3. Get public inputs from encryption datum
+    const publicInputs = {
+      v: encryption.datum.v,
+      w0: encryption.datum.w0,
+      w1: encryption.datum.w1,
+    };
+
+    // 4. Show CLI instructions modal with:
+    //    - Download links for CLI binary (platform-specific)
+    //    - Download links for circuit files (ccs.bin, pk.bin)
+    //    - Command to run (with secrets and public inputs)
+    //    - Note: Secrets a, r should be shown as hex strings
+    //    - Expected output: proof.json
+
+    // 5. User runs CLI locally (takes ~4 minutes)
+
+    // 6. User uploads proof.json to web UI
+
+    // 7. Parse and validate proof structure
+    const proof = parseProofJson(uploadedFile);
+
+    // 8. Continue with SNARK transaction building
+    // ... rest of Phase 12 flow
+    ```
+
+    **D. CLI Instructions Modal Needs:**
+    - Platform detection (show correct download link)
+    - Copy-to-clipboard for the CLI command
+    - File upload input for proof.json
+    - Progress indicator while validating proof
+    - Error messages if proof format is invalid
+
+    **E. Proof JSON Format:**
+    The CLI outputs proof in Plutus-compatible JSON format:
+    ```json
+    {
+      "ar": "<G1 point hex>",
+      "bs": "<G2 point hex>",
+      "krs": "<G1 point hex>"
+    }
+    ```
+
+    **F. Security Considerations:**
+    - Secrets (a, r) NEVER leave the browser (shown to user, user copies to CLI)
+    - Consider: Show secrets in hex format with "Copy" button
+    - Consider: Auto-generate CLI command with all parameters
+    - Consider: Warning about not sharing the CLI command (contains secrets)
+
+    **G. Alternative: Electron/Tauri Desktop App:**
+    For better UX, package the CLI + web UI in a desktop app:
+    - Electron: Mature, larger bundle size
+    - Tauri: Smaller, uses native webview
+    - Could run CLI in background without user interaction
+
+---
 
 ### Phase 12: Accept Bid Flow (SNARK + Re-encryption)
 

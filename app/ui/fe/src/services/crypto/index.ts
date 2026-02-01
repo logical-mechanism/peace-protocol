@@ -103,3 +103,12 @@ export {
   supportsSignData,
   getSigningExplanation as getWalletSigningExplanation,
 } from './walletSecret';
+
+// Create bid
+export {
+  createBidArtifacts,
+  createBidArtifactsFromWallet,
+  getBidCryptoExplanation,
+  verifyBidArtifacts,
+} from './createBid';
+export type { BidArtifacts } from './createBid';

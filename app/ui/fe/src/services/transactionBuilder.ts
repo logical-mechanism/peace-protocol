@@ -16,8 +16,9 @@
  */
 
 import type { IWallet } from '@meshsdk/core';
-import { createEncryptionWithWallet, getStubWarning } from './crypto';
+import { createEncryptionWithWallet, getStubWarning, createBidArtifactsFromWallet } from './crypto';
 import { storeSecrets } from './secretStorage';
+import { storeBidSecrets, removeBidSecrets } from './bidSecretStorage';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 
 // Environment flag for stub mode
@@ -238,6 +239,161 @@ export async function cancelPendingListing(
   }
 
   throw new Error('Cancel pending is blocked until contracts are deployed');
+}
+
+/**
+ * Place a bid on an encryption listing.
+ *
+ * STUB MODE: Simulates the transaction without actually submitting.
+ *
+ * Real flow (when contracts deployed):
+ * 1. Get UTxO from wallet to compute bid token name
+ * 2. Generate bid artifacts (keypair + Schnorr proof)
+ * 3. Store bidder secret (b) in IndexedDB
+ * 4. Build transaction with MeshJS
+ * 5. Sign and submit transaction
+ *
+ * @param wallet - Connected browser wallet
+ * @param encryptionTokenName - Token name of the encryption being bid on
+ * @param bidAmountAda - Bid amount in ADA
+ * @returns Transaction result
+ */
+export async function placeBid(
+  wallet: IWallet,
+  encryptionTokenName: string,
+  bidAmountAda: number
+): Promise<TransactionResult> {
+  try {
+    // STUB MODE
+    if (USE_STUBS) {
+      console.warn('[STUB] placeBid - contracts not deployed, wallet:', wallet ? 'connected' : 'not connected');
+      console.warn(getStubWarning());
+
+      // Generate a fake UTxO for bid token name computation
+      const fakeUtxo = {
+        txHash: Array(64)
+          .fill(0)
+          .map(() => Math.floor(Math.random() * 16).toString(16))
+          .join(''),
+        outputIndex: 0,
+      };
+      const bidTokenName = computeTokenName(fakeUtxo.txHash, fakeUtxo.outputIndex);
+
+      // Create bid artifacts (keypair + Schnorr proof)
+      // This prompts the user to sign a message in their wallet to derive the secret
+      const artifacts = await createBidArtifactsFromWallet(wallet);
+
+      // Store bidder secret (b) in IndexedDB BEFORE tx submission
+      await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
+
+      // Convert ADA to lovelace
+      const bidAmountLovelace = Math.floor(bidAmountAda * 1_000_000);
+
+      // Log what would be submitted
+      console.log('[STUB] Would submit bid transaction with:');
+      console.log('  Bid token name:', bidTokenName);
+      console.log('  Encryption token:', encryptionTokenName);
+      console.log('  Bid amount:', bidAmountAda, 'ADA (', bidAmountLovelace, 'lovelace)');
+      console.log('  Register:', artifacts.plutusJson.register);
+      console.log('  Schnorr proof:', artifacts.plutusJson.schnorr);
+
+      // Simulate transaction delay
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Return stub result
+      return {
+        success: true,
+        txHash: `stub_bid_${Date.now().toString(16)}_${bidTokenName.slice(0, 16)}`,
+        tokenName: bidTokenName,
+        isStub: true,
+      };
+    }
+
+    // REAL IMPLEMENTATION (blocked until contract deployment)
+    throw new Error(
+      'Real transaction submission is blocked until contracts are deployed to preprod. ' +
+        'Set VITE_USE_STUBS=true for development.'
+    );
+
+    // TODO: When contracts are deployed, implement:
+    //
+    // 1. Get UTxOs from wallet
+    // const utxos = await wallet.getUtxos();
+    // const selectedUtxo = utxos[0];
+    // const bidTokenName = computeTokenName(selectedUtxo.txHash, selectedUtxo.outputIndex);
+    //
+    // 2. Get wallet address for PKH
+    // const usedAddresses = await wallet.getUsedAddresses();
+    // const address = usedAddresses[0];
+    // const pkh = extractPkh(address);
+    //
+    // 3. Create bid artifacts
+    // const artifacts = createBidArtifacts();
+    //
+    // 4. Store secrets BEFORE submitting transaction
+    // await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
+    //
+    // 5. Build datum
+    // const datum = {
+    //   owner_vkh: pkh,
+    //   owner_g1: artifacts.plutusJson.register,
+    //   pointer: encryptionTokenName,
+    //   token: bidTokenName,
+    // };
+    //
+    // 6. Build transaction using MeshJS
+    // import { Transaction } from '@meshsdk/core';
+    // const tx = new Transaction({ initiator: wallet });
+    // // Mint bid token, send to contract with datum, etc.
+    //
+    // 7. Sign and submit
+    // const unsignedTx = await tx.build();
+    // const signedTx = await wallet.signTx(unsignedTx);
+    // const txHash = await wallet.submitTx(signedTx);
+    //
+    // return { success: true, txHash, tokenName: bidTokenName };
+  } catch (error) {
+    console.error('Failed to place bid:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Cancel (remove) a bid.
+ *
+ * BLOCKED: Requires contract deployment.
+ *
+ * @param wallet - Connected browser wallet
+ * @param bidTokenName - Token name of the bid to cancel
+ * @returns Transaction result
+ */
+export async function cancelBid(
+  _wallet: IWallet,
+  bidTokenName: string
+): Promise<TransactionResult> {
+  if (USE_STUBS) {
+    console.warn('[STUB] cancelBid - contracts not deployed');
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Remove bid secrets from IndexedDB on successful cancellation
+    try {
+      await removeBidSecrets(bidTokenName);
+      console.log('[STUB] Removed bid secrets for:', bidTokenName);
+    } catch (error) {
+      console.warn('[STUB] Failed to remove bid secrets:', error);
+    }
+
+    return {
+      success: true,
+      txHash: `stub_cancel_bid_${Date.now().toString(16)}`,
+      isStub: true,
+    };
+  }
+
+  throw new Error('Cancel bid is blocked until contracts are deployed');
 }
 
 /**

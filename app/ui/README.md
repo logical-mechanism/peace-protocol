@@ -20,8 +20,6 @@ We must use stub data here since the real contracts can not be launched on prepr
 
 Remaining:
 
-Phase 9 (Create Listing - partial) - Build UI + port all crypto logic
-
 Phase 10 (Place Bid - partial) - Build UI + transaction structure
 
 Phase 13 (Decrypt - partial) - Port decryption logic from Python
