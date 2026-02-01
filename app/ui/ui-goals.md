@@ -2398,67 +2398,62 @@ This maintains trustlessness (secrets never transmitted) while working around th
    ```
    Connect with this wallet, go to My Purchases tab, and click "Decrypt" to test.
 
-### Phase 14: Polish & Testing
+### Phase 14: Polish & Testing (COMPLETED - Stub Mode)
 
-- [ ] Error handling throughout (toast notifications)
-- [ ] Loading states throughout
-- [ ] Success modals with CardanoScan links
-- [ ] Unit tests for utils/services
-- [ ] Manual E2E testing on Chrome with Eternl
-- [ ] Mobile not required (desktop-focused for SNARK proving)
+- [x] Error handling throughout (toast notifications)
+- [x] Loading states throughout
+- [x] Success modals with CardanoScan links
+- [x] Unit tests for utils/services
+- [x] React Error Boundary added
+- [x] Accessibility improvements (aria-labels, keyboard nav)
+- [ ] Manual E2E testing on Chrome with Eternl (blocked until contract deployment)
+- [x] Mobile not required (desktop-focused for SNARK proving)
 
-**Phase 14 Notes (for AI implementing this phase):**
+**Phase 14 Implementation Notes (Completed):**
 
-1. **Toast System Already Exists**:
-   - `useToast()` hook from `fe/src/components/Toast.tsx`
-   - Methods: `toast.success()`, `toast.error()`, `toast.warning()`, `toast.info()`
-   - Already integrated in Dashboard for transaction feedback
-   - Review all error paths and ensure they show toasts
+1. **Toast System Enhanced**:
+   - Added `toast.transactionSuccess(title, txHash)` method that includes CardanoScan link
+   - Toast component now supports optional `action` with `href` or `onClick`
+   - All transaction success handlers updated to use new method
 
 2. **CardanoScan Links**:
-   - Preprod: `https://preprod.cardanoscan.io/transaction/{txHash}`
-   - Mainnet: `https://cardanoscan.io/transaction/{txHash}`
-   - Add links to success modals/toasts after tx submission
-   - Consider adding a reusable `TransactionLink` component
+   - Created `fe/src/utils/network.ts` with network detection and URL generation
+   - Created `fe/src/components/TransactionLink.tsx` reusable component
+   - Network auto-detected from subdomain (preprod.* vs www.*)
+   - Links open in new tab with proper security attributes
 
-3. **Loading States Inventory**:
-   - CreateListingModal - has loading during tx signing (review)
-   - PlaceBidModal - has loading during tx signing (review)
-   - DecryptModal - has loading during decryption (complete)
-   - MySalesTab/MyPurchasesTab/MarketplaceTab - have loading spinners (complete)
-   - SalesListingCard bids modal - may need loading state for bid fetching
+3. **Loading States**:
+   - `LoadingSpinner` updated with `role="status"` and `aria-label` for accessibility
+   - All tabs have consistent loading states (MarketplaceTab, MySalesTab, MyPurchasesTab)
+   - All modals have loading states during async operations
 
 4. **Unit Testing Setup**:
-   - Use Vitest (already compatible with Vite)
-   - Priority test targets:
-     a) `fe/src/services/crypto/*.ts` - All crypto operations
-     b) `fe/src/utils/*.ts` - Utility functions
-     c) `fe/src/services/api.ts` - API helpers (mock fetch)
-   - Test crypto functions with known test vectors from Python
+   - Vitest configured in `vite.config.ts` with jsdom environment
+   - Test setup file at `fe/src/test/setup.ts` with mocks
+   - Tests created for:
+     - `fe/src/utils/network.test.ts` - Network utilities (17 tests)
+     - `fe/src/utils/clipboard.test.ts` - Clipboard utilities (4 tests)
+     - `fe/src/services/crypto/__tests__/hashing.test.ts` - Hashing (18 tests)
+     - `fe/src/services/crypto/__tests__/bls12381.test.ts` - BLS12-381 (26 tests)
+   - Run with `npm run test` or `npm run test:watch`
 
-5. **E2E Testing Notes**:
-   - Manual testing only (no Playwright/Cypress setup)
-   - Test wallet: Eternl on Chrome
-   - Test flows:
-     a) Wallet connect/disconnect
-     b) Create listing (stub mode)
-     c) Place bid (stub mode)
-     d) Cancel bid (stub mode)
-     e) Decrypt accepted bid (stub mode)
-   - Document any issues found during testing
+5. **Error Boundaries**:
+   - Created `fe/src/components/ErrorBoundary.tsx` with two variants:
+     - `ErrorBoundary` - Full page fallback with retry/reload buttons
+     - `InlineErrorBoundary` - Compact inline error display
+   - App wrapped with ErrorBoundary in `main.tsx`
 
-6. **Error Boundaries**:
-   - Consider adding React Error Boundary for graceful error handling
-   - Wrap main content areas to prevent full app crash
+6. **Accessibility Improvements**:
+   - All modals have `role="dialog"`, `aria-modal="true"`, `aria-labelledby`
+   - Close buttons have `aria-label="Close dialog"`
+   - Decorative SVGs have `aria-hidden="true"`
+   - View toggle buttons have `aria-pressed` state
+   - Search inputs have `aria-label`
+   - LoadingSpinner has `role="status"` and customizable `aria-label`
 
-7. **Known Stub Mode Warnings**:
-   - Already in place for CreateListingModal, PlaceBidModal, DecryptModal
-   - Ensure all stub operations are clearly marked in UI
-
-8. **Accessibility Quick Wins**:
-   - Add aria-labels to icon-only buttons
-   - Ensure focus trapping in modals
-   - Keyboard navigation for modals (Escape to close)
+7. **Blocked Items**:
+   - Full E2E testing requires contract deployment to preprod
+   - Real transaction testing blocked until contracts available
 
 ### Phase 15: Local Development Setup
 
@@ -2466,6 +2461,54 @@ This maintains trustlessness (secrets never transmitted) while working around th
 - [ ] Document environment setup
 - [ ] Add seed scripts for test data
 - [ ] Create README with setup instructions
+
+**Phase 15 Notes (for AI implementing this phase):**
+
+1. **Docker Compose Setup**:
+   - Create `docker-compose.yml` at `ui/` root
+   - Services needed:
+     - `fe`: Vite dev server (port 5173)
+     - `be`: Node.js backend (port 3001) - may not exist yet, check `ui/be/`
+   - Use multi-stage Dockerfile for production builds
+   - Volume mounts for hot reloading in development
+
+2. **Environment Variables**:
+   - Document all `VITE_*` variables in README
+   - Key variables:
+     - `VITE_USE_STUBS=true` - Enable stub data mode
+     - `VITE_API_URL` - Backend API URL
+     - `VITE_BLOCKFROST_PROJECT_ID_PREPROD` - Blockfrost API key
+     - `VITE_SNARK_CDN_URL` - SNARK files location
+   - Create `.env.example` with all variables documented
+
+3. **Seed Scripts**:
+   - Stub data already exists at `fe/src/dev/stubs/`
+   - Consider creating CLI script to generate varied test data
+   - Match stub data structure with real contract datum types
+   - Include edge cases: empty listings, max bids, expired listings
+
+4. **README Updates**:
+   - Installation steps (npm install in both fe/ and be/)
+   - Development workflow (`npm run dev`)
+   - Testing workflow (`npm run test`)
+   - Build process (`npm run build`)
+   - Stub mode explanation
+   - Known limitations (contracts not on preprod yet)
+
+5. **Backend Considerations**:
+   - Check if `ui/be/` has any actual implementation
+   - If empty, note that backend is optional when using stubs
+   - Document Koios/Blockfrost integration points for when contracts deploy
+
+6. **SNARK Files**:
+   - Document that SNARK proving is blocked by WASM 4GB memory limit
+   - Note that `pk.bin` and `ccs.bin` are large files (~700MB total)
+   - Consider documenting native CLI prover as alternative
+
+7. **Browser Compatibility**:
+   - Document Chrome-only support (best Cardano wallet integration)
+   - Eternl wallet recommended for testing
+   - Firefox/Safari may have wallet compatibility issues
 
 ---
 

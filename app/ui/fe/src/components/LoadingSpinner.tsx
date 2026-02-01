@@ -1,6 +1,7 @@
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  label?: string;
 }
 
 const sizeClasses = {
@@ -9,13 +10,19 @@ const sizeClasses = {
   lg: 'w-8 h-8',
 };
 
-export default function LoadingSpinner({ size = 'md', className = '' }: LoadingSpinnerProps) {
+export default function LoadingSpinner({
+  size = 'md',
+  className = '',
+  label = 'Loading',
+}: LoadingSpinnerProps) {
   return (
     <svg
       className={`animate-spin text-[var(--accent)] ${sizeClasses[size]} ${className}`}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
+      role="status"
+      aria-label={label}
     >
       <circle
         className="opacity-25"

@@ -20,8 +20,6 @@ We must use stub data here since the real contracts can not be launched on prepr
 
 Remaining:
 
-Phase 13 (Decrypt - partial) - Port decryption logic from Python
-
 Phase 14 (Polish - partial) - Toast system, loading states, unit tests
 
 Phase 15 (Dev Setup) - Docker, docs

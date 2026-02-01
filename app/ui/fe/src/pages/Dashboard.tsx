@@ -99,12 +99,10 @@ export default function Dashboard() {
         `Bid placed in stub mode. No real transaction submitted. Amount: ${bidAmountAda} ADA`,
         8000
       )
+    } else if (result.txHash) {
+      toast.transactionSuccess('Bid Placed!', result.txHash)
     } else {
-      toast.success(
-        'Bid Placed!',
-        `Transaction submitted: ${result.txHash?.slice(0, 16)}...`,
-        6000
-      )
+      toast.success('Bid Placed!', 'Transaction submitted successfully')
     }
 
     // Refresh and switch to My Purchases tab
@@ -165,12 +163,10 @@ export default function Dashboard() {
           `Bid cancelled in stub mode. No real transaction submitted. Amount: ${(bid.amount / 1_000_000).toLocaleString()} ADA`,
           8000
         )
+      } else if (result.txHash) {
+        toast.transactionSuccess('Bid Cancelled!', result.txHash)
       } else {
-        toast.success(
-          'Bid Cancelled!',
-          `Transaction submitted: ${result.txHash?.slice(0, 16)}...`,
-          6000
-        )
+        toast.success('Bid Cancelled!', 'Transaction submitted successfully')
       }
 
       // Refresh the bids list
@@ -223,12 +219,10 @@ export default function Dashboard() {
         `Listing created in stub mode. No real transaction submitted. Token: ${result.tokenName?.slice(0, 12)}...`,
         8000
       )
+    } else if (result.txHash) {
+      toast.transactionSuccess('Listing Created!', result.txHash)
     } else {
-      toast.success(
-        'Listing Created!',
-        `Transaction submitted: ${result.txHash?.slice(0, 16)}...`,
-        6000
-      )
+      toast.success('Listing Created!', 'Transaction submitted successfully')
     }
 
     // Refresh the listings

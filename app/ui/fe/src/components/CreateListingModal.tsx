@@ -154,11 +154,17 @@ export default function CreateListingModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-listing-title"
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={isSubmitting ? undefined : onClose}
+        aria-hidden="true"
       />
 
       {/* Modal */}
@@ -166,7 +172,7 @@ export default function CreateListingModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+            <h2 id="create-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
               Create New Listing
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
@@ -176,9 +182,10 @@ export default function CreateListingModal({
           <button
             onClick={onClose}
             disabled={isSubmitting}
+            aria-label="Close dialog"
             className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

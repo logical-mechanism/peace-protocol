@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getTransactionUrl, isValidTxHash } from '../utils/network';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface ToastAction {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+}
 
 export interface ToastMessage {
   id: string;
@@ -8,6 +15,7 @@ export interface ToastMessage {
   title: string;
   message?: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 interface ToastProps {
@@ -118,6 +126,41 @@ function Toast({ toast, onClose }: ToastProps) {
         {toast.message && (
           <p className="mt-1 text-xs text-[var(--text-secondary)]">{toast.message}</p>
         )}
+        {toast.action && (
+          <div className="mt-2">
+            {toast.action.href ? (
+              <a
+                href={toast.action.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-1 text-xs font-medium ${colors.icon} hover:underline`}
+              >
+                {toast.action.label}
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </a>
+            ) : toast.action.onClick ? (
+              <button
+                onClick={toast.action.onClick}
+                className={`text-xs font-medium ${colors.icon} hover:underline cursor-pointer`}
+              >
+                {toast.action.label}
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
       <button
         onClick={() => onClose(toast.id)}
@@ -164,10 +207,11 @@ export function useToast() {
       type: ToastType,
       title: string,
       message?: string,
-      duration?: number
+      duration?: number,
+      action?: ToastAction
     ) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newToast: ToastMessage = { id, type, title, message, duration };
+      const newToast: ToastMessage = { id, type, title, message, duration, action };
       setToasts((prev) => [...prev, newToast]);
       return id;
     },
@@ -206,6 +250,19 @@ export function useToast() {
     [addToast]
   );
 
+  /**
+   * Shows a success toast for a submitted transaction with a CardanoScan link.
+   */
+  const transactionSuccess = useCallback(
+    (title: string, txHash: string, message?: string) => {
+      const action: ToastAction | undefined = isValidTxHash(txHash)
+        ? { label: 'View on CardanoScan', href: getTransactionUrl(txHash) }
+        : undefined;
+      return addToast('success', title, message || `Transaction: ${txHash.slice(0, 16)}...`, 8000, action);
+    },
+    [addToast]
+  );
+
   return {
     toasts,
     addToast,
@@ -214,6 +271,7 @@ export function useToast() {
     error,
     warning,
     info,
+    transactionSuccess,
     ToastContainer: () => <ToastContainer toasts={toasts} onClose={removeToast} />,
   };
 }

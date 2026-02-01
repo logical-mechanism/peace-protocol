@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 import { MeshProvider } from '@meshsdk/react'
 import './index.css'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MeshProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </MeshProvider>
+    <ErrorBoundary>
+      <MeshProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </MeshProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )
