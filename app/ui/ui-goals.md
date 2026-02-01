@@ -1268,13 +1268,13 @@ async function getEncryptions() {
     - Genesis token policy not available
     - All transaction submissions will fail until deployment
 
-- [ ] Create listing form component
-- [ ] Port Python crypto logic to JS (encryption, schnorr proofs, etc.)
-- [ ] Build transaction with MeshJS
-- [ ] Attach CIP-20 metadata (description, price, storage layer)
-- [ ] Sign and submit transaction
-- [ ] Show success/error feedback
-- [ ] Refresh listings
+- [x] Create listing form component
+- [x] Port Python crypto logic to JS (encryption, schnorr proofs, etc.)
+- [x] Build transaction with MeshJS (stub mode - contracts not deployed)
+- [x] Attach CIP-20 metadata (description, price, storage layer)
+- [x] Sign and submit transaction (stub mode - simulated)
+- [x] Show success/error feedback
+- [x] Refresh listings
 
 **Create Listing Form Fields:**
 ```typescript
@@ -1342,6 +1342,149 @@ const txHash = await wallet.submitTx(signedTx);
 
 **Debugging tip:** If MeshJS tx fails but cli works, serialize both to CBOR and diff them.
 
+---
+
+**Phase 9 Implementation Notes (Completed with Stub Mode):**
+
+1. **Files Created**:
+   - `fe/src/components/CreateListingModal.tsx` - Form UI with all fields and validation
+   - `fe/src/components/Toast.tsx` - Toast notification system with `useToast()` hook
+   - `fe/src/services/crypto/bls12381.ts` - BLS12-381 operations using `@noble/curves`
+   - `fe/src/services/crypto/constants.ts` - Domain tags (KEY, SCH, BND, SLT, KEM, AAD, MSG) and Wang G2 points
+   - `fe/src/services/crypto/hashing.ts` - Blake2b-224 hashing using `@noble/hashes`
+   - `fe/src/services/crypto/register.ts` - Register creation and Plutus JSON serialization
+   - `fe/src/services/crypto/schnorr.ts` - Schnorr proof generation with Fiat-Shamir transform
+   - `fe/src/services/crypto/binding.ts` - Binding proof for transcript binding
+   - `fe/src/services/crypto/level.ts` - Half/Full level structures and Plutus JSON serialization
+   - `fe/src/services/crypto/ecies.ts` - AES-256-GCM encryption with HKDF-SHA3-256
+   - `fe/src/services/crypto/walletSecret.ts` - CIP-30 wallet signing for `sk` derivation
+   - `fe/src/services/crypto/createEncryption.ts` - High-level encryption artifact creation
+   - `fe/src/services/crypto/index.ts` - Re-exports all crypto modules for easy importing
+   - `fe/src/services/secretStorage.ts` - IndexedDB storage for seller secrets (a, r)
+   - `fe/src/services/transactionBuilder.ts` - Stub-mode transaction building
+   - `fe/src/noble-types.d.ts` - Ambient type declarations for @noble packages
+
+2. **Noble Package v2.0 Migration**:
+   - `@noble/curves` and `@noble/hashes` v2.0 require `.js` extension in imports
+   - Example: `import { bls12_381 } from '@noble/curves/bls12-381.js'`
+   - Example: `import { blake2b } from '@noble/hashes/blake2.js'`
+   - API changed: `G1.ProjectivePoint` → `G1.Point` in v2.0
+
+3. **CRITICAL BLOCKER - `gt_to_hash` Function**:
+   - The `gt_to_hash(r1, secrets)` function requires BLS12-381 **pairing computation**
+   - Noble-curves does not expose the raw GT (target group) element bytes after pairing
+   - The pairing result is needed to derive the KEM (key encapsulation material) for ECIES
+   - **Current workaround**: `createEncryption.ts` has a `gtToHashStub()` that returns deterministic fake data
+   - **Resolution**: When contracts deploy, use native CLI binary to compute `gt_to_hash`:
+     ```bash
+     # Call native binary from backend API
+     ./peace-cli gt-to-hash --r1 <hex> --a <scalar> --r <scalar>
+     ```
+   - This is the same approach used for SNARK proving (native CLI, not browser WASM)
+
+4. **Crypto Porting Verification**:
+   - All crypto functions ported from Python `src/*.py` files
+   - Domain tags match Python constants exactly (hex-encoded UTF-8)
+   - Schnorr and binding proofs follow Fiat-Shamir transform pattern
+   - ECIES uses WebCrypto API for AES-GCM (browser-native, fast)
+
+   **CRITICAL: G1 vs G2 Point Types**:
+   - H1, H2, H3 in `constants.ts` are **G2 points** (192 hex chars = 96 bytes compressed)
+   - The Python `combine()` and `scale()` functions auto-detect point type by length
+   - In TypeScript, use the generic `combine()` function, NOT `combineG1()` explicitly
+   - Example fix in `createEncryption.ts`:
+     ```typescript
+     // WRONG - will throw "invalid G1 point: expected 48/96 bytes"
+     const c = combineG1(combineG1(scale(H1, aCoeff), scale(H2, bCoeff)), H3);
+
+     // CORRECT - combine() auto-detects G1 (96 chars) vs G2 (192 chars)
+     const c = combine(combine(scale(H1, aCoeff), scale(H2, bCoeff)), H3);
+     ```
+   - The `r4` field in `HalfLevel` is a **G2 point** (192 hex chars), not G1 as originally documented
+   - Python docstrings in `level.py` also incorrectly say r4 is G1 - the Plutus contract just stores bytes
+
+5. **Wallet Secret Derivation (sk)** - IMPLEMENTED in `walletSecret.ts`:
+   - The Python CLI uses `extract_key(wallet_path)` to read signing key from disk
+   - CIP-30 browser wallets do NOT expose private keys (security requirement)
+   - **Solution**: Derive `sk` from a wallet signature using `signData()`:
+     ```typescript
+     // fe/src/services/crypto/walletSecret.ts
+     const KEY_DERIVATION_MESSAGE = 'PEACE_PROTOCOL_v1';
+
+     export async function deriveSecretFromWallet(wallet: IWallet): Promise<bigint> {
+       const addresses = await wallet.getUsedAddresses();
+       const address = addresses[0]; // Always use first address for consistency
+       // MeshJS signData signature: signData(payload, address) - payload first!
+       // MeshJS internally converts payload from UTF-8 to hex via fromUTF8()
+       const signedData = await wallet.signData(KEY_DERIVATION_MESSAGE, address);
+       // Include address in hash derivation for binding
+       const sk = toInt(generate(KEY_DOMAIN_TAG + signedData.signature + stringToHex(address)));
+       return sk;
+     }
+     ```
+   - **CRITICAL: MeshJS signData argument order**: `signData(payload, address)` NOT `signData(address, payload)`.
+     If reversed, MeshJS will try to parse the payload as a bech32 address and fail.
+   - **CRITICAL: MeshJS handles hex encoding**: Pass raw UTF-8 string, not hex-encoded.
+     MeshJS internally calls `fromUTF8(payload)` to convert to hex.
+   - **Key design decision**: Message is simple `PEACE_PROTOCOL_v1` to avoid wallet parsing issues.
+     Some wallets try to parse hex payload as address and fail checksum validation.
+     Address is included in the final hash derivation instead for binding.
+   - **Security properties**:
+     - Deterministic: same wallet + same message = same `sk`
+     - Only wallet holder can produce the signature
+     - User must explicitly approve in wallet UI
+     - Ed25519 signatures are not malleable
+     - Address bound in derivation: different addresses → different `sk`
+   - **UX impact**: User sees signature popup when creating listing
+   - **Important**: Always use the same address (first used/unused address) for consistency
+
+6. **Three Secrets in Encryption**:
+   | Secret | Source | Stored in IndexedDB? | Purpose |
+   |--------|--------|---------------------|---------|
+   | `sk` | Wallet signature derivation | No (re-derivable) | Spending/register key |
+   | `a` | Random `rng()` | Yes | Re-encryption, SNARK witness |
+   | `r` | Random `rng()` | Yes | Re-encryption, half-level |
+
+7. **Dashboard Integration**:
+   - "Create Listing" button added to Dashboard nav bar
+   - Modal opens on click, closes on cancel/success
+   - Toast notifications for success/error feedback
+   - MySalesTab empty state includes "Create Listing" button
+
+8. **What Works in Stub Mode**:
+   - ✅ Form UI with all fields and validation
+   - ✅ Wallet signing for `sk` derivation (CIP-30 signData)
+   - ✅ BLS12-381 key generation (sk, a, r → register)
+   - ✅ Schnorr and binding proof generation
+   - ✅ ECIES encryption of message
+   - ✅ Secret storage in IndexedDB (a, r stored; sk re-derivable from wallet)
+   - ✅ Toast notifications
+   - ⚠️ `gt_to_hash` returns stub data (see blocker above)
+   - ❌ Transaction submission (requires deployed contracts)
+
+9. **Testing the Crypto**:
+   - **With wallet (recommended)**: Use the Create Listing modal with a connected wallet.
+     User will see a signature popup → approve → creates encryption artifacts.
+   - **Without wallet (dev testing)**:
+     ```typescript
+     // In browser console or test file:
+     import { createEncryptionArtifacts } from './services/crypto/createEncryption';
+
+     const walletSecretHex = 'deadbeef'.repeat(8); // 32 bytes fake secret
+     const result = await createEncryptionArtifacts(
+       walletSecretHex,
+       'secret message',
+       'a'.repeat(64), // fake token name
+       true // useStubs for gt_to_hash
+     );
+     console.log('Register:', result.register);
+     console.log('Schnorr proof:', result.schnorr);
+     console.log('Capsule:', result.capsule);
+     // Note: kem uses stub gt_to_hash until native CLI is available
+     ```
+
+---
+
 ### Phase 10: Place Bid Flow
 
 - [ ] Create bid form/modal
@@ -1349,6 +1492,101 @@ const txHash = await wallet.submitTx(signedTx);
 - [ ] Sign and submit
 - [ ] Show success/error feedback
 - [ ] Refresh bids
+
+**Phase 10 Implementation Hints:**
+
+1. **File Structure** (mirror Phase 9 pattern):
+   - Create `fe/src/components/PlaceBidModal.tsx` - Form modal for bid placement
+   - Create `fe/src/services/crypto/createBid.ts` - Bid-specific crypto operations
+   - Extend `fe/src/services/transactionBuilder.ts` with `placeBid()` function
+
+2. **Bid Form Fields**:
+   ```typescript
+   interface PlaceBidFormData {
+     encryptionTokenName: string;  // Which encryption to bid on (from listing)
+     bidAmount: number;            // ADA amount for bid
+   }
+   ```
+
+3. **Crypto Operations for Bid**:
+   - Bidder generates their own BLS12-381 keypair: `b` (secret), `B = b·G1` (public)
+   - Bidder's public key `B` is included in bid datum
+   - **No ECIES encryption needed** - bidder doesn't encrypt anything
+   - **No Schnorr/binding proofs needed** - simpler than Phase 9
+   - Reference: `commands/05_createBidTx.sh` and `src/commands/create_bid.py`
+
+4. **Bid Datum Structure** (from `contracts/lib/types/bid.ak`):
+   ```typescript
+   interface BidDatum {
+     owner_vkh: string;      // Bidder's payment key hash
+     owner_g1: string;       // Bidder's G1 public key (B = b·G1)
+     encryption_token: string; // Token name of encryption being bid on
+     // Bid amount is in the UTxO value, not datum
+   }
+   ```
+
+5. **Secret Storage for Bidders**:
+   - Store bidder's secret `b` in IndexedDB (similar to seller's a, r)
+   - Key by bid token name
+   - Needed later for decryption after seller accepts bid
+   - Extend `secretStorage.ts` or create `bidSecretStorage.ts`
+
+6. **Integration Points**:
+   - PlaceBidModal opens from `MarketplaceListingCard` "Place Bid" button
+   - On success, add bid to `MyPurchasesTab` (refresh bids)
+   - Toast notification on success/error
+
+7. **Transaction Building Pattern**:
+   ```typescript
+   // Step 1: Generate bidder keypair
+   const b = rng();  // Secret scalar
+   const B = g1Point(b);  // Public key
+
+   // Step 2: Store secret BEFORE tx submission
+   await bidSecretStorage.store(bidTokenName, { b });
+
+   // Step 3: Build datum
+   const datum = buildBidDatum({
+     owner_vkh: extractPkh(bidderAddress),
+     owner_g1: B,
+     encryption_token: encryptionTokenName,
+   });
+
+   // Step 4: Build transaction
+   // - Mint bid token
+   // - Send bid token + ADA to contract
+   // - Reference: commands/05_createBidTx.sh
+   ```
+
+8. **Key Differences from Phase 9**:
+   - Simpler crypto (no encryption, no proofs)
+   - Only one secret to store (`b` vs `a` and `r`)
+   - Bid amount is in UTxO value, not datum
+   - No CIP-20 metadata typically needed
+
+9. **Files to Reference**:
+   - `commands/05_createBidTx.sh` - Transaction structure
+   - `src/commands/create_bid.py` - Crypto logic (minimal)
+   - `contracts/lib/types/bid.ak` - Datum type definition
+
+10. **Cancel Bid (Phase 10 bonus)**:
+    - Add "Cancel Bid" button to `MyPurchasesTab` for pending bids
+    - Reference: `commands/06_removeBidTx.sh`
+    - Remove bid secrets from IndexedDB on successful cancellation
+
+11. **Reuse from Phase 9**:
+    - `bls12381.ts` - `rng()`, `g1Point()` for keypair generation
+    - `secretStorage.ts` pattern for storing bidder's `b` secret
+    - `transactionBuilder.ts` pattern for stub mode
+    - `Toast.tsx` for notifications
+    - Modal pattern from `CreateListingModal.tsx`
+
+12. **No `gt_to_hash` Blocker**:
+    - Bidders don't need `gt_to_hash` - that's only for seller's encryption
+    - Bidders only generate a simple G1 public key
+    - Phase 10 can be fully completed in stub mode (minus tx submission)
+
+---
 
 ### Phase 11: SNARK Integration (BLOCKED - Go Lacks Memory64 Support)
 

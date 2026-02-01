@@ -15,6 +15,7 @@ interface MySalesTabProps {
   onRemoveListing?: (encryption: EncryptionDisplay) => void;
   onAcceptBid?: (encryption: EncryptionDisplay, bid: BidDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
+  onCreateListing?: () => void;
 }
 
 export default function MySalesTab({
@@ -22,6 +23,7 @@ export default function MySalesTab({
   onRemoveListing,
   onAcceptBid,
   onCancelPending,
+  onCreateListing,
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
@@ -225,12 +227,7 @@ export default function MySalesTab({
         description="Create your first encryption listing to start selling on the marketplace"
         action={
           <button
-            onClick={() => {
-              // Placeholder for Phase 9
-              alert(
-                'Create listing coming in Phase 9!\n\nYou will be able to encrypt data and list it for sale.'
-              );
-            }}
+            onClick={onCreateListing}
             className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
           >
             Create Listing

@@ -20,8 +20,6 @@ We must use stub data here since the real contracts can not be launched on prepr
 
 Remaining:
 
-Phase 11 (SNARK Integration) - Most complex, fully independent, validates the hardest technical piece
-
 Phase 9 (Create Listing - partial) - Build UI + port all crypto logic
 
 Phase 10 (Place Bid - partial) - Build UI + transaction structure

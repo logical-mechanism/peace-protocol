@@ -12,6 +12,8 @@
   "dependencies": {
     "@meshsdk/core": "^1.8.14",
     "@meshsdk/react": "^1.8.14",
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
     "@tailwindcss/vite": "^4.1.18",
     "buffer": "^6.0.3",
     "events": "^3.3.0",

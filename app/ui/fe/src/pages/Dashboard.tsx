@@ -6,8 +6,12 @@ import MarketplaceTab from '../components/MarketplaceTab'
 import MySalesTab from '../components/MySalesTab'
 import MyPurchasesTab from '../components/MyPurchasesTab'
 import ScrollToTop from '../components/ScrollToTop'
+import CreateListingModal from '../components/CreateListingModal'
+import { useToast } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
+import { createListing, getTransactionStubWarning } from '../services/transactionBuilder'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
+import type { CreateListingFormData } from '../components/CreateListingModal'
 
 type TabId = 'marketplace' | 'my-sales' | 'my-purchases';
 
@@ -23,7 +27,7 @@ const TABS: Tab[] = [
 ];
 
 export default function Dashboard() {
-  const { disconnect } = useWallet()
+  const { disconnect, wallet } = useWallet()
   const address = useAddress()
   const lovelace = useLovelace()
   const { clearWalletSession } = useWalletPersistence()
@@ -31,6 +35,9 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('marketplace')
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
+  const [showCreateListing, setShowCreateListing] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const toast = useToast()
 
   const truncateAddress = (addr: string) => {
     if (!addr) return ''
@@ -60,38 +67,93 @@ export default function Dashboard() {
   const handlePlaceBid = useCallback((encryption: EncryptionDisplay) => {
     // TODO: Phase 10 - Implement bid placement modal
     console.log('Place bid on:', encryption.tokenName)
-    alert(`Bid placement coming in Phase 10!\n\nEncryption: ${encryption.tokenName.slice(0, 16)}...`)
-  }, [])
+    toast.info(
+      'Coming Soon',
+      `Bid placement will be implemented in Phase 10. Encryption: ${encryption.tokenName.slice(0, 12)}...`
+    )
+  }, [toast])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     // TODO: Phase 9 - Implement remove listing transaction
     console.log('Remove listing:', encryption.tokenName)
-    alert(`Remove listing coming in Phase 9!\n\nThis requires a transaction to remove the encryption from the contract.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`)
-  }, [])
+    toast.warning(
+      'Not Yet Available',
+      'Remove listing requires contract deployment to preprod.'
+    )
+  }, [toast])
 
   const handleAcceptBid = useCallback((encryption: EncryptionDisplay, bid: BidDisplay) => {
     // TODO: Phase 12 - Implement SNARK proof + re-encryption flow
     console.log('Accept bid:', bid.tokenName, 'for:', encryption.tokenName)
-    alert(`Accept bid coming in Phase 12!\n\nThis will trigger SNARK proof generation followed by re-encryption transaction.\n\nBid: ${(bid.amount / 1_000_000).toLocaleString()} ADA\nBidder: ${bid.bidder.slice(0, 16)}...`)
-  }, [])
+    toast.info(
+      'Coming Soon',
+      `Accept bid will be implemented in Phase 12 with SNARK proving. Bid: ${(bid.amount / 1_000_000).toLocaleString()} ADA`
+    )
+  }, [toast])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     // TODO: Phase 9 - Implement cancel pending transaction
     console.log('Cancel pending:', encryption.tokenName)
-    alert(`Cancel pending coming in Phase 9!\n\nThis will cancel the pending sale and return the encryption to active status.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`)
-  }, [])
+    toast.warning(
+      'Not Yet Available',
+      'Cancel pending requires contract deployment to preprod.'
+    )
+  }, [toast])
 
   const handleCancelBid = useCallback((bid: BidDisplay) => {
     // TODO: Phase 10 - Implement cancel bid transaction
     console.log('Cancel bid:', bid.tokenName)
-    alert(`Cancel bid coming in Phase 10!\n\nThis requires a transaction to remove the bid from the contract.\n\nBid: ${(bid.amount / 1_000_000).toLocaleString()} ADA\nToken: ${bid.tokenName.slice(0, 16)}...`)
-  }, [])
+    toast.info(
+      'Coming Soon',
+      `Cancel bid will be implemented in Phase 10. Amount: ${(bid.amount / 1_000_000).toLocaleString()} ADA`
+    )
+  }, [toast])
 
   const handleDecrypt = useCallback((bid: BidDisplay) => {
     // TODO: Phase 13 - Implement decryption flow
     console.log('Decrypt:', bid.encryptionToken)
-    alert(`Decryption coming in Phase 13!\n\nAfter your bid is accepted, you'll be able to decrypt the message using your private key.\n\nEncryption: ${bid.encryptionToken.slice(0, 16)}...`)
-  }, [])
+    toast.info(
+      'Coming Soon',
+      'Decryption will be implemented in Phase 13 after accepting a bid.'
+    )
+  }, [toast])
+
+  const handleCreateListing = useCallback(async (formData: CreateListingFormData) => {
+    if (!wallet) {
+      throw new Error('Wallet not connected')
+    }
+
+    // Show stub warning if applicable
+    const stubWarning = getTransactionStubWarning()
+    if (stubWarning) {
+      console.warn(stubWarning)
+    }
+
+    const result = await createListing(wallet, formData)
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create listing')
+    }
+
+    // Show success message
+    if (result.isStub) {
+      toast.warning(
+        'Listing Created (Stub Mode)',
+        `Listing created in stub mode. No real transaction submitted. Token: ${result.tokenName?.slice(0, 12)}...`,
+        8000
+      )
+    } else {
+      toast.success(
+        'Listing Created!',
+        `Transaction submitted: ${result.txHash?.slice(0, 16)}...`,
+        6000
+      )
+    }
+
+    // Refresh the listings
+    setRefreshKey(prev => prev + 1)
+    setActiveTab('my-sales')
+  }, [wallet, toast])
 
   // Fetch user stats
   useEffect(() => {
@@ -121,13 +183,14 @@ export default function Dashboard() {
     }
 
     fetchStats()
-  }, [address])
+  }, [address, refreshKey])
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'marketplace':
         return (
           <MarketplaceTab
+            key={refreshKey}
             userAddress={address}
             onPlaceBid={handlePlaceBid}
           />
@@ -135,15 +198,18 @@ export default function Dashboard() {
       case 'my-sales':
         return (
           <MySalesTab
+            key={refreshKey}
             userAddress={address}
             onRemoveListing={handleRemoveListing}
             onAcceptBid={handleAcceptBid}
             onCancelPending={handleCancelPending}
+            onCreateListing={() => setShowCreateListing(true)}
           />
         )
       case 'my-purchases':
         return (
           <MyPurchasesTab
+            key={refreshKey}
             userAddress={address}
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
@@ -166,6 +232,17 @@ export default function Dashboard() {
           </span>
         </div>
         <div className="flex items-center gap-4">
+          {/* Create Listing Button */}
+          <button
+            onClick={() => setShowCreateListing(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Listing
+          </button>
+
           {/* ADA Balance */}
           <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
             {formatAda(lovelace)} ADA
@@ -269,6 +346,16 @@ export default function Dashboard() {
 
       {/* Scroll to Top Button */}
       <ScrollToTop />
+
+      {/* Create Listing Modal */}
+      <CreateListingModal
+        isOpen={showCreateListing}
+        onClose={() => setShowCreateListing(false)}
+        onSubmit={handleCreateListing}
+      />
+
+      {/* Toast Notifications */}
+      <toast.ToastContainer />
     </div>
   )
 }
