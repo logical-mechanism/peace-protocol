@@ -40,6 +40,7 @@ This SNARK combined with the binding proofs should be enough to make it CCA secu
 ```bash
 go mod tidy
 go build -o snark
+GOOS=js GOARCH=wasm go build -o prover.wasm .
 ```
 
 ## Testing

@@ -16,6 +16,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"runtime"
+	"runtime/debug"
 	"syscall/js"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -26,6 +28,11 @@ import (
 	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/std/math/emulated/emparams"
 )
+
+func init() {
+	debug.SetGCPercent(50)
+	debug.SetMemoryLimit(3 << 30) // 3 GiB limit
+}
 
 // ProofResultWASM is the JSON structure returned to JavaScript
 type ProofResultWASM struct {
@@ -187,7 +194,9 @@ func wasmProve(aStr, rStr, vHex, w0Hex, w1Hex string) (*ProofResultWASM, error) 
 	}
 	fmt.Println("[WASM] wasmProve: public witness extracted")
 
-	// Generate proof
+	// Generate proof - reclaim memory first to maximize headroom
+	runtime.GC()
+	debug.FreeOSMemory()
 	fmt.Println("[WASM] wasmProve: starting groth16.Prove (this is the heavy computation)...")
 	proof, err := groth16.Prove(wasmCCS, wasmPK, witness)
 	if err != nil {
@@ -259,6 +268,12 @@ func gnarkLoadSetupJS(this js.Value, args []js.Value) interface{} {
 			"error": err.Error(),
 		})
 	}
+
+	// Drop big buffers and reclaim memory before proving
+	ccsBytes = nil
+	pkBytes = nil
+	runtime.GC()
+	debug.FreeOSMemory()
 
 	fmt.Println("Setup loaded successfully")
 	return js.ValueOf(map[string]interface{}{

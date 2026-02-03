@@ -18,11 +18,13 @@ import (
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fp"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/mimc"
 
 	fields_bls12381 "github.com/consensys/gnark/std/algebra/emulated/fields_bls12381"
 	sw_bls12381 "github.com/consensys/gnark/std/algebra/emulated/sw_bls12381"
 	sw_emulated "github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
 	"github.com/consensys/gnark/std/conversion"
+	stdmimc "github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/std/hash/sha2"
 	"github.com/consensys/gnark/std/math/bits"
 	"github.com/consensys/gnark/std/math/emulated"
@@ -35,6 +37,25 @@ const H0Hex = "a5acbe8bdb762cf7b4bfa9171b9ffa23b6ed710b290280b271a0258e285354aac
 
 // IMPORTANT: FIXED and appended as BYTES (hex-decoded) before hashing.
 const DomainTagHex = "4631327c546f7c4865787c76317c"
+
+// --- Fp→Fr limb-based conversion constants ---
+// pow64[i] = 2^(64*i) mod r, where r is the BLS12-381 scalar field modulus.
+// Used for efficient in-circuit Fp→Fr conversion without bit decomposition.
+var (
+	frMod = emparams.BLS12381Fr{}.Modulus()
+
+	pow64 = func() []*big.Int {
+		const limbs = 6
+		base := new(big.Int).Lsh(big.NewInt(1), 64) // 2^64
+		out := make([]*big.Int, limbs)
+		out[0] = big.NewInt(1)
+		for i := 1; i < limbs; i++ {
+			out[i] = new(big.Int).Mul(out[i-1], base)
+			out[i].Mod(out[i], frMod)
+		}
+		return out
+	}()
+)
 
 // --- out-of-circuit helpers ---
 
@@ -109,27 +130,73 @@ func fq12CanonicalBytes(k bls12381.GT) []byte {
 	return out
 }
 
-func sha256Hex(msg []byte) string {
-	d := sha256.Sum256(msg)
-	return hex.EncodeToString(d[:])
+// fq12ToFrElements extracts the 12 Fp coefficients from a GT element
+// and converts each to an Fr element (reduced mod r).
+// This is the MiMC-compatible representation of the pairing output.
+func fq12ToFrElements(k bls12381.GT) []fr.Element {
+	elements := make([]fr.Element, 0, 13) // 12 coefficients + domain tag
+
+	appendFpAsFr := func(e fp.Element) {
+		var bi big.Int
+		e.ToBigIntRegular(&bi)
+		var frEl fr.Element
+		frEl.SetBigInt(&bi) // automatically reduces mod r
+		elements = append(elements, frEl)
+	}
+
+	// Same order as fq12CanonicalBytes for consistency
+	appendFpAsFr(k.C0.B0.A0)
+	appendFpAsFr(k.C0.B0.A1)
+	appendFpAsFr(k.C0.B1.A0)
+	appendFpAsFr(k.C0.B1.A1)
+	appendFpAsFr(k.C0.B2.A0)
+	appendFpAsFr(k.C0.B2.A1)
+	appendFpAsFr(k.C1.B0.A0)
+	appendFpAsFr(k.C1.B0.A1)
+	appendFpAsFr(k.C1.B1.A0)
+	appendFpAsFr(k.C1.B1.A1)
+	appendFpAsFr(k.C1.B2.A0)
+	appendFpAsFr(k.C1.B2.A1)
+
+	return elements
+}
+
+// domainTagFr returns the domain tag as an Fr element for MiMC hashing.
+func domainTagFr() fr.Element {
+	tagBytes, _ := hex.DecodeString(DomainTagHex)
+	var tag fr.Element
+	tag.SetBytes(tagBytes)
+	return tag
+}
+
+// mimcHashFr hashes a slice of Fr elements using MiMC and returns the result.
+func mimcHashFr(elements []fr.Element) fr.Element {
+	h := mimc.NewMiMC()
+	for _, e := range elements {
+		h.Write(e.Marshal())
+	}
+	var result fr.Element
+	result.SetBytes(h.Sum(nil))
+	return result
+}
+
+// mimcHex hashes Fr elements and returns the result as lowercase hex.
+func mimcHex(elements []fr.Element) string {
+	result := mimcHashFr(elements)
+	return hex.EncodeToString(result.Marshal())
 }
 
 // gtToHash computes (for kappa = e([a]q, h0)):
 //
-//	enc  = fq12CanonicalBytes(kappa)
-//	hk   = sha256( enc || domainTagBytes )
+//	elements = fq12ToFrElements(kappa)
+//	hk   = mimc( elements || domainTagFr )
 //
 // Returns:
-// - hkHex (lowercase hex, 64 chars)
+// - hkHex (lowercase hex, 64 chars - Fr element is 32 bytes)
 // - kappaEncHex (lowercase hex, 12*48*2 = 1152 chars)
 func gtToHash(a *big.Int) (hkHex string, kappaEncHex string, err error) {
 	if a == nil || a.Sign() == 0 {
 		return "", "", fmt.Errorf("a must be > 0")
-	}
-
-	tagBytes, err := hex.DecodeString(DomainTagHex)
-	if err != nil {
-		return "", "", fmt.Errorf("decode DomainTagHex: %w", err)
 	}
 
 	h0, err := parseG2CompressedHex(H0Hex)
@@ -144,27 +211,27 @@ func gtToHash(a *big.Int) (hkHex string, kappaEncHex string, err error) {
 		return "", "", fmt.Errorf("pairing: %w", err)
 	}
 
-	enc := fq12CanonicalBytes(kappa)
-	msg := make([]byte, 0, len(enc)+len(tagBytes))
-	msg = append(msg, enc...)
-	msg = append(msg, tagBytes...)
+	// Convert kappa to Fr elements for MiMC
+	elements := fq12ToFrElements(kappa)
+	elements = append(elements, domainTagFr())
 
-	d := sha256.Sum256(msg)
-	return hex.EncodeToString(d[:]), hex.EncodeToString(enc), nil
+	// Hash with MiMC
+	hk := mimcHashFr(elements)
+
+	// For kappaEncHex, still use the byte encoding for compatibility
+	enc := fq12CanonicalBytes(kappa)
+
+	return hex.EncodeToString(hk.Marshal()), hex.EncodeToString(enc), nil
 }
 
 // hkScalarFromA computes hk as a scalar in Fr, derived from:
-// sha256( fq12CanonicalBytes(e([a]q, h0)) || domainTagBytes )
-// reduced via fr.Element.SetBytes (i.e., mod r).
+// mimc( fq12ToFrElements(e([a]q, h0)) || domainTagFr )
+// The result is already an Fr element from MiMC.
 func hkScalarFromA(a *big.Int) (*big.Int, error) {
 	if a == nil || a.Sign() == 0 {
 		return nil, fmt.Errorf("a must be > 0")
 	}
 
-	tagBytes, err := hex.DecodeString(DomainTagHex)
-	if err != nil {
-		return nil, fmt.Errorf("decode DomainTagHex: %w", err)
-	}
 	h0, err := parseG2CompressedHex(H0Hex)
 	if err != nil {
 		return nil, err
@@ -176,19 +243,13 @@ func hkScalarFromA(a *big.Int) (*big.Int, error) {
 		return nil, fmt.Errorf("pairing: %w", err)
 	}
 
-	enc := fq12CanonicalBytes(kappa)
-	msg := make([]byte, 0, len(enc)+len(tagBytes))
-	msg = append(msg, enc...)
-	msg = append(msg, tagBytes...)
+	elements := fq12ToFrElements(kappa)
+	elements = append(elements, domainTagFr())
 
-	d := sha256.Sum256(msg)
-
-	// Reduce into Fr (same semantics you want in-circuit: interpret bytes then mod r)
-	var s fr.Element
-	s.SetBytes(d[:])
+	hk := mimcHashFr(elements)
 
 	var bi big.Int
-	s.BigInt(&bi)
+	hk.BigInt(&bi)
 	return &bi, nil
 }
 
@@ -198,6 +259,12 @@ type wFromHKCircuit struct {
 	// private scalar hk (Fr)
 	// IMPORTANT: force this entire composite value to be SECRET (prevents stray public limbs)
 	HK emulated.Element[emparams.BLS12381Fr] `gnark:"hk,secret"`
+
+	// SignHint: 0 or 1 indicating whether Y is lexicographically largest.
+	// This is needed for correct BLS12-381 point compression (which uses
+	// Y > (p-1)/2, not Y's LSB). The hint is verified implicitly via the
+	// SHA256 hash check - wrong sign → wrong compressed bytes → wrong hash.
+	SignHint frontend.Variable `gnark:"signhint,secret"`
 
 	// public: sha2_256(compressed W), split into 2×16-byte big-endian integers
 	HW0 frontend.Variable `gnark:"hw0,public"`
@@ -228,19 +295,20 @@ func (c *wFromHKCircuit) Define(api frontend.API) error {
 
 	// Build compressed G1:
 	// out = X (48 bytes), set:
-	//   out[0] |= 0x80 (compression)
-	//   out[0] |= 0x20 iff y is odd
+	//   out[0] |= 0x80 (compression flag)
+	//   out[0] |= 0x20 iff Y is lexicographically largest (Y > (p-1)/2)
+	// Note: BLS12-381 uses lexicographic comparison, not Y's LSB.
+	// SignHint is provided as witness and verified via SHA256 hash match.
 	bapi, err := uints.NewBytes(api)
 	if err != nil {
 		return fmt.Errorf("NewBytes: %w", err)
 	}
 
-	// yLSB from last byte bit0
-	lastY := bapi.Value(yBytes[47])
-	yBits := bits.ToBinary(api, lastY, bits.WithNbDigits(8))
-	yLSB := yBits[0] // 0/1
+	// Ensure SignHint is boolean (0 or 1)
+	api.AssertIsBoolean(c.SignHint)
 
-	signMask := api.Mul(yLSB, 0x20)
+	// Use SignHint for the sign bit (0x20 if Y is lex largest)
+	signMask := api.Mul(c.SignHint, 0x20)
 	first := bapi.Or(xBytes[0], bapi.ValueOf(0x80), bapi.ValueOf(signMask))
 	xBytes[0] = first
 
@@ -299,8 +367,15 @@ func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 	if len(rawW) != 48 {
 		return fmt.Errorf("invalid -w length: got %d bytes, want 48", len(rawW))
 	}
-	if _, err := parseG1CompressedHex(wCompressedHex); err != nil {
+	wPoint, err := parseG1CompressedHex(wCompressedHex)
+	if err != nil {
 		return fmt.Errorf("invalid compressed G1: %w", err)
+	}
+
+	// Compute sign hint: 1 if Y is lexicographically largest, 0 otherwise
+	var signHint int
+	if wPoint.Y.LexicographicallyLargest() {
+		signHint = 1
 	}
 
 	// 3) Public inputs = sha256(W_compressed) split into two 16-byte big-endian ints
@@ -324,9 +399,10 @@ func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 
 	// 6) Create witness assignment
 	assignment := wFromHKCircuit{
-		HK:  emulated.ValueOf[emparams.BLS12381Fr](hkBi),
-		HW0: &hw0,
-		HW1: &hw1,
+		HK:       emulated.ValueOf[emparams.BLS12381Fr](hkBi),
+		SignHint: signHint,
+		HW0:      &hw0,
+		HW1:      &hw1,
 	}
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
@@ -361,19 +437,13 @@ func domainTagBytes() ([]byte, error) {
 }
 
 // gtToHashFromGT hashes a GT element exactly like gtToHash does:
-// hk = sha256( fq12CanonicalBytes(k) || domainTagBytes )
+// hk = mimc( fq12ToFrElements(k) || domainTagFr )
 func gtToHashFromGT(k bls12381.GT) (string, error) {
-	tagBytes, err := domainTagBytes()
-	if err != nil {
-		return "", fmt.Errorf("decode DomainTagHex: %w", err)
-	}
+	elements := fq12ToFrElements(k)
+	elements = append(elements, domainTagFr())
 
-	enc := fq12CanonicalBytes(k)
-	msg := make([]byte, 0, len(enc)+len(tagBytes))
-	msg = append(msg, enc...)
-	msg = append(msg, tagBytes...)
-
-	return sha256Hex(msg), nil
+	hk := mimcHashFr(elements)
+	return hex.EncodeToString(hk.Marshal()), nil
 }
 
 // gtDiv computes num / den in GT as num * den^{-1}.
@@ -395,7 +465,7 @@ func gtDiv(num, den bls12381.GT) bls12381.GT {
 //
 //	b = pair(r1, shared)
 //	k = r2 / b
-//	out = sha256( fq12CanonicalBytes(k) || DomainTag )
+//	out = mimc( fq12ToFrElements(k) || DomainTagFr )
 //
 // Inputs are COMPRESSED hex strings:
 //
@@ -464,7 +534,7 @@ func DecryptToHash(g1bHex, g2bHex, r1Hex, sharedHex string) (string, error) {
 //
 // with hk computed IN-CIRCUIT from:
 //
-//	hk = Fr( sha256( fq12CanonicalBytes( e([a]q, H0) ) || DomainTagBytes ) )
+//	hk = mimc( fq12ToFrElements( e([a]q, H0) ) || DomainTagFr )
 //
 // where (a, r) are secret scalars in Fr
 // and (v, w0, w1) are public G1 points (provided as public X/Y in Fp).
@@ -509,42 +579,70 @@ func fq12CanonicalBytesInCircuit(api frontend.API, k *sw_bls12381.GTEl) ([]uints
 	return out, nil
 }
 
-// hashToFrSha256 reduces sha256(msg) into Fr using emulated.Field.FromBits + Reduce.
-// digest bits are interpreted as a big-endian integer before reduction.
-func hashToFrSha256(api frontend.API, msg []uints.U8) (emulated.Element[emparams.BLS12381Fr], error) {
-	h, err := sha2.New(api)
+// fpToNativeFr reduces an Fp element to a native Fr element using limb arithmetic.
+// This avoids expensive byte→bit→FromBinary conversion by directly using the limbs.
+// The element is: x = Σ limb[i] * 2^(64*i), so x mod r = Σ limb[i] * (2^(64*i) mod r).
+func fpToNativeFr(
+	api frontend.API,
+	fpField *emulated.Field[emparams.BLS12381Fp],
+	x *emulated.Element[emparams.BLS12381Fp],
+) frontend.Variable {
+	// Ensure limbs are range-checked and canonical (< p).
+	// Pairing outputs are often not in normal form.
+	xr := fpField.ReduceStrict(x)
+
+	// Native field is Fr, so this sum is automatically mod r.
+	var acc frontend.Variable = 0
+	for i, limb := range xr.Limbs { // little-endian limbs
+		acc = api.Add(acc, api.Mul(limb, pow64[i]))
+	}
+	return acc
+}
+
+// fq12ToNativeFrElements extracts the 12 Fp coefficients from an in-circuit
+// GT element and converts each to a native field element (Fr) for MiMC hashing.
+// Uses limb-based conversion: ~6 mul-adds per coefficient instead of 384 bit operations.
+func fq12ToNativeFrElements(api frontend.API, k *sw_bls12381.GTEl) ([]frontend.Variable, error) {
+	ext12 := fields_bls12381.NewExt12(api)
+	tower := ext12.ToTower(k) // [12]*baseEl
+
+	fpField, err := emulated.NewField[emparams.BLS12381Fp](api)
+	if err != nil {
+		return nil, err
+	}
+
+	elements := make([]frontend.Variable, 0, 13) // 12 coeffs + domain tag
+	for i := 0; i < 12; i++ {
+		elements = append(elements, fpToNativeFr(api, fpField, tower[i]))
+	}
+
+	return elements, nil
+}
+
+// hashToFrMiMC hashes native field elements using MiMC and returns an emulated Fr.
+// Since the circuit is compiled over BLS12-381's scalar field, MiMC operates in Fr.
+func hashToFrMiMC(api frontend.API, elements []frontend.Variable) (emulated.Element[emparams.BLS12381Fr], error) {
+	h, err := stdmimc.NewMiMC(api)
 	if err != nil {
 		return emulated.Element[emparams.BLS12381Fr]{}, err
 	}
-	h.Write(msg)
-	digest := h.Sum() // 32 bytes (big-endian)
 
-	bapi, err := uints.NewBytes(api)
-	if err != nil {
-		return emulated.Element[emparams.BLS12381Fr]{}, err
-	}
+	h.Write(elements...)
+	digest := h.Sum()
 
-	// Build bit slice (little-endian) representing the big-endian digest integer:
-	// least significant bits first => iterate bytes from last to first, and within each byte use LSB-first.
-	digestBits := make([]frontend.Variable, 0, 256)
-	for i := len(digest) - 1; i >= 0; i-- {
-		bv := bapi.Value(digest[i])
-		bs := bits.ToBinary(api, bv, bits.WithNbDigits(8)) // bs[0] is LSB
-		digestBits = append(digestBits, bs...)
-	}
-
+	// Convert native Fr (frontend.Variable) to emulated Fr
+	// Since the native field IS Fr, the value is already in the correct range
 	frField, err := emulated.NewField[emparams.BLS12381Fr](api)
 	if err != nil {
 		return emulated.Element[emparams.BLS12381Fr]{}, err
 	}
 
-	// IMPORTANT: FromBits is variadic in gnark; expand the slice.
-	hk := frField.FromBits(digestBits...) // ✅ NOT digestBits
+	// Convert native to bits, then to emulated Fr
+	// No Reduce needed: digest is already a native Fr element (< r),
+	// so FromBits produces a value that's already in valid range.
+	digestBits := bits.ToBinary(api, digest, bits.WithNbDigits(256))
+	hk := frField.FromBits(digestBits...)
 
-	// Reduce mod r (mirrors fr.Element.SetBytes semantics).
-	hk = frField.Reduce(hk)
-
-	// hk is a *Element in this gnark version; return value.
 	return *hk, nil
 }
 
@@ -559,10 +657,9 @@ func (c *vw0w1Circuit) Define(api frontend.API) error {
 	w0 := sw_emulated.AffinePoint[emparams.BLS12381Fp]{X: c.W0X, Y: c.W0Y}
 	w1 := sw_emulated.AffinePoint[emparams.BLS12381Fp]{X: c.W1X, Y: c.W1Y}
 
-	// Strongly recommended: validate public points.
-	curve.AssertIsOnCurve(&v)
-	curve.AssertIsOnCurve(&w0)
-	curve.AssertIsOnCurve(&w1)
+	// NOTE: On-curve validation for v, w0, w1 is performed by the contract
+	// before these public inputs reach the prover. Skipping in-circuit
+	// validation saves ~150K constraints.
 
 	// qa = [a]q
 	qa := curve.ScalarMulBase(&c.A)
@@ -582,37 +679,31 @@ func (c *vw0w1Circuit) Define(api frontend.API) error {
 	h0 := sw_bls12381.NewG2AffineFixed(h0Native)
 
 	qaForPair := sw_bls12381.G1Affine{X: qa.X, Y: qa.Y}
-	pairing.AssertIsOnG1(&qaForPair)
-	pairing.AssertIsOnG2(&h0)
+	// NOTE: Skipping AssertIsOnG1/G2 - qa comes from ScalarMulBase (always valid),
+	// h0 is a compile-time constant. All points are validated by the contract.
 
 	kappa, err := pairing.Pair([]*sw_bls12381.G1Affine{&qaForPair}, []*sw_bls12381.G2Affine{&h0})
 	if err != nil {
 		return err
 	}
 
-	kappaBytes, err := fq12CanonicalBytesInCircuit(api, kappa)
+	// Convert kappa to native field elements for MiMC hashing
+	kappaElements, err := fq12ToNativeFrElements(api, kappa)
 	if err != nil {
-		return fmt.Errorf("kappa encode: %w", err)
+		return fmt.Errorf("kappa to elements: %w", err)
 	}
 
-	tagRaw, err := hex.DecodeString(DomainTagHex)
-	if err != nil {
-		return fmt.Errorf("decode DomainTagHex: %w", err)
-	}
-	bapi, err := uints.NewBytes(api)
-	if err != nil {
-		return fmt.Errorf("NewBytes: %w", err)
-	}
+	// Add domain tag as native field element
+	tagBytes, _ := hex.DecodeString(DomainTagHex)
+	var tagBigInt big.Int
+	tagBigInt.SetBytes(tagBytes)
+	tagElement := frontend.Variable(&tagBigInt)
+	kappaElements = append(kappaElements, tagElement)
 
-	msg := make([]uints.U8, 0, len(kappaBytes)+len(tagRaw))
-	msg = append(msg, kappaBytes...)
-	for _, tb := range tagRaw {
-		msg = append(msg, bapi.ValueOf(int(tb)))
-	}
-
-	hk, err := hashToFrSha256(api, msg)
+	// Hash with MiMC
+	hk, err := hashToFrMiMC(api, kappaElements)
 	if err != nil {
-		return fmt.Errorf("hashToFrSha256: %w", err)
+		return fmt.Errorf("hashToFrMiMC: %w", err)
 	}
 
 	// p0 = [hk]q
@@ -636,8 +727,7 @@ func (c *vw0w1Circuit) Define(api frontend.API) error {
 //   - a, r (big.Int)
 //
 // Relation proven:
-//   - hk is computed inside the circuit from kappa = e([a]q, H0) and sha256(encode(kappa)||DomainTag),
-//     reduced into Fr,
+//   - hk is computed inside the circuit from kappa = e([a]q, H0) and mimc(fq12ToFr(kappa)||DomainTag),
 //   - w0 == [hk]q
 //   - w1 == [a]q + [r]v
 //

@@ -60,7 +60,8 @@ Since contracts aren't yet on preprod, phases are categorized by blockchain depe
 | **Phase 1** | Full project setup |
 | **Phase 2** | Wallet connection (works without contracts) |
 | **Phase 3** | Full landing page |
-| **Phase 11** | SNARK infrastructure (WASM setup works, but proof generation blocked by 4GB limit - use native CLI instead) |
+| **Phase 11** | SNARK infrastructure (✅ WASM proving now works in browser!) |
+| **Phase 11.5** | WASM Loading Screen (new - handles ~99 min setup load) |
 
 ### Can Build With Stub Data
 
@@ -80,7 +81,7 @@ Since contracts aren't yet on preprod, phases are categorized by blockchain depe
 |-------|----------------|
 | **Phase 9** | Actual tx submission & confirmation |
 | **Phase 10** | Actual tx submission & confirmation |
-| **Phase 12** | Full SNARK tx + re-encryption flow (also requires native CLI integration - browser proving not feasible) |
+| **Phase 12** | Actual tx submission (browser proving now works - can implement full UI flow in stub mode) |
 | **Phase 14** | Manual E2E transaction testing |
 
 ### Stub Data Strategy
@@ -141,12 +142,13 @@ VITE_USE_STUBS=false
 ### What Can Be Fully Tested Now
 
 1. **Wallet connect/disconnect** - Works with any Cardano wallet
-2. **SNARK proving** - Native CLI only (~4 min); browser WASM blocked by 4GB memory limit
+2. **SNARK proving** - ✅ Browser WASM now works (~5 min proof, ~99 min setup load)
 3. **Crypto logic** - Encryption, schnorr proofs, key derivation
 4. **All UI components** - With stub data
 5. **Form validation** - All input validation
 6. **Error handling UI** - Toasts, modals
 7. **Secret storage** - IndexedDB persistence
+8. **WASM Loading Screen** - Full loading flow with progress tracking
 
 ---
 
@@ -163,8 +165,8 @@ ui/
 │   │   ├── wasm/                # SNARK WASM integration
 │   │   └── utils/               # Helpers
 │   ├── public/
-│   │   ├── pk.bin               # Proving key (~613 MB)
-│   │   ├── ccs.bin              # Constraint system (~85 MB)
+│   │   ├── pk.bin               # Proving key (~445 MB)
+│   │   ├── ccs.bin              # Constraint system (~52 MB)
 │   │   ├── prover.wasm          # SNARK prover (~20 MB)
 │   │   └── wasm_exec.js         # Go WASM runtime
 │   └── package.json
@@ -1671,11 +1673,17 @@ const txHash = await wallet.submitTx(signedTx);
 
 ---
 
-### Phase 11: SNARK Integration (BLOCKED - Go Lacks Memory64 Support)
+### Phase 11: SNARK Integration (✅ BROWSER PROVING WORKS!)
 
 **This is the most complex phase. See `snark/browser-support.md` for details.**
 
-**⚠️ PERMANENTLY BLOCKED FOR BROWSER-BASED PROVING**: After extensive research (January 2026), Go does not support WebAssembly memory64. The `GOWASM` environment variable only accepts `satconv` and `signext` - there is no `memory64` option. This means browser-based SNARK proving is not feasible for this circuit size. See item 18 below for full details and recommended alternatives.
+**✅ BROWSER-BASED PROVING NOW WORKS (February 2026)**: After reducing circuit constraints from 1.6M to ~1M, browser-based SNARK proving is now feasible! The constraint reduction brought memory usage under the 4GB WASM limit.
+
+**Current Performance (tested February 2026):**
+- Setup loading: ~99 minutes (down from 140 minutes)
+- Proof generation: ~5 minutes (single-threaded WASM)
+- Total circuit files: ~497 MB (down from ~698 MB)
+- No memory out-of-bounds errors
 
 - [x] Set up WASM loading infrastructure
 - [x] Implement IndexedDB caching for pk.bin/ccs.bin
@@ -1684,12 +1692,12 @@ const txHash = await wallet.submitTx(signedTx);
 - [x] Implement proving interface
 - [x] Create WASM entry point (`snark/wasm_main.go`)
 - [x] Compile and deploy prover.wasm (~19MB)
-- [x] **VERIFIED: Setup loading completes** (~2.3 hours in Web Worker)
+- [x] **VERIFIED: Setup loading completes** (~99 minutes in Web Worker)
 - [x] **VERIFIED: Constraint solver works** (21 seconds after setup)
-- [x] **BLOCKED: Proof generation hits 4GB WASM memory limit** (see item 18 below)
-- [x] **CONFIRMED: Go does not support memory64** - no solution available
-- [ ] Build SNARK transaction (BLOCKED: requires contract deployment)
+- [x] **VERIFIED: Proof generation completes** (~5 minutes)
+- [ ] Build SNARK transaction (requires contract deployment)
 - [x] Handle proving errors gracefully
+- [ ] **NEW: Implement WASM Loading Screen** (see Phase 11.5 below)
 
 ```typescript
 // Web Worker setup
@@ -1724,11 +1732,12 @@ worker.onmessage = (e) => {
 
 2. **SNARK Files Location**:
    - Circuit files are stored in `app/circuit/` (NOT in git due to size):
-     - `pk.bin` (~613 MB) - Proving key
-     - `ccs.bin` (~85 MB) - Constraint system
+     - `pk.bin` (~445 MB) - Proving key
+     - `ccs.bin` (~52 MB) - Constraint system
      - `vk.bin` (2.7 KB) - Verifying key (not needed in browser)
      - `vk.json` (5.5 KB) - Verifying key in JSON format
    - These files are cached in IndexedDB after first download
+   - **Total download: ~497 MB** (reduced from ~698 MB after constraint optimization)
 
 3. **Stub Mode**:
    - Set `VITE_USE_STUBS=true` in `.env` for development without real SNARK proving
@@ -1817,7 +1826,7 @@ worker.onmessage = (e) => {
    - Chrome recommended for best WASM performance
 
 9. **Download UX**:
-   - First-time download shows modal with ~698 MB total
+   - First-time download shows modal with ~497 MB total
    - Progress shows for each file individually
    - Files cached in IndexedDB for return visits
    - Download modal only appears when user initiates an action that needs SNARK (accepting a bid)
@@ -1830,7 +1839,7 @@ worker.onmessage = (e) => {
 
 11. **Files Added to .gitignore**:
     ```
-    # SNARK proving files (too large for git - ~720MB total)
+    # SNARK proving files (too large for git - ~497MB total)
     public/snark/pk.bin
     public/snark/ccs.bin
     public/snark/prover.wasm
@@ -1844,7 +1853,7 @@ worker.onmessage = (e) => {
     - WASM in browser: Setup loading alone takes 10+ minutes (single-threaded)
 
     **Root cause:**
-    The `gnarkLoadSetup` function deserializes ~720MB of cryptographic data structures:
+    The `gnarkLoadSetup` function deserializes ~497MB of cryptographic data structures:
     - Parsing millions of BLS12-381 field elements
     - Reconstructing polynomial commitments
     - Building constraint system matrices
@@ -1858,16 +1867,17 @@ worker.onmessage = (e) => {
     on the main thread. The Web Worker-based React integration should perform better
     since it doesn't block the main thread.
 
-    **TESTING STATUS: BLOCKED BY MEMORY LIMIT**
+    **TESTING STATUS: ✅ FULLY WORKING (February 2026)**
     - [x] WASM compiles successfully (~19MB prover.wasm)
     - [x] Test page loads WASM and displays console messages
     - [x] Detailed logging added to track setup progress
-    - [x] Setup loading completes (~2.3 hours in Web Worker)
+    - [x] Setup loading completes (~99 minutes after optimization)
     - [x] Constraint solver works (21 seconds)
-    - [ ] **BLOCKED**: Proof generation fails at 4GB WASM memory limit
+    - [x] **Proof generation completes** (~5 minutes)
     - [x] Web Worker integration tested (keeps UI responsive)
+    - [x] No memory out-of-bounds errors
 
-    **See item 18 below for Memory64 investigation notes.**
+    **See item 18 for details on the circuit optimization that enabled this.**
 
     **Design Decision: Local-Only Proving**
     Server-side proving was considered but rejected to maintain PEACE protocol's
@@ -1876,20 +1886,14 @@ worker.onmessage = (e) => {
     - Decentralization (no central point of failure)
     - Security (no attack vectors from secret transmission)
 
-    Users will experience a 10-30+ minute wait, but this is acceptable for a
-    decentralized protocol. The Web Worker keeps UI responsive during the wait.
+    Users will experience a ~99 minute setup load (one-time, cached after), then
+    ~5 minutes per proof. The Web Worker keeps UI responsive during both phases.
 
-    **Next steps when revisiting:**
-    1. **PRIORITY: Investigate Memory64 (wasm64) support** - See item 18 below
-       - Current wasm32 hits 4GB limit during proof generation
-       - Memory64 allows up to 16GB which should be sufficient
-       - Need to check Go + gnark compatibility with GOWASM=memory64
-    2. If Memory64 works, test full proof generation end-to-end
-    3. Consider UX improvements (only relevant once proving works):
-       - Pre-loading setup during idle time after wallet connect
-       - Showing estimated time (2+ hours) prominently in UI
-       - "Start proving, come back later" messaging
-    4. The native CLI proves in ~4 minutes using all cores; WASM is single-threaded
+    **Next steps (UX improvements):**
+    1. Implement Phase 11.5 WASM Loading Screen with progress tracking
+    2. Pre-load setup during idle time after wallet connect
+    3. "Continue in Background" option during loading
+    4. Show loading progress in dashboard header if user navigates away
 
 13. **Manual Test Page** (`fe/public/snark/test.html`):
     A simple HTML page for testing the WASM prover directly:
@@ -1904,7 +1908,7 @@ worker.onmessage = (e) => {
     - Step-by-step progress logging from Go code
 
     **Warning:** This page runs on the main thread and will freeze the browser
-    during the ~720MB file loading + parsing phase. Expect browser "unresponsive"
+    during the ~497MB file loading + parsing phase. Expect browser "unresponsive"
     warnings. Click "Wait" and be patient (or test the React integration instead).
 
 14. **Browser "Page Unresponsive" Dialog Behavior**:
@@ -1963,7 +1967,7 @@ worker.onmessage = (e) => {
     - `test-worker.html` runs in Web Worker → UI stays responsive → no dialogs
 
     **How it works:**
-    1. Downloads ccs.bin (~85MB) and pk.bin (~613MB)
+    1. Downloads ccs.bin (~52MB) and pk.bin (~445MB)
     2. Creates a Web Worker with inline JavaScript
     3. Transfers the ArrayBuffers to the worker (zero-copy)
     4. Worker loads WASM and calls `gnarkLoadSetup()`
@@ -1981,103 +1985,55 @@ worker.onmessage = (e) => {
     The SnarkProver class in `fe/src/services/snark/prover.ts` uses this worker.
     To test in the full app, set `VITE_USE_STUBS=false` and trigger a "Accept Bid" flow.
 
-18. **CRITICAL: 4GB WASM Memory Limit - PERMANENTLY BLOCKED**
+18. **4GB WASM Memory Limit - ✅ RESOLVED VIA CIRCUIT OPTIMIZATION**
 
-    **Problem Discovered:**
-    After successful setup loading (~2.3 hours in Web Worker), proof generation fails with:
-    ```
-    runtime: out of memory: cannot allocate 8388608-byte block (4264493056 in use)
-    fatal error: out of memory
-    ```
+    **Original Problem (January 2026):**
+    After successful setup loading, proof generation failed with out-of-memory at 4GB limit.
+    The gnark Groth16 prover for 1.6M constraints required >4GB for the proving phase.
 
-    The WASM used ~4.26 GB and couldn't allocate another 8MB. This is a **hard browser limit**
-    for 32-bit WebAssembly, regardless of system RAM (tested on 62GB RAM machine).
+    **Solution (February 2026):**
+    Circuit constraint optimization reduced constraints from 1.6M to ~1M (~37% reduction).
+    This brought memory usage under the 4GB WASM limit without needing memory64 support.
 
-    **Timeline of successful test:**
-    - Setup loading completed in ~2.3 hours (8402 seconds)
-    - Constraint system solver completed successfully (21 seconds)
-    - Proof generation started but hit memory limit during the actual proving phase
+    **Key optimizations that enabled browser proving:**
+    - Switched from SHA256 to MiMC hashing (significant constraint reduction)
+    - Various circuit-level optimizations
+    - Added `ReduceStrict` for safety without increasing constraints
 
-    **Root Cause:**
-    - 32-bit WebAssembly (wasm32) has a hard 4GB memory limit due to 32-bit addressing
-    - Go compiles to wasm32 by default
-    - The gnark Groth16 prover for 1.6M constraints requires >4GB for the proving phase
-    - Native Go CLI works fine because it can use all system RAM
-
-    **Memory64 Investigation (January 2026) - NO SOLUTION AVAILABLE**
-
-    WebAssembly Memory64 would theoretically solve this by extending to 64-bit addressing:
-
-    | WASM Type | Max Memory | Browser Support |
-    |-----------|------------|-----------------|
-    | wasm32 (current) | 4GB | All browsers |
-    | wasm64 (Memory64) | 16GB | Chrome, Firefox (not Safari) |
-
-    **However, Go does NOT support memory64:**
-
-    | Compiler | Memory64 Support | gnark Compatible | Notes |
-    |----------|------------------|------------------|-------|
-    | Go (1.25.6) | **NO** | Yes | GOWASM only supports `satconv`, `signext` |
-    | TinyGo | **NO** | Partial | Missing reflect features gnark needs |
-    | Emscripten | Yes | N/A | C/C++ only, not Go |
-    | Rust/LLVM | Yes | N/A | Would need arkworks reimplementation |
-
-    **Research Findings:**
-    - `go help environment | grep GOWASM` shows only `satconv` and `signext` as valid values
-    - There is no `memory64` option in Go's WASM compilation
-    - Go issue [#63131](https://github.com/golang/go/issues/63131) discusses wasm32/wasm64 but focuses on server-side wasip1, not browser js/wasm
-    - No timeline exists for Go to add memory64 support for js/wasm target
-    - [Vocdoni's research](https://hackmd.io/@vocdoni/B1VPA99Z3) shows gnark browser proving works for ~48K constraints, but our circuit has 1.6M constraints (33x larger)
-
-    **References:**
-    - V8 Blog: https://v8.dev/blog/4gb-wasm-memory
-    - Go WASM issue: https://github.com/golang/go/issues/63131
-    - Vocdoni gnark WASM research: https://hackmd.io/@vocdoni/B1VPA99Z3
-
-    **Recommended Path Forward:**
-
-    Since browser-based SNARK proving is not feasible, use one of these alternatives:
-
-    1. **Native CLI Prover (RECOMMENDED)**
-       - Already works: `app/snark/snark_cli` proves in ~4 minutes
-       - Users download and run locally
-       - Web UI can provide instructions and verify proof output
-       - Maintains trustlessness (secrets never leave user's machine)
-
-    2. **Desktop App (Electron/Tauri)**
-       - Bundle native Go binary with web UI
-       - Same UX as browser, but runs natively
-       - More engineering effort but seamless experience
-
-    3. **Wait for Go Memory64 Support**
-       - No timeline exists
-       - Check periodically for updates to Go issue #63131
-
-    4. **Circuit Optimization**
-       - Reduce constraint count below ~500K (major undertaking)
-       - Would require cryptographic redesign
+    **Current Performance:**
+    | Metric | Before | After |
+    |--------|--------|-------|
+    | Constraints | 1.6M | ~1M |
+    | pk.bin size | 613 MB | 445 MB |
+    | ccs.bin size | 85 MB | 52 MB |
+    | Setup loading | ~140 min | ~99 min |
+    | Proof generation | OOM | ~5 min |
 
     **Test Values for Verification:**
-    When testing the native CLI, use these known-good values from `tests/test_snark.py`:
+    When testing browser WASM proving, use these values:
     ```
-    a = 44203
-    r = 12345
+    a  = 44203
+    r  = 12345
     v  = 821285b97f9c0420a2d37951edbda3d7c3ebac40c6f194faa0256f6e569eba49829cd69c27f1dd9df2dd83bac1f5aa49
-    w0 = b38f50ffcc8c468430e624dc8bd1415011a05b96d0898167ffdf004d2c6f055bc38ed8af069bacda62d908d821623941
+    w0 = a1430f9e40e13f50164c1b0f6248289e09a281d2c80ce2ccea81800c62bc4afa4f9235c727f9837368b207b6948a2aad
     w1 = 8ac69bdd182386def9f70b444794fa6d588182ddaccdffc26163fe415424ec374c672dfde52d875863118e6ef892bbac
     ```
-    These values produce a valid proof in the native CLI (~4 minutes).
+    These values produce a valid proof in both native CLI (~4 min) and browser WASM (~5 min).
 
     **Current Status:**
-    - [x] Setup loading works (2+ hours but completes)
+    - [x] Setup loading works (~99 minutes)
     - [x] Constraint solver works
-    - [x] **CONFIRMED BLOCKED**: Proof generation fails at 4GB memory limit
-    - [x] **CONFIRMED**: Go does not support memory64 (no GOWASM option exists)
-    - [x] **DECISION**: Use native CLI prover as primary solution
+    - [x] **Proof generation completes** (~5 minutes)
+    - [x] No memory out-of-bounds errors
+    - [x] **RESOLVED**: Browser-based SNARK proving is now feasible!
 
-19. **Notes for AI/Developers Implementing CLI Integration (Phase 11 Continuation):**
+    **Historical Note:**
+    Go still does not support memory64, but we no longer need it thanks to circuit optimization.
+    The native CLI remains available as a fallback (~4 min, multi-threaded).
 
-    Since browser WASM proving is permanently blocked, here's how to implement native CLI integration:
+19. **Notes for AI/Developers - CLI Integration (Optional Fallback):**
+
+    Browser WASM proving now works, but the native CLI remains available as a faster fallback (~4 min vs ~5 min):
 
     **A. CLI Prover Binary Location:**
     - `app/snark/snark_cli` - The native Go binary that works
@@ -2154,19 +2110,174 @@ worker.onmessage = (e) => {
 
 ---
 
+### Phase 11.5: WASM Loading Screen (NEW - Required for Browser Proving)
+
+**Purpose:** The WASM prover requires ~99 minutes to load setup files into memory. This must happen BEFORE users interact with bid/create flows, not during them. A dedicated loading screen handles this transparently.
+
+**When to Load:**
+- After wallet connect, before showing dashboard
+- Can be skipped if WASM is already loaded in this session
+- Should check IndexedDB cache first (files already downloaded)
+
+**User Flow:**
+```
+Wallet Connect → WASM Loading Screen → Dashboard
+                      ↓
+              (If already loaded, skip to Dashboard)
+```
+
+**Loading Screen Features:**
+- Progress bar with percentage (similar to `fe/public/snark/test-worker.html`)
+- Elapsed time display (MM:SS format)
+- Status messages explaining each phase:
+  - "Downloading circuit files (~497 MB)..." (if not cached)
+  - "Loading WASM runtime..."
+  - "Initializing constraint system (~52 MB)..."
+  - "Loading proving key (~445 MB)... This takes ~90 minutes"
+- Console-style log output (optional, for debugging)
+- Estimated time remaining (based on progress)
+- **"Continue in Background"** option that lets user browse marketplace while loading continues
+
+**Implementation:**
+
+1. **New Route/Page: `/loading` or `/setup`**
+   ```typescript
+   // fe/src/pages/WasmLoadingScreen.tsx
+   import { useSnarkProver } from '@/hooks/useSnarkProver'
+   import { useNavigate } from 'react-router-dom'
+
+   export function WasmLoadingScreen() {
+     const navigate = useNavigate()
+     const {
+       isReady,
+       progress,
+       stage,
+       elapsedTime,
+       error
+     } = useSnarkProver({ autoLoad: true })
+
+     useEffect(() => {
+       if (isReady) {
+         navigate('/dashboard')
+       }
+     }, [isReady, navigate])
+
+     return (
+       <div className="wasm-loading-screen">
+         <h1>Preparing Zero-Knowledge Prover</h1>
+         <ProgressBar percent={progress} />
+         <Timer elapsed={elapsedTime} />
+         <StatusMessage stage={stage} />
+         <button onClick={() => navigate('/dashboard')}>
+           Continue in Background
+         </button>
+       </div>
+     )
+   }
+   ```
+
+2. **Progress Stages:**
+   | Stage | Progress | Description |
+   |-------|----------|-------------|
+   | `checking-cache` | 0-5% | Checking IndexedDB for cached files |
+   | `downloading-ccs` | 5-15% | Downloading ccs.bin (~52 MB) |
+   | `downloading-pk` | 15-30% | Downloading pk.bin (~445 MB) |
+   | `loading-wasm` | 30-35% | Loading prover.wasm into memory |
+   | `deserializing-ccs` | 35-45% | Parsing constraint system |
+   | `deserializing-pk` | 45-100% | Parsing proving key (longest phase) |
+   | `ready` | 100% | Ready to generate proofs |
+
+3. **UI Components:**
+   ```typescript
+   // Progress bar with gradient fill (from test-worker.html)
+   <div className="progress-bar">
+     <div
+       className="progress-bar-fill"
+       style={{ width: `${progress}%` }}
+     />
+   </div>
+   <div className="progress-text">{progress}%</div>
+
+   // Timer display
+   <div className="timer">
+     Elapsed: {Math.floor(elapsed/60)}:{(elapsed%60).toString().padStart(2,'0')}
+   </div>
+
+   // Status log (optional)
+   <div className="console-log">
+     {logs.map(log => (
+       <div key={log.time}>
+         <span className="time">[{log.time}]</span>
+         <span className="msg">{log.message}</span>
+       </div>
+     ))}
+   </div>
+   ```
+
+4. **Route Guard:**
+   ```typescript
+   // fe/src/App.tsx - redirect to loading screen if WASM not ready
+   function ProtectedRoute({ children }) {
+     const { isReady, isLoading } = useSnarkProver()
+     const { isConnected } = useWallet()
+
+     if (!isConnected) {
+       return <Navigate to="/" />
+     }
+
+     // If WASM not ready and not currently loading, redirect to loading screen
+     if (!isReady && !isLoading) {
+       return <Navigate to="/loading" />
+     }
+
+     return children
+   }
+   ```
+
+5. **Background Loading Option:**
+   - User can click "Continue in Background" to go to dashboard
+   - Loading continues in Web Worker
+   - Show subtle indicator in header: "SNARK Loading: 67%"
+   - "Accept Bid" button disabled until loading completes
+   - Tooltip on disabled button: "Waiting for prover to load (67%)"
+
+**Checklist:**
+- [ ] Create `WasmLoadingScreen.tsx` page component
+- [ ] Add `/loading` route
+- [ ] Implement progress bar with percentage
+- [ ] Implement elapsed time display
+- [ ] Implement status messages for each stage
+- [ ] Add "Continue in Background" functionality
+- [ ] Add route guard to redirect if WASM not loaded
+- [ ] Add loading indicator in dashboard header
+- [ ] Disable "Accept Bid" until WASM ready
+- [ ] Handle loading errors gracefully
+- [ ] Test full flow: connect → loading → dashboard
+
+**Design Considerations:**
+- Dark theme (matches test-worker.html aesthetic)
+- Monospace font for technical feel
+- Green gradient progress bar
+- Cyan timer display
+- Subtle explanation of why this takes so long
+- Link to FAQ about WASM loading
+
+---
+
 ### Phase 12: Accept Bid Flow (SNARK + Re-encryption)
 
-**BLOCKED until contracts are deployed to preprod.** Additionally, browser-based SNARK proving is not feasible due to Go's lack of memory64 support (see Phase 11 item 18). The Accept Bid flow will need to integrate with the native CLI prover instead.
+**BLOCKED until contracts are deployed to preprod.** However, browser-based SNARK proving now works (see Phase 11), so the full in-browser flow can be implemented in stub mode.
 
-**Revised Approach (Native CLI Integration):**
-Instead of in-browser WASM proving, the flow should:
-1. Web UI provides download link for native `snark_cli` binary (platform-specific)
-2. User runs CLI locally with their secrets (a, r) and public inputs (v, w0, w1)
-3. CLI outputs proof JSON file
-4. User uploads proof JSON back to web UI
-5. Web UI builds and submits SNARK transaction with the uploaded proof
+**✅ In-Browser Proving Flow (Now Feasible):**
+Thanks to circuit optimization (1.6M → ~1M constraints), the accept bid flow can run entirely in-browser:
+1. User clicks "Accept Bid" on dashboard
+2. WASM prover generates proof in Web Worker (~5 minutes)
+3. Web UI builds SNARK transaction with proof
+4. Web UI submits transaction (stub mode until contract deployment)
+5. Web UI builds and submits re-encryption transaction
 
-This maintains trustlessness (secrets never transmitted) while working around the browser memory limit.
+**Important:** WASM must be pre-loaded before this flow (see Phase 11.5 WASM Loading Screen).
+The ~99 minute setup load should happen after wallet connect, not during the accept bid flow.
 
 - [ ] Trigger SNARK proving modal
 - [ ] Generate proof in Web Worker
@@ -2501,9 +2612,9 @@ This maintains trustlessness (secrets never transmitted) while working around th
    - Document Koios/Blockfrost integration points for when contracts deploy
 
 6. **SNARK Files**:
-   - Document that SNARK proving is blocked by WASM 4GB memory limit
-   - Note that `pk.bin` and `ccs.bin` are large files (~700MB total)
-   - Consider documenting native CLI prover as alternative
+   - Document that SNARK proving now works in browser (~5 min proof, ~99 min setup)
+   - Note that `pk.bin` (~445MB) and `ccs.bin` (~52MB) are large files (~497MB total)
+   - Native CLI prover available as faster alternative (~4 min, multi-threaded)
 
 7. **Browser Compatibility**:
    - Document Chrome-only support (best Cardano wallet integration)
@@ -2695,7 +2806,7 @@ Cons:
 
 ## SNARK Asset Delivery
 
-The SNARK proving files are large (~720 MB total). Strategy:
+The SNARK proving files are large (~497 MB total). Strategy:
 
 1. **First Visit**
    - Detect if files are cached in IndexedDB
@@ -3635,7 +3746,7 @@ Or for stricter policies, use `'wasm-eval'` if supported by your target browsers
 
 ### SNARK File CDN
 
-The ~720 MB of SNARK files should NOT be served from the same origin as the app **in production**. Use a dedicated CDN:
+The ~497 MB of SNARK files should NOT be served from the same origin as the app **in production**. Use a dedicated CDN:
 
 **Development vs Production:**
 

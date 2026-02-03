@@ -109,6 +109,23 @@ When stub mode is enabled:
 
 To disable stub mode and use real blockchain data, set `VITE_USE_STUBS=false` and configure Blockfrost API keys.
 
+## Building SNARK Prover
+
+To build the WASM prover from the snark directory and copy it to the UI:
+
+```bash
+# From the app/ directory
+cd snark
+
+# Build the WASM prover
+GOOS=js GOARCH=wasm go build -o prover.wasm .
+
+# Copy to UI public directory
+cp prover.wasm ../ui/fe/public/snark/
+```
+
+Requires Go 1.21+ installed.
+
 ## SNARK Proving Limitations
 
 Zero-knowledge proof generation in the browser is currently **not functional** due to:
