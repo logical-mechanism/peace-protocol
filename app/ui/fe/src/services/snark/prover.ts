@@ -14,6 +14,8 @@ import { snarkStorage, formatBytes, EXPECTED_FILE_SIZES } from './storage'
 import type {
   WorkerMessage,
   WorkerResponse,
+  HashResponse,
+  HashErrorResponse,
 } from './worker'
 
 export interface SnarkProofInputs {
@@ -61,6 +63,8 @@ export class SnarkProver {
   private isInitialized = false
   private initPromise: Promise<void> | null = null
   private config: Required<ProverConfig>
+  private hashRequestId = 0
+  private pendingHashRequests = new Map<string, { resolve: (hash: string) => void; reject: (error: Error) => void }>()
 
   constructor(config: ProverConfig = {}) {
     this.config = {
@@ -77,6 +81,7 @@ export class SnarkProver {
   async checkCache(): Promise<{ cached: boolean; sizes: { pk: number | null; ccs: number | null } }> {
     const cached = await snarkStorage.hasAllFiles()
     const sizes = await snarkStorage.getCachedFileSizes()
+    console.log('[SnarkProver] checkCache: cached =', cached, 'sizes =', sizes)
     return { cached, sizes }
   }
 
@@ -89,9 +94,12 @@ export class SnarkProver {
   async ensureFilesDownloaded(
     onProgress?: (progress: ProvingProgress) => void
   ): Promise<boolean> {
-    const { cached } = await this.checkCache()
+    console.log('[SnarkProver] ensureFilesDownloaded: checking cache...')
+    const { cached, sizes } = await this.checkCache()
+    console.log('[SnarkProver] ensureFilesDownloaded: cached =', cached, 'sizes =', sizes)
 
     if (cached) {
+      console.log('[SnarkProver] ensureFilesDownloaded: files already cached, skipping download')
       onProgress?.({
         stage: 'checking-cache',
         message: 'SNARK files already cached',
@@ -100,6 +108,7 @@ export class SnarkProver {
       return false
     }
 
+    console.log('[SnarkProver] ensureFilesDownloaded: files not cached, starting download...')
     // Download files
     const filesToDownload = [
       { name: 'pk.bin', size: EXPECTED_FILE_SIZES['pk.bin'] },
@@ -131,8 +140,10 @@ export class SnarkProver {
       })
 
       downloadedSize += file.size
+      console.log(`[SnarkProver] ensureFilesDownloaded: ${file.name} downloaded and cached`)
     }
 
+    console.log('[SnarkProver] ensureFilesDownloaded: all files downloaded')
     return true
   }
 
@@ -161,21 +172,13 @@ export class SnarkProver {
 
   private async _doInitialize(onProgress?: (progress: ProvingProgress) => void): Promise<void> {
     try {
-      // Step 1: Ensure files are downloaded
-      await this.ensureFilesDownloaded(onProgress)
-
-      if (this.config.useStubs) {
-        // In stub mode, we don't need to actually load the WASM
-        onProgress?.({
-          stage: 'complete',
-          message: 'Prover ready (stub mode)',
-          percent: 100,
-        })
-        this.isInitialized = true
-        return
-      }
+      // Step 1: Ensure files are downloaded (even in stub mode, for the WASM module)
+      console.log('[SnarkProver] _doInitialize: starting, calling ensureFilesDownloaded...')
+      const downloaded = await this.ensureFilesDownloaded(onProgress)
+      console.log('[SnarkProver] _doInitialize: ensureFilesDownloaded returned', downloaded)
 
       // Step 2: Create and initialize the worker
+      // Even in stub mode, we create the worker for hash functions (gtToHash, decryptToHash)
       onProgress?.({
         stage: 'loading-wasm',
         message: 'Loading WASM prover...',
@@ -183,15 +186,27 @@ export class SnarkProver {
       })
 
       // Load files from IndexedDB
+      console.log('[SnarkProver] _doInitialize: loading files from IndexedDB...')
       const pkFile = await snarkStorage.getFile('pk.bin')
       const ccsFile = await snarkStorage.getFile('ccs.bin')
+      console.log('[SnarkProver] _doInitialize: pkFile =', pkFile ? `${pkFile.size} bytes` : 'null')
+      console.log('[SnarkProver] _doInitialize: ccsFile =', ccsFile ? `${ccsFile.size} bytes` : 'null')
 
       if (!pkFile || !ccsFile) {
+        console.error('[SnarkProver] _doInitialize: files missing after ensureFilesDownloaded!')
         throw new Error('Proving keys not found in cache')
       }
 
       // Create worker
       this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
+
+      // Set up permanent message handler for hash responses
+      this.worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
+        const msg = event.data
+        if (msg.type === 'hash' || msg.type === 'hashError') {
+          this.handleHashResponse(msg as HashResponse | HashErrorResponse)
+        }
+      })
 
       // Wait for worker to initialize
       await new Promise<void>((resolve, reject) => {
@@ -222,11 +237,13 @@ export class SnarkProver {
         this.worker!.addEventListener('message', handleMessage)
 
         // Send init message
+        // In stub mode, skip proving key setup but still load WASM for hash functions
         this.worker!.postMessage({
           type: 'init',
           wasmUrl: `${this.config.baseUrl}/prover.wasm`,
           pkData: pkFile.data,
           ccsData: ccsFile.data,
+          skipProvingKeySetup: this.config.useStubs,
         } as WorkerMessage)
       })
 
@@ -359,6 +376,132 @@ export class SnarkProver {
    */
   async clearCache(): Promise<void> {
     await snarkStorage.clearCache()
+  }
+
+  /**
+   * Check if the worker is available for hash operations.
+   * Hash operations are available once the WASM loads, before the full proving key setup.
+   */
+  isWorkerReady(): boolean {
+    return this.worker !== null
+  }
+
+  /**
+   * Compute GT hash from scalar a.
+   * This is a lightweight operation available once WASM loads.
+   * Used for creating encryption listings.
+   *
+   * @param secretA - Secret scalar (hex string with 0x prefix or decimal)
+   * @returns Hash as hex string (56 chars)
+   */
+  async gtToHash(secretA: string): Promise<string> {
+    if (!this.worker) {
+      throw new Error('Worker not initialized. Call initialize() first.')
+    }
+
+    const id = `gtToHash-${++this.hashRequestId}`
+
+    return new Promise((resolve, reject) => {
+      this.pendingHashRequests.set(id, { resolve, reject })
+
+      const timeout = setTimeout(() => {
+        this.pendingHashRequests.delete(id)
+        reject(new Error('gtToHash timeout'))
+      }, 30000) // 30 second timeout
+
+      const cleanup = () => {
+        clearTimeout(timeout)
+        this.pendingHashRequests.delete(id)
+      }
+
+      // Wrap resolve/reject to include cleanup
+      const wrappedResolve = (hash: string) => {
+        cleanup()
+        resolve(hash)
+      }
+      const wrappedReject = (error: Error) => {
+        cleanup()
+        reject(error)
+      }
+
+      this.pendingHashRequests.set(id, { resolve: wrappedResolve, reject: wrappedReject })
+
+      this.worker!.postMessage({
+        type: 'gtToHash',
+        id,
+        secretA,
+      } as WorkerMessage)
+    })
+  }
+
+  /**
+   * Compute decryption hash.
+   * This is a lightweight operation available once WASM loads.
+   * Used for decrypting encrypted data.
+   *
+   * @param g1b - G1 point (96 hex chars)
+   * @param r1 - G1 point (96 hex chars)
+   * @param shared - G2 point (192 hex chars)
+   * @param g2b - G2 point (192 hex chars) or empty string for half-level
+   * @returns Hash as hex string (56 chars)
+   */
+  async decryptToHash(g1b: string, r1: string, shared: string, g2b: string = ''): Promise<string> {
+    if (!this.worker) {
+      throw new Error('Worker not initialized. Call initialize() first.')
+    }
+
+    const id = `decryptToHash-${++this.hashRequestId}`
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingHashRequests.delete(id)
+        reject(new Error('decryptToHash timeout'))
+      }, 30000) // 30 second timeout
+
+      const cleanup = () => {
+        clearTimeout(timeout)
+        this.pendingHashRequests.delete(id)
+      }
+
+      // Wrap resolve/reject to include cleanup
+      const wrappedResolve = (hash: string) => {
+        cleanup()
+        resolve(hash)
+      }
+      const wrappedReject = (error: Error) => {
+        cleanup()
+        reject(error)
+      }
+
+      this.pendingHashRequests.set(id, { resolve: wrappedResolve, reject: wrappedReject })
+
+      this.worker!.postMessage({
+        type: 'decryptToHash',
+        id,
+        g1b,
+        r1,
+        shared,
+        g2b,
+      } as WorkerMessage)
+    })
+  }
+
+  /**
+   * Handle hash responses from worker.
+   * Called internally when worker sends hash or hashError messages.
+   */
+  private handleHashResponse(msg: HashResponse | HashErrorResponse) {
+    const pending = this.pendingHashRequests.get(msg.id)
+    if (!pending) {
+      console.warn(`[SnarkProver] Received hash response for unknown request: ${msg.id}`)
+      return
+    }
+
+    if (msg.type === 'hash') {
+      pending.resolve(msg.hash)
+    } else {
+      pending.reject(new Error(msg.error))
+    }
   }
 }
 
