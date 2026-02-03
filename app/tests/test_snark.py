@@ -131,7 +131,7 @@ def test_derive_public_points():
         "17860951621094200122",
         "3645999937606863567",
         "7588265706522355601",
-        "337242724379907695"
+        "337242724379907695",
     ]
     assert public_integers == expected_public_integers
 

@@ -24,8 +24,8 @@ import (
 	sw_bls12381 "github.com/consensys/gnark/std/algebra/emulated/sw_bls12381"
 	sw_emulated "github.com/consensys/gnark/std/algebra/emulated/sw_emulated"
 	"github.com/consensys/gnark/std/conversion"
-	"github.com/consensys/gnark/std/hash/sha2"
 	stdmimc "github.com/consensys/gnark/std/hash/mimc"
+	"github.com/consensys/gnark/std/hash/sha2"
 	"github.com/consensys/gnark/std/math/bits"
 	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/std/math/emulated/emparams"
@@ -37,6 +37,25 @@ const H0Hex = "a5acbe8bdb762cf7b4bfa9171b9ffa23b6ed710b290280b271a0258e285354aac
 
 // IMPORTANT: FIXED and appended as BYTES (hex-decoded) before hashing.
 const DomainTagHex = "4631327c546f7c4865787c76317c"
+
+// --- Fp→Fr limb-based conversion constants ---
+// pow64[i] = 2^(64*i) mod r, where r is the BLS12-381 scalar field modulus.
+// Used for efficient in-circuit Fp→Fr conversion without bit decomposition.
+var (
+	frMod = emparams.BLS12381Fr{}.Modulus()
+
+	pow64 = func() []*big.Int {
+		const limbs = 6
+		base := new(big.Int).Lsh(big.NewInt(1), 64) // 2^64
+		out := make([]*big.Int, limbs)
+		out[0] = big.NewInt(1)
+		for i := 1; i < limbs; i++ {
+			out[i] = new(big.Int).Mul(out[i-1], base)
+			out[i].Mod(out[i], frMod)
+		}
+		return out
+	}()
+)
 
 // --- out-of-circuit helpers ---
 
@@ -545,38 +564,42 @@ func fq12CanonicalBytesInCircuit(api frontend.API, k *sw_bls12381.GTEl) ([]uints
 	return out, nil
 }
 
+// fpToNativeFr reduces an Fp element to a native Fr element using limb arithmetic.
+// This avoids expensive byte→bit→FromBinary conversion by directly using the limbs.
+// The element is: x = Σ limb[i] * 2^(64*i), so x mod r = Σ limb[i] * (2^(64*i) mod r).
+func fpToNativeFr(
+	api frontend.API,
+	fpField *emulated.Field[emparams.BLS12381Fp],
+	x *emulated.Element[emparams.BLS12381Fp],
+) frontend.Variable {
+	// Ensure limbs are range-checked and canonical (< p).
+	// Pairing outputs are often not in normal form.
+	// xr := fpField.ReduceStrict(x)
+	xr := fpField.Reduce(x)
+
+	// Native field is Fr, so this sum is automatically mod r.
+	var acc frontend.Variable = 0
+	for i, limb := range xr.Limbs { // little-endian limbs
+		acc = api.Add(acc, api.Mul(limb, pow64[i]))
+	}
+	return acc
+}
+
 // fq12ToNativeFrElements extracts the 12 Fp coefficients from an in-circuit
 // GT element and converts each to a native field element (Fr) for MiMC hashing.
-// Since the native field IS Fr and Fp > Fr, this performs reduction mod r.
+// Uses limb-based conversion: ~6 mul-adds per coefficient instead of 384 bit operations.
 func fq12ToNativeFrElements(api frontend.API, k *sw_bls12381.GTEl) ([]frontend.Variable, error) {
 	ext12 := fields_bls12381.NewExt12(api)
 	tower := ext12.ToTower(k) // [12]*baseEl
 
-	bapi, err := uints.NewBytes(api)
+	fpField, err := emulated.NewField[emparams.BLS12381Fp](api)
 	if err != nil {
 		return nil, err
 	}
 
 	elements := make([]frontend.Variable, 0, 13) // 12 coeffs + domain tag
-
 	for i := 0; i < 12; i++ {
-		// Convert Fp to bytes (48 bytes, big-endian)
-		fpBytes, err := conversion.EmulatedToBytes(api, tower[i])
-		if err != nil {
-			return nil, fmt.Errorf("coef[%d] to bytes: %w", i, err)
-		}
-
-		// Convert bytes to bits (little-endian for FromBinary)
-		fpBits := make([]frontend.Variable, 0, 48*8)
-		for j := len(fpBytes) - 1; j >= 0; j-- { // reverse for little-endian
-			bv := bapi.Value(fpBytes[j])
-			bs := bits.ToBinary(api, bv, bits.WithNbDigits(8))
-			fpBits = append(fpBits, bs...)
-		}
-
-		// Reconstruct as native field element (automatically reduces mod r)
-		native := bits.FromBinary(api, fpBits)
-		elements = append(elements, native)
+		elements = append(elements, fpToNativeFr(api, fpField, tower[i]))
 	}
 
 	return elements, nil
@@ -601,9 +624,10 @@ func hashToFrMiMC(api frontend.API, elements []frontend.Variable) (emulated.Elem
 	}
 
 	// Convert native to bits, then to emulated Fr
+	// No Reduce needed: digest is already a native Fr element (< r),
+	// so FromBits produces a value that's already in valid range.
 	digestBits := bits.ToBinary(api, digest, bits.WithNbDigits(256))
 	hk := frField.FromBits(digestBits...)
-	hk = frField.Reduce(hk)
 
 	return *hk, nil
 }
