@@ -574,8 +574,7 @@ func fpToNativeFr(
 ) frontend.Variable {
 	// Ensure limbs are range-checked and canonical (< p).
 	// Pairing outputs are often not in normal form.
-	// xr := fpField.ReduceStrict(x)
-	xr := fpField.Reduce(x)
+	xr := fpField.ReduceStrict(x)
 
 	// Native field is Fr, so this sum is automatically mod r.
 	var acc frontend.Variable = 0
