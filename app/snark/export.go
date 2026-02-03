@@ -398,50 +398,45 @@ func computeCommitmentWire(
 
 	// Build the prehash: D.RawBytes() || committed_publics.Marshal()
 	// gnark uses uncompressed point serialization (RawBytes, 96 bytes) for the hash
-	for i, commitment := range proof.Commitments {
-		if i >= len(vk.PublicAndCommitmentCommitted) {
-			break
+	// Note: We only process the first commitment (gnark's standard case)
+	commitment := proof.Commitments[0]
+	committedIndices := vk.PublicAndCommitmentCommitted[0]
+
+	// Serialize commitment point
+	// gnark uses Marshal() which returns RawBytes() = uncompressed form (96 bytes)
+	commitmentBytes := commitment.Marshal()
+
+	// Serialize committed public witnesses
+	prehash := make([]byte, 0, len(commitmentBytes)+len(committedIndices)*32)
+	prehash = append(prehash, commitmentBytes...)
+
+	for _, idx := range committedIndices {
+		// gnark uses 0-based indexing for public witnesses
+		// But the indices in PublicAndCommitmentCommitted are 1-based (offset by 1)
+		witnessIdx := idx - 1
+		if witnessIdx < 0 || witnessIdx >= len(pubFr) {
+			return "", fmt.Errorf("committed index %d out of range (witness len=%d)", idx, len(pubFr))
 		}
-
-		// Serialize commitment point
-		// gnark uses Marshal() which returns RawBytes() = uncompressed form (96 bytes)
-		commitmentBytes := commitment.Marshal()
-
-		// Serialize committed public witnesses
-		committedIndices := vk.PublicAndCommitmentCommitted[i]
-		prehash := make([]byte, 0, len(commitmentBytes)+len(committedIndices)*32)
-		prehash = append(prehash, commitmentBytes...)
-
-		for _, idx := range committedIndices {
-			// gnark uses 0-based indexing for public witnesses
-			// But the indices in PublicAndCommitmentCommitted are 1-based (offset by 1)
-			witnessIdx := idx - 1
-			if witnessIdx < 0 || witnessIdx >= len(pubFr) {
-				return "", fmt.Errorf("committed index %d out of range (witness len=%d)", idx, len(pubFr))
-			}
-			frBytes := pubFr[witnessIdx].Marshal()
-			prehash = append(prehash, frBytes...)
-		}
-
-		// Use gnark's hash_to_field with the same DST as in constraint package
-		hFunc := hash_to_field.New([]byte(constraint.CommitmentDst))
-		hFunc.Write(prehash)
-
-		// Hash returns bytes, convert to Fr element
-		hashBytes := hFunc.Sum(nil)
-		if len(hashBytes) == 0 {
-			return "", fmt.Errorf("hash_to_field returned empty result")
-		}
-
-		var wire fr.Element
-		wire.SetBytes(hashBytes)
-
-		var wireBi big.Int
-		wire.BigInt(&wireBi)
-		return wireBi.String(), nil
+		frBytes := pubFr[witnessIdx].Marshal()
+		prehash = append(prehash, frBytes...)
 	}
 
-	return "", nil
+	// Use gnark's hash_to_field with the same DST as in constraint package
+	hFunc := hash_to_field.New([]byte(constraint.CommitmentDst))
+	hFunc.Write(prehash)
+
+	// Hash returns bytes, convert to Fr element
+	hashBytes := hFunc.Sum(nil)
+	if len(hashBytes) == 0 {
+		return "", fmt.Errorf("hash_to_field returned empty result")
+	}
+
+	var wire fr.Element
+	wire.SetBytes(hashBytes)
+
+	var wireBi big.Int
+	wire.BigInt(&wireBi)
+	return wireBi.String(), nil
 }
 
 // ---------- main export ----------
