@@ -16,6 +16,7 @@ import (
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/mimc"
 )
 
 // ---------- small helpers ----------
@@ -167,7 +168,7 @@ func TestGTToHash_DeterministicAndMatchesManual(t *testing.T) {
 	if hk1 != hk2 || encHex1 != encHex2 {
 		t.Fatalf("gtToHash not deterministic")
 	}
-	if len(hk1) != 64 { // sha256 => 32 bytes => 64 hex
+	if len(hk1) != 64 { // mimc Fr element => 32 bytes => 64 hex
 		t.Fatalf("unexpected hk hex length: got %d want 64", len(hk1))
 	}
 	if len(encHex1) != 12*48*2 {
@@ -177,44 +178,60 @@ func TestGTToHash_DeterministicAndMatchesManual(t *testing.T) {
 		t.Fatalf("expected lowercase hex outputs")
 	}
 
-	// Manual recompute: sha256(encBytes || domainTagBytes)
-	encBytes := mustHexToBytes(t, encHex1)
-	tagBytes := mustHexToBytes(t, DomainTagHex)
-	msg := append(append([]byte{}, encBytes...), tagBytes...)
+	// Manual recompute: mimc(fq12ToFrElements || domainTagFr)
+	// We need to compute kappa from a to get the Fr elements
+	h0, err := parseG2CompressedHex(H0Hex)
+	if err != nil {
+		t.Fatalf("parseG2 failed: %v", err)
+	}
+	qa := g1MulBase(a)
+	kappa, err := bls12381.Pair([]bls12381.G1Affine{qa}, []bls12381.G2Affine{h0})
+	if err != nil {
+		t.Fatalf("pairing failed: %v", err)
+	}
 
-	manual := sha256Hex(msg)
+	elements := fq12ToFrElements(kappa)
+	elements = append(elements, domainTagFr())
+	manual := mimcHex(elements)
 
 	if manual != hk1 {
-		t.Fatalf("manual sha256 mismatch: got %s want %s", manual, hk1)
+		t.Fatalf("manual mimc mismatch: got %s want %s", manual, hk1)
 	}
 }
 
 func TestHKScalarFromA_ConsistentWithDigestReduction(t *testing.T) {
 	a := big.NewInt(9999)
 
-	// Compute digest form
-	_, encHex, err := gtToHash(a)
+	// Compute manually using MiMC
+	h0, err := parseG2CompressedHex(H0Hex)
 	if err != nil {
-		t.Fatalf("gtToHash failed: %v", err)
+		t.Fatalf("parseG2 failed: %v", err)
+	}
+	qa := g1MulBase(a)
+	kappa, err := bls12381.Pair([]bls12381.G1Affine{qa}, []bls12381.G2Affine{h0})
+	if err != nil {
+		t.Fatalf("pairing failed: %v", err)
 	}
 
-	encBytes := mustHexToBytes(t, encHex)
-	tagBytes := mustHexToBytes(t, DomainTagHex)
-	msg := append(append([]byte{}, encBytes...), tagBytes...)
-	digest := sha256.Sum256(msg) // 32 bytes
+	elements := fq12ToFrElements(kappa)
+	elements = append(elements, domainTagFr())
 
-	// Reduce into Fr (exactly what hkScalarFromA does: fr.Element.SetBytes on digest)
-	var s fr.Element
-	s.SetBytes(digest[:])
-	var expected big.Int
-	s.BigInt(&expected)
+	// Hash with MiMC
+	h := mimc.NewMiMC()
+	for _, e := range elements {
+		h.Write(e.Marshal())
+	}
+	var expected fr.Element
+	expected.SetBytes(h.Sum(nil))
+	var expectedBi big.Int
+	expected.BigInt(&expectedBi)
 
 	got, err := hkScalarFromA(a)
 	if err != nil {
 		t.Fatalf("hkScalarFromA failed: %v", err)
 	}
-	if got.Cmp(&expected) != 0 {
-		t.Fatalf("hkScalarFromA mismatch: got %s want %s", got.String(), expected.String())
+	if got.Cmp(&expectedBi) != 0 {
+		t.Fatalf("hkScalarFromA mismatch: got %s want %s", got.String(), expectedBi.String())
 	}
 }
 
