@@ -389,15 +389,128 @@ func gnarkIsReadyJS(this js.Value, args []js.Value) interface{} {
 	return js.ValueOf(wasmLoaded)
 }
 
+// gnarkGtToHash computes the GT hash from scalar a.
+// This is a lightweight operation that doesn't require the proving key setup.
+// Used for creating encryption listings.
+//
+// Args:
+//   - aStr: secret scalar a (decimal or 0x hex string, must be > 0)
+//
+// Returns:
+//   - JSON object with "hash" (hex string) or "error"
+func gnarkGtToHashJS(this js.Value, args []js.Value) interface{} {
+	fmt.Println("[WASM] gnarkGtToHash: function called")
+
+	if len(args) < 1 {
+		return js.ValueOf(map[string]interface{}{
+			"error": "gnarkGtToHash requires 1 argument: secretA",
+		})
+	}
+
+	aStr := args[0].String()
+	fmt.Printf("[WASM] gnarkGtToHash: parsing a = %s\n", aStr)
+
+	a := new(big.Int)
+	if _, ok := a.SetString(aStr, 0); !ok || a.Sign() == 0 {
+		return js.ValueOf(map[string]interface{}{
+			"error": "could not parse a (must be a non-zero integer; decimal or 0x.. hex)",
+		})
+	}
+
+	fmt.Println("[WASM] gnarkGtToHash: computing pairing and MiMC hash...")
+	hkHex, _, err := gtToHash(a)
+	if err != nil {
+		fmt.Printf("[WASM] gnarkGtToHash: error: %v\n", err)
+		return js.ValueOf(map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+
+	fmt.Printf("[WASM] gnarkGtToHash: success, hash = %s\n", hkHex)
+	return js.ValueOf(map[string]interface{}{
+		"hash": hkHex,
+	})
+}
+
+// gnarkDecryptToHash computes the decryption hop key hash.
+// This is a lightweight operation that doesn't require the proving key setup.
+// Used for decrypting encrypted data.
+//
+// Args:
+//   - g1bHex: G1 compressed hex (96 chars) - entry["fields"][1]["fields"][0]["bytes"]
+//   - r1Hex: G1 compressed hex (96 chars) - entry["fields"][0]["bytes"]
+//   - sharedHex: G2 compressed hex (192 chars) - current shared value
+//   - g2bHex: optional G2 compressed hex (192 chars) or empty string - for full level entries
+//
+// Returns:
+//   - JSON object with "hash" (hex string) or "error"
+func gnarkDecryptToHashJS(this js.Value, args []js.Value) interface{} {
+	fmt.Println("[WASM] gnarkDecryptToHash: function called")
+
+	if len(args) < 4 {
+		return js.ValueOf(map[string]interface{}{
+			"error": "gnarkDecryptToHash requires 4 arguments: g1bHex, r1Hex, sharedHex, g2bHex (use empty string for half-level)",
+		})
+	}
+
+	g1bHex := args[0].String()
+	r1Hex := args[1].String()
+	sharedHex := args[2].String()
+	g2bHex := args[3].String()
+
+	fmt.Printf("[WASM] gnarkDecryptToHash: g1b=%d chars, r1=%d chars, shared=%d chars, g2b=%d chars\n",
+		len(g1bHex), len(r1Hex), len(sharedHex), len(g2bHex))
+
+	// Validate G1 points (96 hex chars)
+	if len(g1bHex) != 96 {
+		return js.ValueOf(map[string]interface{}{
+			"error": fmt.Sprintf("g1bHex must be 96 hex chars (got %d)", len(g1bHex)),
+		})
+	}
+	if len(r1Hex) != 96 {
+		return js.ValueOf(map[string]interface{}{
+			"error": fmt.Sprintf("r1Hex must be 96 hex chars (got %d)", len(r1Hex)),
+		})
+	}
+	// Validate G2 point (192 hex chars)
+	if len(sharedHex) != 192 {
+		return js.ValueOf(map[string]interface{}{
+			"error": fmt.Sprintf("sharedHex must be 192 hex chars (got %d)", len(sharedHex)),
+		})
+	}
+	// g2bHex can be empty (for half-level) or 192 chars (for full-level)
+	if g2bHex != "" && len(g2bHex) != 192 {
+		return js.ValueOf(map[string]interface{}{
+			"error": fmt.Sprintf("g2bHex must be empty or 192 hex chars (got %d)", len(g2bHex)),
+		})
+	}
+
+	fmt.Println("[WASM] gnarkDecryptToHash: computing decryption hash...")
+	hashHex, err := DecryptToHash(g1bHex, g2bHex, r1Hex, sharedHex)
+	if err != nil {
+		fmt.Printf("[WASM] gnarkDecryptToHash: error: %v\n", err)
+		return js.ValueOf(map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+
+	fmt.Printf("[WASM] gnarkDecryptToHash: success, hash = %s\n", hashHex)
+	return js.ValueOf(map[string]interface{}{
+		"hash": hashHex,
+	})
+}
+
 // main is the entry point for WASM builds
 func main() {
 	fmt.Println("SNARK WASM prover loaded")
-	fmt.Println("Available functions: gnarkLoadSetup, gnarkProve, gnarkIsReady")
+	fmt.Println("Available functions: gnarkLoadSetup, gnarkProve, gnarkIsReady, gnarkGtToHash, gnarkDecryptToHash")
 
 	// Register JavaScript functions
 	js.Global().Set("gnarkLoadSetup", js.FuncOf(gnarkLoadSetupJS))
 	js.Global().Set("gnarkProve", js.FuncOf(gnarkProveJS))
 	js.Global().Set("gnarkIsReady", js.FuncOf(gnarkIsReadyJS))
+	js.Global().Set("gnarkGtToHash", js.FuncOf(gnarkGtToHashJS))
+	js.Global().Set("gnarkDecryptToHash", js.FuncOf(gnarkDecryptToHashJS))
 
 	// Keep the Go runtime alive
 	<-make(chan struct{})

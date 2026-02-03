@@ -5,14 +5,17 @@ import { MeshProvider } from '@meshsdk/react'
 import './index.css'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
+import { WasmProvider } from './contexts/WasmContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <MeshProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <WasmProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </WasmProvider>
       </MeshProvider>
     </ErrorBoundary>
   </StrictMode>,

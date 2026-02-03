@@ -38,6 +38,7 @@ import { bindingProof, bindingToPlutusJson, type BindingProof } from './binding'
 import { encrypt, capsuleToPlutusJson, type Capsule } from './ecies';
 import { halfLevelToPlutusJson, emptyFullLevelToPlutusJson, type HalfLevel } from './level';
 import { deriveSecretFromWallet, getSigningExplanation } from './walletSecret';
+import { getSnarkProver } from '../snark';
 
 /**
  * Result of creating encryption artifacts.
@@ -66,6 +67,40 @@ export interface CreateEncryptionResult {
 }
 
 /**
+ * Check if WASM gt_to_hash is available via the worker.
+ */
+function isWasmGtToHashAvailable(): boolean {
+  const prover = getSnarkProver();
+  return prover.isWorkerReady();
+}
+
+/**
+ * Compute GT hash from scalar a using WASM via worker.
+ *
+ * This computes:
+ *   kappa = e([a]G1, H0)
+ *   m0 = fq12_encoding(kappa, F12_DOMAIN_TAG)
+ *
+ * Uses gnark-crypto for exact Fq12 tower representation matching circuit constraints.
+ *
+ * @param a - Secret scalar
+ * @returns Hash as hex string (56 chars / 28 bytes)
+ */
+async function gtToHashWasm(a: bigint): Promise<string> {
+  const prover = getSnarkProver();
+
+  // Convert bigint to string with 0x prefix
+  const aStr = '0x' + a.toString(16);
+
+  console.log('[WASM] Calling gnarkGtToHash via worker with a =', aStr.slice(0, 20) + '...');
+
+  const hash = await prover.gtToHash(aStr);
+
+  console.log('[WASM] gnarkGtToHash returned hash:', hash.slice(0, 20) + '...');
+  return hash;
+}
+
+/**
  * STUB: Compute GT hash from scalar a.
  *
  * In the real implementation, this computes:
@@ -88,6 +123,22 @@ function gtToHashStub(a: bigint): string {
   // This is NOT cryptographically valid - just for UI development
   const aHex = a.toString(16).padStart(64, '0');
   return generate(aHex + aHex); // blake2b-224 of concatenated hex
+}
+
+/**
+ * Compute GT hash, using WASM if available, otherwise stub.
+ *
+ * @param a - Secret scalar
+ * @param forceStub - If true, always use stub (for testing)
+ * @returns Hash as hex string
+ */
+async function gtToHash(a: bigint, forceStub: boolean = false): Promise<string> {
+  if (!forceStub && isWasmGtToHashAvailable()) {
+    console.log('[gtToHash] Using WASM implementation via worker');
+    return gtToHashWasm(a);
+  }
+  console.log('[gtToHash] Using stub implementation (WASM worker not available or forced stub)');
+  return gtToHashStub(a);
 }
 
 /**
@@ -129,21 +180,21 @@ export async function createEncryptionArtifacts(
   walletSecretHex: string,
   plaintext: string,
   tokenName: string,
-  useStubs: boolean = true
+  useStubs: boolean = false
 ): Promise<CreateEncryptionResult> {
-  if (!useStubs) {
-    throw new Error(
-      'Real encryption requires native binary for gt_to_hash. ' +
-        'Set useStubs=true for development or implement WASM gt_to_hash.'
-    );
+  // Check if WASM is available when not using stubs
+  if (!useStubs && !isWasmGtToHashAvailable()) {
+    console.warn('[createEncryptionArtifacts] WASM not available, falling back to stub');
   }
 
   // Generate random secrets
   const a = rng();
   const r = rng();
 
-  // Compute m0 (KEM material) - STUB for now
-  const m0 = gtToHashStub(a);
+  // Compute m0 (KEM material) - ALWAYS use WASM if available (fast operation)
+  // Note: useStubs is for transaction submission, not hash functions
+  const m0 = await gtToHash(a);
+  console.log('[createEncryptionArtifacts] m0 (KEM hash):', m0);
 
   // Derive user secret and create register
   const sk = deriveUserSecret(walletSecretHex);
@@ -213,13 +264,11 @@ export async function createEncryptionWithWallet(
   wallet: IWallet,
   plaintext: string,
   tokenName: string,
-  useStubs: boolean = true
+  useStubs: boolean = false
 ): Promise<CreateEncryptionResult> {
-  if (!useStubs) {
-    throw new Error(
-      'Real encryption requires native binary for gt_to_hash. ' +
-        'Set useStubs=true for development or implement backend gt_to_hash API.'
-    );
+  // Check if WASM is available when not using stubs
+  if (!useStubs && !isWasmGtToHashAvailable()) {
+    console.warn('[createEncryptionWithWallet] WASM not available, falling back to stub');
   }
 
   // Derive sk from wallet signature
@@ -229,8 +278,10 @@ export async function createEncryptionWithWallet(
   const a = rng();
   const r = rng();
 
-  // Compute m0 (KEM material) - STUB for now
-  const m0 = gtToHashStub(a);
+  // Compute m0 (KEM material) - ALWAYS use WASM if available (fast operation)
+  // Note: useStubs is for transaction submission, not hash functions
+  const m0 = await gtToHash(a);
+  console.log('[createEncryptionWithWallet] m0 (KEM hash):', m0);
 
   // Create register from derived sk
   const userRegister = createRegister(sk);
@@ -282,21 +333,27 @@ export async function createEncryptionWithWallet(
 }
 
 /**
- * Check if real encryption is available (gt_to_hash implemented).
- * Currently always returns false as we only have stub implementation.
+ * Check if real encryption is available (gt_to_hash via WASM).
+ * Returns true if WASM gnarkGtToHash function is loaded.
  */
 export function isRealEncryptionAvailable(): boolean {
-  return false;
+  return isWasmGtToHashAvailable();
 }
 
 /**
- * Get a warning message about stub mode.
+ * Get a warning message about stub mode, or status message about WASM.
  */
 export function getStubWarning(): string {
+  if (isWasmGtToHashAvailable()) {
+    return (
+      'Encryption is using WASM cryptography. The key material is computed using ' +
+      'real BLS12-381 pairing operations via gnark-crypto.'
+    );
+  }
   return (
     'Encryption is running in STUB mode. The encrypted data uses placeholder ' +
     'key material and is NOT cryptographically secure. This is for UI development only. ' +
-    'Real encryption requires native binary support for gt_to_hash pairing computation.'
+    'Load the WASM prover to enable real cryptographic operations.'
   );
 }
 

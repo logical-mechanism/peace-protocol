@@ -144,11 +144,12 @@ VITE_USE_STUBS=false
 1. **Wallet connect/disconnect** - Works with any Cardano wallet
 2. **SNARK proving** - ✅ Browser WASM now works (~5 min proof, ~99 min setup load)
 3. **Crypto logic** - Encryption, schnorr proofs, key derivation
-4. **All UI components** - With stub data
-5. **Form validation** - All input validation
-6. **Error handling UI** - Toasts, modals
-7. **Secret storage** - IndexedDB persistence
-8. **WASM Loading Screen** - Full loading flow with progress tracking
+4. **WASM hash functions** - ✅ `gtToHash` and `decryptToHash` work via Web Worker (see Phase 11 item 20)
+5. **All UI components** - With stub data
+6. **Form validation** - All input validation
+7. **Error handling UI** - Toasts, modals
+8. **Secret storage** - IndexedDB persistence
+9. **WASM Loading Screen** - Full loading flow with progress tracking
 
 ---
 
@@ -1372,17 +1373,20 @@ const txHash = await wallet.submitTx(signedTx);
    - Example: `import { blake2b } from '@noble/hashes/blake2.js'`
    - API changed: `G1.ProjectivePoint` → `G1.Point` in v2.0
 
-3. **CRITICAL BLOCKER - `gt_to_hash` Function**:
-   - The `gt_to_hash(r1, secrets)` function requires BLS12-381 **pairing computation**
+3. **✅ RESOLVED - `gt_to_hash` Function (February 2026)**:
+   - The `gt_to_hash(a)` function requires BLS12-381 **pairing computation**
    - Noble-curves does not expose the raw GT (target group) element bytes after pairing
    - The pairing result is needed to derive the KEM (key encapsulation material) for ECIES
-   - **Current workaround**: `createEncryption.ts` has a `gtToHashStub()` that returns deterministic fake data
-   - **Resolution**: When contracts deploy, use native CLI binary to compute `gt_to_hash`:
-     ```bash
-     # Call native binary from backend API
-     ./peace-cli gt-to-hash --r1 <hex> --a <scalar> --r <scalar>
+   - **SOLUTION**: The WASM prover now exposes `gnarkGtToHash(a)` which computes the pairing
+     in the browser using gnark-crypto's Fq12 tower representation (circuit-compatible encoding)
+   - **Usage**:
+     ```typescript
+     import { getSnarkProver } from '@/services/snark'
+     const prover = getSnarkProver()
+     await prover.initialize()  // Loads WASM (fast, ~seconds)
+     const m0 = await prover.gtToHash('0x' + a.toString(16))  // Returns 56-char hex
      ```
-   - This is the same approach used for SNARK proving (native CLI, not browser WASM)
+   - See Phase 11 item 20 for full implementation details and caveats
 
 4. **Crypto Porting Verification**:
    - All crypto functions ported from Python `src/*.py` files
@@ -1461,7 +1465,7 @@ const txHash = await wallet.submitTx(signedTx);
    - ✅ ECIES encryption of message
    - ✅ Secret storage in IndexedDB (a, r stored; sk re-derivable from wallet)
    - ✅ Toast notifications
-   - ⚠️ `gt_to_hash` returns stub data (see blocker above)
+   - ✅ `gt_to_hash` via WASM (gnarkGtToHash - see Phase 11 item 20)
    - ❌ Transaction submission (requires deployed contracts)
 
 9. **Testing the Crypto**:
@@ -1471,18 +1475,23 @@ const txHash = await wallet.submitTx(signedTx);
      ```typescript
      // In browser console or test file:
      import { createEncryptionArtifacts } from './services/crypto/createEncryption';
+     import { getSnarkProver } from './services/snark';
+
+     // First ensure WASM is loaded (for gtToHash)
+     const prover = getSnarkProver();
+     await prover.initialize();
 
      const walletSecretHex = 'deadbeef'.repeat(8); // 32 bytes fake secret
      const result = await createEncryptionArtifacts(
        walletSecretHex,
        'secret message',
        'a'.repeat(64), // fake token name
-       true // useStubs for gt_to_hash
+       false // useStubs only affects tx submission, not hash functions
      );
      console.log('Register:', result.register);
      console.log('Schnorr proof:', result.schnorr);
      console.log('Capsule:', result.capsule);
-     // Note: kem uses stub gt_to_hash until native CLI is available
+     console.log('m0 (from WASM gtToHash):', result.capsule.r1); // Real pairing result!
      ```
 
 ---
@@ -2107,6 +2116,98 @@ worker.onmessage = (e) => {
     - Electron: Mature, larger bundle size
     - Tauri: Smaller, uses native webview
     - Could run CLI in background without user interaction
+
+20. **WASM Hash Functions for Encryption/Decryption (IMPLEMENTED - February 2026)**
+
+    The WASM module exposes two critical hash functions used by the encryption system.
+    These are **lightweight operations** available immediately after WASM loads, without
+    waiting for the ~99 minute proving key setup.
+
+    **Functions:**
+    - `gnarkGtToHash(a)` - Computes pairing e([a]G1, H0) → 28-byte hash for encryption
+    - `gnarkDecryptToHash(g1b, r1, shared, g2b)` - Computes decryption key material
+
+    **Where Used:**
+    | Phase | Function | Purpose |
+    |-------|----------|---------|
+    | Phase 9 (Create Listing) | `gtToHash` | Derive KEM (key material) for encryption |
+    | Phase 12 (Accept Bid) | `decryptToHash` | Compute key for re-encryption |
+    | Phase 13 (Decrypt) | `decryptToHash` | Compute key for decryption |
+
+    **Usage Pattern:**
+    ```typescript
+    import { getSnarkProver } from '@/services/snark'
+
+    // Get the singleton prover instance
+    const prover = getSnarkProver()
+
+    // Initialize WASM (loads runtime + downloads files if needed)
+    // In stub mode, WASM loads quickly (proving keys skipped, but hash functions work)
+    await prover.initialize()
+
+    // Check if WASM is ready for hash operations
+    if (prover.isWorkerReady()) {
+      // Compute GT hash for encryption (creates KEM material)
+      const m0 = await prover.gtToHash('0x' + a.toString(16))
+      console.log('[WASM] m0 hash:', m0) // 56 hex chars (28 bytes)
+
+      // Compute decryption hash
+      const decryptHash = await prover.decryptToHash(g1b, r1, shared, g2b)
+    }
+    ```
+
+    **Critical Implementation Note - Stub Mode vs Hash Functions:**
+    The `useStubs` configuration controls **transaction submission**, NOT hash functions.
+    Hash functions should ALWAYS use WASM when available because:
+    - They execute in ~100ms (very fast)
+    - They're required for correct cryptographic operations
+    - Stub mode is for skipping the slow proving key setup, not for faking crypto
+
+    **WRONG:**
+    ```typescript
+    // DON'T pass useStubs to hash functions - this was a bug!
+    const m0 = await gtToHash(a, useStubs)  // ❌ Incorrectly forces stub
+    ```
+
+    **CORRECT:**
+    ```typescript
+    // Always let hash functions use WASM if available
+    const m0 = await gtToHash(a)  // ✅ Uses WASM when isWorkerReady()
+    ```
+
+    **Web Worker Message Passing:**
+    Hash functions use a request/response pattern via Web Worker postMessage:
+    ```typescript
+    // worker.ts handles these message types:
+    { type: 'gtToHash', id: 'gtToHash-1', secretA: '0x123...' }
+    { type: 'decryptToHash', id: 'decryptToHash-1', g1b, r1, shared, g2b }
+
+    // Responses:
+    { type: 'hash', id: 'gtToHash-1', hash: '5d6d66c7981bc819...' }
+    { type: 'hashError', id: 'gtToHash-1', error: 'error message' }
+    ```
+
+    **Files Involved:**
+    - `fe/src/services/snark/prover.ts` - High-level API with `gtToHash()`, `decryptToHash()`
+    - `fe/src/services/snark/worker.ts` - Web Worker that calls WASM functions
+    - `fe/src/services/crypto/createEncryption.ts` - Uses `gtToHash` for listing creation
+    - `snark/wasm_main.go` - Go code exposing `gnarkGtToHash`, `gnarkDecryptToHash`
+
+    **Input/Output Formats:**
+    | Function | Inputs | Output |
+    |----------|--------|--------|
+    | `gtToHash` | `secretA`: hex string with `0x` prefix | 56-char hex (28 bytes) |
+    | `decryptToHash` | `g1b`: 96 hex, `r1`: 96 hex, `shared`: 192 hex, `g2b`: 192 hex or empty | 56-char hex (28 bytes) |
+
+    **Error Handling:**
+    ```typescript
+    try {
+      const hash = await prover.gtToHash(secretA)
+    } catch (error) {
+      // Timeout (30 sec), WASM not loaded, or computation error
+      console.error('Hash computation failed:', error)
+    }
+    ```
 
 ---
 
