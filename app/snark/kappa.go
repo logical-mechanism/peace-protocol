@@ -260,6 +260,12 @@ type wFromHKCircuit struct {
 	// IMPORTANT: force this entire composite value to be SECRET (prevents stray public limbs)
 	HK emulated.Element[emparams.BLS12381Fr] `gnark:"hk,secret"`
 
+	// SignHint: 0 or 1 indicating whether Y is lexicographically largest.
+	// This is needed for correct BLS12-381 point compression (which uses
+	// Y > (p-1)/2, not Y's LSB). The hint is verified implicitly via the
+	// SHA256 hash check - wrong sign → wrong compressed bytes → wrong hash.
+	SignHint frontend.Variable `gnark:"signhint,secret"`
+
 	// public: sha2_256(compressed W), split into 2×16-byte big-endian integers
 	HW0 frontend.Variable `gnark:"hw0,public"`
 	HW1 frontend.Variable `gnark:"hw1,public"`
@@ -289,19 +295,20 @@ func (c *wFromHKCircuit) Define(api frontend.API) error {
 
 	// Build compressed G1:
 	// out = X (48 bytes), set:
-	//   out[0] |= 0x80 (compression)
-	//   out[0] |= 0x20 iff y is odd
+	//   out[0] |= 0x80 (compression flag)
+	//   out[0] |= 0x20 iff Y is lexicographically largest (Y > (p-1)/2)
+	// Note: BLS12-381 uses lexicographic comparison, not Y's LSB.
+	// SignHint is provided as witness and verified via SHA256 hash match.
 	bapi, err := uints.NewBytes(api)
 	if err != nil {
 		return fmt.Errorf("NewBytes: %w", err)
 	}
 
-	// yLSB from last byte bit0
-	lastY := bapi.Value(yBytes[47])
-	yBits := bits.ToBinary(api, lastY, bits.WithNbDigits(8))
-	yLSB := yBits[0] // 0/1
+	// Ensure SignHint is boolean (0 or 1)
+	api.AssertIsBoolean(c.SignHint)
 
-	signMask := api.Mul(yLSB, 0x20)
+	// Use SignHint for the sign bit (0x20 if Y is lex largest)
+	signMask := api.Mul(c.SignHint, 0x20)
 	first := bapi.Or(xBytes[0], bapi.ValueOf(0x80), bapi.ValueOf(signMask))
 	xBytes[0] = first
 
@@ -360,8 +367,15 @@ func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 	if len(rawW) != 48 {
 		return fmt.Errorf("invalid -w length: got %d bytes, want 48", len(rawW))
 	}
-	if _, err := parseG1CompressedHex(wCompressedHex); err != nil {
+	wPoint, err := parseG1CompressedHex(wCompressedHex)
+	if err != nil {
 		return fmt.Errorf("invalid compressed G1: %w", err)
+	}
+
+	// Compute sign hint: 1 if Y is lexicographically largest, 0 otherwise
+	var signHint int
+	if wPoint.Y.LexicographicallyLargest() {
+		signHint = 1
 	}
 
 	// 3) Public inputs = sha256(W_compressed) split into two 16-byte big-endian ints
@@ -385,9 +399,10 @@ func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 
 	// 6) Create witness assignment
 	assignment := wFromHKCircuit{
-		HK:  emulated.ValueOf[emparams.BLS12381Fr](hkBi),
-		HW0: &hw0,
-		HW1: &hw1,
+		HK:       emulated.ValueOf[emparams.BLS12381Fr](hkBi),
+		SignHint: signHint,
+		HW0:      &hw0,
+		HW1:      &hw1,
 	}
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
