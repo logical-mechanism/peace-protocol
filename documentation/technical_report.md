@@ -143,7 +143,7 @@ Table: Symbol Description [@elmrabet-joye-2017]
 
 The protocol, including both on-chain and off-chain components, will heavily utilize the \texttt{Register} type shown in Listing \ref{lst:registertype}. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ will result in the inability to recover the secret $\delta$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over the subgroups $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
-Where required, we will verify Ed25519 signatures [@rfc8032] for cost-minimization, as relying solely on pure BLS12-381 for simple signatures becomes too costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol to transform it into a non-interactive variant. In these cases, the hash function will be Blake2b-224 [@rfc7693].
+Where required, we will verify Ed25519 signatures [@rfc8032] for cost-minimization, as relying solely on pure BLS12-381 for simple signatures becomes too costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol to transform it into a non-interactive variant. In these cases, the hash function will be Blake2b-224 [@rfc7693]. For the SNARK circuit internals, the protocol uses MiMC as the hash function for hashing $\mathbb{G}_{T}$ elements to scalars in $\mathbb{Z}_{n}$, as MiMC is efficient in arithmetic circuits.
 
 # Cryptographic Primitives Overview
 
@@ -317,6 +317,39 @@ output $(r_{1,b}, r_{2,b}, r_{4,b})$ and $(r_{1,a}, r_{2,a}', r_{3,a})$
 
 Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption process for Alice, resulting in the transfer of the decryption rights to Bob. Bob can then use this information to recursively calculate the secret $\kappa$ and eventually the original secret used in the encryption process.
 
+## Groth16 SNARK Verification
+
+The protocol uses a Groth16 zero-knowledge proof to ensure that the re-encryption witness $W = q^{H(\kappa)}$ is correctly derived from the secret $\kappa = e(q^{a}, h_{0})$. The SNARK circuit proves the following statement without revealing the secrets $a$ or $r$:
+
+\begin{algorithm}[H]
+\caption{SNARK Circuit Statement}
+\label{alg:snark-circuit}
+
+\KwIn{\\
+ \ Secret inputs: $(a, r)$ where $a, r \in \mathbb{Z}_{n}$\\
+ \ Public inputs: $(v, w_{0}, w_{1})$ where $v, w_{0}, w_{1} \in \mathbb{G}_{1}$
+}
+\KwOut{\textsf{bool}}
+
+compute $\kappa = e([a]q, h_{0})$
+
+compute $hk = MiMC(\kappa \| DomainTag)$
+
+compute $p_{0} = [hk]q$
+
+compute $p_{1} = [a]q + [r]v$
+
+output $w_{0} = p_{0} \land w_{1} = p_{1}$
+\end{algorithm}
+
+The public inputs $v$, $w_{0}$, and $w_{1}$ are provided as affine $\mathbb{G}_{1}$ coordinates. The on-chain verifier receives these coordinates as 64-bit limbs and reconstructs the compressed $\mathbb{G}_{1}$ points via limb compression verification. This binding ensures that the SNARK public inputs correspond to the actual elliptic curve points stored in the datum.
+
+The Groth16 verifier uses the gnark commitment extension, which adds a Pedersen commitment proof-of-knowledge check alongside the standard pairing verification. The verification equation is:
+
+$$e(A, B) \cdot e(vk_{x}, -\gamma) \cdot e(C, -\delta) \cdot e(\alpha, -\beta) = 1$$
+
+where $vk_{x}$ incorporates both the public inputs and commitment wires.
+
 # Protocol Overview
 
 The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The protocol should be viewed as a proof-of-concept, as the data storage layer is the Cardano blockchain. The current Cardano chain parameters limit storage to less than 16 KB. In a production setting, the data storage layer should allow for arbitrary file sizes.
@@ -328,7 +361,9 @@ The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encrypt
 
 Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction construction, cryptographic proof generation, and the happy-path flow. The design on both sides will focus on a two-party example: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof-of-concept, the off-chain will not include the general n-party system, as that is future work for a real-world production setting.
 
-The protocol must allow continuous trading via a multi-hop PRE, meaning that Alice trades with Bob, who can then trade with Carol. In this setting, Alice will trade to Bob, then Bob will trade back to Alice, rather than Carol, without any loss of generality. Each hop will generate a new owner and decryption data for the encryption UTxO. The storage of previous encryption levels should grow at most linearly. Users will use a basic bid system for token trading. A user may choose not to trade their token by simply not selecting a bid if one exists.
+The protocol must allow continuous trading via a multi-hop PRE, meaning that Alice trades with Bob, who can then trade with Carol. In this setting, Alice will trade to Bob, then Bob will trade back to Alice, rather than Carol, without any loss of generality. Each hop will generate a new owner and decryption data for the encryption UTxO. The on-chain storage remains constant per hop: the datum stores only the current half-level and the previous full-level, rather than a growing list of all levels. Users reconstruct the complete encryption level history by querying the blockchain from the mint transaction to the current state. Users will use a basic bid system for token trading. A user may choose not to trade their token by simply not selecting a bid if one exists.
+
+The protocol implements a state machine with two states: \texttt{Open} and \texttt{Pending}. In the \texttt{Open} state, the owner may remove the encryption UTxO, submit a SNARK proof to transition to \texttt{Pending}, or simply hold the asset. In the \texttt{Pending} state, a bidder's re-encryption request is awaiting completion; the owner may complete the re-encryption (transitioning back to \texttt{Open} with a new owner), cancel the pending request, or allow the request to expire after a time-to-live (TTL) threshold. This state machine ensures atomicity of the SNARK verification and re-encryption steps while allowing recovery from abandoned transactions.
 
 The re-encryption process needs to flow in one direction per hop. Alice trades with Bob, and that is the end of their transaction. Bob does not gain the ability to re-encrypt the data back to Alice without a new bid from Alice, which restarts the re-encryption process. Any bidirectionality here implies symmetry between Alice and Bob, thereby circumventing the re-encryption requirement via token trading. The unidirectional requirement forces tradability to follow the typical trading interactions currently found on the Cardano blockchain.
 
@@ -344,11 +379,11 @@ The bid contract datum structure is shown in Listing \ref{lst:biddatumtype}. The
 
 The bid contract redeemer structures are shown in Listing \ref{lst:bidredeemertypes}. Entering into the bid contract uses the \texttt{EntryBidMint} redeemer, triggering a \texttt{pointer} mint validation, a \texttt{token} UTxO existence check, an Ed25519 signature with \texttt{owner\_vkh}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the bid contract requires using \texttt{RemoveBid} and \texttt{LeaveBidBurn} redeemers together, triggering a \texttt{pointer} burn validation and Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they will use \texttt{UseBid} and \texttt{LeaveBidBurn} together, triggering a \texttt{pointer} burn validation and the proxy re-encryption validation.
 
-Listing \ref{lst:encdatumtype} shows the re-encryption contract datum structure. The re-encryption datum contains all of the required information for decryption. The owner of the re-encryption UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The ciphertext and related data are in the \texttt{Capsule} subtype, and each hop generates a new \texttt{EncryptionLevel} subtype. We cannot store or do arithmetic on $\mathbb{G}_{T}$ elements on-chain, and storing extra group elements is expensive. So \texttt{EmbeddedGt} stores only the minimal factors needed to reconstruct the $\mathbb{G}_{T}$ elements during validation. The user may reference any required constants.
+Listing \ref{lst:encdatumtype} shows the re-encryption contract datum structure. The re-encryption datum contains all of the required information for decryption. The owner of the re-encryption UTxO will be type \texttt{Register} in $\mathbb{G}_{1}$. The \texttt{token} is the NFT name on the re-encryption UTxO. The ciphertext and related data are in the \texttt{Capsule} subtype. Rather than storing all encryption levels, the datum stores only the current \texttt{half\_level} and optionally the previous \texttt{full\_level}. Users reconstruct the complete level history by querying the blockchain. The \texttt{status} field tracks the state machine position: \texttt{Open} for normal operation, or \texttt{Pending} with the SNARK public inputs and TTL when awaiting re-encryption completion.
 
-The re-encryption contract redeemer structures are shown in Listing \ref{lst:encredeemertypes}. Entering into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, an Ed25519 signature with \texttt{owner\_vkh}, a binding proof using \texttt{owner\_g1}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the re-encryption contract requires using both \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers, triggering a \texttt{token} burn validation and an Ed25519 signature with \texttt{owner\_vkh}. When a user selects a bid, they use the \texttt{UseEncryption} redeemer, which triggers proxy re-encryption validation.
+The re-encryption contract redeemer structures are shown in Listing \ref{lst:encredeemertypes}. Entering into the re-encryption contract uses the \texttt{EntryEncryptionMint} redeemer, triggering a \texttt{token} mint validation, an Ed25519 signature with \texttt{owner\_vkh}, a binding proof using \texttt{owner\_g1}, and a Schnorr $\Sigma$-protocol using \texttt{owner\_g1}. Leaving the re-encryption contract requires using both \texttt{RemoveEncryption} and \texttt{LeaveEncryptionBurn} redeemers, triggering a \texttt{token} burn validation and an Ed25519 signature with \texttt{owner\_vkh}. The \texttt{UseSnark} redeemer initiates the re-encryption process by verifying the Groth16 proof and transitioning the status from \texttt{Open} to \texttt{Pending}. The \texttt{UseEncryption} redeemer completes the re-encryption by verifying limb compression, updating ownership, and transitioning back to \texttt{Open}. The \texttt{CancelEncryption} redeemer allows the owner to cancel a pending re-encryption or allows automatic cancellation after TTL expiration.
 
-The redeemers \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn} must be used together during re-encryption.
+The re-encryption flow requires two transactions: first \texttt{UseSnark} to submit the SNARK proof, then \texttt{UseEncryption}, \texttt{UseBid}, and \texttt{LeaveBidBurn} together to complete the transfer.
 
 ## Key Management And Identity
 
@@ -368,7 +403,7 @@ The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_
 
 The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatenation of the input's output index and transaction ID, as shown in the Listing \ref{lst:gentkn}. The protocol specification assumes a single input, but this transaction may use multiple inputs. If more than one input exists, then the first element of a lexicographically sorted input list will be used for the name generation.
 
-Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{levels} and \texttt{capsule} fields. Since Alice is the first owner, she will encrypt it for herself. Alice will encrypt the original data by generating a root secret $\kappa_{0} \in \mathbb{G}_{T}$. The root secret, $\kappa_{0}$, will be used in the KDF to produce a valid DEK. The message will be encrypted using AES-GCM. The  \texttt{Capsule} type will store the resulting information. Listing \ref{lst:first-level} is a Pythonic pseudocode for generating the original encrypted data and the first encryption level. The sub-types of the \texttt{EncryptionDatum} can be populated as shown in Listing \ref{lst:actualfirstlevel}. The contract will validate the first encryption level using the assertion from Listing \ref{lst:validatefirstlevel}. Alice can prove to herself that the encryption level is valid by verifying the assertion in Listing \ref{lst:decryptfirstlevel}. Alice may now construct the full \texttt{EncryptionDatum} as shown in Listing \ref{lst:fullfirstdatum}.
+Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{half\_level} and \texttt{capsule} fields. Since Alice is the first owner, she will encrypt it for herself. Alice will encrypt the original data by generating a root secret $\kappa_{0} \in \mathbb{G}_{T}$. The root secret, $\kappa_{0}$, will be used in the KDF to produce a valid DEK. The message will be encrypted using AES-GCM. The \texttt{Capsule} type will store the resulting information. Listing \ref{lst:first-level} is a Pythonic pseudocode for generating the original encrypted data and the first encryption level. The sub-types of the \texttt{EncryptionDatum} can be populated as shown in Listing \ref{lst:actualfirstlevel}. The contract will validate the first half-level using the assertion from Listing \ref{lst:validatefirstlevel}. Alice can prove to herself that the encryption level is valid by verifying the assertion in Listing \ref{lst:decryptfirstlevel}. Alice may now construct the full \texttt{EncryptionDatum} as shown in Listing \ref{lst:fullfirstdatum}, with \texttt{status} set to \texttt{Open} and \texttt{full\_level} set to \texttt{None}.
 
 The entry redeemer verifies that Alice's \texttt{owner\_vkh} is valid via an Ed25519 signature, since Alice needs a valid \texttt{vkh} to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol as shown in Algorithm \ref{alg:schnorrsig}. Alice needs this to decrypt her own data and to verify that she binds her public value to the first encryption level via a binding proof, as shown in Algorithm \ref{alg:bindingsig}. The encrypted data is ready to be traded after successfully creating a valid entry transaction and submitting it to the Cardano blockchain.
 
@@ -380,15 +415,21 @@ The structure of the bid entry transaction is similar to that of the re-encrypti
 
 Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. A valid \texttt{Register} is important, as the validity of the $\mathbb{G}_{1}$ point determines whether Bob can decrypt the data after the re-encryption process. The value on the UTxO is the price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids, but Alice may only select a single bid for the re-encryption transaction. For simplicity of the proof-of-concept, Bob will need to remove his old or unused bids, then recreate the bids for any necessary price or \texttt{token} adjustments. Bob may remove his bid at any time.
 
-### Phase 3: Bid Selection And Re-Encryption
+### Phase 3: SNARK Submission And Re-Encryption
 
-Alice will select a bid UTxO from the bid contract and will re-encrypt the encryption data using Bob's \texttt{Register} data. This step requires Alice to burn Bob's bid token, update the on-chain data to Bob's data, and create the re-encryption proofs. The re-encryption is the most important step of the protocol, as it involves trading both the token and the encrypted data. The re-encryption redeemer will provide all of the required proxy validation proofs. The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. If everything is consistent, then the ownership and decryption rights are transferred. Listing \ref{lst:createnextlevel} is a Pythonic pseudocode for generating the next encryption level. Bob's and Alice's encryption levels are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
+The re-encryption process occurs in two transactions to accommodate the computational cost of SNARK verification.
 
-The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first pairing assertion follows Alice's first-level validation, ensuring that the encryption level terms are consistent. The second pairing assertion shows that Alice correctly created the $r_{5}$ term. Adding a SNARK for valid witness creation is left as future work for a real-world production deployment, as it is out of scope for the proof-of-concept implementation. The SNARK will need to prove that the secret $\kappa$ truly does equal the witness when hashed, $W = q^{H(\kappa)}$, where $H(\kappa)$ and $\kappa$ are secrets and $W$ is public.
+**Transaction 1: SNARK Submission.** Alice generates a Groth16 proof demonstrating that the witness $W = q^{H(\kappa)}$ is correctly derived from the pairing secret $\kappa = e(q^{a}, h_{0})$. Alice submits this proof using the \texttt{UseSnark} redeemer, which verifies the Groth16 proof (via the groth\_witness withdraw validator) and the commitment proof-of-knowledge. Upon successful verification, the datum's \texttt{status} transitions from \texttt{Open} to \texttt{Pending(groth\_public, ttl)}, where \texttt{groth\_public} contains the SNARK public inputs (the limb representation of the G1 points) and \texttt{ttl} is the expiration time.
+
+**Transaction 2: Re-Encryption Completion.** Alice selects a bid UTxO from the bid contract and completes the re-encryption using the \texttt{UseEncryption} redeemer together with \texttt{UseBid} and \texttt{LeaveBidBurn}. This step burns Bob's bid token, updates the on-chain data to Bob's ownership, and creates the re-encryption proofs. The contract verifies limb compression to ensure the SNARK public inputs match the actual G1 points (\texttt{bid\_owner\_g1.public\_value}, the witness, and \texttt{next\_half\_level.r2\_g1b}). The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. If everything is consistent, then ownership and decryption rights transfer to Bob, and the status returns to \texttt{Open}.
+
+Listing \ref{lst:createnextlevel} is a Pythonic pseudocode for generating the next encryption level. Bob's half-level and Alice's full-level are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
+
+The contract will validate the re-encryption using a binding proof and two pairing proofs as shown in Listing \ref{lst:validatereencryption}. The first pairing assertion follows Alice's first-level validation, ensuring that the encryption level terms are consistent. The second pairing assertion shows that Alice correctly created the $r_{5}$ term. The SNARK proves that the secret $\kappa$ truly does equal the witness when hashed, $W = q^{H(\kappa)}$, where $H(\kappa)$ and $\kappa$ are secrets and $W$ is public.
 
 ### Phase 4: Decryption
 
-Bob can now decrypt the root key by recursively computing all the random $\mathbb{G}_{T}$ points as shown in Listing \ref{lst:decrypting}.
+Bob can now decrypt the root key by recursively computing all the random $\mathbb{G}_{T}$ points as shown in Listing \ref{lst:decrypting}. Since the on-chain datum stores only the current half-level and previous full-level, Bob must first reconstruct the complete encryption level history by querying the blockchain for all transactions from the token's mint to the current state. Each historical transaction contains the half-level and full-level at that point in time, allowing Bob to rebuild the complete list of encryption levels needed for recursive decryption.
 
 # Security Model
 
@@ -464,25 +505,31 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 ## Limitations And Risks
 
-- The proof-of-concept protocol does not include a SNARK that proves the published $H(\kappa)$-dependent terms are derived from the actual pairing secret $\kappa = e(q^{a_{0}}, h_{0})$. Algebraic pairing and Schnorr checks only enforce consistency with some exponent. A malicious Alice can choose an arbitrary $H(\kappa)$ and still pass on-chain validation even when the hash is incorrect. A production-grade design should add a ZK proof over a canonical encoding that enforces $hk = H(e(q^{a_{0}}, h_{0}))$ and $W = q^{hk}$ without revealing $\kappa$, $hk$, or $a_{0}$.
+- The protocol includes a Groth16 SNARK that proves the published $H(\kappa)$-dependent terms are derived from the actual pairing secret $\kappa = e(q^{a_{0}}, h_{0})$. This SNARK enforces $hk = MiMC(e(q^{a_{0}}, h_{0}) \| DomainTag)$ and $W = q^{hk}$ without revealing $\kappa$, $hk$, or $a_{0}$. The SNARK uses MiMC for hashing within the circuit, as it is efficient in arithmetic circuits. The limb compression verification binds the SNARK public inputs to the actual on-chain G1 points.
 
 - The protocol can prove key-binding and correct re-encryption relations, but it cannot prove that the encrypted content is "valuable" or matches an off-chain description. Disputes about semantics require external mechanisms.
 
 - The protocol does not protect the data after decryption. If Bob decrypts the plaintext, Bob can copy or leak it. Cryptography cannot prevent exfiltration. Only economic or legal controls can reduce this risk.
 
-- The protocol does not ensure a fair exchange. Either party can abort or grief at different stages. Achieving strong fairness in a production setting typically requires escrow, bonding, or timeouts.
+- The protocol does not ensure a fair exchange. Either party can abort or grief at different stages. The two-transaction re-encryption flow introduces a window where Alice has submitted the SNARK proof but not yet completed the transfer. The TTL-based cancellation mechanism provides recovery but does not guarantee atomicity. Achieving strong fairness in a production setting typically requires additional escrow, bonding, or timeout mechanisms.
 
 - Key compromise is catastrophic. Any theft of secret keys compromises the confidentiality of those assets. Losing secret keys prevents decrypting.
 
-- The proof-of-concept protocol does not guarantee CCA security. If any proof field can be modified while still passing on-chain checks, then an attacker may use acceptance/rejection or decryption behavior as an oracle.
+- The protocol aims for CCA security through the combination of binding proofs, pairing checks, and SNARK verification. The SNARK binds the witness computation to the actual pairing secret, preventing arbitrary witness substitution. However, a formal CCA security proof is left as future work.
 
-- The protocol does not limit hops directly. The Cardano blockchain limits the size of UTxO, thereby naturally limiting the maximum number of hops.
+- The protocol does not limit hops directly. However, since the on-chain storage is now constant (only current half-level and previous full-level), the Cardano UTxO size limit no longer constrains the hop count. Users must query the blockchain to reconstruct the full encryption history for decryption.
 
 - Pairing-heavy verification and SNARK verification can approach the CPU budget, requiring multi-transaction validation flows, increasing complexity, and can reduce UX reliability under network congestion.
 
 ## Performance And On-Chain Cost
 
-The re-encryption process performs excellently. The generation of the proofs is quick. The encryption setup is easy. The PRE flow is simple. The cost of running the re-encryption validation leans towards the expensive side. The Schnorr and binding proofs are relatively cheap, but the pairing proofs are expensive. A single pairing proof costs almost 15% of the total cpu budget per transaction. In a real-world production setting, the re-encryption step may max out the cpu budget completely because of the SNARK requirement. In that case, the re-encryption validation may need to be broken up into multiple transactions such that the cpu budget per transaction remains low enough to be valid on-chain.
+The re-encryption process performs well within Cardano's transaction limits by splitting the validation across two transactions. The generation of the SNARK proofs occurs off-chain and takes several seconds on commodity hardware. The encryption setup is straightforward, and the PRE flow is simple to understand.
+
+The first transaction (\texttt{UseSnark}) verifies the Groth16 proof and commitment proof-of-knowledge via a withdraw validator. The Groth16 verification involves multiple pairing operations and public input accumulation, consuming a significant portion of the CPU budget. The commitment verification adds additional pairing checks. This separation allows the expensive SNARK verification to occur independently of the re-encryption logic.
+
+The second transaction (\texttt{UseEncryption}) verifies limb compression (binding SNARK public inputs to G1 points), binding proofs, and pairing checks for the R5 term. The Schnorr and binding proofs are relatively cheap, but the pairing proofs remain expensive. By separating the SNARK verification into its own transaction, the re-encryption validation stays within budget.
+
+The two-transaction design introduces additional complexity and a brief window where the status is \texttt{Pending}. However, this approach ensures the protocol remains feasible on-chain while providing the security guarantees of SNARK-verified witness creation. The constant on-chain storage (only current half-level and previous full-level) also reduces datum size compared to storing all historical levels.
 
 # Conclusion
 
@@ -555,22 +602,30 @@ pub type EncryptionDatum {
   owner_vkh: VerificationKeyHash,
   owner_g1: Register,
   token: AssetName,
-  levels: List<EncryptionLevel>,
+  half_level: HalfEncryptionLevel,
+  full_level: Option<FullEncryptionLevel>,
   capsule: Capsule,
+  status: Status,
 }
 pub type Capsule {
   nonce: ByteArray,
   aad: ByteArray,
   ct: ByteArray,
 }
-pub type EncryptionLevel {
+pub type Status {
+  Open
+  Pending(GrothPublic, Int)
+}
+pub type HalfEncryptionLevel {
   r1b: ByteArray,
-  r2: EmbeddedGt,
+  r2_g1b: ByteArray,
   r4b: ByteArray,
 }
-pub type EmbeddedGt {
-  g1b: ByteArray,
-  g2b: Option<ByteArray>,
+pub type FullEncryptionLevel {
+  r1b: ByteArray,
+  r2_g1b: ByteArray,
+  r2_g2b: ByteArray,
+  r4b: ByteArray,
 }
 \end{lstlisting}
 ```
@@ -588,7 +643,11 @@ pub type EncryptionMintRedeemer {
 }
 pub type EncryptionSpendRedeemer {
   RemoveEncryption
+  // R5 witness, R5, bid token, binding proof
   UseEncryption(ByteArray, ByteArray, AssetName, BindingProof)
+  // groth proof and public come from groth_witness withdraw redeemer
+  UseSnark
+  CancelEncryption
 }
 pub type BindingProof {
   z_a_b: ByteArray,
@@ -660,12 +719,9 @@ nonce, aad, ct = encrypt(r1, k0, message)
   label={lst:actualfirstlevel},
   float
 ]
-pub type EncryptionLevel {
+pub type HalfEncryptionLevel {
   r1b,
-  r2: EmbeddedGt {
-    g1b: r2_g1b,
-    g2b: None,
-  },
+  r2_g1b,
   r4b,
 }
 pub type Capsule {
@@ -700,21 +756,18 @@ pub type EncryptionDatum {
   owner_vkh,
   owner_g1,
   token: generate_token_name(inputs),
-  levels: [
-    EncryptionLevel {
-      r1b,
-      r2: EmbeddedGt {
-        g1b: r2_g1b,
-        g2b: None,
-      },
-      r4b,
-    }
-  ],
+  half_level: HalfEncryptionLevel {
+    r1b,
+    r2_g1b,
+    r4b,
+  },
+  full_level: None,
   capsule: Capsule {
     nonce,
     aad,
     ct: ciphertext,
   },
+  status: Open,
 }
 \end{lstlisting}
 ```
@@ -759,24 +812,21 @@ r5b = combine(scale(q, hk), scale(invert(H0), sk))
 ```{=latex}
 \begin{lstlisting}[
   style=rust,
-  caption={Bob's and Alice's encryption levels},
+  caption={Bob's half-level and Alice's full-level},
   label={lst:encryptionlevels},
   float
 ]
-pub type EncryptionLevel {
+// Bob's new half-level (current owner)
+pub type HalfEncryptionLevel {
   r1b,
-  r2: EmbeddedGt {
-    g1b: r2_g1b,
-    g2b: None,
-  },
+  r2_g1b,
   r4b,
 }
-pub type EncryptionLevel {
-  r1b: alice.r1B,
-  r2: EmbeddedGt {
-    g1b: alice.r2_g1b,
-    g2b: Some(r5b),
-  },
+// Alice's full-level (previous owner, stored for decryption)
+pub type FullEncryptionLevel {
+  r1b: alice.r1b,
+  r2_g1b: alice.r2_g1b,
+  r2_g2b: r5b,
   r4b: alice.r4b,
 }
 \end{lstlisting}
@@ -793,29 +843,23 @@ pub type EncryptionDatum {
   owner_vkh: bob.owner_vkh,
   owner_g1: bob.owner_g1,
   token,
-  levels: [
-    EncryptionLevel {
-      r1b,
-      r2: EmbeddedGt {
-        g1b: r2_g1b,
-        g2b: None,
-      },
-      r4b,
-    },
-    EncryptionLevel {
-      r1b: alice.r1B,
-      r2: EmbeddedGt {
-        g1b: alice.r2_g1b,
-        g2b: Some(r5b),
-      },
-      r4b: alice.r4b,
-    }
-  ],
+  half_level: HalfEncryptionLevel {
+    r1b,
+    r2_g1b,
+    r4b,
+  },
+  full_level: Some(FullEncryptionLevel {
+    r1b: alice.r1b,
+    r2_g1b: alice.r2_g1b,
+    r2_g2b: r5b,
+    r4b: alice.r4b,
+  }),
   capsule: Capsule {
     nonce,
     aad,
     ct: ciphertext,
   },
+  status: Open,
 }
 \end{lstlisting}
 ```
@@ -831,19 +875,22 @@ assert pair(g, alice.r5b) \cdot pair(alice.u, H0) = pair(alice.witness, p)
 ```{=latex}
 \begin{lstlisting}[style=python, caption={Decrypting the secret message}, label={lst:decrypting}, float, floatplacement=H]
 
+# Reconstruct encryption_levels by querying blockchain history
+encryption_levels = query_chain_history(token, from_mint=True)
+
 h0x = scale(H0, sk)
 shared = h0x
 
 for entry in encryption_levels:
-    r1 = entry.r1
+    r1 = entry.r1b
 
-    if is_half_level(entry.r2):
-        r2 = pair(entry.r2.g1, H0)
+    if is_half_level(entry):
+        r2 = pair(entry.r2_g1b, H0)
     else:
-        r2 = pair(entry.r2.g1, H0) \cdot pair(r1, entry.r2.g2)
+        r2 = pair(entry.r2_g1b, H0) \cdot pair(r1, entry.r2_g2b)
 
     b = pair(r1, shared)
-    key = fq12_encoding(r2 / b, F12_DOMAIN_TAG)
+    key = mimc_hash(r2 / b, DOMAIN_TAG)
     k = to_int(key)
     shared = scale(q, k)
 
