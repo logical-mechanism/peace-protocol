@@ -117,7 +117,7 @@ Several mandatory requirements must be satisfied for the protocol to function as
 
 The PEACE protocol will implement an ambitious yet well-defined, unidirectional, multi-hop proxy re-encryption (PRE) scheme [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that it cannot be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report.
 
-The remainder of this report is as follows. Section 3 discusses the preliminaries and background required for this project. Section 4 will be a brief overview of the required cryptographic primitives. Section 5 will be a detailed description of the protocol. Section 6 will delve into security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
+The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 will be a brief overview of the required cryptographic primitives. Section 4 will be a detailed description of the protocol. Section 5 will delve into security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
 
 # Background And Preliminaries
 
@@ -280,14 +280,15 @@ Note that in the original Catalyst proposal, the protocol defines itself as a bi
 \KwIn{
   \\
   $(q, u)$ where $q \in \mathbb{G}_{1}$, $u = [\delta_{a}]q \in \mathbb{G}_{1}$ (Alice's public key),\\
-  $(q, v)$ where $v = [\delta_{b}]q \in \mathbb{G}_{1}$ (Bob's public keys),\\
+  $(q, v)$ where $v = [\delta_{b}]q \in \mathbb{G}_{1}$ (Bob's public key),\\
  Alice's secret key $\delta_{a} \in \mathbb{Z}_n$\\
   $p \in \mathbb{G}_{2}$\\
-  $(r_{1,a}, r_{2,a}, r_{3,a})$, where $r_{1} \in \mathbb{G}_{1}$, $r_{2} \in \mathbb{G}_{T}$, and  $r_{3} \in \mathbb{G}_{2}$\\
+  Alice's current \texttt{HalfEncryptionLevel}: $(r_{1,a}, r_{2,a}, r_{4,a})$, where $r_{1,a}, r_{2,a} \in \mathbb{G}_{1}$ and $r_{4,a} \in \mathbb{G}_{2}$\\
   $(h_{0}, h_{1}, h_{2})$, where $h_{i} \in \mathbb{G}_{2}$ are fixed public points.
 }
 \KwOut{
-  $(r_{1,b}, r_{2,b}, r_{3,b})$ and $(r_{1,a}', r_{2,a}', r_{3,a}')$
+  Bob's \texttt{HalfEncryptionLevel}: $(r_{1,b}, r_{2,b}, r_{4,b})$\\
+  Alice's \texttt{FullEncryptionLevel}: $(r_{1,a}, r_{2,a}, r_{5}, r_{4,a})$
 }
 
 \BlankLine
@@ -300,17 +301,15 @@ select a random $r \in \mathbb{Z}_{n}$
 
 compute $r_{1,b} = [r]q$
 
-compute $r_{2,b} = e(q^{a}, h_{0}) \cdot e(v^{r}, h_{0}) = e(q^{a}v^{r}, h_{0})$
+compute $r_{2,b} = [a]q + [r]v \in \mathbb{G}_{1}$
 
 compute $c = [BLAKE2b(r_{1,b})]h_{1} + [BLAKE2b(r_{1,b} || r_{2,b})]h_{2}$
 
 compute $r_{4,b} = [r]c$
 
-compute $r_{5,b} = [BLAKE2b(\kappa)]p + [\delta_{a}]h_{0}$
+compute $r_{5} = [H(\kappa)]p + [\delta_{a}](-h_{0}) \in \mathbb{G}_{2}$
 
-update $r_{2,a}' = r_{2,a} \cdot e(r_{1,a}, r_{5,b})$
-
-output $(r_{1,b}, r_{2,b}, r_{4,b})$ and $(r_{1,a}, r_{2,a}', r_{3,a})$
+output $(r_{1,b}, r_{2,b}, r_{4,b})$ and $(r_{1,a}, r_{2,a}, r_{5}, r_{4,a})$
 
 \end{algorithm}
 
