@@ -171,7 +171,7 @@ compute $z = \delta \cdot c + r$
 output $[z]g = a + [c]u$
 \end{algorithm}
 
-The protocol requires proving a binding relationship between a user's public value and other known elliptic-curve elements. The binding proof is a combination of multiple Schnorr's $\Sigma$-protocols. The value $\chi$ is the $\mathbb{G}_{1}$ element of the second term in the encryption level, specifically, \texttt{r2.g1b}.
+The protocol requires proving a binding relationship between a user's public value and other known elliptic-curve elements. The binding proof is a combination of multiple Schnorr's $\Sigma$-protocols. The value $\chi$ is the $\mathbb{G}_{1}$ element of the second term in the encryption level, specifically, \texttt{r2\_g1b}.
 
 \begin{algorithm}[H]
 \caption{Non-interactive Binding $\Sigma$-protocol}
@@ -393,7 +393,7 @@ The BLS12-381 keys used for re-encryption are logically separate from the Ed2551
 
 The proof-of-concept does not implement a full key rotation or revocation mechanism. If a user's BLS12-381 secret key is compromised, an attacker can decrypt all current and future capsules addressed to that key, but cannot retroactively remove or alter on-chain history. Handling key rotation, partial recovery, and revocation across many encrypted positions is left as future work for a real-world production deployment.
 
-For each encrypted item, the protocol generates a fresh KEM used at the  \texttt{EncryptionLevel}. The KEM is never directly stored on-chain. The on-chain Capsule contains the AES-GCM nonce, associated data, and ciphertext.
+For each encrypted item, the protocol generates a fresh KEM used at each encryption level. The KEM is never directly stored on-chain. The on-chain Capsule contains the AES-GCM nonce, associated data, and ciphertext.
 
 ## Protocol Specification
 
@@ -409,7 +409,7 @@ The entry redeemer verifies that Alice's \texttt{owner\_vkh} is valid via an Ed2
 
 ### Phase 2: Creating The Bid UTxO
 
-Bob may now create a bid UTxO in the bid contract to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarly to Alice, the secret $\gamma$ will generate an Ed25519 keypair and the secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $q$. Bob will fund the address associated with his \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the proof-of-concept protocol grows the encryption datum linearly in size with each additional encryption level, so the required Lovelace for a given encrypted message will increase over time. Bob should contribute to the minimum required Lovelace for the encrypted data, though this is not an on-chain requirement.
+Bob may now create a bid UTxO in the bid contract to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarly to Alice, the secret $\gamma$ will generate an Ed25519 keypair and the secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $q$. Bob will fund the address associated with his \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the on-chain datum size remains constant regardless of hop count, as only the current half-level and previous full-level are stored. Bob should contribute to the minimum required Lovelace for the encrypted data, though this is not an on-chain requirement.
 
 The structure of the bid entry transaction is similar to that of the re-encryption entry transaction, but uses \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The transaction input derives the \texttt{pointer} token name in the same way as the \texttt{token} name. A user may reference the \texttt{token} name on-chain from the re-encryption contract. Bob may then create the \texttt{BidDatum} as shown in Listing \ref{lst:fullbiddatum}.
 
@@ -533,7 +533,7 @@ The two-transaction design introduces additional complexity and a brief window w
 
 # Conclusion
 
-The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guarantees. As a proof of concept, PEACE emphasizes correctness, composability, and an auditable trust boundary. The current design still requires a scoped trust assumption in the re-encryption behavior by the current owner, and we treat this as an engineering constraint rather than an unresolved ambiguity. The protocol limitations vanish by integrating a zero-knowledge proof of correct re-encryption in a future revision. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what should remain off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
+The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guarantees. As a proof of concept, PEACE emphasizes correctness, composability, and an auditable trust boundary. The integration of a Groth16 SNARK ensures that the re-encryption witness is correctly derived from the pairing secret, addressing the key limitation of earlier designs. The two-transaction flow accommodates on-chain resource limits while maintaining security. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what should remain off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
 
 \clearpage
 \appendix
