@@ -804,7 +804,7 @@ b = to_int(generate(r1b + r2_g1b))
 c = combine(scale(H1, a), scale(H2, b))
 r4b = scale(c, r1)
 
-r5b = combine(scale(q, hk), scale(invert(H0), sk))
+r5b = combine(scale(p, hk), scale(invert(H0), sk))
 \end{lstlisting}
 ```
 
@@ -891,7 +891,7 @@ for entry in encryption_levels:
     b = pair(r1, shared)
     key = mimc_hash(r2 / b, DOMAIN_TAG)
     k = to_int(key)
-    shared = scale(q, k)
+    shared = scale(p, k)
 
 message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
 \end{lstlisting}
@@ -977,7 +977,7 @@ Correctness for Algorithm~\ref{alg:reencrypt-alice-bob}, recursive decryption
 
 \begin{proof}
 
-Lets assume we have a single full encryption level and a half encryption level given by $\ (\ r_{1,a}, r_{2,a}\ )$ and $\ (\ r_{1,b}, r_{2,b}\ )$, respectively, where $r_{1,i} \in \mathbb{G}_{1}$, and $r_{2,i} \in \mathbb{G}_{T}$. The owner of the half level has secret $y \in \mathbb{Z}_{n}$ and the owner of the full level as secret $x \in \mathbb{Z}_{n}$. The point $h_{0}=[s_{0}]p \in \mathbb{G}_{2}$ is a fixed public element.
+Lets assume we have a single full encryption level and a half encryption level given by $\ (\ r_{1,a}, r_{2,a}\ )$ and $\ (\ r_{1,b}, r_{2,b}\ )$, respectively, where $r_{1,i} \in \mathbb{G}_{1}$, and $r_{2,i} \in \mathbb{G}_{T}$. The owner of the half level has secret $y \in \mathbb{Z}_{n}$ and the owner of the full level has secret $x \in \mathbb{Z}_{n}$. The point $h_{0}=[s_{0}]p \in \mathbb{G}_{2}$ is a fixed public element.
 
 Calculate $\kappa_{1}$ from the half level.
 
