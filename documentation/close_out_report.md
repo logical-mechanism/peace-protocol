@@ -37,7 +37,7 @@ This report gives a reviewer-friendly summary of technical and functional progre
 
 ## 3. Milestone-by-milestone outcomes and evidence
 
-### Milestone 1 — Technical research report + security assessment
+### Milestone 1: Technical research report + security assessment
 
 **Primary objective:**
 
@@ -62,7 +62,7 @@ Produce a report defining the protocol’s cryptographic design and security wit
 
 ---
 
-### Milestone 2 — MVP implementation (Aiken on-chain + Python/Bash off-chain)
+### Milestone 2: MVP implementation (Aiken on-chain + Python/Bash off-chain)
 
 **Primary objective:**
 
@@ -90,7 +90,7 @@ Deliver an MVP to demonstrate the protocol flow with scripts and clear documenta
 
 ---
 
-### Milestone 3 — Comprehensive testing + Cardano preprod validation
+### Milestone 3: Comprehensive testing + Cardano preprod validation
 
 **Primary objective:**
 
