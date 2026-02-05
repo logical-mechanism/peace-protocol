@@ -13,7 +13,7 @@ B. Output: Final close-out video demonstrating live interactions with the encryp
 Acceptance criteria: A close-out video is published and linked from the GitHub repository; the video demonstrates the protocol in action and covers the scope of work completed across all milestones.
 
 Evidence:
-- Close-out video: https://www.youtube.com
+- Close-out video: https://www.youtube.com/
 - Video link in report: https://github.com/logical-mechanism/peace-protocol/blob/main/documentation/close_out_report.md
 
 

@@ -1,12 +1,15 @@
-# PEACE Protocol — Final Close-Out Report (Project Catalyst Fund 14)
+# PEACE Protocol
+# Decentralized On-Chain Data Encryption
+# Final Close-Out Report
+# (Project Catalyst Fund 14)
 
-**Project:** PRE-ECIES-AES-GCM Encryption (“PEACE”) Protocol
+**Project:** Decentralized On-Chain Data Encryption
 
 **Public Repository:** https://github.com/logical-mechanism/peace-protocol
 
 **Catalyst Milestones:** https://milestones.projectcatalyst.io/projects/1400046
 
-**Close Out Video:** https://www.youtube.com
+**Close Out Video:** https://www.youtube.com/
 
 ---
 
