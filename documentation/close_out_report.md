@@ -140,11 +140,11 @@ A key challenge was finding an approach that fit Cardano’s on-chain limits whi
 
 2) **Reworking pairing mathematics to fit on-chain constraints**
 
-The paper-level constructions involving pairings needed adaptation for practical on-chain use, since cryptographic pairings—mathematical operations used in protocols involving elliptic curves—cannot be stored as data objects. Implementation used relationships between two point types (G1/G2) and structured checks, rather than storing pairing results.
+The paper-level constructions involving pairings needed adaptation for practical on-chain use, since cryptographic pairings cannot be stored as data objects on-chain.
 
 3) **Identifying and mitigating CCA-style attack surfaces early**
 
-Potential chosen-ciphertext-style risks (where an attacker can trick the system into decrypting modified ciphertexts) were identified early and addressed using a combination of sigma-protocol-style structures (proof methods for statements on secret data), pairing relations, and SNARK (succinct non-interactive argument of knowledge, a proof system)-based reasoning and verification patterns, where applicable.
+Potential chosen-ciphertext-style risks (where an attacker can trick the system into decrypting modified ciphertexts) were identified early and addressed using a combination of sigma-protocol-style structures, pairing relations, and a SNARK (succinct non-interactive argument of knowledge) where applicable.
 
 4) **Learning the weaknesses and practical boundaries of re-encryption**
 
