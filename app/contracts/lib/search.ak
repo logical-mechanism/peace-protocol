@@ -2,8 +2,6 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
-use aiken/collection/list
-use aiken/collection/pairs
 use cardano/assets.{AssetName, PolicyId}
 use aiken/crypto.{ScriptHash}
 use cardano/address.{Script}
@@ -12,6 +10,18 @@ use cardano/transaction.{
   Withdraw,
 }
 use types/reference.{ReferenceDatum}
+
+fn get_first(self: Pairs<k, v>, key: k) -> Option<v> {
+  when self is {
+    [] -> None
+    [Pair(k, v), ..rest] ->
+      if k == key {
+        Some(v)
+      } else {
+        get_first(rest, key)
+      }
+  }
+}
 
 /// Find the first occurrence of an output with a value that contains a specific
 /// token. The token amount is strict.
@@ -24,10 +34,15 @@ pub fn for_output_by_token(
   pid: PolicyId,
   tkn: AssetName,
 ) -> Option<Output> {
-  list.find(
-    outputs,
-    fn(Output { value, .. }) { assets.has_nft_strict(value, pid, tkn) },
-  )
+  when outputs is {
+    [] -> None
+    [output, ..rest] ->
+      if assets.has_nft_strict(output.value, pid, tkn) {
+        Some(output)
+      } else {
+        for_output_by_token(rest, pid, tkn)
+      }
+  }
 }
 
 /// Find the first occurance of an input with a value that contains a specific
@@ -41,12 +56,15 @@ pub fn for_input_by_token(
   pid: PolicyId,
   tkn: AssetName,
 ) -> Option<Input> {
-  list.find(
-    inputs,
-    fn(Input { output: Output { value, .. }, .. }) {
-      assets.has_nft_strict(value, pid, tkn)
-    },
-  )
+  when inputs is {
+    [] -> None
+    [input, ..rest] ->
+      if assets.has_nft_strict(input.output.value, pid, tkn) {
+        Some(input)
+      } else {
+        for_input_by_token(rest, pid, tkn)
+      }
+  }
 }
 
 /// Proves that some input has the genesis policy id and token name then
@@ -79,7 +97,7 @@ pub fn for_spend_redeemer_by_output_reference(
   redeemers: Pairs<ScriptPurpose, Redeemer>,
   output_reference: OutputReference,
 ) -> Option<Redeemer> {
-  pairs.get_first(redeemers, Spend(output_reference))
+  get_first(redeemers, Spend(output_reference))
 }
 
 /// Find the withdraw redeemer for a given script hash.
@@ -91,5 +109,5 @@ pub fn for_withdraw_redeemer_by_script_hash(
   redeemers: Pairs<ScriptPurpose, Redeemer>,
   script_hash: ScriptHash,
 ) -> Option<Redeemer> {
-  pairs.get_first(redeemers, Withdraw(Script(script_hash)))
+  get_first(redeemers, Withdraw(Script(script_hash)))
 }

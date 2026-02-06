@@ -2,9 +2,7 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
-use aiken/collection/list
 use aiken/interval.{Finite, Interval, IntervalBound}
-use aiken/option
 use cardano/address.{Address, PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
@@ -24,6 +22,34 @@ use types/reference.{ReferenceDatum}
 use types/register
 use types/schnorr
 use util
+
+fn has(self: List<a>, elem: a) -> Bool {
+  when self is {
+    [] -> False
+    [x, ..rest] ->
+      if x == elem {
+        True
+      } else {
+        has(rest, elem)
+      }
+  }
+}
+
+fn no_output_holds_token(
+  outputs: List<Output>,
+  pid: PolicyId,
+  tkn: AssetName,
+) -> Bool {
+  when outputs is {
+    [] -> True
+    [output, ..rest] ->
+      if assets.quantity_of(output.value, pid, tkn) == 0 {
+        no_output_holds_token(rest, pid, tkn)
+      } else {
+        False
+      }
+  }
+}
 
 validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
   mint(redeemer: EncryptionMintRedeemer, policy_id: PolicyId, self: Transaction) {
@@ -56,21 +82,21 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         //
         and {
           // token name needs to be in the datum
-          (token == token_name)?,
+          (token == token_name),
           // script output can not have a reference script
-          option.is_none(reference_script)?,
+          (reference_script == None),
           // must be going to the encryption contract
-          (Script(policy_id) == payment_credential)?,
+          (Script(policy_id) == payment_credential),
           // a single token should be minted in this transaction
-          assets.has_nft_strict(mint, policy_id, token_name)?,
+          assets.has_nft_strict(mint, policy_id, token_name),
           // owner_vkh must sign
-          list.has(extra_signatories, owner_vkh)?,
+          has(extra_signatories, owner_vkh),
           // owner g1 point must be known
-          schnorr.verify(owner_g1, schnorr_proof)?,
+          schnorr.verify(owner_g1, schnorr_proof),
           // owner g1 point must be valid
-          register.is_register_valid(owner_g1)?,
+          register.is_register_valid(owner_g1),
           // must be valid level 1
-          level.verify_first_half_level(half_level, token_name)?,
+          level.verify_first_half_level(half_level, token_name),
           full_level == None,
           // must be using original owner
           schnorr.binding_verify(
@@ -79,12 +105,12 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             half_level.r1b,
             half_level.r2_g1b,
             token_name,
-          )?,
+          ),
         }
       }
       // single token burn here
       LeaveEncryptionBurn(tkn) ->
-        (( mint |> assets.flatten ) == [(policy_id, tkn, -1)])?
+        ( mint |> assets.flatten ) == [(policy_id, tkn, -1)]
     }
   }
 
@@ -127,20 +153,15 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               if is_holding_token {
                 // token must be burnt, so lets check that no output holds that token
                 let burn_token: Bool =
-                  list.all(
-                    outputs,
-                    fn(output) {
-                      assets.quantity_of(output.value, this_script, token) == 0
-                    },
-                  )
+                  no_output_holds_token(outputs, this_script, token)
                 // cant remove if pending
                 expect Open = status
                 //
                 and {
                   // owner_vkh must sign
-                  list.has(extra_signatories, owner_vkh)?,
+                  has(extra_signatories, owner_vkh),
                   // must burn token
-                  burn_token?,
+                  burn_token,
                 }
               } else {
                 // invalid start
@@ -209,21 +230,21 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   witness,
                   next_half_level.r2_g1b,
                   groth_public,
-                )?,
+                ),
                 // cipher text can not change
-                (capsule == next_capsule)?,
+                (capsule == next_capsule),
                 // this token can not chnage
-                (token == next_token)?,
+                (token == next_token),
                 // bid owner is new owner
-                (bid_owner_vkh == next_owner_vkh)?,
-                (bid_owner_g1 == next_owner_g1)?,
+                (bid_owner_vkh == next_owner_vkh),
+                (bid_owner_g1 == next_owner_g1),
                 // check if correct script hashes
-                (Script(this_script) == payment_credential)?,
-                (Script(bid) == bid_payment_credential)?,
+                (Script(this_script) == payment_credential),
+                (Script(bid) == bid_payment_credential),
                 // script output can not have a reference script
-                option.is_none(reference_script)?,
+                (reference_script == None),
                 // consistency check; expand here for better r5 validation
-                level.verify_r5(owner_g1, r5, witness)?,
+                level.verify_r5(owner_g1, r5, witness),
                 // correct level addition
                 level.add_new_half_level(
                   next_half_level,
@@ -233,11 +254,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   token,
                   bid_owner_g1,
                   binding_proof,
-                )?,
+                ),
                 // owner_vkh must sign
-                list.has(extra_signatories, owner_vkh)?,
+                has(extra_signatories, owner_vkh),
                 // force token to already exist
-                assets.has_nft(this_input.output.value, this_script, token)?,
+                assets.has_nft(this_input.output.value, this_script, token),
               }
             }
 
@@ -282,21 +303,21 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               //
               and {
                 // validity range stuff
-                (expected_ttl <= ttl)?,
-                (ttl <= 2 * expected_ttl)?,
-                (finite_interval_length <= encryption.snark_validity_window)?,
+                (expected_ttl <= ttl),
+                (ttl <= 2 * expected_ttl),
+                (finite_interval_length <= encryption.snark_validity_window),
                 // do groth stuff via groth_witness withdraw validator
-                verify_commitments(snark_vk, groth_proof)?,
+                verify_commitments(snark_vk, groth_proof),
                 // owner must sign it
-                list.has(extra_signatories, owner_vkh)?,
+                has(extra_signatories, owner_vkh),
                 // datum must go back to open
-                (output_datum_data == expected_output_datum_data)?,
+                (output_datum_data == expected_output_datum_data),
                 // check if correct script hashes
-                (Script(this_script) == payment_credential)?,
+                (Script(this_script) == payment_credential),
                 // script output can not have a reference script
-                option.is_none(reference_script)?,
+                (reference_script == None),
                 // force token to already exist
-                assets.has_nft(this_input.output.value, this_script, token)?,
+                assets.has_nft(this_input.output.value, this_script, token),
               }
             }
 
@@ -316,21 +337,24 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               expect Pending(_, ttl) = status
               // either expired or cancel
               let expired_or_cancel: Bool = or {
-                  validity_range |> interval.is_entirely_after(ttl),
-                  list.has(extra_signatories, owner_vkh),
+                  when validity_range.lower_bound.bound_type is {
+                    Finite(lb) -> lb > ttl
+                    _ -> False
+                  },
+                  has(extra_signatories, owner_vkh),
                 }
               //
               and {
                 // either owner signs to cancel or it has expired
-                expired_or_cancel?,
+                expired_or_cancel,
                 // datum must go back to open
-                (output_datum_data == expected_output_datum_data)?,
+                (output_datum_data == expected_output_datum_data),
                 // check if correct script hashes
-                (Script(this_script) == payment_credential)?,
+                (Script(this_script) == payment_credential),
                 // script output can not have a reference script
-                option.is_none(reference_script)?,
+                (reference_script == None),
                 // force token to already exist
-                assets.has_nft(this_input.output.value, this_script, token)?,
+                assets.has_nft(this_input.output.value, this_script, token),
               }
             }
           }
