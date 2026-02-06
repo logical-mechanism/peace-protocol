@@ -9,7 +9,7 @@
 
 **Catalyst Milestones:** https://milestones.projectcatalyst.io/projects/1400046
 
-**Close Out Video:** https://www.youtube.com/
+**Close Out Video:** https://youtu.be/Eabw-j2hjrg
 
 ---
 
