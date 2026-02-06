@@ -61,19 +61,19 @@ is half the hex character count.
 
 | Validator                        | Hex Chars | Bytes (actual) |
 | -------------------------------- | --------- | -------------- |
-| **groth.groth_witness.withdraw** | 48,036    | **24,018**     |
-| groth.groth_witness.publish      | 48,036    | 24,018         |
-| groth.groth_witness.else         | 48,036    | 24,018         |
-| encryption.contract.spend        | 29,504    | 14,752         |
-| encryption.contract.mint         | 29,504    | 14,752         |
-| encryption.contract.else         | 29,504    | 14,752         |
-| bidding.contract.mint            | 13,200    | 6,600          |
-| bidding.contract.spend           | 13,200    | 6,600          |
-| bidding.contract.else            | 13,200    | 6,600          |
-| genesis.contract.mint            | 3,500     | 1,750          |
-| genesis.contract.else            | 3,500     | 1,750          |
-| reference.contract.spend         | 418       | 209            |
-| reference.contract.else          | 418       | 209            |
+| **groth.groth_witness.withdraw** | 3,284     | **1,642**      |
+| groth.groth_witness.publish      | 3,284     | 1,642          |
+| groth.groth_witness.else         | 3,284     | 1,642          |
+| encryption.contract.spend        | 16,084    | 8,042          |
+| encryption.contract.mint         | 16,084    | 8,042          |
+| encryption.contract.else         | 16,084    | 8,042          |
+| bidding.contract.mint            | 6,604     | 3,302          |
+| bidding.contract.spend           | 6,604     | 3,302          |
+| bidding.contract.else            | 6,604     | 3,302          |
+| genesis.contract.mint            | 2,110     | 1,055          |
+| genesis.contract.else            | 2,110     | 1,055          |
+| reference.contract.spend         | 206       | 103            |
+| reference.contract.else          | 206       | 103            |
 
 **Why all endpoints of a validator share the same size:** Aiken compiles all endpoints
 (withdraw, publish, else) of a multi-handler validator into a single UPLC script with a
@@ -852,7 +852,7 @@ datum output.
 - [x] **Phase 4: Remove Length Checks** — Low effort — ~1-2% reduction
 - [x] **Phase 2: Pre-Negate G2 Points** — Low effort — ~2-3% reduction (measured: -4 bytes, not worth off-chain complexity)
 - [x] **Phase 3: Eliminate split_at** — Medium effort — ~3-5% reduction (measured: -46 bytes; main benefit is runtime CPU/mem from single-pass traversal)
-- [ ] **Phase 5: VK to ReferenceDatum** — High effort — ~40-50% reduction
+- [x] **Phase 5: VK to ReferenceDatum** — High effort — ~40-50% reduction (measured: -89.6% groth, -22% encryption)
 
 **Cumulative estimate: ~50-60% reduction**
 
@@ -874,7 +874,7 @@ in the table below to track progress.
 | Phase 4 | 15,805 | 10,308 | Removed list.length checks + list import; compiler eliminated stdlib list module (-32% groth, -20% encryption) |
 | Phase 2 | — | — | Skipped: only -4 bytes; not worth off-chain pipeline changes (Go/Python) |
 | Phase 3 | 15,759 | 10,308 | Replaced split_at + 2× derive_vk_x with single-pass derive_vk_x_combined; -46 bytes script, runtime CPU/mem savings from eliminating intermediate list allocation |
-| Phase 5 | | | |
+| Phase 5 | 1,642 | 8,042 | VK moved to ReferenceDatum; groth validator parameterized; -89.6% groth, -22.0% encryption. Bidding +229 bytes, genesis +229 bytes due to larger ReferenceDatum deserialization |
 
 ---
 
