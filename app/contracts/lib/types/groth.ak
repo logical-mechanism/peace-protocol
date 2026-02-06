@@ -2,9 +2,8 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 //// Groth16 verifier (gnark variant with commitment extension)
-//// - Main check as "pairing product == 1"
+//// - Main check: e(A,B) * e(vk_x,-gamma) * e(C,-delta) == e(alpha,beta)
 //// - Commitment PoK check as "pairing product == 1"
-//// - Avoids uncompressing infinity by using (0 * alpha) for G1 identity
 
 use aiken/builtin.{
   bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_scalar_mul,
@@ -183,24 +182,17 @@ pub fn add_commitments(
   }
 }
 
-// A MillerLoopResult representing 1 in GT: e(0_G1, seed_g2) = 1.
-// 0_G1 is produced safely as (0 * seed_g1).
-pub fn ml_one(seed_g1: G1Element, seed_g2: G2Element) -> MillerLoopResult {
-  bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, seed_g1), seed_g2)
-}
-
 // ---------- Main verifier ----------
 //
 // gnark commitment extension uses the commitment wire (hash of D and committed publics)
 // to multiply an additional IC element. The commitment D is only used in the PoK check.
 //
-// We do the main Groth16 check as a single "product == 1":
+// We do the main Groth16 check as:
 //
 //   e(A, B)
 // * e(vk_x, -gamma)
 // * e(C, -delta)
-// * e(alpha, -beta)
-// == 1
+// == e(alpha, beta)
 //
 // where vk_x = IC[0] + sum(IC[i+1] * pub[i]) + sum(IC[nPublic+1+j] * wire[j])
 //
@@ -256,20 +248,18 @@ pub fn verify_groth16(
       }
     }
 
-  let prod =
+  let lhs =
     bls12_381_mul_miller_loop_result(
       bls12_381_mul_miller_loop_result(
-        bls12_381_mul_miller_loop_result(
-          bls12_381_miller_loop(a, b),
-          bls12_381_miller_loop(vk_x, bls12_381_g2_neg(gamma)),
-        ),
-        bls12_381_miller_loop(c, bls12_381_g2_neg(delta)),
+        bls12_381_miller_loop(a, b),
+        bls12_381_miller_loop(vk_x, bls12_381_g2_neg(gamma)),
       ),
-      bls12_381_miller_loop(alpha, bls12_381_g2_neg(beta)),
+      bls12_381_miller_loop(c, bls12_381_g2_neg(delta)),
     )
+  let rhs = bls12_381_miller_loop(alpha, beta)
 
-  // Main Groth16 product == 1
-  bls12_381_final_verify(prod, ml_one(alpha, beta))
+  // Main Groth16 pairing check
+  bls12_381_final_verify(lhs, rhs)
 }
 
 // ---------- Standalone Commitment Verification ----------

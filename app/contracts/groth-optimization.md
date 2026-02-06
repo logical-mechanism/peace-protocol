@@ -848,7 +848,7 @@ datum output.
 ## Recommended Execution Order
 
 - [x] **Phase 0: Remove Dead Code** — Trivial — minimal reduction
-- [ ] **Phase 1: Restructure Pairing** — Low effort — ~5-8% reduction
+- [x] **Phase 1: Restructure Pairing** — Low effort — ~5-8% reduction
 - [ ] **Phase 4: Remove Length Checks** — Low effort — ~1-2% reduction
 - [ ] **Phase 2: Pre-Negate G2 Points** — Low effort — ~2-3% reduction
 - [ ] **Phase 3: Eliminate split_at** — Medium effort — ~3-5% reduction
@@ -870,7 +870,7 @@ in the table below to track progress.
 | ----- | ------------- | ------------------ | ----- |
 | Baseline | 23,415 | 12,865 | Updated from current branch head |
 | Phase 0 | 23,415 | 12,865 | Dead code removed from source; compiler already excluded it |
-| Phase 1 | | | |
+| Phase 1 | 23,395 | 12,865 | ml_one removed; 4 Miller loops instead of 5; -20 bytes script, significant CPU savings |
 | Phase 4 | | | |
 | Phase 2 | | | |
 | Phase 3 | | | |
