@@ -10,7 +10,6 @@ use aiken/builtin.{
   bls12_381_g1_uncompress, bls12_381_g2_neg, bls12_381_g2_uncompress,
   bls12_381_miller_loop, bls12_381_mul_miller_loop_result,
 }
-use aiken/collection/list
 use aiken/crypto.{ScriptHash}
 
 pub type GrothWitnessRedeemer {
@@ -202,19 +201,7 @@ pub fn verify_groth16(
   public: List<Int>,
   commitment_wires: List<Int>,
 ) -> Bool {
-  // strict shape checks
-  // gnark exports nPublic including the implicit "1" constant, so:
-  // - nPublic = 37 means 37 public witness values (including witness[0]=1)
-  // - IC[0] is for witness[0]=1 (constant term, added directly)
-  // - IC[1..nPublic-1] are for the actual public inputs (nPublic-1 elements)
-  // - IC[nPublic..] are for commitment wires
-  // Therefore: len(vkIC) = nPublic + n_commitments
-  // And: public array should have nPublic-1 elements (NOT including "1")
-  let n_commitments = list.length(commitment_wires)
   let n_raw_public = vk.nPublic - 1
-  expect vk.nPublic > 0
-  expect list.length(public) == n_raw_public
-  expect list.length(vk.vkIC) == vk.nPublic + n_commitments
 
   // uncompress once
   let alpha = bls12_381_g1_uncompress(vk.vkAlpha)
@@ -280,45 +267,38 @@ pub fn verify_groth16(
 //   gSigmaNeg = g^{-σ} (commitment key element in G2)
 //
 pub fn verify_commitments(vk: SnarkVerificationKey, proof: GrothProof) -> Bool {
-  // If no commitments, nothing to verify
-  if list.length(proof.commitments) == 0 {
-    True
-  } else {
-    // Common gnark shape: single commitment key + single batched PoK
-    expect list.length(vk.commitmentKeys) == 1
+  when proof.commitments is {
+    [] -> True
+    _ -> {
+      expect [ck] = vk.commitmentKeys
 
-    let ck =
-      when vk.commitmentKeys is {
-        [] -> fail @"missing commitmentKeys"
-        [x, ..] -> x
-      }
+      // Uncompress G2 elements from commitment key
+      let g = bls12_381_g2_uncompress(ck.g)
+      let g_sigma_neg = bls12_381_g2_uncompress(ck.gSigmaNeg)
 
-    // Uncompress G2 elements from commitment key
-    let g = bls12_381_g2_uncompress(ck.g)
-    let g_sigma_neg = bls12_381_g2_uncompress(ck.gSigmaNeg)
+      // Uncompress PoK from proof
+      let pok = bls12_381_g1_uncompress(proof.commitmentPok)
 
-    // Uncompress PoK from proof
-    let pok = bls12_381_g1_uncompress(proof.commitmentPok)
+      // Compute sum of commitments D_sum = D_0 + D_1 + ... + D_n
+      let d_sum =
+        when proof.commitments is {
+          [] -> fail @"no commitments to sum"
+          [d0, ..rest] -> sum_commitments_acc(rest, bls12_381_g1_uncompress(d0))
+        }
 
-    // Compute sum of commitments D_sum = D_0 + D_1 + ... + D_n
-    let d_sum =
-      when proof.commitments is {
-        [] -> fail @"no commitments to sum"
-        [d0, ..rest] -> sum_commitments_acc(rest, bls12_381_g1_uncompress(d0))
-      }
+      // Verify: e(D_sum, gSigmaNeg) * e(PoK, g) == 1
+      // Note: Order matters! gnark's equation has gSigmaNeg paired with commitment
+      let prod =
+        bls12_381_mul_miller_loop_result(
+          bls12_381_miller_loop(d_sum, g_sigma_neg),
+          bls12_381_miller_loop(pok, g),
+        )
 
-    // Verify: e(D_sum, gSigmaNeg) * e(PoK, g) == 1
-    // Note: Order matters! gnark's equation has gSigmaNeg paired with commitment
-    let prod =
-      bls12_381_mul_miller_loop_result(
-        bls12_381_miller_loop(d_sum, g_sigma_neg),
-        bls12_381_miller_loop(pok, g),
-      )
+      // Compare against identity: e(0*g1, g2) = 1 in GT
+      let identity = bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, d_sum), g)
 
-    // Compare against identity: e(0*g1, g2) = 1 in GT
-    let identity = bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, d_sum), g)
-
-    bls12_381_final_verify(prod, identity)
+      bls12_381_final_verify(prod, identity)
+    }
   }
 }
 
