@@ -156,19 +156,6 @@ pub fn derive_vk_x(
   }
 }
 
-// Sum commitments without ever uncompressing infinity:
-// - empty -> identity via (0 * alpha)
-// - non-empty -> start acc from first commitment
-pub fn sum_commitments(
-  commitments: List<ByteArray>,
-  alpha: G1Element,
-) -> G1Element {
-  when commitments is {
-    [] -> bls12_381_g1_scalar_mul(0, alpha)
-    [d0, ..rest] -> sum_commitments_acc(rest, bls12_381_g1_uncompress(d0))
-  }
-}
-
 pub fn sum_commitments_acc(
   commitments: List<ByteArray>,
   acc: G1Element,

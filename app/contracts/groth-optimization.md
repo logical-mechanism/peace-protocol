@@ -847,7 +847,7 @@ datum output.
 
 ## Recommended Execution Order
 
-- [ ] **Phase 0: Remove Dead Code** — Trivial — minimal reduction
+- [x] **Phase 0: Remove Dead Code** — Trivial — minimal reduction
 - [ ] **Phase 1: Restructure Pairing** — Low effort — ~5-8% reduction
 - [ ] **Phase 4: Remove Length Checks** — Low effort — ~1-2% reduction
 - [ ] **Phase 2: Pre-Negate G2 Points** — Low effort — ~2-3% reduction
@@ -868,8 +868,8 @@ in the table below to track progress.
 
 | Phase | groth (bytes) | encryption (bytes) | Notes |
 | ----- | ------------- | ------------------ | ----- |
-| Baseline | 24,018 | 14,752 | |
-| Phase 0 | | | |
+| Baseline | 23,415 | 12,865 | Updated from current branch head |
+| Phase 0 | 23,415 | 12,865 | Dead code removed from source; compiler already excluded it |
 | Phase 1 | | | |
 | Phase 4 | | | |
 | Phase 2 | | | |
