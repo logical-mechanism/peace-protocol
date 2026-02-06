@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  fe:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./fe:/app
+      - /app/node_modules
+    environment:
+      - VITE_USE_STUBS=true
+      - VITE_API_URL=http://be:3001
+      - VITE_SNARK_CDN_URL=/snark
+    depends_on:
+      - be
+    command: npm run dev -- --host 0.0.0.0
+
+  be:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./be:/app
+      - /app/node_modules
+    environment:
+      - PORT=3001
+      - NODE_ENV=development
+      - NETWORK=preprod
+      - USE_STUBS=true
+      - KOIOS_URL_PREPROD=https://preprod.koios.rest/api/v1
+    command: npm run dev
+
+  # Production build services (use with: docker compose --profile production up)
+  fe-prod:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "80:80"
+    environment:
+      - VITE_USE_STUBS=false
+    depends_on:
+      - be-prod
+    profiles:
+      - production
+
+  be-prod:
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - NETWORK=preprod
+      - USE_STUBS=false
+    profiles:
+      - production

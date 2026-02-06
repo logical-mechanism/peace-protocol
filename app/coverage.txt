@@ -1,58 +1,124 @@
 ====================
 PYTHON COVERAGE
 ====================
-Name                     Stmts   Miss  Cover   Missing
-------------------------------------------------------
-src/__init__.py              0      0   100%
-src/binding.py              23      0   100%
-src/bls12381.py             49      0   100%
-src/commands.py             94      0   100%
-src/constants.py            13      0   100%
-src/ecies.py                24      0   100%
-src/files.py                21      0   100%
-src/hashing.py               5      0   100%
-src/level.py                 9      6    33%   37-55, 88-106
-src/register.py             34      0   100%
-src/schnorr.py              20      0   100%
-src/snark.py               127     15    88%   87, 94, 101, 114, 124, 129, 152-153, 164, 166, 168, 178, 186-187, 191
-tests/__init__.py            0      0   100%
-tests/test_binding.py      155      1    99%   222
-tests/test_bls12381.py     150      1    99%   264
-tests/test_commands.py     232      7    97%   71, 92-93, 130-131, 134-135
-tests/test_ecies.py        118      0   100%
-tests/test_files.py         73      0   100%
-tests/test_hashing.py       28      0   100%
-tests/test_register.py      80      0   100%
-tests/test_schnorr.py      120      0   100%
-tests/test_snark.py         43      1    98%   125
-------------------------------------------------------
-TOTAL                     1418     31    98%
+Name                          Stmts   Miss  Cover   Missing
+-----------------------------------------------------------
+src/__init__.py                   0      0   100%
+src/binding.py                   23      0   100%
+src/bls12381.py                  49      0   100%
+src/commands.py                 113      0   100%
+src/constants.py                 13      0   100%
+src/ecies.py                     24      0   100%
+src/files.py                     21      0   100%
+src/groth_convert.py             38      0   100%
+src/hashing.py                    5      0   100%
+src/level.py                     13      6    54%   37-53, 95-104
+src/register.py                  34      0   100%
+src/schnorr.py                   20      0   100%
+src/snark.py                    338    252    25%   44, 77-82, 133, 135, 156-164, 175-178, 182-186, 190-194, 209-212, 217-220, 225-228, 233-235, 243-267, 272-275, 284-304, 308, 313-317, 323-330, 338-371, 381-393, 401-402, 425-439, 444-446, 466-652, 668, 670, 672, 679-682, 692-693
+src/snark_verify_wrapper.py      12      3    75%   40-42
+tests/__init__.py                 0      0   100%
+tests/test_binding.py           155      1    99%   222
+tests/test_bls12381.py          150      1    99%   264
+tests/test_commands.py          247      7    97%   69, 90-91, 128-129, 132-133
+tests/test_ecies.py             118      0   100%
+tests/test_files.py              73      0   100%
+tests/test_groth_convert.py     130      0   100%
+tests/test_hashing.py            28      0   100%
+tests/test_register.py           80      0   100%
+tests/test_schnorr.py           120      0   100%
+tests/test_snark.py             115     19    83%   43-44, 160-176, 197, 200, 250
+-----------------------------------------------------------
+TOTAL                          1919    289    85%
 
 ====================
 GO COVERAGE
 ====================
-snark/export.go:47:	exportProofBLS		69.2%
-snark/export.go:71:	exportVKBLS		69.2%
-snark/export.go:124:	exportPublicInputs	65.5%
-snark/export.go:179:	ExportAll		66.7%
-snark/export.go:257:	g1CompressedHex		75.0%
-snark/export.go:265:	g2CompressedHex		75.0%
-snark/kappa.go:44:	g1MulBase		80.0%
-snark/kappa.go:53:	parseG2CompressedHex	100.0%
-snark/kappa.go:65:	parseG1CompressedHex	100.0%
-snark/kappa.go:79:	fq12CanonicalBytes	100.0%
-snark/kappa.go:113:	blake2b224Hex		100.0%
-snark/kappa.go:119:	blake2b224		100.0%
-snark/kappa.go:133:	gtToHash		77.8%
-snark/kappa.go:165:	hkScalarFromA		81.8%
-snark/kappa.go:212:	Define			76.9%
-snark/kappa.go:289:	ProveAndVerifyW		71.1%
-snark/kappa.go:364:	domainTagBytes		100.0%
-snark/kappa.go:370:	gtToHashFromGT		87.5%
-snark/kappa.go:385:	gtDiv			100.0%
-snark/kappa.go:412:	DecryptToHash		71.4%
-snark/kappa.go:489:	Define			93.8%
-snark/kappa.go:533:	ProveAndVerifyVW0W1	74.3%
-snark/main.go:15:	main			0.0%
-snark/main.go:19:	run			82.6%
-total:			(statements)		77.6%
+snark/debug_verify.go:20:	debugVerify			0.0%
+snark/export.go:67:		exportProofBLS			76.0%
+snark/export.go:109:		exportVKBLS			75.6%
+snark/export.go:188:		exportPublicInputs		41.8%
+snark/export.go:306:		choosePublicInputs		50.0%
+snark/export.go:350:		computeCommitmentWire		71.1%
+snark/export.go:444:		ExportAll			69.4%
+snark/export.go:540:		g1CompressedHex			75.0%
+snark/export.go:548:		g2CompressedHex			75.0%
+snark/export.go:560:		SaveNativeFiles			66.7%
+snark/export.go:599:		VerifyFromFiles			69.2%
+snark/export.go:651:		SaveSetupFiles			66.7%
+snark/export.go:691:		LoadSetupFiles			72.7%
+snark/export.go:733:		ExportVKOnly			73.7%
+snark/export.go:769:		SetupFilesExist			100.0%
+snark/export.go:779:		ReExportJSON			0.0%
+snark/kappa.go:64:		g1MulBase			80.0%
+snark/kappa.go:73:		parseG2CompressedHex		100.0%
+snark/kappa.go:85:		parseG1CompressedHex		100.0%
+snark/kappa.go:99:		fq12CanonicalBytes		100.0%
+snark/kappa.go:136:		fq12ToFrElements		100.0%
+snark/kappa.go:165:		domainTagFr			100.0%
+snark/kappa.go:173:		mimcHashFr			100.0%
+snark/kappa.go:184:		mimcHex				100.0%
+snark/kappa.go:197:		gtToHash			78.6%
+snark/kappa.go:230:		hkScalarFromA			80.0%
+snark/kappa.go:274:		Define				75.7%
+snark/kappa.go:352:		ProveAndVerifyW			73.8%
+snark/kappa.go:435:		domainTagBytes			0.0%
+snark/kappa.go:441:		gtToHashFromGT			100.0%
+snark/kappa.go:450:		gtDiv				100.0%
+snark/kappa.go:477:		DecryptToHash			71.4%
+snark/kappa.go:563:		fq12CanonicalBytesInCircuit	0.0%
+snark/kappa.go:585:		fpToNativeFr			100.0%
+snark/kappa.go:605:		fq12ToNativeFrElements		88.9%
+snark/kappa.go:624:		hashToFrMiMC			81.8%
+snark/kappa.go:649:		Define				82.9%
+snark/kappa.go:736:		ProveAndVerifyVW0W1		73.0%
+snark/kappa.go:865:		SetupVW0W1Circuit		71.4%
+snark/kappa.go:906:		ProveVW0W1FromSetup		71.7%
+snark/main.go:17:		main				0.0%
+snark/main.go:21:		run				53.5%
+snark/test_verify.go:20:	testVerify			0.0%
+total:				(statements)			56.1%
+snark/debug_verify.go:20:	debugVerify			0.0%
+snark/export.go:67:		exportProofBLS			76.0%
+snark/export.go:109:		exportVKBLS			75.6%
+snark/export.go:188:		exportPublicInputs		41.8%
+snark/export.go:306:		choosePublicInputs		50.0%
+snark/export.go:350:		computeCommitmentWire		71.1%
+snark/export.go:444:		ExportAll			69.4%
+snark/export.go:540:		g1CompressedHex			75.0%
+snark/export.go:548:		g2CompressedHex			75.0%
+snark/export.go:560:		SaveNativeFiles			66.7%
+snark/export.go:599:		VerifyFromFiles			69.2%
+snark/export.go:651:		SaveSetupFiles			66.7%
+snark/export.go:691:		LoadSetupFiles			72.7%
+snark/export.go:733:		ExportVKOnly			73.7%
+snark/export.go:769:		SetupFilesExist			100.0%
+snark/export.go:779:		ReExportJSON			0.0%
+snark/kappa.go:64:		g1MulBase			80.0%
+snark/kappa.go:73:		parseG2CompressedHex		100.0%
+snark/kappa.go:85:		parseG1CompressedHex		100.0%
+snark/kappa.go:99:		fq12CanonicalBytes		100.0%
+snark/kappa.go:136:		fq12ToFrElements		100.0%
+snark/kappa.go:165:		domainTagFr			100.0%
+snark/kappa.go:173:		mimcHashFr			100.0%
+snark/kappa.go:184:		mimcHex				100.0%
+snark/kappa.go:197:		gtToHash			78.6%
+snark/kappa.go:230:		hkScalarFromA			80.0%
+snark/kappa.go:274:		Define				75.7%
+snark/kappa.go:352:		ProveAndVerifyW			73.8%
+snark/kappa.go:435:		domainTagBytes			0.0%
+snark/kappa.go:441:		gtToHashFromGT			100.0%
+snark/kappa.go:450:		gtDiv				100.0%
+snark/kappa.go:477:		DecryptToHash			71.4%
+snark/kappa.go:563:		fq12CanonicalBytesInCircuit	0.0%
+snark/kappa.go:585:		fpToNativeFr			100.0%
+snark/kappa.go:605:		fq12ToNativeFrElements		88.9%
+snark/kappa.go:624:		hashToFrMiMC			81.8%
+snark/kappa.go:649:		Define				82.9%
+snark/kappa.go:736:		ProveAndVerifyVW0W1		73.0%
+snark/kappa.go:865:		SetupVW0W1Circuit		71.4%
+snark/kappa.go:906:		ProveVW0W1FromSetup		71.7%
+snark/main.go:17:		main				0.0%
+snark/main.go:21:		run				53.5%
+snark/test_verify.go:20:	testVerify			0.0%
+total:				(statements)			56.1%

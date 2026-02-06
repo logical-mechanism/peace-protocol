@@ -1,6 +1,8 @@
 # The PRE-ECIES-AES-GCM Encryption (PEACE) Protocol
 
-This project was funded in Fund 14 of Project Catalyst.
+PEACE is a re-encryption protocol that enables the transfer of decryption rights.The right to decrypt may be traded through a multi-hop, unidirectional proxy re-encryption scheme. PEACE is data-layer-agnostic. PEACE is the rails for projects that enable re-encryption for their users.
+
+*This project was funded in Fund 14 of Project Catalyst.*
 
 [Proposal](https://projectcatalyst.io/funds/14/cardano-use-cases-concepts/decentralized-on-chain-data-encryption)
 

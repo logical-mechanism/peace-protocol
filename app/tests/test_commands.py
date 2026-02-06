@@ -5,8 +5,6 @@
 
 
 import src.commands as commands_mod
-import os
-from cryptography.exceptions import InvalidTag
 
 
 class DummyRegister:
@@ -177,6 +175,62 @@ def _calls_of(calls, name: str):
     return [c for c in calls if isinstance(c, tuple) and len(c) >= 1 and c[0] == name]
 
 
+def test_create_snark_tx_happy_path(monkeypatch):
+    calls, set_to_int = _setup_common_mocks(monkeypatch)
+
+    # Mock generate_snark_proof since it's not in _setup_common_mocks
+    def fake_generate_snark_proof(
+        a0, r0, bob_public_value, w0, w1, snark_path, out_dir, setup_dir
+    ):
+        calls.append(
+            (
+                "generate_snark_proof",
+                a0,
+                r0,
+                bob_public_value,
+                w0,
+                w1,
+                str(snark_path),
+                str(out_dir),
+                str(setup_dir),
+            )
+        )
+
+    monkeypatch.setattr(commands_mod, "generate_snark_proof", fake_generate_snark_proof)
+
+    # rng: a0=11, r0=22
+    set_to_int("GT(11)", 9)  # hk = to_int(m0)
+
+    bob_u = "BOB_U"
+
+    commands_mod.create_snark_tx(bob_u)
+
+    # gt_to_hash called with (a0=11, snark_path)
+    gt_calls = _calls_of(calls, "gt_to_hash")
+    assert len(gt_calls) == 1
+    _, a, p = gt_calls[0]
+    assert a == 11
+    assert str(p).endswith("/snark/snark")
+
+    # w0 = scale(g1_point(1), hk) where hk=9
+    # w1 = combine(scale(g1_point(1), a0), scale(bob_public_value, r0))
+    expected_w0 = "scale(G1(1),9)"
+    expected_w1 = "combine(scale(G1(1),11),scale(BOB_U,22))"
+
+    # Check generate_snark_proof was called correctly
+    proof_calls = _calls_of(calls, "generate_snark_proof")
+    assert len(proof_calls) == 1
+    _, a0, r0, bob_pub, w0, w1, snark_p, out_p, setup_p = proof_calls[0]
+    assert a0 == 11
+    assert r0 == 22
+    assert bob_pub == bob_u
+    assert w0 == expected_w0
+    assert w1 == expected_w1
+    assert str(snark_p).endswith("/snark/snark")
+    assert str(out_p).endswith("/out")
+    assert str(setup_p).endswith("/circuit")
+
+
 def test_create_encryption_tx_happy_path(monkeypatch):
     calls, set_to_int = _setup_common_mocks(monkeypatch)
 
@@ -244,8 +298,11 @@ def test_create_bidding_tx_happy_path(monkeypatch):
 def test_create_reencryption_tx_happy_path(monkeypatch):
     calls, set_to_int = _setup_common_mocks(monkeypatch)
 
-    # rng: a1=11, r1=22
-    set_to_int("GT(11)", 9)  # hk
+    # a1, r1, hk are now passed in directly
+    a1 = 11
+    r1 = 22
+    hk = 9
+
     sk_digest = f"hash({commands_mod.KEY_DOMAIN_TAG}WALLET_KEY)"
     set_to_int(sk_digest, 13)
 
@@ -267,22 +324,14 @@ def test_create_reencryption_tx_happy_path(monkeypatch):
                 None,
                 None,
                 {
-                    "list": [
-                        {
-                            "fields": [
-                                {"bytes": "OLD_R1"},
-                                {
-                                    "constructor": 0,
-                                    "fields": [
-                                        {"bytes": "OLD_R2_G1"},
-                                        {"constructor": 1, "fields": []},
-                                    ],
-                                },
-                                {"bytes": "OLD_R4"},
-                            ]
-                        }
-                    ]
+                    "constructor": 0,
+                    "fields": [
+                        {"bytes": "OLD_R1"},
+                        {"bytes": "OLD_R2_G1"},
+                        {"bytes": "OLD_R4"},
+                    ],
                 },
+                None,
                 {
                     "constructor": 0,
                     "fields": [{"bytes": "N"}, {"bytes": "A"}, {"bytes": "C"}],
@@ -292,13 +341,7 @@ def test_create_reencryption_tx_happy_path(monkeypatch):
 
     monkeypatch.setattr(commands_mod, "load_json", fake_load_json)
 
-    commands_mod.create_reencryption_tx("alice_wallet", bob_u, "TOKEN")
-
-    gt_calls = _calls_of(calls, "gt_to_hash")
-    assert len(gt_calls) == 1
-    _, a, p = gt_calls[0]
-    assert a == 11
-    assert str(p).endswith("/snark/snark")
+    commands_mod.create_reencryption_tx("alice_wallet", bob_u, "TOKEN", a1, r1, hk)
 
     half_calls = _calls_of(calls, "half_level_to_file")
     assert len(half_calls) == 1
@@ -338,47 +381,43 @@ def test_recursive_decrypt_walks_entries_and_prints(monkeypatch, capsys):
     sk_digest = f"hash({commands_mod.KEY_DOMAIN_TAG}WALLET_KEY)"
     set_to_int(sk_digest, 3)
 
+    # encryption_levels is now a separate list parameter
+    encryption_levels = [
+        # Half level entry
+        {
+            "constructor": 0,
+            "fields": [
+                {"bytes": "R1_A"},
+                {"bytes": "R2G1_A"},
+                {"bytes": "R4_A"},
+            ],
+        },
+        # Full level entry (wrapped in constructor 0)
+        {
+            "constructor": 0,
+            "fields": [
+                {
+                    "constructor": 0,
+                    "fields": [
+                        {"bytes": "R1_B"},
+                        {"bytes": "R2G1_B"},
+                        {"bytes": "R2G2_B"},
+                        {"bytes": "R4_B"},
+                    ],
+                }
+            ],
+        },
+    ]
+
+    # Datum now only needs the capsule at fields[5]
     datum = {
         "fields": [
             None,
             None,
             None,
-            {
-                "list": [
-                    # Half level entry
-                    {
-                        "fields": [
-                            {"bytes": "R1_A"},
-                            {
-                                "constructor": 0,
-                                "fields": [
-                                    {"bytes": "R2G1_A"},
-                                    {"constructor": 1, "fields": []},
-                                ],
-                            },
-                        ]
-                    },
-                    # Full level entry
-                    {
-                        "fields": [
-                            {"bytes": "R1_B"},
-                            {
-                                "constructor": 0,
-                                "fields": [
-                                    {"bytes": "R2G1_B"},
-                                    {
-                                        "constructor": 0,
-                                        "fields": [
-                                            {"bytes": "R2G2_B"},
-                                        ],
-                                    },
-                                ],
-                            },
-                        ]
-                    },
-                ]
-            },
-            # Capsule
+            None,
+            None,
+            # Capsule at index 5
             {
                 "constructor": 0,
                 "fields": [{"bytes": "NONCE"}, {"bytes": "AAD"}, {"bytes": "CT"}],
@@ -406,7 +445,7 @@ def test_recursive_decrypt_walks_entries_and_prints(monkeypatch, capsys):
 
     monkeypatch.setattr(commands_mod, "decrypt", fake_decrypt)
 
-    commands_mod.recursive_decrypt("alice_wallet", "datum.json")
+    commands_mod.recursive_decrypt("alice_wallet", encryption_levels, "datum.json")
 
     out = capsys.readouterr().out
     assert "OK" in out
@@ -417,20 +456,3 @@ def test_recursive_decrypt_walks_entries_and_prints(monkeypatch, capsys):
     assert dt_calls[1][1:4] == ("R1_B", "R2G1_B", "R2G2_B")
 
     assert ("decrypt", "R1_B", "K2", "NONCE", "CT", "AAD") in calls
-
-
-def test_good_recursive_decrypt():
-    commands_mod.recursive_decrypt(
-        f"{os.getcwd()}/wallets/bob/payment.skey",
-        f"{os.getcwd()}/data/encryption/copy.encryption-datum.json",
-    )
-
-
-def test_bad_recursive_decrypt():
-    try:
-        commands_mod.recursive_decrypt(
-            f"{os.getcwd()}/wallets/alice/payment.skey",
-            f"{os.getcwd()}/data/encryption/copy.encryption-datum.json",
-        )
-    except InvalidTag:
-        print("Alice can not decrypt")

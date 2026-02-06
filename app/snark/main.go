@@ -1,7 +1,9 @@
+//go:build !js || !wasm
+
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// main.go
+// main.go - CLI entry point (excluded from WASM builds)
 package main
 
 import (
@@ -22,6 +24,32 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	switch args[0] {
+	case "setup":
+		setupCmd := flag.NewFlagSet("setup", flag.ContinueOnError)
+		setupCmd.SetOutput(stderr)
+
+		var outDir string
+		var force bool
+		setupCmd.StringVar(&outDir, "out", "setup", "output directory for setup files (ccs.bin, pk.bin, vk.bin)")
+		setupCmd.BoolVar(&force, "force", false, "overwrite existing setup files")
+		if err := setupCmd.Parse(args[1:]); err != nil {
+			return 2
+		}
+
+		if SetupFilesExist(outDir) && !force {
+			fmt.Fprintln(stdout, "Setup files already exist in", outDir, "(use -force to overwrite)")
+			return 0
+		}
+
+		fmt.Fprintln(stdout, "Compiling circuit and running trusted setup...")
+		if err := SetupVW0W1Circuit(outDir, force); err != nil {
+			fmt.Fprintln(stderr, "FAIL:", err)
+			return 1
+		}
+
+		fmt.Fprintln(stdout, "SUCCESS: setup files written to", outDir)
+		return 0
+
 	case "hash":
 		hashCmd := flag.NewFlagSet("hash", flag.ContinueOnError)
 		hashCmd.SetOutput(stderr)
@@ -85,13 +113,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		proveCmd := flag.NewFlagSet("prove", flag.ContinueOnError)
 		proveCmd.SetOutput(stderr)
 
-		var aStr, rStr, v, w0, w1, outDir string
+		var aStr, rStr, v, w0, w1, outDir, setupDir string
+		var noVerify bool
 		proveCmd.StringVar(&aStr, "a", "", "secret integer a (decimal by default; or 0x... hex)")
 		proveCmd.StringVar(&rStr, "r", "", "secret integer r (decimal by default; or 0x... hex; can be 0)")
 		proveCmd.StringVar(&v, "v", "", "public G1 point V (compressed hex, 96 chars)")
 		proveCmd.StringVar(&w0, "w0", "", "public G1 point W0 (compressed hex, 96 chars)")
 		proveCmd.StringVar(&w1, "w1", "", "public G1 point W1 (compressed hex, 96 chars)")
 		proveCmd.StringVar(&outDir, "out", "out", "output directory for vk.json / proof.json / public.json")
+		proveCmd.StringVar(&setupDir, "setup", "", "directory containing setup files (ccs.bin, pk.bin, vk.bin); if empty, compiles circuit fresh")
+		proveCmd.BoolVar(&noVerify, "no-verify", false, "skip verification after proving (only valid with -setup)")
 		if err := proveCmd.Parse(args[1:]); err != nil {
 			return 2
 		}
@@ -134,12 +165,72 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 
-		if err := ProveAndVerifyVW0W1(a, r, v, w0, w1, outDir); err != nil {
+		// Use setup files if provided, otherwise compile fresh
+		if setupDir != "" {
+			if !SetupFilesExist(setupDir) {
+				fmt.Fprintln(stderr, "error: setup files not found in", setupDir)
+				fmt.Fprintln(stderr, "       run 'snark setup -out", setupDir+"' first")
+				return 2
+			}
+			if err := ProveVW0W1FromSetup(setupDir, outDir, a, r, v, w0, w1, !noVerify); err != nil {
+				fmt.Fprintln(stderr, "FAIL:", err)
+				return 1
+			}
+		} else {
+			if noVerify {
+				fmt.Fprintln(stderr, "warning: -no-verify is ignored without -setup")
+			}
+			if err := ProveAndVerifyVW0W1(a, r, v, w0, w1, outDir); err != nil {
+				fmt.Fprintln(stderr, "FAIL:", err)
+				return 1
+			}
+		}
+
+		fmt.Fprintln(stdout, "SUCCESS: proof verified (w0 == [hk]q AND w1 == [a]q + [r]v)")
+		return 0
+
+	case "verify":
+		verifyCmd := flag.NewFlagSet("verify", flag.ContinueOnError)
+		verifyCmd.SetOutput(stderr)
+
+		var outDir string
+		verifyCmd.StringVar(&outDir, "out", "out", "directory containing vk.bin, proof.bin, and public.json")
+		if err := verifyCmd.Parse(args[1:]); err != nil {
+			return 2
+		}
+
+		if err := VerifyFromFiles(outDir); err != nil {
 			fmt.Fprintln(stderr, "FAIL:", err)
 			return 1
 		}
 
-		fmt.Fprintln(stdout, "SUCCESS: proof verified (w0 == [hk]q AND w1 == [a]q + [r]v)")
+		fmt.Fprintln(stdout, "SUCCESS: proof verified")
+		return 0
+
+	case "re-export":
+		reexportCmd := flag.NewFlagSet("re-export", flag.ContinueOnError)
+		reexportCmd.SetOutput(stderr)
+
+		var outDir string
+		reexportCmd.StringVar(&outDir, "out", "out", "directory containing vk.bin, proof.bin, and witness.bin")
+		if err := reexportCmd.Parse(args[1:]); err != nil {
+			return 2
+		}
+
+		if err := ReExportJSON(outDir); err != nil {
+			fmt.Fprintln(stderr, "FAIL:", err)
+			return 1
+		}
+
+		fmt.Fprintln(stdout, "SUCCESS: JSON files re-exported")
+		return 0
+
+	case "debug-verify":
+		debugVerify()
+		return 0
+
+	case "test-verify":
+		testVerify()
 		return 0
 
 	default:

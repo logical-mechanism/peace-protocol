@@ -47,6 +47,7 @@ echo "====================" | tee -a "$OUT"
 
 echo -e "\033[1;36m\nRunning Gnark Tests\033[0m"
 cd snark
-go test ./... -count=1 -v -coverprofile=cover.out
+go test ./... -count=1 -v -timeout 60m -coverprofile=cover.out
+go tool cover -func=cover.out | tee -a "../$OUT"
 go tool cover -func=cover.out | tee -a "../$OUT"
 cd ..

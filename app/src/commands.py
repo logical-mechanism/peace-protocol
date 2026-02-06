@@ -18,12 +18,47 @@ from src.bls12381 import (
 from src.hashing import generate
 from src.register import Register
 from src.ecies import encrypt, capsule_to_file, decrypt
-from src.level import half_level_to_file, full_level_to_file
+from src.level import half_level_to_file, full_level_to_file, empty_full_level_to_file
 from src.schnorr import schnorr_proof, schnorr_to_file
 from src.binding import binding_proof, binding_to_file
 from src.files import save_string, load_json
-from src.snark import gt_to_hash, decrypt_to_hash
+from src.snark import gt_to_hash, decrypt_to_hash, generate_snark_proof
+from src.groth_convert import convert_all
 from pathlib import Path
+
+
+def create_snark_tx(bob_public_value: str) -> tuple[int, int, int]:
+    current = Path(__file__).resolve().parent.parent
+    snark_path = current / "snark" / "snark"
+    out_path = current / "out"
+    setup_path = current / "circuit"
+
+    gnark_proof_path = out_path / "proof.json"
+    gnark_public_path = out_path / "public.json"
+    datum_path = current / "data" / "groth"
+
+    # these are secrets
+    a0 = rng()
+    r0 = rng()
+    # use gnark encoding for gt
+    m0 = gt_to_hash(a0, snark_path)
+
+    hk = to_int(m0)
+
+    w0 = scale(g1_point(1), hk)
+    w1 = combine(scale(g1_point(1), a0), scale(bob_public_value, r0))
+    generate_snark_proof(
+        a0,
+        r0,
+        bob_public_value,
+        w0,
+        w1,
+        snark_path=snark_path,
+        out_dir=out_path,
+        setup_dir=setup_path,
+    )
+    convert_all(gnark_proof_path, gnark_public_path, datum_path)
+    return a0, r0, hk
 
 
 def create_encryption_tx(
@@ -99,6 +134,7 @@ def create_encryption_tx(
     r4b = scale(c, r0)
 
     half_level_to_file(r1b, r2_g1b, r4b)
+    empty_full_level_to_file()
 
     nonce, aad, ct = encrypt(r1b, m0, plaintext)
     capsule_to_file(nonce, aad, ct)
@@ -135,7 +171,12 @@ def create_bidding_tx(bob_wallet_path: str) -> None:
 
 
 def create_reencryption_tx(
-    alice_wallet_path: str, bob_public_value: str, token_name: str
+    alice_wallet_path: str,
+    bob_public_value: str,
+    token_name: str,
+    a1: int,
+    r1: int,
+    hk: int,
 ) -> None:
     """
     Create the artifacts for a re-encryption hop.
@@ -184,16 +225,6 @@ def create_reencryption_tx(
         - `invert(H0)` is assumed to represent the group inverse of `H0` in the
           representation expected by your BLS helpers.
     """
-    current = Path(__file__).resolve().parent.parent
-    snark_path = current / "snark" / "snark"
-
-    a1 = rng()
-    r1 = rng()
-    # m1 = random_fq12(a1)
-    m1 = gt_to_hash(a1, snark_path)
-
-    hk = to_int(m1)
-
     key = extract_key(alice_wallet_path)
     sk = to_int(generate(KEY_DOMAIN_TAG + key))
 
@@ -218,9 +249,9 @@ def create_reencryption_tx(
 
     # update the last element
     encryption_datum = load_json("../data/encryption/encryption-datum.json")
-    last_entry = encryption_datum["fields"][3]["list"][0]
+    last_entry = encryption_datum["fields"][3]
     old_r1b = last_entry["fields"][0]["bytes"]
-    old_r2_g1b = last_entry["fields"][1]["fields"][0]["bytes"]
+    old_r2_g1b = last_entry["fields"][1]["bytes"]
     old_r4b = last_entry["fields"][2]["bytes"]
 
     full_level_to_file(old_r1b, old_r2_g1b, r5b, old_r4b)
@@ -228,6 +259,7 @@ def create_reencryption_tx(
 
 def recursive_decrypt(
     alice_wallet_path: str,
+    encryption_levels: list,
     encryption_datum_path: str = "../data/encryption/encryption-datum.json",
 ) -> None:
     """
@@ -276,27 +308,32 @@ def recursive_decrypt(
     key = extract_key(alice_wallet_path)
     sk = to_int(generate(KEY_DOMAIN_TAG + key))
 
+    # if we can reproduce this with koios then this function can remain the same.
     encryption_datum = load_json(encryption_datum_path)
-    all_entries = encryption_datum["fields"][3]["list"]
+    all_entries = encryption_levels
 
     shared = scale(H0, sk)
 
-    for entry in all_entries:
-        r1 = entry["fields"][0]["bytes"]
-        r2_g1b = entry["fields"][1]["fields"][0]["bytes"]
+    half_level = all_entries[0]
 
-        if entry["fields"][1]["fields"][1]["constructor"] == 1:
-            # print(f"Half Level: r1={r1}, r2_g1b={r2_g1b}, shared={shared}")
-            key = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
-        else:
-            r2_g2b = entry["fields"][1]["fields"][1]["fields"][0]["bytes"]
-            key = decrypt_to_hash(r1, r2_g1b, r2_g2b, shared, snark_path)
-            # print(f"Full Level: r1={r1}, r2_g1b={r2_g1b}, r2_g2b={r2_g2b}, shared={shared}")
+    r1 = half_level["fields"][0]["bytes"]
+    r2_g1b = half_level["fields"][1]["bytes"]
+    key = decrypt_to_hash(r1, r2_g1b, None, shared, snark_path)
+    k = to_int(key)
+    shared = scale(g2_point(1), k)
+
+    full_levels = all_entries[1:]
+    for entry in full_levels:
+        entry = entry["fields"][0]
+        r1 = entry["fields"][0]["bytes"]
+        r2_g1b = entry["fields"][1]["bytes"]
+        r2_g2b = entry["fields"][2]["bytes"]
+        key = decrypt_to_hash(r1, r2_g1b, r2_g2b, shared, snark_path)
 
         # print(key)
         k = to_int(key)
         shared = scale(g2_point(1), k)
-    capsule = encryption_datum["fields"][4]
+    capsule = encryption_datum["fields"][5]
 
     nonce = capsule["fields"][0]["bytes"]
     aad = capsule["fields"][1]["bytes"]

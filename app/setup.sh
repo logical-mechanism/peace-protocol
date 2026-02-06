@@ -93,9 +93,11 @@ jq \
 --arg ref_hash "$(cat contracts/hashes/reference.hash)" \
 --arg enc_hash "$(cat contracts/hashes/encryption.hash)" \
 --arg bid_hash "$(cat contracts/hashes/bidding.hash)" \
+--arg groth_hash "$(cat contracts/hashes/groth.hash)" \
 '.fields[0].bytes=$ref_hash |
 .fields[1].bytes=$enc_hash |
-.fields[2].bytes=$bid_hash' \
+.fields[2].bytes=$bid_hash |
+.fields[3].bytes=$groth_hash' \
 ./data/reference/reference-datum.json | sponge ./data/reference/reference-datum.json
 
 reference_hash=$(${cli} conway transaction hash-script-data --script-data-file ./data/reference/reference-datum.json)

@@ -16,6 +16,7 @@ import (
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/mimc"
 )
 
 // ---------- small helpers ----------
@@ -167,8 +168,8 @@ func TestGTToHash_DeterministicAndMatchesManual(t *testing.T) {
 	if hk1 != hk2 || encHex1 != encHex2 {
 		t.Fatalf("gtToHash not deterministic")
 	}
-	if len(hk1) != 56 { // 224-bit => 28 bytes => 56 hex
-		t.Fatalf("unexpected hk hex length: got %d want 56", len(hk1))
+	if len(hk1) != 64 { // mimc Fr element => 32 bytes => 64 hex
+		t.Fatalf("unexpected hk hex length: got %d want 64", len(hk1))
 	}
 	if len(encHex1) != 12*48*2 {
 		t.Fatalf("unexpected enc hex length: got %d want %d", len(encHex1), 12*48*2)
@@ -177,45 +178,60 @@ func TestGTToHash_DeterministicAndMatchesManual(t *testing.T) {
 		t.Fatalf("expected lowercase hex outputs")
 	}
 
-	// Manual recompute: blake2b-224(encBytes || domainTagBytes)
-	encBytes := mustHexToBytes(t, encHex1)
-	tagBytes := mustHexToBytes(t, DomainTagHex)
+	// Manual recompute: mimc(fq12ToFrElements || domainTagFr)
+	// We need to compute kappa from a to get the Fr elements
+	h0, err := parseG2CompressedHex(H0Hex)
+	if err != nil {
+		t.Fatalf("parseG2 failed: %v", err)
+	}
+	qa := g1MulBase(a)
+	kappa, err := bls12381.Pair([]bls12381.G1Affine{qa}, []bls12381.G2Affine{h0})
+	if err != nil {
+		t.Fatalf("pairing failed: %v", err)
+	}
 
-	msg := append(append([]byte{}, encBytes...), tagBytes...)
-	manual := blake2b224Hex(msg)
+	elements := fq12ToFrElements(kappa)
+	elements = append(elements, domainTagFr())
+	manual := mimcHex(elements)
 
 	if manual != hk1 {
-		t.Fatalf("manual blake2b224 mismatch: got %s want %s", manual, hk1)
+		t.Fatalf("manual mimc mismatch: got %s want %s", manual, hk1)
 	}
 }
 
 func TestHKScalarFromA_ConsistentWithDigestReduction(t *testing.T) {
 	a := big.NewInt(9999)
 
-	// Compute digest form
-	hkHex, encHex, err := gtToHash(a)
+	// Compute manually using MiMC
+	h0, err := parseG2CompressedHex(H0Hex)
 	if err != nil {
-		t.Fatalf("gtToHash failed: %v", err)
+		t.Fatalf("parseG2 failed: %v", err)
 	}
-	_ = hkHex
+	qa := g1MulBase(a)
+	kappa, err := bls12381.Pair([]bls12381.G1Affine{qa}, []bls12381.G2Affine{h0})
+	if err != nil {
+		t.Fatalf("pairing failed: %v", err)
+	}
 
-	encBytes := mustHexToBytes(t, encHex)
-	tagBytes := mustHexToBytes(t, DomainTagHex)
-	msg := append(append([]byte{}, encBytes...), tagBytes...)
-	digest := blake2b224(msg) // 28 bytes
+	elements := fq12ToFrElements(kappa)
+	elements = append(elements, domainTagFr())
 
-	// Reduce into Fr (exactly what hkScalarFromA does: fr.Element.SetBytes on digest)
-	var s fr.Element
-	s.SetBytes(digest)
-	var expected big.Int
-	s.BigInt(&expected)
+	// Hash with MiMC
+	h := mimc.NewMiMC()
+	for _, e := range elements {
+		h.Write(e.Marshal())
+	}
+	var expected fr.Element
+	expected.SetBytes(h.Sum(nil))
+	var expectedBi big.Int
+	expected.BigInt(&expectedBi)
 
 	got, err := hkScalarFromA(a)
 	if err != nil {
 		t.Fatalf("hkScalarFromA failed: %v", err)
 	}
-	if got.Cmp(&expected) != 0 {
-		t.Fatalf("hkScalarFromA mismatch: got %s want %s", got.String(), expected.String())
+	if got.Cmp(&expectedBi) != 0 {
+		t.Fatalf("hkScalarFromA mismatch: got %s want %s", got.String(), expectedBi.String())
 	}
 }
 
@@ -531,4 +547,103 @@ func TestPublicHashSplitLogic_MatchesProveAndVerifyW(t *testing.T) {
 	if hex.EncodeToString(recombined) != hex.EncodeToString(d[:]) {
 		t.Fatalf("HW0/HW1 recombination mismatch")
 	}
+}
+
+// ---------- Setup/Prove Workflow Tests ----------
+
+func TestSetupFilesExist_ReturnsFalseForEmptyDir(t *testing.T) {
+	tmp := t.TempDir()
+	if SetupFilesExist(tmp) {
+		t.Fatalf("expected false for empty dir")
+	}
+}
+
+func TestSetupFilesExist_ReturnsTrueWhenAllFilesPresent(t *testing.T) {
+	tmp := t.TempDir()
+	// Create dummy files
+	for _, name := range []string{"ccs.bin", "pk.bin", "vk.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("dummy"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	if !SetupFilesExist(tmp) {
+		t.Fatalf("expected true when all files present")
+	}
+}
+
+func TestSetupVW0W1Circuit_SkipsIfAlreadyExists(t *testing.T) {
+	tmp := t.TempDir()
+	// Create dummy files
+	for _, name := range []string{"ccs.bin", "pk.bin", "vk.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("dummy"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	// Should return early without error (and not overwrite)
+	if err := SetupVW0W1Circuit(tmp, false); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	// Verify files are still dummy content (not overwritten)
+	content, _ := os.ReadFile(filepath.Join(tmp, "ccs.bin"))
+	if string(content) != "dummy" {
+		t.Fatalf("setup should have been skipped")
+	}
+}
+
+func TestSetupAndProveFromSetup_EndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping expensive setup+prove test in -short mode")
+	}
+
+	tmp := t.TempDir()
+	setupDir := filepath.Join(tmp, "setup")
+	outDir := filepath.Join(tmp, "out")
+
+	// 1) Run setup
+	t.Log("Running setup...")
+	if err := SetupVW0W1Circuit(setupDir, false); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	// Verify setup files exist
+	if !SetupFilesExist(setupDir) {
+		t.Fatalf("setup files should exist after setup")
+	}
+
+	// Check file sizes are reasonable (including vk.json from setup)
+	for _, name := range []string{"ccs.bin", "pk.bin", "vk.bin", "vk.json"} {
+		info, err := os.Stat(filepath.Join(setupDir, name))
+		if err != nil {
+			t.Fatalf("stat %s: %v", name, err)
+		}
+		if info.Size() < 1000 {
+			t.Fatalf("%s seems too small: %d bytes", name, info.Size())
+		}
+		t.Logf("%s: %d bytes", name, info.Size())
+	}
+
+	// 2) Prepare witness values
+	a := big.NewInt(77777)
+	r := big.NewInt(88888)
+	vHex, w0Hex, w1Hex := computeVW0W1(t, a, r)
+
+	// 3) Prove using setup files
+	t.Log("Running prove from setup...")
+	if err := ProveVW0W1FromSetup(setupDir, outDir, a, r, vHex, w0Hex, w1Hex, true); err != nil {
+		t.Fatalf("prove from setup failed: %v", err)
+	}
+
+	// 4) Verify output files exist
+	for _, name := range []string{"vk.json", "proof.json", "public.json", "vk.bin", "proof.bin", "witness.bin"} {
+		if _, err := os.Stat(filepath.Join(outDir, name)); err != nil {
+			t.Fatalf("expected %s to exist: %v", name, err)
+		}
+	}
+
+	// 5) Verify the proof using standalone verify
+	if err := VerifyFromFiles(outDir); err != nil {
+		t.Fatalf("standalone verification failed: %v", err)
+	}
+
+	t.Log("Setup and prove from setup workflow succeeded")
 }
