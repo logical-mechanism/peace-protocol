@@ -130,27 +130,44 @@ pub type GrothCommitmentWire =
 
 // ---------- Helpers ----------
 
-// vk_x = IC[0] + Σ public[i] * IC[i+1]
-pub fn derive_vk_x(
-  vk_ic_tail: List<ByteArray>,
+// Single-pass: processes first n IC elements with `public`, rest with `wires`
+fn derive_vk_x_combined(
+  ic_tail: List<ByteArray>,
   public: List<Int>,
+  wires: List<Int>,
+  n: Int,
   acc: G1Element,
 ) -> G1Element {
-  when vk_ic_tail is {
+  when ic_tail is {
     [] -> acc
-    [ic_i, ..rest_ic] ->
-      when public is {
-        [] -> fail @"public shorter than vkIC tail"
-        [s, ..rest_public] ->
-          derive_vk_x(
-            rest_ic,
-            rest_public,
-            bls12_381_g1_add(
-              acc,
-              bls12_381_g1_scalar_mul(s, bls12_381_g1_uncompress(ic_i)),
-            ),
-          )
+    [ic_i, ..rest_ic] -> {
+      let pt = bls12_381_g1_uncompress(ic_i)
+      if n > 0 {
+        when public is {
+          [] -> fail @"public shorter than vkIC"
+          [s, ..rest_pub] ->
+            derive_vk_x_combined(
+              rest_ic,
+              rest_pub,
+              wires,
+              n - 1,
+              bls12_381_g1_add(acc, bls12_381_g1_scalar_mul(s, pt)),
+            )
+        }
+      } else {
+        when wires is {
+          [] -> fail @"wires shorter than vkIC"
+          [w, ..rest_w] ->
+            derive_vk_x_combined(
+              rest_ic,
+              public,
+              rest_w,
+              0,
+              bls12_381_g1_add(acc, bls12_381_g1_scalar_mul(w, pt)),
+            )
+        }
       }
+    }
   }
 }
 
@@ -218,22 +235,18 @@ pub fn verify_groth16(
   //   vk_x = 1*IC[0] + pub[0]*IC[1] + ... + pub[n-1]*IC[n] + wire*IC[n+1] + D
   // gnark adds the commitment points D directly to vk_x (not just the wire values)
   // Since 1*IC[0] = IC[0], we start acc with IC[0] and multiply remaining ICs
-  let vk_x =
-    when vk.vkIC is {
-      [] -> fail @"empty vkIC"
-      [head, ..tail] -> {
-        // tail has (nPublic - 1 + n_commitments) elements = n_raw_public + n_commitments
-        // Split into ic_public (first n_raw_public) and ic_wires (rest)
-        let Pair(ic_public, ic_wires) = split_at(tail, n_raw_public)
-        // Compute IC[0] + sum(IC[i] * pub[i-1]) for i in 1..n_raw_public
-        let vk_x_base =
-          derive_vk_x(ic_public, public, bls12_381_g1_uncompress(head))
-        // Add sum(IC[nPublic+j] * wire[j])
-        let vk_x_with_wires = derive_vk_x(ic_wires, commitment_wires, vk_x_base)
-        // Add sum(D[k]) - gnark adds commitment points directly to vk_x
-        add_commitments(proof.commitments, vk_x_with_wires)
-      }
-    }
+  expect [head, ..tail] = vk.vkIC
+  let vk_x = {
+    let base =
+      derive_vk_x_combined(
+        tail,
+        public,
+        commitment_wires,
+        n_raw_public,
+        bls12_381_g1_uncompress(head),
+      )
+    add_commitments(proof.commitments, base)
+  }
 
   let lhs =
     bls12_381_mul_miller_loop_result(
@@ -302,17 +315,3 @@ pub fn verify_commitments(vk: SnarkVerificationKey, proof: GrothProof) -> Bool {
   }
 }
 
-// Split a list at index n, returning Pair(first n elements, rest)
-fn split_at(lst: List<a>, n: Int) -> Pair<List<a>, List<a>> {
-  if n <= 0 {
-    Pair([], lst)
-  } else {
-    when lst is {
-      [] -> Pair([], [])
-      [x, ..rest] -> {
-        let Pair(first, second) = split_at(rest, n - 1)
-        Pair([x, ..first], second)
-      }
-    }
-  }
-}

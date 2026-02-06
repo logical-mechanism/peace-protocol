@@ -851,7 +851,7 @@ datum output.
 - [x] **Phase 1: Restructure Pairing** — Low effort — ~5-8% reduction
 - [x] **Phase 4: Remove Length Checks** — Low effort — ~1-2% reduction
 - [x] **Phase 2: Pre-Negate G2 Points** — Low effort — ~2-3% reduction (measured: -4 bytes, not worth off-chain complexity)
-- [ ] **Phase 3: Eliminate split_at** — Medium effort — ~3-5% reduction
+- [x] **Phase 3: Eliminate split_at** — Medium effort — ~3-5% reduction (measured: -46 bytes; main benefit is runtime CPU/mem from single-pass traversal)
 - [ ] **Phase 5: VK to ReferenceDatum** — High effort — ~40-50% reduction
 
 **Cumulative estimate: ~50-60% reduction**
@@ -873,7 +873,7 @@ in the table below to track progress.
 | Phase 1 | 23,395 | 12,865 | ml_one removed; 4 Miller loops instead of 5; -20 bytes script, significant CPU savings |
 | Phase 4 | 15,805 | 10,308 | Removed list.length checks + list import; compiler eliminated stdlib list module (-32% groth, -20% encryption) |
 | Phase 2 | — | — | Skipped: only -4 bytes; not worth off-chain pipeline changes (Go/Python) |
-| Phase 3 | | | |
+| Phase 3 | 15,759 | 10,308 | Replaced split_at + 2× derive_vk_x with single-pass derive_vk_x_combined; -46 bytes script, runtime CPU/mem savings from eliminating intermediate list allocation |
 | Phase 5 | | | |
 
 ---
