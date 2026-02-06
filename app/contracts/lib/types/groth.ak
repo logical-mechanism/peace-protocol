@@ -258,4 +258,3 @@ pub fn verify_commitments(vk: SnarkVerificationKey, proof: GrothProof) -> Bool {
     }
   }
 }
-

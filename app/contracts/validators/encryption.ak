@@ -82,11 +82,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         //
         and {
           // token name needs to be in the datum
-          (token == token_name),
+          token == token_name,
           // script output can not have a reference script
-          (reference_script == None),
+          reference_script == None,
           // must be going to the encryption contract
-          (Script(policy_id) == payment_credential),
+          Script(policy_id) == payment_credential,
           // a single token should be minted in this transaction
           assets.has_nft_strict(mint, policy_id, token_name),
           // owner_vkh must sign
@@ -232,17 +232,17 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   groth_public,
                 ),
                 // cipher text can not change
-                (capsule == next_capsule),
+                capsule == next_capsule,
                 // this token can not chnage
-                (token == next_token),
+                token == next_token,
                 // bid owner is new owner
-                (bid_owner_vkh == next_owner_vkh),
-                (bid_owner_g1 == next_owner_g1),
+                bid_owner_vkh == next_owner_vkh,
+                bid_owner_g1 == next_owner_g1,
                 // check if correct script hashes
-                (Script(this_script) == payment_credential),
-                (Script(bid) == bid_payment_credential),
+                Script(this_script) == payment_credential,
+                Script(bid) == bid_payment_credential,
                 // script output can not have a reference script
-                (reference_script == None),
+                reference_script == None,
                 // consistency check; expand here for better r5 validation
                 level.verify_r5(owner_g1, r5, witness),
                 // correct level addition
@@ -303,19 +303,19 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               //
               and {
                 // validity range stuff
-                (expected_ttl <= ttl),
-                (ttl <= 2 * expected_ttl),
-                (finite_interval_length <= encryption.snark_validity_window),
+                (expected_ttl <= ttl)?,
+                (ttl <= 2 * expected_ttl)?,
+                (finite_interval_length <= encryption.snark_validity_window)?,
                 // do groth stuff via groth_witness withdraw validator
                 verify_commitments(snark_vk, groth_proof),
                 // owner must sign it
                 has(extra_signatories, owner_vkh),
                 // datum must go back to open
-                (output_datum_data == expected_output_datum_data),
+                output_datum_data == expected_output_datum_data,
                 // check if correct script hashes
-                (Script(this_script) == payment_credential),
+                Script(this_script) == payment_credential,
                 // script output can not have a reference script
-                (reference_script == None),
+                reference_script == None,
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
@@ -348,11 +348,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 // either owner signs to cancel or it has expired
                 expired_or_cancel,
                 // datum must go back to open
-                (output_datum_data == expected_output_datum_data),
+                output_datum_data == expected_output_datum_data,
                 // check if correct script hashes
-                (Script(this_script) == payment_credential),
+                Script(this_script) == payment_credential,
                 // script output can not have a reference script
-                (reference_script == None),
+                reference_script == None,
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
