@@ -1,8 +1,10 @@
 # The PEACE Protocol MVP
 
-The MVP runs on Ubuntu 24 and requires a fully synced Cardano node on the pre-production network.
+The MVP runs on Ubuntu 24 and requires a fully synced Cardano node.
 
 **true snark implementation will require much larger transaction sizes on preprod/mainnet**
+
+**only works on custom network with larger transaction sizes**
 
 ## Virtual Environment
 
@@ -14,6 +16,15 @@ source venv/bin/activate
 ```
 
 ## Happy Path Setup
+
+**happy path only works on custom network**
+
+**start node then run setup; skip wallet setup**
+
+```bash
+# start the custom network node
+./node/start.sh
+```
 
 Create wallets and fund them with Lovelace.
 
