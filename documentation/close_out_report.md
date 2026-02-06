@@ -1,12 +1,15 @@
-# PEACE Protocol — Final Close-Out Report (Project Catalyst Fund 14)
+# PEACE Protocol
+# Decentralized On-Chain Data Encryption
+# Final Close-Out Report
+# (Project Catalyst Fund 14)
 
-**Project:** PRE-ECIES-AES-GCM Encryption (“PEACE”) Protocol
+**Project:** Decentralized On-Chain Data Encryption
 
 **Public Repository:** https://github.com/logical-mechanism/peace-protocol
 
 **Catalyst Milestones:** https://milestones.projectcatalyst.io/projects/1400046
 
-**Close Out Video:** https://www.youtube.com
+**Close Out Video:** https://youtu.be/Eabw-j2hjrg
 
 ---
 
@@ -34,7 +37,7 @@ This report gives a reviewer-friendly summary of technical and functional progre
 
 ## 3. Milestone-by-milestone outcomes and evidence
 
-### Milestone 1 — Technical research report + security assessment
+### Milestone 1: Technical research report + security assessment
 
 **Primary objective:**
 
@@ -59,7 +62,7 @@ Produce a report defining the protocol’s cryptographic design and security wit
 
 ---
 
-### Milestone 2 — MVP implementation (Aiken on-chain + Python/Bash off-chain)
+### Milestone 2: MVP implementation (Aiken on-chain + Python/Bash off-chain)
 
 **Primary objective:**
 
@@ -87,7 +90,7 @@ Deliver an MVP to demonstrate the protocol flow with scripts and clear documenta
 
 ---
 
-### Milestone 3 — Comprehensive testing + Cardano preprod validation
+### Milestone 3: Comprehensive testing + Cardano preprod validation
 
 **Primary objective:**
 
@@ -140,11 +143,11 @@ A key challenge was finding an approach that fit Cardano’s on-chain limits whi
 
 2) **Reworking pairing mathematics to fit on-chain constraints**
 
-The paper-level constructions involving pairings needed adaptation for practical on-chain use, since cryptographic pairings—mathematical operations used in protocols involving elliptic curves—cannot be stored as data objects. Implementation used relationships between two point types (G1/G2) and structured checks, rather than storing pairing results.
+The paper-level constructions involving pairings needed adaptation for practical on-chain use, since cryptographic pairings cannot be stored as data objects on-chain.
 
 3) **Identifying and mitigating CCA-style attack surfaces early**
 
-Potential chosen-ciphertext-style risks (where an attacker can trick the system into decrypting modified ciphertexts) were identified early and addressed using a combination of sigma-protocol-style structures (proof methods for statements on secret data), pairing relations, and SNARK (succinct non-interactive argument of knowledge, a proof system)-based reasoning and verification patterns, where applicable.
+Potential chosen-ciphertext-style risks (where an attacker can trick the system into decrypting modified ciphertexts) were identified early and addressed using a combination of sigma-protocol-style structures, pairing relations, and a SNARK (succinct non-interactive argument of knowledge) where applicable.
 
 4) **Learning the weaknesses and practical boundaries of re-encryption**
 
