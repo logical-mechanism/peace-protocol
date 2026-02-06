@@ -18,7 +18,7 @@ use types/encryption.{
   EncryptionSpendRedeemer, EntryEncryptionMint, LeaveEncryptionBurn, Open,
   Pending, RemoveEncryption, UseEncryption, UseSnark,
 }
-use types/groth.{GrothWitnessRedeemer, global_snark_vk, verify_commitments}
+use types/groth.{GrothWitnessRedeemer, verify_commitments}
 use types/level.{FullEncryptionLevel}
 use types/reference.{ReferenceDatum}
 use types/register
@@ -251,8 +251,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 ..
               }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
-              // get the groth script hash from the reference datum
-              let ReferenceDatum { groth: groth_script, .. }: ReferenceDatum =
+              // get the groth script hash and snark vk from the reference datum
+              let ReferenceDatum { groth: groth_script, snark_vk, .. }: ReferenceDatum =
                 search.for_reference_datum(
                   reference_inputs,
                   genesis_pid,
@@ -286,7 +286,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 (ttl <= 2 * expected_ttl)?,
                 (finite_interval_length <= encryption.snark_validity_window)?,
                 // do groth stuff via groth_witness withdraw validator
-                verify_commitments(global_snark_vk, groth_proof)?,
+                verify_commitments(snark_vk, groth_proof)?,
                 // owner must sign it
                 list.has(extra_signatories, owner_vkh)?,
                 // datum must go back to open
