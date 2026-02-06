@@ -615,13 +615,12 @@ Run `aiken check` — all tests must pass. Then `aiken build` and compare sizes.
 
 ---
 
-## Phase 5: Move VK to Reference Input (High Effort, ~40-50% Reduction)
+## Phase 5: Move VK to ReferenceDatum (High Effort, ~40-50% Reduction)
 
 ### Goal
 
 Remove the ~2.3 KB `global_snark_vk` constant from the compiled script by storing
-the VK in an on-chain UTxO datum and reading it via a reference input.
-
+the VK and its hash as fields on the existing `ReferenceDatum`.
 
 ### Architectural Change
 
@@ -629,165 +628,208 @@ Currently the VK is a hardcoded constant in `lib/types/groth.ak`. This means eve
 validator endpoint that references it embeds the full VK data (~2,352 bytes of raw
 curve points + UPLC list construction overhead) in its compiled script.
 
-Instead:
-1. Store the VK as an inline datum on a UTxO (a "VK reference UTxO")
-2. Hardcode only a **hash** of the VK (32 bytes) in the script
-3. At validation time, read the VK from a reference input and verify the hash
+The protocol already has a `ReferenceDatum` pattern: a genesis-token-authenticated
+UTxO that stores script hashes and is read as a reference input by multiple
+validators. The existing lookup function `search.for_reference_datum(reference_inputs,
+genesis_pid, genesis_tkn)` is already called by:
 
+- **`validators/encryption.ak`** — reads `groth` and `bid` script hashes (lines 255, 170)
+- **`validators/bidding.ak`** — reads `encryption` script hash (lines 49, 129)
+- **`validators/genesis.ak`** — writes the initial `ReferenceDatum` (line 35)
+
+The VK can piggyback on this existing pattern. No separate hash lookup or
+`blake2b_256` verification is needed — the genesis token already authenticates the
+datum contents.
 
 ### Files to Modify
 
-- **`lib/types/groth.ak`**: Remove `global_snark_vk`, add VK hash constant, add
-  VK lookup/validation helper
-- **`validators/groth.ak`**: Read VK from reference input, pass to `verify_groth16`
-- **`validators/encryption.ak`**: Read VK from reference input, pass to
-  `verify_commitments`
-- **Off-chain code**: Create the VK reference UTxO transaction
+- **`lib/types/reference.ak`**: Add `snark_vk` and `snark_vk_hash` fields to
+  `ReferenceDatum`
+- **`lib/types/groth.ak`**: Remove `global_snark_vk` constant
+- **`validators/groth.ak`**: Accept genesis params, read VK from reference datum
+- **`validators/encryption.ak`**: Read VK from the reference datum it already fetches
+- **`validators/genesis.ak`**: Include VK + hash in the initial `ReferenceDatum`
+- **`lib/tests/search.ak`**: Update test `ReferenceDatum` instances
+- **Off-chain code**: Include VK + hash when creating the genesis reference UTxO
 
 ### Implementation
 
-#### Step 1: Define VK Hash Constant
+#### Step 1: Extend ReferenceDatum
 
 ```aiken
-// Replace the full VK constant with just its hash (32 bytes vs ~2,352 bytes)
-pub const global_snark_vk_hash: ByteArray = #"<blake2b_256 of serialised VK>"
-```
+// lib/types/reference.ak
 
-To compute the hash, use an Aiken test:
+// BEFORE
+pub type ReferenceDatum {
+  reference: ScriptHash,
+  encryption: ScriptHash,
+  bid: ScriptHash,
+  groth: ScriptHash,
+}
 
-```aiken
-test compute_vk_hash() {
-  let vk_data: Data = global_snark_vk
-  let hash = blake2b_256(builtin.serialise_data(vk_data))
-  trace @"vk_hash": hash
-  True
+// AFTER
+use types/groth.{SnarkVerificationKey}
+
+pub type ReferenceDatum {
+  reference: ScriptHash,
+  encryption: ScriptHash,
+  bid: ScriptHash,
+  groth: ScriptHash,
+  snark_vk: SnarkVerificationKey,
+  snark_vk_hash: ByteArray,        // blake2b_256 of serialised snark_vk
 }
 ```
 
-#### Step 2: Add VK Extraction Helper
+The `snark_vk_hash` field allows off-chain code to verify the VK matches expectations
+without deserializing the full VK. On-chain, the `snark_vk` field is used directly.
 
-```aiken
-use aiken/crypto.{blake2b_256}
-use aiken/builtin.{serialise_data}
+#### Step 2: Remove global_snark_vk from groth.ak
 
-pub fn extract_vk(
-  reference_inputs: List<Input>,
-  vk_hash: ByteArray,
-) -> SnarkVerificationKey {
-  // Find the reference input containing the VK datum
-  // The caller must ensure exactly one reference input has the VK
-  expect Some(ref_input) =
-    list.find(reference_inputs, fn(input) {
-      when input.output.datum is {
-        InlineDatum(raw) -> {
-          let hash = blake2b_256(serialise_data(raw))
-          hash == vk_hash
-        }
-        _ -> False
-      }
-    })
-  expect InlineDatum(raw) = ref_input.output.datum
-  expect vk: SnarkVerificationKey = raw
-  vk
-}
-```
+Delete the `global_snark_vk` constant (lines 29-82 in `lib/types/groth.ak`). The VK
+is now provided at runtime via the reference datum. The `SnarkVerificationKey` type
+and verification functions remain.
 
 #### Step 3: Update validators/groth.ak
 
-The `withdraw` handler currently ignores the transaction context (`_self`). It must
-be changed to `self` to access reference inputs:
+The groth validator must now accept genesis parameters (to find the reference datum)
+and read the VK from it. The `withdraw` handler changes from `_self` to `self`:
 
 ```aiken
-// BEFORE: _self is unused
-withdraw(redeemer: GrothWitnessRedeemer, _credential, _self) {
+// BEFORE
+use types/groth.{GrothWitnessRedeemer, Register, RegisterRedeemer}
 
-// AFTER: self is needed for reference_inputs
-withdraw(redeemer: GrothWitnessRedeemer, _credential, self) {
-  let GrothWitnessRedeemer { groth_proof, groth_commitment_wire, groth_public, .. } =
-    redeemer
-  let Transaction { reference_inputs, .. } = self
-  let vk = groth.extract_vk(reference_inputs, groth.global_snark_vk_hash)
-  groth.verify_groth16(
-    vk,
-    groth_proof,
-    groth_public,
-    [groth_commitment_wire |> scalar.from_bytes |> scalar.to_int],
-  )
+validator groth_witness {
+  withdraw(redeemer: GrothWitnessRedeemer, _credential, _self) {
+    let GrothWitnessRedeemer { groth_proof, groth_commitment_wire, groth_public, .. } =
+      redeemer
+    groth.verify_groth16(
+      groth.global_snark_vk,
+      groth_proof,
+      groth_public,
+      [groth_commitment_wire |> scalar.from_bytes |> scalar.to_int],
+    )
+  }
+  // ...
+}
+
+// AFTER
+use types/groth.{GrothWitnessRedeemer, Register, RegisterRedeemer}
+use types/reference.{ReferenceDatum}
+use cardano/transaction.{Transaction}
+
+validator groth_witness(genesis_pid: PolicyId, genesis_tkn: AssetName) {
+  withdraw(redeemer: GrothWitnessRedeemer, _credential, self) {
+    let GrothWitnessRedeemer { groth_proof, groth_commitment_wire, groth_public, .. } =
+      redeemer
+    let Transaction { reference_inputs, .. } = self
+    let ReferenceDatum { snark_vk, .. }: ReferenceDatum =
+      search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
+    groth.verify_groth16(
+      snark_vk,
+      groth_proof,
+      groth_public,
+      [groth_commitment_wire |> scalar.from_bytes |> scalar.to_int],
+    )
+  }
+  // ...
 }
 ```
 
-This requires adding `use cardano/transaction.{Transaction}` to the groth validator
-imports (it already imports `Transaction` but currently only for the `publish` handler).
+Note: The groth validator becomes a parameterized validator (takes `genesis_pid` and
+`genesis_tkn`), matching the pattern already used by `encryption.ak` and `bidding.ak`.
+This means the compiled script hash will change, requiring re-registration of the
+stake credential.
 
 #### Step 4: Update validators/encryption.ak
 
-The encryption validator already destructures `reference_inputs` from `self` at
-line 104. The change is minimal — replace the direct VK reference:
+The encryption validator already calls `search.for_reference_datum` in the `UseSnark`
+handler (line 255). It just needs to also extract the VK from it:
 
 ```aiken
-// BEFORE (line 289)
+// BEFORE (lines 255-256, 289)
+let ReferenceDatum { groth: groth_script, .. }: ReferenceDatum =
+  search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
+// ...
 verify_commitments(global_snark_vk, groth_proof)?,
 
 // AFTER
-let vk = groth.extract_vk(reference_inputs, groth.global_snark_vk_hash)
-verify_commitments(vk, groth_proof)?,
+let ReferenceDatum { groth: groth_script, snark_vk, .. }: ReferenceDatum =
+  search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
+// ...
+verify_commitments(snark_vk, groth_proof)?,
 ```
 
-Update the import line 21 from:
+Update the import to remove `global_snark_vk`:
 ```aiken
+// BEFORE
 use types/groth.{GrothWitnessRedeemer, global_snark_vk, verify_commitments}
-```
-to:
-```aiken
-use types/groth.{GrothWitnessRedeemer, global_snark_vk_hash, verify_commitments}
+
+// AFTER
+use types/groth.{GrothWitnessRedeemer, verify_commitments}
 ```
 
-#### Step 5: Off-Chain — Create VK Reference UTxO
+#### Step 5: Update validators/genesis.ak
 
-The off-chain transaction builder must:
-1. Create a UTxO with the VK as an inline datum at a known address
-2. Include this UTxO as a reference input in every Groth16 verification transaction
-3. The UTxO can be locked at any address (even a simple pubkey address), since it's
-   only read as a reference input, never spent
+The genesis validator creates the initial `ReferenceDatum`. It must now include the
+VK and its hash. The VK data will be provided as part of the genesis transaction's
+datum output.
+
+#### Step 6: Update tests
+
+- **`lib/tests/search.ak`**: All `ReferenceDatum` test instances need the new
+  `snark_vk` and `snark_vk_hash` fields
+- **`lib/tests/groth.ak`**: Tests that used `global_snark_vk` should construct the
+  VK inline (they already do — the test VKs are different from the global one)
 
 ### Considerations
 
-- **Transaction size**: The VK datum UTxO must exist on-chain. Creating it requires a
-  transaction that includes the full VK datum (~2.3 KB). This is a one-time cost.
-- **Reference input availability**: Every verification transaction must include the VK
-  UTxO as a reference input. This adds ~40 bytes (the UTxO reference) to each tx.
-- **Migration**: Changing the VK (e.g., for a circuit upgrade) requires creating a new
-  VK UTxO and updating the hardcoded hash in the script (which means redeploying).
-- **Hash verification cost**: `blake2b_256(serialise_data(vk))` adds some on-chain cost,
-  but it's much cheaper than the saved constant embedding.
-- **Backward compatibility**: This changes the validator's compiled hash, requiring
-  re-registration of the stake credential and updating all off-chain references.
+- **No hash verification on-chain**: Unlike a standalone VK UTxO approach, we do NOT
+  need to `blake2b_256(serialise_data(vk))` on-chain. The genesis token already
+  authenticates the `ReferenceDatum` contents. The `snark_vk_hash` field is for
+  off-chain convenience only.
+- **Datum size**: The reference UTxO datum grows by ~2.4 KB (VK + hash). The existing
+  `ReferenceDatum` is small (4 script hashes = 128 bytes). The combined datum is
+  still well within Cardano's transaction limits (~16 KB).
+- **Same reference input**: Both `groth.ak` and `encryption.ak` read the same
+  genesis-token reference input. No additional reference inputs are needed — the VK
+  rides alongside the existing script hashes.
+- **Backward compatibility**: This changes `ReferenceDatum`'s shape. All validators
+  that destructure it will need recompilation. The genesis UTxO must be recreated
+  with the new datum shape. All compiled script hashes change.
+- **Migration path**: Deploy new genesis UTxO with extended `ReferenceDatum`, then
+  deploy new validators that read from it. The groth validator becomes parameterized
+  (like encryption and bidding already are).
 
 ### Net Savings
 
-- ~2,352 bytes of raw constant data removed from each validator endpoint
-- UPLC list construction overhead for 38-element IC list removed
-- Estimated 40-50% reduction in compiled script size
+- ~2,352 bytes of raw constant data removed from the groth validator
+- ~2,352 bytes of raw constant data also removed from the encryption validator
+  (it currently embeds `global_snark_vk` too)
+- UPLC list construction overhead for 38-element IC list removed from both
+- No on-chain hash verification cost (genesis token provides authentication)
+- Estimated 40-50% reduction in groth script size, meaningful reduction in
+  encryption script size too
 
 ### Verification
 
-1. Compute VK hash with a test, embed it
-2. `aiken build` and verify dramatically smaller script sizes
-3. Integration test: build a transaction with the VK reference input and verify on
-   testnet/emulator
+1. `aiken check` — all tests pass with updated `ReferenceDatum` instances
+2. `aiken build` — verify dramatically smaller script sizes for both groth and
+   encryption validators
+3. Integration test: build a transaction with the extended genesis reference UTxO
+   and verify on testnet/emulator
 
 ---
 
 ## Recommended Execution Order
 
-| Order | Phase | Effort  | Est. Reduction | Cumulative |
-| ----- | ----- | ------- | -------------- | ---------- |
-| 1     | Phase 0: Remove Dead Code     | Trivial | minimal | ~0%      |
-| 2     | Phase 1: Restructure Pairing  | Low     | ~5-8%   | ~5-8%    |
-| 3     | Phase 4: Remove Length Checks  | Low     | ~1-2%   | ~6-10%   |
-| 4     | Phase 2: Pre-Negate G2 Points  | Low     | ~2-3%   | ~8-13%   |
-| 5     | Phase 3: Eliminate split_at    | Medium  | ~3-5%   | ~11-18%  |
-| 6     | Phase 5: VK Reference Input    | High    | ~40-50% | ~50-60%  |
+- [ ] **Phase 0: Remove Dead Code** — Trivial — minimal reduction
+- [ ] **Phase 1: Restructure Pairing** — Low effort — ~5-8% reduction
+- [ ] **Phase 4: Remove Length Checks** — Low effort — ~1-2% reduction
+- [ ] **Phase 2: Pre-Negate G2 Points** — Low effort — ~2-3% reduction
+- [ ] **Phase 3: Eliminate split_at** — Medium effort — ~3-5% reduction
+- [ ] **Phase 5: VK to ReferenceDatum** — High effort — ~40-50% reduction
+
+**Cumulative estimate: ~50-60% reduction**
 
 Phases 0, 1, 2, and 4 are independent and can be done in any order or combined into a
 single change. Phase 3 depends on understanding the final shape of `verify_groth16`
@@ -795,38 +837,19 @@ after Phases 1 and 4. Phase 5 is a standalone architectural change that can be d
 at any time but requires off-chain coordination.
 
 After each phase, run `aiken check && aiken build` and record the new script sizes
-in the table above to track progress.
+in the table below to track progress.
 
----
+### Size Tracking
 
-## Future Considerations
-
-### Separate `publish` from `withdraw` (Potential Phase 6)
-
-Because Aiken compiles all handlers of a multi-handler validator into a single UPLC
-script, the trivial `publish` handler (just a certificate credential check) is bloated
-to 24 KB. Splitting `groth_witness` into two separate validators — one for `withdraw`
-(Groth16 verification) and one for `publish` (certificate registration) — would give
-`publish` its own tiny script.
-
-**Trade-off:** Two separate validator script hashes to manage, two separate stake
-credential registrations. But the `publish` script could shrink from 24 KB to under
-1 KB.
-
-### Precomputed `e(alpha, beta)` (Not Currently Possible)
-
-After Phase 1, the RHS of the pairing check is `e(alpha, beta)`, which is a constant
-(alpha and beta are part of the VK). In principle this could be precomputed off-chain.
-However, Plutus V3 does not support serialization of `MillerLoopResult` values, so
-this cannot be stored as a datum or script constant. If a future Plutus version adds
-`MillerLoopResult` serialization, this would save one on-chain Miller loop.
-
-### Reducing Uncompression Calls
-
-The dominant on-chain cost is the 38+ `bls12_381_g1_uncompress` calls in the IC
-scalar multiplication loop. These cannot be avoided without fundamentally changing the
-verification approach (e.g., moving the vk_x computation off-chain and passing the
-result, which would require a separate commitment scheme to ensure correctness).
+| Phase | groth (bytes) | encryption (bytes) | Notes |
+| ----- | ------------- | ------------------ | ----- |
+| Baseline | 24,018 | 14,752 | |
+| Phase 0 | | | |
+| Phase 1 | | | |
+| Phase 4 | | | |
+| Phase 2 | | | |
+| Phase 3 | | | |
+| Phase 5 | | | |
 
 ---
 
