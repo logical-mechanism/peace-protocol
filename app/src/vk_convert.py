@@ -81,7 +81,9 @@ def convert_vk_file(
 def main() -> None:
     """CLI: read vk.json from arg, write datum JSON to stdout or file."""
     if len(sys.argv) < 2:
-        print("Usage: python -m src.vk_convert <vk.json> [output.json]", file=sys.stderr)
+        print(
+            "Usage: python -m src.vk_convert <vk.json> [output.json]", file=sys.stderr
+        )
         sys.exit(1)
 
     input_path = sys.argv[1]
