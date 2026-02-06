@@ -3,10 +3,12 @@
 ////
 
 use aiken/crypto.{ScriptHash}
+use types/groth.{SnarkVerificationKey}
 
 pub type ReferenceDatum {
   reference: ScriptHash,
   encryption: ScriptHash,
   bid: ScriptHash,
   groth: ScriptHash,
+  snark_vk: SnarkVerificationKey,
 }

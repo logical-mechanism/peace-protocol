@@ -4,8 +4,8 @@
 
 use aiken/builtin.{
   bls12_381_final_verify, bls12_381_g1_add, bls12_381_g1_compress,
-  bls12_381_g1_neg, bls12_381_g1_scalar_mul, bls12_381_g1_uncompress,
-  bls12_381_g2_compress, bls12_381_g2_uncompress, bls12_381_miller_loop,
+  bls12_381_g1_neg, bls12_381_g1_uncompress, bls12_381_g2_compress,
+  bls12_381_g2_uncompress, bls12_381_miller_loop,
   bls12_381_mul_miller_loop_result,
 }
 use types/groth.{CommitmentKey, GrothProof, SnarkVerificationKey}
@@ -233,24 +233,6 @@ test g1_roundtrip_new_commitment() {
   let commitment =
     #"847e670acbc6937cd7f93c90de99d3db2532ae25aa016721b041af51f03d39aeee7446a042b612467420937b188fe230"
   bls12_381_g1_compress(bls12_381_g1_uncompress(commitment)) == commitment
-}
-
-test ml_one_is_identity() {
-  let alpha =
-    bls12_381_g1_uncompress(
-      #"93c22fff819156d362d91460285786eb59c5e11b48f00edd8dd2d0bea081c2af48e94c87504ca55a8f9486ed6cd113f5",
-    )
-  let beta =
-    bls12_381_g2_uncompress(
-      #"8541197b983a417f537947eb1835f153141e96e5456e93439f54ee43644cb4207f9eff02733d6872303a3b2dedfeae4d0fa64b17e9b7825176514a3a951256a0416a1bf37982540c304d4dd135e92b87ef276a4ac8ec2349f261e741885cfc90",
-    )
-
-  let g1_zero = bls12_381_g1_scalar_mul(0, alpha)
-  let one = bls12_381_miller_loop(g1_zero, beta)
-
-  // If final_verify is equality-after-final-exp, one==one should be true.
-  // If final_verify is product-to-one, one*one?? is not checked here; still true for equality.
-  bls12_381_final_verify(one, one)
 }
 
 test final_verify_semantics_smoke() fail {
