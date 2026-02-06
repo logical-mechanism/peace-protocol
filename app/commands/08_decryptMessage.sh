@@ -33,15 +33,14 @@ encryption_levels=$(curl -X POST "https://preprod.koios.rest/api/v1/tx_info" \
  -H 'accept: application/json' \
  -H 'content-type: application/json' \
  -d '{"_tx_hashes":'"${tx_hashes}"',"_inputs":false,"_metadata":false,"_assets":false,"_withdrawals":false,"_certs":false,"_scripts":true,"_bytecode":false}' | jq 'sort_by(.block_height) | reverse |
-  [.[0] | .outputs[] | select(.payment_addr.bech32 == "'${encryption_script_address}'") | .inline_datum.value.fields[3,4]] +
-  [.[1:][] | .outputs[] | select(.payment_addr.bech32 == "'${encryption_script_address}'") | .inline_datum.value.fields[4]]
+  [.[0] | .outputs[] | select(.payment_addr.bech32 == "'${encryption_script_address}'") | .inline_datum.value.fields[3]] +
+  [.[0] | .outputs[] | select(.payment_addr.bech32 == "'${encryption_script_address}'") | .inline_datum.value.fields[4] | select(.constructor == 0)] +
+  [.[1:][] | .outputs[] | select(.payment_addr.bech32 == "'${encryption_script_address}'") | .inline_datum.value.fields[4] | select(.constructor == 0)]
 ')
-
 
 WALLET_NAME="$1"
 
-# alice
-alice_wallet_path="../wallets/${WALLET_NAME}"
+wallet_path="../wallets/${WALLET_NAME}"
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -50,5 +49,5 @@ PYTHONPATH="$PROJECT_ROOT" \
 "
 from src.commands import recursive_decrypt
 
-recursive_decrypt('${alice_wallet_path}/payment.skey', ${encryption_levels})
+recursive_decrypt('${wallet_path}/payment.skey', ${encryption_levels})
 "

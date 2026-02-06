@@ -2,9 +2,9 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
-use cardano/assets.{AssetName, PolicyId}
 use aiken/crypto.{ScriptHash}
 use cardano/address.{Script}
+use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Redeemer, ScriptPurpose, Spend,
   Withdraw,
