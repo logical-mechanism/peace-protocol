@@ -2,7 +2,6 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
-use aiken/collection/list
 use aiken/primitive/bytearray
 
 // 2^64
@@ -13,16 +12,10 @@ const bls12_381_fp_modulus: ByteArray =
   #"1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab"
 
 fn limbs_u64le_to_int(limbs: List<Int>) -> Int {
-  let (acc, _) =
-    list.foldl(
-      limbs,
-      (0, 1),
-      fn(limb, state) {
-        let (sum, factor) = state
-        (sum + limb * factor, factor * pow2_64)
-      },
-    )
-  acc
+  when limbs is {
+    [] -> 0
+    [limb, ..rest] -> limb + pow2_64 * limbs_u64le_to_int(rest)
+  }
 }
 
 // Canonical "sign" bit rule used by blst-style serialization:
@@ -71,7 +64,12 @@ pub fn limbs_match_g1_point(
   g1_compress_from_xy_limbs(x_limbs, y_limbs) == expected_compressed
 }
 
-/// Three G1 points decode into six points, requiring six integers to be 
+fn take6(xs: List<Int>) -> (List<Int>, List<Int>) {
+  expect [a, b, c, d, e, f, ..rest] = xs
+  ([a, b, c, d, e, f], rest)
+}
+
+/// Three G1 points decode into six points, requiring six integers to be
 /// represented, totallying 36 elements.
 ///
 pub fn verify_limb_compression(
@@ -80,21 +78,15 @@ pub fn verify_limb_compression(
   w1: ByteArray,
   public_integers: List<Int>,
 ) -> Bool {
+  let (v_x, r0) = take6(public_integers)
+  let (v_y, r1) = take6(r0)
+  let (w0_x, r2) = take6(r1)
+  let (w0_y, r3) = take6(r2)
+  let (w1_x, r4) = take6(r3)
+  let (w1_y, _) = take6(r4)
   and {
-    limbs_match_g1_point(
-      v,
-      list.slice(public_integers, 0, 5),
-      list.slice(public_integers, 6, 11),
-    ),
-    limbs_match_g1_point(
-      w0,
-      list.slice(public_integers, 12, 17),
-      list.slice(public_integers, 18, 23),
-    ),
-    limbs_match_g1_point(
-      w1,
-      list.slice(public_integers, 24, 29),
-      list.slice(public_integers, 30, 35),
-    ),
+    limbs_match_g1_point(v, v_x, v_y),
+    limbs_match_g1_point(w0, w0_x, w0_y),
+    limbs_match_g1_point(w1, w1_x, w1_y),
   }
 }

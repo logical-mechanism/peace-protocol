@@ -42,9 +42,6 @@ echo -e "\033[1;37m\n\n---------------------------------------------------------
 echo -e "\033[1;37m--------------------------------------------------------------------------------\033[0m"
 # Loop through each -wallet folder
 for wallet_folder in ../wallets/*; do
-    if [ "$wallet_folder" == "../wallets/holder" ]; then
-        continue
-    fi
     # Check if payment.addr file exists in the folder
     if [ -f "${wallet_folder}/payment.addr" ]; then
         addr=$(cat ${wallet_folder}/payment.addr)
