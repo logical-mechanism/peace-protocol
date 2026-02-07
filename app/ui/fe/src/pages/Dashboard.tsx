@@ -74,16 +74,19 @@ export default function Dashboard() {
     }
   }, [userPkh, historyKey])
 
-  // Record a transaction and schedule auto-refresh after 20s
+  // Record a transaction and schedule auto-refresh with escalating retries.
+  // Txs can sit in the mempool for over a minute, so a single 20s check isn't enough.
   const recordTransaction = useCallback((record: TransactionRecord) => {
     if (!userPkh) return
     addTransaction(userPkh, record)
     setTxHistory(getTransactions(userPkh))
-    // Auto-refresh data after ~20s to pick up confirmed tx
-    setTimeout(() => {
-      setRefreshKey(prev => prev + 1)
-      setHistoryKey(prev => prev + 1)
-    }, 20000)
+    // Retry at 20s, 45s, 90s, and 180s to handle mempool delays
+    for (const delay of [20_000, 45_000, 90_000, 180_000]) {
+      setTimeout(() => {
+        setRefreshKey(prev => prev + 1)
+        setHistoryKey(prev => prev + 1)
+      }, delay)
+    }
   }, [userPkh])
 
   const pendingTxCount = useMemo(
@@ -121,7 +124,11 @@ export default function Dashboard() {
     setShowPlaceBid(true)
   }, [])
 
-  const handlePlaceBidSubmit = useCallback(async (encryptionTokenName: string, bidAmountAda: number) => {
+  const handlePlaceBidSubmit = useCallback(async (
+    encryptionTokenName: string,
+    bidAmountAda: number,
+    encryptionUtxo: { txHash: string; outputIndex: number }
+  ) => {
     if (!wallet) {
       throw new Error('Wallet not connected')
     }
@@ -132,7 +139,7 @@ export default function Dashboard() {
       console.warn(stubWarning)
     }
 
-    const result = await placeBid(wallet, encryptionTokenName, bidAmountAda)
+    const result = await placeBid(wallet, encryptionTokenName, bidAmountAda, encryptionUtxo)
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to place bid')
@@ -266,7 +273,11 @@ export default function Dashboard() {
     }
 
     try {
-      const result = await cancelBid(wallet, bid.tokenName)
+      const result = await cancelBid(wallet, {
+        tokenName: bid.tokenName,
+        utxo: bid.utxo,
+        datum: bid.datum,
+      })
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to cancel bid')

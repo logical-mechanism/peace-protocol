@@ -62,8 +62,8 @@ export interface EncryptionDatum {
 export interface BidDatum {
   owner_vkh: string;              // 28 bytes hex
   owner_g1: Register;
-  pointer: string;                // encryption token this bid is for
-  token: string;                  // bid token name
+  pointer: string;                // bid's own token name (validated on-chain: pointer == token_name)
+  token: string;                  // encryption token name being bid on
 }
 
 // CIP-20 metadata structure (from tx metadata key 674)
@@ -111,6 +111,7 @@ export interface ProtocolConfig {
   contracts: {
     encryptionAddress: string;
     biddingAddress: string;
+    referenceAddress: string;
     encryptionPolicyId: string;
     biddingPolicyId: string;
   };
