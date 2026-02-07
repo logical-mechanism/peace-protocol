@@ -8,10 +8,15 @@ This document focuses on the remaining work for the Peace Protocol UI. For compl
 
 | Phase | Status | Dependency |
 |-------|--------|------------|
-| Phase 5: Blockchain Data Layer | **TODO** | Contracts deployed (preprod) |
+| Phase 5: Blockchain Data Layer | **COMPLETE** | Contracts deployed (preprod) |
 | Phase 11.5: WASM Loading Screen | **COMPLETE** | - |
-| Phase 12: Accept Bid Flow | **TODO** | Phase 5 |
-| E2E Testing | **TODO** | Phase 12 |
+| Phase 12a: Create Encryption Tx | **TODO** | Phase 5 |
+| Phase 12b: Remove Encryption Tx | **TODO** | Phase 12a |
+| Phase 12c: Create Bid Tx | **TODO** | Phase 12a |
+| Phase 12d: Remove Bid Tx | **TODO** | Phase 12c |
+| Phase 12e: SNARK Proof Tx | **TODO** | Phase 12a, 12c, Phase 11.5 |
+| Phase 12f: Re-encryption Tx | **TODO** | Phase 12e |
+| E2E Testing | **TODO** | Phase 12f |
 
 **Contracts are deployed to preprod. MeshJS AI skills installed (`mesh-transaction`, `mesh-wallet`, `mesh-core-cst`).**
 
@@ -36,7 +41,7 @@ ui/
 ├── be/                          # Backend (Node.js)
 │   └── src/
 │       ├── routes/              # API routes
-│       ├── services/            # Koios/Blockfrost clients
+│       ├── services/            # Koios/Blockfrost clients, parsers
 │       └── stubs/               # Development stub data
 │
 └── ui-goals.md                  # Complete implementation history
@@ -45,7 +50,7 @@ ui/
 **Key External Files:**
 - `contracts/lib/types/*.ak` - On-chain type definitions
 - `contracts/plutus.json` - Compiled contract data
-- `commands/*.sh` - Transaction building patterns
+- `commands/*.sh` - Transaction building patterns (source of truth for each tx structure)
 - `snark/wasm_main.go` - WASM prover source
 
 ---
@@ -84,125 +89,50 @@ await prover.generateProof(inputs)       // SNARK proving
 
 ---
 
-## Phase 5: Blockchain Data Layer
+## Phase 5: Blockchain Data Layer (COMPLETE)
 
-**Status**: READY — contracts deployed to preprod, `USE_STUBS=false` in BE `.env`.
+**Status**: COMPLETE — all endpoints return real preprod data when `USE_STUBS=false`.
 
-### What to Build
+### What Was Built
 
-Replace stub data with real blockchain queries.
+Replaced stub data with real Koios blockchain queries.
 
-**Tasks:**
-- [ ] Query encryptions from encryption contract (`ENCRYPTION_CONTRACT_ADDRESS_PREPROD`)
-- [ ] Query bids from bidding contract (`BIDDING_CONTRACT_ADDRESS_PREPROD`)
-- [ ] Query reference UTxO data (`REFERENCE_CONTRACT_ADDRESS_PREPROD`)
-- [ ] Parse inline datums (Koios Plutus JSON → TypeScript types matching `contracts/lib/types/*.ak`)
-- [ ] Implement caching (optional, recommended)
+**Files Created:**
+- `be/src/services/parsers.ts` — Plutus JSON datum parsing (field order matches Aiken types exactly)
+- `be/src/services/encryptions.ts` — Query encryption contract UTxOs → `EncryptionDisplay`
+- `be/src/services/bids.ts` — Query bidding contract UTxOs → `BidDisplay`
 
-### Implementation Details
+**Files Modified:**
+- `be/src/services/koios.ts` — Auth token, `_extended: true`, switched to `/address_utxos` endpoint, added `getTxMetadata()`
+- `be/src/config/index.ts` — Added `koiosToken`, `genesisTokenName` to config
+- `be/src/routes/encryptions.ts` — Wired up real service calls
+- `be/src/routes/bids.ts` — Wired up real service calls
+- `be/src/routes/protocol.ts` — Real reference UTxO queries, real protocol params from Koios
 
-1. **Backend Environment:** DONE — `be/.env` populated with preprod addresses, `USE_STUBS=false`.
+**Verified endpoints:**
+- `GET /api/protocol/config` — Returns real contract addresses, genesis token
+- `GET /api/protocol/params` — Returns live protocol parameters from Koios
+- `GET /api/encryptions` — Queries encryption contract, parses inline datums
+- `GET /api/bids` — Queries bidding contract, parses inline datums
 
-2. **Koios API Reference:** https://preprod.koios.rest/#overview
+**Note:** CIP-20 metadata (description, suggestedPrice, storageLayer) requires querying the minting tx for each token — left as `undefined` for now. The UI handles missing metadata gracefully.
 
-   Existing client methods in `be/src/services/koios.ts`:
-   ```typescript
-   // - getAddressUtxos(address) - Get UTxOs at contract address
-   // - getAssetUtxos(policyId, assetName?) - Get UTxOs by asset
-   // - getTxInfo(txHash) - Get transaction details
-   // - getTip() - Get current tip
-   // - getProtocolParams() - Get protocol parameters
-   ```
+### Datum Parsing Reference
 
-   **IMPORTANT:** Many Koios endpoints have additional options that change the response shape.
-   For example, `_extended: true` must be passed in the request body to get `inline_datum`
-   populated — without it, `inline_datum` will be `null` even if the UTxO has one. Other
-   endpoints may have similar options for metadata, script info, etc. Always check the Koios
-   docs for the specific endpoint before implementing — there may be a better endpoint or
-   option than the obvious one. Additional endpoints beyond those listed above may be needed.
+Koios returns `inline_datum.value` as pre-parsed Plutus JSON — no CBOR library needed:
+```typescript
+{ constructor: 0, fields: [{ bytes: "..." }, { int: 42 }, ...] }
+```
 
-3. **Datum Parsing — NO CBOR library needed:**
-   Koios returns `inline_datum` with two fields:
-   - `bytes` — raw CBOR hex (for tx building / datum hash verification)
-   - `value` — **pre-parsed Plutus JSON** using `{ constructor: N, fields: [...] }` format
+**Constructor Index Mapping** (from Aiken types):
+- `Status::Open` = constructor 0
+- `Status::Pending` = constructor 1
+- `Option::Some(x)` = constructor 0, fields: [x]
+- `Option::None` = constructor 1, fields: []
 
-   Parse the `value` field directly — no `cbor-x` or CBOR decoding required:
-   ```typescript
-   // Koios inline_datum.value is already structured JSON
-   function parseEncryptionDatum(datumValue: PlutusJSON): EncryptionDatum {
-     // datumValue is { constructor: 0, fields: [...] }
-     // Map fields by index to TS types
-     // See contracts/lib/types/encryption.ak for field ordering
-   }
-   ```
-
-4. **Constructor Index Mapping** (from Aiken types):
-   - `Status::Open` = constructor 0
-   - `Status::Pending` = constructor 1
-   - Field order matches `contracts/lib/types/encryption.ak`
-
-5. **Files to Create/Modify:**
-   - `be/src/services/parsers.ts` - Datum parsing functions (Plutus JSON → TS types)
-   - `be/src/services/encryptions.ts` - Encryption business logic
-   - `be/src/services/bids.ts` - Bid business logic
-   - Update routes to call service functions when `USE_STUBS=false`
-
-6. **Real Koios UTxO Response** (from preprod reference contract):
-   ```json
-   {
-     "tx_hash": "a7760f8a6e45fd8e380e47a26d2acd2378521c3d81b10b4118d882312cafa225",
-     "tx_index": 0,
-     "address": "addr_test1wrh72ullu9qu064yvs5gtdhdkcdl9tkeekkmy227zgvw5pc99mgsw",
-     "value": "12382630",
-     "stake_address": null,
-     "payment_cred": "efe573ffe141c7eaa4642885b6edb61bf2aed9cdadb2295e1218ea07",
-     "epoch_no": 269,
-     "block_height": 4397328,
-     "block_time": 1770409768,
-     "datum_hash": "24a785e7553202728051c666dd1c28f11711c04a8cae41b23a1374c19f039301",
-     "inline_datum": {
-       "bytes": "d8799f581c...cbor_hex...",
-       "value": {
-         "constructor": 0,
-         "fields": [
-           { "bytes": "efe573ff..." },
-           { "bytes": "13f8e1b1..." },
-           ...
-         ]
-       }
-     },
-     "reference_script": null,
-     "asset_list": [
-       {
-         "policy_id": "cd4b05f60ca9c57d09db7d55c08d0a670f08fd939d3c1e1e261eb461",
-         "asset_name": "00071634a2901a48236e45a035ce6f679832bf0e664fdc3abfcd12581a96ec2d",
-         "quantity": "1",
-         "decimals": 0,
-         "fingerprint": "asset1u6t5qr72uh92plhwhme0mqflw9u0shd93yl0g0"
-       }
-     ],
-     "is_spent": false
-   }
-   ```
-
-7. **Plutus JSON Format** (as returned by Koios `inline_datum.value`):
-   ```typescript
-   // Constructor with fields
-   { constructor: 0, fields: [field1, field2, ...] }
-   { constructor: 1, fields: [field1, field2, ...] }
-
-   // Bytes (hex string)
-   { bytes: "abcdef0123..." }
-
-   // Integer
-   { int: 42 }
-
-   // List
-   { list: [item1, item2, ...] }
-
-   // Nested constructor
-   { constructor: 0, fields: [{ bytes: "..." }, { int: 37 }] }
-   ```
+**Field Order** (critical — must match Aiken definitions):
+- `EncryptionDatum`: owner_vkh, owner_g1, token, half_level, full_level, capsule, status
+- `BidDatum`: owner_vkh, owner_g1, pointer, token
 
 ---
 
@@ -219,68 +149,285 @@ Replace stub data with real blockchain queries.
 
 ---
 
-## Phase 12: Accept Bid Flow (SNARK + Re-encryption)
+## Phase 12a: Create Encryption Transaction
 
-**Status**: READY — contracts deployed. Requires Phase 5 (real data) first.
+**Status**: TODO
 
-**Prerequisites**: Phase 11.5 WASM Loading Screen (COMPLETE), Phase 5 Blockchain Data Layer.
+**Shell Script Reference:** `commands/03_createEncryptionTx.sh`
+**Validator:** `validators/encryption.ak`
+**Key Types:** `types/encryption.ak`, `types/level.ak`, `types/register.ak`, `types/schnorr.ak`
+
+### What It Does
+
+Seller creates an encrypted listing: mints an encryption token, builds an inline datum with BLS12-381 crypto artifacts, and sends it to the encryption contract address.
+
+### Transaction Structure
+
+```
+Inputs:   Seller's wallet UTxO (for fees + min ADA)
+Mints:    +1 encryption token (encryption policy)
+Outputs:  Encryption contract address with:
+            - Encryption token
+            - Inline datum (EncryptionDatum)
+            - Min ADA
+Redeemer: EntryEncryptionMint(SchnorrProof, BindingProof)  [mint redeemer, constructor 0]
+Refs:     Reference script UTxO (encryption policy at #1)
+Metadata: CIP-20 key 674 with [description, suggestedPrice, storageLayer]
+```
+
+### Crypto Artifacts to Generate (browser-side)
+
+1. **Derive seller secret** `sk` from wallet signature (`deriveSecretFromWallet`)
+2. **Generate random secrets** `a`, `r` (store in IndexedDB via `secretStorage`)
+3. **Compute `gtToHash(a)`** via WASM worker — this is the KEM step
+4. **Build Register**: `{ generator: G1_GENERATOR, public_value: [sk]G1 }`
+5. **Build SchnorrProof**: proves knowledge of `sk`
+6. **Build HalfEncryptionLevel**: `{ r1b, r2_g1b, r4b }` from `a`, `r`
+7. **Build BindingProof**: ties register to level entries
+8. **Build Capsule**: AES-GCM encrypt the secret message using derived key
+9. **Compute token name**: `CBOR(outputIndex) + txHash` truncated to 32 bytes
+
+### Datum Shape (Plutus JSON for inline datum)
+
+```json
+{
+  "constructor": 0,
+  "fields": [
+    { "bytes": "<owner_vkh 28 bytes>" },
+    { "constructor": 0, "fields": [
+      { "bytes": "<g1_generator 48 bytes>" },
+      { "bytes": "<public_value 48 bytes>" }
+    ]},
+    { "bytes": "<token_name 32 bytes>" },
+    { "constructor": 0, "fields": [
+      { "bytes": "<r1b 48 bytes>" },
+      { "bytes": "<r2_g1b 48 bytes>" },
+      { "bytes": "<r4b 96 bytes>" }
+    ]},
+    { "constructor": 1, "fields": [] },
+    { "constructor": 0, "fields": [
+      { "bytes": "<nonce>" },
+      { "bytes": "<aad>" },
+      { "bytes": "<ct>" }
+    ]},
+    { "constructor": 0, "fields": [] }
+  ]
+}
+```
+
+Note: field 4 is `full_level = None` (constructor 1, empty fields). Field 6 is `status = Open` (constructor 0, empty fields).
+
+### Key Challenge
+
+The token name depends on the tx hash, which isn't known until the tx is built. The shell script computes it from the first input UTxO: `CBOR(tx_index) + tx_hash`, truncated to 32 bytes. The existing `computeTokenName()` helper in `transactionBuilder.ts` already implements this.
+
+### Existing Code to Extend
+
+- `transactionBuilder.ts` → `createListing()` — currently stub, has TODO for real MeshJS flow
+- `fe/src/services/createEncryption.ts` — generates crypto artifacts (register, schnorr, half-level, capsule)
+- `fe/src/services/secretStorage.ts` — stores `a`, `r` in IndexedDB
+
+---
+
+## Phase 12b: Remove Encryption Transaction
+
+**Status**: TODO — depends on Phase 12a (need an encryption UTxO to remove)
+
+**Shell Script Reference:** `commands/04a_removeEncryptionTx.sh`
+**Validator:** `validators/encryption.ak`
+**Key Types:** `types/encryption.ak` (RemoveEncryption redeemer)
+
+### What It Does
+
+Seller removes their own listing: spends the encryption UTxO and burns the encryption token. Only the owner (matching `owner_vkh` in datum) can do this.
+
+### Transaction Structure
+
+```
+Inputs:   Encryption UTxO (from encryption contract)
+          Seller's wallet UTxO (for fees)
+Mints:    -1 encryption token (burn)
+Outputs:  Remaining ADA back to seller
+Redeemer: RemoveEncryption [spend redeemer, constructor 0]
+          LeaveEncryptionBurn(token_name) [mint redeemer, constructor 1]
+Refs:     Reference script UTxO (encryption policy at #1)
+Signer:   Seller's payment key (must match datum owner_vkh)
+```
+
+### Notes
+
+- Simple transaction — no crypto generation needed
+- Must provide the existing inline datum as witness when spending from script
+- The burn mint redeemer wraps the token name: `{ constructor: 1, fields: [{ bytes: "<token_name>" }] }`
+- Seller must sign (validator checks `owner_vkh` is a signer)
+
+---
+
+## Phase 12c: Create Bid Transaction
+
+**Status**: TODO — depends on Phase 12a (need an encryption to bid on)
+
+**Shell Script Reference:** `commands/05_createBidTx.sh`
+**Validator:** `validators/bidding.ak`
+**Key Types:** `types/bidding.ak`, `types/register.ak`, `types/schnorr.ak`
+
+### What It Does
+
+Buyer places a bid on an encryption listing: mints a bid token, locks ADA as the bid amount, and creates a bid datum pointing to the target encryption.
+
+### Transaction Structure
+
+```
+Inputs:   Buyer's wallet UTxO (bid amount + fees)
+Mints:    +1 bid token (bidding policy)
+Outputs:  Bidding contract address with:
+            - Bid token
+            - Inline datum (BidDatum)
+            - Bid amount in ADA (this IS the bid — lovelace locked at script)
+Redeemer: EntryBidMint(SchnorrProof) [mint redeemer, constructor 0]
+Refs:     Reference script UTxO (bidding policy at #1)
+          Encryption UTxO (read-only reference — validates encryption exists)
+          Genesis token UTxO (read-only reference — validates protocol)
+```
+
+### Crypto Artifacts to Generate (browser-side)
+
+1. **Derive buyer secret** `sk` from wallet signature (`deriveSecretFromWallet`)
+2. **Build Register**: `{ generator: G1_GENERATOR, public_value: [sk]G1 }`
+3. **Build SchnorrProof**: proves knowledge of `sk`
+4. **Compute bid token name**: `CBOR(outputIndex) + txHash` truncated to 32 bytes
+5. **Store buyer secret** in IndexedDB via `bidSecretStorage`
+
+### Datum Shape (Plutus JSON for inline datum)
+
+```json
+{
+  "constructor": 0,
+  "fields": [
+    { "bytes": "<owner_vkh 28 bytes>" },
+    { "constructor": 0, "fields": [
+      { "bytes": "<g1_generator 48 bytes>" },
+      { "bytes": "<public_value 48 bytes>" }
+    ]},
+    { "bytes": "<pointer (encryption token name)>" },
+    { "bytes": "<bid token name>" }
+  ]
+}
+```
+
+### Key Differences from Encryption
+
+- Uses **read-only reference inputs** for the encryption UTxO and genesis token (not spent)
+- The bid amount is the lovelace value locked in the output (not in the datum)
+- Simpler crypto: only Schnorr proof needed (no binding proof, no half-level)
+
+### Existing Code to Extend
+
+- `transactionBuilder.ts` → `placeBid()` — currently stub
+- `fe/src/services/createBid.ts` — generates bid crypto artifacts (register, schnorr)
+- `fe/src/services/bidSecretStorage.ts` — stores buyer secret
+
+---
+
+## Phase 12d: Remove Bid Transaction
+
+**Status**: TODO — depends on Phase 12c (need a bid UTxO to remove)
+
+**Shell Script Reference:** `commands/06_removeBidTx.sh`
+**Validator:** `validators/bidding.ak`
+**Key Types:** `types/bidding.ak` (RemoveBid redeemer)
+
+### What It Does
+
+Buyer cancels their bid: spends the bid UTxO, burns the bid token, and gets their locked ADA back.
+
+### Transaction Structure
+
+```
+Inputs:   Bid UTxO (from bidding contract)
+          Buyer's wallet UTxO (for fees)
+Mints:    -1 bid token (burn)
+Outputs:  Locked ADA back to buyer
+Redeemer: RemoveBid [spend redeemer, constructor 0]
+          LeaveBidBurn(token_name) [mint redeemer, constructor 1]
+Refs:     Reference script UTxO (bidding policy at #1)
+Signer:   Buyer's payment key (must match datum owner_vkh)
+```
+
+### Notes
+
+- Mirror of Phase 12b — simple spend + burn, no crypto generation
+- Buyer must sign (validator checks `owner_vkh` is a signer)
+- Returns the full bid amount (locked lovelace) to the buyer
+
+---
+
+## Phase 12e: SNARK Proof Transaction
+
+**Status**: TODO — depends on 12a + 12c (need encryption + bid on-chain), Phase 11.5 (WASM loaded)
+
+**Shell Script Reference:** `commands/07a_createSnarkTx.sh`
+**Validator:** `validators/groth.ak` (withdraw), `validators/encryption.ak` (spend)
+**Key Types:** `types/groth.ak`, `types/encryption.ak` (UseSnark redeemer)
+
+### What It Does
+
+Seller initiates the accept-bid flow: generates a Groth16 SNARK proof in the browser (~5 min), then submits a transaction that updates the encryption to `Pending` status. The groth validator runs as a **stake withdrawal handler** (not a spend) for on-chain Groth16 verification.
 
 ### Complete Flow
 
 ```
-User clicks "Accept Bid"
-→ Retrieve seller secrets (a, r) from IndexedDB
-→ Get bid details (buyer's public key, amount)
-→ Generate proof in Web Worker (~5 minutes)
-→ Build SNARK transaction
-→ Submit SNARK tx and wait for confirmation
-→ Build re-encryption transaction
-→ Submit re-encryption tx
-→ Show success modal with tx hashes
+1. User clicks "Accept Bid"
+2. Retrieve seller secrets (a, r) from IndexedDB
+3. Get buyer's public key from bid datum
+4. Compute SNARK public inputs (v, w0, w1)
+5. Generate Groth16 proof in Web Worker (~5 minutes)
+6. Build and submit SNARK transaction
+7. Wait for on-chain confirmation
 ```
 
-### Tasks Checklist
+### Transaction Structure
 
-- [ ] Trigger SNARK proving modal from BidsModal "Accept Bid" button
-- [ ] Generate proof in Web Worker
-- [ ] Build and submit SNARK tx — follow `commands/07a_createSnarkTx.sh` + `validators/groth.ak` + `types/groth.ak`
-- [ ] Wait for confirmation
-- [ ] Build and submit re-encryption tx — follow `commands/07b_createReEncryptionTx.sh` + `validators/encryption.ak` + `validators/bidding.ak`
-- [ ] Update UI state
-- [ ] Handle errors at each step
+```
+Inputs:     Encryption UTxO (spent — updated with Pending status)
+            Seller's wallet UTxO (for fees)
+Withdrawal: Groth stake address (triggers on-chain Groth16 verification)
+            Amount: reward balance (must match exactly)
+            Redeemer: GrothWitnessRedeemer (proof + public inputs + TTL)
+Outputs:    Encryption contract address with:
+              - Same encryption token
+              - Updated datum (status = Pending with groth_public + TTL)
+              - Same ADA
+Redeemer:   UseSnark [spend redeemer, constructor 2]
+Refs:       Reference script UTxO (groth + encryption)
+Validity:   invalidBefore = currentSlot, invalidAfter = currentSlot + 300 (~5 min)
+Signer:     Seller's payment key
+```
 
-### Integration Points
+### SNARK Input Preparation
 
-**Dashboard.tsx updates:**
 ```typescript
-import SnarkProvingModal from '../components/SnarkProvingModal'
-import type { SnarkProofInputs, SnarkProof } from '../services/snark'
-
-const [showSnarkModal, setShowSnarkModal] = useState(false)
-const [snarkInputs, setSnarkInputs] = useState<SnarkProofInputs | null>(null)
-
-const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
+const handleAcceptBid = async (encryption: EncryptionDisplay, bid: BidDisplay) => {
   // 1. Get seller secrets from IndexedDB
   const secrets = await secretStorage.get(encryption.tokenName)
-  if (!secrets) {
-    showError('Seller secrets not found. Cannot complete sale.')
-    return
-  }
 
   // 2. Get buyer's public key from bid datum
-  const buyerG1 = bid.ownerG1.public_value // Compressed G1 hex
+  const buyerG1 = bid.datum.owner_g1.public_value
 
   // 3. Prepare SNARK inputs
-  setSnarkInputs({
-    secretA: secrets.a,  // Decimal string
-    secretR: secrets.r,  // Decimal string
-    publicV: buyerG1,    // 96 hex chars
-    publicW0: encryption.halfLevel.r2_g1b,
-    publicW1: computeW1(secrets.a, secrets.r, buyerG1), // [a]q + [r]v
-  })
+  const snarkInputs = {
+    secretA: secrets.a,
+    secretR: secrets.r,
+    publicInputs: {
+      v: buyerG1,                                           // buyer's public key
+      w0: encryption.datum.half_level.r2_g1b,               // from existing datum
+      w1: computeW1(secrets.a, secrets.r, buyerG1),         // [a]G + [r]V
+    },
+  }
 
-  setShowSnarkModal(true)
-}, [])
+  // 4. Generate proof via WASM worker (~5 minutes)
+  const { proof, public: grothPublic } = await prover.generateProof(snarkInputs)
+}
 ```
 
 **Computing W1:**
@@ -288,166 +435,160 @@ const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: B
 import { bls12_381 as bls } from '@noble/curves/bls12-381'
 
 function computeW1(a: string, r: string, V: string): string {
-  const aBigInt = BigInt(a)
-  const rBigInt = BigInt(r)
-  const vPoint = bls.G1.Point.fromHex(V)
-
-  const aQ = bls.G1.Point.BASE.multiply(aBigInt)
-  const rV = vPoint.multiply(rBigInt)
-  const w1 = aQ.add(rV)
-
-  return w1.toHex(true) // Compressed
+  const aQ = bls.G1.ProjectivePoint.BASE.multiply(BigInt(a))
+  const rV = bls.G1.ProjectivePoint.fromHex(V).multiply(BigInt(r))
+  return aQ.add(rV).toHex(true) // Compressed
 }
 ```
 
-### SNARK Transaction Structure
+### GrothWitnessRedeemer Shape (for stake withdrawal)
 
-Reference: `commands/07a_createSnarkTx.sh`
-
-```typescript
-const snarkTx = {
-  // Spend the encryption UTxO
-  inputs: [encryptionUtxo],
-
-  // Reference the groth script
-  referenceInputs: [grothScriptRef],
-
-  // Stake withdrawal for on-chain verification
-  withdrawal: {
-    address: grothStakeAddress,
-    amount: rewardBalance, // Must match exactly
-    redeemer: proof, // The generated SNARK proof
-  },
-
-  // Output back to encryption contract with Pending status
-  outputs: [{
-    address: encryptionContractAddress,
-    assets: [{ policyId, tokenName }],
-    datum: {
-      ...existingDatum,
-      status: {
-        type: 'Pending',
-        groth_public: proof.publicInputs, // 36 field elements
-        ttl: Date.now() + 20 * 60 * 1000, // 20 minute TTL
-      },
-    },
-  }],
-
-  // Validity interval
-  validityInterval: {
-    invalidBefore: currentSlot,
-    invalidAfter: currentSlot + 300, // ~5 minutes
-  },
+```json
+{
+  "constructor": 0,
+  "fields": [
+    { "constructor": 0, "fields": [
+      { "bytes": "<piA G1>" },
+      { "bytes": "<piB G2>" },
+      { "bytes": "<piC G1>" },
+      { "list": [{ "bytes": "<commitment>" }] },
+      { "bytes": "<commitmentPok>" }
+    ]},
+    { "bytes": "<commitment_wire>" },
+    { "list": [{ "int": 0 }, { "int": 1 }, ...] },
+    { "int": "<ttl_posix_ms>" }
+  ]
 }
 ```
 
-**Note**: MeshJS may require manual tx building for stake withdrawal pattern.
+### Important Notes
 
-### Re-encryption Transaction
+- **Stake withdrawal pattern** — unusual. The groth validator runs as a withdraw handler.
+- MeshJS may require `MeshTxBuilder` (lower-level) instead of `Transaction` for this pattern.
+- The TTL in the datum should use `pending_ttl` constant (6 hours per Aiken source).
+- The `snark_validity_window` is 1 hour per Aiken source.
 
-Reference: `commands/07b_createReEncryptionTx.sh`
+---
 
-**What it does:**
-- Burns the bid token
-- Updates encryption datum with FullEncryptionLevel
-- Transfers locked ADA to seller
+## Phase 12f: Re-encryption Transaction
+
+**Status**: TODO — depends on Phase 12e (encryption must be in Pending status)
+
+**Shell Script Reference:** `commands/07b_createReEncryptionTx.sh`
+**Validator:** `validators/encryption.ak` (UseEncryption), `validators/bidding.ak` (UseBid)
+**Key Types:** `types/encryption.ak`, `types/bidding.ak`, `types/level.ak`
+
+### What It Does
+
+Seller completes the sale: spends both the encryption and bid UTxOs, burns the bid token, updates the encryption datum with FullEncryptionLevel (enabling buyer decryption), and transfers the bid ADA to the seller.
+
+### Transaction Structure
+
+```
+Inputs:     Encryption UTxO (in Pending status — updated with FullEncryptionLevel)
+            Bid UTxO (spent — token burned, ADA to seller)
+            Seller's wallet UTxO (for fees)
+Mints:      -1 bid token (burn)
+Outputs:    Encryption contract address with:
+              - Same encryption token
+              - Updated datum (full_level populated, status back to Open)
+            Seller's address with:
+              - Bid ADA amount
+Redeemers:  UseEncryption(r5_witness, r5, bid_token, binding_proof) [encryption spend, constructor 1]
+            UseBid [bid spend, constructor 1]
+            LeaveBidBurn(bid_token_name) [bid mint, constructor 1]
+Refs:       Reference script UTxOs (encryption + bidding policies)
+Signer:     Seller's payment key
+```
+
+### Crypto Computation
 
 **Computing FullEncryptionLevel:**
-The re-encryption requires computing the `FullEncryptionLevel` which includes `r2_g2b`. This uses the WASM `decryptToHash` function:
-
 ```typescript
-import { getSnarkProver } from '@/services/snark'
-import { scale } from '@/services/crypto'
-
 async function computeFullLevel(
   halfLevel: HalfEncryptionLevel,
   buyerRegister: Register,
   sellerSecrets: { a: string, r: string }
 ): Promise<FullEncryptionLevel> {
   const prover = getSnarkProver()
-
-  // Compute shared = [a]V where V is buyer's public key
   const shared = scale(buyerRegister.public_value, BigInt(sellerSecrets.a))
-
-  // Compute r2_g2b using WASM (BLS12-381 pairing operation)
-  // This is needed for the buyer to decrypt later
   const r2_g2b = await prover.decryptToHash(
-    buyerRegister.public_value,  // g1b - buyer's G1 public key
-    halfLevel.r1b,                // r1 from half level
-    shared,                       // [a]V
-    ''                            // g2b - empty for seller computation
+    buyerRegister.public_value, halfLevel.r1b, shared, ''
   )
-
   return {
     r1b: halfLevel.r1b,
     r2_g1b: halfLevel.r2_g1b,
-    r2_g2b: r2_g2b,               // New field computed via WASM
+    r2_g2b,                        // New field computed via WASM
     r4b: halfLevel.r4b,
   }
 }
 ```
 
-**Re-encryption Transaction Structure:**
-```typescript
-const reEncryptionTx = {
-  // Spend encryption UTxO (now in Pending status)
-  inputs: [encryptionUtxo],
-
-  // Spend bid UTxO
-  inputs: [bidUtxo],
-
-  // Burn bid token
-  mint: [{ policyId: bidPolicyId, tokenName: bidTokenName, quantity: -1 }],
-
-  // Output encryption with FullEncryptionLevel
-  outputs: [{
-    address: encryptionContractAddress,
-    assets: [{ policyId: encPolicyId, tokenName: encTokenName }],
-    datum: {
-      ...existingDatum,
-      full_level: fullEncryptionLevel,  // Now populated
-      status: { type: 'Open' },         // Back to Open (or could be Completed)
-    },
-  }],
-
-  // Pay seller
-  outputs: [{
-    address: sellerAddress,
-    value: bidAmount,
-  }],
-}
-```
+**Computing r5 and witness** (for UseEncryption redeemer):
+- r5 and r5_witness are BLS12-381 G2 elements
+- Computed from seller secret, buyer public key, and hash-to-scalar
+- Requires binding proof tying the re-encryption to the original encryption
 
 ### TTL Handling
 
-After SNARK tx succeeds, show countdown timer:
+After SNARK tx succeeds, seller must complete re-encryption before TTL expires:
 ```typescript
 const ttl = encryptionDatum.status.ttl
 const remaining = ttl - Date.now()
-const minutes = Math.floor(remaining / 60000)
 // Show: "Complete re-encryption within X minutes"
 ```
+
+### Error Recovery
+
+**If SNARK tx succeeds but re-encryption tx fails:**
+- Encryption is in `Pending` status with TTL
+- Show countdown and "Retry Re-encryption" button
+- If TTL expires, use `CancelEncryption` redeemer (constructor 3) to reset to `Open`
+
+**If user closes browser during accept bid flow:**
+- On return, detect `Pending` status encryptions owned by user
+- Show recovery options: "Complete Sale" or "Cancel"
 
 ---
 
 ## Testing Checklist
 
-### After Contracts Deploy
+### After Each Phase
 
-**Wallet Testing:**
-- [ ] Connect with Eternl
-- [ ] Disconnect works
-- [ ] Reconnect on page refresh
-- [ ] Address displays correctly
+**Phase 12a — Create Encryption:**
+- [ ] Create encryption succeeds on preprod
+- [ ] Encryption appears in `/api/encryptions` response
+- [ ] Secrets stored in IndexedDB
+- [ ] Token name computed correctly
 
-**Transaction Testing:**
-- [ ] Create encryption succeeds
-- [ ] Remove encryption succeeds
-- [ ] Create bid succeeds
-- [ ] Remove bid succeeds
-- [ ] SNARK tx succeeds
-- [ ] Re-encryption tx succeeds
-- [ ] Decrypt works
+**Phase 12b — Remove Encryption:**
+- [ ] Remove own encryption succeeds
+- [ ] Encryption disappears from `/api/encryptions`
+- [ ] Cannot remove someone else's encryption
+
+**Phase 12c — Create Bid:**
+- [ ] Create bid succeeds on preprod
+- [ ] Bid appears in `/api/bids` response
+- [ ] Bid amount matches locked lovelace
+- [ ] Bid points to correct encryption
+
+**Phase 12d — Remove Bid:**
+- [ ] Remove own bid succeeds
+- [ ] Bid disappears, ADA returned
+- [ ] Cannot remove someone else's bid
+
+**Phase 12e — SNARK Tx:**
+- [ ] SNARK proof generates in browser (~5 min)
+- [ ] SNARK tx submits and confirms
+- [ ] Encryption status changes to Pending
+- [ ] TTL set correctly
+
+**Phase 12f — Re-encryption Tx:**
+- [ ] Re-encryption tx submits and confirms
+- [ ] Bid token burned
+- [ ] Encryption has FullEncryptionLevel populated
+- [ ] Seller receives bid ADA
+- [ ] Buyer can decrypt (off-chain verification)
 
 **Edge Cases:**
 - [ ] Insufficient funds error displays toast
@@ -456,6 +597,7 @@ const minutes = Math.floor(remaining / 60000)
 - [ ] Wallet rejection handled
 - [ ] SNARK proving timeout handled
 - [ ] Invalid bid (wrong encryption) prevented
+- [ ] Pending encryption recovery works
 
 ---
 
@@ -512,15 +654,28 @@ interface BidDatum {
 }
 
 // Redeemers (from contracts/lib/types/*.ak)
+type EncryptionMintRedeemer =
+  | { type: 'EntryEncryptionMint'; schnorr: SchnorrProof; binding: BindingProof }  // constructor 0
+  | { type: 'LeaveEncryptionBurn'; token: string };                                 // constructor 1
+
 type EncryptionSpendRedeemer =
-  | { type: 'RemoveEncryption' }
-  | { type: 'UseEncryption'; r5_witness: string; r5: string; bid_token: string; binding: BindingProof }
-  | { type: 'UseSnark' }
-  | { type: 'CancelEncryption' };
+  | { type: 'RemoveEncryption' }                                                    // constructor 0
+  | { type: 'UseEncryption'; r5_witness: string; r5: string; bid_token: string; binding: BindingProof }  // constructor 1
+  | { type: 'UseSnark' }                                                            // constructor 2
+  | { type: 'CancelEncryption' };                                                   // constructor 3
+
+type BidMintRedeemer =
+  | { type: 'EntryBidMint'; schnorr: SchnorrProof }                                // constructor 0
+  | { type: 'LeaveBidBurn'; token: string };                                        // constructor 1
 
 type BidSpendRedeemer =
-  | { type: 'RemoveBid' }
-  | { type: 'UseBid' };
+  | { type: 'RemoveBid' }                                                           // constructor 0
+  | { type: 'UseBid' };                                                             // constructor 1
+
+interface SchnorrProof {
+  z_b: string;                    // scalar as bytes
+  g_r_b: string;                  // 96 hex chars (compressed G1)
+}
 
 interface BindingProof {
   z_a_b: string;                  // scalar as hex
@@ -581,13 +736,13 @@ VITE_BLOCKFROST_PROJECT_ID_PREPROD=preprodXXXXX
 ```
 
 **Stub toggle relationship:**
-- `BE USE_STUBS` — controls **data queries** (stubs vs real Koios). Flip to `false` for Phase 5.
+- `BE USE_STUBS` — controls **data queries** (stubs vs real Koios). Set to `false` (Phase 5 complete).
 - `FE VITE_USE_STUBS` — controls **transaction building** (fake tx hashes vs real MeshJS txs). Flip to `false` when implementing real tx submission in `transactionBuilder.ts`.
 - These are independent — you can query real data (BE stubs off) while still using stub transactions (FE stubs on) during development.
 
 ### Backend (`be/.env`)
 ```bash
-USE_STUBS=false                  # Contracts deployed to preprod
+USE_STUBS=false                  # Phase 5 complete — real Koios queries
 PORT=3001
 NETWORK=preprod
 
@@ -643,40 +798,6 @@ cp app/circuit/ccs.bin app/ui/fe/public/snark/
 ### Secret Storage Warning
 User secrets (a, r) are stored in IndexedDB. If browser data is cleared, seller cannot complete sales. Consider implementing backup/export functionality.
 
-### Error Recovery - Phase 12
-
-**If SNARK tx succeeds but re-encryption tx fails:**
-- Encryption is now in `Pending` status with TTL
-- User has ~20 minutes to retry re-encryption tx
-- Show clear countdown and "Retry Re-encryption" button
-- If TTL expires, use `CancelEncryption` redeemer to reset to `Open` status
-
-**If user closes browser during accept bid flow:**
-- SNARK proof is lost (not stored)
-- Encryption may be in `Pending` status on-chain
-- On return, detect `Pending` status and show options:
-  - "Complete Sale" (re-generate proof if TTL not expired - requires ~5 min)
-  - "Cancel" (if TTL expired or user wants to abort)
-
-**Recovery Detection:**
-```typescript
-// On dashboard load, check for pending encryptions owned by user
-const userEncryptions = await encryptionsApi.getByUser(userPkh)
-const pendingEncryptions = userEncryptions.filter(e => e.status.type === 'Pending')
-
-if (pendingEncryptions.length > 0) {
-  // Show recovery modal
-  for (const enc of pendingEncryptions) {
-    const ttlRemaining = enc.status.ttl - Date.now()
-    if (ttlRemaining > 0) {
-      showRecoveryModal(enc, 'complete')  // Can still complete
-    } else {
-      showRecoveryModal(enc, 'cancel')    // Must cancel
-    }
-  }
-}
-```
-
 ---
 
 ## Reference: Transaction Building
@@ -685,15 +806,15 @@ if (pendingEncryptions.length > 0) {
 
 ### Shell Scripts → MeshJS Mapping
 
-| Script | Purpose | Validator | Key Types |
-|--------|---------|-----------|-----------|
-| `commands/03_createEncryptionTx.sh` | Create listing | `validators/encryption.ak` | `types/encryption.ak`, `types/level.ak`, `types/register.ak` |
-| `commands/04a_removeEncryptionTx.sh` | Remove listing | `validators/encryption.ak` | `types/encryption.ak` (RemoveEncryption redeemer) |
-| `commands/04b_cancelEncryptionTx.sh` | Cancel pending | `validators/encryption.ak` | `types/encryption.ak` (CancelEncryption redeemer) |
-| `commands/05_createBidTx.sh` | Place bid | `validators/bidding.ak` | `types/bidding.ak`, `types/register.ak`, `types/schnorr.ak` |
-| `commands/06_removeBidTx.sh` | Cancel bid | `validators/bidding.ak` | `types/bidding.ak` (RemoveBid redeemer) |
-| `commands/07a_createSnarkTx.sh` | SNARK proof tx | `validators/groth.ak`, `validators/encryption.ak` | `types/groth.ak`, `types/encryption.ak` (UseSnark redeemer) |
-| `commands/07b_createReEncryptionTx.sh` | Complete sale | `validators/encryption.ak`, `validators/bidding.ak` | `types/encryption.ak` (UseEncryption), `types/bidding.ak` (UseBid), `types/level.ak` |
+| Script | Phase | Purpose | Validator | Key Types |
+|--------|-------|---------|-----------|-----------|
+| `commands/03_createEncryptionTx.sh` | 12a | Create listing | `validators/encryption.ak` | `types/encryption.ak`, `types/level.ak`, `types/register.ak` |
+| `commands/04a_removeEncryptionTx.sh` | 12b | Remove listing | `validators/encryption.ak` | `types/encryption.ak` (RemoveEncryption redeemer) |
+| `commands/04b_cancelEncryptionTx.sh` | 12f | Cancel pending | `validators/encryption.ak` | `types/encryption.ak` (CancelEncryption redeemer) |
+| `commands/05_createBidTx.sh` | 12c | Place bid | `validators/bidding.ak` | `types/bidding.ak`, `types/register.ak`, `types/schnorr.ak` |
+| `commands/06_removeBidTx.sh` | 12d | Cancel bid | `validators/bidding.ak` | `types/bidding.ak` (RemoveBid redeemer) |
+| `commands/07a_createSnarkTx.sh` | 12e | SNARK proof tx | `validators/groth.ak`, `validators/encryption.ak` | `types/groth.ak`, `types/encryption.ak` (UseSnark redeemer) |
+| `commands/07b_createReEncryptionTx.sh` | 12f | Complete sale | `validators/encryption.ak`, `validators/bidding.ak` | `types/encryption.ak` (UseEncryption), `types/bidding.ak` (UseBid), `types/level.ak` |
 
 ### Supporting Scripts
 
@@ -709,12 +830,12 @@ if (pendingEncryptions.length > 0) {
 
 | Type File | Defines | Used By |
 |-----------|---------|---------|
-| `contracts/lib/types/encryption.ak` | `EncryptionDatum`, `EncryptionSpendRedeemer` | Create/remove/cancel encryption, SNARK, re-encryption |
-| `contracts/lib/types/bidding.ak` | `BidDatum`, `BidSpendRedeemer` | Create/remove bid, re-encryption |
-| `contracts/lib/types/groth.ak` | `GrothRedeemer`, `VerificationKey` | SNARK tx (stake withdrawal redeemer) |
-| `contracts/lib/types/level.ak` | `HalfEncryptionLevel`, `FullEncryptionLevel` | Encryption datum fields |
-| `contracts/lib/types/register.ak` | `Register` | Owner public keys in encryption + bid datums |
-| `contracts/lib/types/schnorr.ak` | `SchnorrProof` | Bid creation proof |
-| `contracts/lib/types/reference.ak` | `ReferenceDatum` | Genesis reference UTxO |
+| `contracts/lib/types/encryption.ak` | `EncryptionDatum`, `EncryptionSpendRedeemer`, `EncryptionMintRedeemer` | 12a, 12b, 12e, 12f |
+| `contracts/lib/types/bidding.ak` | `BidDatum`, `BidSpendRedeemer`, `BidMintRedeemer` | 12c, 12d, 12f |
+| `contracts/lib/types/groth.ak` | `GrothWitnessRedeemer`, `SnarkVerificationKey` | 12e |
+| `contracts/lib/types/level.ak` | `HalfEncryptionLevel`, `FullEncryptionLevel` | 12a, 12f |
+| `contracts/lib/types/register.ak` | `Register` | 12a, 12c |
+| `contracts/lib/types/schnorr.ak` | `SchnorrProof`, `BindingProof` | 12a, 12c, 12f |
+| `contracts/lib/types/reference.ak` | `ReferenceDatum` | 12c (read-only ref) |
 
 **Note:** The SNARK tx (`07a`) uses a **stake withdrawal** for on-chain Groth16 verification — this is unusual. The groth validator runs as a withdraw handler, not a spend. Read the script + `validators/groth.ak` together to understand the pattern.

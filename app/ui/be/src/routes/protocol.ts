@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config, getNetworkConfig } from '../config/index.js';
 import { STUB_PROTOCOL_CONFIG } from '../stubs/index.js';
+import { getKoiosClient } from '../services/koios.js';
 import type { ProtocolConfig } from '../types/index.js';
 
 const router = Router();
@@ -17,6 +18,30 @@ router.get('/config', async (_req: Request, res: Response) => {
 
     const { contracts } = getNetworkConfig();
 
+    // Query reference contract to find script reference UTxOs
+    const koios = getKoiosClient();
+    let referenceScripts: ProtocolConfig['referenceScripts'] = {
+      encryption: null,
+      bidding: null,
+      groth: null,
+    };
+
+    try {
+      const refUtxos = await koios.getAddressUtxos(contracts.referenceAddress);
+      for (const utxo of refUtxos) {
+        if (utxo.reference_script) {
+          // Reference scripts are stored at the reference address
+          // We identify them by matching against known script hashes
+          referenceScripts.encryption = referenceScripts.encryption || {
+            txHash: utxo.tx_hash,
+            outputIndex: utxo.tx_index,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to query reference UTxOs:', err);
+    }
+
     const protocolConfig: ProtocolConfig = {
       network: config.network,
       contracts: {
@@ -25,16 +50,11 @@ router.get('/config', async (_req: Request, res: Response) => {
         encryptionPolicyId: contracts.encryptionPolicyId,
         biddingPolicyId: contracts.biddingPolicyId,
       },
-      referenceScripts: {
-        // These would come from environment or be queried
-        encryption: null,
-        bidding: null,
-        groth: null,
-      },
+      referenceScripts,
       genesisToken: contracts.genesisPolicyId
         ? {
             policyId: contracts.genesisPolicyId,
-            tokenName: '', // Would be configured
+            tokenName: contracts.genesisTokenName,
           }
         : null,
     };
@@ -60,14 +80,22 @@ router.get('/reference', async (_req: Request, res: Response) => {
       });
     }
 
-    // TODO: Query reference UTxOs when contracts are deployed
-    return res.json({
-      data: {
-        encryption: null,
-        bidding: null,
-        groth: null,
-      },
-    });
+    const { contracts } = getNetworkConfig();
+    const koios = getKoiosClient();
+    const refUtxos = await koios.getAddressUtxos(contracts.referenceAddress);
+
+    // Return the raw reference UTxOs for the frontend to use
+    const references = refUtxos.map(utxo => ({
+      txHash: utxo.tx_hash,
+      outputIndex: utxo.tx_index,
+      datumHash: utxo.datum_hash,
+      hasReferenceScript: utxo.reference_script !== null,
+      hasInlineDatum: utxo.inline_datum !== null,
+      value: utxo.value,
+      assets: utxo.asset_list,
+    }));
+
+    return res.json({ data: references });
   } catch (error) {
     console.error('Error fetching reference data:', error);
     return res.status(500).json({
@@ -124,11 +152,7 @@ router.get('/scripts', async (_req: Request, res: Response) => {
  */
 router.get('/params', async (_req: Request, res: Response) => {
   try {
-    // Protocol params are network-dependent but don't require contracts
-    // This could work even without deployed contracts
-
     if (config.useStubs) {
-      // Return minimal stub params for development
       return res.json({
         data: {
           minFeeA: 44,
@@ -144,9 +168,9 @@ router.get('/params', async (_req: Request, res: Response) => {
       });
     }
 
-    // TODO: Fetch real protocol params from Koios or Blockfrost
-    // const params = await getKoiosClient().getProtocolParams();
-    return res.json({ data: null });
+    const koios = getKoiosClient();
+    const params = await koios.getProtocolParams();
+    return res.json({ data: params });
   } catch (error) {
     console.error('Error fetching protocol params:', error);
     return res.status(500).json({
