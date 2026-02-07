@@ -104,12 +104,16 @@ class KoiosClient {
    * Get transaction metadata
    */
   async getTxMetadata(txHash: string): Promise<Array<{ key: string; json: unknown }>> {
-    const result = await this.request<Array<{ tx_hash: string; metadata: Array<{ key: string; json: unknown }> }>>('/tx_metadata', {
+    const result = await this.request<Array<{ tx_hash: string; metadata: Record<string, unknown> | null }>>('/tx_metadata', {
       method: 'POST',
       body: JSON.stringify({ _tx_hashes: [txHash] }),
     });
 
-    return result[0]?.metadata || [];
+    const rawMetadata = result[0]?.metadata;
+    if (!rawMetadata || typeof rawMetadata !== 'object') return [];
+
+    // Koios returns metadata as an object { "674": {...} }, convert to array format
+    return Object.entries(rawMetadata).map(([key, json]) => ({ key, json }));
   }
 
   /**

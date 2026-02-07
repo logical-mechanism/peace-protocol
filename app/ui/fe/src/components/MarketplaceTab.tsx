@@ -10,11 +10,11 @@ type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low';
 type StatusFilter = 'all' | 'active' | 'pending';
 
 interface MarketplaceTabProps {
-  userAddress?: string;
+  userPkh?: string;
   onPlaceBid?: (encryption: EncryptionDisplay) => void;
 }
 
-export default function MarketplaceTab({ userAddress, onPlaceBid }: MarketplaceTabProps) {
+export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,10 +80,10 @@ export default function MarketplaceTab({ userAddress, onPlaceBid }: MarketplaceT
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
-      if (!userAddress) return false;
-      return encryption.seller.toLowerCase() === userAddress.toLowerCase();
+      if (!userPkh) return false;
+      return encryption.sellerPkh === userPkh;
     },
-    [userAddress]
+    [userPkh]
   );
 
   if (loading) {

@@ -2,23 +2,23 @@
  * Transaction Builder Service
  *
  * Builds and submits Cardano transactions for the Peace Protocol.
+ * Uses MeshTxBuilder with BlockfrostProvider for real transactions.
  *
- * BLOCKED UNTIL CONTRACT DEPLOYMENT:
- * - Contract addresses not available on preprod
- * - Reference script UTxOs not deployed
- * - Genesis token policy not available
+ * Configuration required (in .env):
+ * - VITE_USE_STUBS=false (enable real transactions)
+ * - VITE_BLOCKFROST_PROJECT_ID_PREPROD=<key> (for tx building/evaluation)
  *
- * This service provides stub implementations for UI development.
- * When contracts are deployed, update:
- * 1. Contract addresses in environment variables
- * 2. Reference script UTxO queries
- * 3. Token minting logic
+ * Backend must have reference script UTxOs configured:
+ * - ENCRYPTION_REF_TX_HASH_PREPROD=<hash>
+ * - ENCRYPTION_REF_OUTPUT_INDEX_PREPROD=1
  */
 
+import { MeshTxBuilder, BlockfrostProvider, deserializeAddress } from '@meshsdk/core';
 import type { IWallet } from '@meshsdk/core';
 import { createEncryptionWithWallet, getStubWarning, createBidArtifactsFromWallet } from './crypto';
 import { storeSecrets } from './secretStorage';
 import { storeBidSecrets, removeBidSecrets } from './bidSecretStorage';
+import { protocolApi } from './api';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 
 // Environment flag for stub mode
@@ -79,16 +79,42 @@ function getStorageLayerUri(formData: CreateListingFormData): string {
 }
 
 /**
+ * Get the Blockfrost provider for the current network.
+ * Throws if the API key is not configured.
+ */
+function getBlockfrostProvider(): BlockfrostProvider {
+  const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
+  if (!apiKey) {
+    throw new Error(
+      'Blockfrost API key not configured. Set VITE_BLOCKFROST_PROJECT_ID_PREPROD in fe/.env'
+    );
+  }
+  return new BlockfrostProvider(apiKey);
+}
+
+/**
+ * Extract payment key hash from a wallet address.
+ */
+export function extractPaymentKeyHash(address: string): string {
+  const deserialized = deserializeAddress(address);
+  const pkh = deserialized.pubKeyHash;
+  if (!pkh) {
+    throw new Error('Could not extract payment key hash from wallet address');
+  }
+  return pkh;
+}
+
+/**
  * Create a new encryption listing.
  *
- * STUB MODE: Simulates the transaction without actually submitting.
- *
- * Real flow (when contracts deployed):
- * 1. Get UTxO from wallet to compute token name
- * 2. Generate encryption artifacts
- * 3. Store secrets in IndexedDB
- * 4. Build transaction with MeshJS
- * 5. Sign and submit transaction
+ * Flow:
+ * 1. Fetch protocol config from backend (addresses, policy IDs, ref scripts)
+ * 2. Get wallet UTxOs, address, collateral
+ * 3. Compute token name from first UTxO
+ * 4. Generate encryption artifacts (prompts wallet signing)
+ * 5. Store secrets in IndexedDB
+ * 6. Build transaction with MeshTxBuilder
+ * 7. Sign and submit
  *
  * @param wallet - Connected browser wallet
  * @param formData - Form data from CreateListingModal
@@ -101,7 +127,7 @@ export async function createListing(
   try {
     // STUB MODE
     if (USE_STUBS) {
-      console.warn('[STUB] createListing - contracts not deployed');
+      console.warn('[STUB] createListing - using stub mode');
       console.warn(getStubWarning());
 
       // Generate a fake UTxO for token name computation
@@ -112,7 +138,6 @@ export async function createListing(
       const tokenName = computeTokenName(fakeUtxo.txHash, fakeUtxo.outputIndex);
 
       // Create encryption artifacts using wallet signing for sk derivation
-      // This will prompt the user to sign a message in their wallet
       const artifacts = await createEncryptionWithWallet(
         wallet,
         formData.secretMessage,
@@ -121,7 +146,6 @@ export async function createListing(
       );
 
       // Store secrets (a, r) in IndexedDB
-      // sk is derived from wallet signature and doesn't need storage
       await storeSecrets(tokenName, artifacts.a, artifacts.r);
 
       // Log what would be submitted
@@ -130,12 +154,7 @@ export async function createListing(
       console.log('  Description:', formData.description);
       console.log('  Suggested price:', formData.suggestedPrice || 'Not set');
       console.log('  Storage layer:', getStorageLayerUri(formData));
-      console.log('  Register:', artifacts.plutusJson.register);
-      console.log('  Schnorr proof:', artifacts.plutusJson.schnorr);
-      console.log('  Half level:', artifacts.plutusJson.halfLevel);
-      console.log('  Capsule:', artifacts.plutusJson.capsule);
 
-      // Return stub result
       return {
         success: true,
         txHash: `stub_${Date.now().toString(16)}_${tokenName.slice(0, 16)}`,
@@ -144,50 +163,156 @@ export async function createListing(
       };
     }
 
-    // REAL IMPLEMENTATION (blocked until contract deployment)
-    throw new Error(
-      'Real transaction submission is blocked until contracts are deployed to preprod. ' +
-        'Set VITE_USE_STUBS=true for development.'
+    // === REAL IMPLEMENTATION ===
+
+    // 1. Fetch protocol config from backend
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionAddress || !config.contracts.encryptionPolicyId) {
+      throw new Error(
+        'Protocol config missing contract addresses. Ensure backend .env is configured.'
+      );
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error(
+        'Encryption reference script UTxO not configured. ' +
+        'Set ENCRYPTION_REF_TX_HASH_PREPROD in backend .env'
+      );
+    }
+
+    // 2. Get wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet. Fund your wallet with preprod ADA first.');
+    }
+
+    const usedAddresses = await wallet.getUsedAddresses();
+    if (usedAddresses.length === 0) {
+      throw new Error('No used addresses found in wallet.');
+    }
+    const changeAddress = await wallet.getChangeAddress();
+
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error(
+        'No collateral set in wallet. Set collateral in your wallet settings ' +
+        '(Eternl: Settings > Collateral).'
+      );
+    }
+
+    // 3. Extract payment key hash
+    const ownerPkh = extractPaymentKeyHash(usedAddresses[0]);
+
+    // 4. Sort UTxOs lexicographically (txHash then outputIndex) to match
+    //    the Cardano ledger's input ordering. The on-chain validator computes
+    //    the token name from the first *sorted* input, not the wallet's order.
+    utxos.sort((a, b) => {
+      const hashCmp = a.input.txHash.localeCompare(b.input.txHash);
+      if (hashCmp !== 0) return hashCmp;
+      return a.input.outputIndex - b.input.outputIndex;
+    });
+
+    const firstUtxo = utxos[0];
+    const tokenName = computeTokenName(
+      firstUtxo.input.txHash,
+      firstUtxo.input.outputIndex
     );
 
-    // TODO: When contracts are deployed, implement:
-    //
-    // 1. Get UTxOs from wallet
-    // const utxos = await wallet.getUtxos();
-    // const selectedUtxo = utxos[0];
-    // const tokenName = computeTokenName(selectedUtxo.txHash, selectedUtxo.outputIndex);
-    //
-    // 2. Get wallet address and derive secret
-    // const usedAddresses = await wallet.getUsedAddresses();
-    // const address = usedAddresses[0];
-    // const signature = await wallet.signData(address, 'peace-protocol-key-derivation');
-    // const walletSecretHex = signature.key.slice(0, 64); // Or derive properly
-    //
-    // 3. Create encryption artifacts (with real gt_to_hash when available)
-    // const artifacts = await createEncryptionArtifacts(
-    //   walletSecretHex,
-    //   formData.secretMessage,
-    //   tokenName,
-    //   false // useStubs = false for real
-    // );
-    //
-    // 4. Store secrets BEFORE submitting transaction
-    // await storeSecrets(tokenName, artifacts.a, artifacts.r);
-    //
-    // 5. Build transaction using MeshJS
-    // import { Transaction, resolveScriptHash } from '@meshsdk/core';
-    // const tx = new Transaction({ initiator: wallet });
-    // tx.setMetadata(674, {
-    //   msg: [formData.description, formData.suggestedPrice || '0', getStorageLayerUri(formData)]
-    // });
-    // // ... mint token, send to contract, etc.
-    //
-    // 6. Sign and submit
-    // const unsignedTx = await tx.build();
-    // const signedTx = await wallet.signTx(unsignedTx);
-    // const txHash = await wallet.submitTx(signedTx);
-    //
-    // return { success: true, txHash, tokenName };
+    // 5. Generate encryption artifacts (prompts wallet signing for sk derivation)
+    const artifacts = await createEncryptionWithWallet(
+      wallet,
+      formData.secretMessage,
+      tokenName,
+      false // useStubs = false — use real WASM if available
+    );
+
+    // 6. Store secrets BEFORE submitting transaction
+    await storeSecrets(tokenName, artifacts.a, artifacts.r);
+
+    // 7. Build inline datum (EncryptionDatum)
+    // Field order must match Aiken: owner_vkh, owner_g1, token, half_level, full_level, capsule, status
+    const datum = {
+      constructor: 0,
+      fields: [
+        { bytes: ownerPkh },                      // owner_vkh (28 bytes)
+        artifacts.plutusJson.register,             // owner_g1: Register { generator, public_value }
+        { bytes: tokenName },                      // token (32 bytes)
+        artifacts.plutusJson.halfLevel,            // half_level: HalfEncryptionLevel
+        artifacts.plutusJson.fullLevel,            // full_level: None (constructor 1, [])
+        artifacts.plutusJson.capsule,              // capsule: Capsule { nonce, aad, ct }
+        { constructor: 0, fields: [] },            // status: Open (constructor 0)
+      ],
+    };
+
+    // 8. Build mint redeemer: EntryEncryptionMint(SchnorrProof, BindingProof) — constructor 0
+    const mintRedeemer = {
+      constructor: 0,
+      fields: [
+        artifacts.plutusJson.schnorr,              // SchnorrProof { z_b, g_r_b }
+        artifacts.plutusJson.binding,              // BindingProof { z_a_b, z_r_b, t_1_b, t_2_b }
+      ],
+    };
+
+    // 9. Build transaction with MeshTxBuilder
+    const blockfrost = getBlockfrostProvider();
+    const txBuilder = new MeshTxBuilder({
+      fetcher: blockfrost,
+      evaluator: blockfrost,
+    });
+
+    const policyId = config.contracts.encryptionPolicyId;
+    const encryptionAddress = config.contracts.encryptionAddress;
+    const refScript = config.referenceScripts.encryption;
+
+    const unsignedTx = await txBuilder
+      // Explicit first input (token name is derived from this UTxO)
+      .txIn(
+        firstUtxo.input.txHash,
+        firstUtxo.input.outputIndex,
+        firstUtxo.output.amount,
+        firstUtxo.output.address
+      )
+      // Mint +1 encryption token using reference script
+      .mintPlutusScriptV3()
+      .mint('1', policyId, tokenName)
+      .mintTxInReference(refScript.txHash, refScript.outputIndex)
+      .mintRedeemerValue(mintRedeemer, 'JSON')
+      // Output to encryption contract with inline datum
+      .txOut(encryptionAddress, [
+        { unit: 'lovelace', quantity: '5000000' },
+        { unit: policyId + tokenName, quantity: '1' },
+      ])
+      .txOutInlineDatumValue(datum, 'JSON')
+      // Collateral for script execution
+      .txInCollateral(
+        collateral[0].input.txHash,
+        collateral[0].input.outputIndex,
+        collateral[0].output.amount,
+        collateral[0].output.address
+      )
+      // Required signer (validator checks owner_vkh is a signer)
+      .requiredSignerHash(ownerPkh)
+      // CIP-20 metadata (description, suggestedPrice, storageLayer)
+      .metadataValue(674, {
+        msg: [
+          formData.description,
+          formData.suggestedPrice || '0',
+          getStorageLayerUri(formData),
+        ],
+      })
+      // Change and UTxO selection
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(utxos)
+      .complete();
+
+    // 10. Sign and submit
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+
+    return {
+      success: true,
+      txHash,
+      tokenName,
+    };
   } catch (error) {
     console.error('Failed to create listing:', error);
     return {
@@ -198,38 +323,136 @@ export async function createListing(
 }
 
 /**
- * Remove an existing listing.
+ * Remove an existing listing (burn the encryption token).
  *
- * BLOCKED: Requires contract deployment.
+ * Flow:
+ * 1. Fetch protocol config from backend
+ * 2. Get wallet UTxOs, address, collateral
+ * 3. Build spend redeemer: RemoveEncryption (constructor 0, no fields)
+ * 4. Build mint redeemer: LeaveEncryptionBurn (constructor 1, fields: [tokenName])
+ * 5. Spend the encryption UTxO + burn -1 token via reference script
+ * 6. Sign and submit
+ *
+ * @param wallet - Connected browser wallet
+ * @param encryption - The encryption listing to remove (includes utxo, tokenName, datum)
+ * @returns Transaction result
  */
 export async function removeListing(
-  _wallet: IWallet,
-  _tokenName: string
+  wallet: IWallet,
+  encryption: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string } }
 ): Promise<TransactionResult> {
-  if (USE_STUBS) {
-    console.warn('[STUB] removeListing - contracts not deployed');
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  try {
+    if (USE_STUBS) {
+      console.warn('[STUB] removeListing');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return {
+        success: true,
+        txHash: `stub_remove_${Date.now().toString(16)}`,
+        tokenName: encryption.tokenName,
+        isStub: true,
+      };
+    }
+
+    // 1. Fetch protocol config
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionPolicyId) {
+      throw new Error('Protocol config missing encryption policy ID.');
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error('Encryption reference script UTxO not configured.');
+    }
+
+    // 2. Get wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet.');
+    }
+
+    const changeAddress = await wallet.getChangeAddress();
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error('No collateral set in wallet.');
+    }
+
+    const ownerPkh = encryption.datum.owner_vkh;
+    const policyId = config.contracts.encryptionPolicyId;
+    const refScript = config.referenceScripts.encryption;
+
+    // 3. Build redeemers
+    // Spend redeemer: RemoveEncryption (constructor 0)
+    const spendRedeemer = { constructor: 0, fields: [] };
+
+    // Mint redeemer: LeaveEncryptionBurn (constructor 1, fields: [tokenName])
+    const mintRedeemer = {
+      constructor: 1,
+      fields: [{ bytes: encryption.tokenName }],
+    };
+
+    // 4. Build transaction
+    const blockfrost = getBlockfrostProvider();
+    const txBuilder = new MeshTxBuilder({
+      fetcher: blockfrost,
+      evaluator: blockfrost,
+    });
+
+    const unsignedTx = await txBuilder
+      // Spend the encryption contract UTxO
+      .spendingPlutusScriptV3()
+      .txIn(
+        encryption.utxo.txHash,
+        encryption.utxo.outputIndex
+      )
+      .spendingTxInReference(refScript.txHash, refScript.outputIndex)
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(spendRedeemer, 'JSON')
+      // Burn -1 encryption token using reference script
+      .mintPlutusScriptV3()
+      .mint('-1', policyId, encryption.tokenName)
+      .mintTxInReference(refScript.txHash, refScript.outputIndex)
+      .mintRedeemerValue(mintRedeemer, 'JSON')
+      // Collateral
+      .txInCollateral(
+        collateral[0].input.txHash,
+        collateral[0].input.outputIndex,
+        collateral[0].output.amount,
+        collateral[0].output.address
+      )
+      // Required signer (owner must sign)
+      .requiredSignerHash(ownerPkh)
+      // Change and UTxO selection
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(utxos)
+      .complete();
+
+    // 5. Sign and submit
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+
     return {
       success: true,
-      txHash: `stub_remove_${Date.now().toString(16)}`,
-      isStub: true,
+      txHash,
+      tokenName: encryption.tokenName,
+    };
+  } catch (error) {
+    console.error('Failed to remove listing:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
-
-  throw new Error('Remove listing is blocked until contracts are deployed');
 }
 
 /**
  * Cancel a pending listing.
  *
- * BLOCKED: Requires contract deployment.
+ * BLOCKED: Requires Phase 12f implementation.
  */
 export async function cancelPendingListing(
   _wallet: IWallet,
   _tokenName: string
 ): Promise<TransactionResult> {
   if (USE_STUBS) {
-    console.warn('[STUB] cancelPendingListing - contracts not deployed');
+    console.warn('[STUB] cancelPendingListing');
     await new Promise((resolve) => setTimeout(resolve, 1500));
     return {
       success: true,
@@ -238,20 +461,13 @@ export async function cancelPendingListing(
     };
   }
 
-  throw new Error('Cancel pending is blocked until contracts are deployed');
+  throw new Error('Cancel pending is not yet implemented (Phase 12f)');
 }
 
 /**
  * Place a bid on an encryption listing.
  *
  * STUB MODE: Simulates the transaction without actually submitting.
- *
- * Real flow (when contracts deployed):
- * 1. Get UTxO from wallet to compute bid token name
- * 2. Generate bid artifacts (keypair + Schnorr proof)
- * 3. Store bidder secret (b) in IndexedDB
- * 4. Build transaction with MeshJS
- * 5. Sign and submit transaction
  *
  * @param wallet - Connected browser wallet
  * @param encryptionTokenName - Token name of the encryption being bid on
@@ -266,10 +482,9 @@ export async function placeBid(
   try {
     // STUB MODE
     if (USE_STUBS) {
-      console.warn('[STUB] placeBid - contracts not deployed, wallet:', wallet ? 'connected' : 'not connected');
+      console.warn('[STUB] placeBid - using stub mode');
       console.warn(getStubWarning());
 
-      // Generate a fake UTxO for bid token name computation
       const fakeUtxo = {
         txHash: Array(64)
           .fill(0)
@@ -279,28 +494,17 @@ export async function placeBid(
       };
       const bidTokenName = computeTokenName(fakeUtxo.txHash, fakeUtxo.outputIndex);
 
-      // Create bid artifacts (keypair + Schnorr proof)
-      // This prompts the user to sign a message in their wallet to derive the secret
       const artifacts = await createBidArtifactsFromWallet(wallet);
-
-      // Store bidder secret (b) in IndexedDB BEFORE tx submission
       await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
 
-      // Convert ADA to lovelace
       const bidAmountLovelace = Math.floor(bidAmountAda * 1_000_000);
-
-      // Log what would be submitted
       console.log('[STUB] Would submit bid transaction with:');
       console.log('  Bid token name:', bidTokenName);
       console.log('  Encryption token:', encryptionTokenName);
       console.log('  Bid amount:', bidAmountAda, 'ADA (', bidAmountLovelace, 'lovelace)');
-      console.log('  Register:', artifacts.plutusJson.register);
-      console.log('  Schnorr proof:', artifacts.plutusJson.schnorr);
 
-      // Simulate transaction delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Return stub result
       return {
         success: true,
         txHash: `stub_bid_${Date.now().toString(16)}_${bidTokenName.slice(0, 16)}`,
@@ -309,49 +513,8 @@ export async function placeBid(
       };
     }
 
-    // REAL IMPLEMENTATION (blocked until contract deployment)
-    throw new Error(
-      'Real transaction submission is blocked until contracts are deployed to preprod. ' +
-        'Set VITE_USE_STUBS=true for development.'
-    );
-
-    // TODO: When contracts are deployed, implement:
-    //
-    // 1. Get UTxOs from wallet
-    // const utxos = await wallet.getUtxos();
-    // const selectedUtxo = utxos[0];
-    // const bidTokenName = computeTokenName(selectedUtxo.txHash, selectedUtxo.outputIndex);
-    //
-    // 2. Get wallet address for PKH
-    // const usedAddresses = await wallet.getUsedAddresses();
-    // const address = usedAddresses[0];
-    // const pkh = extractPkh(address);
-    //
-    // 3. Create bid artifacts
-    // const artifacts = createBidArtifacts();
-    //
-    // 4. Store secrets BEFORE submitting transaction
-    // await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
-    //
-    // 5. Build datum
-    // const datum = {
-    //   owner_vkh: pkh,
-    //   owner_g1: artifacts.plutusJson.register,
-    //   pointer: encryptionTokenName,
-    //   token: bidTokenName,
-    // };
-    //
-    // 6. Build transaction using MeshJS
-    // import { Transaction } from '@meshsdk/core';
-    // const tx = new Transaction({ initiator: wallet });
-    // // Mint bid token, send to contract with datum, etc.
-    //
-    // 7. Sign and submit
-    // const unsignedTx = await tx.build();
-    // const signedTx = await wallet.signTx(unsignedTx);
-    // const txHash = await wallet.submitTx(signedTx);
-    //
-    // return { success: true, txHash, tokenName: bidTokenName };
+    // Real implementation will be Phase 12c
+    throw new Error('Real bid submission is not yet implemented (Phase 12c)');
   } catch (error) {
     console.error('Failed to place bid:', error);
     return {
@@ -364,8 +527,6 @@ export async function placeBid(
 /**
  * Cancel (remove) a bid.
  *
- * BLOCKED: Requires contract deployment.
- *
  * @param wallet - Connected browser wallet
  * @param bidTokenName - Token name of the bid to cancel
  * @returns Transaction result
@@ -375,10 +536,9 @@ export async function cancelBid(
   bidTokenName: string
 ): Promise<TransactionResult> {
   if (USE_STUBS) {
-    console.warn('[STUB] cancelBid - contracts not deployed');
+    console.warn('[STUB] cancelBid');
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Remove bid secrets from IndexedDB on successful cancellation
     try {
       await removeBidSecrets(bidTokenName);
       console.log('[STUB] Removed bid secrets for:', bidTokenName);
@@ -393,7 +553,7 @@ export async function cancelBid(
     };
   }
 
-  throw new Error('Cancel bid is blocked until contracts are deployed');
+  throw new Error('Cancel bid is not yet implemented (Phase 12d)');
 }
 
 /**
@@ -410,7 +570,7 @@ export function getTransactionStubWarning(): string {
   if (USE_STUBS) {
     return (
       'Transaction submission is in STUB mode. No real transactions will be submitted. ' +
-      'This is for UI development while contracts are not deployed to preprod.'
+      'Set VITE_USE_STUBS=false and configure Blockfrost API key to enable real transactions.'
     );
   }
   return '';

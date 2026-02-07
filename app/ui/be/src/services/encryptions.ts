@@ -3,7 +3,41 @@ import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { parseEncryptionDatum } from './parsers.js';
 import type { EncryptionDisplay, EncryptionDatum } from '../types/index.js';
 
-function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum): EncryptionDisplay {
+interface ParsedCip20 {
+  description?: string;
+  suggestedPrice?: number;
+  storageLayer?: string;
+}
+
+/**
+ * Fetch and parse CIP-20 metadata (key 674) from the creation tx.
+ * Format: { msg: [description, suggestedPrice, storageLayer] }
+ */
+async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
+  try {
+    const koios = getKoiosClient();
+    const metadata = await koios.getTxMetadata(txHash);
+    const cip20 = metadata.find(m => m.key === '674');
+    if (!cip20?.json || typeof cip20.json !== 'object') return {};
+
+    const json = cip20.json as { msg?: string[] };
+    if (!Array.isArray(json.msg)) return {};
+
+    const [description, priceStr, storageLayer] = json.msg;
+    const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
+
+    return {
+      description: description || undefined,
+      suggestedPrice: suggestedPrice && !isNaN(suggestedPrice) ? suggestedPrice : undefined,
+      storageLayer: storageLayer || undefined,
+    };
+  } catch (err) {
+    console.warn(`Failed to fetch CIP-20 metadata for ${txHash}:`, err);
+    return {};
+  }
+}
+
+function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20: ParsedCip20): EncryptionDisplay {
   // Map on-chain status to display status
   let status: EncryptionDisplay['status'];
   if (datum.status.type === 'Pending') {
@@ -26,9 +60,9 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum): Encry
     seller: utxo.address,
     sellerPkh: datum.owner_vkh,
     status,
-    description: undefined,
-    suggestedPrice: undefined,
-    storageLayer: undefined,
+    description: cip20.description,
+    suggestedPrice: cip20.suggestedPrice,
+    storageLayer: cip20.storageLayer,
     createdAt: new Date(utxo.block_time * 1000).toISOString(),
     utxo: {
       txHash: utxo.tx_hash,
@@ -50,7 +84,8 @@ export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
 
     try {
       const datum = parseEncryptionDatum(utxo.inline_datum.value);
-      encryptions.push(utxoToEncryptionDisplay(utxo, datum));
+      const cip20 = await fetchCip20Metadata(utxo.tx_hash);
+      encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     } catch (err) {
       console.warn(`Failed to parse encryption datum at ${utxo.tx_hash}#${utxo.tx_index}:`, err);
     }

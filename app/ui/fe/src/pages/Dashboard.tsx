@@ -1,5 +1,5 @@
 import { useWallet, useAddress, useLovelace } from '@meshsdk/react'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWalletPersistence } from '../hooks/useWalletPersistence'
 import { useWasm } from '../contexts/WasmContext'
@@ -7,17 +7,20 @@ import { copyToClipboard } from '../utils/clipboard'
 import MarketplaceTab from '../components/MarketplaceTab'
 import MySalesTab from '../components/MySalesTab'
 import MyPurchasesTab from '../components/MyPurchasesTab'
+import HistoryTab from '../components/HistoryTab'
 import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
 import { useToast } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
-import { createListing, placeBid, cancelBid, getTransactionStubWarning } from '../services/transactionBuilder'
+import { createListing, removeListing, placeBid, cancelBid, getTransactionStubWarning, extractPaymentKeyHash } from '../services/transactionBuilder'
+import { getTransactions, addTransaction, getPendingCount } from '../services/transactionHistory'
+import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { CreateListingFormData } from '../components/CreateListingModal'
 
-type TabId = 'marketplace' | 'my-sales' | 'my-purchases';
+type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history';
 
 interface Tab {
   id: TabId;
@@ -28,6 +31,7 @@ const TABS: Tab[] = [
   { id: 'marketplace', label: 'Marketplace' },
   { id: 'my-sales', label: 'My Sales' },
   { id: 'my-purchases', label: 'My Purchases' },
+  { id: 'history', label: 'History' },
 ];
 
 export default function Dashboard() {
@@ -47,7 +51,45 @@ export default function Dashboard() {
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
+  const [historyKey, setHistoryKey] = useState(0)
   const toast = useToast()
+
+  // Compute payment key hash from wallet address for PKH-based filtering
+  const userPkh = useMemo(() => {
+    if (!address) return undefined
+    try {
+      return extractPaymentKeyHash(address)
+    } catch {
+      return undefined
+    }
+  }, [address])
+
+  // Load transaction history when PKH changes
+  useEffect(() => {
+    if (userPkh) {
+      setTxHistory(getTransactions(userPkh))
+    } else {
+      setTxHistory([])
+    }
+  }, [userPkh, historyKey])
+
+  // Record a transaction and schedule auto-refresh after 20s
+  const recordTransaction = useCallback((record: TransactionRecord) => {
+    if (!userPkh) return
+    addTransaction(userPkh, record)
+    setTxHistory(getTransactions(userPkh))
+    // Auto-refresh data after ~20s to pick up confirmed tx
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1)
+      setHistoryKey(prev => prev + 1)
+    }, 20000)
+  }, [userPkh])
+
+  const pendingTxCount = useMemo(
+    () => txHistory.filter(tx => tx.status === 'pending').length,
+    [txHistory]
+  )
 
   const truncateAddress = (addr: string) => {
     if (!addr) return ''
@@ -109,19 +151,75 @@ export default function Dashboard() {
       toast.success('Bid Placed!', 'Transaction submitted successfully')
     }
 
-    // Refresh and switch to My Purchases tab
-    setRefreshKey(prev => prev + 1)
-    setActiveTab('my-purchases')
-  }, [wallet, toast])
+    // Record in history
+    if (result.txHash) {
+      recordTransaction({
+        txHash: result.txHash,
+        type: 'place-bid',
+        tokenName: result.tokenName,
+        timestamp: Date.now(),
+        status: result.isStub ? 'confirmed' : 'pending',
+        description: `Bid ${bidAmountAda} ADA on ${encryptionTokenName.slice(0, 12)}...`,
+      })
+    }
 
-  const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
-    // TODO: Phase 9 - Implement remove listing transaction
-    console.log('Remove listing:', encryption.tokenName)
-    toast.warning(
-      'Not Yet Available',
-      'Remove listing requires contract deployment to preprod.'
-    )
-  }, [toast])
+    // Refresh and switch to History tab to show pending tx
+    setRefreshKey(prev => prev + 1)
+    setActiveTab('history')
+  }, [wallet, toast, recordTransaction])
+
+  const handleRemoveListing = useCallback(async (encryption: EncryptionDisplay) => {
+    if (!wallet) {
+      toast.error('Error', 'Wallet not connected')
+      return
+    }
+
+    try {
+      const result = await removeListing(wallet, {
+        tokenName: encryption.tokenName,
+        utxo: encryption.utxo,
+        datum: encryption.datum,
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to remove listing')
+      }
+
+      if (result.isStub) {
+        toast.warning(
+          'Listing Removed (Stub Mode)',
+          `Listing removed in stub mode. No real transaction submitted.`,
+          8000
+        )
+      } else if (result.txHash) {
+        toast.transactionSuccess('Listing Removed!', result.txHash)
+      } else {
+        toast.success('Listing Removed!', 'Transaction submitted successfully')
+      }
+
+      // Record in history
+      if (result.txHash) {
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'remove-listing',
+          tokenName: encryption.tokenName,
+          timestamp: Date.now(),
+          status: result.isStub ? 'confirmed' : 'pending',
+          description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
+        })
+      }
+
+      // Refresh and switch to History tab to show pending tx
+      setRefreshKey(prev => prev + 1)
+      setActiveTab('history')
+    } catch (error) {
+      console.error('Failed to remove listing:', error)
+      toast.error(
+        'Failed to Remove Listing',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      )
+    }
+  }, [wallet, toast, recordTransaction])
 
   const handleAcceptBid = useCallback((encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
@@ -187,8 +285,21 @@ export default function Dashboard() {
         toast.success('Bid Cancelled!', 'Transaction submitted successfully')
       }
 
-      // Refresh the bids list
+      // Record in history
+      if (result.txHash) {
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'cancel-bid',
+          tokenName: bid.tokenName,
+          timestamp: Date.now(),
+          status: result.isStub ? 'confirmed' : 'pending',
+          description: `Cancel bid of ${(bid.amount / 1_000_000).toLocaleString()} ADA`,
+        })
+      }
+
+      // Refresh and switch to History tab to show pending tx
       setRefreshKey(prev => prev + 1)
+      setActiveTab('history')
     } catch (error) {
       console.error('Failed to cancel bid:', error)
       toast.error(
@@ -196,7 +307,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error occurred'
       )
     }
-  }, [wallet, toast])
+  }, [wallet, toast, recordTransaction])
 
   const handleDecrypt = useCallback(async (bid: BidDisplay) => {
     // Find the encryption associated with this bid
@@ -243,30 +354,42 @@ export default function Dashboard() {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }
 
-    // Refresh the listings
+    // Record in history
+    if (result.txHash) {
+      recordTransaction({
+        txHash: result.txHash,
+        type: 'create-listing',
+        tokenName: result.tokenName,
+        timestamp: Date.now(),
+        status: result.isStub ? 'confirmed' : 'pending',
+        description: formData.description,
+      })
+    }
+
+    // Refresh and switch to History tab to show pending tx
     setRefreshKey(prev => prev + 1)
-    setActiveTab('my-sales')
-  }, [wallet, toast])
+    setActiveTab('history')
+  }, [wallet, toast, recordTransaction])
 
   // Fetch user stats
   useEffect(() => {
-    if (!address) return
+    if (!userPkh) return
 
-    // For now, we'll just show stub data counts filtered by the connected address
-    // In production, this would use a proper PKH-based query
     const fetchStats = async () => {
       try {
         const encryptions = await encryptionsApi.getAll()
         const bids = await bidsApi.getAll()
 
-        // Count listings that match the connected address
+        // Count listings owned by this wallet (PKH from datum)
         const userListings = encryptions.filter(
-          e => e.seller.toLowerCase() === address.toLowerCase() && e.status === 'active'
+          e => e.sellerPkh === userPkh && e.status === 'active'
         )
         setMyListingsCount(userListings.length)
 
-        // Count pending bids (in real usage, would filter by user PKH)
-        const userBids = bids.filter(b => b.status === 'pending')
+        // Count pending bids placed by this wallet (PKH from datum)
+        const userBids = bids.filter(
+          b => b.bidderPkh === userPkh && b.status === 'pending'
+        )
         setMyBidsCount(userBids.length)
       } catch (error) {
         console.error('Failed to fetch stats:', error)
@@ -276,7 +399,7 @@ export default function Dashboard() {
     }
 
     fetchStats()
-  }, [address, refreshKey])
+  }, [userPkh, refreshKey])
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -284,7 +407,7 @@ export default function Dashboard() {
         return (
           <MarketplaceTab
             key={refreshKey}
-            userAddress={address}
+            userPkh={userPkh}
             onPlaceBid={handlePlaceBid}
           />
         )
@@ -292,7 +415,7 @@ export default function Dashboard() {
         return (
           <MySalesTab
             key={refreshKey}
-            userAddress={address}
+            userPkh={userPkh}
             onRemoveListing={handleRemoveListing}
             onAcceptBid={handleAcceptBid}
             onCancelPending={handleCancelPending}
@@ -303,9 +426,19 @@ export default function Dashboard() {
         return (
           <MyPurchasesTab
             key={refreshKey}
-            userAddress={address}
+            userPkh={userPkh}
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
+          />
+        )
+      case 'history':
+        return (
+          <HistoryTab
+            key={historyKey}
+            userPkh={userPkh}
+            transactions={txHistory}
+            onClearHistory={() => setHistoryKey(prev => prev + 1)}
+            onHistoryUpdated={setTxHistory}
           />
         )
       default:
@@ -466,13 +599,18 @@ export default function Dashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`pb-3 transition-all duration-150 cursor-pointer ${
+                className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 {tab.label}
+                {tab.id === 'history' && pendingTxCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full">
+                    {pendingTxCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
