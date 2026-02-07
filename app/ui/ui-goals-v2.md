@@ -798,6 +798,9 @@ cp app/circuit/ccs.bin app/ui/fe/public/snark/
 ### Secret Storage Warning
 User secrets (a, r) are stored in IndexedDB. If browser data is cleared, seller cannot complete sales. Consider implementing backup/export functionality.
 
+### Testing Strategy for Phase 12
+Testing transaction building (12a-12f) requires a connected wallet, preprod ADA, and browser interaction (signing popups, wallet approvals). **Do not attempt to automate or loop on testing from the CLI** — the user will test by running the UI (`npm run dev`), connecting Eternl, and clicking buttons. After implementing each sub-phase, hand off to the user for manual testing and report back errors/console output. This avoids circular debugging loops where the AI tries to start servers, curl endpoints, or simulate wallet interactions that require a real browser environment.
+
 ---
 
 ## Reference: Transaction Building
