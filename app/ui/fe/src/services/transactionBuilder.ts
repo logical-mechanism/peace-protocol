@@ -16,9 +16,21 @@
 import { MeshTxBuilder, BlockfrostProvider, deserializeAddress } from '@meshsdk/core';
 import type { IWallet } from '@meshsdk/core';
 import { createEncryptionWithWallet, getStubWarning, createBidArtifactsFromWallet } from './crypto';
-import { storeSecrets } from './secretStorage';
+import {
+  rng, g1Point, g2Point, scale, combine, toInt, generate,
+  CURVE_ORDER, H1, H2, H2I_DOMAIN_TAG,
+  createPublicRegister, registerToPlutusJson,
+  bindingProof, bindingToPlutusJson,
+  halfLevelToPlutusJson, fullLevelToPlutusJson,
+} from './crypto';
+import { storeSecrets, getSecrets } from './secretStorage';
 import { storeBidSecrets, removeBidSecrets } from './bidSecretStorage';
+import { storeAcceptBidSecrets, getAcceptBidSecrets, removeAcceptBidSecrets } from './acceptBidStorage';
+import { deriveSecretFromWallet } from './crypto/walletSecret';
+import { bech32 } from '@scure/base';
 import { protocolApi } from './api';
+import type { EncryptionDisplay, BidDisplay } from './api';
+import type { SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 
 // Environment flag for stub mode
@@ -447,25 +459,155 @@ export async function removeListing(
 }
 
 /**
- * Cancel a pending listing.
+ * Cancel a pending listing (reset Pending → Open).
  *
- * BLOCKED: Requires Phase 12f implementation.
+ * The seller can cancel if they sign, OR anyone can cancel if the TTL has expired.
+ * Uses the CancelEncryption redeemer (constructor 3, empty).
+ *
+ * @param wallet - Connected browser wallet
+ * @param encryption - The pending encryption to cancel
+ * @returns Transaction result
  */
 export async function cancelPendingListing(
-  _wallet: IWallet,
-  _tokenName: string
+  wallet: IWallet,
+  encryption: EncryptionDisplay
 ): Promise<TransactionResult> {
-  if (USE_STUBS) {
-    console.warn('[STUB] cancelPendingListing');
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  try {
+    if (USE_STUBS) {
+      console.warn('[STUB] cancelPendingListing');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Clean up accept-bid secrets
+      try {
+        await removeAcceptBidSecrets(encryption.tokenName);
+      } catch (error) {
+        console.warn('[STUB] Failed to remove accept-bid secrets:', error);
+      }
+
+      return {
+        success: true,
+        txHash: `stub_cancel_${Date.now().toString(16)}`,
+        tokenName: encryption.tokenName,
+        isStub: true,
+      };
+    }
+
+    // 1. Fetch protocol config
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionPolicyId) {
+      throw new Error('Protocol config missing encryption policy ID.');
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error('Encryption reference script UTxO not configured.');
+    }
+
+    // 2. Get wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet.');
+    }
+
+    const changeAddress = await wallet.getChangeAddress();
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error('No collateral set in wallet.');
+    }
+
+    const ownerPkh = encryption.datum.owner_vkh;
+    const policyId = config.contracts.encryptionPolicyId;
+    const encryptionAddress = config.contracts.encryptionAddress;
+    const refScript = config.referenceScripts.encryption;
+
+    // 3. Build redeemer: CancelEncryption (constructor 3, empty)
+    const spendRedeemer = { constructor: 3, fields: [] };
+
+    // 4. Build output datum: same as current but with status = Open
+    const outputDatum = {
+      constructor: 0,
+      fields: [
+        { bytes: encryption.datum.owner_vkh },
+        registerToPlutusJson(createPublicRegister(
+          encryption.datum.owner_g1.generator,
+          encryption.datum.owner_g1.public_value
+        )),
+        { bytes: encryption.datum.token },
+        halfLevelToPlutusJson({
+          r1: encryption.datum.half_level.r1b,
+          r2_g1: encryption.datum.half_level.r2_g1b,
+          r4: encryption.datum.half_level.r4b,
+        }),
+        encryption.datum.full_level
+          ? fullLevelToPlutusJson({
+              r1: encryption.datum.full_level.r1b,
+              r2_g1: encryption.datum.full_level.r2_g1b,
+              r2_g2: encryption.datum.full_level.r2_g2b,
+              r4: encryption.datum.full_level.r4b,
+            })
+          : { constructor: 1, fields: [] }, // None
+        { // capsule
+          constructor: 0,
+          fields: [
+            { bytes: encryption.datum.capsule.nonce },
+            { bytes: encryption.datum.capsule.aad },
+            { bytes: encryption.datum.capsule.ct },
+          ],
+        },
+        { constructor: 0, fields: [] }, // status: Open
+      ],
+    };
+
+    // 5. Build transaction
+    const blockfrost = getBlockfrostProvider();
+    const txBuilder = new MeshTxBuilder({
+      fetcher: blockfrost,
+      evaluator: blockfrost,
+    });
+
+    const unsignedTx = await txBuilder
+      .spendingPlutusScriptV3()
+      .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
+      .spendingTxInReference(refScript.txHash, refScript.outputIndex)
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(spendRedeemer, 'JSON')
+      // Output: encryption with Open status
+      .txOut(encryptionAddress, [
+        { unit: 'lovelace', quantity: '5000000' },
+        { unit: policyId + encryption.tokenName, quantity: '1' },
+      ])
+      .txOutInlineDatumValue(outputDatum, 'JSON')
+      .txInCollateral(
+        collateral[0].input.txHash,
+        collateral[0].input.outputIndex,
+        collateral[0].output.amount,
+        collateral[0].output.address
+      )
+      .requiredSignerHash(ownerPkh)
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(utxos)
+      .complete();
+
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+
+    // Clean up accept-bid secrets
+    try {
+      await removeAcceptBidSecrets(encryption.tokenName);
+    } catch (error) {
+      console.warn('Failed to remove accept-bid secrets after cancel:', error);
+    }
+
     return {
       success: true,
-      txHash: `stub_cancel_${Date.now().toString(16)}`,
-      isStub: true,
+      txHash,
+      tokenName: encryption.tokenName,
+    };
+  } catch (error) {
+    console.error('Failed to cancel pending listing:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
-
-  throw new Error('Cancel pending is not yet implemented (Phase 12f)');
 }
 
 /**
@@ -839,6 +981,699 @@ export async function cancelBid(
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+/**
+ * Accept a bid by generating and submitting the SNARK proof transaction (Phase 12e).
+ *
+ * This is step 1 of the two-step accept-bid flow:
+ * 1. (12e) SNARK tx: Updates encryption status Open → Pending
+ * 2. (12f) Re-encryption tx: Transfers ownership, burns bid token
+ *
+ * Flow:
+ * 1. Generate fresh secrets (a0, r0) for the SNARK proof
+ * 2. Compute SNARK public inputs (V, W0, W1)
+ * 3. User generates SNARK proof via SnarkProvingModal
+ * 4. Parse proof JSON into groth witness redeemer
+ * 5. Build transaction: spend encryption + groth withdrawal
+ * 6. Store hop secrets for Phase 12f
+ * 7. Sign and submit
+ *
+ * @param wallet - Connected browser wallet
+ * @param encryption - The encryption being sold
+ * @param bid - The bid being accepted
+ * @param snarkProof - The generated SNARK proof (from SnarkProvingModal)
+ * @param a0 - Fresh secret scalar a0 (from prepareSnarkInputs)
+ * @param r0 - Fresh secret scalar r0 (from prepareSnarkInputs)
+ * @returns Transaction result
+ */
+export async function acceptBidSnark(
+  wallet: IWallet,
+  encryption: EncryptionDisplay,
+  bid: BidDisplay,
+  snarkProof: SnarkProof,
+  a0: bigint,
+  r0: bigint
+): Promise<TransactionResult> {
+  try {
+    if (USE_STUBS) {
+      console.warn('[STUB] acceptBidSnark');
+
+      const stubPublic = Array(36).fill(0).map((_, i) => i + 1);
+      const ttl = Date.now() + 6 * 60 * 60 * 1000 + 40 * 60 * 1000; // now + 6h40m
+
+      const txHash = `stub_snark_${Date.now().toString(16)}`;
+      await storeAcceptBidSecrets(
+        encryption.tokenName, bid.tokenName, a0, r0,
+        stubPublic, ttl, txHash
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return {
+        success: true,
+        txHash,
+        tokenName: encryption.tokenName,
+        isStub: true,
+      };
+    }
+
+    // === REAL IMPLEMENTATION ===
+
+    // 1. Fetch protocol config
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionPolicyId) {
+      throw new Error('Protocol config missing encryption policy ID.');
+    }
+    if (!config.contracts.grothPolicyId) {
+      throw new Error('Protocol config missing groth policy ID.');
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error('Encryption reference script UTxO not configured.');
+    }
+    if (!config.referenceScripts.groth) {
+      throw new Error('Groth reference script UTxO not configured.');
+    }
+    if (!config.genesisToken) {
+      throw new Error('Genesis token not configured in protocol config.');
+    }
+
+    // 2. Get wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet.');
+    }
+
+    const changeAddress = await wallet.getChangeAddress();
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error('No collateral set in wallet.');
+    }
+
+    const usedAddresses = await wallet.getUsedAddresses();
+    const ownerPkh = extractPaymentKeyHash(usedAddresses[0]);
+
+    // 3. Retrieve seller secrets (a, r) from IndexedDB
+    const sellerSecrets = await getSecrets(encryption.tokenName);
+    if (!sellerSecrets) {
+      throw new Error(
+        'Seller secrets not found for this listing. ' +
+        'You may have cleared browser data or created this listing on another device.'
+      );
+    }
+
+    // 4. a0, r0 are passed as parameters (generated by prepareSnarkInputs)
+
+    // 5. Parse SNARK proof JSON
+    const proofData = JSON.parse(snarkProof.proofJson);
+    const publicData = JSON.parse(snarkProof.publicJson);
+
+    // Extract public inputs as integers (36 values)
+    const publicInputs: number[] = publicData.inputs.map((s: string) => parseInt(s));
+
+    // Compute TTL: now + 6h40m in POSIX milliseconds
+    const ttl = Date.now() + 6 * 60 * 60 * 1000 + 40 * 60 * 1000;
+
+    // 6. Build groth witness redeemer
+    // Structure: { proof, commitment_wire, public, ttl }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const grothWitnessRedeemer: any = {
+      constructor: 0,
+      fields: [
+        {
+          constructor: 0,
+          fields: [
+            { bytes: proofData.piA },
+            { bytes: proofData.piB },
+            { bytes: proofData.piC },
+            { list: proofData.commitments.map((c: string) => ({ bytes: c })) },
+            { bytes: proofData.commitmentPok },
+          ],
+        },
+        { bytes: publicData.commitmentWire },
+        { list: publicInputs.map((v: number) => ({ int: v })) },
+        { int: ttl },
+      ],
+    };
+
+    // 7. Build spend redeemer: UseSnark (constructor 2, empty)
+    const spendRedeemer = { constructor: 2, fields: [] };
+
+    // 8. Build output datum: same datum but status = Pending(public, ttl)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pendingStatus: any = {
+      constructor: 1,
+      fields: [
+        { list: publicInputs.map((v: number) => ({ int: v })) },
+        { int: ttl },
+      ],
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const outputDatum: any = {
+      constructor: 0,
+      fields: [
+        { bytes: encryption.datum.owner_vkh },
+        registerToPlutusJson(createPublicRegister(
+          encryption.datum.owner_g1.generator,
+          encryption.datum.owner_g1.public_value
+        )),
+        { bytes: encryption.datum.token },
+        halfLevelToPlutusJson({
+          r1: encryption.datum.half_level.r1b,
+          r2_g1: encryption.datum.half_level.r2_g1b,
+          r4: encryption.datum.half_level.r4b,
+        }),
+        encryption.datum.full_level
+          ? fullLevelToPlutusJson({
+              r1: encryption.datum.full_level.r1b,
+              r2_g1: encryption.datum.full_level.r2_g1b,
+              r2_g2: encryption.datum.full_level.r2_g2b,
+              r4: encryption.datum.full_level.r4b,
+            })
+          : { constructor: 1, fields: [] },
+        {
+          constructor: 0,
+          fields: [
+            { bytes: encryption.datum.capsule.nonce },
+            { bytes: encryption.datum.capsule.aad },
+            { bytes: encryption.datum.capsule.ct },
+          ],
+        },
+        pendingStatus, // status: Pending
+      ],
+    };
+
+    // 9. Find genesis token UTxO for read-only reference
+    const blockfrost = getBlockfrostProvider();
+    const referenceUtxos = await blockfrost.fetchAddressUTxOs(
+      config.contracts.referenceAddress
+    );
+    const genesisUnit = config.genesisToken.policyId + config.genesisToken.tokenName;
+    const genesisUtxo = referenceUtxos.find(u =>
+      u.output.amount.some(a => a.unit === genesisUnit && parseInt(a.quantity) >= 1)
+    );
+    if (!genesisUtxo) {
+      throw new Error('Genesis token UTxO not found at reference contract address.');
+    }
+
+    // 10. Compute groth stake address
+    // The groth validator is a withdraw handler. Its stake address is:
+    // For preprod: query Blockfrost for the script's stake address
+    const grothScriptHash = config.contracts.grothPolicyId;
+    // Use Blockfrost to get the reward address balance
+    const grothStakeAddressBech32 = await fetchGrothStakeAddress(blockfrost, grothScriptHash, config.network);
+
+    // Query the reward balance (must withdraw the full balance)
+    const rewardBalance = await fetchRewardBalance(blockfrost, grothStakeAddressBech32);
+
+    // 11. Compute validity range as slot numbers
+    // Blockfrost provides slot/time conversion. Use approximate conversion:
+    // For preprod, shelley start epoch has known slot/time mapping.
+    // We'll use current tip to approximate.
+    const currentSlot = await fetchCurrentSlot(blockfrost);
+    const invalidBefore = currentSlot - 300; // ~5 minutes ago
+    const invalidHereafter = currentSlot + 1500; // ~25 minutes from now
+
+    // 12. Build transaction
+    const policyId = config.contracts.encryptionPolicyId;
+    const encryptionAddress = config.contracts.encryptionAddress;
+    const encRefScript = config.referenceScripts.encryption;
+    const grothRefScript = config.referenceScripts.groth;
+
+    const txBuilder = new MeshTxBuilder({
+      fetcher: blockfrost,
+      evaluator: blockfrost,
+    });
+
+    const unsignedTx = await txBuilder
+      // Spend encryption UTxO with UseSnark redeemer
+      .spendingPlutusScriptV3()
+      .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
+      .spendingTxInReference(encRefScript.txHash, encRefScript.outputIndex)
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(spendRedeemer, 'JSON')
+      // Output: encryption with Pending status
+      .txOut(encryptionAddress, [
+        { unit: 'lovelace', quantity: '5000000' },
+        { unit: policyId + encryption.tokenName, quantity: '1' },
+      ])
+      .txOutInlineDatumValue(outputDatum, 'JSON')
+      // Groth stake withdrawal (validates the SNARK proof on-chain)
+      .withdrawalPlutusScriptV3()
+      .withdrawal(grothStakeAddressBech32, rewardBalance)
+      .withdrawalTxInReference(grothRefScript.txHash, grothRefScript.outputIndex)
+      .withdrawalRedeemerValue(grothWitnessRedeemer, 'JSON')
+      // Read-only reference: genesis token UTxO
+      .readOnlyTxInReference(genesisUtxo.input.txHash, genesisUtxo.input.outputIndex)
+      // Validity range
+      .invalidBefore(invalidBefore)
+      .invalidHereafter(invalidHereafter)
+      // Collateral
+      .txInCollateral(
+        collateral[0].input.txHash,
+        collateral[0].input.outputIndex,
+        collateral[0].output.amount,
+        collateral[0].output.address
+      )
+      // Required signer
+      .requiredSignerHash(ownerPkh)
+      // Change and UTxO selection
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(utxos)
+      .complete();
+
+    // 13. Sign and submit
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+
+    // 14. Store hop secrets for Phase 12f
+    await storeAcceptBidSecrets(
+      encryption.tokenName, bid.tokenName, a0, r0,
+      publicInputs, ttl, txHash
+    );
+
+    return {
+      success: true,
+      txHash,
+      tokenName: encryption.tokenName,
+    };
+  } catch (error) {
+    console.error('Failed to accept bid (SNARK):', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Prepare SNARK proof inputs for the SnarkProvingModal.
+ *
+ * Computes V, W0, W1 from the seller's secrets and the encryption datum.
+ * These are the public values the SNARK circuit needs.
+ *
+ * V  = [a0]G1 (fresh commitment)
+ * W0 = [a + a0 + r*sk]G1 (combined with existing secrets)
+ * W1 = [r0]G1 (fresh blinding)
+ *
+ * @param encryption - The encryption being sold
+ * @returns Object with proof inputs and fresh secrets
+ */
+export async function prepareSnarkInputs(
+  wallet: IWallet,
+  encryption: EncryptionDisplay
+): Promise<{
+  inputs: { secretA: string; secretR: string; publicV: string; publicW0: string; publicW1: string };
+  a0: bigint;
+  r0: bigint;
+}> {
+  // Retrieve seller secrets
+  const sellerSecrets = await getSecrets(encryption.tokenName);
+  if (!sellerSecrets) {
+    throw new Error(
+      'Seller secrets not found for this listing. ' +
+      'You may have cleared browser data or created this listing on another device.'
+    );
+  }
+
+  // Derive wallet sk for W0 computation
+  const sk = await deriveSecretFromWallet(wallet);
+
+  // Generate fresh random secrets
+  const a0 = rng();
+  const r0 = rng();
+
+  // Compute public values
+  const V = g1Point(a0); // [a0]G1
+  const W0 = g1Point((sellerSecrets.a + a0 + sellerSecrets.r * sk) % CURVE_ORDER); // [a + a0 + r*sk]G1
+  const W1 = g1Point(r0); // [r0]G1
+
+  return {
+    inputs: {
+      secretA: '0x' + a0.toString(16),
+      secretR: '0x' + r0.toString(16),
+      publicV: V,
+      publicW0: W0,
+      publicW1: W1,
+    },
+    a0,
+    r0,
+  };
+}
+
+/**
+ * Complete the re-encryption transaction (Phase 12f).
+ *
+ * This is step 2 of the two-step accept-bid flow:
+ * 1. (12e) SNARK tx confirmed on-chain (encryption is now Pending)
+ * 2. (12f) Re-encryption: Spend encryption + bid UTxOs, burn bid token,
+ *          update encryption with new owner and FullEncryptionLevel
+ *
+ * Flow:
+ * 1. Retrieve hop secrets (a0, r0) from IndexedDB
+ * 2. Retrieve seller secrets (a, r) for binding proof
+ * 3. Compute new half-level and full-level
+ * 4. Build UseEncryption redeemer with witness, R5, bid token, binding proof
+ * 5. Build transaction: spend encryption + bid, burn bid token
+ * 6. Sign and submit
+ * 7. Clean up secrets
+ *
+ * @param wallet - Connected browser wallet
+ * @param encryption - The pending encryption (from refreshed on-chain state)
+ * @param bid - The accepted bid
+ * @returns Transaction result
+ */
+export async function completeReEncryption(
+  wallet: IWallet,
+  encryption: EncryptionDisplay,
+  bid: BidDisplay
+): Promise<TransactionResult> {
+  try {
+    if (USE_STUBS) {
+      console.warn('[STUB] completeReEncryption');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Clean up secrets
+      try {
+        await removeAcceptBidSecrets(encryption.tokenName);
+      } catch (error) {
+        console.warn('[STUB] Failed to remove accept-bid secrets:', error);
+      }
+
+      return {
+        success: true,
+        txHash: `stub_reencrypt_${Date.now().toString(16)}`,
+        tokenName: encryption.tokenName,
+        isStub: true,
+      };
+    }
+
+    // === REAL IMPLEMENTATION ===
+
+    // 1. Fetch protocol config
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionPolicyId) {
+      throw new Error('Protocol config missing encryption policy ID.');
+    }
+    if (!config.contracts.biddingPolicyId) {
+      throw new Error('Protocol config missing bidding policy ID.');
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error('Encryption reference script UTxO not configured.');
+    }
+    if (!config.referenceScripts.bidding) {
+      throw new Error('Bidding reference script UTxO not configured.');
+    }
+    if (!config.genesisToken) {
+      throw new Error('Genesis token not configured in protocol config.');
+    }
+
+    // 2. Get wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet.');
+    }
+
+    const changeAddress = await wallet.getChangeAddress();
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error('No collateral set in wallet.');
+    }
+
+    const usedAddresses = await wallet.getUsedAddresses();
+    const ownerPkh = extractPaymentKeyHash(usedAddresses[0]);
+
+    // 3. Retrieve hop secrets from IndexedDB
+    const hopSecrets = await getAcceptBidSecrets(encryption.tokenName);
+    if (!hopSecrets) {
+      throw new Error(
+        'Accept-bid secrets not found. The SNARK transaction may not have been submitted ' +
+        'or browser data was cleared.'
+      );
+    }
+
+    // 4. Retrieve seller secrets (a, r)
+    const sellerSecrets = await getSecrets(encryption.tokenName);
+    if (!sellerSecrets) {
+      throw new Error(
+        'Seller secrets not found for this listing. Cannot complete re-encryption.'
+      );
+    }
+
+    // 5. Derive wallet sk
+    const sk = await deriveSecretFromWallet(wallet);
+
+    const { a0, r0 } = hopSecrets;
+    const { a } = sellerSecrets;
+
+    // 6. Compute the witness point: [a0 + a]G1
+    const witnessPoint = g1Point((a0 + a) % CURVE_ORDER);
+
+    // 7. Compute R5: [r0 * sk]G2 (the G2 component for FullEncryptionLevel)
+    const r5 = g2Point((r0 * sk) % CURVE_ORDER);
+
+    // 8. Compute new half-level for the buyer
+    // New r1 = [r0]G1
+    const newR1 = g1Point(r0);
+    // New r2_g1 = [a0 + r0*sk]G1
+    const newR2G1 = g1Point((a0 + r0 * sk) % CURVE_ORDER);
+
+    // Compute kth-level commitment (NO H3 for kth level!)
+    // a_coeff = H2I(r1)
+    // b_coeff = H2I(r1 || r2_g1 || token)
+    // c = [a_coeff]*H1 + [b_coeff]*H2
+    // r4 = [r0]*c
+    const aCoeff = toInt(generate(H2I_DOMAIN_TAG + newR1));
+    const bCoeff = toInt(generate(H2I_DOMAIN_TAG + newR1 + newR2G1 + encryption.datum.token));
+    const c = combine(scale(H1, aCoeff), scale(H2, bCoeff)); // NO H3 for kth level
+    const newR4 = scale(c, r0);
+
+    // 9. Build full-level: { r1, r2_g1, r2_g2(=r5), r4 }
+    const newFullLevel = {
+      r1: newR1,
+      r2_g1: newR2G1,
+      r2_g2: r5, // r2_g2b = R5 (the G2 blinding factor)
+      r4: newR4,
+    };
+
+    // 10. Build binding proof for the re-encryption
+    // Uses a0, r0 (the fresh secrets), the new level points, and seller's register
+    const sellerRegister = createPublicRegister(
+      encryption.datum.owner_g1.generator,
+      encryption.datum.owner_g1.public_value
+    );
+    const binding = bindingProof(a0, r0, newR1, newR2G1, sellerRegister, encryption.datum.token);
+
+    // 11. Build UseEncryption redeemer (constructor 1)
+    // Fields: witness_point, r5_point, bid_token_name, binding_proof
+    const encryptionRedeemer = {
+      constructor: 1,
+      fields: [
+        { bytes: witnessPoint },
+        { bytes: r5 },
+        { bytes: bid.tokenName },
+        bindingToPlutusJson(binding),
+      ],
+    };
+
+    // 12. Build UseBid redeemer (constructor 1, empty)
+    const bidRedeemer = { constructor: 1, fields: [] };
+
+    // 13. Build LeaveBidBurn redeemer (constructor 1)
+    const bidBurnRedeemer = {
+      constructor: 1,
+      fields: [{ bytes: bid.tokenName }],
+    };
+
+    // 14. Build output datum: buyer becomes new owner, new half-level, full-level, status = Open
+    const buyerRegister = createPublicRegister(
+      bid.datum.owner_g1.generator,
+      bid.datum.owner_g1.public_value
+    );
+
+    const outputDatum = {
+      constructor: 0,
+      fields: [
+        { bytes: bid.datum.owner_vkh }, // new owner = buyer
+        registerToPlutusJson(buyerRegister), // buyer's register
+        { bytes: encryption.datum.token }, // same token name
+        halfLevelToPlutusJson({ r1: newR1, r2_g1: newR2G1, r4: newR4 }), // new half-level
+        fullLevelToPlutusJson(newFullLevel), // full-level (Some)
+        { // capsule unchanged
+          constructor: 0,
+          fields: [
+            { bytes: encryption.datum.capsule.nonce },
+            { bytes: encryption.datum.capsule.aad },
+            { bytes: encryption.datum.capsule.ct },
+          ],
+        },
+        { constructor: 0, fields: [] }, // status: Open
+      ],
+    };
+
+    // 15. Find genesis token UTxO
+    const blockfrost = getBlockfrostProvider();
+    const referenceUtxos = await blockfrost.fetchAddressUTxOs(
+      config.contracts.referenceAddress
+    );
+    const genesisUnit = config.genesisToken.policyId + config.genesisToken.tokenName;
+    const genesisUtxo = referenceUtxos.find(u =>
+      u.output.amount.some(a => a.unit === genesisUnit && parseInt(a.quantity) >= 1)
+    );
+    if (!genesisUtxo) {
+      throw new Error('Genesis token UTxO not found at reference contract address.');
+    }
+
+    // 16. Build transaction
+    const encPolicyId = config.contracts.encryptionPolicyId;
+    const bidPolicyId = config.contracts.biddingPolicyId;
+    const encryptionAddress = config.contracts.encryptionAddress;
+    const encRefScript = config.referenceScripts.encryption;
+    const bidRefScript = config.referenceScripts.bidding;
+
+    const txBuilder = new MeshTxBuilder({
+      fetcher: blockfrost,
+      evaluator: blockfrost,
+    });
+
+    const unsignedTx = await txBuilder
+      // Spend encryption UTxO with UseEncryption redeemer
+      .spendingPlutusScriptV3()
+      .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
+      .spendingTxInReference(encRefScript.txHash, encRefScript.outputIndex)
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(encryptionRedeemer, 'JSON')
+      // Spend bid UTxO with UseBid redeemer
+      .spendingPlutusScriptV3()
+      .txIn(bid.utxo.txHash, bid.utxo.outputIndex)
+      .spendingTxInReference(bidRefScript.txHash, bidRefScript.outputIndex)
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(bidRedeemer, 'JSON')
+      // Output: encryption with new owner, new level, Open status
+      .txOut(encryptionAddress, [
+        { unit: 'lovelace', quantity: '5000000' },
+        { unit: encPolicyId + encryption.tokenName, quantity: '1' },
+      ])
+      .txOutInlineDatumValue(outputDatum, 'JSON')
+      // Burn -1 bid token
+      .mintPlutusScriptV3()
+      .mint('-1', bidPolicyId, bid.tokenName)
+      .mintTxInReference(bidRefScript.txHash, bidRefScript.outputIndex)
+      .mintRedeemerValue(bidBurnRedeemer, 'JSON')
+      // Read-only reference: genesis token UTxO
+      .readOnlyTxInReference(genesisUtxo.input.txHash, genesisUtxo.input.outputIndex)
+      // Collateral
+      .txInCollateral(
+        collateral[0].input.txHash,
+        collateral[0].input.outputIndex,
+        collateral[0].output.amount,
+        collateral[0].output.address
+      )
+      // Required signer
+      .requiredSignerHash(ownerPkh)
+      // Change and UTxO selection
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(utxos)
+      .complete();
+
+    // 17. Sign and submit
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+
+    // 18. Clean up secrets
+    try {
+      await removeAcceptBidSecrets(encryption.tokenName);
+    } catch (error) {
+      console.warn('Failed to remove accept-bid secrets after re-encryption:', error);
+    }
+
+    return {
+      success: true,
+      txHash,
+      tokenName: encryption.tokenName,
+    };
+  } catch (error) {
+    console.error('Failed to complete re-encryption:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Compute the groth stake address from the script hash.
+ * Constructs the bech32 stake address from the script hash.
+ */
+async function fetchGrothStakeAddress(
+  _blockfrost: BlockfrostProvider,
+  scriptHash: string,
+  network: 'preprod' | 'mainnet'
+): Promise<string> {
+  // Script stake credential header byte: 0xf0 (testnet) / 0xf1 (mainnet)
+  const headerByte = network === 'mainnet' ? 0xf1 : 0xf0;
+  const scriptHashBytes = hexToUint8Array(scriptHash);
+  const addressBytes = new Uint8Array(1 + scriptHashBytes.length);
+  addressBytes[0] = headerByte;
+  addressBytes.set(scriptHashBytes, 1);
+
+  const prefix = network === 'mainnet' ? 'stake' : 'stake_test';
+  const words = bech32.toWords(addressBytes);
+  return bech32.encode(prefix, words, 120);
+}
+
+/**
+ * Fetch the reward balance for a stake address from Blockfrost.
+ */
+async function fetchRewardBalance(
+  _blockfrost: BlockfrostProvider,
+  stakeAddress: string
+): Promise<string> {
+  // Query Blockfrost REST API for the reward balance
+  const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
+  const response = await fetch(
+    `https://cardano-preprod.blockfrost.io/api/v0/accounts/${stakeAddress}`,
+    { headers: { 'project_id': apiKey } }
+  );
+
+  if (!response.ok) {
+    // If account not found, reward balance is 0
+    if (response.status === 404) {
+      return '0';
+    }
+    throw new Error(`Failed to fetch reward balance: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.withdrawable_amount || '0';
+}
+
+/**
+ * Fetch the current slot number from Blockfrost.
+ */
+async function fetchCurrentSlot(
+  _blockfrost: BlockfrostProvider
+): Promise<number> {
+  const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
+  const response = await fetch(
+    'https://cardano-preprod.blockfrost.io/api/v0/blocks/latest',
+    { headers: { 'project_id': apiKey } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch latest block: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.slot;
+}
+
+function hexToUint8Array(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
 
 /**

@@ -12,7 +12,7 @@
  */
 
 const DB_NAME = 'peace-protocol';
-const DB_VERSION = 1;
+const DB_VERSION = 3; // Must match all files sharing this DB (bidSecretStorage, acceptBidStorage)
 const STORE_NAME = 'seller-secrets';
 
 /**
@@ -43,9 +43,18 @@ function openDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
 
-      // Create object store if it doesn't exist
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'tokenName' });
+      // Create all stores for this shared database
+      if (!db.objectStoreNames.contains('seller-secrets')) {
+        const store = db.createObjectStore('seller-secrets', { keyPath: 'tokenName' });
+        store.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('bidder-secrets')) {
+        const store = db.createObjectStore('bidder-secrets', { keyPath: 'bidTokenName' });
+        store.createIndex('createdAt', 'createdAt', { unique: false });
+        store.createIndex('encryptionTokenName', 'encryptionTokenName', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('accept-bid-secrets')) {
+        const store = db.createObjectStore('accept-bid-secrets', { keyPath: 'encryptionTokenName' });
         store.createIndex('createdAt', 'createdAt', { unique: false });
       }
     };

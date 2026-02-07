@@ -39,6 +39,7 @@ router.get('/config', async (_req: Request, res: Response) => {
         referenceAddress: contracts.referenceAddress,
         encryptionPolicyId: contracts.encryptionPolicyId,
         biddingPolicyId: contracts.biddingPolicyId,
+        grothPolicyId: contracts.grothPolicyId,
       },
       referenceScripts,
       genesisToken: contracts.genesisPolicyId

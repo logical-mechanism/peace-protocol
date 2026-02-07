@@ -212,7 +212,7 @@ export class SnarkProver {
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error('Worker initialization timeout'))
-        }, 60000) // 60 second timeout
+        }, 3 * 60 * 60 * 1000) // 3 hour timeout (proving key deserialization can take 100+ minutes)
 
         const handleMessage = (event: MessageEvent<WorkerResponse>) => {
           const msg = event.data

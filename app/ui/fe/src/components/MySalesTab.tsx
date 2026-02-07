@@ -15,6 +15,7 @@ interface MySalesTabProps {
   onRemoveListing?: (encryption: EncryptionDisplay) => void;
   onAcceptBid?: (encryption: EncryptionDisplay, bid: BidDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
+  onCompleteSale?: (encryption: EncryptionDisplay) => void;
   onCreateListing?: () => void;
 }
 
@@ -23,6 +24,7 @@ export default function MySalesTab({
   onRemoveListing,
   onAcceptBid,
   onCancelPending,
+  onCompleteSale,
   onCreateListing,
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
@@ -390,6 +392,7 @@ export default function MySalesTab({
               onViewBids={handleViewBids}
               onRemove={handleRemoveListing}
               onCancelPending={handleCancelPending}
+              onCompleteSale={onCompleteSale}
             />
           ))}
         </div>

@@ -12,7 +12,7 @@
  */
 
 const DB_NAME = 'peace-protocol';
-const DB_VERSION = 2; // Increment version to add new store
+const DB_VERSION = 3; // Must match all files sharing this DB (secretStorage, acceptBidStorage)
 const STORE_NAME = 'bidder-secrets';
 
 /**
@@ -54,6 +54,12 @@ function openDB(): Promise<IDBDatabase> {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'bidTokenName' });
         store.createIndex('createdAt', 'createdAt', { unique: false });
         store.createIndex('encryptionTokenName', 'encryptionTokenName', { unique: false });
+      }
+
+      // Create accept-bid-secrets store if it doesn't exist (from Phase 12e)
+      if (!db.objectStoreNames.contains('accept-bid-secrets')) {
+        const store = db.createObjectStore('accept-bid-secrets', { keyPath: 'encryptionTokenName' });
+        store.createIndex('createdAt', 'createdAt', { unique: false });
       }
     };
   });

@@ -9,6 +9,7 @@ export const STUB_PROTOCOL_CONFIG: ProtocolConfig = {
     referenceAddress: 'addr_test1wrh72ullu9qu064yvs5gtdhdkcdl9tkeekkmy227zgvw5pc99mgsw',
     encryptionPolicyId: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
     biddingPolicyId: 'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5',
+    grothPolicyId: 'd4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1',
   },
   referenceScripts: {
     // Reference script UTxOs - would be real after deployment

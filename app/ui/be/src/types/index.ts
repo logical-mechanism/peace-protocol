@@ -114,6 +114,7 @@ export interface ProtocolConfig {
     referenceAddress: string;
     encryptionPolicyId: string;
     biddingPolicyId: string;
+    grothPolicyId: string;
   };
   referenceScripts: {
     encryption: { txHash: string; outputIndex: number } | null;

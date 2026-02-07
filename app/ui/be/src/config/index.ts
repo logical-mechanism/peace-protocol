@@ -31,6 +31,7 @@ export const config = {
       referenceAddress: process.env.REFERENCE_CONTRACT_ADDRESS_PREPROD || '',
       encryptionPolicyId: process.env.ENCRYPTION_POLICY_ID_PREPROD || '',
       biddingPolicyId: process.env.BIDDING_POLICY_ID_PREPROD || '',
+      grothPolicyId: process.env.GROTH_POLICY_ID_PREPROD || '',
       genesisPolicyId: process.env.GENESIS_POLICY_ID_PREPROD || '',
       genesisTokenName: process.env.GENESIS_TOKEN_NAME_PREPROD || '',
       // Reference script UTxOs (output #1 from 00_createScriptReferences.sh)
@@ -47,6 +48,7 @@ export const config = {
       referenceAddress: process.env.REFERENCE_CONTRACT_ADDRESS_MAINNET || '',
       encryptionPolicyId: process.env.ENCRYPTION_POLICY_ID_MAINNET || '',
       biddingPolicyId: process.env.BIDDING_POLICY_ID_MAINNET || '',
+      grothPolicyId: process.env.GROTH_POLICY_ID_MAINNET || '',
       genesisPolicyId: process.env.GENESIS_POLICY_ID_MAINNET || '',
       genesisTokenName: process.env.GENESIS_TOKEN_NAME_MAINNET || '',
       encryptionRefTxHash: process.env.ENCRYPTION_REF_TX_HASH_MAINNET || '',
