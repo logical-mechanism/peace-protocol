@@ -1,6 +1,13 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { STUB_BIDS } from '../stubs/index.js';
+import {
+  getAllBids,
+  getBidByToken,
+  getBidsByUser,
+  getBidsByEncryption,
+  getBidsByStatus,
+} from '../services/bids.js';
 import type { ApiResponse, BidDisplay } from '../types/index.js';
 
 const router = Router();
@@ -19,8 +26,11 @@ router.get('/', async (_req: Request, res: Response) => {
       return res.json(response);
     }
 
-    // TODO: Real Koios query when contracts are deployed
-    return res.json({ data: [], meta: { total: 0 } });
+    const bids = await getAllBids();
+    return res.json({
+      data: bids,
+      meta: { total: bids.length },
+    });
   } catch (error) {
     console.error('Error fetching bids:', error);
     return res.status(500).json({
@@ -47,10 +57,13 @@ router.get('/:tokenName', async (req: Request, res: Response) => {
       return res.json({ data: bid });
     }
 
-    // TODO: Real query when contracts are deployed
-    return res.status(404).json({
-      error: { code: 'NOT_FOUND', message: 'Bid not found' },
-    });
+    const bid = await getBidByToken(tokenName);
+    if (!bid) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Bid not found' },
+      });
+    }
+    return res.json({ data: bid });
   } catch (error) {
     console.error('Error fetching bid:', error);
     return res.status(500).json({
@@ -78,8 +91,11 @@ router.get('/user/:pkh', async (req: Request, res: Response) => {
       return res.json(response);
     }
 
-    // TODO: Real query when contracts are deployed
-    return res.json({ data: [], meta: { total: 0 } });
+    const userBids = await getBidsByUser(pkh);
+    return res.json({
+      data: userBids,
+      meta: { total: userBids.length },
+    });
   } catch (error) {
     console.error('Error fetching user bids:', error);
     return res.status(500).json({
@@ -107,8 +123,11 @@ router.get('/encryption/:encryptionToken', async (req: Request, res: Response) =
       return res.json(response);
     }
 
-    // TODO: Real query when contracts are deployed
-    return res.json({ data: [], meta: { total: 0 } });
+    const encryptionBids = await getBidsByEncryption(encryptionToken);
+    return res.json({
+      data: encryptionBids,
+      meta: { total: encryptionBids.length },
+    });
   } catch (error) {
     console.error('Error fetching encryption bids:', error);
     return res.status(500).json({
@@ -143,8 +162,13 @@ router.get('/status/:status', async (req: Request, res: Response) => {
       return res.json(response);
     }
 
-    // TODO: Real query when contracts are deployed
-    return res.json({ data: [], meta: { total: 0 } });
+    const filteredBids = await getBidsByStatus(
+      status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
+    );
+    return res.json({
+      data: filteredBids,
+      meta: { total: filteredBids.length },
+    });
   } catch (error) {
     console.error('Error fetching bids by status:', error);
     return res.status(500).json({
