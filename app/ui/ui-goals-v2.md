@@ -8,12 +8,12 @@ This document focuses on the remaining work for the Peace Protocol UI. For compl
 
 | Phase | Status | Dependency |
 |-------|--------|------------|
-| Phase 5: Blockchain Data Layer | **TODO** | Contract deployment |
+| Phase 5: Blockchain Data Layer | **TODO** | Contracts deployed (preprod) |
 | Phase 11.5: WASM Loading Screen | **COMPLETE** | - |
-| Phase 12: Accept Bid Flow | **TODO** | Contract deployment |
-| E2E Testing | **TODO** | Contract deployment |
+| Phase 12: Accept Bid Flow | **TODO** | Phase 5 |
+| E2E Testing | **TODO** | Phase 12 |
 
-**All remaining work is blocked until contracts are deployed to preprod.**
+**Contracts are deployed to preprod. MeshJS AI skills installed (`mesh-transaction`, `mesh-wallet`, `mesh-core-cst`).**
 
 ---
 
@@ -86,34 +86,27 @@ await prover.generateProof(inputs)       // SNARK proving
 
 ## Phase 5: Blockchain Data Layer
 
-**Status**: BLOCKED until contracts are deployed to preprod.
+**Status**: READY — contracts deployed to preprod, `USE_STUBS=false` in BE `.env`.
 
 ### What to Build
 
 Replace stub data with real blockchain queries.
 
 **Tasks:**
-- [ ] Query encryptions from encryption contract
-- [ ] Query bids from bidding contract
-- [ ] Query reference UTxO data
-- [ ] Parse inline datums (CBOR → TypeScript types)
+- [ ] Query encryptions from encryption contract (`ENCRYPTION_CONTRACT_ADDRESS_PREPROD`)
+- [ ] Query bids from bidding contract (`BIDDING_CONTRACT_ADDRESS_PREPROD`)
+- [ ] Query reference UTxO data (`REFERENCE_CONTRACT_ADDRESS_PREPROD`)
+- [ ] Parse inline datums (Koios Plutus JSON → TypeScript types matching `contracts/lib/types/*.ak`)
 - [ ] Implement caching (optional, recommended)
 
-### When Contracts Deploy
+### Implementation Details
 
-1. **Update Backend Environment:**
-   ```bash
-   # be/.env
-   USE_STUBS=false
-   ENCRYPTION_CONTRACT_ADDRESS_PREPROD=addr_test1...
-   BIDDING_CONTRACT_ADDRESS_PREPROD=addr_test1...
-   ENCRYPTION_POLICY_ID_PREPROD=...
-   BIDDING_POLICY_ID_PREPROD=...
-   ```
+1. **Backend Environment:** DONE — `be/.env` populated with preprod addresses, `USE_STUBS=false`.
 
-2. **Koios Query Pattern** (in `be/src/services/koios.ts`):
+2. **Koios API Reference:** https://preprod.koios.rest/#overview
+
+   Existing client methods in `be/src/services/koios.ts`:
    ```typescript
-   // Existing client methods:
    // - getAddressUtxos(address) - Get UTxOs at contract address
    // - getAssetUtxos(policyId, assetName?) - Get UTxOs by asset
    // - getTxInfo(txHash) - Get transaction details
@@ -121,13 +114,25 @@ Replace stub data with real blockchain queries.
    // - getProtocolParams() - Get protocol parameters
    ```
 
-3. **Parse Inline Datums:**
+   **IMPORTANT:** Many Koios endpoints have additional options that change the response shape.
+   For example, `_extended: true` must be passed in the request body to get `inline_datum`
+   populated — without it, `inline_datum` will be `null` even if the UTxO has one. Other
+   endpoints may have similar options for metadata, script info, etc. Always check the Koios
+   docs for the specific endpoint before implementing — there may be a better endpoint or
+   option than the obvious one. Additional endpoints beyond those listed above may be needed.
+
+3. **Datum Parsing — NO CBOR library needed:**
+   Koios returns `inline_datum` with two fields:
+   - `bytes` — raw CBOR hex (for tx building / datum hash verification)
+   - `value` — **pre-parsed Plutus JSON** using `{ constructor: N, fields: [...] }` format
+
+   Parse the `value` field directly — no `cbor-x` or CBOR decoding required:
    ```typescript
-   // Koios returns inline_datum field with CBOR bytes
-   function parseEncryptionDatum(inlineDatum: { bytes: string }): EncryptionDatum {
-     // Decode CBOR bytes to Plutus data structure
-     // Map constructor indices to TS types
-     // See contracts/lib/types/*.ak for constructor ordering
+   // Koios inline_datum.value is already structured JSON
+   function parseEncryptionDatum(datumValue: PlutusJSON): EncryptionDatum {
+     // datumValue is { constructor: 0, fields: [...] }
+     // Map fields by index to TS types
+     // See contracts/lib/types/encryption.ak for field ordering
    }
    ```
 
@@ -137,52 +142,66 @@ Replace stub data with real blockchain queries.
    - Field order matches `contracts/lib/types/encryption.ak`
 
 5. **Files to Create/Modify:**
-   - `be/src/services/parsers.ts` - Datum parsing functions
+   - `be/src/services/parsers.ts` - Datum parsing functions (Plutus JSON → TS types)
    - `be/src/services/encryptions.ts` - Encryption business logic
    - `be/src/services/bids.ts` - Bid business logic
    - Update routes to call service functions when `USE_STUBS=false`
 
-6. **CBOR Parsing Library:**
-   Use `cbor-x` (already a dependency) for decoding Plutus datums:
-   ```typescript
-   import { decode } from 'cbor-x'
-
-   // Koios returns inline_datum as hex string
-   function parseDatum(hexBytes: string): PlutusData {
-     const buffer = Buffer.from(hexBytes, 'hex')
-     return decode(buffer)
-   }
-   ```
-
-7. **Example Koios UTxO Response:**
+6. **Real Koios UTxO Response** (from preprod reference contract):
    ```json
    {
-     "tx_hash": "abc123...",
+     "tx_hash": "a7760f8a6e45fd8e380e47a26d2acd2378521c3d81b10b4118d882312cafa225",
      "tx_index": 0,
-     "value": "5000000",
+     "address": "addr_test1wrh72ullu9qu064yvs5gtdhdkcdl9tkeekkmy227zgvw5pc99mgsw",
+     "value": "12382630",
+     "stake_address": null,
+     "payment_cred": "efe573ffe141c7eaa4642885b6edb61bf2aed9cdadb2295e1218ea07",
+     "epoch_no": 269,
+     "block_height": 4397328,
+     "block_time": 1770409768,
+     "datum_hash": "24a785e7553202728051c666dd1c28f11711c04a8cae41b23a1374c19f039301",
      "inline_datum": {
-       "bytes": "d8799f...cbor_hex..."
+       "bytes": "d8799f581c...cbor_hex...",
+       "value": {
+         "constructor": 0,
+         "fields": [
+           { "bytes": "efe573ff..." },
+           { "bytes": "13f8e1b1..." },
+           ...
+         ]
+       }
      },
+     "reference_script": null,
      "asset_list": [
-       { "policy_id": "abc...", "asset_name": "00token..." }
-     ]
+       {
+         "policy_id": "cd4b05f60ca9c57d09db7d55c08d0a670f08fd939d3c1e1e261eb461",
+         "asset_name": "00071634a2901a48236e45a035ce6f679832bf0e664fdc3abfcd12581a96ec2d",
+         "quantity": "1",
+         "decimals": 0,
+         "fingerprint": "asset1u6t5qr72uh92plhwhme0mqflw9u0shd93yl0g0"
+       }
+     ],
+     "is_spent": false
    }
    ```
 
-8. **Plutus Data Constructor Format:**
-   After CBOR decode, Plutus constructors appear as:
+7. **Plutus JSON Format** (as returned by Koios `inline_datum.value`):
    ```typescript
-   // Constructor 0 with fields
-   { tag: 121, value: [field1, field2, ...] }
+   // Constructor with fields
+   { constructor: 0, fields: [field1, field2, ...] }
+   { constructor: 1, fields: [field1, field2, ...] }
 
-   // Constructor 1 with fields
-   { tag: 122, value: [field1, field2, ...] }
-
-   // Bytes
-   Buffer.from(...)
+   // Bytes (hex string)
+   { bytes: "abcdef0123..." }
 
    // Integer
-   BigInt or number
+   { int: 42 }
+
+   // List
+   { list: [item1, item2, ...] }
+
+   // Nested constructor
+   { constructor: 0, fields: [{ bytes: "..." }, { int: 37 }] }
    ```
 
 ---
@@ -202,9 +221,9 @@ Replace stub data with real blockchain queries.
 
 ## Phase 12: Accept Bid Flow (SNARK + Re-encryption)
 
-**Status**: BLOCKED until contracts are deployed. UI can be built with stub transactions.
+**Status**: READY — contracts deployed. Requires Phase 5 (real data) first.
 
-**Prerequisites**: Phase 11.5 WASM Loading Screen must be complete (WASM pre-loaded).
+**Prerequisites**: Phase 11.5 WASM Loading Screen (COMPLETE), Phase 5 Blockchain Data Layer.
 
 ### Complete Flow
 
@@ -224,9 +243,9 @@ User clicks "Accept Bid"
 
 - [ ] Trigger SNARK proving modal from BidsModal "Accept Bid" button
 - [ ] Generate proof in Web Worker
-- [ ] Build and submit SNARK tx (07a_createSnarkTx.sh pattern)
+- [ ] Build and submit SNARK tx — follow `commands/07a_createSnarkTx.sh` + `validators/groth.ak` + `types/groth.ak`
 - [ ] Wait for confirmation
-- [ ] Build and submit re-encryption tx (07b_createReEncryptionTx.sh pattern)
+- [ ] Build and submit re-encryption tx — follow `commands/07b_createReEncryptionTx.sh` + `validators/encryption.ak` + `validators/bidding.ak`
 - [ ] Update UI state
 - [ ] Handle errors at each step
 
@@ -555,22 +574,38 @@ w1 = 8ac69bdd182386def9f70b444794fa6d588182ddaccdffc26163fe415424ec374c672dfde52
 
 ### Frontend (`fe/.env`)
 ```bash
-VITE_USE_STUBS=true              # Set false when contracts deploy
+VITE_USE_STUBS=true              # Controls FE transaction building (stub vs real MeshJS txs)
 VITE_API_URL=http://localhost:3001
 VITE_SNARK_CDN_URL=/snark        # Or CDN URL in production
 VITE_BLOCKFROST_PROJECT_ID_PREPROD=preprodXXXXX
 ```
 
+**Stub toggle relationship:**
+- `BE USE_STUBS` — controls **data queries** (stubs vs real Koios). Flip to `false` for Phase 5.
+- `FE VITE_USE_STUBS` — controls **transaction building** (fake tx hashes vs real MeshJS txs). Flip to `false` when implementing real tx submission in `transactionBuilder.ts`.
+- These are independent — you can query real data (BE stubs off) while still using stub transactions (FE stubs on) during development.
+
 ### Backend (`be/.env`)
 ```bash
-USE_STUBS=true                   # Set false when contracts deploy
+USE_STUBS=false                  # Contracts deployed to preprod
 PORT=3001
+NETWORK=preprod
 
-# Contract addresses (fill after deployment)
-ENCRYPTION_CONTRACT_ADDRESS_PREPROD=
-BIDDING_CONTRACT_ADDRESS_PREPROD=
-ENCRYPTION_POLICY_ID_PREPROD=
-BIDDING_POLICY_ID_PREPROD=
+# Koios (free tier with token)
+KOIOS_URL_PREPROD=https://preprod.koios.rest/api/v1
+KOIOS_TOKEN_PREPROD=<jwt_token>
+
+# Blockfrost
+BLOCKFROST_PROJECT_ID_PREPROD=<project_id>
+
+# Contract addresses (preprod) — POPULATED
+ENCRYPTION_CONTRACT_ADDRESS_PREPROD=addr_test1zqfl3cd3trh0gahfugupjkll0ekzfxg09qnr50dqfqlehtuxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmq4gcsaj
+ENCRYPTION_POLICY_ID_PREPROD=13f8e1b158eef476e9e238195bff7e6c24990f28263a3da0483f9baf
+BIDDING_CONTRACT_ADDRESS_PREPROD=addr_test1zrutpgd0ehk6u33kq53zj7t2fd0nctskn98d0hjwwd2je2vxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmqg8f0nj
+BIDDING_POLICY_ID_PREPROD=f8b0a1afcdedae4636052229796a4b5f3c2e16994ed7de4e73552ca9
+REFERENCE_CONTRACT_ADDRESS_PREPROD=addr_test1wrh72ullu9qu064yvs5gtdhdkcdl9tkeekkmy227zgvw5pc99mgsw
+GENESIS_POLICY_ID_PREPROD=cd4b05f60ca9c57d09db7d55c08d0a670f08fd939d3c1e1e261eb461
+GENESIS_TOKEN_NAME_PREPROD=00071634a2901a48236e45a035ce6f679832bf0e664fdc3abfcd12581a96ec2d
 ```
 
 ---
@@ -644,18 +679,42 @@ if (pendingEncryptions.length > 0) {
 
 ---
 
-## Reference: Shell Script Transaction Patterns
+## Reference: Transaction Building
 
-For detailed transaction structure, reference these shell scripts:
+**Approach:** Each shell script in `commands/` is the source of truth for a transaction's structure (inputs, outputs, minting, redeemers, datums, validity). The corresponding validator in `contracts/validators/` defines what the on-chain script expects. The types in `contracts/lib/types/` define the exact datum and redeemer shapes. MeshJS AI skills (`mesh-transaction`, `mesh-wallet`, `mesh-core-cst`) are installed in `~/.claude/skills/` and provide `MeshTxBuilder` patterns for translating these CLI flows into TypeScript.
 
-| Script | Purpose | Key Pattern |
-|--------|---------|-------------|
-| `commands/03_createEncryptionTx.sh` | Create listing | Mint + send to contract with datum |
-| `commands/04a_removeEncryptionTx.sh` | Remove listing | Burn token, return ADA |
-| `commands/04b_cancelEncryptionTx.sh` | Cancel pending | Reset status to Open |
-| `commands/05_createBidTx.sh` | Place bid | Mint bid token + send to contract |
-| `commands/06_removeBidTx.sh` | Cancel bid | Burn bid token, return ADA |
-| `commands/07a_createSnarkTx.sh` | SNARK proof tx | **Stake withdrawal pattern** for Groth16 verification |
-| `commands/07b_createReEncryptionTx.sh` | Complete sale | Burn bid, update datum, pay seller |
+### Shell Scripts → MeshJS Mapping
 
-**Important:** The SNARK tx uses a stake withdrawal for on-chain Groth16 verification. This is an unusual pattern - see `07a_createSnarkTx.sh` for exact structure. MeshJS may require low-level APIs.
+| Script | Purpose | Validator | Key Types |
+|--------|---------|-----------|-----------|
+| `commands/03_createEncryptionTx.sh` | Create listing | `validators/encryption.ak` | `types/encryption.ak`, `types/level.ak`, `types/register.ak` |
+| `commands/04a_removeEncryptionTx.sh` | Remove listing | `validators/encryption.ak` | `types/encryption.ak` (RemoveEncryption redeemer) |
+| `commands/04b_cancelEncryptionTx.sh` | Cancel pending | `validators/encryption.ak` | `types/encryption.ak` (CancelEncryption redeemer) |
+| `commands/05_createBidTx.sh` | Place bid | `validators/bidding.ak` | `types/bidding.ak`, `types/register.ak`, `types/schnorr.ak` |
+| `commands/06_removeBidTx.sh` | Cancel bid | `validators/bidding.ak` | `types/bidding.ak` (RemoveBid redeemer) |
+| `commands/07a_createSnarkTx.sh` | SNARK proof tx | `validators/groth.ak`, `validators/encryption.ak` | `types/groth.ak`, `types/encryption.ak` (UseSnark redeemer) |
+| `commands/07b_createReEncryptionTx.sh` | Complete sale | `validators/encryption.ak`, `validators/bidding.ak` | `types/encryption.ak` (UseEncryption), `types/bidding.ak` (UseBid), `types/level.ak` |
+
+### Supporting Scripts
+
+| Script | Purpose | Validator |
+|--------|---------|-----------|
+| `commands/00_createScriptReferences.sh` | Deploy reference scripts | - |
+| `commands/01a_createGenesisTx.sh` | Mint genesis token | `validators/genesis.ak` |
+| `commands/01b_registerGrothTx.sh` | Register groth stake | `validators/groth.ak` |
+| `commands/02a_updateReferenceTx.sh` | Update reference datum | `validators/reference.ak` |
+| `commands/08_decryptMessage.sh` | Decrypt (off-chain only) | - |
+
+### On-Chain Type Definitions
+
+| Type File | Defines | Used By |
+|-----------|---------|---------|
+| `contracts/lib/types/encryption.ak` | `EncryptionDatum`, `EncryptionSpendRedeemer` | Create/remove/cancel encryption, SNARK, re-encryption |
+| `contracts/lib/types/bidding.ak` | `BidDatum`, `BidSpendRedeemer` | Create/remove bid, re-encryption |
+| `contracts/lib/types/groth.ak` | `GrothRedeemer`, `VerificationKey` | SNARK tx (stake withdrawal redeemer) |
+| `contracts/lib/types/level.ak` | `HalfEncryptionLevel`, `FullEncryptionLevel` | Encryption datum fields |
+| `contracts/lib/types/register.ak` | `Register` | Owner public keys in encryption + bid datums |
+| `contracts/lib/types/schnorr.ak` | `SchnorrProof` | Bid creation proof |
+| `contracts/lib/types/reference.ak` | `ReferenceDatum` | Genesis reference UTxO |
+
+**Note:** The SNARK tx (`07a`) uses a **stake withdrawal** for on-chain Groth16 verification — this is unusual. The groth validator runs as a withdraw handler, not a spend. Read the script + `validators/groth.ak` together to understand the pattern.
