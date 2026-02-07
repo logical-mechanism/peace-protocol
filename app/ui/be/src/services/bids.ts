@@ -9,7 +9,9 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum): BidDisplay {
   const bidAsset = utxo.asset_list?.find(
     a => a.policy_id === contracts.biddingPolicyId
   );
-  const tokenName = bidAsset?.asset_name || datum.token;
+  // datum.pointer = bid's own token name (validated on-chain: pointer == token_name)
+  // datum.token   = encryption token name being bid on
+  const tokenName = bidAsset?.asset_name || datum.pointer;
 
   // Bid amount is the total lovelace locked in the UTxO
   const amount = parseInt(utxo.value, 10);
@@ -21,7 +23,7 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum): BidDisplay {
     tokenName,
     bidder: utxo.address,
     bidderPkh: datum.owner_vkh,
-    encryptionToken: datum.pointer,
+    encryptionToken: datum.token,
     amount,
     status,
     createdAt: new Date(utxo.block_time * 1000).toISOString(),

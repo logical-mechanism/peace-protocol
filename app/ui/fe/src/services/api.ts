@@ -111,6 +111,7 @@ export interface ProtocolConfig {
   contracts: {
     encryptionAddress: string;
     biddingAddress: string;
+    referenceAddress: string;
     encryptionPolicyId: string;
     biddingPolicyId: string;
   };
