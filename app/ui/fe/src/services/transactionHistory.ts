@@ -5,7 +5,7 @@
  * Tracks pending, confirmed, and failed transactions submitted via the dApp.
  */
 
-export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending';
+export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
 
 export interface TransactionRecord {
@@ -177,5 +177,6 @@ export function getTypeLabel(type: TransactionType): string {
     case 'cancel-bid': return 'Cancel Bid';
     case 'accept-bid': return 'Accept Bid';
     case 'cancel-pending': return 'Cancel Pending';
+    case 'complete-sale': return 'Complete Sale';
   }
 }

@@ -12,12 +12,19 @@ import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
+import SnarkProvingModal from '../components/SnarkProvingModal'
 import { useToast } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
-import { createListing, removeListing, placeBid, cancelBid, getTransactionStubWarning, extractPaymentKeyHash } from '../services/transactionBuilder'
+import {
+  createListing, removeListing, placeBid, cancelBid,
+  cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
+  getTransactionStubWarning, extractPaymentKeyHash
+} from '../services/transactionBuilder'
+import { getAcceptBidSecrets } from '../services/acceptBidStorage'
 import { getTransactions, addTransaction, getPendingCount } from '../services/transactionHistory'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
+import type { SnarkProofInputs, SnarkProof } from '../services/snark'
 import type { CreateListingFormData } from '../components/CreateListingModal'
 
 type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history';
@@ -53,6 +60,13 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
   const [historyKey, setHistoryKey] = useState(0)
+  // Accept bid flow state
+  const [showSnarkModal, setShowSnarkModal] = useState(false)
+  const [snarkInputs, setSnarkInputs] = useState<SnarkProofInputs | null>(null)
+  const [acceptBidEncryption, setAcceptBidEncryption] = useState<EncryptionDisplay | null>(null)
+  const [acceptBidBid, setAcceptBidBid] = useState<BidDisplay | null>(null)
+  const [acceptBidA0, setAcceptBidA0] = useState<bigint | null>(null)
+  const [acceptBidR0, setAcceptBidR0] = useState<bigint | null>(null)
   const toast = useToast()
 
   // Compute payment key hash from wallet address for PKH-based filtering
@@ -228,37 +242,228 @@ export default function Dashboard() {
     }
   }, [wallet, toast, recordTransaction])
 
-  const handleAcceptBid = useCallback((encryption: EncryptionDisplay, bid: BidDisplay) => {
+  const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
     if (!wasmReady) {
       toast.warning(
         'Prover Not Ready',
-        'Accepting bids requires the zero-knowledge prover. Click the loading indicator in the header to start loading (~99 minutes).',
+        'Accepting bids requires the zero-knowledge prover. Click the loading indicator in the header to start loading.',
         8000
       )
-      // Optionally navigate to loading screen
       if (!wasmLoading) {
         navigate('/loading')
       }
       return
     }
 
-    // TODO: Phase 12 - Implement SNARK proof + re-encryption flow
-    console.log('Accept bid:', bid.tokenName, 'for:', encryption.tokenName)
-    toast.info(
-      'Coming Soon',
-      `Accept bid will be implemented in Phase 12 with SNARK proving. Bid: ${(bid.amount / 1_000_000).toLocaleString()} ADA`
-    )
-  }, [toast, wasmReady, wasmLoading, navigate])
+    if (!wallet) {
+      toast.error('Error', 'Wallet not connected')
+      return
+    }
 
-  const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
-    // TODO: Phase 9 - Implement cancel pending transaction
-    console.log('Cancel pending:', encryption.tokenName)
-    toast.warning(
-      'Not Yet Available',
-      'Cancel pending requires contract deployment to preprod.'
-    )
-  }, [toast])
+    try {
+      // Step 1: Prepare SNARK inputs (derives wallet sk, generates fresh a0, r0)
+      toast.info('Preparing', 'Computing SNARK proof inputs...')
+      const { inputs, a0, r0 } = await prepareSnarkInputs(wallet, encryption)
+
+      // Store state for after proof generation
+      setAcceptBidEncryption(encryption)
+      setAcceptBidBid(bid)
+      setAcceptBidA0(a0)
+      setAcceptBidR0(r0)
+      setSnarkInputs(inputs)
+
+      // Step 2: Open SNARK proving modal
+      setShowSnarkModal(true)
+    } catch (error) {
+      console.error('Failed to prepare SNARK inputs:', error)
+      toast.error(
+        'Failed to Prepare Proof',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      )
+    }
+  }, [toast, wasmReady, wasmLoading, navigate, wallet])
+
+  // Called when the SNARK proof is generated (from SnarkProvingModal)
+  const handleProofGenerated = useCallback(async (proof: SnarkProof) => {
+    if (!wallet || !acceptBidEncryption || !acceptBidBid) {
+      toast.error('Error', 'Missing accept-bid state')
+      return
+    }
+
+    try {
+      // Step 3: Submit SNARK transaction (Phase 12e)
+      toast.info('Submitting', 'Submitting SNARK proof transaction...')
+      if (!acceptBidA0 || !acceptBidR0) {
+        throw new Error('Missing fresh secrets (a0, r0) for SNARK transaction')
+      }
+      const result = await acceptBidSnark(wallet, acceptBidEncryption, acceptBidBid, proof, acceptBidA0, acceptBidR0)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to submit SNARK transaction')
+      }
+
+      if (result.isStub) {
+        toast.warning(
+          'Bid Accepted (Stub Mode)',
+          `SNARK proof submitted in stub mode. No real transaction submitted.`,
+          8000
+        )
+      } else if (result.txHash) {
+        toast.transactionSuccess('SNARK Proof Submitted!', result.txHash)
+      }
+
+      // Record in history
+      if (result.txHash) {
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'accept-bid',
+          tokenName: acceptBidEncryption.tokenName,
+          timestamp: Date.now(),
+          status: result.isStub ? 'confirmed' : 'pending',
+          description: `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (SNARK proof)`,
+        })
+      }
+
+      // Refresh and switch to history
+      setRefreshKey(prev => prev + 1)
+      setActiveTab('history')
+
+      toast.info(
+        'Next Step',
+        'Once the SNARK transaction confirms on-chain, return to My Sales to complete the re-encryption step.',
+        10000
+      )
+    } catch (error) {
+      console.error('Failed to submit SNARK transaction:', error)
+      toast.error(
+        'Failed to Accept Bid',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      )
+    } finally {
+      // Clean up state
+      setAcceptBidEncryption(null)
+      setAcceptBidBid(null)
+      setAcceptBidA0(null)
+      setAcceptBidR0(null)
+      setSnarkInputs(null)
+      setShowSnarkModal(false)
+    }
+  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, toast, recordTransaction])
+
+  const handleCancelPending = useCallback(async (encryption: EncryptionDisplay) => {
+    if (!wallet) {
+      toast.error('Error', 'Wallet not connected')
+      return
+    }
+
+    try {
+      const result = await cancelPendingListing(wallet, encryption)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to cancel pending listing')
+      }
+
+      if (result.isStub) {
+        toast.warning(
+          'Pending Cancelled (Stub Mode)',
+          `Pending listing cancelled in stub mode. No real transaction submitted.`,
+          8000
+        )
+      } else if (result.txHash) {
+        toast.transactionSuccess('Pending Listing Cancelled!', result.txHash)
+      }
+
+      // Record in history
+      if (result.txHash) {
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'cancel-pending',
+          tokenName: encryption.tokenName,
+          timestamp: Date.now(),
+          status: result.isStub ? 'confirmed' : 'pending',
+          description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
+        })
+      }
+
+      setRefreshKey(prev => prev + 1)
+      setActiveTab('history')
+    } catch (error) {
+      console.error('Failed to cancel pending listing:', error)
+      toast.error(
+        'Failed to Cancel Pending',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      )
+    }
+  }, [wallet, toast, recordTransaction])
+
+  const handleCompleteSale = useCallback(async (encryption: EncryptionDisplay) => {
+    if (!wallet) {
+      toast.error('Error', 'Wallet not connected')
+      return
+    }
+
+    try {
+      // Check if accept-bid secrets exist (indicates 12e was done from this browser)
+      const secrets = await getAcceptBidSecrets(encryption.tokenName)
+      if (!secrets) {
+        toast.error(
+          'Cannot Complete Sale',
+          'Accept-bid secrets not found. The SNARK transaction may have been submitted from another browser, or browser data was cleared.'
+        )
+        return
+      }
+
+      // Find the bid that was accepted (using stored bid token name)
+      const allBids = await bidsApi.getAll()
+      const acceptedBid = allBids.find(b => b.tokenName === secrets.bidTokenName)
+      if (!acceptedBid) {
+        toast.error(
+          'Bid Not Found',
+          'The accepted bid could not be found on-chain. It may have been cancelled.'
+        )
+        return
+      }
+
+      toast.info('Submitting', 'Submitting re-encryption transaction...')
+      const result = await completeReEncryption(wallet, encryption, acceptedBid)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to complete re-encryption')
+      }
+
+      if (result.isStub) {
+        toast.warning(
+          'Sale Completed (Stub Mode)',
+          'Re-encryption submitted in stub mode. No real transaction submitted.',
+          8000
+        )
+      } else if (result.txHash) {
+        toast.transactionSuccess('Sale Completed!', result.txHash)
+      }
+
+      // Record in history
+      if (result.txHash) {
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'complete-sale',
+          tokenName: encryption.tokenName,
+          timestamp: Date.now(),
+          status: result.isStub ? 'confirmed' : 'pending',
+          description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
+        })
+      }
+
+      setRefreshKey(prev => prev + 1)
+      setActiveTab('history')
+    } catch (error) {
+      console.error('Failed to complete sale:', error)
+      toast.error(
+        'Failed to Complete Sale',
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      )
+    }
+  }, [wallet, toast, recordTransaction])
 
   const handleCancelBid = useCallback(async (bid: BidDisplay) => {
     if (!wallet) {
@@ -430,6 +635,7 @@ export default function Dashboard() {
             onRemoveListing={handleRemoveListing}
             onAcceptBid={handleAcceptBid}
             onCancelPending={handleCancelPending}
+            onCompleteSale={handleCompleteSale}
             onCreateListing={() => setShowCreateListing(true)}
           />
         )
@@ -662,6 +868,21 @@ export default function Dashboard() {
         }}
         bid={selectedBid}
         encryption={selectedEncryption}
+      />
+
+      {/* SNARK Proving Modal (Accept Bid Step 1) */}
+      <SnarkProvingModal
+        isOpen={showSnarkModal}
+        onClose={() => {
+          setShowSnarkModal(false)
+          setSnarkInputs(null)
+          setAcceptBidEncryption(null)
+          setAcceptBidBid(null)
+          setAcceptBidA0(null)
+          setAcceptBidR0(null)
+        }}
+        onProofGenerated={handleProofGenerated}
+        inputs={snarkInputs}
       />
 
       {/* Toast Notifications */}

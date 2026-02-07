@@ -224,7 +224,7 @@ async function initialize(msg: InitMessage) {
       return
     }
 
-    sendProgress('loading-keys', 'Loading proving keys into WASM (this takes 10-30+ minutes)...', 30)
+    sendProgress('loading-keys', 'Loading proving keys into WASM (this takes ~99 minutes)...', 30)
     console.log('[Worker] Calling gnarkLoadSetup with CCS and PK data...')
     console.log(`[Worker] CCS size: ${(msg.ccsData.byteLength / 1024 / 1024).toFixed(2)} MB`)
     console.log(`[Worker] PK size: ${(msg.pkData.byteLength / 1024 / 1024).toFixed(2)} MB`)
