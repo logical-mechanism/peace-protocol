@@ -10,13 +10,13 @@ type SortOption = 'newest' | 'oldest' | 'amount-high' | 'amount-low';
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected' | 'cancelled';
 
 interface MyPurchasesTabProps {
-  userAddress?: string;
+  userPkh?: string;
   onCancelBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
 }
 
 export default function MyPurchasesTab({
-  userAddress,
+  userPkh,
   onCancelBid,
   onDecrypt,
 }: MyPurchasesTabProps) {
@@ -33,12 +33,10 @@ export default function MyPurchasesTab({
     setLoading(true);
     setError(null);
     try {
-      // Fetch all bids and filter by user address
+      // Fetch all bids and filter by bidder PKH from datum
       const allBids = await bidsApi.getAll();
-      const userBids = userAddress
-        ? allBids.filter(
-            (b) => b.bidder.toLowerCase() === userAddress.toLowerCase()
-          )
+      const userBids = userPkh
+        ? allBids.filter((b) => b.bidderPkh === userPkh)
         : [];
       setBids(userBids);
 
@@ -65,7 +63,7 @@ export default function MyPurchasesTab({
     } finally {
       setLoading(false);
     }
-  }, [userAddress]);
+  }, [userPkh]);
 
   useEffect(() => {
     fetchData();

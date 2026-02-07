@@ -18,29 +18,18 @@ router.get('/config', async (_req: Request, res: Response) => {
 
     const { contracts } = getNetworkConfig();
 
-    // Query reference contract to find script reference UTxOs
-    const koios = getKoiosClient();
-    let referenceScripts: ProtocolConfig['referenceScripts'] = {
-      encryption: null,
-      bidding: null,
-      groth: null,
+    // Reference script UTxOs from env config (set during deployment)
+    const referenceScripts: ProtocolConfig['referenceScripts'] = {
+      encryption: contracts.encryptionRefTxHash
+        ? { txHash: contracts.encryptionRefTxHash, outputIndex: contracts.encryptionRefOutputIndex }
+        : null,
+      bidding: contracts.biddingRefTxHash
+        ? { txHash: contracts.biddingRefTxHash, outputIndex: contracts.biddingRefOutputIndex }
+        : null,
+      groth: contracts.grothRefTxHash
+        ? { txHash: contracts.grothRefTxHash, outputIndex: contracts.grothRefOutputIndex }
+        : null,
     };
-
-    try {
-      const refUtxos = await koios.getAddressUtxos(contracts.referenceAddress);
-      for (const utxo of refUtxos) {
-        if (utxo.reference_script) {
-          // Reference scripts are stored at the reference address
-          // We identify them by matching against known script hashes
-          referenceScripts.encryption = referenceScripts.encryption || {
-            txHash: utxo.tx_hash,
-            outputIndex: utxo.tx_index,
-          };
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to query reference UTxOs:', err);
-    }
 
     const protocolConfig: ProtocolConfig = {
       network: config.network,
