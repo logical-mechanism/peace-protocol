@@ -30,7 +30,7 @@ import { deriveSecretFromWallet } from './crypto/walletSecret';
 import { bech32 } from '@scure/base';
 import { protocolApi } from './api';
 import type { EncryptionDisplay, BidDisplay } from './api';
-import type { SnarkProof } from './snark';
+import { getSnarkProver, type SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 
 // Environment flag for stub mode
@@ -1269,44 +1269,40 @@ export async function acceptBidSnark(
 /**
  * Prepare SNARK proof inputs for the SnarkProvingModal.
  *
- * Computes V, W0, W1 from the seller's secrets and the encryption datum.
- * These are the public values the SNARK circuit needs.
+ * Computes V, W0, W1 as public inputs for the vw0w1Circuit:
+ *   V  = bidder's G1 public value (from bid datum)
+ *   W0 = [hk]G1  where hk = mimc(e([a0]G, H0))
+ *   W1 = [a0]G1 + [r0]*V
  *
- * V  = [a0]G1 (fresh commitment)
- * W0 = [a + a0 + r*sk]G1 (combined with existing secrets)
- * W1 = [r0]G1 (fresh blinding)
+ * The circuit proves knowledge of (a0, r0) satisfying these relationships.
  *
- * @param encryption - The encryption being sold
+ * @param bid - The bid being accepted (provides V = bidder's G1 public value)
  * @returns Object with proof inputs and fresh secrets
  */
 export async function prepareSnarkInputs(
-  wallet: IWallet,
-  encryption: EncryptionDisplay
+  bid: BidDisplay
 ): Promise<{
   inputs: { secretA: string; secretR: string; publicV: string; publicW0: string; publicW1: string };
   a0: bigint;
   r0: bigint;
 }> {
-  // Retrieve seller secrets
-  const sellerSecrets = await getSecrets(encryption.tokenName);
-  if (!sellerSecrets) {
-    throw new Error(
-      'Seller secrets not found for this listing. ' +
-      'You may have cleared browser data or created this listing on another device.'
-    );
-  }
-
-  // Derive wallet sk for W0 computation
-  const sk = await deriveSecretFromWallet(wallet);
-
-  // Generate fresh random secrets
+  // Generate fresh random secrets for the SNARK proof
   const a0 = rng();
   const r0 = rng();
 
-  // Compute public values
-  const V = g1Point(a0); // [a0]G1
-  const W0 = g1Point((sellerSecrets.a + a0 + sellerSecrets.r * sk) % CURVE_ORDER); // [a + a0 + r*sk]G1
-  const W1 = g1Point(r0); // [r0]G1
+  // V = bidder's G1 public value
+  const V = bid.datum.owner_g1.public_value;
+
+  // Compute hk = mimc(e([a0]G, H0)) via WASM prover
+  const prover = getSnarkProver();
+  const hkHex = await prover.gtToHash('0x' + a0.toString(16));
+  const hk = toInt(hkHex);
+
+  // W0 = [hk]G1
+  const W0 = g1Point(hk);
+
+  // W1 = [a0]G1 + [r0]*V
+  const W1 = combine(g1Point(a0), scale(V, r0));
 
   return {
     inputs: {
