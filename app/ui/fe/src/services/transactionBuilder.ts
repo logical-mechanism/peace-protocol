@@ -1019,7 +1019,7 @@ export async function acceptBidSnark(
     if (USE_STUBS) {
       console.warn('[STUB] acceptBidSnark');
 
-      const stubPublic = Array(36).fill(0).map((_, i) => i + 1);
+      const stubPublic = Array(36).fill(0).map((_, i) => String(i + 1));
       const ttl = Date.now() + 6 * 60 * 60 * 1000 + 40 * 60 * 1000; // now + 6h40m
 
       const txHash = `stub_snark_${Date.now().toString(16)}`;
@@ -1087,14 +1087,22 @@ export async function acceptBidSnark(
     const proofData = JSON.parse(snarkProof.proofJson);
     const publicData = JSON.parse(snarkProof.publicJson);
 
-    // Extract public inputs as integers (36 values)
-    const publicInputs: number[] = publicData.inputs.map((s: string) => parseInt(s));
+    // Extract public inputs as BigInt (skip leading "1" - Aiken IC[0] handles it)
+    // gnark outputs 37 values: ["1", limb1, limb2, ..., limb36]
+    // The Aiken GrothPublic = List<Int> expects 36 values (without the leading "1")
+    const publicInputs: bigint[] = publicData.inputs.slice(1).map((s: string) => BigInt(s));
+
+    // Convert commitment wire from decimal string to 32-byte big-endian hex (ByteArray)
+    // The Aiken type GrothCommitmentWire = ByteArray, validator does scalar.from_bytes
+    const commitmentWireHex = publicData.commitmentWire
+      ? BigInt(publicData.commitmentWire).toString(16).padStart(64, '0')
+      : '';
 
     // Compute TTL: now + 6h40m in POSIX milliseconds
     const ttl = Date.now() + 6 * 60 * 60 * 1000 + 40 * 60 * 1000;
 
     // 6. Build groth witness redeemer
-    // Structure: { proof, commitment_wire, public, ttl }
+    // Structure: GrothWitnessRedeemer { groth_proof, groth_commitment_wire, groth_public, ttl }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const grothWitnessRedeemer: any = {
       constructor: 0,
@@ -1105,12 +1113,12 @@ export async function acceptBidSnark(
             { bytes: proofData.piA },
             { bytes: proofData.piB },
             { bytes: proofData.piC },
-            { list: proofData.commitments.map((c: string) => ({ bytes: c })) },
-            { bytes: proofData.commitmentPok },
+            { list: (proofData.commitments || []).map((c: string) => ({ bytes: c })) },
+            { bytes: proofData.commitmentPok || '' },
           ],
         },
-        { bytes: publicData.commitmentWire },
-        { list: publicInputs.map((v: number) => ({ int: v })) },
+        { bytes: commitmentWireHex },
+        { list: publicInputs.map((v: bigint) => ({ int: v })) },
         { int: ttl },
       ],
     };
@@ -1123,7 +1131,7 @@ export async function acceptBidSnark(
     const pendingStatus: any = {
       constructor: 1,
       fields: [
-        { list: publicInputs.map((v: number) => ({ int: v })) },
+        { list: publicInputs.map((v: bigint) => ({ int: v })) },
         { int: ttl },
       ],
     };
@@ -1249,7 +1257,7 @@ export async function acceptBidSnark(
     // 14. Store hop secrets for Phase 12f
     await storeAcceptBidSecrets(
       encryption.tokenName, bid.tokenName, a0, r0,
-      publicInputs, ttl, txHash
+      publicInputs.map(v => v.toString()), ttl, txHash
     );
 
     return {
