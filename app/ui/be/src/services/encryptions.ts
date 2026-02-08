@@ -42,8 +42,6 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
   let status: EncryptionDisplay['status'];
   if (datum.status.type === 'Pending') {
     status = 'pending';
-  } else if (datum.full_level !== null) {
-    status = 'completed';
   } else {
     status = 'active';
   }

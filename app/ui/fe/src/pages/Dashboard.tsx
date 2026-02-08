@@ -553,6 +553,12 @@ export default function Dashboard() {
     }
   }, [toast])
 
+  const handleDecryptEncryption = useCallback((encryption: EncryptionDisplay) => {
+    setSelectedBid(null)
+    setSelectedEncryption(encryption)
+    setShowDecrypt(true)
+  }, [])
+
   const handleCreateListing = useCallback(async (formData: CreateListingFormData) => {
     if (!wallet) {
       throw new Error('Wallet not connected')
@@ -659,6 +665,7 @@ export default function Dashboard() {
             userPkh={userPkh}
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
+            onDecryptEncryption={handleDecryptEncryption}
           />
         )
       case 'history':
