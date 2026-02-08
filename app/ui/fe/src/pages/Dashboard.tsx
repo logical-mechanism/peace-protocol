@@ -67,6 +67,7 @@ export default function Dashboard() {
   const [acceptBidBid, setAcceptBidBid] = useState<BidDisplay | null>(null)
   const [acceptBidA0, setAcceptBidA0] = useState<bigint | null>(null)
   const [acceptBidR0, setAcceptBidR0] = useState<bigint | null>(null)
+  const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
   const toast = useToast()
 
   // Compute payment key hash from wallet address for PKH-based filtering
@@ -274,13 +275,14 @@ export default function Dashboard() {
 
       // Step 1: Prepare SNARK inputs (computes V, W0, W1 for the circuit)
       toast.info('Preparing', 'Computing SNARK proof inputs...')
-      const { inputs, a0, r0 } = await prepareSnarkInputs(bid)
+      const { inputs, a0, r0, hk } = await prepareSnarkInputs(bid)
 
       // Store state for after proof generation
       setAcceptBidEncryption(encryption)
       setAcceptBidBid(bid)
       setAcceptBidA0(a0)
       setAcceptBidR0(r0)
+      setAcceptBidHk(hk)
       setSnarkInputs(inputs)
 
       // Step 2: Open SNARK proving modal
@@ -304,10 +306,10 @@ export default function Dashboard() {
     try {
       // Step 3: Submit SNARK transaction (Phase 12e)
       toast.info('Submitting', 'Submitting SNARK proof transaction...')
-      if (!acceptBidA0 || !acceptBidR0) {
-        throw new Error('Missing fresh secrets (a0, r0) for SNARK transaction')
+      if (!acceptBidA0 || !acceptBidR0 || !acceptBidHk) {
+        throw new Error('Missing fresh secrets (a0, r0, hk) for SNARK transaction')
       }
-      const result = await acceptBidSnark(wallet, acceptBidEncryption, acceptBidBid, proof, acceptBidA0, acceptBidR0)
+      const result = await acceptBidSnark(wallet, acceptBidEncryption, acceptBidBid, proof, acceptBidA0, acceptBidR0, acceptBidHk)
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to submit SNARK transaction')
@@ -356,10 +358,11 @@ export default function Dashboard() {
       setAcceptBidBid(null)
       setAcceptBidA0(null)
       setAcceptBidR0(null)
+      setAcceptBidHk(null)
       setSnarkInputs(null)
       setShowSnarkModal(false)
     }
-  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, toast, recordTransaction])
+  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction])
 
   const handleCancelPending = useCallback(async (encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -890,6 +893,7 @@ export default function Dashboard() {
           setAcceptBidBid(null)
           setAcceptBidA0(null)
           setAcceptBidR0(null)
+          setAcceptBidHk(null)
         }}
         onProofGenerated={handleProofGenerated}
         inputs={snarkInputs}
