@@ -24,7 +24,7 @@ export interface AcceptBidSecrets {
   bidTokenName: string; // Bid being accepted (64 hex chars)
   a0: string; // Fresh secret scalar a0 (bigint as hex string)
   r0: string; // Fresh secret scalar r0 (bigint as hex string)
-  grothPublic: number[]; // The 36 public inputs from the SNARK proof
+  grothPublic: string[]; // The 36 public inputs from the SNARK proof (decimal strings)
   ttl: number; // TTL in POSIX milliseconds
   snarkTxHash: string; // Phase 12e tx hash (for tracking)
   createdAt: string; // ISO timestamp
@@ -78,7 +78,7 @@ export async function storeAcceptBidSecrets(
   bidTokenName: string,
   a0: bigint,
   r0: bigint,
-  grothPublic: number[],
+  grothPublic: string[],
   ttl: number,
   snarkTxHash: string
 ): Promise<void> {
@@ -120,7 +120,7 @@ export async function storeAcceptBidSecrets(
  */
 export async function getAcceptBidSecrets(
   encryptionTokenName: string
-): Promise<{ a0: bigint; r0: bigint; bidTokenName: string; grothPublic: number[]; ttl: number; snarkTxHash: string } | null> {
+): Promise<{ a0: bigint; r0: bigint; bidTokenName: string; grothPublic: string[]; ttl: number; snarkTxHash: string } | null> {
   const db = await openDB();
 
   return new Promise((resolve, reject) => {

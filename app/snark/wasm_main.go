@@ -20,9 +20,14 @@ import (
 	"runtime/debug"
 	"syscall/js"
 
+	"reflect"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/hash_to_field"
 	"github.com/consensys/gnark/backend/groth16"
+	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
+	backend_witness "github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
@@ -223,6 +228,16 @@ func wasmProve(aStr, rStr, vHex, w0Hex, w1Hex string) (*ProofResultWASM, error) 
 	// Prepend "1" for the constant wire (matches choosePublicInputs logic)
 	inputs := append([]string{"1"}, pubRaw...)
 
+	// Compute commitment wire (needed for on-chain Groth16 verification)
+	fmt.Println("[WASM] wasmProve: computing commitment wire...")
+	commitmentWire, err := computeCommitmentWireNoVK(proof, publicWitness)
+	if err != nil {
+		fmt.Printf("[WASM] WARNING: failed to compute commitment wire: %v\n", err)
+		// Non-fatal: continue without it (will fail on-chain verification)
+	} else if commitmentWire != "" {
+		fmt.Printf("[WASM] wasmProve: commitment wire = %s\n", commitmentWire)
+	}
+
 	fmt.Println("[WASM] wasmProve: creating result struct...")
 	result := &ProofResultWASM{
 		Proof: ProofJSONWASM{
@@ -233,11 +248,88 @@ func wasmProve(aStr, rStr, vHex, w0Hex, w1Hex string) (*ProofResultWASM, error) 
 			CommitmentPok: proofJSON.CommitmentPok,
 		},
 		Public: PublicJSONWASM{
-			Inputs: inputs,
+			Inputs:         inputs,
+			CommitmentWire: commitmentWire,
 		},
 	}
 	fmt.Println("[WASM] wasmProve: COMPLETE - returning result")
 	return result, nil
+}
+
+// computeCommitmentWireNoVK computes the commitment wire without a VK.
+// It hardcodes the committed indices [1..36] which is a fixed property of the
+// vw0w1Circuit (all public inputs are committed). This avoids needing to load
+// the VK in the WASM, saving ~99 minutes of deserialization.
+func computeCommitmentWireNoVK(proof groth16.Proof, publicWitness backend_witness.Witness) (string, error) {
+	p, ok := proof.(*groth16bls.Proof)
+	if !ok {
+		return "", fmt.Errorf("unexpected proof type: %T", proof)
+	}
+	if len(p.Commitments) == 0 {
+		return "", nil // No commitment extension
+	}
+
+	// Get public witness as Fr elements
+	vecAny := publicWitness.Vector()
+	if vecAny == nil {
+		return "", fmt.Errorf("publicWitness.Vector() returned nil")
+	}
+
+	var pubFr []fr.Element
+	switch v := vecAny.(type) {
+	case []fr.Element:
+		pubFr = v
+	default:
+		rv := reflect.ValueOf(vecAny)
+		if rv.Kind() != reflect.Slice {
+			return "", fmt.Errorf("unexpected witness vector type: %T", vecAny)
+		}
+		pubFr = make([]fr.Element, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			ev := rv.Index(i)
+			if ev.Kind() == reflect.Interface && !ev.IsNil() {
+				ev = ev.Elem()
+			}
+			if ev.Type() == reflect.TypeOf(fr.Element{}) {
+				pubFr[i] = ev.Interface().(fr.Element)
+			} else {
+				var bi big.Int
+				m := ev.Addr().MethodByName("BigInt")
+				if m.IsValid() {
+					m.Call([]reflect.Value{reflect.ValueOf(&bi)})
+					pubFr[i].SetBigInt(&bi)
+				} else {
+					return "", fmt.Errorf("cannot convert witness[%d] to Fr: type %T", i, ev.Interface())
+				}
+			}
+		}
+	}
+
+	// All 36 public inputs are committed (indices 1-36, 1-based).
+	// This is a fixed property of the vw0w1Circuit.
+	commitment := p.Commitments[0]
+	commitmentBytes := commitment.Marshal() // 96 bytes uncompressed G1
+
+	prehash := make([]byte, 0, len(commitmentBytes)+len(pubFr)*32)
+	prehash = append(prehash, commitmentBytes...)
+
+	for i := 0; i < len(pubFr); i++ {
+		frBytes := pubFr[i].Marshal() // 32 bytes big-endian Fr
+		prehash = append(prehash, frBytes...)
+	}
+
+	hFunc := hash_to_field.New([]byte(constraint.CommitmentDst))
+	hFunc.Write(prehash)
+	hashBytes := hFunc.Sum(nil)
+	if len(hashBytes) == 0 {
+		return "", fmt.Errorf("hash_to_field returned empty result")
+	}
+
+	var wire fr.Element
+	wire.SetBytes(hashBytes)
+	var wireBi big.Int
+	wire.BigInt(&wireBi)
+	return wireBi.String(), nil
 }
 
 // gnarkLoadSetup is exposed to JavaScript to load the setup files
