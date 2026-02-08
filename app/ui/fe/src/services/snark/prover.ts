@@ -283,8 +283,8 @@ export class SnarkProver {
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error('Proof generation timeout (exceeded 5 minutes)'))
-      }, 5 * 60 * 1000) // 5 minute timeout
+        reject(new Error('Proof generation timeout (exceeded 30 minutes)'))
+      }, 30 * 60 * 1000) // 30 minute timeout
 
       const handleMessage = (event: MessageEvent<WorkerResponse>) => {
         const msg = event.data
