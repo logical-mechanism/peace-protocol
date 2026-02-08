@@ -24,7 +24,7 @@
 
 import type { IWallet } from '@meshsdk/core';
 import type { BidDisplay, EncryptionDisplay } from '../api';
-import { getBidSecrets } from '../bidSecretStorage';
+import { getBidSecrets, getBidSecretsForEncryption } from '../bidSecretStorage';
 import { decrypt as eciesDecrypt } from './ecies';
 import { g2Point, scale } from './bls12381';
 import { H0 } from './constants';
@@ -451,6 +451,115 @@ export async function canDecrypt(
   }
 
   return { canDecrypt: true };
+}
+
+/**
+ * Decrypt a purchased encryption directly (no bid object needed).
+ *
+ * After a sale completes, the bid token is burned but the buyer's secret `b`
+ * remains in IndexedDB (keyed by encryption token name). This function looks
+ * up the secret and decrypts using the on-chain datum's encryption levels.
+ *
+ * @param wallet - MeshJS wallet instance
+ * @param encryption - The encryption to decrypt
+ * @returns Decryption result
+ */
+export async function decryptEncryption(
+  wallet: IWallet,
+  encryption: EncryptionDisplay
+): Promise<DecryptionResult> {
+  console.log('[decryptEncryption] Starting decryption for encryption:', encryption.tokenName);
+
+  // Step 1: Check if WASM is available
+  if (!isWasmDecryptAvailable()) {
+    return {
+      success: false,
+      error: 'WASM prover not loaded. Please load the prover from the dashboard to enable decryption.',
+    };
+  }
+
+  // Step 2: Look up bid secrets by encryption token name
+  const bidSecrets = await getBidSecretsForEncryption(encryption.tokenName);
+  if (bidSecrets.length === 0) {
+    return {
+      success: false,
+      error: 'Bid secrets not found for this encryption. This could happen if you cleared browser data or purchased on a different device.',
+    };
+  }
+
+  // Use the first matching secret (there should typically be only one)
+  const { b } = bidSecrets[0];
+  console.log('[decryptEncryption] Found bid secret, b =', '0x' + b.toString(16).slice(0, 16) + '...');
+
+  // Step 3: Build encryption levels from the on-chain datum
+  // The decryption protocol requires processing levels in order:
+  //   1. Half-level first (no r2_g2) with shared = [b]H0
+  //   2. Full-level second (has r2_g2) with shared = [hash_from_step_1]G2
+  // This matches the Python recursive_decrypt in src/commands.py
+  const levels: EncryptionLevel[] = [];
+  const datum = encryption.datum;
+
+  // Level 1: Half-level (always present)
+  levels.push({
+    r1: datum.half_level.r1b,
+    r2_g1: datum.half_level.r2_g1b,
+  });
+
+  // Level 2: Full-level (present after re-encryption)
+  if (datum.full_level) {
+    levels.push({
+      r1: datum.full_level.r1b,
+      r2_g1: datum.full_level.r2_g1b,
+      r2_g2: datum.full_level.r2_g2b,
+    });
+  }
+
+  console.log('[decryptEncryption] Built', levels.length, 'encryption level(s) from datum');
+
+  // Step 4: Compute KEM using WASM
+  try {
+    const kem = await computeKEM(b, levels);
+    if (!kem) {
+      return {
+        success: false,
+        error: 'Failed to compute decryption key (KEM).',
+      };
+    }
+    console.log('[decryptEncryption] Computed KEM:', kem.slice(0, 20) + '...');
+
+    // Step 5: Decrypt capsule with ECIES
+    // The context (r1) must match what was used during original encryption.
+    // After re-encryption, the full_level.r1b = original half_level.r1b,
+    // so we use the LAST level's r1 (matching Python recursive_decrypt).
+    const capsule = datum.capsule;
+    const contextR1 = levels[levels.length - 1].r1;
+    console.log('[decryptEncryption] Decrypting capsule with:');
+    console.log('  context r1:', contextR1.slice(0, 20) + '...');
+    console.log('  nonce:', capsule.nonce);
+    console.log('  aad:', capsule.aad.slice(0, 20) + '...');
+    console.log('  ct length:', capsule.ct.length);
+
+    const plaintext = await eciesDecrypt(
+      contextR1,
+      kem,
+      capsule.nonce,
+      capsule.ct,
+      capsule.aad
+    );
+    console.log('[decryptEncryption] Decryption successful!');
+
+    return {
+      success: true,
+      message: plaintext,
+      isStub: false,
+    };
+  } catch (err) {
+    console.error('[decryptEncryption] Decryption failed:', err);
+    return {
+      success: false,
+      error: `Decryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+    };
+  }
 }
 
 /**

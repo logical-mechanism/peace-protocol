@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
+import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
@@ -13,15 +14,18 @@ interface MyPurchasesTabProps {
   userPkh?: string;
   onCancelBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
+  onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
 }
 
 export default function MyPurchasesTab({
   userPkh,
   onCancelBid,
   onDecrypt,
+  onDecryptEncryption,
 }: MyPurchasesTabProps) {
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
+  const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -40,23 +44,41 @@ export default function MyPurchasesTab({
         : [];
       setBids(userBids);
 
-      // Fetch encryption details for all user bids
-      if (userBids.length > 0) {
-        const allEncryptions = await encryptionsApi.getAll();
-        const newEncryptionsMap = new Map<string, EncryptionDisplay>();
+      // Fetch all encryptions (needed for both bids and purchased encryptions)
+      const allEncryptions = await encryptionsApi.getAll();
 
-        userBids.forEach((bid) => {
-          const encryption = allEncryptions.find(
-            (e) => e.tokenName === bid.encryptionToken
-          );
-          if (encryption) {
-            newEncryptionsMap.set(bid.encryptionToken, encryption);
+      // Build encryption map for user bids
+      const newEncryptionsMap = new Map<string, EncryptionDisplay>();
+      userBids.forEach((bid) => {
+        const encryption = allEncryptions.find(
+          (e) => e.tokenName === bid.encryptionToken
+        );
+        if (encryption) {
+          newEncryptionsMap.set(bid.encryptionToken, encryption);
+        }
+      });
+      setEncryptionsMap(newEncryptionsMap);
+
+      // Find purchased encryptions: user is owner AND has bid secrets in IndexedDB
+      if (userPkh) {
+        const userOwnedEncryptions = allEncryptions.filter(
+          (e) => e.sellerPkh === userPkh && e.datum.full_level !== null
+        );
+
+        const purchased: EncryptionDisplay[] = [];
+        for (const enc of userOwnedEncryptions) {
+          try {
+            const secrets = await getBidSecretsForEncryption(enc.tokenName);
+            if (secrets.length > 0) {
+              purchased.push(enc);
+            }
+          } catch {
+            // Skip if IndexedDB lookup fails
           }
-        });
-
-        setEncryptionsMap(newEncryptionsMap);
+        }
+        setPurchasedEncryptions(purchased);
       } else {
-        setEncryptionsMap(new Map());
+        setPurchasedEncryptions([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch your bids');
@@ -182,13 +204,13 @@ export default function MyPurchasesTab({
     );
   }
 
-  // If user has no bids at all
-  if (bids.length === 0) {
+  // If user has no bids and no purchased encryptions
+  if (bids.length === 0 && purchasedEncryptions.length === 0) {
     return (
       <EmptyState
         icon={<InboxIcon />}
-        title="No bids yet"
-        description="Bids you place on encryptions will appear here"
+        title="No purchases yet"
+        description="Bids you place and encryptions you purchase will appear here"
         action={
           <button
             onClick={() => {
@@ -206,8 +228,69 @@ export default function MyPurchasesTab({
     );
   }
 
+  const truncateToken = (token: string) => {
+    if (!token) return '';
+    return `${token.slice(0, 12)}...${token.slice(-8)}`;
+  };
+
   return (
     <div>
+      {/* Purchased Encryptions Section */}
+      {purchasedEncryptions.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-lg font-medium text-[var(--text-primary)] mb-4">
+            Purchased Encryptions
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {purchasedEncryptions.map((enc) => (
+              <div
+                key={enc.tokenName}
+                className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] transition-all duration-150"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                    Purchased
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)] font-mono">
+                    {truncateToken(enc.tokenName)}
+                  </span>
+                </div>
+
+                {enc.description && (
+                  <p className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-2">
+                    {enc.description}
+                  </p>
+                )}
+
+                <button
+                  onClick={() => onDecryptEncryption?.(enc)}
+                  className="w-full mt-2 px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                    />
+                  </svg>
+                  Decrypt
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bids Section */}
+      {bids.length > 0 && purchasedEncryptions.length > 0 && (
+        <h3 className="text-lg font-medium text-[var(--text-primary)] mb-4">
+          Active Bids
+        </h3>
+      )}
+
+      {bids.length === 0 ? null : (<div>
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {/* Search */}
@@ -377,6 +460,7 @@ export default function MyPurchasesTab({
           ))}
         </div>
       )}
+    </div>)}
     </div>
   );
 }

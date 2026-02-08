@@ -1594,6 +1594,14 @@ export async function completeReEncryption(
       )
       // Required signer
       .requiredSignerHash(ownerPkh)
+      // CIP-20 metadata: carry forward description and storageLayer from original listing
+      .metadataValue(674, {
+        msg: [
+          encryption.description || '',
+          '0',
+          encryption.storageLayer || '',
+        ],
+      })
       // Change and UTxO selection
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos)
