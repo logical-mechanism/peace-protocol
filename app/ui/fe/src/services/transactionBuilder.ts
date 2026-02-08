@@ -17,8 +17,8 @@ import { MeshTxBuilder, BlockfrostProvider, deserializeAddress } from '@meshsdk/
 import type { IWallet } from '@meshsdk/core';
 import { createEncryptionWithWallet, getStubWarning, createBidArtifactsFromWallet } from './crypto';
 import {
-  rng, g1Point, g2Point, scale, combine, toInt, generate,
-  CURVE_ORDER, H1, H2, H2I_DOMAIN_TAG,
+  rng, g1Point, g2Point, scale, combine, invertG2, toInt, generate,
+  H0, H1, H2, H2I_DOMAIN_TAG,
   createPublicRegister, registerToPlutusJson,
   bindingProof, bindingToPlutusJson,
   halfLevelToPlutusJson, fullLevelToPlutusJson,
@@ -1013,7 +1013,8 @@ export async function acceptBidSnark(
   bid: BidDisplay,
   snarkProof: SnarkProof,
   a0: bigint,
-  r0: bigint
+  r0: bigint,
+  hk: bigint
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -1024,7 +1025,7 @@ export async function acceptBidSnark(
 
       const txHash = `stub_snark_${Date.now().toString(16)}`;
       await storeAcceptBidSecrets(
-        encryption.tokenName, bid.tokenName, a0, r0,
+        encryption.tokenName, bid.tokenName, a0, r0, hk,
         stubPublic, ttl, txHash
       );
 
@@ -1229,7 +1230,7 @@ export async function acceptBidSnark(
       // Groth stake withdrawal (validates the SNARK proof on-chain)
       .withdrawalPlutusScriptV3()
       .withdrawal(grothStakeAddressBech32, rewardBalance)
-      .withdrawalTxInReference(grothRefScript.txHash, grothRefScript.outputIndex)
+      .withdrawalTxInReference(grothRefScript.txHash, grothRefScript.outputIndex, '2860', grothScriptHash)
       .withdrawalRedeemerValue(grothWitnessRedeemer, 'JSON')
       // Read-only reference: genesis token UTxO
       .readOnlyTxInReference(genesisUtxo.input.txHash, genesisUtxo.input.outputIndex)
@@ -1256,7 +1257,7 @@ export async function acceptBidSnark(
 
     // 14. Store hop secrets for Phase 12f
     await storeAcceptBidSecrets(
-      encryption.tokenName, bid.tokenName, a0, r0,
+      encryption.tokenName, bid.tokenName, a0, r0, hk,
       publicInputs.map(v => v.toString()), ttl, txHash
     );
 
@@ -1293,6 +1294,7 @@ export async function prepareSnarkInputs(
   inputs: { secretA: string; secretR: string; publicV: string; publicW0: string; publicW1: string };
   a0: bigint;
   r0: bigint;
+  hk: bigint;
 }> {
   // Generate fresh random secrets for the SNARK proof
   const a0 = rng();
@@ -1322,6 +1324,7 @@ export async function prepareSnarkInputs(
     },
     a0,
     r0,
+    hk,
   };
 }
 
@@ -1416,31 +1419,39 @@ export async function completeReEncryption(
       );
     }
 
-    // 4. Retrieve seller secrets (a, r)
-    const sellerSecrets = await getSecrets(encryption.tokenName);
-    if (!sellerSecrets) {
-      throw new Error(
-        'Seller secrets not found for this listing. Cannot complete re-encryption.'
-      );
-    }
-
-    // 5. Derive wallet sk
+    // 4. Derive wallet sk (seller's secret key for R5 computation)
     const sk = await deriveSecretFromWallet(wallet);
 
     const { a0, r0 } = hopSecrets;
-    const { a } = sellerSecrets;
+    let { hk } = hopSecrets;
 
-    // 6. Compute the witness point: [a0 + a]G1
-    const witnessPoint = g1Point((a0 + a) % CURVE_ORDER);
+    // 4b. Recompute hk from a0 if missing (legacy data stored before hk was added)
+    if (!hk || hk === 0n) {
+      try {
+        const prover = getSnarkProver();
+        const hkHex = await prover.gtToHash('0x' + a0.toString(16));
+        hk = toInt(hkHex);
+      } catch {
+        throw new Error(
+          'Hop key (hk) not found in stored secrets and WASM prover not available to recompute it. ' +
+          'Please open the SNARK prover first (start an accept-bid flow), then retry completing the sale.'
+        );
+      }
+    }
 
-    // 7. Compute R5: [r0 * sk]G2 (the G2 component for FullEncryptionLevel)
-    const r5 = g2Point((r0 * sk) % CURVE_ORDER);
+    // 5. Compute the witness point: [hk]G1
+    // hk = mimc(e([a0]G1, H0)) was computed in prepareSnarkInputs and stored
+    const witnessPoint = g1Point(hk);
 
-    // 8. Compute new half-level for the buyer
+    // 6. Compute R5: [hk]G2 + [sk]*(-H0)
+    const r5 = combine(g2Point(hk), scale(invertG2(H0), sk));
+
+    // 7. Compute new half-level for the buyer
     // New r1 = [r0]G1
     const newR1 = g1Point(r0);
-    // New r2_g1 = [a0 + r0*sk]G1
-    const newR2G1 = g1Point((a0 + r0 * sk) % CURVE_ORDER);
+    // New r2_g1 = [a0]G1 + [r0]*BuyerPublicValue
+    const buyerPubValue = bid.datum.owner_g1.public_value;
+    const newR2G1 = combine(g1Point(a0), scale(buyerPubValue, r0));
 
     // Compute kth-level commitment (NO H3 for kth level!)
     // a_coeff = H2I(r1)
@@ -1452,23 +1463,22 @@ export async function completeReEncryption(
     const c = combine(scale(H1, aCoeff), scale(H2, bCoeff)); // NO H3 for kth level
     const newR4 = scale(c, r0);
 
-    // 9. Build full-level: { r1, r2_g1, r2_g2(=r5), r4 }
+    // 8. Build full-level using OLD half-level + new R5 (matches on-chain validator)
     const newFullLevel = {
-      r1: newR1,
-      r2_g1: newR2G1,
-      r2_g2: r5, // r2_g2b = R5 (the G2 blinding factor)
-      r4: newR4,
+      r1: encryption.datum.half_level.r1b,
+      r2_g1: encryption.datum.half_level.r2_g1b,
+      r2_g2: r5,
+      r4: encryption.datum.half_level.r4b,
     };
 
-    // 10. Build binding proof for the re-encryption
-    // Uses a0, r0 (the fresh secrets), the new level points, and seller's register
-    const sellerRegister = createPublicRegister(
-      encryption.datum.owner_g1.generator,
-      encryption.datum.owner_g1.public_value
+    // 9. Build binding proof against BUYER's register (verified on-chain against bid_owner_g1)
+    const buyerRegister = createPublicRegister(
+      bid.datum.owner_g1.generator,
+      bid.datum.owner_g1.public_value
     );
-    const binding = bindingProof(a0, r0, newR1, newR2G1, sellerRegister, encryption.datum.token);
+    const binding = bindingProof(a0, r0, newR1, newR2G1, buyerRegister, encryption.datum.token);
 
-    // 11. Build UseEncryption redeemer (constructor 1)
+    // 10. Build UseEncryption redeemer (constructor 1)
     // Fields: witness_point, r5_point, bid_token_name, binding_proof
     const encryptionRedeemer = {
       constructor: 1,
@@ -1480,21 +1490,16 @@ export async function completeReEncryption(
       ],
     };
 
-    // 12. Build UseBid redeemer (constructor 1, empty)
+    // 11. Build UseBid redeemer (constructor 1, empty)
     const bidRedeemer = { constructor: 1, fields: [] };
 
-    // 13. Build LeaveBidBurn redeemer (constructor 1)
+    // 12. Build LeaveBidBurn redeemer (constructor 1)
     const bidBurnRedeemer = {
       constructor: 1,
       fields: [{ bytes: bid.tokenName }],
     };
 
-    // 14. Build output datum: buyer becomes new owner, new half-level, full-level, status = Open
-    const buyerRegister = createPublicRegister(
-      bid.datum.owner_g1.generator,
-      bid.datum.owner_g1.public_value
-    );
-
+    // 13. Build output datum: buyer becomes new owner, new half-level, full-level, status = Open
     const outputDatum = {
       constructor: 0,
       fields: [
@@ -1502,7 +1507,7 @@ export async function completeReEncryption(
         registerToPlutusJson(buyerRegister), // buyer's register
         { bytes: encryption.datum.token }, // same token name
         halfLevelToPlutusJson({ r1: newR1, r2_g1: newR2G1, r4: newR4 }), // new half-level
-        fullLevelToPlutusJson(newFullLevel), // full-level (Some)
+        fullLevelToPlutusJson(newFullLevel), // full-level (Some): old half + new R5
         { // capsule unchanged
           constructor: 0,
           fields: [
@@ -1528,12 +1533,26 @@ export async function completeReEncryption(
       throw new Error('Genesis token UTxO not found at reference contract address.');
     }
 
-    // 16. Build transaction
+    // 16. Refresh encryption UTxO from Blockfrost
+    // After Phase 12e, the old encryption UTxO was spent and a new one created.
+    // The encryption object from React state may reference the old (spent) UTxO.
     const encPolicyId = config.contracts.encryptionPolicyId;
     const bidPolicyId = config.contracts.biddingPolicyId;
     const encryptionAddress = config.contracts.encryptionAddress;
     const encRefScript = config.referenceScripts.encryption;
     const bidRefScript = config.referenceScripts.bidding;
+
+    const encUnit = encPolicyId + encryption.tokenName;
+    const encryptionUtxos = await blockfrost.fetchAddressUTxOs(encryptionAddress);
+    const currentEncUtxo = encryptionUtxos.find(u =>
+      u.output.amount.some(a => a.unit === encUnit && parseInt(a.quantity) >= 1)
+    );
+    if (!currentEncUtxo) {
+      throw new Error(
+        'Encryption UTxO not found on-chain. Phase 12e may not have confirmed yet. ' +
+        'Please wait a minute and try again.'
+      );
+    }
 
     const txBuilder = new MeshTxBuilder({
       fetcher: blockfrost,
@@ -1543,7 +1562,7 @@ export async function completeReEncryption(
     const unsignedTx = await txBuilder
       // Spend encryption UTxO with UseEncryption redeemer
       .spendingPlutusScriptV3()
-      .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
+      .txIn(currentEncUtxo.input.txHash, currentEncUtxo.input.outputIndex)
       .spendingTxInReference(encRefScript.txHash, encRefScript.outputIndex)
       .txInInlineDatumPresent()
       .txInRedeemerValue(encryptionRedeemer, 'JSON')
