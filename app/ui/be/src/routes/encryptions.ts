@@ -1,7 +1,14 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { STUB_ENCRYPTIONS } from '../stubs/index.js';
-import type { ApiResponse, EncryptionDisplay } from '../types/index.js';
+import {
+  getAllEncryptions,
+  getEncryptionByToken,
+  getEncryptionsByUser,
+  getEncryptionsByStatus,
+  getEncryptionLevels,
+} from '../services/encryptions.js';
+import type { ApiResponse, EncryptionDisplay, EncryptionLevel } from '../types/index.js';
 
 const router = Router();
 
@@ -19,16 +26,47 @@ router.get('/', async (_req: Request, res: Response) => {
       return res.json(response);
     }
 
-    // TODO: Real Koios query when contracts are deployed
-    // const { contracts } = getNetworkConfig();
-    // const utxos = await getKoiosClient().getAddressUtxos(contracts.encryptionAddress);
-    // const encryptions = parseEncryptionUtxos(utxos);
-
-    return res.json({ data: [], meta: { total: 0 } });
+    const encryptions = await getAllEncryptions();
+    return res.json({
+      data: encryptions,
+      meta: { total: encryptions.length },
+    });
   } catch (error) {
     console.error('Error fetching encryptions:', error);
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions' },
+    });
+  }
+});
+
+/**
+ * GET /api/encryptions/:tokenName/levels
+ * Get all encryption levels for recursive decryption (queries full tx history).
+ * Must be registered BEFORE /:tokenName to avoid being caught by it.
+ */
+router.get('/:tokenName/levels', async (req: Request, res: Response) => {
+  try {
+    const { tokenName } = req.params;
+
+    if (config.useStubs) {
+      // Stub: return empty levels (stub decryption doesn't use real levels)
+      const response: ApiResponse<EncryptionLevel[]> = {
+        data: [],
+        meta: { total: 0 },
+      };
+      return res.json(response);
+    }
+
+    const levels = await getEncryptionLevels(tokenName);
+    const response: ApiResponse<EncryptionLevel[]> = {
+      data: levels,
+      meta: { total: levels.length },
+    };
+    return res.json(response);
+  } catch (error) {
+    console.error('Error fetching encryption levels:', error);
+    return res.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels' },
     });
   }
 });
@@ -51,10 +89,13 @@ router.get('/:tokenName', async (req: Request, res: Response) => {
       return res.json({ data: encryption });
     }
 
-    // TODO: Real query when contracts are deployed
-    return res.status(404).json({
-      error: { code: 'NOT_FOUND', message: 'Encryption not found' },
-    });
+    const encryption = await getEncryptionByToken(tokenName);
+    if (!encryption) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Encryption not found' },
+      });
+    }
+    return res.json({ data: encryption });
   } catch (error) {
     console.error('Error fetching encryption:', error);
     return res.status(500).json({
@@ -82,8 +123,11 @@ router.get('/user/:pkh', async (req: Request, res: Response) => {
       return res.json(response);
     }
 
-    // TODO: Real query when contracts are deployed
-    return res.json({ data: [], meta: { total: 0 } });
+    const userEncryptions = await getEncryptionsByUser(pkh);
+    return res.json({
+      data: userEncryptions,
+      meta: { total: userEncryptions.length },
+    });
   } catch (error) {
     console.error('Error fetching user encryptions:', error);
     return res.status(500).json({
@@ -117,8 +161,13 @@ router.get('/status/:status', async (req: Request, res: Response) => {
       return res.json(response);
     }
 
-    // TODO: Real query when contracts are deployed
-    return res.json({ data: [], meta: { total: 0 } });
+    const filteredEncryptions = await getEncryptionsByStatus(
+      status as 'active' | 'pending' | 'completed'
+    );
+    return res.json({
+      data: filteredEncryptions,
+      meta: { total: filteredEncryptions.length },
+    });
   } catch (error) {
     console.error('Error fetching encryptions by status:', error);
     return res.status(500).json({

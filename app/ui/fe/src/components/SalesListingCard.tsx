@@ -15,6 +15,7 @@ interface SalesListingCardProps {
   onViewBids?: (encryption: EncryptionDisplay) => void;
   onRemove?: (encryption: EncryptionDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
+  onCompleteSale?: (encryption: EncryptionDisplay) => void;
   compact?: boolean;
 }
 
@@ -24,6 +25,7 @@ export default function SalesListingCard({
   onViewBids,
   onRemove,
   onCancelPending,
+  onCompleteSale,
   compact = false,
 }: SalesListingCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
@@ -207,12 +209,20 @@ export default function SalesListingCard({
                   </>
                 )}
                 {isPending && (
-                  <button
-                    onClick={() => onCancelPending?.(encryption)}
-                    className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
+                  <>
+                    <button
+                      onClick={() => onCompleteSale?.(encryption)}
+                      className="px-3 py-1.5 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer"
+                    >
+                      Complete Sale
+                    </button>
+                    <button
+                      onClick={() => onCancelPending?.(encryption)}
+                      className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -375,12 +385,20 @@ export default function SalesListingCard({
             </>
           )}
           {isPending && (
-            <button
-              onClick={() => onCancelPending?.(encryption)}
-              className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
-            >
-              Cancel Pending Sale
-            </button>
+            <>
+              <button
+                onClick={() => onCompleteSale?.(encryption)}
+                className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer"
+              >
+                Complete Sale
+              </button>
+              <button
+                onClick={() => onCancelPending?.(encryption)}
+                className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+              >
+                Cancel Pending Sale
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -367,9 +367,12 @@ class SnarkStorage {
 
   /**
    * Check if all required SNARK files are cached (IndexedDB or memory)
+   * Also validates that cached files are large enough to be real (not stale/corrupt).
    */
   async hasAllFiles(): Promise<boolean> {
     const requiredFiles = ['pk.bin', 'ccs.bin']
+    // Minimum sizes to consider a cached file valid (must be at least 1MB)
+    const MIN_VALID_SIZE = 1 * 1024 * 1024
     console.log('[SnarkStorage] hasAllFiles: checking for', requiredFiles)
 
     for (const fileName of requiredFiles) {
@@ -380,9 +383,13 @@ class SnarkStorage {
         console.log(`[SnarkStorage] hasAllFiles: ${fileName} not found, returning false`)
         return false
       }
+      if (file.size < MIN_VALID_SIZE) {
+        console.warn(`[SnarkStorage] hasAllFiles: ${fileName} is too small (${file.size} bytes), treating as invalid`)
+        return false
+      }
     }
 
-    console.log('[SnarkStorage] hasAllFiles: all files found, returning true')
+    console.log('[SnarkStorage] hasAllFiles: all files found and valid, returning true')
     return true
   }
 
@@ -601,7 +608,7 @@ export function formatBytes(bytes: number): string {
  * Expected file sizes for progress estimation
  */
 export const EXPECTED_FILE_SIZES = {
-  'pk.bin': 613 * 1024 * 1024,    // ~613 MB
-  'ccs.bin': 85 * 1024 * 1024,    // ~85 MB
-  'prover.wasm': 24 * 1024 * 1024, // ~24 MB
+  'pk.bin': 468_981_843,    // ~447 MB
+  'ccs.bin': 54_683_814,    // ~52 MB
+  'prover.wasm': 19_197_052, // ~18 MB
 }
