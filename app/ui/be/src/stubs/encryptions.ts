@@ -121,6 +121,13 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
       },
       status: {
         type: 'Pending',
+        groth_proof: {
+          piA: SAMPLE_PUBLIC_1,
+          piB: SAMPLE_G2,
+          piC: SAMPLE_PUBLIC_3,
+          commitments: [SAMPLE_PUBLIC_1],
+          commitmentPok: SAMPLE_PUBLIC_3,
+        },
         groth_public: Array(36).fill(0).map((_, i) => i * 12345),
         ttl: Date.now() + 20 * 60 * 1000, // 20 minutes from now
       },

@@ -187,8 +187,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 capsule: next_capsule,
                 status: next_status,
               }: EncryptionDatum = output_datum_data
-              // get the bidding contract hash from the reference datum
-              let ReferenceDatum { bid, .. }: ReferenceDatum =
+              // get the bidding contract hash and snark vk from the reference datum
+              let ReferenceDatum { bid, snark_vk, .. }: ReferenceDatum =
                 search.for_reference_datum(
                   reference_inputs,
                   genesis_pid,
@@ -220,7 +220,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               expect Some(next_full_level): Option<FullEncryptionLevel> =
                 maybe_next_full_level
               // must be in pending and going to open
-              expect Pending(groth_public, _) = status
+              expect Pending(groth_proof, groth_public, _) = status
               expect Open = next_status
               //
               and {
@@ -231,6 +231,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   next_half_level.r2_g1b,
                   groth_public,
                 ),
+                // verify commitment proof of knowledge
+                verify_commitments(snark_vk, groth_proof),
                 // cipher text can not change
                 capsule == next_capsule,
                 // this token can not chnage
@@ -272,8 +274,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 ..
               }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
-              // get the groth script hash and snark vk from the reference datum
-              let ReferenceDatum { groth: groth_script, snark_vk, .. }: ReferenceDatum =
+              // get the groth script hash from the reference datum
+              let ReferenceDatum { groth: groth_script, .. }: ReferenceDatum =
                 search.for_reference_datum(
                   reference_inputs,
                   genesis_pid,
@@ -298,7 +300,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               let expected_output_datum_data: Data =
                 EncryptionDatum {
                   ..this_datum,
-                  status: Pending(groth_public, ttl),
+                  status: Pending(groth_proof, groth_public, ttl),
                 }
               //
               and {
@@ -306,8 +308,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 (expected_ttl <= ttl)?,
                 (ttl <= 2 * expected_ttl)?,
                 (finite_interval_length <= encryption.snark_validity_window)?,
-                // do groth stuff via groth_witness withdraw validator
-                verify_commitments(snark_vk, groth_proof),
                 // owner must sign it
                 has(extra_signatories, owner_vkh),
                 // datum must go back to open
@@ -334,7 +334,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               let expected_output_datum_data: Data =
                 EncryptionDatum { ..this_datum, status: Open }
               // cancel the encryption process if it takes too long
-              expect Pending(_, ttl) = status
+              expect Pending(_, _, ttl) = status
               // either expired or cancel
               let expired_or_cancel: Bool = or {
                   when validity_range.lower_bound.bound_type is {
