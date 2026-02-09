@@ -6,8 +6,9 @@ import {
   getEncryptionByToken,
   getEncryptionsByUser,
   getEncryptionsByStatus,
+  getEncryptionLevels,
 } from '../services/encryptions.js';
-import type { ApiResponse, EncryptionDisplay } from '../types/index.js';
+import type { ApiResponse, EncryptionDisplay, EncryptionLevel } from '../types/index.js';
 
 const router = Router();
 
@@ -34,6 +35,38 @@ router.get('/', async (_req: Request, res: Response) => {
     console.error('Error fetching encryptions:', error);
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions' },
+    });
+  }
+});
+
+/**
+ * GET /api/encryptions/:tokenName/levels
+ * Get all encryption levels for recursive decryption (queries full tx history).
+ * Must be registered BEFORE /:tokenName to avoid being caught by it.
+ */
+router.get('/:tokenName/levels', async (req: Request, res: Response) => {
+  try {
+    const { tokenName } = req.params;
+
+    if (config.useStubs) {
+      // Stub: return empty levels (stub decryption doesn't use real levels)
+      const response: ApiResponse<EncryptionLevel[]> = {
+        data: [],
+        meta: { total: 0 },
+      };
+      return res.json(response);
+    }
+
+    const levels = await getEncryptionLevels(tokenName);
+    const response: ApiResponse<EncryptionLevel[]> = {
+      data: levels,
+      meta: { total: levels.length },
+    };
+    return res.json(response);
+  } catch (error) {
+    console.error('Error fetching encryption levels:', error);
+    return res.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels' },
     });
   }
 });

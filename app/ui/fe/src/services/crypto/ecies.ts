@@ -42,9 +42,9 @@ export async function encrypt(context: string, kem: string, msg: string): Promis
 
   // Derive AES key using HKDF with SHA3-256
   const kemBytes = hexToBytes(kem);
-  const infoBytes = new TextEncoder().encode(
-    hexToHumanReadable(KEM_DOMAIN_TAG)
-  );
+  // HKDF info must match Python: KEM_DOMAIN_TAG.encode("utf-8")
+  // Python encodes the hex string itself to UTF-8 (ASCII bytes of hex chars).
+  const infoBytes = new TextEncoder().encode(KEM_DOMAIN_TAG);
 
   // HKDF using @noble/hashes
   const aesKeyBytes = hkdf(sha3_256, kemBytes, saltBytes, infoBytes, 32);
@@ -106,11 +106,9 @@ export async function decrypt(
   const salt = generate(SLT_DOMAIN_TAG + context + KEM_DOMAIN_TAG);
   const saltBytes = new TextEncoder().encode(salt);
 
-  // Derive AES key
+  // Derive AES key (info must match Python: hex string as UTF-8)
   const kemBytes = hexToBytes(kem);
-  const infoBytes = new TextEncoder().encode(
-    hexToHumanReadable(KEM_DOMAIN_TAG)
-  );
+  const infoBytes = new TextEncoder().encode(KEM_DOMAIN_TAG);
   const aesKeyBytes = hkdf(sha3_256, kemBytes, saltBytes, infoBytes, 32);
 
   // Import AES key (ensure proper ArrayBuffer)
@@ -150,11 +148,3 @@ export function capsuleToPlutusJson(capsule: Capsule): object {
   };
 }
 
-/**
- * Convert hex-encoded domain tag back to human-readable string.
- * Used for HKDF info parameter which expects the original string.
- */
-function hexToHumanReadable(hexString: string): string {
-  const bytes = hexToBytes(hexString);
-  return new TextDecoder().decode(bytes);
-}

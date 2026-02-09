@@ -105,6 +105,13 @@ export interface BidDisplay {
   datum: BidDatum;
 }
 
+// Decryption level (for recursive decrypt across re-encryption hops)
+export interface EncryptionLevel {
+  r1: string;       // G1 point (96 hex chars)
+  r2_g1: string;    // G1 point (96 hex chars)
+  r2_g2?: string;   // G2 point (192 hex chars) — present for full-level, absent for half-level
+}
+
 // Protocol config for frontend
 export interface ProtocolConfig {
   network: 'preprod' | 'mainnet';

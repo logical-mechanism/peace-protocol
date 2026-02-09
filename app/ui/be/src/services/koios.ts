@@ -26,6 +26,24 @@ interface KoiosUtxo {
   is_spent: boolean;
 }
 
+interface TxOutput {
+  payment_addr: {
+    bech32: string;
+    cred: string;
+  };
+  value: string;
+  inline_datum: {
+    bytes: string;
+    value: unknown;
+  } | null;
+}
+
+interface TxInfo {
+  tx_hash: string;
+  block_height: number;
+  outputs: TxOutput[];
+}
+
 class KoiosClient {
   private baseUrl: string;
   private authToken: string;
@@ -114,6 +132,38 @@ class KoiosClient {
 
     // Koios returns metadata as an object { "674": {...} }, convert to array format
     return Object.entries(rawMetadata).map(([key, json]) => ({ key, json }));
+  }
+
+  /**
+   * Get all transaction hashes for an asset (with full history).
+   * Used for building decryption levels across re-encryption hops.
+   */
+  async getAssetTxs(policyId: string, assetName: string): Promise<Array<{ tx_hash: string; block_height: number }>> {
+    return this.request<Array<{ tx_hash: string; block_height: number }>>(
+      `/asset_txs?_asset_policy=${policyId}&_asset_name=${assetName}&_history=true`
+    );
+  }
+
+  /**
+   * Get transaction info for multiple tx hashes (batch).
+   * Returns outputs with inline datums for extracting encryption levels.
+   * Matches the flags used in commands/08_decryptMessage.sh.
+   */
+  async getTxInfoBatch(txHashes: string[]): Promise<TxInfo[]> {
+    if (txHashes.length === 0) return [];
+    return this.request<TxInfo[]>('/tx_info', {
+      method: 'POST',
+      body: JSON.stringify({
+        _tx_hashes: txHashes,
+        _inputs: false,
+        _metadata: false,
+        _assets: false,
+        _withdrawals: false,
+        _certs: false,
+        _scripts: true,
+        _bytecode: false,
+      }),
+    });
   }
 
   /**
