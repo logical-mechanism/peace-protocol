@@ -223,7 +223,7 @@ export default function SnarkProvingModal({
                   {state === 'initializing' ? 'Initializing prover...' : 'Generating zero-knowledge proof...'}
                 </p>
                 <p className="text-sm text-[var(--text-muted)]">
-                  This may take 10-30 seconds
+                  This may take 5-10 minutes
                 </p>
               </div>
 

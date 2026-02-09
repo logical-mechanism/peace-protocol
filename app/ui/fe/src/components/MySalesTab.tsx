@@ -11,18 +11,20 @@ type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids'
 type StatusFilter = 'all' | 'active' | 'pending' | 'completed';
 
 interface MySalesTabProps {
-  userAddress?: string;
+  userPkh?: string;
   onRemoveListing?: (encryption: EncryptionDisplay) => void;
   onAcceptBid?: (encryption: EncryptionDisplay, bid: BidDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
+  onCompleteSale?: (encryption: EncryptionDisplay) => void;
   onCreateListing?: () => void;
 }
 
 export default function MySalesTab({
-  userAddress,
+  userPkh,
   onRemoveListing,
   onAcceptBid,
   onCancelPending,
+  onCompleteSale,
   onCreateListing,
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
@@ -42,12 +44,10 @@ export default function MySalesTab({
     setLoading(true);
     setError(null);
     try {
-      // Fetch all encryptions and filter by user address
+      // Fetch all encryptions and filter by owner PKH from datum
       const allEncryptions = await encryptionsApi.getAll();
-      const userEncryptions = userAddress
-        ? allEncryptions.filter(
-            (e) => e.seller.toLowerCase() === userAddress.toLowerCase()
-          )
+      const userEncryptions = userPkh
+        ? allEncryptions.filter((e) => e.sellerPkh === userPkh)
         : [];
       setEncryptions(userEncryptions);
 
@@ -72,7 +72,7 @@ export default function MySalesTab({
     } finally {
       setLoading(false);
     }
-  }, [userAddress]);
+  }, [userPkh]);
 
   useEffect(() => {
     fetchData();
@@ -392,6 +392,7 @@ export default function MySalesTab({
               onViewBids={handleViewBids}
               onRemove={handleRemoveListing}
               onCancelPending={handleCancelPending}
+              onCompleteSale={onCompleteSale}
             />
           ))}
         </div>

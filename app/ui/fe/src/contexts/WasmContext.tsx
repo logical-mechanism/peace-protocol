@@ -67,11 +67,11 @@ export function useWasm(): WasmContextValue {
 const STAGE_MESSAGES: Record<WasmStage, string> = {
   'idle': 'Waiting to start...',
   'checking-cache': 'Checking for cached files...',
-  'downloading-ccs': 'Downloading constraint system (~85 MB)...',
-  'downloading-pk': 'Downloading proving key (~613 MB)...',
+  'downloading-ccs': 'Downloading constraint system (~52 MB)...',
+  'downloading-pk': 'Downloading proving key (~447 MB)...',
   'loading-wasm': 'Loading WASM runtime...',
   'deserializing-ccs': 'Initializing constraint system...',
-  'deserializing-pk': 'Loading proving key... This takes ~90 minutes',
+  'deserializing-pk': 'Loading proving key... This takes ~99 minutes',
   'ready': 'Ready to generate proofs',
   'error': 'Loading failed',
 }

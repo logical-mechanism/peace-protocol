@@ -13,7 +13,7 @@ interface FormErrors {
 interface PlaceBidModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (encryptionTokenName: string, bidAmountAda: number) => Promise<void>;
+  onSubmit: (encryptionTokenName: string, bidAmountAda: number, encryptionUtxo: { txHash: string; outputIndex: number }) => Promise<void>;
   encryption: EncryptionDisplay | null;
 }
 
@@ -110,7 +110,7 @@ export default function PlaceBidModal({
 
     try {
       const bidAmountAda = parseFloat(formData.bidAmount);
-      await onSubmit(encryption.tokenName, bidAmountAda);
+      await onSubmit(encryption.tokenName, bidAmountAda, encryption.utxo);
       onClose();
     } catch (error) {
       console.error('Failed to place bid:', error);

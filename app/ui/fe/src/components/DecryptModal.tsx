@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useWallet } from '@meshsdk/react';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
-import { decryptBid, getDecryptionExplanation, isStubMode } from '../services/crypto/decrypt';
+import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode } from '../services/crypto/decrypt';
 import { copyToClipboard } from '../utils/clipboard';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -39,13 +39,16 @@ export default function DecryptModal({
   }, [isOpen]);
 
   const handleDecrypt = useCallback(async () => {
-    if (!wallet || !bid || !encryption) return;
+    if (!wallet || !encryption) return;
 
     setState('decrypting');
     setError(null);
 
     try {
-      const result = await decryptBid(wallet, bid, encryption);
+      // Use bid-based decryption if bid is available, otherwise decrypt directly from encryption
+      const result = bid
+        ? await decryptBid(wallet, bid, encryption)
+        : await decryptEncryption(wallet, encryption);
 
       if (result.success && result.message) {
         setState('success');
@@ -109,9 +112,9 @@ export default function DecryptModal({
             <h2 className="text-xl font-semibold text-[var(--text-primary)]">
               {state === 'success' ? 'Decrypted Message' : 'Decrypt Content'}
             </h2>
-            {bid && (
+            {(bid || encryption) && (
               <p className="text-sm text-[var(--text-muted)] mt-1">
-                Token: {truncateToken(bid.encryptionToken)}
+                Token: {truncateToken(bid ? bid.encryptionToken : encryption!.tokenName)}
               </p>
             )}
           </div>
@@ -140,12 +143,14 @@ export default function DecryptModal({
                       {encryption.description}
                     </p>
                   )}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-[var(--text-muted)]">Your winning bid:</span>
-                    <span className="font-semibold text-[var(--success)]">
-                      {bid ? formatAda(bid.amount) : '...'} ADA
-                    </span>
-                  </div>
+                  {bid && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[var(--text-muted)]">Your winning bid:</span>
+                      <span className="font-semibold text-[var(--success)]">
+                        {formatAda(bid.amount)} ADA
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
