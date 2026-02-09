@@ -69,7 +69,7 @@ function parseRegister(v: PlutusJSON): Register {
   };
 }
 
-function parseHalfEncryptionLevel(v: PlutusJSON): HalfEncryptionLevel {
+export function parseHalfEncryptionLevel(v: PlutusJSON): HalfEncryptionLevel {
   const c = asConstr(v);
   return {
     r1b: asBytes(c.fields[0]),
@@ -93,7 +93,7 @@ function parseFullEncryptionLevel(v: PlutusJSON): FullEncryptionLevel {
  *   Some(x) → { constructor: 0, fields: [x] }
  *   None    → { constructor: 1, fields: [] }
  */
-function parseOptionalFullLevel(v: PlutusJSON): FullEncryptionLevel | null {
+export function parseOptionalFullLevel(v: PlutusJSON): FullEncryptionLevel | null {
   const c = asConstr(v);
   if (c.constructor === 1) return null; // None
   return parseFullEncryptionLevel(c.fields[0]);

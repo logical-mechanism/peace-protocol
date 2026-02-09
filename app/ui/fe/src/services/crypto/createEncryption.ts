@@ -101,44 +101,23 @@ async function gtToHashWasm(a: bigint): Promise<string> {
 }
 
 /**
- * STUB: Compute GT hash from scalar a.
+ * Compute GT hash using WASM.
  *
- * In the real implementation, this computes:
- *   kappa = e([a]G1, H0)
- *   m0 = fq12_encoding(kappa, F12_DOMAIN_TAG)
- *
- * This requires computing a BLS12-381 pairing which is expensive and
- * requires either native code or specialized WASM.
- *
- * For now, returns a deterministic stub value for development.
- */
-function gtToHashStub(a: bigint): string {
-  // STUB: Return a deterministic placeholder hash
-  // In production, this MUST call the actual pairing computation
-  console.warn(
-    '[STUB] gtToHash called - using placeholder. Real implementation requires native binary or WASM.'
-  );
-
-  // Generate a deterministic but fake "hash" from the scalar
-  // This is NOT cryptographically valid - just for UI development
-  const aHex = a.toString(16).padStart(64, '0');
-  return generate(aHex + aHex); // blake2b-224 of concatenated hex
-}
-
-/**
- * Compute GT hash, using WASM if available, otherwise stub.
+ * WASM is REQUIRED — the stub produces blake2b-224 (56 hex chars) which is
+ * incompatible with DecryptToHash's MiMC output (64 hex chars). Encryptions
+ * created with the stub can never be decrypted.
  *
  * @param a - Secret scalar
- * @param forceStub - If true, always use stub (for testing)
- * @returns Hash as hex string
+ * @returns Hash as hex string (64 chars / 32 bytes from MiMC)
  */
-async function gtToHash(a: bigint, forceStub: boolean = false): Promise<string> {
-  if (!forceStub && isWasmGtToHashAvailable()) {
-    console.log('[gtToHash] Using WASM implementation via worker');
-    return gtToHashWasm(a);
+async function gtToHash(a: bigint): Promise<string> {
+  if (!isWasmGtToHashAvailable()) {
+    throw new Error(
+      'WASM prover not loaded. The prover must be initialized before creating an encryption. ' +
+      'Load the prover from the dashboard first.'
+    );
   }
-  console.log('[gtToHash] Using stub implementation (WASM worker not available or forced stub)');
-  return gtToHashStub(a);
+  return gtToHashWasm(a);
 }
 
 /**
@@ -182,19 +161,19 @@ export async function createEncryptionArtifacts(
   tokenName: string,
   useStubs: boolean = false
 ): Promise<CreateEncryptionResult> {
-  // Check if WASM is available when not using stubs
+  // WASM is required for real encryption (gtToHash uses MiMC via gnark pairing)
   if (!useStubs && !isWasmGtToHashAvailable()) {
-    console.warn('[createEncryptionArtifacts] WASM not available, falling back to stub');
+    throw new Error(
+      'WASM prover not loaded. The prover must be initialized before creating an encryption.'
+    );
   }
 
   // Generate random secrets
   const a = rng();
   const r = rng();
 
-  // Compute m0 (KEM material) - ALWAYS use WASM if available (fast operation)
-  // Note: useStubs is for transaction submission, not hash functions
+  // Compute m0 (KEM material) via WASM pairing + MiMC hash
   const m0 = await gtToHash(a);
-  console.log('[createEncryptionArtifacts] m0 (KEM hash):', m0);
 
   // Derive user secret and create register
   const sk = deriveUserSecret(walletSecretHex);
@@ -266,9 +245,11 @@ export async function createEncryptionWithWallet(
   tokenName: string,
   useStubs: boolean = false
 ): Promise<CreateEncryptionResult> {
-  // Check if WASM is available when not using stubs
+  // WASM is required for real encryption (gtToHash uses MiMC via gnark pairing)
   if (!useStubs && !isWasmGtToHashAvailable()) {
-    console.warn('[createEncryptionWithWallet] WASM not available, falling back to stub');
+    throw new Error(
+      'WASM prover not loaded. The prover must be initialized before creating an encryption.'
+    );
   }
 
   // Derive sk from wallet signature
@@ -278,10 +259,8 @@ export async function createEncryptionWithWallet(
   const a = rng();
   const r = rng();
 
-  // Compute m0 (KEM material) - ALWAYS use WASM if available (fast operation)
-  // Note: useStubs is for transaction submission, not hash functions
+  // Compute m0 (KEM material) via WASM pairing + MiMC hash
   const m0 = await gtToHash(a);
-  console.log('[createEncryptionWithWallet] m0 (KEM hash):', m0);
 
   // Create register from derived sk
   const userRegister = createRegister(sk);
@@ -351,9 +330,8 @@ export function getStubWarning(): string {
     );
   }
   return (
-    'Encryption is running in STUB mode. The encrypted data uses placeholder ' +
-    'key material and is NOT cryptographically secure. This is for UI development only. ' +
-    'Load the WASM prover to enable real cryptographic operations.'
+    'WASM prover not loaded. The prover must be initialized before creating an encryption. ' +
+    'Load the WASM prover from the dashboard to enable encryption.'
   );
 }
 

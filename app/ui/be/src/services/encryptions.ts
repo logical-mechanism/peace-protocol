@@ -1,7 +1,7 @@
 import { getNetworkConfig } from '../config/index.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
-import { parseEncryptionDatum } from './parsers.js';
-import type { EncryptionDisplay, EncryptionDatum } from '../types/index.js';
+import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
+import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel } from '../types/index.js';
 
 interface ParsedCip20 {
   description?: string;
@@ -109,4 +109,97 @@ export async function getEncryptionsByStatus(
 ): Promise<EncryptionDisplay[]> {
   const encryptions = await getAllEncryptions();
   return encryptions.filter(e => e.status === status);
+}
+
+/**
+ * Get all encryption levels for a token by querying its full transaction history.
+ *
+ * This implements the same logic as commands/08_decryptMessage.sh:
+ * 1. Get all tx hashes for the encryption token (asset_txs with _history=true)
+ * 2. Get tx_info for those hashes to access inline datums
+ * 3. Sort by block_height descending (newest first)
+ * 4. From newest tx: extract half_level + full_level (if Some)
+ * 5. From older txs: extract full_level (if Some)
+ * 6. Return ordered array for recursive decryption
+ */
+export async function getEncryptionLevels(tokenName: string): Promise<EncryptionLevel[]> {
+  const { contracts } = getNetworkConfig();
+  const koios = getKoiosClient();
+
+  // Step 1: Get all transaction hashes for this encryption token
+  console.log(`[getEncryptionLevels] Querying asset_txs for policy=${contracts.encryptionPolicyId.slice(0, 16)}... token=${tokenName.slice(0, 16)}...`);
+  const assetTxs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
+  console.log(`[getEncryptionLevels] Found ${assetTxs.length} asset tx(s)`);
+  if (assetTxs.length === 0) {
+    throw new Error(`No transactions found for encryption token ${tokenName}`);
+  }
+
+  const txHashes = assetTxs.map(tx => tx.tx_hash);
+
+  // Step 2: Get transaction info with inline datums
+  const txInfos = await koios.getTxInfoBatch(txHashes);
+  console.log(`[getEncryptionLevels] Got ${txInfos.length} tx info(s)`);
+
+  // Step 3: Sort by block_height descending (newest first)
+  txInfos.sort((a, b) => b.block_height - a.block_height);
+
+  // Step 4-5: Extract levels from inline datums at the encryption contract address
+  const levels: EncryptionLevel[] = [];
+  console.log(`[getEncryptionLevels] Looking for outputs at address: ${contracts.encryptionAddress}`);
+
+  for (let i = 0; i < txInfos.length; i++) {
+    const tx = txInfos[i];
+    console.log(`[getEncryptionLevels] TX ${i}: ${tx.tx_hash?.slice(0, 16)}... block=${tx.block_height} outputs=${tx.outputs?.length ?? 'undefined'}`);
+
+    // Find the output at the encryption contract address
+    const encOutput = tx.outputs?.find(
+      o => o.payment_addr?.bech32 === contracts.encryptionAddress
+    );
+    if (!encOutput) {
+      console.log(`[getEncryptionLevels] TX ${i}: No output at encryption address`);
+      if (tx.outputs?.length) {
+        console.log(`[getEncryptionLevels] TX ${i}: Available addresses:`, tx.outputs.map(o => o.payment_addr?.bech32?.slice(0, 30) + '...'));
+      }
+      continue;
+    }
+    if (!encOutput.inline_datum?.value) {
+      console.log(`[getEncryptionLevels] TX ${i}: Output found but no inline_datum`);
+      continue;
+    }
+    console.log(`[getEncryptionLevels] TX ${i}: Found output with inline datum`);
+
+    // The datum is a Plutus constructor: fields[3] = half_level, fields[4] = full_level
+    const datumValue = encOutput.inline_datum.value as { constructor: number; fields: unknown[] };
+    if (!datumValue.fields || datumValue.fields.length < 5) continue;
+
+    if (i === 0) {
+      // Newest tx: extract half_level (fields[3])
+      try {
+        const halfLevel = parseHalfEncryptionLevel(datumValue.fields[3] as never);
+        levels.push({
+          r1: halfLevel.r1b,
+          r2_g1: halfLevel.r2_g1b,
+        });
+      } catch (err) {
+        console.warn(`Failed to parse half_level from tx ${tx.tx_hash}:`, err);
+      }
+    }
+
+    // All txs (including newest): extract full_level if Some (fields[4])
+    try {
+      const fullLevel = parseOptionalFullLevel(datumValue.fields[4] as never);
+      if (fullLevel) {
+        levels.push({
+          r1: fullLevel.r1b,
+          r2_g1: fullLevel.r2_g1b,
+          r2_g2: fullLevel.r2_g2b,
+        });
+      }
+    } catch (err) {
+      console.warn(`Failed to parse full_level from tx ${tx.tx_hash}:`, err);
+    }
+  }
+
+  console.log(`[getEncryptionLevels] Built ${levels.length} level(s) for token ${tokenName.slice(0, 16)}...`);
+  return levels;
 }

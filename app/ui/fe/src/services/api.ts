@@ -44,6 +44,13 @@ export interface FullEncryptionLevel {
   r4b: string;
 }
 
+// Decryption level (for recursive decrypt across re-encryption hops)
+export interface EncryptionLevelResponse {
+  r1: string;       // G1 point (96 hex chars)
+  r2_g1: string;    // G1 point (96 hex chars)
+  r2_g2?: string;   // G2 point (192 hex chars) — present for full-level, absent for half-level
+}
+
 export type EncryptionStatus =
   | { type: 'Open' }
   | { type: 'Pending'; groth_public: number[]; ttl: number };
@@ -180,6 +187,14 @@ export const encryptionsApi = {
    */
   async getByStatus(status: 'active' | 'pending' | 'completed'): Promise<EncryptionDisplay[]> {
     const response = await apiFetch<ApiResponse<EncryptionDisplay[]>>(`/api/encryptions/status/${status}`);
+    return response.data;
+  },
+
+  /**
+   * Get all encryption levels for recursive decryption (queries full tx history).
+   */
+  async getLevels(tokenName: string): Promise<EncryptionLevelResponse[]> {
+    const response = await apiFetch<ApiResponse<EncryptionLevelResponse[]>>(`/api/encryptions/${tokenName}/levels`);
     return response.data;
   },
 };
