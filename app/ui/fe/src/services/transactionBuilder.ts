@@ -36,6 +36,47 @@ import type { CreateListingFormData } from '../components/CreateListingModal';
 // Environment flag for stub mode
 const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
 
+// Cardano protocol parameter (preprod/mainnet)
+const COINS_PER_UTXO_BYTE = 4310;
+
+/**
+ * Estimate the minimum lovelace for a UTxO with an inline Plutus JSON datum.
+ *
+ * The bash scripts use `cardano-cli calculate-min-required-utxo` which is
+ * unavailable in the browser. This approximates the CBOR-serialized output
+ * size from the Plutus JSON datum and applies the coinsPerUTxOByte formula.
+ *
+ * @param datum - Plutus JSON datum object
+ * @returns Lovelace amount as a string (with 20% safety margin, min 2 ADA)
+ */
+function estimateMinLovelace(datum: object): string {
+  const json = JSON.stringify(datum, (_key, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  );
+
+  // Count raw byte content from hex "bytes" fields (2 hex chars = 1 CBOR byte)
+  let datumBytes = 0;
+  const hexRe = /"bytes"\s*:\s*"([0-9a-fA-F]*)"/g;
+  let m;
+  while ((m = hexRe.exec(json)) !== null) {
+    datumBytes += m[1].length / 2; // hex → bytes
+    datumBytes += 3; // CBOR bytestring header
+  }
+
+  // Count constructors and integer fields (small CBOR overhead each)
+  const constructors = (json.match(/"constructor"\s*:/g) || []).length;
+  const ints = (json.match(/"int"\s*:/g) || []).length;
+  const arrays = (json.match(/"fields"\s*:/g) || []).length;
+  datumBytes += constructors * 4 + ints * 3 + arrays * 2;
+
+  // UTxO envelope: base overhead (160) + address (~60) + one native asset (~56)
+  const utxoBytes = datumBytes + 276;
+
+  const minLovelace = utxoBytes * COINS_PER_UTXO_BYTE;
+  // 20% safety margin, floor of 2 ADA
+  return Math.max(2_000_000, Math.ceil(minLovelace * 1.2)).toString();
+}
+
 /**
  * Result of a transaction submission.
  */
@@ -290,7 +331,7 @@ export async function createListing(
       .mintRedeemerValue(mintRedeemer, 'JSON')
       // Output to encryption contract with inline datum
       .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: '5000000' },
+        { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
         { unit: policyId + tokenName, quantity: '1' },
       ])
       .txOutInlineDatumValue(datum, 'JSON')
@@ -571,7 +612,7 @@ export async function cancelPendingListing(
       .txInRedeemerValue(spendRedeemer, 'JSON')
       // Output: encryption with Open status
       .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: '5000000' },
+        { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
         { unit: policyId + encryption.tokenName, quantity: '1' },
       ])
       .txOutInlineDatumValue(outputDatum, 'JSON')
@@ -1223,7 +1264,7 @@ export async function acceptBidSnark(
       .txInRedeemerValue(spendRedeemer, 'JSON')
       // Output: encryption with Pending status
       .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: '5000000' },
+        { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
         { unit: policyId + encryption.tokenName, quantity: '1' },
       ])
       .txOutInlineDatumValue(outputDatum, 'JSON')
@@ -1574,7 +1615,7 @@ export async function completeReEncryption(
       .txInRedeemerValue(bidRedeemer, 'JSON')
       // Output: encryption with new owner, new level, Open status
       .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: '5000000' },
+        { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
         { unit: encPolicyId + encryption.tokenName, quantity: '1' },
       ])
       .txOutInlineDatumValue(outputDatum, 'JSON')
