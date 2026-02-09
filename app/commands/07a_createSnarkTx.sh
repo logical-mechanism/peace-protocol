@@ -212,10 +212,12 @@ jq \
 ../data/groth/witness-redeemer.json | sponge ../data/groth/witness-redeemer.json
 
 jq \
+--argjson proof "$(cat ../data/groth/groth-proof.json)" \
 --argjson public "$(cat ../data/groth/groth-public.json)" \
 --argjson ttl "${unix_time}" \
-'.fields[0]=$public |
-.fields[1].int=$ttl' \
+'.fields[0]=$proof |
+.fields[1]=$public |
+.fields[2].int=$ttl' \
 ../data/encryption/pending-status.json | sponge ../data/encryption/pending-status.json
 
 cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json

@@ -51,9 +51,17 @@ export interface EncryptionLevelResponse {
   r2_g2?: string;   // G2 point (192 hex chars) — present for full-level, absent for half-level
 }
 
+export interface GrothProof {
+  piA: string;
+  piB: string;
+  piC: string;
+  commitments: string[];
+  commitmentPok: string;
+}
+
 export type EncryptionStatus =
   | { type: 'Open' }
-  | { type: 'Pending'; groth_public: number[]; ttl: number };
+  | { type: 'Pending'; groth_proof: GrothProof; groth_public: number[]; ttl: number };
 
 export interface EncryptionDatum {
   owner_vkh: string;

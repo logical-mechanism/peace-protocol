@@ -8,7 +8,7 @@
  *   HalfEncLevel:    r1b, r2_g1b, r4b
  *   FullEncLevel:    r1b, r2_g1b, r2_g2b, r4b
  *   Capsule:         nonce, aad, ct
- *   Status:          Open (constructor 0), Pending (constructor 1) → [GrothPublic, Int]
+ *   Status:          Open (constructor 0), Pending (constructor 1) → [GrothProof, GrothPublic, Int]
  */
 
 import type {
@@ -19,6 +19,7 @@ import type {
   FullEncryptionLevel,
   Capsule,
   EncryptionStatus,
+  GrothProof,
 } from '../types/index.js';
 
 // Plutus JSON node types as returned by Koios inline_datum.value
@@ -109,9 +110,25 @@ function parseCapsule(v: PlutusJSON): Capsule {
 }
 
 /**
+ * GrothProof:
+ *   { constructor: 0, fields: [piA, piB, piC, commitments, commitmentPok] }
+ */
+function parseGrothProof(v: PlutusJSON): GrothProof {
+  const c = asConstr(v);
+  return {
+    piA: asBytes(c.fields[0]),
+    piB: asBytes(c.fields[1]),
+    piC: asBytes(c.fields[2]),
+    commitments: asList(c.fields[3]).map(asBytes),
+    commitmentPok: asBytes(c.fields[4]),
+  };
+}
+
+/**
  * Status:
  *   Open    → { constructor: 0, fields: [] }
- *   Pending → { constructor: 1, fields: [GrothPublic, Int] }
+ *   Pending → { constructor: 1, fields: [GrothProof, GrothPublic, Int] }
+ *     GrothProof  = constructor 0 with 5 fields
  *     GrothPublic = List<Int>
  */
 function parseStatus(v: PlutusJSON): EncryptionStatus {
@@ -119,11 +136,12 @@ function parseStatus(v: PlutusJSON): EncryptionStatus {
   if (c.constructor === 0) {
     return { type: 'Open' };
   }
-  // Pending: fields[0] is List<Int>, fields[1] is Int
-  const grothPublicList = asList(c.fields[0]);
+  // Pending: fields[0] is GrothProof, fields[1] is List<Int>, fields[2] is Int
+  const groth_proof = parseGrothProof(c.fields[0]);
+  const grothPublicList = asList(c.fields[1]);
   const groth_public = grothPublicList.map(asInt);
-  const ttl = asInt(c.fields[1]);
-  return { type: 'Pending', groth_public, ttl };
+  const ttl = asInt(c.fields[2]);
+  return { type: 'Pending', groth_proof, groth_public, ttl };
 }
 
 export function parseEncryptionDatum(datumValue: unknown): EncryptionDatum {

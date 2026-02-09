@@ -42,10 +42,19 @@ export interface FullEncryptionLevel {
   r4b: string;            // 192 hex chars (compressed G2)
 }
 
+// Groth16 proof (gnark commitment extension)
+export interface GrothProof {
+  piA: string;              // G1 compressed (96 hex chars)
+  piB: string;              // G2 compressed (192 hex chars)
+  piC: string;              // G1 compressed (96 hex chars)
+  commitments: string[];    // List of G1 compressed
+  commitmentPok: string;    // G1 compressed
+}
+
 // Status types
 export type EncryptionStatus =
   | { type: 'Open' }
-  | { type: 'Pending'; groth_public: number[]; ttl: number };
+  | { type: 'Pending'; groth_proof: GrothProof; groth_public: number[]; ttl: number };
 
 // On-chain encryption datum
 export interface EncryptionDatum {
