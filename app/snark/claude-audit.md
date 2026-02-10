@@ -72,18 +72,18 @@ The codebase defines **two circuits**, both compiled over BLS12-381's scalar fie
 
 ## 2. Findings Table
 
-| ID | Severity | Title | Location | Impact |
+| ID | Severity | Title | Location | Status |
 |----|----------|-------|----------|--------|
-| F-01 | **HIGH** | WASM logs secret scalars to browser console | wasm_main.go:123,129,158,416-417,503 | Secret key extraction via console/JS |
-| F-02 | **MEDIUM** | No in-circuit on-curve validation for V, W0, W1 | kappa.go:660-662 | Soundness depends on external contract |
-| F-03 | **MEDIUM** | WASM hardcodes committed indices [1..36] | wasm_main.go:308-319 | Silent breakage if circuit changes |
-| F-04 | **LOW** | `r = 0` accepted, eliminating blinding | kappa.go:741-742, 911-912 | w1 reveals [a]G directly |
-| F-05 | **LOW** | Minimal MiMC domain separation | kappa.go:39 | Collision risk if reused in other contexts |
-| F-06 | **LOW** | `secret.hash` committed to repository | snark/secret.hash | Potential information leakage |
-| F-07 | **INFO** | Debug CLI commands in production builds | main.go:228-234 | Diagnostic info exposure |
-| F-08 | **INFO** | `domainTagFr()` suppresses hex decode error | kappa.go:166 | Benign (constant input) but not defensive |
-| F-09 | **INFO** | No integrity check on exported JSON artifacts | export.go | JSON can be hand-edited after export |
-| F-10 | **INFO** | gnark emulated ScalarMul fails for a=1, a=r-1, r=0 | gnark v0.14 limitation | Boundary scalars not provable |
+| F-01 | **HIGH** | WASM logs secret scalars to browser console | wasm_main.go:123,129,158,416-417,503 | Will remove in production |
+| F-02 | **MEDIUM** | No in-circuit on-curve validation for V, W0, W1 | kappa.go:660-662 | Accepted risk (WASM 4GB limit; contract checks on-curve) |
+| F-03 | **MEDIUM** | WASM hardcodes committed indices [1..36] | wasm_main.go:308-319 | Accepted (on-chain failure is acceptable) |
+| F-04 | **LOW** | `r = 0` accepted, eliminating blinding | kappa.go:741-742, 911-912 | Accepted (user's responsibility for randomness) |
+| F-05 | **LOW** | Minimal MiMC domain separation | kappa.go:39 | Accepted (tag exists and is used; others may reuse) |
+| F-06 | **LOW** | `secret.hash` committed to repository | snark/secret.hash | Will remove (old test artifact) |
+| F-07 | **INFO** | Debug CLI commands in production builds | main.go:228-234 | Will remove in production |
+| F-08 | **INFO** | `domainTagFr()` suppresses hex decode error | kappa.go:166 | Acknowledged |
+| F-09 | **INFO** | No integrity check on exported JSON artifacts | export.go | Accepted (export-only; contract re-verifies) |
+| F-10 | **INFO** | gnark emulated ScalarMul fails for a=1, a=r-1, r=0 | gnark v0.14 limitation | Documented |
 
 ---
 
@@ -376,30 +376,29 @@ The conversion is lossy (p > r, so different Fp values can map to the same Fr va
 | Different `a`, same public inputs → proof fails | Cannot forge for wrong `a` | **High** |
 | Cross-check: in-circuit MiMC matches native MiMC for known GT | Hash consistency | **High** |
 
-### 5.2 Specific Test Cases to Implement
+### 5.2 Implemented Test Cases
 
-```go
-// TestProveAndVerifyVW0W1_FailsOnWrongW1
-// Modify w1 (add generator) and verify proof generation fails
-func TestProveAndVerifyVW0W1_FailsOnWrongW1(t *testing.T) { ... }
+All of the following tests were added to `main_test.go` and pass:
 
-// TestProveAndVerifyVW0W1_FailsOnWrongV
-// Use different V with correct w0 (w0 doesn't depend on V)
-// but w1 is computed with original V → should fail
-func TestProveAndVerifyVW0W1_FailsOnWrongV(t *testing.T) { ... }
+| Test | Category | What It Validates |
+|------|----------|-------------------|
+| `TestProveAndVerifyVW0W1_FailsOnWrongW1` | Negative (circuit) | Tampered w1 (add generator) causes proof failure |
+| `TestProveAndVerifyVW0W1_FailsOnWrongV` | Negative (circuit) | Wrong V with correct w0 but mismatched w1 causes proof failure |
+| `TestProveAndVerifyVW0W1_FailsOnDifferentA` | Negative (circuit) | Proof with wrong secret `a` fails even with valid w0/w1 from correct `a` |
+| `TestProveVW0W1_BoundaryScalars` | Boundary (circuit) | Subtests with a=2/r=2, a=3/r=200, a=100/r=100, a=999999/r=888888 |
+| `TestDifferentR_DifferentW1` | Pure math | Same `a`, different `r` → different w1 (blinding works) |
+| `TestSameA_SameW0` | Pure math | Same `a` always produces same w0 (determinism) |
+| `TestDifferentA_DifferentW0` | Pure math | Different `a` → different w0 (no trivial collisions) |
+| `TestDifferentA_DifferentHash` | Pure math | Different `a` → different MiMC hash output |
+| `TestGTToHash_RejectsZeroAndNil` | Input validation | `gtToHash(0)` and `gtToHash(nil)` return errors |
+| `TestHKScalarFromA_RejectsZeroAndNil` | Input validation | `hkScalarFromA(0)` and `hkScalarFromA(nil)` return errors |
+| `TestDifferentVScalar_DifferentW1` | Pure math | Different V scalar → different w1 for same a,r |
+| `TestDifferentVScalar_SameW0` | Pure math | Different V scalar does not affect w0 |
 
-// TestProveAndVerifyVW0W1_BoundaryA
-// Test with a = 1 and a = r-1
-func TestProveAndVerifyVW0W1_BoundaryA(t *testing.T) { ... }
+**Helper added**: `computeVW0W1WithVScalar(a, r, vScalar)` — allows specifying a custom V scalar for targeted testing.
 
-// TestProveAndVerifyVW0W1_DifferentR_DifferentW1
-// Same a, different r values produce different w1
-func TestProveAndVerifyVW0W1_DifferentR_DifferentW1(t *testing.T) { ... }
-
-// TestWASM_CommitmentWireMatchesVKPath
-// Verify computeCommitmentWireNoVK matches computeCommitmentWire
-func TestCommitmentWire_WASMMatchesVKPath(t *testing.T) { ... }
-```
+**Not yet implemented** (requires WASM build infrastructure):
+- `TestCommitmentWire_WASMMatchesVKPath` — verify `computeCommitmentWireNoVK` matches `computeCommitmentWire`
 
 ### 5.3 Test Coverage Assessment (Updated)
 
@@ -427,23 +426,25 @@ func TestCommitmentWire_WASMMatchesVKPath(t *testing.T) { ... }
 
 ## 6. Prioritized Fix Plan
 
-### Immediate (before next deployment)
+### Before production deployment
 
-1. **F-01**: Remove secret logging from WASM (HIGH) — 10 min fix, maximum impact
-2. **F-03**: Add assertion on public input count in WASM commitment wire — 5 min fix
+1. **F-01**: Remove secret logging from WASM — owner confirms will remove
+2. **F-07**: Remove debug CLI commands — owner confirms will remove
+3. **F-06**: Delete `secret.hash` — owner confirms it is an old artifact
 
-### Short-term (next sprint)
+### Completed during audit
 
-3. Add missing negative test cases (Wrong W1, Wrong V, boundary scalars)
-4. **F-02**: Document the on-curve validation trust boundary in a `SECURITY.md`
-5. **F-04**: Decide and document whether `r = 0` is allowed by protocol design
+4. Adversarial test suite added (12 new tests, see section 5.2) — all passing
+5. **F-10**: Boundary scalar limitations documented and tested
 
-### Long-term (technical debt)
+### Accepted risks (no action needed)
 
-6. **F-05**: Strengthen MiMC domain tag (requires proof regeneration)
-7. **F-06**: Investigate `secret.hash` and add to `.gitignore` if production-derived
-8. **F-07**: Gate debug commands behind build tag
-9. **F-08**: Add `init()` validation for compile-time constants
+6. **F-02**: On-curve validation delegated to contract — accepted tradeoff for WASM 4GB limit
+7. **F-03**: Hardcoded commitment wire indices — on-chain failure is acceptable
+8. **F-04**: `r = 0` allowed — user's responsibility for randomness
+9. **F-05**: Current domain tag is sufficient
+10. **F-08**: Acknowledged but no change planned
+11. **F-09**: JSON export is transport-only, contract re-verifies
 
 ---
 
@@ -471,6 +472,46 @@ The core circuit logic is sound. Both `wFromHKCircuit` and `vw0w1Circuit` correc
 - Proper Fr reduction of input scalars before witness creation
 - Defensive `a = 0` rejection
 - Pedersen commitment extension (bsb22) correctly integrated
+
+---
+
+## 8. Dependency Audit
+
+| Dependency | Version | Purpose | Notes |
+|------------|---------|---------|-------|
+| `gnark` | v0.14.0 | Circuit compiler, Groth16 prover/verifier | Core cryptographic dependency |
+| `gnark-crypto` | v0.19.2 | BLS12-381 curve, MiMC, pairing | Core cryptographic dependency |
+| `golang.org/x/crypto` | v0.41.0 | SHA256 (indirect via gnark) | Standard Go crypto |
+| `icicle-gnark` | v3.2.2 | GPU acceleration (indirect, unused in WASM) | Not on critical path |
+| `cbor/v2` | v2.9.0 | Serialization (indirect) | — |
+| `zerolog` | v1.34.0 | Logging (indirect via gnark) | — |
+
+**Key observations**:
+- gnark and gnark-crypto are maintained by Consensys (active development, regular releases)
+- No known CVEs against gnark v0.14.0 or gnark-crypto v0.19.2 at time of audit
+- The codebase uses no custom cryptographic implementations — all crypto operations delegate to gnark/gnark-crypto standard APIs
+- Go 1.25.5 is the build target; WASM compilation uses the same toolchain
+
+**Recommendation**: Pin dependency versions in `go.sum` (already done by Go modules). Periodically check for gnark security advisories at `github.com/Consensys/gnark/security`.
+
+---
+
+## 9. Owner Responses
+
+The following responses were provided by the project owner during the audit review:
+
+| ID | Owner Response |
+|----|---------------|
+| F-01 | Testing only. Will be removed before production deployment. |
+| F-02 | Intentional tradeoff to fit SNARK within WASM32's 4GB limit. All points come from the smart contract which performs on-chain on-curve validation. |
+| F-03 | Failing on-chain is acceptable — validation logic stops at the first step. Index check may have been removed to minimize SNARK size. |
+| F-04 | Randomness of `r` is the user's responsibility. Off-chain code can validate before proof generation. |
+| F-05 | Current tag is sufficient. Other contracts may reuse the same tag; adding more terms won't prevent that. The important part is that a tag exists and is used. |
+| F-06 | Old file, can be removed. |
+| F-07 | Testing only. Will be removed before production deployment. |
+| F-08 | Acknowledged. |
+| F-09 | Documenting that JSON export is for data conversion to Aiken-friendly formats is sufficient. |
+| F-10 | (Documented during adversarial testing; gnark limitation, not a protocol issue.) |
 
 ---
 
