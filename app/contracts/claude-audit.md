@@ -571,3 +571,80 @@ The proof chain achieves its three primary goals:
 | 15 | Off-chain assumptions | Token ordering is deterministic (Plutus V3 sorted inputs). Reference inputs must be provided by tx builder. No "only our UI" assumptions — all invariants enforced on-chain. |
 | 16 | Tests and adversarial scenarios | 86 tests (30 added during audit) with 25 adversarial. Strong crypto-level testing. Remaining gap: no validator integration tests. |
 | 17 | Upgrade / migration | No upgrade mechanism. Reference datum is immutable. No admin keys. No kill switch. Protocol state can only evolve through the defined state machine. Migration requires new genesis. |
+
+---
+
+## Additional Observations
+
+### OBS-1: Bid Removal During Pending State (Griefing Vector)
+
+After Alice submits `UseSnark` (Tx1) targeting Bob's bid, the encryption UTxO enters `Pending` with a SNARK proof committed to Bob's public key. However, Bob can `RemoveBid` his bid at any time — he only needs his own Ed25519 signature (`bidding.ak:117`). If Bob removes his bid between Tx1 and Tx2, Alice cannot complete `UseEncryption` because the bid input no longer exists.
+
+**Impact:** Alice must cancel the pending state. Since `CancelEncryption` accepts the owner's signature (`encryption.ak:344`), Alice can cancel immediately without waiting for TTL expiry. The cost is one additional transaction fee.
+
+**Assessment:** Minor griefing vector. Alice is never locked out — she can always self-cancel. The worst case is one extra transaction fee plus the time to notice and submit the cancellation. This is inherent to the two-transaction design and is consistent with the technical report's acknowledgment that "either party can stop cooperating" (Section 5.2).
+
+### OBS-2: Anti-Batch Constraints in UseBid
+
+The `UseBid` handler enforces two single-input constraints (`bidding.ak:136-167`):
+
+1. `expect [Input { ... }] = inputs |> list.filter(...)` — exactly **one** encryption script input
+2. `expect [_] = inputs |> list.filter(...)` — exactly **one** bid script input
+
+These prevent batch operations where a single transaction tries to:
+- Use one bid to re-encrypt multiple encryption UTxOs simultaneously
+- Consume multiple bids in one transaction
+
+This is a deliberate anti-composability choice that simplifies the security model. Each re-encryption is a one-to-one operation.
+
+### OBS-3: Front-Running Analysis
+
+**Can a mempool observer front-run the re-encryption?**
+
+- **UseSnark (Tx1):** Requires `owner_vkh` signature (`encryption.ak:312`). A front-runner cannot sign as Alice.
+- **UseEncryption (Tx2):** Requires `owner_vkh` signature (`encryption.ak:261`). A front-runner cannot sign as Alice.
+- **CancelEncryption:** Requires either owner signature or TTL expiry. No front-running before TTL.
+
+**Can someone observe Alice's SNARK proof in the mempool and extract useful information?**
+
+The SNARK proof and public inputs become public once Tx1 is submitted. However:
+- The proof is bound to Bob's specific public key (via limb compression)
+- The witness W is bound to Alice's secret (via R5 pairing)
+- Extracting secrets from a Groth16 proof requires breaking the knowledge-of-exponent assumption
+
+**Assessment:** The protocol is not vulnerable to front-running. All state transitions require the current owner's Ed25519 signature, and the cryptographic proofs are bound to specific participants.
+
+### OBS-4: Capsule and Token Immutability Across All Paths
+
+The encrypted data (`capsule`) and token name (`token`) are verified immutable across every state transition:
+
+| Path | Capsule Preserved | Token Preserved | Mechanism |
+|------|------------------|-----------------|-----------|
+| `UseEncryption` | `capsule == next_capsule` | `token == next_token` | Explicit equality check (`encryption.ak:237-239`) |
+| `UseSnark` | Via `..this_datum` spread | Via `..this_datum` spread | Full datum equality check (`encryption.ak:314`) |
+| `CancelEncryption` | Via `..this_datum` spread | Via `..this_datum` spread | Full datum equality check (`encryption.ak:351`) |
+
+The `..this_datum` spread operator in `UseSnark` and `CancelEncryption` copies all fields except `status`, then the output datum is compared via `output_datum_data == expected_output_datum_data`. This is a strong invariant — the encrypted content can never be altered after creation.
+
+### OBS-5: Reference Script Injection Prevention
+
+Every path that produces a continuing output checks `reference_script == None`:
+- `EntryEncryptionMint` (`encryption.ak:87`)
+- `UseEncryption` (`encryption.ak:247`)
+- `UseSnark` (`encryption.ak:318`)
+- `CancelEncryption` (`encryption.ak:354`)
+- `EntryBidMint` (`bidding.ak:57`)
+
+This prevents an attacker from attaching the validator script (or any other script) as a reference script on the output UTxO. If allowed, this could enable unintended script execution contexts in future transactions consuming this UTxO.
+
+### OBS-6: Register Validation Chain
+
+The BLS12-381 Register is validated at entry time and inherited thereafter:
+
+1. **At entry** (`EntryEncryptionMint:97`, `EntryBidMint:67`): `register.is_register_valid` checks:
+   - Generator is the canonical G1 generator (not an arbitrary curve point)
+   - Public value is not the identity element (prevents trivial key attacks)
+   - Generator ≠ public value (prevents δ = 1 known-discrete-log attacks)
+2. **At re-encryption** (`UseEncryption:241-242`): `bid_owner_g1 == next_owner_g1` — the new owner's Register is copied directly from the validated bid datum. No re-validation needed because the bid entry already enforced validity.
+
+This means the protocol never accepts an unvalidated Register in any on-chain datum. The validation chain is: bid entry validates → bid datum stores → UseEncryption copies to encryption datum.
