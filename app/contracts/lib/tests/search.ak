@@ -232,8 +232,7 @@ test for_spend_redeemer_by_output_reference__returns_first_when_duplicates_exist
 /// Tests: for_withdraw_redeemer_by_script_hash
 /// ------------------------------------------------------------
 test for_withdraw_redeemer_by_script_hash__empty_returns_none() {
-  expect None =
-    search.for_withdraw_redeemer_by_script_hash([], genesis_pid)
+  expect None = search.for_withdraw_redeemer_by_script_hash([], genesis_pid)
 }
 
 test for_withdraw_redeemer_by_script_hash__no_match_returns_none() {
@@ -291,8 +290,7 @@ test for_output_by_token__no_match_in_populated_list() {
   let o0 = mk_output(assets.from_lovelace(2), NoDatum)
   let o1 = mk_output(assets.from_lovelace(5), InlineDatum(1))
 
-  expect None =
-    search.for_output_by_token([o0, o1], genesis_pid, genesis_tkn)
+  expect None = search.for_output_by_token([o0, o1], genesis_pid, genesis_tkn)
 }
 
 /// ------------------------------------------------------------
@@ -302,8 +300,7 @@ test for_input_by_token__no_match_in_populated_list() {
   let i0 = mk_input(0, mk_output(assets.from_lovelace(2), NoDatum))
   let i1 = mk_input(1, mk_output(assets.from_lovelace(5), InlineDatum(1)))
 
-  expect None =
-    search.for_input_by_token([i0, i1], genesis_pid, genesis_tkn)
+  expect None = search.for_input_by_token([i0, i1], genesis_pid, genesis_tkn)
 }
 
 test for_input_by_token__rejects_quantity_two() {
