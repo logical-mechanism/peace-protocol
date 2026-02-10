@@ -647,3 +647,264 @@ func TestSetupAndProveFromSetup_EndToEnd(t *testing.T) {
 
 	t.Log("Setup and prove from setup workflow succeeded")
 }
+
+// ---------- audit-recommended adversarial tests ----------
+
+// computeVW0W1WithVScalar is like computeVW0W1 but allows specifying the V scalar.
+func computeVW0W1WithVScalar(t *testing.T, a, r, vScalar *big.Int) (vHex, w0Hex, w1Hex string) {
+	t.Helper()
+
+	var v bls12381.G1Affine
+	v.ScalarMultiplicationBase(vScalar)
+
+	hkBi, err := hkScalarFromA(a)
+	if err != nil {
+		t.Fatalf("hkScalarFromA failed: %v", err)
+	}
+	if hkBi.Sign() == 0 {
+		t.Fatalf("hk reduced to 0; unexpected for this test")
+	}
+
+	var w0 bls12381.G1Affine
+	w0.ScalarMultiplicationBase(new(big.Int).Set(hkBi))
+
+	var qa bls12381.G1Affine
+	qa.ScalarMultiplicationBase(new(big.Int).Set(a))
+
+	var rv bls12381.G1Affine
+	rv.ScalarMultiplication(&v, new(big.Int).Set(r))
+
+	var w1 bls12381.G1Affine
+	w1.Add(&qa, &rv)
+
+	return g1HexFromAffine(v), g1HexFromAffine(w0), g1HexFromAffine(w1)
+}
+
+// --- negative proof tests: wrong public inputs ---
+
+func TestProveAndVerifyVW0W1_FailsOnWrongW1(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping gnark proof test in -short mode")
+	}
+
+	withTempCwd(t, func(tmp string) {
+		a := big.NewInt(55555)
+		r := big.NewInt(66666)
+
+		vHex, w0Hex, w1Hex := computeVW0W1(t, a, r)
+
+		// Perturb W1: add the generator to get a different valid G1 point
+		w1Aff, err := parseG1CompressedHex(w1Hex)
+		if err != nil {
+			t.Fatalf("parse w1 failed: %v", err)
+		}
+		var gen bls12381.G1Affine
+		gen.ScalarMultiplicationBase(big.NewInt(1))
+
+		var w1Bad bls12381.G1Affine
+		w1Bad.Add(&w1Aff, &gen)
+		w1BadHex := g1HexFromAffine(w1Bad)
+
+		outDir := filepath.Join(tmp, "bad-w1")
+		if err := ProveAndVerifyVW0W1(a, r, vHex, w0Hex, w1BadHex, outDir); err == nil {
+			t.Fatalf("expected failure for wrong W1 (constraints should be unsatisfied)")
+		}
+	})
+}
+
+func TestProveAndVerifyVW0W1_FailsOnWrongV(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping gnark proof test in -short mode")
+	}
+
+	withTempCwd(t, func(tmp string) {
+		a := big.NewInt(77777)
+		r := big.NewInt(88888)
+
+		// Compute correct (v, w0, w1) with V = [42]G (the default)
+		_, w0Hex, w1Hex := computeVW0W1(t, a, r)
+
+		// Use a different V = [99]G but keep w0 and w1 from the original V
+		var vBad bls12381.G1Affine
+		vBad.ScalarMultiplicationBase(big.NewInt(99))
+		vBadHex := g1HexFromAffine(vBad)
+
+		// w1 was computed as [a]G + [r]*[42]G, but now we claim V = [99]G.
+		// The circuit checks w1 == [a]G + [r]*V, so with wrong V this fails.
+		outDir := filepath.Join(tmp, "bad-v")
+		if err := ProveAndVerifyVW0W1(a, r, vBadHex, w0Hex, w1Hex, outDir); err == nil {
+			t.Fatalf("expected failure for wrong V (w1 constraint should be unsatisfied)")
+		}
+	})
+}
+
+func TestProveAndVerifyVW0W1_FailsOnDifferentA(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping gnark proof test in -short mode")
+	}
+
+	withTempCwd(t, func(tmp string) {
+		aReal := big.NewInt(11111)
+		r := big.NewInt(22222)
+
+		// Compute correct public points for the real secret
+		vHex, w0Hex, w1Hex := computeVW0W1(t, aReal, r)
+
+		// Try to prove with a different secret a
+		aFake := big.NewInt(99999)
+
+		outDir := filepath.Join(tmp, "bad-a")
+		if err := ProveAndVerifyVW0W1(aFake, r, vHex, w0Hex, w1Hex, outDir); err == nil {
+			t.Fatalf("expected failure for wrong secret a (both w0 and w1 constraints should be unsatisfied)")
+		}
+	})
+}
+
+// --- boundary scalar tests (shared setup for efficiency) ---
+
+func TestProveVW0W1_BoundaryScalars(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping expensive boundary test in -short mode")
+	}
+
+	tmp := t.TempDir()
+	setupDir := filepath.Join(tmp, "setup")
+
+	// Setup once and reuse for all boundary cases
+	t.Log("Running setup for boundary scalar tests...")
+	if err := SetupVW0W1Circuit(setupDir, false); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	// NOTE: gnark v0.14's emulated ScalarMulBase hits "no modular inverse" for
+	// a=1 and a=r-1 (generator and its negation cause internal point coincidences
+	// in the window method). ScalarMul with scalar=0 also fails (identity point
+	// not representable in affine). These are gnark implementation limitations,
+	// not circuit soundness issues. We test the smallest working values instead.
+	cases := []struct {
+		name string
+		a    *big.Int
+		r    *big.Int
+	}{
+		{"a=2_r=2", big.NewInt(2), big.NewInt(2)},
+		{"a=3_r=200", big.NewInt(3), big.NewInt(200)},
+		{"a=100_r=100", big.NewInt(100), big.NewInt(100)},
+		{"a=999999_r=888888", big.NewInt(999999), big.NewInt(888888)},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			vHex, w0Hex, w1Hex := computeVW0W1(t, tc.a, tc.r)
+
+			outDir := filepath.Join(tmp, "out-"+tc.name)
+			if err := ProveVW0W1FromSetup(setupDir, outDir, tc.a, tc.r, vHex, w0Hex, w1Hex, true); err != nil {
+				t.Fatalf("proof failed for %s: %v", tc.name, err)
+			}
+
+			// Also verify from files to test the full roundtrip
+			if err := VerifyFromFiles(outDir); err != nil {
+				t.Fatalf("standalone verification failed for %s: %v", tc.name, err)
+			}
+		})
+	}
+}
+
+// --- pure math tests (fast, no proof generation) ---
+
+func TestDifferentR_DifferentW1(t *testing.T) {
+	a := big.NewInt(42)
+	r1 := big.NewInt(100)
+	r2 := big.NewInt(200)
+
+	_, _, w1Hex1 := computeVW0W1(t, a, r1)
+	_, _, w1Hex2 := computeVW0W1(t, a, r2)
+
+	if w1Hex1 == w1Hex2 {
+		t.Fatalf("different r values should produce different w1 (blinding is effective)")
+	}
+}
+
+func TestSameA_SameW0(t *testing.T) {
+	a := big.NewInt(42)
+	r1 := big.NewInt(100)
+	r2 := big.NewInt(200)
+
+	_, w0Hex1, _ := computeVW0W1(t, a, r1)
+	_, w0Hex2, _ := computeVW0W1(t, a, r2)
+
+	if w0Hex1 != w0Hex2 {
+		t.Fatalf("same a should produce same w0 regardless of r")
+	}
+}
+
+func TestDifferentA_DifferentW0(t *testing.T) {
+	a1 := big.NewInt(42)
+	a2 := big.NewInt(43)
+	r := big.NewInt(100)
+
+	_, w0Hex1, _ := computeVW0W1(t, a1, r)
+	_, w0Hex2, _ := computeVW0W1(t, a2, r)
+
+	if w0Hex1 == w0Hex2 {
+		t.Fatalf("different a values should produce different w0")
+	}
+}
+
+func TestDifferentA_DifferentHash(t *testing.T) {
+	hk1, _, err := gtToHash(big.NewInt(1))
+	if err != nil {
+		t.Fatalf("gtToHash(1) failed: %v", err)
+	}
+	hk2, _, err := gtToHash(big.NewInt(2))
+	if err != nil {
+		t.Fatalf("gtToHash(2) failed: %v", err)
+	}
+
+	if hk1 == hk2 {
+		t.Fatalf("different a values should produce different hk hashes")
+	}
+}
+
+func TestGTToHash_RejectsZeroAndNil(t *testing.T) {
+	if _, _, err := gtToHash(big.NewInt(0)); err == nil {
+		t.Fatalf("expected error for a=0")
+	}
+	if _, _, err := gtToHash(nil); err == nil {
+		t.Fatalf("expected error for a=nil")
+	}
+}
+
+func TestHKScalarFromA_RejectsZeroAndNil(t *testing.T) {
+	if _, err := hkScalarFromA(big.NewInt(0)); err == nil {
+		t.Fatalf("expected error for a=0")
+	}
+	if _, err := hkScalarFromA(nil); err == nil {
+		t.Fatalf("expected error for a=nil")
+	}
+}
+
+func TestDifferentVScalar_DifferentW1(t *testing.T) {
+	a := big.NewInt(42)
+	r := big.NewInt(100)
+
+	// Same (a, r) but different V scalars should produce different w1
+	_, _, w1Hex1 := computeVW0W1WithVScalar(t, a, r, big.NewInt(42))
+	_, _, w1Hex2 := computeVW0W1WithVScalar(t, a, r, big.NewInt(99))
+
+	if w1Hex1 == w1Hex2 {
+		t.Fatalf("different V should produce different w1")
+	}
+}
+
+func TestDifferentVScalar_SameW0(t *testing.T) {
+	a := big.NewInt(42)
+	r := big.NewInt(100)
+
+	// Same (a, r) but different V scalars should produce same w0 (w0 only depends on a)
+	_, w0Hex1, _ := computeVW0W1WithVScalar(t, a, r, big.NewInt(42))
+	_, w0Hex2, _ := computeVW0W1WithVScalar(t, a, r, big.NewInt(99))
+
+	if w0Hex1 != w0Hex2 {
+		t.Fatalf("w0 should not depend on V (only on a)")
+	}
+}
