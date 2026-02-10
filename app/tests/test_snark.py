@@ -3,25 +3,10 @@
 
 # tests/test_snark.py
 
-import pytest
-from src.bls12381 import (
-    g1_point,
-    to_int,
-    scale,
-    combine,
-)
-
-from src.snark import (
-    gt_to_hash,
-    decrypt_to_hash,
-    generate_snark_proof,
-    public_inputs_from_w0_w1_hex,
-)
-from src.snark_verify_wrapper import verify_snark_proof_via_go
 import os
-from src.files import load_json
 from typing import Any, cast
 
+import pytest
 from eth_typing import BLSPubkey, BLSSignature
 from py_ecc.bls.g2_primitives import (
     G1_to_pubkey,
@@ -29,13 +14,58 @@ from py_ecc.bls.g2_primitives import (
     pubkey_to_G1,
     signature_to_G2,
 )
+from py_ecc.fields import optimized_bls12_381_FQ12 as FQ12
 from py_ecc.optimized_bls12_381 import (
+    FQ,
     b,
     b2,
     curve_order,
+    field_modulus,
     is_on_curve,
     multiply,
 )
+
+from src.bls12381 import (
+    combine,
+    g1_point,
+    g2_point,
+    scale,
+    to_int,
+)
+from src.files import load_json
+from src.snark import (
+    _expand_message_xmd,
+    _fp_to_limbs_le,
+    _fq_inv_nonrecursive,
+    _g1_from_compressed_hex,
+    _g1_jacobian_to_affine_xy_ints,
+    _g1_uncompress_to_xy_ints,
+    _g1_uncompressed_bytes,
+    _g2_from_compressed_hex,
+    _g2_one_like,
+    _gt_inv,
+    _hash_commitment_challenge,
+    _hash_to_field_gnark,
+    _hex_to_bytes as snark_hex_to_bytes,
+    _is_fq2,
+    _is_g1_point,
+    _is_g2_point,
+    _negate_fq2,
+    _negate_g2,
+    _pair,
+    _solve_commitment_wire,
+    _strip_0x_and_validate_g1_hex,
+    _to_jacobian_g1,
+    _to_jacobian_g2,
+    decrypt_to_hash,
+    generate_snark_proof,
+    gt_to_hash,
+    public_inputs_from_w0_w1_hex,
+    setup_snark,
+    verify_snark_proof,
+    verify_snark_proof_go,
+)
+from src.snark_verify_wrapper import verify_snark_proof_via_go
 
 # is_inf location varies a bit across versions
 try:
@@ -273,46 +303,9 @@ def test_verify_snark_proof_via_go_timeout(monkeypatch):
     assert result is False
 
 
-# ----------------------------
-# Tests for snark.py internal helper functions
-# ----------------------------
-
-from src.snark import (
-    _hex_to_bytes as snark_hex_to_bytes,
-    _g1_from_compressed_hex,
-    _g2_from_compressed_hex,
-    _is_fq2,
-    _is_g2_point,
-    _is_g1_point,
-    _to_jacobian_g1,
-    _to_jacobian_g2,
-    _g2_one_like,
-    _pair,
-    _gt_inv,
-    _negate_g2,
-    _negate_fq2,
-    _expand_message_xmd,
-    _hash_to_field_gnark,
-    _hash_commitment_challenge,
-    _solve_commitment_wire,
-    _g1_uncompressed_bytes,
-    _strip_0x_and_validate_g1_hex,
-    _fq_inv_nonrecursive,
-    _g1_jacobian_to_affine_xy_ints,
-    _g1_uncompress_to_xy_ints,
-    _fp_to_limbs_le,
-    setup_snark,
-    verify_snark_proof_go,
-    verify_snark_proof,
-)
-from py_ecc.optimized_bls12_381 import G1, G2, field_modulus, FQ
-from py_ecc.fields import optimized_bls12_381_FQ12 as FQ12
-
 # A known valid compressed G1 point (generator scaled by 2)
 G1_HEX = g1_point(2)
 # A known valid compressed G2 point
-from src.bls12381 import g2_point
-
 G2_HEX = g2_point(2)
 
 
