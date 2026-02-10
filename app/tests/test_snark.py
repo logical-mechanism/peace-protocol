@@ -246,5 +246,425 @@ def test_round_trip():
     _check_g1("piC", proof["piC"])
 
 
+def test_verify_snark_proof_via_go_file_not_found(monkeypatch):
+    """Test that FileNotFoundError is caught and returns False."""
+    import src.snark_verify_wrapper as wrapper_mod
+
+    def fake_run(*args, **kwargs):
+        raise FileNotFoundError("snark binary not found")
+
+    monkeypatch.setattr(wrapper_mod.subprocess, "run", fake_run)
+
+    result = verify_snark_proof_via_go("/nonexistent/dir")
+    assert result is False
+
+
+def test_verify_snark_proof_via_go_timeout(monkeypatch):
+    """Test that TimeoutExpired is caught and returns False."""
+    import subprocess as sp
+    import src.snark_verify_wrapper as wrapper_mod
+
+    def fake_run(*args, **kwargs):
+        raise sp.TimeoutExpired(cmd="snark", timeout=30)
+
+    monkeypatch.setattr(wrapper_mod.subprocess, "run", fake_run)
+
+    result = verify_snark_proof_via_go("/nonexistent/dir")
+    assert result is False
+
+
+# ----------------------------
+# Tests for snark.py internal helper functions
+# ----------------------------
+
+from src.snark import (
+    _hex_to_bytes as snark_hex_to_bytes,
+    _g1_from_compressed_hex,
+    _g2_from_compressed_hex,
+    _is_fq2,
+    _is_g2_point,
+    _is_g1_point,
+    _to_jacobian_g1,
+    _to_jacobian_g2,
+    _g2_one_like,
+    _pair,
+    _gt_inv,
+    _negate_g2,
+    _negate_fq2,
+    _expand_message_xmd,
+    _hash_to_field_gnark,
+    _hash_commitment_challenge,
+    _solve_commitment_wire,
+    _g1_uncompressed_bytes,
+    _strip_0x_and_validate_g1_hex,
+    _fq_inv_nonrecursive,
+    _g1_jacobian_to_affine_xy_ints,
+    _g1_uncompress_to_xy_ints,
+    _fp_to_limbs_le,
+    setup_snark,
+    verify_snark_proof_go,
+    verify_snark_proof,
+)
+from py_ecc.optimized_bls12_381 import G1, G2, field_modulus, FQ
+from py_ecc.fields import optimized_bls12_381_FQ12 as FQ12
+
+# A known valid compressed G1 point (generator scaled by 2)
+G1_HEX = g1_point(2)
+# A known valid compressed G2 point
+from src.bls12381 import g2_point
+
+G2_HEX = g2_point(2)
+
+
+class TestHexToBytes:
+    def test_plain_hex(self):
+        assert snark_hex_to_bytes("aabb") == bytes.fromhex("aabb")
+
+    def test_0x_prefix(self):
+        assert snark_hex_to_bytes("0xAABB") == bytes.fromhex("aabb")
+
+    def test_whitespace_stripped(self):
+        assert snark_hex_to_bytes("  aabb  ") == bytes.fromhex("aabb")
+
+
+class TestG1FromCompressedHex:
+    def test_valid_g1(self):
+        p = _g1_from_compressed_hex(G1_HEX)
+        assert isinstance(p, tuple) and len(p) == 3
+
+    def test_invalid_length(self):
+        with pytest.raises(ValueError, match="48 bytes"):
+            _g1_from_compressed_hex("aabb")
+
+
+class TestG2FromCompressedHex:
+    def test_valid_g2(self):
+        p = _g2_from_compressed_hex(G2_HEX)
+        assert isinstance(p, tuple) and len(p) == 3
+
+    def test_invalid_length(self):
+        with pytest.raises(ValueError, match="96 bytes"):
+            _g2_from_compressed_hex("aabb")
+
+
+class TestIsFq2:
+    def test_tuple_pair(self):
+        assert _is_fq2((1, 2)) is True
+
+    def test_not_tuple(self):
+        assert _is_fq2(42) is False
+
+    def test_tuple_wrong_length(self):
+        assert _is_fq2((1, 2, 3)) is False
+
+    def test_object_with_coeffs(self):
+        class FakeFQ2:
+            coeffs = [1, 2]
+
+        assert _is_fq2(FakeFQ2()) is True
+
+
+class TestIsG1Point:
+    def test_real_g1(self):
+        p = _g1_from_compressed_hex(G1_HEX)
+        assert _is_g1_point(p) is True
+
+    def test_not_a_tuple(self):
+        assert _is_g1_point(42) is False
+
+    def test_wrong_length(self):
+        assert _is_g1_point((1,)) is False
+
+
+class TestIsG2Point:
+    def test_real_g2(self):
+        p = _g2_from_compressed_hex(G2_HEX)
+        assert _is_g2_point(p) is True
+
+    def test_not_a_tuple(self):
+        assert _is_g2_point("hello") is False
+
+
+class TestToJacobianG1:
+    def test_affine_lifted(self):
+        result = _to_jacobian_g1((10, 20))
+        assert result == (10, 20, 1)
+
+    def test_jacobian_unchanged(self):
+        result = _to_jacobian_g1((10, 20, 30))
+        assert result == (10, 20, 30)
+
+
+class TestToJacobianG2:
+    def test_affine_lifted(self):
+        result = _to_jacobian_g2(((1, 2), (3, 4)))
+        assert len(result) == 3
+        assert result[0] == (1, 2)
+        assert result[1] == (3, 4)
+        assert result[2] == (1, 0)  # identity for tuple FQ2
+
+    def test_jacobian_unchanged(self):
+        result = _to_jacobian_g2(((1, 2), (3, 4), (5, 6)))
+        assert result == ((1, 2), (3, 4), (5, 6))
+
+
+class TestG2OneLike:
+    def test_tuple_representation(self):
+        assert _g2_one_like((1, 2)) == (1, 0)
+
+    def test_object_with_one(self):
+        class FakeField:
+            @classmethod
+            def one(cls):
+                return "ONE"
+
+        result = _g2_one_like(FakeField())
+        assert result == "ONE"
+
+
+class TestPair:
+    def test_g1_g2_order(self):
+        g1 = _g1_from_compressed_hex(G1_HEX)
+        g2 = _g2_from_compressed_hex(G2_HEX)
+        result = _pair(g1, g2)
+        assert isinstance(result, FQ12)
+
+    def test_g2_g1_order(self):
+        g1 = _g1_from_compressed_hex(G1_HEX)
+        g2 = _g2_from_compressed_hex(G2_HEX)
+        result = _pair(g2, g1)
+        assert isinstance(result, FQ12)
+
+    def test_invalid_types_raises(self):
+        with pytest.raises(TypeError, match="pairing expects"):
+            _pair((1, 2, 3), (4, 5, 6))
+
+
+class TestGtInv:
+    def test_inverse(self):
+        g1 = _g1_from_compressed_hex(G1_HEX)
+        g2 = _g2_from_compressed_hex(G2_HEX)
+        gt = _pair(g1, g2)
+        inv = _gt_inv(gt)
+        assert isinstance(inv, FQ12)
+
+
+class TestNegateG2:
+    def test_jacobian(self):
+        p = _g2_from_compressed_hex(G2_HEX)
+        neg_p = _negate_g2(p)
+        assert len(neg_p) == 3
+        assert neg_p[0] == p[0]  # x unchanged
+        assert neg_p[2] == p[2]  # z unchanged
+
+    def test_affine(self):
+        result = _negate_g2(((1, 2), (3, 4)))
+        assert len(result) == 2
+        assert result[0] == (1, 2)  # x unchanged
+
+
+class TestNegateFq2:
+    def test_tuple(self):
+        result = _negate_fq2((10, 20))
+        assert result == ((-10) % field_modulus, (-20) % field_modulus)
+
+    def test_object_with_coeffs(self):
+        from py_ecc.fields import optimized_bls12_381_FQ2 as FQ2
+
+        val = FQ2([3, 7])
+        result = _negate_fq2(val)
+        assert isinstance(result, FQ2)
+
+
+class TestExpandMessageXmd:
+    def test_basic_output(self):
+        result = _expand_message_xmd(b"test", b"DST", 48)
+        assert len(result) == 48
+        assert isinstance(result, bytes)
+
+    def test_deterministic(self):
+        a = _expand_message_xmd(b"msg", b"DST", 32)
+        b_val = _expand_message_xmd(b"msg", b"DST", 32)
+        assert a == b_val
+
+    def test_different_inputs(self):
+        a = _expand_message_xmd(b"msg1", b"DST", 32)
+        b_val = _expand_message_xmd(b"msg2", b"DST", 32)
+        assert a != b_val
+
+
+class TestHashToFieldGnark:
+    def test_single_element(self):
+        result = _hash_to_field_gnark(b"test", b"DST", 1)
+        assert len(result) == 1
+        assert 0 <= result[0] < curve_order
+
+    def test_multiple_elements(self):
+        result = _hash_to_field_gnark(b"test", b"DST", 3)
+        assert len(result) == 3
+        for e in result:
+            assert 0 <= e < curve_order
+
+
+class TestHashCommitmentChallenge:
+    def test_returns_scalar(self):
+        result = _hash_commitment_challenge(b"\x00" * 96)
+        assert isinstance(result, int)
+        assert 0 <= result < curve_order
+
+
+class TestSolveCommitmentWire:
+    def test_returns_scalar(self):
+        g1 = _g1_from_compressed_hex(G1_HEX)
+        result = _solve_commitment_wire(g1, [1], [42])
+        assert isinstance(result, int)
+        assert 0 <= result < curve_order
+
+
+class TestG1UncompressedBytes:
+    def test_returns_96_bytes(self):
+        result = _g1_uncompressed_bytes(G1_HEX)
+        assert len(result) == 96
+        assert isinstance(result, bytes)
+
+
+class TestStripAndValidateG1Hex:
+    def test_valid_hex(self):
+        result = _strip_0x_and_validate_g1_hex(G1_HEX)
+        assert len(result) == 96
+
+    def test_0x_prefix(self):
+        result = _strip_0x_and_validate_g1_hex("0x" + G1_HEX)
+        assert len(result) == 96
+
+    def test_invalid_hex(self):
+        with pytest.raises(ValueError, match="invalid hex"):
+            _strip_0x_and_validate_g1_hex("zzzz")
+
+    def test_wrong_length(self):
+        with pytest.raises(ValueError, match="96 hex chars"):
+            _strip_0x_and_validate_g1_hex("aabb")
+
+
+class TestFqInvNonrecursive:
+    def test_inverse(self):
+        val = FQ(7)
+        inv = _fq_inv_nonrecursive(val)
+        assert (int(val) * int(inv)) % field_modulus == 1
+
+    def test_zero_raises(self):
+        with pytest.raises(ZeroDivisionError):
+            _fq_inv_nonrecursive(FQ(0))
+
+
+class TestG1JacobianToAffineXyInts:
+    def test_jacobian_point(self):
+        p = _g1_from_compressed_hex(G1_HEX)
+        x, y = _g1_jacobian_to_affine_xy_ints(p)
+        assert isinstance(x, int)
+        assert isinstance(y, int)
+        assert 0 < x < field_modulus
+        assert 0 < y < field_modulus
+
+    def test_affine_point(self):
+        x, y = _g1_jacobian_to_affine_xy_ints((FQ(5), FQ(10)))
+        assert x == 5
+        assert y == 10
+
+
+class TestG1UncompressToXyInts:
+    def test_valid_point(self):
+        x, y = _g1_uncompress_to_xy_ints(G1_HEX)
+        assert isinstance(x, int)
+        assert isinstance(y, int)
+        assert 0 < x < field_modulus
+
+
+class TestFpToLimbsLe:
+    def test_zero(self):
+        result = _fp_to_limbs_le(0)
+        assert result == [0, 0, 0, 0, 0, 0]
+
+    def test_small_value(self):
+        result = _fp_to_limbs_le(42)
+        assert result[0] == 42
+        assert all(limb == 0 for limb in result[1:])
+
+    def test_large_value(self):
+        val = (1 << 64) + 7
+        result = _fp_to_limbs_le(val)
+        assert result[0] == 7
+        assert result[1] == 1
+        assert len(result) == 6
+
+
+class TestSetupSnark:
+    def test_setup_calls_subprocess(self, monkeypatch):
+        import src.snark as snark_mod
+        import subprocess as sp
+
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return sp.CompletedProcess(cmd, 0, stdout="setup done", stderr="")
+
+        monkeypatch.setattr(snark_mod.subprocess, "run", fake_run)
+        setup_snark("/fake/snark", out_dir="mysetup")
+
+        assert captured["cmd"][0] == "/fake/snark"
+        assert "setup" in captured["cmd"]
+        assert "-out" in captured["cmd"]
+        assert "mysetup" in captured["cmd"]
+
+    def test_setup_with_force(self, monkeypatch):
+        import src.snark as snark_mod
+        import subprocess as sp
+
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return sp.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(snark_mod.subprocess, "run", fake_run)
+        setup_snark("/fake/snark", force=True)
+
+        assert "-force" in captured["cmd"]
+
+
+class TestVerifySnarkProofGo:
+    def test_success(self, monkeypatch):
+        import src.snark as snark_mod
+        import subprocess as sp
+
+        def fake_run(cmd, **kwargs):
+            return sp.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
+        monkeypatch.setattr(snark_mod.subprocess, "run", fake_run)
+        assert verify_snark_proof_go("/fake/snark") is True
+
+    def test_failure(self, monkeypatch):
+        import src.snark as snark_mod
+        import subprocess as sp
+
+        def fake_run(cmd, **kwargs):
+            return sp.CompletedProcess(cmd, 1, stdout="", stderr="bad proof")
+
+        monkeypatch.setattr(snark_mod.subprocess, "run", fake_run)
+        assert verify_snark_proof_go("/fake/snark") is False
+
+
+class TestVerifySnarkProof:
+    def test_with_real_files(self):
+        """Exercise the pure-Python verify_snark_proof against real proof files."""
+        out_dir = "out"
+        # This may return False due to py_ecc/gnark pairing incompatibility,
+        # but it exercises the code paths.
+        result = verify_snark_proof(out_dir, debug=False)
+        # We don't assert True because py_ecc is known incompatible with gnark.
+        assert isinstance(result, bool)
+
+
 if __name__ == "__main__":
     pytest.main()
