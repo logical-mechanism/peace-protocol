@@ -133,3 +133,45 @@ test display_wang_params() {
   trace level.wang_h3
   True
 }
+
+// carol's kth level should fail first-level verification (same as bob)
+test is_carol_verified_incorrectly() fail {
+  level.verify_first_half_level(carol_level, token_name)
+}
+
+// alice's first-level should fail kth-level verification
+test is_alice_verified_incorrectly_as_kth() fail {
+  level.verify_kth_half_level(alice_level, token_name)
+}
+
+// a valid level with the wrong token name should fail
+test alice_level_wrong_token() fail {
+  level.verify_first_half_level(alice_level, #"beef")
+}
+
+// a valid kth level with the wrong token name should fail
+test bob_level_wrong_token() fail {
+  level.verify_kth_half_level(bob_level, #"beef")
+}
+
+// r5 with swapped witness and r5 should fail
+test r5_fails_with_swapped_args() fail {
+  let x: State<Scalar> = scalar.from_int(44203)
+  let user: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.scale(x) |> g1.compress,
+    }
+
+  let hk: State<Scalar> = level.hash_to_scalar(#"acab")
+  let w0: G1Element = g1.generator |> g1.scale(hk)
+  let r5: G2Element =
+    g2.add(
+      g2.generator |> g2.scale(hk),
+      level.wang_h0 |> builtin.bls12_381_g2_neg |> g2.scale(x),
+    )
+  // swap the arguments: pass r5 as witness and w0 as r5
+  // r5 is G2 compressed (96 bytes), w0 is G1 compressed (48 bytes)
+  // g2.decompress on a 48-byte value will fail
+  level.verify_r5(user, w0 |> g1.compress, r5 |> g2.compress)
+}
