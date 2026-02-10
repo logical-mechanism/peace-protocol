@@ -1355,3 +1355,116 @@ func TestExportVKOnly_RejectsNonBLSVK(t *testing.T) {
 		t.Fatalf("expected error for nil VK")
 	}
 }
+
+// ---------- additional coverage tests ----------
+
+func TestVerifyFromFiles_MissingProof(t *testing.T) {
+	tmp := t.TempDir()
+	// Create only vk.bin (valid enough to open)
+	if err := os.WriteFile(filepath.Join(tmp, "vk.bin"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	err := VerifyFromFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing proof.bin")
+	}
+}
+
+func TestVerifyFromFiles_MissingWitness(t *testing.T) {
+	tmp := t.TempDir()
+	// Create vk.bin and proof.bin but no witness.bin
+	for _, name := range []string{"vk.bin", "proof.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	err := VerifyFromFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing witness.bin")
+	}
+}
+
+func TestReExportJSON_MissingProof(t *testing.T) {
+	tmp := t.TempDir()
+	// Create only vk.bin
+	if err := os.WriteFile(filepath.Join(tmp, "vk.bin"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	err := ReExportJSON(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing proof.bin")
+	}
+}
+
+func TestReExportJSON_MissingWitness(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"vk.bin", "proof.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	err := ReExportJSON(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing witness.bin")
+	}
+}
+
+func TestLoadSetupFiles_MissingPK(t *testing.T) {
+	tmp := t.TempDir()
+	// Create only ccs.bin
+	if err := os.WriteFile(filepath.Join(tmp, "ccs.bin"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, _, _, err := LoadSetupFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing pk.bin")
+	}
+}
+
+func TestLoadSetupFiles_MissingVK(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"ccs.bin", "pk.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	_, _, _, err := LoadSetupFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing vk.bin")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsBadW0Hex(t *testing.T) {
+	err := ProveAndVerifyVW0W1(big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), "zzzz", strings.Repeat("00", 48), t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for bad w0 hex")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsBadW1Hex(t *testing.T) {
+	err := ProveAndVerifyVW0W1(big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), "zzzz", t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for bad w1 hex")
+	}
+}
+
+func TestProveVW0W1FromSetup_RejectsBadW0Hex(t *testing.T) {
+	err := ProveVW0W1FromSetup("dummy", "dummy", big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), "zzzz", strings.Repeat("00", 48), false)
+	if err == nil {
+		t.Fatalf("expected error for bad w0 hex")
+	}
+}
+
+func TestProveVW0W1FromSetup_RejectsBadW1Hex(t *testing.T) {
+	err := ProveVW0W1FromSetup("dummy", "dummy", big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), "zzzz", false)
+	if err == nil {
+		t.Fatalf("expected error for bad w1 hex")
+	}
+}
+
+func TestProveAndVerifyW_RejectsBadHex(t *testing.T) {
+	err := ProveAndVerifyW(big.NewInt(42), "zzzz")
+	if err == nil {
+		t.Fatalf("expected error for bad hex")
+	}
+}
