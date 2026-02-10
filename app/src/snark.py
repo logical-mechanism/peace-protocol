@@ -28,6 +28,25 @@ from py_ecc.optimized_bls12_381 import (
 
 
 def gt_to_hash(a: int, snark_path: str | Path) -> str:
+    """
+    Compute a pairing-based hash of scalar `a` using the gnark binary.
+
+    This invokes the external snark binary with the `hash` subcommand to
+    compute `e([a]G1, H0)` and encode the result as a hex string, using
+    gnark's internal FQ12 tower representation.
+
+    Args:
+        a: Secret scalar used to multiply the G1 generator before pairing.
+        snark_path: Path to the compiled gnark snark binary.
+
+    Returns:
+        A hex string representing the domain-tagged encoding of the resulting
+        GT element, as produced by the snark binary.
+
+    Raises:
+        subprocess.CalledProcessError: If the snark binary exits with a
+            non-zero return code.
+    """
     snark = Path(snark_path)
     cmd = [str(snark), "hash", "-a", str(a)]
     out = subprocess.run(cmd, capture_output=True, text=True, check=True)
