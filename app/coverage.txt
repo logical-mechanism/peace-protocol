@@ -60,8 +60,8 @@ snark/kappa.go:136:		fq12ToFrElements		100.0%
 snark/kappa.go:165:		domainTagFr			100.0%
 snark/kappa.go:173:		mimcHashFr			100.0%
 snark/kappa.go:184:		mimcHex				100.0%
-snark/kappa.go:197:		gtToHash			78.6%
-snark/kappa.go:230:		hkScalarFromA			80.0%
+snark/kappa.go:197:		gtToHash			85.7%
+snark/kappa.go:230:		hkScalarFromA			86.7%
 snark/kappa.go:274:		Define				75.7%
 snark/kappa.go:352:		ProveAndVerifyW			73.8%
 snark/kappa.go:435:		domainTagBytes			0.0%
@@ -79,7 +79,7 @@ snark/kappa.go:906:		ProveVW0W1FromSetup		71.7%
 snark/main.go:17:		main				0.0%
 snark/main.go:21:		run				53.5%
 snark/test_verify.go:20:	testVerify			0.0%
-total:				(statements)			56.1%
+total:				(statements)			56.3%
 snark/debug_verify.go:20:	debugVerify			0.0%
 snark/export.go:67:		exportProofBLS			76.0%
 snark/export.go:109:		exportVKBLS			75.6%
@@ -104,8 +104,8 @@ snark/kappa.go:136:		fq12ToFrElements		100.0%
 snark/kappa.go:165:		domainTagFr			100.0%
 snark/kappa.go:173:		mimcHashFr			100.0%
 snark/kappa.go:184:		mimcHex				100.0%
-snark/kappa.go:197:		gtToHash			78.6%
-snark/kappa.go:230:		hkScalarFromA			80.0%
+snark/kappa.go:197:		gtToHash			85.7%
+snark/kappa.go:230:		hkScalarFromA			86.7%
 snark/kappa.go:274:		Define				75.7%
 snark/kappa.go:352:		ProveAndVerifyW			73.8%
 snark/kappa.go:435:		domainTagBytes			0.0%
@@ -123,4 +123,4 @@ snark/kappa.go:906:		ProveVW0W1FromSetup		71.7%
 snark/main.go:17:		main				0.0%
 snark/main.go:21:		run				53.5%
 snark/test_verify.go:20:	testVerify			0.0%
-total:				(statements)			56.1%
+total:				(statements)			56.3%
