@@ -28,6 +28,36 @@ from pathlib import Path
 
 
 def create_snark_tx(bob_public_value: str) -> tuple[int, int, int]:
+    """
+    Create the artifacts for a SNARK transaction (Groth16 proof generation).
+
+    This function samples fresh secrets, computes the pairing-based hash,
+    derives public witness points, generates a Groth16 proof via the gnark
+    binary, and converts the output to Aiken/Cardano JSON format.
+
+    High-level steps:
+    1. Sample secrets `a0`, `r0` and derive `m0 = gt_to_hash(a0)`.
+    2. Derive `hk = to_int(m0)` as a hop key scalar.
+    3. Compute witness points:
+         w0 = [hk]G1
+         w1 = [a0]G1 + [r0] * bob_public_value
+    4. Generate the Groth16 proof via `generate_snark_proof(...)`.
+    5. Convert gnark output files to Aiken/Cardano JSON format via `convert_all(...)`.
+
+    Side effects (writes files):
+    - Groth16 proof artifacts via `generate_snark_proof(...)`
+    - Aiken/Cardano JSON files via `convert_all(...)`
+
+    Args:
+        bob_public_value: Serialized public value for Bob (a G1 element encoding
+            as expected by `scale(...)`).
+
+    Returns:
+        A 3-tuple `(a0, r0, hk)` where:
+            a0: The sampled secret scalar.
+            r0: The sampled secret scalar.
+            hk: The derived hop key scalar (`to_int(m0)`).
+    """
     current = Path(__file__).resolve().parent.parent
     snark_path = current / "snark" / "snark"
     out_path = current / "out"

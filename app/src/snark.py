@@ -28,6 +28,25 @@ from py_ecc.optimized_bls12_381 import (
 
 
 def gt_to_hash(a: int, snark_path: str | Path) -> str:
+    """
+    Compute a pairing-based hash of scalar `a` using the gnark binary.
+
+    This invokes the external snark binary with the `hash` subcommand to
+    compute `e([a]G1, H0)` and encode the result as a hex string, using
+    gnark's internal FQ12 tower representation.
+
+    Args:
+        a: Secret scalar used to multiply the G1 generator before pairing.
+        snark_path: Path to the compiled gnark snark binary.
+
+    Returns:
+        A hex string representing the domain-tagged encoding of the resulting
+        GT element, as produced by the snark binary.
+
+    Raises:
+        subprocess.CalledProcessError: If the snark binary exits with a
+            non-zero return code.
+    """
     snark = Path(snark_path)
     cmd = [str(snark), "hash", "-a", str(a)]
     out = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -37,6 +56,29 @@ def gt_to_hash(a: int, snark_path: str | Path) -> str:
 def decrypt_to_hash(
     r1: str, r2_g1b: str, r2_g2b: str | None, shared: str, snark_path: str | Path
 ) -> str:
+    """
+    Compute a decryption hash for a re-encryption level using the gnark binary.
+
+    This invokes the external snark binary with the `decrypt` subcommand to
+    derive a hop key from the given level components and a shared secret point.
+    If `r2_g2b` is `None`, it performs a half-level decryption (no G2 component);
+    otherwise it performs a full-level decryption.
+
+    Args:
+        r1: Serialized G1 element `r1` from the encryption level.
+        r2_g1b: Serialized G1 component of `r2` from the encryption level.
+        r2_g2b: Serialized G2 component of `r2` from the encryption level,
+            or `None` for a half-level entry.
+        shared: Serialized shared secret point (G2 element).
+        snark_path: Path to the compiled gnark snark binary.
+
+    Returns:
+        A hex string representing the derived hop key hash.
+
+    Raises:
+        subprocess.CalledProcessError: If the snark binary exits with a
+            non-zero return code.
+    """
     snark = Path(snark_path)
     if r2_g2b is None:
         cmd = [str(snark), "decrypt", "-r1", r1, "-g1b", r2_g1b, "-shared", shared]
@@ -172,6 +214,7 @@ def verify_snark_proof_go(
 
 
 def _hex_to_bytes(h: str) -> bytes:
+    """Strip whitespace and optional '0x' prefix, then decode hex to bytes."""
     h = h.strip().lower()
     if h.startswith("0x"):
         h = h[2:]
@@ -179,6 +222,7 @@ def _hex_to_bytes(h: str) -> bytes:
 
 
 def _g1_from_compressed_hex(h: str):
+    """Decompress a 48-byte hex string into an optimized Jacobian G1 point."""
     raw = _hex_to_bytes(h)
     if len(raw) != 48:
         raise ValueError(f"G1 compressed must be 48 bytes, got {len(raw)}")
@@ -187,6 +231,7 @@ def _g1_from_compressed_hex(h: str):
 
 
 def _g2_from_compressed_hex(h: str):
+    """Decompress a 96-byte hex string into an optimized Jacobian G2 point."""
     raw = _hex_to_bytes(h)
     if len(raw) != 96:
         raise ValueError(f"G2 compressed must be 96 bytes, got {len(raw)}")
@@ -213,7 +258,7 @@ def _is_fq2(x: Any) -> bool:
 
 
 def _is_g2_point(p: Any) -> bool:
-    # Accept affine (x,y) or jacobian (x,y,z), where x,y are FQ2-like
+    """Check if `p` is a G2 point (affine or Jacobian with FQ2 coordinates)."""
     if not isinstance(p, tuple) or len(p) not in (2, 3):
         return False
     x, y = p[0], p[1]
@@ -221,7 +266,7 @@ def _is_g2_point(p: Any) -> bool:
 
 
 def _is_g1_point(p: Any) -> bool:
-    # Accept affine (x,y) or jacobian (x,y,z), where x,y are NOT FQ2-like
+    """Check if `p` is a G1 point (affine or Jacobian with non-FQ2 coordinates)."""
     if not isinstance(p, tuple) or len(p) not in (2, 3):
         return False
     x, y = p[0], p[1]
@@ -229,7 +274,7 @@ def _is_g1_point(p: Any) -> bool:
 
 
 def _to_jacobian_g1(p: Any) -> Any:
-    # (x,y) -> (x,y,1)
+    """Lift an affine G1 point `(x, y)` to Jacobian `(x, y, 1)` if needed."""
     if isinstance(p, tuple) and len(p) == 2:
         return (p[0], p[1], 1)
     return p
@@ -268,7 +313,7 @@ def _g2_one_like(x_fq2: Any) -> Any:
 
 
 def _to_jacobian_g2(p: Any) -> Any:
-    # (x,y) -> (x,y,1_FQ2)
+    """Lift an affine G2 point `(x, y)` to Jacobian `(x, y, 1_FQ2)` if needed."""
     if isinstance(p, tuple) and len(p) == 2:
         x, y = p
         return (x, y, _g2_one_like(x))
@@ -305,6 +350,7 @@ def _pair(a: Any, b: Any) -> Any:
 
 
 def _gt_inv(x: Any) -> Any:
+    """Compute the multiplicative inverse of a GT (FQ12) element."""
     return x.inv()
 
 
@@ -663,6 +709,7 @@ _LIMB_MASK = (1 << _LIMB_BITS) - 1
 
 
 def _strip_0x_and_validate_g1_hex(h: str) -> str:
+    """Strip optional '0x' prefix and validate that `h` is 96 hex chars (48 bytes)."""
     h = h.strip().lower()
     if h.startswith("0x"):
         h = h[2:]
@@ -676,6 +723,7 @@ def _strip_0x_and_validate_g1_hex(h: str) -> str:
 
 
 def _fq_inv_nonrecursive(z: FQ) -> FQ:
+    """Compute the modular inverse of an FQ element using Fermat's little theorem."""
     zi = int(z) % field_modulus
     if zi == 0:
         raise ZeroDivisionError("inverse of zero in Fp")
@@ -699,12 +747,14 @@ def _g1_jacobian_to_affine_xy_ints(p) -> tuple[int, int]:
 
 
 def _g1_uncompress_to_xy_ints(g1_hex: str) -> tuple[int, int]:
+    """Decompress a G1 hex string and return affine `(x, y)` as integers."""
     g1_hex = _strip_0x_and_validate_g1_hex(g1_hex)
     p = pubkey_to_G1(cast(BLSPubkey, bytes.fromhex(g1_hex)))
     return _g1_jacobian_to_affine_xy_ints(p)
 
 
 def _fp_to_limbs_le(x: int) -> list[int]:
+    """Split an Fp integer into 6 little-endian 64-bit limbs."""
     limbs: list[int] = []
     for _ in range(_NB_LIMBS_FP):
         limbs.append(x & _LIMB_MASK)

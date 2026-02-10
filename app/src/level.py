@@ -54,6 +54,23 @@ def full_level_to_file(r1b: str, r2_g1b: str, r2_g2b: str, r4b: str) -> None:
 
 
 def empty_full_level_to_file() -> None:
+    """
+    Write an empty "full-level" entry JSON artifact to disk.
+
+    This represents a full-level slot that has not yet been populated with
+    a re-encryption hop. The output uses `constructor=1` with no fields,
+    encoding the "empty" variant of the sum type.
+
+    Output path (fixed):
+        ../data/full-level.json
+
+    Returns:
+        None. Writes the JSON artifact via `save_json`.
+
+    Raises:
+        Any exceptions raised by `save_json` (e.g., invalid path or permissions)
+        will propagate.
+    """
     path = "../data/full-level.json"
     data = {
         "constructor": 1,
