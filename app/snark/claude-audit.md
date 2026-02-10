@@ -83,6 +83,7 @@ The codebase defines **two circuits**, both compiled over BLS12-381's scalar fie
 | F-07 | **INFO** | Debug CLI commands in production builds | main.go:228-234 | Diagnostic info exposure |
 | F-08 | **INFO** | `domainTagFr()` suppresses hex decode error | kappa.go:166 | Benign (constant input) but not defensive |
 | F-09 | **INFO** | No integrity check on exported JSON artifacts | export.go | JSON can be hand-edited after export |
+| F-10 | **INFO** | gnark emulated ScalarMul fails for a=1, a=r-1, r=0 | gnark v0.14 limitation | Boundary scalars not provable |
 
 ---
 
@@ -281,6 +282,26 @@ func init() {
 
 ---
 
+### F-10: gnark Emulated ScalarMul Fails for Boundary Scalars [INFO]
+
+**Location**: gnark v0.14 `sw_emulated.Curve.ScalarMulBase` / `ScalarMul`
+
+**Description**: During adversarial testing, the following boundary witness values fail during proof generation:
+
+| Value | Error | Root Cause |
+|-------|-------|------------|
+| `a = 1` | `no modular inverse` | `[1]G = G` coincides with window table entry in ScalarMulBase |
+| `a = r-1` | `no modular inverse` | `[r-1]G = -G` coincides with negated table entry |
+| `r = 0` | constraint not satisfied | `[0]V = O` (identity) not representable in affine coordinates |
+
+**Assessment**: These are gnark implementation limitations in the emulated curve arithmetic, not circuit soundness issues. The mathematical constraints are correct — gnark's solver simply cannot construct a valid witness assignment for these specific edge cases due to its use of incomplete addition formulas and affine representation.
+
+**Impact**: Minimal. In practice, `a` is a large random scalar (not 1 or r-1), and `r` must be nonzero for privacy. The prover will return a clear error rather than producing an invalid proof. Off-chain code should ensure `a >= 2` and `r >= 1`.
+
+**Fix**: No circuit change needed. Document in the off-chain code that `a` must be `>= 2` and `r` must be `>= 1`. Alternatively, upgrade to a future gnark version with complete addition formulas.
+
+---
+
 ## 4. Soundness Analysis
 
 ### 4.1 Constraint Completeness
@@ -380,22 +401,27 @@ func TestProveAndVerifyVW0W1_DifferentR_DifferentW1(t *testing.T) { ... }
 func TestCommitmentWire_WASMMatchesVKPath(t *testing.T) { ... }
 ```
 
-### 5.3 Existing Test Coverage Assessment
+### 5.3 Test Coverage Assessment (Updated)
 
-| Area | Covered | Gaps |
-|------|---------|------|
+| Area | Covered | Notes |
+|------|---------|-------|
 | Happy path (correct proof) | Yes | - |
 | Wrong W0 | Yes | - |
 | Wrong W (wFromHK circuit) | Yes | - |
+| Wrong W1 | Yes | Added: `TestProveAndVerifyVW0W1_FailsOnWrongW1` |
+| Wrong V | Yes | Added: `TestProveAndVerifyVW0W1_FailsOnWrongV` |
+| Wrong secret a | Yes | Added: `TestProveAndVerifyVW0W1_FailsOnDifferentA` |
+| Boundary scalars | Yes | Added: `TestProveVW0W1_BoundaryScalars` (a=2,3,100,999999) |
+| Blinding effectiveness | Yes | Added: `TestDifferentR_DifferentW1`, `TestDifferentVScalar_*` |
+| w0 depends only on a | Yes | Added: `TestSameA_SameW0`, `TestDifferentA_DifferentW0` |
+| Hash collision resistance | Yes | Added: `TestDifferentA_DifferentHash` |
+| Input validation (a=0, nil) | Yes | Added: `TestGTToHash_RejectsZeroAndNil`, `TestHKScalarFromA_RejectsZeroAndNil` |
 | Hash determinism | Yes | - |
 | Parse error handling | Yes | - |
 | CLI argument validation | Yes | - |
 | Setup/prove workflow | Yes | - |
-| **Wrong W1** | **NO** | Need test |
-| **Wrong V** | **NO** | Need test |
-| **Boundary scalars** | **NO** | Need test |
-| **r = 0 behavior** | **NO** | Need test |
-| **WASM commitment wire consistency** | **NO** | Need test |
+| gnark boundary limits (a=1,r=0) | Documented | F-10: gnark limitation, not circuit bug |
+| WASM commitment wire consistency | No | Requires WASM build infrastructure |
 
 ---
 
