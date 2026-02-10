@@ -1,8 +1,9 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// export.go
-
+// export.go provides JSON and binary serialization of Groth16 proofs, verifying keys,
+// and public inputs for the BLS12-381 curve. It handles the conversion between gnark's
+// internal types and the compressed hex format used by the Aiken on-chain verifier.
 package main
 
 import (

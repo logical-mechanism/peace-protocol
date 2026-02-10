@@ -1,7 +1,13 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// kappa.go
+// kappa.go implements the core cryptographic circuits and helpers for the Peace Protocol
+// SNARK prover. It defines two gnark circuits:
+//   - wFromHKCircuit: proves SHA256(compress([hk]G1)) matches a public digest
+//   - vw0w1Circuit: proves knowledge of (a, r) such that w0 == [hk]G and w1 == [a]G + [r]V,
+//     where hk is derived from a BLS12-381 pairing and MiMC hash
+//
+// Out-of-circuit helpers handle G1/G2 point parsing, GT element hashing, and scalar derivation.
 package main
 
 import (
@@ -70,6 +76,10 @@ func g1MulBase(a *big.Int) bls12381.G1Affine {
 	return p
 }
 
+// parseG2CompressedHex decodes a hex-encoded compressed BLS12-381 G2 point.
+// The input must be a 192-character hex string (96 bytes compressed).
+// Returns the deserialized G2Affine point or an error if the hex is malformed
+// or the bytes do not represent a valid curve point.
 func parseG2CompressedHex(h string) (bls12381.G2Affine, error) {
 	raw, err := hex.DecodeString(h)
 	if err != nil {
@@ -82,6 +92,10 @@ func parseG2CompressedHex(h string) (bls12381.G2Affine, error) {
 	return p, nil
 }
 
+// parseG1CompressedHex decodes a hex-encoded compressed BLS12-381 G1 point.
+// The input must be a 96-character hex string (48 bytes compressed).
+// Returns the deserialized G1Affine point or an error if the hex is malformed
+// or the bytes do not represent a valid curve point.
 func parseG1CompressedHex(h string) (bls12381.G1Affine, error) {
 	raw, err := hex.DecodeString(h)
 	if err != nil {
@@ -255,6 +269,9 @@ func hkScalarFromA(a *big.Int) (*big.Int, error) {
 
 // --- in-circuit: prove sha2_256(compress([hk]G1)) == public digest ---
 
+// wFromHKCircuit is a gnark circuit that proves knowledge of hk such that
+// SHA256(compress([hk]G1)) matches the public digest halves HW0 and HW1.
+// The compressed G1 point uses BLS12-381 IETF serialization format.
 type wFromHKCircuit struct {
 	// private scalar hk (Fr)
 	// IMPORTANT: force this entire composite value to be SECRET (prevents stray public limbs)
@@ -271,6 +288,12 @@ type wFromHKCircuit struct {
 	HW1 frontend.Variable `gnark:"hw1,public"`
 }
 
+// Define implements the gnark frontend.Circuit interface for wFromHKCircuit.
+// It constrains that SHA256(compress([hk]G1)) equals the public digest (HW0 || HW1),
+// where compress applies BLS12-381 G1 point compression (IETF format) and
+// HW0/HW1 are the two 16-byte halves of the SHA256 digest provided as public inputs.
+// The SignHint witness is verified implicitly: a wrong sign produces wrong compressed
+// bytes and thus a mismatched hash.
 func (c *wFromHKCircuit) Define(api frontend.API) error {
 	curve, err := sw_emulated.New[emparams.BLS12381Fp, emparams.BLS12381Fr](api, sw_emulated.GetBLS12381Params())
 	if err != nil {
@@ -432,6 +455,9 @@ func ProveAndVerifyW(a *big.Int, wCompressedHex string) error {
 
 // --- hop derivation: fq12_encoding(r2 / b, DomainTagHex) ---
 
+// domainTagBytes returns the domain separation tag as raw bytes, decoded from DomainTagHex.
+// The tag "F12|To|Hex|v1|" is appended to pairing outputs before MiMC hashing
+// to ensure domain separation.
 func domainTagBytes() ([]byte, error) {
 	return hex.DecodeString(DomainTagHex)
 }
@@ -538,6 +564,10 @@ func DecryptToHash(g1bHex, g2bHex, r1Hex, sharedHex string) (string, error) {
 //
 // where (a, r) are secret scalars in Fr
 // and (v, w0, w1) are public G1 points (provided as public X/Y in Fp).
+//
+// vw0w1Circuit is the main gnark circuit for the Peace Protocol. It proves
+// knowledge of (a, r) satisfying w0 == [hk]G and w1 == [a]G + [r]V, where
+// hk is derived in-circuit from the pairing e([a]G, H0) and MiMC hashing.
 type vw0w1Circuit struct {
 	// secrets (Fr)
 	A emulated.Element[emparams.BLS12381Fr] `gnark:"a,secret"`
@@ -646,6 +676,15 @@ func hashToFrMiMC(api frontend.API, elements []frontend.Variable) (emulated.Elem
 	return *hk, nil
 }
 
+// Define implements the gnark frontend.Circuit interface for vw0w1Circuit.
+// It proves in zero knowledge that the prover knows secret scalars (a, r) such that:
+//
+//	hk = MiMC( Fq12ToFr(e([a]G, H0)) || DomainTagFr )
+//	w0 == [hk]G   (commitment to the secret identity)
+//	w1 == [a]G + [r]V   (blinded public key)
+//
+// The pairing e([a]G, H0) is computed in-circuit using the emulated BLS12-381 pairing
+// gadget, and MiMC hashing uses native field arithmetic for efficiency.
 func (c *vw0w1Circuit) Define(api frontend.API) error {
 	// G1 arithmetic (emulated)
 	curve, err := sw_emulated.New[emparams.BLS12381Fp, emparams.BLS12381Fr](api, sw_emulated.GetBLS12381Params())
