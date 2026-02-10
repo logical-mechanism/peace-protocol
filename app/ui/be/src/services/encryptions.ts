@@ -186,14 +186,23 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
     }
 
     // All txs (including newest): extract full_level if Some (fields[4])
+    // Deduplicate: UseSnark preserves the existing full_level unchanged,
+    // so consecutive txs can carry the same full_level — skip duplicates.
     try {
       const fullLevel = parseOptionalFullLevel(datumValue.fields[4] as never);
       if (fullLevel) {
-        levels.push({
-          r1: fullLevel.r1b,
-          r2_g1: fullLevel.r2_g1b,
-          r2_g2: fullLevel.r2_g2b,
-        });
+        const prev = levels[levels.length - 1];
+        const isDuplicate = prev &&
+          prev.r1 === fullLevel.r1b &&
+          prev.r2_g1 === fullLevel.r2_g1b &&
+          prev.r2_g2 === fullLevel.r2_g2b;
+        if (!isDuplicate) {
+          levels.push({
+            r1: fullLevel.r1b,
+            r2_g1: fullLevel.r2_g1b,
+            r2_g2: fullLevel.r2_g2b,
+          });
+        }
       }
     } catch (err) {
       console.warn(`Failed to parse full_level from tx ${tx.tx_hash}:`, err);

@@ -1168,11 +1168,21 @@ export async function acceptBidSnark(
     // 7. Build spend redeemer: UseSnark (constructor 2, empty)
     const spendRedeemer = { constructor: 2, fields: [] };
 
-    // 8. Build output datum: same datum but status = Pending(public, ttl)
+    // 8. Build output datum: same datum but status = Pending(groth_proof, public, ttl)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pendingStatus: any = {
       constructor: 1,
       fields: [
+        {
+          constructor: 0,
+          fields: [
+            { bytes: proofData.piA },
+            { bytes: proofData.piB },
+            { bytes: proofData.piC },
+            { list: (proofData.commitments || []).map((c: string) => ({ bytes: c })) },
+            { bytes: proofData.commitmentPok || '' },
+          ],
+        },
         { list: publicInputs.map((v: bigint) => ({ int: v })) },
         { int: ttl },
       ],
