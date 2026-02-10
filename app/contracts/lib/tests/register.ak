@@ -63,3 +63,45 @@ test an_invalid_register4() fail {
     }
   register.is_register_valid(user)
 }
+
+// swapping generator and public value should fail
+test an_invalid_register_swapped_fields() fail {
+  let x: State<Scalar> = scalar.from_int(44203)
+  let user: Register =
+    Register {
+      generator: g1.generator |> g1.scale(x) |> g1.compress,
+      public_value: g1.generator |> g1.compress,
+    }
+  register.is_register_valid(user)
+}
+
+// arbitrary bytes that are not a valid G1 point should fail
+test an_invalid_register_arbitrary_bytes() fail {
+  let user: Register =
+    Register {
+      generator: #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      public_value: #"cafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe",
+    }
+  register.is_register_valid(user)
+}
+
+// both fields set to the g1 generator should fail (generator == public_value)
+test an_invalid_register_both_generator() fail {
+  let user: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.compress,
+    }
+  register.is_register_valid(user)
+}
+
+// a second valid register with a different secret
+test another_valid_register() {
+  let x: State<Scalar> = scalar.from_int(9999999)
+  let user: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.scale(x) |> g1.compress,
+    }
+  register.is_register_valid(user)
+}
