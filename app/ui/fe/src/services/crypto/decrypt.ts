@@ -25,11 +25,11 @@
 import type { IWallet } from '@meshsdk/core';
 import type { BidDisplay, EncryptionDisplay } from '../api';
 import { encryptionsApi } from '../api';
-import { getBidSecrets, getBidSecretsForEncryption } from '../bidSecretStorage';
 import { decrypt as eciesDecrypt } from './ecies';
 import { g2Point, scale } from './bls12381';
 import { H0 } from './constants';
 import { getSnarkProver } from '../snark';
+import { deriveSecretFromWallet } from './walletSecret';
 
 /**
  * Check if WASM decrypt_to_hash is available via the worker.
@@ -293,7 +293,7 @@ async function decryptWithStub(
  * 4. Decrypt capsule with ECIES
  */
 async function decryptReal(
-  _wallet: IWallet,
+  wallet: IWallet,
   bid: BidDisplay,
   _encryption: EncryptionDisplay
 ): Promise<DecryptionResult> {
@@ -309,17 +309,18 @@ async function decryptReal(
     };
   }
 
-  // Step 2: Check if we have the bid secrets
-  const secrets = await getBidSecrets(bid.tokenName);
-  if (!secrets) {
-    console.warn('[decryptReal] Bid secrets not found');
+  // Step 2: Derive bid secret from wallet signature (deterministic)
+  let b: bigint;
+  try {
+    b = await deriveSecretFromWallet(wallet);
+  } catch (err) {
+    console.warn('[decryptReal] Failed to derive secret from wallet:', err);
     return {
       success: false,
-      error:
-        'Bid secrets not found. This could happen if you cleared browser data or placed the bid on a different device.',
+      error: 'Failed to derive secret from wallet. Please approve the signing request.',
     };
   }
-  console.log('[decryptReal] Found bid secrets, b =', secrets.b.toString().slice(0, 16) + '...');
+  console.log('[decryptReal] Derived b from wallet =', '0x' + b.toString(16).slice(0, 16) + '...');
 
   // Step 3: Fetch encryption history
   const history = await fetchEncryptionHistory(bid.encryptionToken);
@@ -335,7 +336,7 @@ async function decryptReal(
 
   // Step 4: Compute KEM using WASM
   try {
-    const kem = await computeKEM(secrets.b, history.levels);
+    const kem = await computeKEM(b, history.levels);
     if (!kem) {
       return {
         success: false,
@@ -449,15 +450,6 @@ export async function canDecrypt(
     };
   }
 
-  // In real mode, check if we have secrets
-  const secrets = await getBidSecrets(bid.tokenName);
-  if (!secrets) {
-    return {
-      canDecrypt: false,
-      reason:
-        'Bid secrets not found locally. You may need to use the same browser/device where you placed the bid.',
-    };
-  }
 
   return { canDecrypt: true };
 }
@@ -487,18 +479,18 @@ export async function decryptEncryption(
     };
   }
 
-  // Step 2: Look up bid secrets by encryption token name
-  const bidSecrets = await getBidSecretsForEncryption(encryption.tokenName);
-  if (bidSecrets.length === 0) {
+  // Step 2: Derive bid secret from wallet signature (deterministic)
+  let b: bigint;
+  try {
+    b = await deriveSecretFromWallet(wallet);
+  } catch (err) {
+    console.warn('[decryptEncryption] Failed to derive secret from wallet:', err);
     return {
       success: false,
-      error: 'Bid secrets not found for this encryption. This could happen if you cleared browser data or purchased on a different device.',
+      error: 'Failed to derive secret from wallet. Please approve the signing request.',
     };
   }
-
-  // Use the first matching secret (there should typically be only one)
-  const { b } = bidSecrets[0];
-  console.log('[decryptEncryption] Found bid secret, b =', '0x' + b.toString(16).slice(0, 16) + '...');
+  console.log('[decryptEncryption] Derived b from wallet =', '0x' + b.toString(16).slice(0, 16) + '...');
 
   // Step 3: Fetch full encryption history from backend
   // The decryption protocol requires ALL levels from the token's tx history:
