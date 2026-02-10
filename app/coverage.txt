@@ -12,12 +12,12 @@ src/ecies.py                     24      0   100%
 src/files.py                     21      0   100%
 src/groth_convert.py             38      0   100%
 src/hashing.py                    5      0   100%
-src/level.py                     13      6    54%   37-53, 95-104
+src/level.py                     13      0   100%
 src/register.py                  34      0   100%
 src/schnorr.py                   20      0   100%
-src/snark.py                    338    252    25%   44, 77-82, 133, 135, 156-164, 175-178, 182-186, 190-194, 209-212, 217-220, 225-228, 233-235, 243-267, 272-275, 284-304, 308, 313-317, 323-330, 338-371, 381-393, 401-402, 425-439, 444-446, 466-652, 668, 670, 672, 679-682, 692-693
-src/snark_verify_wrapper.py      12      3    75%   40-42
-src/vk_convert.py                29     14    52%   83-102, 106
+src/snark.py                    338     55    84%   86, 175, 177, 298-312, 376, 391, 393, 520, 543-548, 557-558, 574-577, 588, 591, 606, 614, 617-620, 654-659, 663-664, 667-669, 673, 689, 692-694, 697
+src/snark_verify_wrapper.py      12      0   100%
+src/vk_convert.py                29      1    97%   106
 tests/__init__.py                 0      0   100%
 tests/test_binding.py           155      1    99%   222
 tests/test_bls12381.py          150      1    99%   264
@@ -26,12 +26,13 @@ tests/test_ecies.py             118      0   100%
 tests/test_files.py              73      0   100%
 tests/test_groth_convert.py     130      0   100%
 tests/test_hashing.py            28      0   100%
+tests/test_level.py              45      0   100%
 tests/test_register.py           80      0   100%
 tests/test_schnorr.py           120      0   100%
-tests/test_snark.py             115     19    83%   43-44, 160-176, 197, 200, 250
-tests/test_vk_convert.py        101      1    99%   188
+tests/test_snark.py             383     19    95%   73-74, 190-206, 227, 230, 663
+tests/test_vk_convert.py        132      1    99%   238
 -----------------------------------------------------------
-TOTAL                          2049    304    85%
+TOTAL                          2393     85    96%
 
 ====================
 GO COVERAGE
