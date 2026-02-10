@@ -86,3 +86,45 @@ test generate_token_name__uses_head_input_only() {
 test generate_token_name__fails_on_empty_inputs() fail {
   expect _tkn = util.generate_token_name([])
 }
+
+// max valid index (255) should still produce 32 bytes
+test construct_token_name__max_index_255() {
+  let got = util.construct_token_name(id_seq_00_1f, 255)
+
+  let expected: AssetName =
+    #"ff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"
+
+  got == expected && bytearray.length(got) == 32
+}
+
+// different tx ids produce different token names (uniqueness)
+test construct_token_name__different_ids_different_names() {
+  let tkn1 = util.construct_token_name(id_seq_00_1f, 0)
+  let tkn2 = util.construct_token_name(id_ff, 0)
+
+  tkn1 != tkn2
+}
+
+// same tx id but different index produces different names
+test construct_token_name__different_idx_different_names() {
+  let tkn1 = util.construct_token_name(id_seq_00_1f, 0)
+  let tkn2 = util.construct_token_name(id_seq_00_1f, 1)
+
+  tkn1 != tkn2
+}
+
+// generate_token_name with a single input should work
+test generate_token_name__single_input() {
+  let i0 = mk_input(id_ff, 3)
+
+  let got = util.generate_token_name([i0])
+
+  let expected = util.construct_token_name(id_ff, 3)
+
+  got == expected
+}
+
+// negative index should fail (bytearray.push rejects negative)
+test construct_token_name__fails_when_idx_negative() fail {
+  expect _tkn = util.construct_token_name(id_seq_00_1f, -1)
+}
