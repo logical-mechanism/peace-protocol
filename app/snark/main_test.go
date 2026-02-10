@@ -17,6 +17,9 @@ import (
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/mimc"
+
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/pedersen"
+	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
 )
 
 // ---------- small helpers ----------
@@ -1214,6 +1217,140 @@ func TestExportProofBLS_RejectsNil(t *testing.T) {
 
 func TestExportVKBLS_RejectsNil(t *testing.T) {
 	_, err := exportVKBLS(nil, 5)
+	if err == nil {
+		t.Fatalf("expected error for nil VK")
+	}
+}
+
+func TestExportVKBLS_RejectsNegativeNPublic(t *testing.T) {
+	vk := &groth16bls.VerifyingKey{}
+	_, err := exportVKBLS(vk, -1)
+	if err == nil {
+		t.Fatalf("expected error for negative nPublic")
+	}
+}
+
+func TestExportVKBLS_RejectsShortIC(t *testing.T) {
+	// nPublic=5 requires len(IC)>=6, but we have 0
+	vk := &groth16bls.VerifyingKey{}
+	_, err := exportVKBLS(vk, 5)
+	if err == nil {
+		t.Fatalf("expected error for short IC")
+	}
+}
+
+func TestExportProofBLS_HappyPath(t *testing.T) {
+	// Construct a minimal valid BLS12-381 proof with known G1/G2 points
+	var ar, krs bls12381.G1Affine
+	ar.ScalarMultiplicationBase(big.NewInt(7))
+	krs.ScalarMultiplicationBase(big.NewInt(13))
+
+	var bs bls12381.G2Affine
+	bs.ScalarMultiplicationBase(big.NewInt(11))
+
+	proof := &groth16bls.Proof{Ar: ar, Bs: bs, Krs: krs}
+	pj, err := exportProofBLS(proof)
+	if err != nil {
+		t.Fatalf("exportProofBLS failed: %v", err)
+	}
+	if pj.PiA == "" || pj.PiB == "" || pj.PiC == "" {
+		t.Fatalf("expected non-empty proof fields")
+	}
+	if len(pj.PiA) != 96 {
+		t.Fatalf("piA hex length: got %d want 96", len(pj.PiA))
+	}
+	if len(pj.PiB) != 192 {
+		t.Fatalf("piB hex length: got %d want 192", len(pj.PiB))
+	}
+	if len(pj.PiC) != 96 {
+		t.Fatalf("piC hex length: got %d want 96", len(pj.PiC))
+	}
+}
+
+func TestExportVKBLS_HappyPath(t *testing.T) {
+	// Build a minimal VK with 2 IC elements (nPublic=1)
+	var alpha, ic0, ic1 bls12381.G1Affine
+	alpha.ScalarMultiplicationBase(big.NewInt(2))
+	ic0.ScalarMultiplicationBase(big.NewInt(3))
+	ic1.ScalarMultiplicationBase(big.NewInt(5))
+
+	var beta, gamma, delta bls12381.G2Affine
+	beta.ScalarMultiplicationBase(big.NewInt(7))
+	gamma.ScalarMultiplicationBase(big.NewInt(11))
+	delta.ScalarMultiplicationBase(big.NewInt(13))
+
+	vk := &groth16bls.VerifyingKey{}
+	vk.G1.Alpha = alpha
+	vk.G1.K = []bls12381.G1Affine{ic0, ic1}
+	vk.G2.Beta = beta
+	vk.G2.Gamma = gamma
+	vk.G2.Delta = delta
+
+	vkj, err := exportVKBLS(vk, 1)
+	if err != nil {
+		t.Fatalf("exportVKBLS failed: %v", err)
+	}
+	if vkj.NPublic != 1 {
+		t.Fatalf("nPublic: got %d want 1", vkj.NPublic)
+	}
+	if len(vkj.VkIC) != 2 {
+		t.Fatalf("IC length: got %d want 2", len(vkj.VkIC))
+	}
+	if vkj.VkAlpha == "" || vkj.VkBeta == "" || vkj.VkGamma == "" || vkj.VkDelta == "" {
+		t.Fatalf("expected non-empty VK fields")
+	}
+}
+
+func TestExportVKOnly_HappyPath(t *testing.T) {
+	// Build a minimal VK with 1 commitment key.
+	// In gnark, len(IC) = nPublic + 1 + nCommitments.
+	// ExportVKOnly computes nPublic = len(IC) - nCommitments.
+	// With 3 IC elements and 1 commitment: nPublic = 3 - 1 = 2.
+	var alpha, ic0, ic1, ic2 bls12381.G1Affine
+	alpha.ScalarMultiplicationBase(big.NewInt(2))
+	ic0.ScalarMultiplicationBase(big.NewInt(3))
+	ic1.ScalarMultiplicationBase(big.NewInt(5))
+	ic2.ScalarMultiplicationBase(big.NewInt(17))
+
+	var beta, gamma, delta, ckG, ckGSN bls12381.G2Affine
+	beta.ScalarMultiplicationBase(big.NewInt(7))
+	gamma.ScalarMultiplicationBase(big.NewInt(11))
+	delta.ScalarMultiplicationBase(big.NewInt(13))
+	ckG.ScalarMultiplicationBase(big.NewInt(19))
+	ckGSN.ScalarMultiplicationBase(big.NewInt(23))
+
+	vk := &groth16bls.VerifyingKey{}
+	vk.G1.Alpha = alpha
+	vk.G1.K = []bls12381.G1Affine{ic0, ic1, ic2}
+	vk.G2.Beta = beta
+	vk.G2.Gamma = gamma
+	vk.G2.Delta = delta
+	vk.CommitmentKeys = []pedersen.VerifyingKey{{G: ckG, GSigmaNeg: ckGSN}}
+
+	tmp := t.TempDir()
+	if err := ExportVKOnly(vk, tmp); err != nil {
+		t.Fatalf("ExportVKOnly failed: %v", err)
+	}
+
+	// Verify vk.json was created and is valid JSON
+	data, err := os.ReadFile(filepath.Join(tmp, "vk.json"))
+	if err != nil {
+		t.Fatalf("read vk.json: %v", err)
+	}
+	var vkj VKJSON
+	if err := json.Unmarshal(data, &vkj); err != nil {
+		t.Fatalf("unmarshal vk.json: %v", err)
+	}
+	if vkj.NPublic != 2 {
+		t.Fatalf("nPublic: got %d want 2", vkj.NPublic)
+	}
+	if len(vkj.CommitmentKeys) != 1 {
+		t.Fatalf("commitmentKeys: got %d want 1", len(vkj.CommitmentKeys))
+	}
+}
+
+func TestExportVKOnly_RejectsNonBLSVK(t *testing.T) {
+	err := ExportVKOnly(nil, t.TempDir())
 	if err == nil {
 		t.Fatalf("expected error for nil VK")
 	}
