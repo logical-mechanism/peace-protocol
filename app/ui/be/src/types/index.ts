@@ -42,10 +42,19 @@ export interface FullEncryptionLevel {
   r4b: string;            // 192 hex chars (compressed G2)
 }
 
+// Groth16 proof (gnark commitment extension)
+export interface GrothProof {
+  piA: string;              // G1 compressed (96 hex chars)
+  piB: string;              // G2 compressed (192 hex chars)
+  piC: string;              // G1 compressed (96 hex chars)
+  commitments: string[];    // List of G1 compressed
+  commitmentPok: string;    // G1 compressed
+}
+
 // Status types
 export type EncryptionStatus =
   | { type: 'Open' }
-  | { type: 'Pending'; groth_public: number[]; ttl: number };
+  | { type: 'Pending'; groth_proof: GrothProof; groth_public: number[]; ttl: number };
 
 // On-chain encryption datum
 export interface EncryptionDatum {
@@ -62,8 +71,8 @@ export interface EncryptionDatum {
 export interface BidDatum {
   owner_vkh: string;              // 28 bytes hex
   owner_g1: Register;
-  pointer: string;                // encryption token this bid is for
-  token: string;                  // bid token name
+  pointer: string;                // bid's own token name (validated on-chain: pointer == token_name)
+  token: string;                  // encryption token name being bid on
 }
 
 // CIP-20 metadata structure (from tx metadata key 674)
@@ -105,14 +114,23 @@ export interface BidDisplay {
   datum: BidDatum;
 }
 
+// Decryption level (for recursive decrypt across re-encryption hops)
+export interface EncryptionLevel {
+  r1: string;       // G1 point (96 hex chars)
+  r2_g1: string;    // G1 point (96 hex chars)
+  r2_g2?: string;   // G2 point (192 hex chars) — present for full-level, absent for half-level
+}
+
 // Protocol config for frontend
 export interface ProtocolConfig {
   network: 'preprod' | 'mainnet';
   contracts: {
     encryptionAddress: string;
     biddingAddress: string;
+    referenceAddress: string;
     encryptionPolicyId: string;
     biddingPolicyId: string;
+    grothPolicyId: string;
   };
   referenceScripts: {
     encryption: { txHash: string; outputIndex: number } | null;

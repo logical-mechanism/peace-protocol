@@ -184,13 +184,13 @@ a1, r1, hk = create_snark_tx('${bob_public_value}')
 create_reencryption_tx('${alice_wallet_path}/payment.skey', '${bob_public_value}', '${encryption_token}', a1, r1, hk)
 "
 
-lower_timestamp=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+lower_timestamp=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
 lower_bound=$(${cli} conway query slot-number ${network} ${lower_timestamp})
 
-upper_timestamp=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) + timedelta(days=0, hours=0, minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+upper_timestamp=$(python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) + timedelta(days=0, hours=0, minutes=25)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
 upper_bound=$(${cli} conway query slot-number ${network} ${upper_timestamp})
 
-unix_time=$(python3 -c "from datetime import datetime, timedelta, timezone; print(1000*int((datetime.now(timezone.utc) + timedelta(days=0, hours=0, minutes=20)).timestamp()))")
+unix_time=$(python3 -c "from datetime import datetime, timedelta, timezone; print(1000*int((datetime.now(timezone.utc) + timedelta(days=0, hours=6, minutes=40)).timestamp()))")
 
 cp ../data/groth/groth-commitment-wires.json ../data/groth/copy.groth-commitment-wires.json
 wire_bytearray=$(jq -r '.list[0].int' ../data/groth/groth-commitment-wires.json | python3 -c 'import sys; print(hex(int(sys.stdin.read()))[2:])')
@@ -212,10 +212,12 @@ jq \
 ../data/groth/witness-redeemer.json | sponge ../data/groth/witness-redeemer.json
 
 jq \
+--argjson proof "$(cat ../data/groth/groth-proof.json)" \
 --argjson public "$(cat ../data/groth/groth-public.json)" \
 --argjson ttl "${unix_time}" \
-'.fields[0]=$public |
-.fields[1].int=$ttl' \
+'.fields[0]=$proof |
+.fields[1]=$public |
+.fields[2].int=$ttl' \
 ../data/encryption/pending-status.json | sponge ../data/encryption/pending-status.json
 
 cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json

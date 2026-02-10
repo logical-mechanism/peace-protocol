@@ -24,11 +24,12 @@
 
 import type { IWallet } from '@meshsdk/core';
 import type { BidDisplay, EncryptionDisplay } from '../api';
-import { getBidSecrets } from '../bidSecretStorage';
+import { encryptionsApi } from '../api';
 import { decrypt as eciesDecrypt } from './ecies';
 import { g2Point, scale } from './bls12381';
 import { H0 } from './constants';
 import { getSnarkProver } from '../snark';
+import { deriveSecretFromWallet } from './walletSecret';
 
 /**
  * Check if WASM decrypt_to_hash is available via the worker.
@@ -221,14 +222,12 @@ export async function computeKEM(
     console.log('  r2_g1:', level.r2_g1.slice(0, 20) + '...');
     console.log('  r2_g2:', level.r2_g2 ? level.r2_g2.slice(0, 20) + '...' : '(none - half-level)');
 
-    // Compute g1b = [b]r2_g1
-    const g1b = scale(level.r2_g1, b);
-    console.log('  g1b = [b]r2_g1:', g1b.slice(0, 20) + '...');
-
-    // Compute hash via WASM
-    // For half-level, g2b is empty string
-    // For full-level, g2b would be [b]r2_g2
-    const g2b = level.r2_g2 ? scale(level.r2_g2, b) : '';
+    // Pass raw datum values to WASM DecryptToHash.
+    // The Go function computes: k = e(g1b, H0) / e(r1, shared)
+    // where shared = [b]*H0 already incorporates the buyer's secret.
+    // Do NOT pre-scale r2_g1/r2_g2 by b — that would double-count the secret.
+    const g1b = level.r2_g1;
+    const g2b = level.r2_g2 || '';
 
     try {
       kemHash = await decryptToHashWasm(g1b, level.r1, shared, g2b);
@@ -294,7 +293,7 @@ async function decryptWithStub(
  * 4. Decrypt capsule with ECIES
  */
 async function decryptReal(
-  _wallet: IWallet,
+  wallet: IWallet,
   bid: BidDisplay,
   _encryption: EncryptionDisplay
 ): Promise<DecryptionResult> {
@@ -310,17 +309,18 @@ async function decryptReal(
     };
   }
 
-  // Step 2: Check if we have the bid secrets
-  const secrets = await getBidSecrets(bid.tokenName);
-  if (!secrets) {
-    console.warn('[decryptReal] Bid secrets not found');
+  // Step 2: Derive bid secret from wallet signature (deterministic)
+  let b: bigint;
+  try {
+    b = await deriveSecretFromWallet(wallet);
+  } catch (err) {
+    console.warn('[decryptReal] Failed to derive secret from wallet:', err);
     return {
       success: false,
-      error:
-        'Bid secrets not found. This could happen if you cleared browser data or placed the bid on a different device.',
+      error: 'Failed to derive secret from wallet. Please approve the signing request.',
     };
   }
-  console.log('[decryptReal] Found bid secrets, b =', secrets.b.toString().slice(0, 16) + '...');
+  console.log('[decryptReal] Derived b from wallet =', '0x' + b.toString(16).slice(0, 16) + '...');
 
   // Step 3: Fetch encryption history
   const history = await fetchEncryptionHistory(bid.encryptionToken);
@@ -336,18 +336,28 @@ async function decryptReal(
 
   // Step 4: Compute KEM using WASM
   try {
-    const kem = await computeKEM(secrets.b, history.levels);
+    const kem = await computeKEM(b, history.levels);
     if (!kem) {
       return {
         success: false,
         error: 'Failed to compute decryption key (KEM).',
       };
     }
-    console.log('[decryptReal] Computed KEM:', kem.slice(0, 20) + '...');
+    console.log('[decryptReal] Computed KEM:', kem.slice(0, 20) + '... (length=' + kem.length + ')');
+
+    if (kem.length !== 64) {
+      return {
+        success: false,
+        error: `KEM length mismatch (got ${kem.length} hex chars, expected 64). ` +
+          'This encryption may have been created without the WASM prover and cannot be decrypted.',
+      };
+    }
 
     // Step 5: Decrypt capsule with ECIES
-    // The context (r1 point) for ECIES is from the first level
-    const r1 = history.levels[0].r1;
+    // The context (r1) must match what was used during original encryption.
+    // After re-encryption, the full_level.r1b = original half_level.r1b,
+    // so we use the LAST level's r1 (matching Python recursive_decrypt).
+    const r1 = history.levels[history.levels.length - 1].r1;
     console.log('[decryptReal] Decrypting capsule with:');
     console.log('  r1 (context):', r1.slice(0, 20) + '...');
     console.log('  nonce:', history.capsule.nonce);
@@ -440,17 +450,134 @@ export async function canDecrypt(
     };
   }
 
-  // In real mode, check if we have secrets
-  const secrets = await getBidSecrets(bid.tokenName);
-  if (!secrets) {
+
+  return { canDecrypt: true };
+}
+
+/**
+ * Decrypt a purchased encryption directly (no bid object needed).
+ *
+ * After a sale completes, the bid token is burned but the buyer's secret `b`
+ * remains in IndexedDB (keyed by encryption token name). This function looks
+ * up the secret and decrypts using the on-chain datum's encryption levels.
+ *
+ * @param wallet - MeshJS wallet instance
+ * @param encryption - The encryption to decrypt
+ * @returns Decryption result
+ */
+export async function decryptEncryption(
+  wallet: IWallet,
+  encryption: EncryptionDisplay
+): Promise<DecryptionResult> {
+  console.log('[decryptEncryption] Starting decryption for encryption:', encryption.tokenName);
+
+  // Step 1: Check if WASM is available
+  if (!isWasmDecryptAvailable()) {
     return {
-      canDecrypt: false,
-      reason:
-        'Bid secrets not found locally. You may need to use the same browser/device where you placed the bid.',
+      success: false,
+      error: 'WASM prover not loaded. Please load the prover from the dashboard to enable decryption.',
     };
   }
 
-  return { canDecrypt: true };
+  // Step 2: Derive bid secret from wallet signature (deterministic)
+  let b: bigint;
+  try {
+    b = await deriveSecretFromWallet(wallet);
+  } catch (err) {
+    console.warn('[decryptEncryption] Failed to derive secret from wallet:', err);
+    return {
+      success: false,
+      error: 'Failed to derive secret from wallet. Please approve the signing request.',
+    };
+  }
+  console.log('[decryptEncryption] Derived b from wallet =', '0x' + b.toString(16).slice(0, 16) + '...');
+
+  // Step 3: Fetch full encryption history from backend
+  // The decryption protocol requires ALL levels from the token's tx history:
+  //   1. Current half-level (no r2_g2) with shared = [b]H0
+  //   2. Current full-level if exists (has r2_g2)
+  //   3. All historical full-levels from previous re-encryption hops
+  // This matches commands/08_decryptMessage.sh and src/commands.py:recursive_decrypt
+  let levels: EncryptionLevel[];
+  try {
+    const apiLevels = await encryptionsApi.getLevels(encryption.tokenName);
+    levels = apiLevels.map(l => ({
+      r1: l.r1,
+      r2_g1: l.r2_g1,
+      r2_g2: l.r2_g2,
+    }));
+    console.log('[decryptEncryption] Fetched', levels.length, 'encryption level(s) from backend');
+  } catch (err) {
+    console.error('[decryptEncryption] Failed to fetch encryption levels:', err);
+    return {
+      success: false,
+      error: 'Failed to fetch encryption history from backend. Please try again.',
+    };
+  }
+
+  if (levels.length === 0) {
+    return {
+      success: false,
+      error: 'No encryption levels found in transaction history.',
+    };
+  }
+
+  // Step 4: Compute KEM using WASM
+  try {
+    const kem = await computeKEM(b, levels);
+    if (!kem) {
+      return {
+        success: false,
+        error: 'Failed to compute decryption key (KEM).',
+      };
+    }
+    console.log('[decryptEncryption] Computed KEM:', kem.slice(0, 20) + '... (length=' + kem.length + ')');
+
+    // Validate KEM length: WASM MiMC produces 64 hex chars (32 bytes).
+    // If the encryption was created with the old stub (blake2b-224 = 56 hex chars),
+    // the AES key derivation will never match and decryption will fail.
+    if (kem.length !== 64) {
+      console.error('[decryptEncryption] Unexpected KEM length:', kem.length, '(expected 64)');
+      return {
+        success: false,
+        error: `KEM length mismatch (got ${kem.length} hex chars, expected 64). ` +
+          'This encryption may have been created without the WASM prover and cannot be decrypted.',
+      };
+    }
+
+    // Step 5: Decrypt capsule with ECIES
+    // The context (r1) must match what was used during original encryption.
+    // After re-encryption, the full_level.r1b = original half_level.r1b,
+    // so we use the LAST level's r1 (matching Python recursive_decrypt).
+    const capsule = encryption.datum.capsule;
+    const contextR1 = levels[levels.length - 1].r1;
+    console.log('[decryptEncryption] Decrypting capsule with:');
+    console.log('  context r1:', contextR1.slice(0, 20) + '...');
+    console.log('  nonce:', capsule.nonce);
+    console.log('  aad:', capsule.aad.slice(0, 20) + '...');
+    console.log('  ct length:', capsule.ct.length);
+
+    const plaintext = await eciesDecrypt(
+      contextR1,
+      kem,
+      capsule.nonce,
+      capsule.ct,
+      capsule.aad
+    );
+    console.log('[decryptEncryption] Decryption successful!');
+
+    return {
+      success: true,
+      message: plaintext,
+      isStub: false,
+    };
+  } catch (err) {
+    console.error('[decryptEncryption] Decryption failed:', err);
+    return {
+      success: false,
+      error: `Decryption failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+    };
+  }
 }
 
 /**

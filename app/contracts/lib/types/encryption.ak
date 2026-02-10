@@ -4,18 +4,18 @@
 
 use aiken/crypto.{VerificationKeyHash}
 use cardano/assets.{AssetName}
-use types/groth.{GrothPublic}
+use types/groth.{GrothProof, GrothPublic}
 use types/level.{FullEncryptionLevel, HalfEncryptionLevel}
 use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
 
 // six hours
-// pub const pending_ttl: Int = 1000 * 60 * 60 * 6
-pub const pending_ttl: Int = 1000 * 60 * 10
+// pub const pending_ttl: Int = 1000 * 60 * 10
+pub const pending_ttl: Int = 1000 * 60 * 60 * 6
 
 // one hour
-// pub const snark_validity_window: Int = 1000 * 60 * 60
-pub const snark_validity_window: Int = 1000 * 60 * 10
+// pub const snark_validity_window: Int = 1000 * 60 * 10
+pub const snark_validity_window: Int = 1000 * 60 * 60
 
 pub type Capsule {
   nonce: ByteArray,
@@ -25,7 +25,7 @@ pub type Capsule {
 
 pub type Status {
   Open
-  Pending(GrothPublic, Int)
+  Pending(GrothProof, GrothPublic, Int)
 }
 
 pub type EncryptionDatum {

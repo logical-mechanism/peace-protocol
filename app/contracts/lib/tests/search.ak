@@ -10,6 +10,7 @@ use cardano/transaction.{
   ScriptPurpose, Spend,
 }
 use search
+use types/groth.{SnarkVerificationKey}
 use types/reference.{ReferenceDatum}
 
 /// ------------------------------------------------------------
@@ -47,6 +48,18 @@ fn mk_input(output_index: Int, output: Output) -> Input {
 
 fn mk_output_reference(output_index: Int) -> OutputReference {
   OutputReference { transaction_id: tx_id, output_index }
+}
+
+fn mk_test_vk() -> SnarkVerificationKey {
+  SnarkVerificationKey {
+    nPublic: 1,
+    vkAlpha: #"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
+    vkBeta: #"93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
+    vkGamma: #"93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
+    vkDelta: #"93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
+    vkIC: [],
+    commitmentKeys: [],
+  }
 }
 
 /// ------------------------------------------------------------
@@ -123,6 +136,7 @@ test for_reference_datum__returns_reference_datum_on_happy_path() {
       encryption: #"22222222222222222222222222222222222222222222222222222222",
       bid: #"33333333333333333333333333333333333333333333333333333333",
       groth: #"44444444444444444444444444444444444444444444444444444444",
+      snark_vk: mk_test_vk(),
     }
 
   let datum_data: Data = expected
