@@ -68,7 +68,10 @@ var (
 	wasmLoaded bool
 )
 
-// wasmLoadSetup loads the CCS and PK from byte slices
+// wasmLoadSetup deserializes the constraint system and proving key from raw byte slices
+// into the global wasmCCS and wasmPK variables. This is called once after the WASM module
+// loads, before any proofs can be generated. The VK is not loaded because verification
+// happens on-chain, not in the browser.
 func wasmLoadSetup(ccsBytes, pkBytes []byte) error {
 	fmt.Printf("[WASM] wasmLoadSetup called with CCS=%d bytes, PK=%d bytes\n", len(ccsBytes), len(pkBytes))
 
@@ -107,7 +110,11 @@ func wasmLoadSetup(ccsBytes, pkBytes []byte) error {
 	return nil
 }
 
-// wasmProve generates a SNARK proof
+// wasmProve generates a Groth16 proof using the pre-loaded setup files. It parses
+// the secret scalars (a, r) and public G1 points (v, w0, w1) from string arguments,
+// constructs a witness for the vw0w1Circuit, and calls groth16.Prove. Returns a
+// ProofResultWASM containing the proof and public inputs in JSON-compatible format,
+// or an error if setup is not loaded or proof generation fails.
 func wasmProve(aStr, rStr, vHex, w0Hex, w1Hex string) (*ProofResultWASM, error) {
 	fmt.Println("[WASM] wasmProve: checking if setup is loaded...")
 	if !wasmLoaded {
@@ -332,7 +339,10 @@ func computeCommitmentWireNoVK(proof groth16.Proof, publicWitness backend_witnes
 	return wireBi.String(), nil
 }
 
-// gnarkLoadSetup is exposed to JavaScript to load the setup files
+// gnarkLoadSetupJS is the JavaScript-callable wrapper for wasmLoadSetup.
+// It expects two Uint8Array arguments (CCS bytes and PK bytes), copies them
+// into Go memory, and returns a JS object with either {"success": true} or
+// {"error": "..."}. After loading, it triggers GC to reclaim the input buffers.
 func gnarkLoadSetupJS(this js.Value, args []js.Value) interface{} {
 	if len(args) < 2 {
 		return js.ValueOf(map[string]interface{}{
@@ -373,7 +383,8 @@ func gnarkLoadSetupJS(this js.Value, args []js.Value) interface{} {
 	})
 }
 
-// gnarkProve is exposed to JavaScript for proof generation
+// gnarkProveJS is the JavaScript-callable wrapper for proof generation.
+// It delegates to gnarkProveJSInner to allow panic recovery within the WASM callback.
 func gnarkProveJS(this js.Value, args []js.Value) interface{} {
 	fmt.Println("[WASM] gnarkProveJS: function called")
 
@@ -383,7 +394,10 @@ func gnarkProveJS(this js.Value, args []js.Value) interface{} {
 	return gnarkProveJSInner(args)
 }
 
-// gnarkProveJSInner is the actual implementation, separated for clarity
+// gnarkProveJSInner is the implementation of gnarkProveJS, separated to allow
+// defer/recover for panic safety. It expects 5 string arguments (secretA, secretR,
+// publicV, publicW0, publicW1), validates hex lengths, calls wasmProve, and returns
+// the result as a JSON string via js.ValueOf, or a JS error object on failure.
 func gnarkProveJSInner(args []js.Value) (result interface{}) {
 	// Recover from panics and return error to JavaScript
 	defer func() {
@@ -476,7 +490,8 @@ func gnarkProveJSInner(args []js.Value) (result interface{}) {
 	return js.ValueOf(jsonStr)
 }
 
-// gnarkIsReady checks if setup has been loaded
+// gnarkIsReadyJS returns a JavaScript boolean indicating whether the WASM prover
+// has been initialized by a successful call to gnarkLoadSetup.
 func gnarkIsReadyJS(this js.Value, args []js.Value) interface{} {
 	return js.ValueOf(wasmLoaded)
 }
@@ -592,7 +607,9 @@ func gnarkDecryptToHashJS(this js.Value, args []js.Value) interface{} {
 	})
 }
 
-// main is the entry point for WASM builds
+// main is the WASM entry point. It registers JavaScript-callable functions
+// (gnarkLoadSetup, gnarkProve, gnarkIsReady, gnarkGtToHash, gnarkDecryptToHash)
+// on the global JS object and blocks forever to keep the Go runtime alive.
 func main() {
 	fmt.Println("SNARK WASM prover loaded")
 	fmt.Println("Available functions: gnarkLoadSetup, gnarkProve, gnarkIsReady, gnarkGtToHash, gnarkDecryptToHash")

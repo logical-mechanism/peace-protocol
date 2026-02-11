@@ -7,7 +7,7 @@ use cardano/address.{Address}
 use cardano/assets.{AssetName, PolicyId, Value}
 use cardano/transaction.{
   Datum, InlineDatum, Input, Mint, NoDatum, Output, OutputReference, Redeemer,
-  ScriptPurpose, Spend,
+  ScriptPurpose, Spend, Withdraw,
 }
 use search
 use types/groth.{SnarkVerificationKey}
@@ -226,4 +226,96 @@ test for_spend_redeemer_by_output_reference__returns_first_when_duplicates_exist
       mk_output_reference(0),
     )
   d == builtin.i_data(1)
+}
+
+/// ------------------------------------------------------------
+/// Tests: for_withdraw_redeemer_by_script_hash
+/// ------------------------------------------------------------
+test for_withdraw_redeemer_by_script_hash__empty_returns_none() {
+  expect None = search.for_withdraw_redeemer_by_script_hash([], genesis_pid)
+}
+
+test for_withdraw_redeemer_by_script_hash__no_match_returns_none() {
+  let other_hash: ByteArray =
+    #"02020202020202020202020202020202020202020202020202020202"
+  let redeemers: Pairs<ScriptPurpose, Redeemer> =
+    [
+      Pair(Mint(genesis_pid), builtin.i_data(0)),
+      Pair(Withdraw(address.Script(other_hash)), builtin.i_data(1)),
+    ]
+
+  expect None =
+    search.for_withdraw_redeemer_by_script_hash(redeemers, genesis_pid)
+}
+
+test for_withdraw_redeemer_by_script_hash__returns_some_on_match() {
+  let redeemers: Pairs<ScriptPurpose, Redeemer> =
+    [
+      Pair(Mint(genesis_pid), builtin.i_data(0)),
+      Pair(Withdraw(address.Script(genesis_pid)), builtin.i_data(42)),
+      Pair(Spend(mk_output_reference(0)), builtin.i_data(99)),
+    ]
+
+  expect Some(d) =
+    search.for_withdraw_redeemer_by_script_hash(redeemers, genesis_pid)
+  d == builtin.i_data(42)
+}
+
+test for_withdraw_redeemer_by_script_hash__ignores_spend_with_same_hash() {
+  let redeemers: Pairs<ScriptPurpose, Redeemer> =
+    [
+      Pair(Spend(mk_output_reference(0)), builtin.i_data(1)),
+      Pair(Mint(genesis_pid), builtin.i_data(2)),
+    ]
+
+  // no Withdraw purpose present, only Spend and Mint
+  expect None =
+    search.for_withdraw_redeemer_by_script_hash(redeemers, genesis_pid)
+}
+
+/// ------------------------------------------------------------
+/// Tests: for_output_by_token (additional edge cases)
+/// ------------------------------------------------------------
+test for_output_by_token__rejects_quantity_two() {
+  let value_bad =
+    assets.from_lovelace(2)
+      |> assets.add(genesis_pid, genesis_tkn, 2)
+
+  let o = mk_output(value_bad, NoDatum)
+
+  expect None = search.for_output_by_token([o], genesis_pid, genesis_tkn)
+}
+
+test for_output_by_token__no_match_in_populated_list() {
+  let o0 = mk_output(assets.from_lovelace(2), NoDatum)
+  let o1 = mk_output(assets.from_lovelace(5), InlineDatum(1))
+
+  expect None = search.for_output_by_token([o0, o1], genesis_pid, genesis_tkn)
+}
+
+/// ------------------------------------------------------------
+/// Tests: for_input_by_token (additional edge cases)
+/// ------------------------------------------------------------
+test for_input_by_token__no_match_in_populated_list() {
+  let i0 = mk_input(0, mk_output(assets.from_lovelace(2), NoDatum))
+  let i1 = mk_input(1, mk_output(assets.from_lovelace(5), InlineDatum(1)))
+
+  expect None = search.for_input_by_token([i0, i1], genesis_pid, genesis_tkn)
+}
+
+test for_input_by_token__rejects_quantity_two() {
+  let value_bad =
+    assets.from_lovelace(2)
+      |> assets.add(genesis_pid, genesis_tkn, 2)
+
+  let i = mk_input(0, mk_output(value_bad, NoDatum))
+
+  expect None = search.for_input_by_token([i], genesis_pid, genesis_tkn)
+}
+
+/// ------------------------------------------------------------
+/// Tests: for_reference_datum (additional edge cases)
+/// ------------------------------------------------------------
+test for_reference_datum__fails_on_empty_list() fail {
+  expect _got = search.for_reference_datum([], genesis_pid, genesis_tkn)
 }

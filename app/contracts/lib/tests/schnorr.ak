@@ -181,3 +181,86 @@ test alice_cant_bind_to_wrong_user() fail {
   let proof = BindingProof { z_a_b: z_a, z_r_b: z_r, t_1_b: t1, t_2_b: t2 }
   schnorr.binding_verify(user, proof, r1_b, r2_b, token_name)
 }
+
+// tampered g_r commitment should fail verification
+test schnorr_proof_fails_with_tampered_commitment() fail {
+  let x: State<Scalar> = scalar.from_int(44203)
+  let datum: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.scale(x) |> g1.compress,
+    }
+  let r: State<Scalar> = scalar.from_int(1337)
+  let g_r_b: ByteArray = g1.generator |> g1.scale(r) |> g1.compress
+  let c: State<Scalar> =
+    schnorr.fiat_shamir_heuristic(datum.generator, g_r_b, datum.public_value)
+      |> scalar.from_bytes
+  let z: State<Scalar> = scalar.mul(c, x) |> scalar.add(r)
+  let z_b: ByteArray = scalar.to_bytes(z)
+  // use a different g_r_b in the proof (different nonce)
+  let fake_g_r_b: ByteArray =
+    g1.generator |> g1.scale(scalar.from_int(9999)) |> g1.compress
+  let proof = SchnorrProof { z_b, g_r_b: fake_g_r_b }
+  schnorr.verify(datum, proof)
+}
+
+// valid binding proof but with wrong token name should fail
+test binding_proof_fails_with_wrong_token() fail {
+  let token_name = #"acab"
+  let wrong_token = #"beef"
+  let x: State<Scalar> = scalar.from_int(44203)
+  let user: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.scale(x) |> g1.compress,
+    }
+  let a: State<Scalar> = scalar.from_int(1337)
+  let r: State<Scalar> = scalar.from_int(67)
+  let r1_b: ByteArray = g1.generator |> g1.scale(r) |> g1.compress
+  let r2_b: ByteArray =
+    g1.generator |> g1.scale(scalar.add(a, scalar.mul(x, r))) |> g1.compress
+  let alpha: State<Scalar> = scalar.from_int(3456)
+  let rho: State<Scalar> = scalar.from_int(5678)
+  let t1: ByteArray = g1.generator |> g1.scale(rho) |> g1.compress
+  let t2: ByteArray =
+    g1.add(
+      g1.generator |> g1.scale(alpha),
+      g1.generator |> g1.scale(scalar.mul(x, rho)),
+    )
+      |> g1.compress
+  let half_proof = BindingProof { z_a_b: #"", z_r_b: #"", t_1_b: t1, t_2_b: t2 }
+  // build proof with correct token
+  let c: State<Scalar> =
+    schnorr.binding_fiat_shamir_heuristic(
+      user,
+      half_proof,
+      r1_b,
+      r2_b,
+      token_name,
+    )
+      |> scalar.from_bytes
+  let z_a: ByteArray = scalar.mul(c, a) |> scalar.add(alpha) |> scalar.to_bytes
+  let z_r: ByteArray = scalar.mul(c, r) |> scalar.add(rho) |> scalar.to_bytes
+  let proof = BindingProof { z_a_b: z_a, z_r_b: z_r, t_1_b: t1, t_2_b: t2 }
+  // verify with wrong token
+  schnorr.binding_verify(user, proof, r1_b, r2_b, wrong_token)
+}
+
+// a schnorr proof for a different user (different secret, same structure)
+test schnorr_proof_with_different_secret() {
+  let x: State<Scalar> = scalar.from_int(9876543)
+  let datum: Register =
+    Register {
+      generator: g1.generator |> g1.compress,
+      public_value: g1.generator |> g1.scale(x) |> g1.compress,
+    }
+  let r: State<Scalar> = scalar.from_int(42)
+  let g_r_b: ByteArray = g1.generator |> g1.scale(r) |> g1.compress
+  let c: State<Scalar> =
+    schnorr.fiat_shamir_heuristic(datum.generator, g_r_b, datum.public_value)
+      |> scalar.from_bytes
+  let z: State<Scalar> = scalar.mul(c, x) |> scalar.add(r)
+  let z_b: ByteArray = scalar.to_bytes(z)
+  let proof = SchnorrProof { z_b, g_r_b }
+  schnorr.verify(datum, proof)
+}

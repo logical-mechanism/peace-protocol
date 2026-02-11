@@ -6,7 +6,9 @@
 import json
 from pathlib import Path
 
-from src.vk_convert import convert_vk_file, vk_to_datum
+import pytest
+
+from src.vk_convert import convert_vk_file, main, vk_to_datum
 
 # Sample VK from circuit/vk.json (the production VK)
 SAMPLE_VK = {
@@ -159,6 +161,54 @@ class TestFieldOrder:
         for item in fields[6]["list"]:
             assert item["constructor"] == 0
             assert len(item["fields"]) == 2
+
+
+class TestMain:
+    """Test the CLI main() function."""
+
+    def test_main_no_args_exits(self, monkeypatch):
+        """Test that main() exits with code 1 when no args given."""
+        import sys
+
+        monkeypatch.setattr(sys, "argv", ["vk_convert"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
+
+    def test_main_stdout(self, monkeypatch, tmp_path, capsys):
+        """Test that main() writes JSON to stdout when no output file given."""
+        import sys
+
+        input_path = tmp_path / "vk.json"
+        with open(input_path, "w") as f:
+            json.dump(SAMPLE_VK, f)
+
+        monkeypatch.setattr(sys, "argv", ["vk_convert", str(input_path)])
+        main()
+
+        captured = capsys.readouterr()
+        result = json.loads(captured.out)
+        assert result["constructor"] == 0
+        assert len(result["fields"]) == 7
+
+    def test_main_output_file(self, monkeypatch, tmp_path):
+        """Test that main() writes JSON to output file when path given."""
+        import sys
+
+        input_path = tmp_path / "vk.json"
+        output_path = tmp_path / "datum.json"
+        with open(input_path, "w") as f:
+            json.dump(SAMPLE_VK, f)
+
+        monkeypatch.setattr(
+            sys, "argv", ["vk_convert", str(input_path), str(output_path)]
+        )
+        main()
+
+        with open(output_path, "r") as f:
+            result = json.load(f)
+        assert result["constructor"] == 0
+        assert result["fields"][0] == {"int": 37}
 
 
 class TestFileConversion:
