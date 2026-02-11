@@ -17,6 +17,9 @@ import (
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/mimc"
+
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr/pedersen"
+	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
 )
 
 // ---------- small helpers ----------
@@ -906,5 +909,562 @@ func TestDifferentVScalar_SameW0(t *testing.T) {
 
 	if w0Hex1 != w0Hex2 {
 		t.Fatalf("w0 should not depend on V (only on a)")
+	}
+}
+
+// ---------- Step 2.1: quick wins — trivial helpers ----------
+
+func TestDomainTagBytes_DecodesCorrectly(t *testing.T) {
+	b, err := domainTagBytes()
+	if err != nil {
+		t.Fatalf("domainTagBytes failed: %v", err)
+	}
+	// DomainTagHex = "4631327c546f7c4865787c76317c" => "F12|To|Hex|v1|"
+	if string(b) != "F12|To|Hex|v1|" {
+		t.Fatalf("unexpected domain tag: %q", string(b))
+	}
+}
+
+func TestG1CompressedHex_RoundTrip(t *testing.T) {
+	p := g1MulBase(big.NewInt(42))
+	h, err := g1CompressedHex(p)
+	if err != nil {
+		t.Fatalf("g1CompressedHex failed: %v", err)
+	}
+	if len(h) != 96 {
+		t.Fatalf("expected 96 hex chars, got %d", len(h))
+	}
+	// Round-trip: parse back
+	p2, err := parseG1CompressedHex(h)
+	if err != nil {
+		t.Fatalf("round-trip parse failed: %v", err)
+	}
+	if !p.Equal(&p2) {
+		t.Fatalf("round-trip mismatch")
+	}
+}
+
+func TestG2CompressedHex_RoundTrip(t *testing.T) {
+	var p bls12381.G2Affine
+	p.ScalarMultiplicationBase(big.NewInt(42))
+	h, err := g2CompressedHex(p)
+	if err != nil {
+		t.Fatalf("g2CompressedHex failed: %v", err)
+	}
+	if len(h) != 192 {
+		t.Fatalf("expected 192 hex chars, got %d", len(h))
+	}
+	// Round-trip: parse back
+	p2, err := parseG2CompressedHex(h)
+	if err != nil {
+		t.Fatalf("round-trip parse failed: %v", err)
+	}
+	if !p.Equal(&p2) {
+		t.Fatalf("round-trip mismatch")
+	}
+}
+
+// ---------- Step 2.2: choosePublicInputs — all reconciliation paths ----------
+
+func TestChoosePublicInputs_PerfectMatch(t *testing.T) {
+	// Case: icLen == len(pubRaw)+1 (perfect match)
+	pub := []string{"10", "20", "30"}
+	got, err := choosePublicInputs(pub, 4)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 3 || got[0] != "10" || got[1] != "20" || got[2] != "30" {
+		t.Fatalf("expected [10 20 30], got %v", got)
+	}
+}
+
+func TestChoosePublicInputs_PrependOne(t *testing.T) {
+	// Case: icLen == len(pubRaw)+2 (prepend "1")
+	pub := []string{"10", "20", "30"}
+	got, err := choosePublicInputs(pub, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 4 || got[0] != "1" {
+		t.Fatalf("expected prepended '1', got %v", got)
+	}
+	if got[1] != "10" || got[2] != "20" || got[3] != "30" {
+		t.Fatalf("unexpected values after prepend: %v", got)
+	}
+}
+
+func TestChoosePublicInputs_DropLeadingOneOrZero(t *testing.T) {
+	// Case: icLen == len(pubRaw) with leading "1"
+	pub := []string{"1", "10", "20"}
+	got, err := choosePublicInputs(pub, 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 || got[0] != "10" || got[1] != "20" {
+		t.Fatalf("expected leading '1' dropped, got %v", got)
+	}
+
+	// Case: icLen == len(pubRaw) with leading "0"
+	pub2 := []string{"0", "10", "20"}
+	got2, err := choosePublicInputs(pub2, 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got2) != 2 || got2[0] != "10" {
+		t.Fatalf("expected leading '0' dropped, got %v", got2)
+	}
+}
+
+func TestChoosePublicInputs_ErrorCases(t *testing.T) {
+	// icLen < 1
+	if _, err := choosePublicInputs([]string{"a"}, 0); err == nil {
+		t.Fatalf("expected error for icLen=0")
+	}
+
+	// icLen == len(pubRaw) but leading value is not "0" or "1"
+	if _, err := choosePublicInputs([]string{"999", "10"}, 2); err == nil {
+		t.Fatalf("expected error when icLen==len and leading is not 0/1")
+	}
+
+	// Default mismatch: icLen far off from len(pubRaw)
+	if _, err := choosePublicInputs([]string{"a", "b"}, 10); err == nil {
+		t.Fatalf("expected error for large icLen mismatch")
+	}
+}
+
+// ---------- Step 2.4: file I/O error paths ----------
+
+func TestLoadSetupFiles_MissingDir(t *testing.T) {
+	tmp := t.TempDir()
+	_, _, _, err := LoadSetupFiles(filepath.Join(tmp, "noexist"))
+	if err == nil {
+		t.Fatalf("expected error for missing directory")
+	}
+}
+
+func TestLoadSetupFiles_CorruptFiles(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"ccs.bin", "pk.bin", "vk.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	_, _, _, err := LoadSetupFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for corrupt setup files")
+	}
+}
+
+func TestVerifyFromFiles_MissingDir(t *testing.T) {
+	tmp := t.TempDir()
+	err := VerifyFromFiles(filepath.Join(tmp, "noexist"))
+	if err == nil {
+		t.Fatalf("expected error for missing directory")
+	}
+}
+
+func TestVerifyFromFiles_CorruptFiles(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"vk.bin", "proof.bin", "witness.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	err := VerifyFromFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for corrupt files")
+	}
+}
+
+func TestReExportJSON_MissingFiles(t *testing.T) {
+	tmp := t.TempDir()
+	err := ReExportJSON(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing vk.bin")
+	}
+}
+
+func TestReExportJSON_CorruptVK(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"vk.bin", "proof.bin", "witness.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	err := ReExportJSON(tmp)
+	if err == nil {
+		t.Fatalf("expected error for corrupt vk.bin")
+	}
+}
+
+// ---------- Step 2.5: input validation error paths (no proving) ----------
+
+func TestDecryptToHash_BadG1bHex(t *testing.T) {
+	_, err := DecryptToHash("zzzz", "", g1HexFromAffine(g1MulBase(big.NewInt(1))), g2HexFromAffine(func() bls12381.G2Affine {
+		var p bls12381.G2Affine
+		p.ScalarMultiplicationBase(big.NewInt(1))
+		return p
+	}()))
+	if err == nil {
+		t.Fatalf("expected error for bad g1b hex")
+	}
+}
+
+func TestDecryptToHash_BadR1Hex(t *testing.T) {
+	g1b := g1HexFromAffine(g1MulBase(big.NewInt(1)))
+	_, err := DecryptToHash(g1b, "", "zzzz", g2HexFromAffine(func() bls12381.G2Affine {
+		var p bls12381.G2Affine
+		p.ScalarMultiplicationBase(big.NewInt(1))
+		return p
+	}()))
+	if err == nil {
+		t.Fatalf("expected error for bad r1 hex")
+	}
+}
+
+func TestDecryptToHash_BadSharedHex(t *testing.T) {
+	g1b := g1HexFromAffine(g1MulBase(big.NewInt(1)))
+	r1 := g1HexFromAffine(g1MulBase(big.NewInt(2)))
+	_, err := DecryptToHash(g1b, "", r1, "zzzz")
+	if err == nil {
+		t.Fatalf("expected error for bad shared hex")
+	}
+}
+
+func TestDecryptToHash_BadG2bHex(t *testing.T) {
+	g1b := g1HexFromAffine(g1MulBase(big.NewInt(1)))
+	r1 := g1HexFromAffine(g1MulBase(big.NewInt(2)))
+	shared := g2HexFromAffine(func() bls12381.G2Affine {
+		var p bls12381.G2Affine
+		p.ScalarMultiplicationBase(big.NewInt(3))
+		return p
+	}())
+	_, err := DecryptToHash(g1b, "zzzz", r1, shared)
+	if err == nil {
+		t.Fatalf("expected error for bad g2b hex")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsNilA(t *testing.T) {
+	err := ProveAndVerifyVW0W1(nil, big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), strings.Repeat("00", 48), t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for nil a")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsZeroA(t *testing.T) {
+	err := ProveAndVerifyVW0W1(big.NewInt(0), big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), strings.Repeat("00", 48), t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for zero a")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsBadVHex(t *testing.T) {
+	err := ProveAndVerifyVW0W1(big.NewInt(42), big.NewInt(0), "zzzz", strings.Repeat("00", 48), strings.Repeat("00", 48), t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for bad v hex")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsShortHex(t *testing.T) {
+	err := ProveAndVerifyVW0W1(big.NewInt(42), big.NewInt(0), strings.Repeat("00", 47), strings.Repeat("00", 48), strings.Repeat("00", 48), t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for short v hex (47 bytes)")
+	}
+}
+
+func TestProveVW0W1FromSetup_RejectsNilA(t *testing.T) {
+	err := ProveVW0W1FromSetup("dummy", "dummy", nil, big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), strings.Repeat("00", 48), false)
+	if err == nil {
+		t.Fatalf("expected error for nil a")
+	}
+}
+
+func TestProveVW0W1FromSetup_RejectsZeroA(t *testing.T) {
+	err := ProveVW0W1FromSetup("dummy", "dummy", big.NewInt(0), big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), strings.Repeat("00", 48), false)
+	if err == nil {
+		t.Fatalf("expected error for zero a")
+	}
+}
+
+func TestProveVW0W1FromSetup_RejectsBadVHex(t *testing.T) {
+	err := ProveVW0W1FromSetup("dummy", "dummy", big.NewInt(42), big.NewInt(0), "zzzz", strings.Repeat("00", 48), strings.Repeat("00", 48), false)
+	if err == nil {
+		t.Fatalf("expected error for bad v hex")
+	}
+}
+
+func TestProveAndVerifyW_RejectsNilA(t *testing.T) {
+	err := ProveAndVerifyW(nil, strings.Repeat("00", 48))
+	if err == nil {
+		t.Fatalf("expected error for nil a")
+	}
+}
+
+func TestProveAndVerifyW_RejectsShortWHex(t *testing.T) {
+	err := ProveAndVerifyW(big.NewInt(42), "aabb")
+	if err == nil {
+		t.Fatalf("expected error for short w hex")
+	}
+}
+
+func TestExportProofBLS_RejectsNil(t *testing.T) {
+	_, err := exportProofBLS(nil)
+	if err == nil {
+		t.Fatalf("expected error for nil proof")
+	}
+}
+
+func TestExportVKBLS_RejectsNil(t *testing.T) {
+	_, err := exportVKBLS(nil, 5)
+	if err == nil {
+		t.Fatalf("expected error for nil VK")
+	}
+}
+
+func TestExportVKBLS_RejectsNegativeNPublic(t *testing.T) {
+	vk := &groth16bls.VerifyingKey{}
+	_, err := exportVKBLS(vk, -1)
+	if err == nil {
+		t.Fatalf("expected error for negative nPublic")
+	}
+}
+
+func TestExportVKBLS_RejectsShortIC(t *testing.T) {
+	// nPublic=5 requires len(IC)>=6, but we have 0
+	vk := &groth16bls.VerifyingKey{}
+	_, err := exportVKBLS(vk, 5)
+	if err == nil {
+		t.Fatalf("expected error for short IC")
+	}
+}
+
+func TestExportProofBLS_HappyPath(t *testing.T) {
+	// Construct a minimal valid BLS12-381 proof with known G1/G2 points
+	var ar, krs bls12381.G1Affine
+	ar.ScalarMultiplicationBase(big.NewInt(7))
+	krs.ScalarMultiplicationBase(big.NewInt(13))
+
+	var bs bls12381.G2Affine
+	bs.ScalarMultiplicationBase(big.NewInt(11))
+
+	proof := &groth16bls.Proof{Ar: ar, Bs: bs, Krs: krs}
+	pj, err := exportProofBLS(proof)
+	if err != nil {
+		t.Fatalf("exportProofBLS failed: %v", err)
+	}
+	if pj.PiA == "" || pj.PiB == "" || pj.PiC == "" {
+		t.Fatalf("expected non-empty proof fields")
+	}
+	if len(pj.PiA) != 96 {
+		t.Fatalf("piA hex length: got %d want 96", len(pj.PiA))
+	}
+	if len(pj.PiB) != 192 {
+		t.Fatalf("piB hex length: got %d want 192", len(pj.PiB))
+	}
+	if len(pj.PiC) != 96 {
+		t.Fatalf("piC hex length: got %d want 96", len(pj.PiC))
+	}
+}
+
+func TestExportVKBLS_HappyPath(t *testing.T) {
+	// Build a minimal VK with 2 IC elements (nPublic=1)
+	var alpha, ic0, ic1 bls12381.G1Affine
+	alpha.ScalarMultiplicationBase(big.NewInt(2))
+	ic0.ScalarMultiplicationBase(big.NewInt(3))
+	ic1.ScalarMultiplicationBase(big.NewInt(5))
+
+	var beta, gamma, delta bls12381.G2Affine
+	beta.ScalarMultiplicationBase(big.NewInt(7))
+	gamma.ScalarMultiplicationBase(big.NewInt(11))
+	delta.ScalarMultiplicationBase(big.NewInt(13))
+
+	vk := &groth16bls.VerifyingKey{}
+	vk.G1.Alpha = alpha
+	vk.G1.K = []bls12381.G1Affine{ic0, ic1}
+	vk.G2.Beta = beta
+	vk.G2.Gamma = gamma
+	vk.G2.Delta = delta
+
+	vkj, err := exportVKBLS(vk, 1)
+	if err != nil {
+		t.Fatalf("exportVKBLS failed: %v", err)
+	}
+	if vkj.NPublic != 1 {
+		t.Fatalf("nPublic: got %d want 1", vkj.NPublic)
+	}
+	if len(vkj.VkIC) != 2 {
+		t.Fatalf("IC length: got %d want 2", len(vkj.VkIC))
+	}
+	if vkj.VkAlpha == "" || vkj.VkBeta == "" || vkj.VkGamma == "" || vkj.VkDelta == "" {
+		t.Fatalf("expected non-empty VK fields")
+	}
+}
+
+func TestExportVKOnly_HappyPath(t *testing.T) {
+	// Build a minimal VK with 1 commitment key.
+	// In gnark, len(IC) = nPublic + 1 + nCommitments.
+	// ExportVKOnly computes nPublic = len(IC) - nCommitments.
+	// With 3 IC elements and 1 commitment: nPublic = 3 - 1 = 2.
+	var alpha, ic0, ic1, ic2 bls12381.G1Affine
+	alpha.ScalarMultiplicationBase(big.NewInt(2))
+	ic0.ScalarMultiplicationBase(big.NewInt(3))
+	ic1.ScalarMultiplicationBase(big.NewInt(5))
+	ic2.ScalarMultiplicationBase(big.NewInt(17))
+
+	var beta, gamma, delta, ckG, ckGSN bls12381.G2Affine
+	beta.ScalarMultiplicationBase(big.NewInt(7))
+	gamma.ScalarMultiplicationBase(big.NewInt(11))
+	delta.ScalarMultiplicationBase(big.NewInt(13))
+	ckG.ScalarMultiplicationBase(big.NewInt(19))
+	ckGSN.ScalarMultiplicationBase(big.NewInt(23))
+
+	vk := &groth16bls.VerifyingKey{}
+	vk.G1.Alpha = alpha
+	vk.G1.K = []bls12381.G1Affine{ic0, ic1, ic2}
+	vk.G2.Beta = beta
+	vk.G2.Gamma = gamma
+	vk.G2.Delta = delta
+	vk.CommitmentKeys = []pedersen.VerifyingKey{{G: ckG, GSigmaNeg: ckGSN}}
+
+	tmp := t.TempDir()
+	if err := ExportVKOnly(vk, tmp); err != nil {
+		t.Fatalf("ExportVKOnly failed: %v", err)
+	}
+
+	// Verify vk.json was created and is valid JSON
+	data, err := os.ReadFile(filepath.Join(tmp, "vk.json"))
+	if err != nil {
+		t.Fatalf("read vk.json: %v", err)
+	}
+	var vkj VKJSON
+	if err := json.Unmarshal(data, &vkj); err != nil {
+		t.Fatalf("unmarshal vk.json: %v", err)
+	}
+	if vkj.NPublic != 2 {
+		t.Fatalf("nPublic: got %d want 2", vkj.NPublic)
+	}
+	if len(vkj.CommitmentKeys) != 1 {
+		t.Fatalf("commitmentKeys: got %d want 1", len(vkj.CommitmentKeys))
+	}
+}
+
+func TestExportVKOnly_RejectsNonBLSVK(t *testing.T) {
+	err := ExportVKOnly(nil, t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for nil VK")
+	}
+}
+
+// ---------- additional coverage tests ----------
+
+func TestVerifyFromFiles_MissingProof(t *testing.T) {
+	tmp := t.TempDir()
+	// Create only vk.bin (valid enough to open)
+	if err := os.WriteFile(filepath.Join(tmp, "vk.bin"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	err := VerifyFromFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing proof.bin")
+	}
+}
+
+func TestVerifyFromFiles_MissingWitness(t *testing.T) {
+	tmp := t.TempDir()
+	// Create vk.bin and proof.bin but no witness.bin
+	for _, name := range []string{"vk.bin", "proof.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	err := VerifyFromFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing witness.bin")
+	}
+}
+
+func TestReExportJSON_MissingProof(t *testing.T) {
+	tmp := t.TempDir()
+	// Create only vk.bin
+	if err := os.WriteFile(filepath.Join(tmp, "vk.bin"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	err := ReExportJSON(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing proof.bin")
+	}
+}
+
+func TestReExportJSON_MissingWitness(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"vk.bin", "proof.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	err := ReExportJSON(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing witness.bin")
+	}
+}
+
+func TestLoadSetupFiles_MissingPK(t *testing.T) {
+	tmp := t.TempDir()
+	// Create only ccs.bin
+	if err := os.WriteFile(filepath.Join(tmp, "ccs.bin"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_, _, _, err := LoadSetupFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing pk.bin")
+	}
+}
+
+func TestLoadSetupFiles_MissingVK(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"ccs.bin", "pk.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("corrupt"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	_, _, _, err := LoadSetupFiles(tmp)
+	if err == nil {
+		t.Fatalf("expected error for missing vk.bin")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsBadW0Hex(t *testing.T) {
+	err := ProveAndVerifyVW0W1(big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), "zzzz", strings.Repeat("00", 48), t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for bad w0 hex")
+	}
+}
+
+func TestProveAndVerifyVW0W1_RejectsBadW1Hex(t *testing.T) {
+	err := ProveAndVerifyVW0W1(big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), "zzzz", t.TempDir())
+	if err == nil {
+		t.Fatalf("expected error for bad w1 hex")
+	}
+}
+
+func TestProveVW0W1FromSetup_RejectsBadW0Hex(t *testing.T) {
+	err := ProveVW0W1FromSetup("dummy", "dummy", big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), "zzzz", strings.Repeat("00", 48), false)
+	if err == nil {
+		t.Fatalf("expected error for bad w0 hex")
+	}
+}
+
+func TestProveVW0W1FromSetup_RejectsBadW1Hex(t *testing.T) {
+	err := ProveVW0W1FromSetup("dummy", "dummy", big.NewInt(42), big.NewInt(0), strings.Repeat("00", 48), strings.Repeat("00", 48), "zzzz", false)
+	if err == nil {
+		t.Fatalf("expected error for bad w1 hex")
+	}
+}
+
+func TestProveAndVerifyW_RejectsBadHex(t *testing.T) {
+	err := ProveAndVerifyW(big.NewInt(42), "zzzz")
+	if err == nil {
+		t.Fatalf("expected error for bad hex")
 	}
 }

@@ -1,8 +1,10 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// debug_verify.go
-
+// debug_verify.go provides a diagnostic tool for debugging Groth16 verification failures.
+// It loads JSON artifacts from "out/" and manually computes the vk_x accumulator using
+// multiple public input configurations, then tests the pairing equation in several
+// equivalent formulations. Invoked via the "debug-verify" CLI subcommand.
 package main
 
 import (
@@ -17,6 +19,12 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 )
 
+// debugVerify loads VK, proof, and public inputs from JSON files in "out/" and performs
+// manual Groth16 pairing equation checks using different public input slicing strategies.
+// It tests three formulations of the verification equation:
+//   - e(A,B) == e(alpha,beta) * e(vk_x,gamma) * e(C,delta)
+//   - e(A,B) * e(vk_x,-gamma) * e(C,-delta) == e(alpha,beta)
+//   - e(-A,B) * e(alpha,beta) * e(vk_x,gamma) * e(C,delta) == 1
 func debugVerify() {
 	outDir := "out"
 

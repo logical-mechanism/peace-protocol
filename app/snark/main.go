@@ -14,10 +14,16 @@ import (
 	"os"
 )
 
+// main is the native CLI entry point. It delegates to run() and exits with
+// the returned status code. Excluded from WASM builds via the build tag.
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
+// run implements the CLI command dispatch. It parses the first positional argument
+// as a subcommand (setup, hash, decrypt, prove, verify, re-export, debug-verify,
+// test-verify) and delegates to the appropriate handler. Returns 0 on success,
+// 1 on operational failure, or 2 on usage/argument errors.
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) < 1 {
 		return 2
