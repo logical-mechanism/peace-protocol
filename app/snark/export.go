@@ -1,8 +1,9 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// export.go
-
+// export.go provides JSON and binary serialization of Groth16 proofs, verifying keys,
+// and public inputs for the BLS12-381 curve. It handles the conversion between gnark's
+// internal types and the compressed hex format used by the Aiken on-chain verifier.
 package main
 
 import (
@@ -64,6 +65,10 @@ type PublicJSON struct {
 
 // ---------- extract proof/vk using concrete BLS12-381 Groth16 types ----------
 
+// exportProofBLS extracts the BLS12-381 Groth16 proof components (piA, piB, piC)
+// and any Pedersen commitment extension fields (commitments and batched PoK),
+// converting each curve point to compressed hex. Returns a ProofJSON struct
+// or an error if the proof is not a BLS12-381 type.
 func exportProofBLS(proof groth16.Proof) (ProofJSON, error) {
 	p, ok := proof.(*groth16bls.Proof)
 	if !ok {
@@ -537,6 +542,8 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 
 // ---------- compression helpers ----------
 
+// g1CompressedHex serializes a BLS12-381 G1Affine point to its 48-byte IETF
+// compressed form and returns it as a lowercase hex string (96 characters).
 func g1CompressedHex(p bls12381.G1Affine) (string, error) {
 	b := p.Bytes() // 48 bytes compressed (IETF)
 	if len(b) != 48 {
@@ -545,6 +552,8 @@ func g1CompressedHex(p bls12381.G1Affine) (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
+// g2CompressedHex serializes a BLS12-381 G2Affine point to its 96-byte IETF
+// compressed form and returns it as a lowercase hex string (192 characters).
 func g2CompressedHex(p bls12381.G2Affine) (string, error) {
 	b := p.Bytes() // 96 bytes compressed (IETF)
 	if len(b) != 96 {

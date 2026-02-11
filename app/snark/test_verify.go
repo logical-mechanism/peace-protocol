@@ -1,8 +1,10 @@
 // Copyright (C) 2025 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
-// test_verify.go
-
+// test_verify.go provides a standalone verification tool that reconstructs a Groth16
+// verifier from JSON files (vk.json, proof.json, public.json) in the "out" directory.
+// It tests both 37-input (with leading "1") and 36-input witness vectors. Invoked via
+// the "test-verify" CLI subcommand.
 package main
 
 import (
@@ -17,6 +19,9 @@ import (
 	groth16bls "github.com/consensys/gnark/backend/groth16/bls12-381"
 )
 
+// testVerify loads exported JSON proof artifacts from "out/" and attempts to reconstruct
+// the Groth16 verification manually using gnark's BLS12-381 types. It tests both the
+// 37-input (with leading "1") and 36-input (without) public witness configurations.
 func testVerify() {
 	outDir := "out"
 

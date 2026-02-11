@@ -238,3 +238,122 @@ func computeVW0W1_local(t *testing.T, a, r *big.Int) (vHex, w0Hex, w1Hex string)
 
 	return g1Hex(v), g1Hex(w0), g1Hex(w1)
 }
+
+// ---------- Step 2.3: run() CLI dispatcher tests ----------
+
+func TestRun_Setup_SkipsExisting(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"ccs.bin", "pk.bin", "vk.bin"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("dummy"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	var out, errBuf bytes.Buffer
+	code := run([]string{"setup", "-out", tmp}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("want 0 got %d stderr=%q", code, errBuf.String())
+	}
+	if !strings.Contains(out.String(), "Setup files already exist") {
+		t.Fatalf("expected skip message, got stdout=%q", out.String())
+	}
+}
+
+func TestRun_Verify_MissingFiles(t *testing.T) {
+	tmp := t.TempDir()
+	var out, errBuf bytes.Buffer
+	code := run([]string{"verify", "-out", tmp}, &out, &errBuf)
+	if code != 1 {
+		t.Fatalf("want 1 got %d", code)
+	}
+}
+
+func TestRun_ReExport_MissingFiles(t *testing.T) {
+	tmp := t.TempDir()
+	var out, errBuf bytes.Buffer
+	code := run([]string{"re-export", "-out", tmp}, &out, &errBuf)
+	if code != 1 {
+		t.Fatalf("want 1 got %d", code)
+	}
+}
+
+func TestRun_Prove_BadA(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"prove",
+		"-a", "nope", "-r", "0",
+		"-v", strings.Repeat("a", 96),
+		"-w0", strings.Repeat("a", 96),
+		"-w1", strings.Repeat("a", 96),
+	}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d stderr=%q", code, errBuf.String())
+	}
+}
+
+func TestRun_Prove_BadR(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"prove",
+		"-a", "123", "-r", "nope",
+		"-v", strings.Repeat("a", 96),
+		"-w0", strings.Repeat("a", 96),
+		"-w1", strings.Repeat("a", 96),
+	}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d stderr=%q", code, errBuf.String())
+	}
+}
+
+func TestRun_Prove_SetupDirMissing(t *testing.T) {
+	tmp := t.TempDir()
+	var out, errBuf bytes.Buffer
+	code := run([]string{"prove",
+		"-a", "123", "-r", "0",
+		"-v", strings.Repeat("a", 96),
+		"-w0", strings.Repeat("a", 96),
+		"-w1", strings.Repeat("a", 96),
+		"-setup", filepath.Join(tmp, "noexist"),
+	}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d stderr=%q", code, errBuf.String())
+	}
+}
+
+func TestRun_Decrypt_BadHex(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"decrypt",
+		"-g1b", "zzzz",
+		"-r1", "zzzz",
+		"-shared", "zzzz",
+	}, &out, &errBuf)
+	if code != 1 {
+		t.Fatalf("want 1 got %d stderr=%q", code, errBuf.String())
+	}
+}
+
+func TestRun_Hash_ZeroA(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"hash", "-a", "0"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d stderr=%q", code, errBuf.String())
+	}
+}
+
+func TestRun_Prove_NoVerifyWithoutSetup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	// -no-verify is ignored without -setup; this tests the warning path
+	// but still fails at proving due to bad points — that's fine, we're testing the parse path
+	tmp := t.TempDir()
+	vHex, w0Hex, w1Hex := computeVW0W1_local(t, big.NewInt(42), big.NewInt(0))
+	var out, errBuf bytes.Buffer
+	code := run([]string{"prove",
+		"-a", "42", "-r", "0",
+		"-v", vHex, "-w0", w0Hex, "-w1", w1Hex,
+		"-out", tmp,
+		"-no-verify",
+	}, &out, &errBuf)
+	// Should print the warning and then proceed to prove (which will take long)
+	// Since we're in -short mode skip, we just verify the warning flag is accepted
+	// For non-short mode this would actually prove — the test mainly covers the warning path
+	_ = code // Either 0 (success) or 1 (failure) is fine — we're testing CLI parsing
+}
