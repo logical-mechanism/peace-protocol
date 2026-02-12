@@ -5,8 +5,21 @@
 
 set -e
 
-source venv/bin/activate
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-ruff format .
-ruff check . --fix
-mypy .
+echo "=== Python ==="
+source "$SCRIPT_DIR/venv/bin/activate"
+ruff format "$SCRIPT_DIR"
+ruff check "$SCRIPT_DIR" --fix
+mypy "$SCRIPT_DIR"
+
+echo ""
+echo "=== Go (snark) ==="
+cd "$SCRIPT_DIR/snark"
+gofmt -w .
+go vet ./...
+
+echo ""
+echo "=== TypeScript (ui) ==="
+cd "$SCRIPT_DIR/ui"
+npm run lint

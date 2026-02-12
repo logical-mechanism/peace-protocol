@@ -41,7 +41,9 @@ def build_payload(
     if extra:
         for k, v in extra.items():
             if k in (0, 1, 2):
-                raise ValueError(f"Extra key {k} conflicts with reserved keys (0, 1, 2)")
+                raise ValueError(
+                    f"Extra key {k} conflicts with reserved keys (0, 1, 2)"
+                )
             m[k] = v
     return cbor2.dumps(m, canonical=True)
 
@@ -71,5 +73,7 @@ def parse_payload(data: bytes) -> dict[int, bytes]:
         if not isinstance(k, int):
             raise ValueError(f"All keys must be int, got {type(k).__name__}")
         if not isinstance(v, bytes):
-            raise ValueError(f"All values must be bytes, got {type(v).__name__} for key {k}")
+            raise ValueError(
+                f"All values must be bytes, got {type(v).__name__} for key {k}"
+            )
     return m

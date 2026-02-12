@@ -11,7 +11,9 @@ import pytest
 
 from src.payload import build_payload, parse_payload
 
-VECTORS_PATH = Path(__file__).resolve().parent.parent / "test-vectors" / "payload-vectors.json"
+VECTORS_PATH = (
+    Path(__file__).resolve().parent.parent / "test-vectors" / "payload-vectors.json"
+)
 
 
 @pytest.fixture()
