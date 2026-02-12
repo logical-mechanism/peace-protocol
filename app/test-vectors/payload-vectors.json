@@ -1,0 +1,74 @@
+[
+  {
+    "name": "locator-only-short",
+    "fields": {
+      "0": "deadbeef"
+    },
+    "cbor_hex": "a10044deadbeef"
+  },
+  {
+    "name": "locator-only-empty",
+    "fields": {
+      "0": ""
+    },
+    "cbor_hex": "a10040"
+  },
+  {
+    "name": "all-three-short",
+    "fields": {
+      "0": "aabbccdd",
+      "1": "11223344",
+      "2": "55667788"
+    },
+    "cbor_hex": "a30044aabbccdd014411223344024455667788"
+  },
+  {
+    "name": "all-three-32byte",
+    "fields": {
+      "0": "66141dbbc84e7d5454685ab85f72492489b35ae020f4b444348e73c46ff9b009",
+      "1": "8a6bed6b72cfe64fb8e9531badf2cd6d199a2fcd9120057d29711fcf5f8fab15",
+      "2": "0f009e94729eff9859b40fcef993144b6087a0ca8523e4681b0c8ac71833e6b7"
+    },
+    "cbor_hex": "a300582066141dbbc84e7d5454685ab85f72492489b35ae020f4b444348e73c46ff9b0090158208a6bed6b72cfe64fb8e9531badf2cd6d199a2fcd9120057d29711fcf5f8fab150258200f009e94729eff9859b40fcef993144b6087a0ca8523e4681b0c8ac71833e6b7"
+  },
+  {
+    "name": "locator-and-digest-no-secret",
+    "fields": {
+      "0": "aabbccdd",
+      "2": "11223344"
+    },
+    "cbor_hex": "a20044aabbccdd024411223344"
+  },
+  {
+    "name": "locator-and-secret-no-digest",
+    "fields": {
+      "0": "aabbccdd",
+      "1": "11223344"
+    },
+    "cbor_hex": "a20044aabbccdd014411223344"
+  },
+  {
+    "name": "with-extra-field",
+    "fields": {
+      "0": "aabbccdd",
+      "1": "11223344",
+      "2": "55667788",
+      "3": "99aabbcc"
+    },
+    "cbor_hex": "a40044aabbccdd014411223344024455667788034499aabbcc"
+  },
+  {
+    "name": "single-byte-locator",
+    "fields": {
+      "0": "ff"
+    },
+    "cbor_hex": "a10041ff"
+  },
+  {
+    "name": "large-locator-64byte",
+    "fields": {
+      "0": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "cbor_hex": "a100584000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  }
+]

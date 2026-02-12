@@ -12,9 +12,9 @@ from os import urandom
 from src.files import save_json
 
 
-def encrypt(context: str, kem: str, msg: str) -> tuple[str, str, str]:
+def encrypt(context: str, kem: str, msg: bytes) -> tuple[str, str, str]:
     """
-    Encrypt a UTF-8 message using AES-256-GCM with a key derived from a KEM value.
+    Encrypt raw bytes using AES-256-GCM with a key derived from a KEM value.
 
     Key derivation:
         aes_key = HKDF-SHA3-256(
@@ -29,14 +29,14 @@ def encrypt(context: str, kem: str, msg: str) -> tuple[str, str, str]:
 
     Encryption:
         nonce = 12 random bytes (96-bit GCM nonce)
-        ct = AESGCM(aes_key).encrypt(nonce, msg_utf8, aad_bytes)
+        ct = AESGCM(aes_key).encrypt(nonce, msg, aad_bytes)
 
     Args:
         context: Domain-separated context string that binds the derived key and
             AAD to a particular protocol transcript (e.g., r1 point encoding).
         kem: Hex string representing the key encapsulation material used as HKDF
             input keying material (IKM). Must be valid hex.
-        msg: Plaintext message to encrypt (UTF-8).
+        msg: Plaintext bytes to encrypt (e.g., canonical CBOR payload).
 
     Returns:
         A tuple `(nonce_hex, aad_hex, ct_hex)` where:
@@ -62,7 +62,7 @@ def encrypt(context: str, kem: str, msg: str) -> tuple[str, str, str]:
     aad = generate(AAD_DOMAIN_TAG + context + MSG_DOMAIN_TAG)
 
     nonce = urandom(12)
-    ct = AESGCM(aes_key).encrypt(nonce, msg.encode("utf-8"), bytes.fromhex(aad))
+    ct = AESGCM(aes_key).encrypt(nonce, msg, bytes.fromhex(aad))
     return nonce.hex(), aad, ct.hex()
 
 
