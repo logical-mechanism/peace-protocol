@@ -27,14 +27,16 @@ export default function DecryptModal({
   const [isStub, setIsStub] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Reset state when modal opens/closes
+  // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
     if (isOpen) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setState('idle');
       setDecryptedMessage(null);
       setError(null);
       setIsStub(false);
       setCopied(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [isOpen]);
 

@@ -149,7 +149,6 @@ async function loadWasmExec(): Promise<void> {
 
   // Evaluate the script in the global scope
   // wasm_exec.js sets up the global Go class
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const evalScript = new Function(scriptText)
   evalScript()
 

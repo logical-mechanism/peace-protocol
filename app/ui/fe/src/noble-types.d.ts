@@ -5,6 +5,8 @@
  * in bundler mode where the types might not be automatically resolved.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // Allow any imports from @noble/curves
 declare module '@noble/curves/bls12-381.js' {
   const bls12_381: any;

@@ -33,6 +33,7 @@ export default function SnarkProvingModal({
   // Start elapsed time counter when proving
   useEffect(() => {
     if (state === 'proving' || state === 'initializing') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setElapsedTime(0)
       timerRef.current = setInterval(() => {
         setElapsedTime((prev) => prev + 1)
@@ -54,10 +55,12 @@ export default function SnarkProvingModal({
   // Start proving when modal opens with inputs
   useEffect(() => {
     if (!isOpen || !inputs) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setState('idle')
       setProgress(null)
       setError(null)
       setProof(null)
+      /* eslint-enable react-hooks/set-state-in-effect */
       return
     }
 

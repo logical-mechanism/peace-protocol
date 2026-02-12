@@ -289,7 +289,7 @@ class SnarkStorage {
     }
 
     // Helper to use memory cache as last resort
-    const useMemoryFallback = () => {
+    const applyMemoryFallback = () => {
       console.warn(`[SnarkStorage] storeFile: using memory cache for ${file.name} (will need re-download after refresh)`)
       this.memoryCache.set(file.name, file)
     }
@@ -305,7 +305,7 @@ class SnarkStorage {
         // Try OPFS, then memory fallback
         const opfsSuccess = await tryOPFSFallback()
         if (!opfsSuccess) {
-          useMemoryFallback()
+          applyMemoryFallback()
         }
         resolve() // Don't reject - we have fallbacks
       }
@@ -319,7 +319,7 @@ class SnarkStorage {
           console.warn(`[SnarkStorage] storeFile: IndexedDB quota exceeded for ${file.name}, trying OPFS...`)
           const opfsSuccess = await tryOPFSFallback()
           if (!opfsSuccess) {
-            useMemoryFallback()
+            applyMemoryFallback()
           }
           resolve() // Don't reject - we have fallbacks
         } else {
@@ -343,7 +343,7 @@ class SnarkStorage {
             console.warn(`[SnarkStorage] storeFile: IndexedDB storage failed silently for ${file.name}, trying OPFS...`)
             const opfsSuccess = await tryOPFSFallback()
             if (!opfsSuccess) {
-              useMemoryFallback()
+              applyMemoryFallback()
             }
           } else {
             console.log(`[SnarkStorage] storeFile: ${file.name} verified in IndexedDB (${verification.size} bytes)`)
@@ -353,7 +353,7 @@ class SnarkStorage {
           console.warn(`[SnarkStorage] storeFile: verification error for ${file.name}, trying OPFS:`, err)
           const opfsSuccess = await tryOPFSFallback()
           if (!opfsSuccess) {
-            useMemoryFallback()
+            applyMemoryFallback()
           }
           resolve()
         }
