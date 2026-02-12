@@ -46,8 +46,8 @@ def fixed_urandom(monkeypatch):
     return nonce_bytes
 
 
-def test_encrypt_decrypt_roundtrip_utf8(fixed_urandom):
-    msg = "This is a secret message that only Alice knows."
+def test_encrypt_decrypt_roundtrip_bytes(fixed_urandom):
+    msg = b"This is a secret message that only Alice knows."
     ctx = "acab"
     kem = "cafe" * 16  # 32 bytes IKM
 
@@ -57,11 +57,11 @@ def test_encrypt_decrypt_roundtrip_utf8(fixed_urandom):
     assert nonce == fixed_urandom.hex()
     assert isinstance(aad, str) and len(aad) % 2 == 0
     assert isinstance(ct, str) and len(ct) > 0
-    assert pt == msg.encode("utf-8")
+    assert pt == msg
 
 
 def test_encrypt_decrypt_roundtrip_empty_message(fixed_urandom):
-    msg = ""
+    msg = b""
     ctx = "ctx"
     kem = "00" * 32
 
@@ -82,7 +82,7 @@ def test_encrypt_is_deterministic_with_fixed_nonce_and_inputs(
 
     ctx = "same"
     kem = "11" * 32
-    msg = "hi"
+    msg = b"hi"
 
     out1 = encrypt(ctx, kem, msg)
     out2 = encrypt(ctx, kem, msg)
@@ -94,7 +94,7 @@ def test_encrypt_is_deterministic_with_fixed_nonce_and_inputs(
 
 
 def test_decrypt_fails_if_aad_is_modified(fixed_urandom):
-    msg = "hello"
+    msg = b"hello"
     ctx = "acab"
     kem = "cafe" * 16
 
@@ -108,7 +108,7 @@ def test_decrypt_fails_if_aad_is_modified(fixed_urandom):
 
 
 def test_decrypt_fails_if_ciphertext_is_modified(fixed_urandom):
-    msg = "hello"
+    msg = b"hello"
     ctx = "acab"
     kem = "cafe" * 16
 
@@ -122,7 +122,7 @@ def test_decrypt_fails_if_ciphertext_is_modified(fixed_urandom):
 
 
 def test_decrypt_fails_with_wrong_context(fixed_urandom):
-    msg = "hello"
+    msg = b"hello"
     kem = "cafe" * 16
 
     nonce, aad, ct = encrypt("ctx-A", kem, msg)
@@ -132,7 +132,7 @@ def test_decrypt_fails_with_wrong_context(fixed_urandom):
 
 
 def test_decrypt_fails_with_wrong_kem(fixed_urandom):
-    msg = "hello"
+    msg = b"hello"
     ctx = "acab"
 
     nonce, aad, ct = encrypt(ctx, ("cafe" * 16), msg)
@@ -151,7 +151,7 @@ def test_decrypt_fails_with_wrong_kem(fixed_urandom):
     ],
 )
 def test_encrypt_kem_hex_validation(kem, should_error, fixed_urandom):
-    msg = "m"
+    msg = b"m"
     ctx = "c"
 
     if should_error:
@@ -194,7 +194,7 @@ def test_encrypt_raises_if_generate_returns_odd_length_aad(monkeypatch, fixed_ur
     monkeypatch.setattr(ecies_mod, "generate", bad_generate)
 
     with pytest.raises((ValueError, binascii.Error)):
-        encrypt("ctx", "cafe", "hi")
+        encrypt("ctx", "cafe", b"hi")
 
 
 def test_capsule_to_file_writes_expected_schema(monkeypatch):

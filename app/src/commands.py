@@ -92,13 +92,13 @@ def create_snark_tx(bob_public_value: str) -> tuple[int, int, int]:
 
 
 def create_encryption_tx(
-    alice_wallet_path: str, plaintext: str, token_name: str
+    alice_wallet_path: str, payload: bytes, token_name: str
 ) -> None:
     """
     Create the artifacts for an initial "encryption transaction" (entry encryption).
 
     This function samples fresh secrets, derives the encryption keying material,
-    creates the initial "half-level" entry, encrypts the plaintext, and writes
+    creates the initial "half-level" entry, encrypts the payload, and writes
     all required on-chain/off-chain artifacts to disk.
 
     High-level steps:
@@ -112,7 +112,7 @@ def create_encryption_tx(
        and compute the level commitment term `r4b` using transcript-derived
        scalars `a,b` (domain separated via `H2I_DOMAIN_TAG`).
     5. Write the half-level entry `(r1b, r2_g1b, r4b)` to disk.
-    6. Encrypt `plaintext` under a key derived from `(r1b, m0)` and write the
+    6. Encrypt `payload` under a key derived from `(r1b, m0)` and write the
        capsule (nonce/aad/ciphertext) to disk.
     7. Produce a binding proof tying `(a0, r0)` to the transcript and write it.
 
@@ -125,7 +125,7 @@ def create_encryption_tx(
 
     Args:
         alice_wallet_path: Path to Alice wallet material (as expected by `extract_key`).
-        plaintext: Message to encrypt (string passed to `encrypt`).
+        payload: Raw bytes to encrypt (e.g., canonical CBOR peace-payload).
         token_name: Additional transcript-binding value to prevent cross-context replay.
 
     Returns:
@@ -166,7 +166,7 @@ def create_encryption_tx(
     half_level_to_file(r1b, r2_g1b, r4b)
     empty_full_level_to_file()
 
-    nonce, aad, ct = encrypt(r1b, m0, plaintext)
+    nonce, aad, ct = encrypt(r1b, m0, payload)
     capsule_to_file(nonce, aad, ct)
 
     zab, zrb, t1b, t2b = binding_proof(a0, r0, r1b, r2_g1b, user, token_name)
