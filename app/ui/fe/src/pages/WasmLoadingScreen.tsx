@@ -92,6 +92,7 @@ export default function WasmLoadingScreen() {
   // If already loading when we mount, consider it started
   useEffect(() => {
     if (isLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasStarted(true)
     }
   }, [isLoading])

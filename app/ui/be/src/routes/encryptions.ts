@@ -44,7 +44,7 @@ router.get('/', async (_req: Request, res: Response) => {
  * Get all encryption levels for recursive decryption (queries full tx history).
  * Must be registered BEFORE /:tokenName to avoid being caught by it.
  */
-router.get('/:tokenName/levels', async (req: Request, res: Response) => {
+router.get('/:tokenName/levels', async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
 
@@ -75,7 +75,7 @@ router.get('/:tokenName/levels', async (req: Request, res: Response) => {
  * GET /api/encryptions/:tokenName
  * Get a specific encryption by token name
  */
-router.get('/:tokenName', async (req: Request, res: Response) => {
+router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
 
@@ -108,7 +108,7 @@ router.get('/:tokenName', async (req: Request, res: Response) => {
  * GET /api/encryptions/user/:pkh
  * Get encryptions owned by a specific user (by payment key hash)
  */
-router.get('/user/:pkh', async (req: Request, res: Response) => {
+router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
   try {
     const { pkh } = req.params;
 
@@ -140,7 +140,7 @@ router.get('/user/:pkh', async (req: Request, res: Response) => {
  * GET /api/encryptions/status/:status
  * Get encryptions by status (active, pending, completed)
  */
-router.get('/status/:status', async (req: Request, res: Response) => {
+router.get('/status/:status', async (req: Request<{status: string}>, res: Response) => {
   try {
     const { status } = req.params;
 

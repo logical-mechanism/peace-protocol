@@ -1,0 +1,18 @@
+; Copyright (C) 2025 Logical Mechanism LLC
+; SPDX-License-Identifier: GPL-3.0-only
+;
+; Peace Protocol Encrypted Payload v1
+;
+; This schema defines the CBOR structure encrypted inside the AES-256-GCM
+; capsule of a Peace Protocol encryption UTxO.
+;
+; Integer keys for on-chain compactness. Byte string values for uniformity.
+; Canonical CBOR encoding (RFC 8949 section 4.2) is required for
+; cross-platform consistency between Python (cbor2) and TypeScript (cborg).
+
+peace-payload = {
+  0 => bstr,          ; locator  - content address (IPFS CID, Arweave TX ID, URL, or inline data)
+  ? 1 => bstr,        ; secret   - access/decryption key for off-chain content
+  ? 2 => bstr,        ; digest   - integrity hash of the underlying content
+  * int => bstr       ; extension fields (3+) for application-specific data
+}

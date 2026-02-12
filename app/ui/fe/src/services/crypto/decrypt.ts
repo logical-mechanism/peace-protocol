@@ -26,6 +26,8 @@ import type { IWallet } from '@meshsdk/core';
 import type { BidDisplay, EncryptionDisplay } from '../api';
 import { encryptionsApi } from '../api';
 import { decrypt as eciesDecrypt } from './ecies';
+import { parsePayload } from './payload';
+import { bytesToHex } from './bls12381';
 import { g2Point, scale } from './bls12381';
 import { H0 } from './constants';
 import { getSnarkProver } from '../snark';
@@ -91,7 +93,8 @@ export interface Capsule {
  */
 export interface DecryptionResult {
   success: boolean;
-  message?: string; // Decrypted message if successful
+  message?: string; // Field 0 (locator) decoded as UTF-8 for display
+  payload?: Map<number, Uint8Array>; // Structured CBOR payload fields
   error?: string; // Error message if failed
   isStub?: boolean; // True if using stub data
 }
@@ -295,7 +298,7 @@ async function decryptWithStub(
 async function decryptReal(
   wallet: IWallet,
   bid: BidDisplay,
-  _encryption: EncryptionDisplay
+  _encryption: EncryptionDisplay // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<DecryptionResult> {
   console.log('[decryptReal] Starting real decryption for bid:', bid.tokenName);
 
@@ -364,7 +367,7 @@ async function decryptReal(
     console.log('  aad:', history.capsule.aad.slice(0, 20) + '...');
     console.log('  ct length:', history.capsule.ct.length);
 
-    const plaintext = await eciesDecrypt(
+    const rawBytes = await eciesDecrypt(
       r1,
       kem,
       history.capsule.nonce,
@@ -373,9 +376,29 @@ async function decryptReal(
     );
     console.log('[decryptReal] Decryption successful!');
 
+    // Parse the CBOR peace-payload
+    let payload: Map<number, Uint8Array> | undefined;
+    let message: string;
+    try {
+      payload = parsePayload(rawBytes);
+      // Display field 0 (locator) as UTF-8 text
+      message = new TextDecoder().decode(payload.get(0)!);
+      if (payload.size > 1) {
+        // Show structured info for multi-field payloads
+        const parts = [`Locator: ${message}`];
+        if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
+        if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
+        message = parts.join('\n');
+      }
+    } catch {
+      // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
+      message = new TextDecoder().decode(rawBytes);
+    }
+
     return {
       success: true,
-      message: plaintext,
+      message,
+      payload,
       isStub: false,
     };
   } catch (err) {
@@ -557,7 +580,7 @@ export async function decryptEncryption(
     console.log('  aad:', capsule.aad.slice(0, 20) + '...');
     console.log('  ct length:', capsule.ct.length);
 
-    const plaintext = await eciesDecrypt(
+    const rawBytes = await eciesDecrypt(
       contextR1,
       kem,
       capsule.nonce,
@@ -566,9 +589,27 @@ export async function decryptEncryption(
     );
     console.log('[decryptEncryption] Decryption successful!');
 
+    // Parse the CBOR peace-payload
+    let payload: Map<number, Uint8Array> | undefined;
+    let message: string;
+    try {
+      payload = parsePayload(rawBytes);
+      message = new TextDecoder().decode(payload.get(0)!);
+      if (payload.size > 1) {
+        const parts = [`Locator: ${message}`];
+        if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
+        if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
+        message = parts.join('\n');
+      }
+    } catch {
+      // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
+      message = new TextDecoder().decode(rawBytes);
+    }
+
     return {
       success: true,
-      message: plaintext,
+      message,
+      payload,
       isStub: false,
     };
   } catch (err) {
