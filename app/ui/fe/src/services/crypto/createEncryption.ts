@@ -150,14 +150,14 @@ export function deriveUserSecret(walletSecretHex: string): bigint {
  * - Binding proof
  *
  * @param walletSecretHex - Derived wallet secret (from signing)
- * @param plaintext - Message to encrypt
+ * @param payload - Raw bytes to encrypt (e.g., canonical CBOR peace-payload)
  * @param tokenName - Token name for transcript binding (64 hex chars)
  * @param useStubs - If true, use stub implementation for gt_to_hash
  * @returns All encryption artifacts
  */
 export async function createEncryptionArtifacts(
   walletSecretHex: string,
-  plaintext: string,
+  payload: Uint8Array,
   tokenName: string,
   useStubs: boolean = false
 ): Promise<CreateEncryptionResult> {
@@ -200,8 +200,8 @@ export async function createEncryptionArtifacts(
     r4,
   };
 
-  // Encrypt message
-  const capsule = await encrypt(r1, m0, plaintext);
+  // Encrypt payload
+  const capsule = await encrypt(r1, m0, payload);
 
   // Generate binding proof
   const binding = bindingProof(a, r, r1, r2_g1, userRegister, tokenName);
@@ -234,14 +234,14 @@ export async function createEncryptionArtifacts(
  * 3. Returns secrets for IndexedDB storage
  *
  * @param wallet - MeshJS wallet instance
- * @param plaintext - Message to encrypt
+ * @param payload - Raw bytes to encrypt (e.g., canonical CBOR peace-payload)
  * @param tokenName - Token name for transcript binding (64 hex chars)
  * @param useStubs - If true, use stub for gt_to_hash (required until native CLI)
  * @returns Encryption artifacts and secrets
  */
 export async function createEncryptionWithWallet(
   wallet: IWallet,
-  plaintext: string,
+  payload: Uint8Array,
   tokenName: string,
   useStubs: boolean = false
 ): Promise<CreateEncryptionResult> {
@@ -286,8 +286,8 @@ export async function createEncryptionWithWallet(
     r4,
   };
 
-  // Encrypt message
-  const capsule = await encrypt(r1, m0, plaintext);
+  // Encrypt payload
+  const capsule = await encrypt(r1, m0, payload);
 
   // Generate binding proof
   const binding = bindingProof(a, r, r1, r2_g1, userRegister, tokenName);

@@ -267,7 +267,7 @@ def test_create_encryption_tx_happy_path(monkeypatch):
     assert r2b == expected_r2
     assert isinstance(r4b, str) and r4b.startswith("scale(")
 
-    assert ("encrypt", expected_r1b, "GT(11)", "hello") in calls
+    assert ("encrypt", expected_r1b, "GT(11)", b"hello") in calls
     assert ("capsule_to_file", "nonce", "aad", "ct") in calls
 
     proof_calls = _calls_of(calls, "binding_proof")

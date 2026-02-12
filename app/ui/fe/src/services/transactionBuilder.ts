@@ -28,6 +28,8 @@ import { storeBidSecrets, removeBidSecrets } from './bidSecretStorage';
 import { storeAcceptBidSecrets, getAcceptBidSecrets, removeAcceptBidSecrets } from './acceptBidStorage';
 import { deriveSecretFromWallet } from './crypto/walletSecret';
 import { bech32 } from '@scure/base';
+import { buildPayload } from './crypto/payload';
+import { hexToBytes } from './crypto/bls12381';
 import { protocolApi } from './api';
 import type { EncryptionDisplay, BidDisplay } from './api';
 import { getSnarkProver, type SnarkProof } from './snark';
@@ -132,6 +134,41 @@ function getStorageLayerUri(formData: CreateListingFormData): string {
 }
 
 /**
+ * Build a canonical CBOR peace-payload from form data.
+ *
+ * - On-chain: locator = secretMessage as UTF-8 bytes
+ * - IPFS: locator = IPFS hash as UTF-8 bytes
+ * - Arweave: locator = Arweave ID as UTF-8 bytes
+ *
+ * Optional fields 1 (secret) and 2 (digest) are included
+ * when contentKey / contentHash are provided.
+ */
+function buildPayloadFromForm(formData: CreateListingFormData): Uint8Array {
+  let locator: Uint8Array;
+  switch (formData.storageLayer) {
+    case 'ipfs':
+      locator = new TextEncoder().encode(formData.ipfsHash);
+      break;
+    case 'arweave':
+      locator = new TextEncoder().encode(formData.arweaveId);
+      break;
+    case 'on-chain':
+    default:
+      locator = new TextEncoder().encode(formData.secretMessage);
+      break;
+  }
+
+  const secret = formData.contentKey
+    ? hexToBytes(formData.contentKey)
+    : undefined;
+  const digest = formData.contentHash
+    ? hexToBytes(formData.contentHash)
+    : undefined;
+
+  return buildPayload({ locator, secret, digest });
+}
+
+/**
  * Get the Blockfrost provider for the current network.
  * Throws if the API key is not configured.
  */
@@ -190,10 +227,11 @@ export async function createListing(
       };
       const tokenName = computeTokenName(fakeUtxo.txHash, fakeUtxo.outputIndex);
 
-      // Create encryption artifacts using wallet signing for sk derivation
+      // Build CBOR payload from form data and create encryption artifacts
+      const payloadBytes = buildPayloadFromForm(formData);
       const artifacts = await createEncryptionWithWallet(
         wallet,
-        formData.secretMessage,
+        payloadBytes,
         tokenName,
         true // useStubs = true (for gt_to_hash)
       );
@@ -270,10 +308,11 @@ export async function createListing(
       firstUtxo.input.outputIndex
     );
 
-    // 5. Generate encryption artifacts (prompts wallet signing for sk derivation)
+    // 5. Build CBOR payload from form data and generate encryption artifacts
+    const payloadBytes = buildPayloadFromForm(formData);
     const artifacts = await createEncryptionWithWallet(
       wallet,
-      formData.secretMessage,
+      payloadBytes,
       tokenName,
       false // useStubs = false — use real WASM if available
     );
