@@ -8,6 +8,8 @@ interface CreateListingFormData {
   storageLayer: 'on-chain' | 'ipfs' | 'arweave';
   ipfsHash: string;
   arweaveId: string;
+  contentKey: string;
+  contentHash: string;
 }
 
 interface FormErrors {
@@ -16,6 +18,8 @@ interface FormErrors {
   suggestedPrice?: string;
   ipfsHash?: string;
   arweaveId?: string;
+  contentKey?: string;
+  contentHash?: string;
 }
 
 interface CreateListingModalProps {
@@ -31,6 +35,8 @@ const INITIAL_FORM_DATA: CreateListingFormData = {
   storageLayer: 'on-chain',
   ipfsHash: '',
   arweaveId: '',
+  contentKey: '',
+  contentHash: '',
 };
 
 export default function CreateListingModal({
@@ -71,11 +77,13 @@ export default function CreateListingModal({
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Secret message validation
-    if (!formData.secretMessage.trim()) {
-      newErrors.secretMessage = 'Secret message is required';
-    } else if (formData.secretMessage.length > 10000) {
-      newErrors.secretMessage = 'Message must be less than 10,000 characters';
+    // Secret message validation (only for on-chain storage)
+    if (formData.storageLayer === 'on-chain') {
+      if (!formData.secretMessage.trim()) {
+        newErrors.secretMessage = 'Secret message is required';
+      } else if (formData.secretMessage.length > 10000) {
+        newErrors.secretMessage = 'Message must be less than 10,000 characters';
+      }
     }
 
     // Description validation
@@ -109,6 +117,18 @@ export default function CreateListingModal({
         newErrors.arweaveId = 'Arweave ID is required when using Arweave storage';
       } else if (formData.arweaveId.length !== 43) {
         newErrors.arweaveId = 'Arweave ID should be 43 characters';
+      }
+    }
+
+    // Optional hex field validation (content key and content hash)
+    if (formData.contentKey.trim()) {
+      if (!/^[0-9a-fA-F]*$/.test(formData.contentKey) || formData.contentKey.length % 2 !== 0) {
+        newErrors.contentKey = 'Must be valid hex (even number of 0-9, a-f characters)';
+      }
+    }
+    if (formData.contentHash.trim()) {
+      if (!/^[0-9a-fA-F]*$/.test(formData.contentHash) || formData.contentHash.length % 2 !== 0) {
+        newErrors.contentHash = 'Must be valid hex (even number of 0-9, a-f characters)';
       }
     }
 
@@ -199,33 +219,35 @@ export default function CreateListingModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
-            {/* Secret Message */}
-            <div>
-              <label
-                htmlFor="secretMessage"
-                className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-              >
-                Secret Message <span className="text-[var(--error)]">*</span>
-              </label>
-              <textarea
-                id="secretMessage"
-                name="secretMessage"
-                value={formData.secretMessage}
-                onChange={handleInputChange}
-                disabled={isSubmitting}
-                rows={4}
-                placeholder="Enter the secret data you want to sell..."
-                className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 resize-none disabled:opacity-50 ${
-                  errors.secretMessage ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
-                }`}
-              />
-              {errors.secretMessage && (
-                <p className="mt-1 text-xs text-[var(--error)]">{errors.secretMessage}</p>
-              )}
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                {formData.secretMessage.length}/10,000 characters
-              </p>
-            </div>
+            {/* Secret Message (on-chain only) */}
+            {formData.storageLayer === 'on-chain' && (
+              <div>
+                <label
+                  htmlFor="secretMessage"
+                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+                >
+                  Secret Message <span className="text-[var(--error)]">*</span>
+                </label>
+                <textarea
+                  id="secretMessage"
+                  name="secretMessage"
+                  value={formData.secretMessage}
+                  onChange={handleInputChange}
+                  disabled={isSubmitting}
+                  rows={4}
+                  placeholder="Enter the secret data you want to sell..."
+                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 resize-none disabled:opacity-50 ${
+                    errors.secretMessage ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                  }`}
+                />
+                {errors.secretMessage && (
+                  <p className="mt-1 text-xs text-[var(--error)]">{errors.secretMessage}</p>
+                )}
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  {formData.secretMessage.length}/10,000 characters
+                </p>
+              </div>
+            )}
 
             {/* Description */}
             <div>
@@ -367,6 +389,66 @@ export default function CreateListingModal({
               </div>
             )}
 
+            {/* Content Key (optional, for off-chain storage) */}
+            {formData.storageLayer !== 'on-chain' && (
+              <div>
+                <label
+                  htmlFor="contentKey"
+                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+                >
+                  Content Key
+                </label>
+                <input
+                  type="text"
+                  id="contentKey"
+                  name="contentKey"
+                  value={formData.contentKey}
+                  onChange={handleInputChange}
+                  disabled={isSubmitting}
+                  placeholder="Hex-encoded decryption key for off-chain content..."
+                  className={`w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
+                    errors.contentKey ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                  }`}
+                />
+                {errors.contentKey && (
+                  <p className="mt-1 text-xs text-[var(--error)]">{errors.contentKey}</p>
+                )}
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Optional. Access/decryption key for the off-chain content (hex).
+                </p>
+              </div>
+            )}
+
+            {/* Content Hash (optional, for off-chain storage) */}
+            {formData.storageLayer !== 'on-chain' && (
+              <div>
+                <label
+                  htmlFor="contentHash"
+                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+                >
+                  Content Hash
+                </label>
+                <input
+                  type="text"
+                  id="contentHash"
+                  name="contentHash"
+                  value={formData.contentHash}
+                  onChange={handleInputChange}
+                  disabled={isSubmitting}
+                  placeholder="Hex-encoded integrity hash of the content..."
+                  className={`w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
+                    errors.contentHash ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                  }`}
+                />
+                {errors.contentHash && (
+                  <p className="mt-1 text-xs text-[var(--error)]">{errors.contentHash}</p>
+                )}
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Optional. Integrity hash for verifying the off-chain content (hex).
+                </p>
+              </div>
+            )}
+
             {/* Submit Error */}
             {submitError && (
               <div className="p-3 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-[var(--radius-md)]">
@@ -380,7 +462,7 @@ export default function CreateListingModal({
             {/* Info box about what happens next */}
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
-                <strong>Note:</strong> Creating a listing will encrypt your message and store it on-chain.
+                <strong>Note:</strong> Creating a listing will encrypt your data as a standardized CBOR payload and store it on-chain.
                 You'll need to sign a transaction with your wallet.
               </p>
             </div>
