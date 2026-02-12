@@ -298,7 +298,7 @@ async function decryptWithStub(
 async function decryptReal(
   wallet: IWallet,
   bid: BidDisplay,
-  _encryption: EncryptionDisplay
+  _encryption: EncryptionDisplay // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<DecryptionResult> {
   console.log('[decryptReal] Starting real decryption for bid:', bid.tokenName);
 

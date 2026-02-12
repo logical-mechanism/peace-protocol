@@ -1773,7 +1773,7 @@ async function fetchRewardBalance(
  * Fetch the current slot number from Blockfrost.
  */
 async function fetchCurrentSlot(
-  _blockfrost: BlockfrostProvider
+  _blockfrost: BlockfrostProvider // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<number> {
   const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
   const response = await fetch(

@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { EncryptionStatusBadge } from './Badge';
-import DescriptionModal, {
-  needsTruncation,
-  truncateDescription,
-} from './DescriptionModal';
+import DescriptionModal from './DescriptionModal';
+import { needsTruncation, truncateDescription } from './descriptionUtils';
 
 // Default fallback price when suggested price can't be parsed
 const DEFAULT_FALLBACK_PRICE = 1;
