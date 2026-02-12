@@ -199,6 +199,7 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
 /**
  * Hook for managing toast notifications.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 

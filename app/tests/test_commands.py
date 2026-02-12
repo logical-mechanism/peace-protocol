@@ -105,8 +105,8 @@ def _setup_common_mocks(monkeypatch):
     ) -> None:
         calls.append(("full_level_to_file", old_r1b, old_r2_g1b, r5b, old_r4b))
 
-    def fake_encrypt(r1b: str, m0: str, plaintext: str) -> tuple[str, str, str]:
-        calls.append(("encrypt", r1b, m0, plaintext))
+    def fake_encrypt(r1b: str, m0: str, payload: bytes) -> tuple[str, str, str]:
+        calls.append(("encrypt", r1b, m0, payload))
         return ("nonce", "aad", "ct")
 
     def fake_capsule_to_file(nonce: str, aad: str, ct: str) -> None:
@@ -248,7 +248,7 @@ def test_create_encryption_tx_happy_path(monkeypatch):
     b_digest = f"hash({commands_mod.H2I_DOMAIN_TAG}{expected_r1b}{expected_r2}TOKEN)"
     set_to_int(b_digest, 5)
 
-    commands_mod.create_encryption_tx("alice_wallet", "hello", "TOKEN")
+    commands_mod.create_encryption_tx("alice_wallet", b"hello", "TOKEN")
 
     # gt_to_hash called with (a0=11, snark_path)
     gt_calls = _calls_of(calls, "gt_to_hash")
@@ -267,7 +267,7 @@ def test_create_encryption_tx_happy_path(monkeypatch):
     assert r2b == expected_r2
     assert isinstance(r4b, str) and r4b.startswith("scale(")
 
-    assert ("encrypt", expected_r1b, "GT(11)", "hello") in calls
+    assert ("encrypt", expected_r1b, "GT(11)", b"hello") in calls
     assert ("capsule_to_file", "nonce", "aad", "ct") in calls
 
     proof_calls = _calls_of(calls, "binding_proof")

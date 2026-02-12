@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { EncryptionStatusBadge } from './Badge';
-import DescriptionModal, {
-  needsTruncation,
-  truncateDescription,
-} from './DescriptionModal';
+import DescriptionModal from './DescriptionModal';
+import { needsTruncation, truncateDescription } from './descriptionUtils';
 
 // Default fallback price when suggested price can't be parsed
 const DEFAULT_FALLBACK_PRICE = 1;
@@ -76,6 +74,7 @@ export default function SalesListingCard({
     if (encryption.datum.status.type !== 'Pending') return null;
 
     const ttl = encryption.datum.status.ttl;
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const remaining = ttl - now;
 

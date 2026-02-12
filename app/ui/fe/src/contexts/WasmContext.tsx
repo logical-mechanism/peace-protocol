@@ -56,6 +56,7 @@ export interface WasmContextValue {
 
 const WasmContext = createContext<WasmContextValue | null>(null)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWasm(): WasmContextValue {
   const context = useContext(WasmContext)
   if (!context) {
