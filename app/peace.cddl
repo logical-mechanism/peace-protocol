@@ -14,5 +14,5 @@ peace-payload = {
   0 => bstr,          ; locator  - content address (IPFS CID, Arweave TX ID, URL, or inline data)
   ? 1 => bstr,        ; secret   - access/decryption key for off-chain content
   ? 2 => bstr,        ; digest   - integrity hash of the underlying content
-  * int => bstr        ; extension fields (3+) for application-specific data
+  * int => bstr       ; extension fields (3+) for application-specific data
 }
