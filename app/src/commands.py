@@ -18,6 +18,7 @@ from src.bls12381 import (
 from src.hashing import generate
 from src.register import Register
 from src.ecies import encrypt, capsule_to_file, decrypt
+from src.payload import parse_payload
 from src.level import half_level_to_file, full_level_to_file, empty_full_level_to_file
 from src.schnorr import schnorr_proof, schnorr_to_file
 from src.binding import binding_proof, binding_to_file
@@ -287,6 +288,36 @@ def create_reencryption_tx(
     full_level_to_file(old_r1b, old_r2_g1b, r5b, old_r4b)
 
 
+FIELD_NAMES = {0: "Locator", 1: "Secret", 2: "Digest"}
+
+
+def _print_decrypted_payload(data: bytes) -> None:
+    """Parse a CBOR peace-payload and print it in a readable format."""
+    try:
+        fields = parse_payload(data)
+    except (ValueError, Exception):
+        # Not a valid CBOR payload — fall back to raw display
+        try:
+            print(data.decode("utf-8"))
+        except UnicodeDecodeError:
+            print(data.hex())
+        return
+
+    print("─" * 50)
+    print("Decrypted Payload")
+    print("─" * 50)
+    for key in sorted(fields):
+        label = FIELD_NAMES.get(key, f"Field {key}")
+        value = fields[key]
+        # Try to display as UTF-8 text, fall back to hex
+        try:
+            text = value.decode("utf-8")
+            print(f"  {label}: {text}")
+        except UnicodeDecodeError:
+            print(f"  {label}: {value.hex()}")
+    print("─" * 50)
+
+
 def recursive_decrypt(
     alice_wallet_path: str,
     encryption_levels: list,
@@ -368,5 +399,5 @@ def recursive_decrypt(
     nonce = capsule["fields"][0]["bytes"]
     aad = capsule["fields"][1]["bytes"]
     ct = capsule["fields"][2]["bytes"]
-    message = decrypt(r1, key, nonce, ct, aad)
-    print(message)
+    plaintext = decrypt(r1, key, nonce, ct, aad)
+    _print_decrypted_payload(plaintext)
