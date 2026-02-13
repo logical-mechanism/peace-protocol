@@ -6,7 +6,7 @@ Name                          Stmts   Miss  Cover   Missing
 src/__init__.py                   0      0   100%
 src/binding.py                   23      0   100%
 src/bls12381.py                  49      0   100%
-src/commands.py                 113      0   100%
+src/commands.py                 138     14    90%   304-305, 308-320
 src/constants.py                 13      0   100%
 src/ecies.py                     24      0   100%
 src/files.py                     21      0   100%
@@ -34,7 +34,7 @@ tests/test_schnorr.py           120      0   100%
 tests/test_snark.py             383     19    95%   73-74, 190-206, 227, 230, 663
 tests/test_vk_convert.py        132      1    99%   238
 -----------------------------------------------------------
-TOTAL                          2527     85    97%
+TOTAL                          2552     99    96%
 
 ====================
 GO COVERAGE
@@ -86,15 +86,15 @@ total:				(statements)			63.3%
 
  RUN  v2.1.9 /home/logic/Documents/LogicalMechanism/peace-protocol/app/ui/fe
 
- ✓ src/utils/network.test.ts (17 tests) 4ms
- ✓ src/utils/clipboard.test.ts (4 tests) 9ms
- ✓ src/services/crypto/__tests__/hashing.test.ts (18 tests) 10ms
- ✓ src/services/crypto/__tests__/payload.test.ts (33 tests) 11ms
- ✓ src/services/crypto/__tests__/snark-inputs.test.ts (6 tests) 35ms
- ✓ src/services/crypto/__tests__/bls12381.test.ts (26 tests) 27ms
+ ✓ src/utils/clipboard.test.ts (4 tests) 10ms
+ ✓ src/utils/network.test.ts (17 tests) 5ms
+ ✓ src/services/crypto/__tests__/snark-inputs.test.ts (6 tests) 48ms
+ ✓ src/services/crypto/__tests__/hashing.test.ts (18 tests) 12ms
+ ✓ src/services/crypto/__tests__/payload.test.ts (33 tests) 12ms
+ ✓ src/services/crypto/__tests__/bls12381.test.ts (26 tests) 36ms
 
  Test Files  6 passed (6)
       Tests  104 passed (104)
-   Start at  00:20:13
-   Duration  868ms (transform 174ms, setup 109ms, collect 1.26s, tests 97ms, environment 1.97s, prepare 344ms)
+   Start at  21:31:35
+   Duration  940ms (transform 132ms, setup 110ms, collect 1.36s, tests 123ms, environment 2.11s, prepare 412ms)
 
