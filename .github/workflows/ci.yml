@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  aiken:
+    name: Aiken (contracts)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aiken-lang/setup-aiken@v1
+        with:
+          version: v1.1.21
+      - run: aiken fmt --check
+      - run: aiken check -D
+      - run: aiken build
+      - name: Report validator sizes
+        run: |
+          python3 -c "
+          import json
+          with open('plutus.json') as f:
+              data = json.load(f)
+          seen = set()
+          for v in data['validators']:
+              title = v['title']
+              if title not in seen:
+                  seen.add(title)
+                  size = len(v['compiledCode']) // 2
+                  print(f'{title}: {size} bytes')
+          "
+
+  python:
+    name: Python (CLI + crypto)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: mypy .
+      - run: python -m pytest -s -vv
+
+  go:
+    name: Go (gnark prover)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/snark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: app/snark/go.mod
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test ./... -count=1 -v -timeout 60m
+
+  typescript:
+    name: TypeScript (UI tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/ui/fe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/ui/fe/package-lock.json
+      - run: npm ci
+      - run: npx vitest run
