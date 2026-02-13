@@ -43,7 +43,7 @@ router.get('/', async (_req: Request, res: Response) => {
  * GET /api/bids/:tokenName
  * Get a specific bid by token name
  */
-router.get('/:tokenName', async (req: Request, res: Response) => {
+router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
 
@@ -76,7 +76,7 @@ router.get('/:tokenName', async (req: Request, res: Response) => {
  * GET /api/bids/user/:pkh
  * Get bids placed by a specific user (by payment key hash)
  */
-router.get('/user/:pkh', async (req: Request, res: Response) => {
+router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
   try {
     const { pkh } = req.params;
 
@@ -108,7 +108,7 @@ router.get('/user/:pkh', async (req: Request, res: Response) => {
  * GET /api/bids/encryption/:encryptionToken
  * Get all bids for a specific encryption
  */
-router.get('/encryption/:encryptionToken', async (req: Request, res: Response) => {
+router.get('/encryption/:encryptionToken', async (req: Request<{encryptionToken: string}>, res: Response) => {
   try {
     const { encryptionToken } = req.params;
 
@@ -140,7 +140,7 @@ router.get('/encryption/:encryptionToken', async (req: Request, res: Response) =
  * GET /api/bids/status/:status
  * Get bids by status (pending, accepted, rejected, cancelled)
  */
-router.get('/status/:status', async (req: Request, res: Response) => {
+router.get('/status/:status', async (req: Request<{status: string}>, res: Response) => {
   try {
     const { status } = req.params;
 

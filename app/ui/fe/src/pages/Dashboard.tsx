@@ -21,7 +21,7 @@ import {
   getTransactionStubWarning, extractPaymentKeyHash
 } from '../services/transactionBuilder'
 import { getAcceptBidSecrets } from '../services/acceptBidStorage'
-import { getTransactions, addTransaction, getPendingCount } from '../services/transactionHistory'
+import { getTransactions, addTransaction } from '../services/transactionHistory'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'

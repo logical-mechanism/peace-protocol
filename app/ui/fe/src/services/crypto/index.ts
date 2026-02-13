@@ -77,6 +77,10 @@ export type { BindingProof } from './binding';
 export { encrypt, decrypt, capsuleToPlutusJson } from './ecies';
 export type { Capsule } from './ecies';
 
+// Standardized payload (CBOR)
+export { buildPayload, parsePayload, buildPayloadHex, parsePayloadHex } from './payload';
+export type { PayloadFields } from './payload';
+
 // Encryption levels
 export {
   halfLevelToPlutusJson,

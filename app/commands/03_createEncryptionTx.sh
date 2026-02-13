@@ -69,15 +69,18 @@ echo $token_name > ../data/encryption.token
 encryption_asset="1 ${encryption_pid}.${token_name}"
 echo -e "\033[1;36m\nEncryption Token: ${encryption_asset} \033[0m"
 
-# encrypt the message
-secret_message="This is a secret message."
-
+# build the standardized CBOR payload and encrypt it
 PYTHONPATH="$PROJECT_ROOT" \
 "$PROJECT_ROOT/venv/bin/python" -c \
 "
 from src.commands import create_encryption_tx
+from src.payload import build_payload
 
-create_encryption_tx('${alice_wallet_path}/payment.skey', '${secret_message}', '${token_name}')
+# example: on-chain inline data as the locator (field 0)
+locator = b'This is a secret message.'
+payload = build_payload(locator)
+
+create_encryption_tx('${alice_wallet_path}/payment.skey', payload, '${token_name}')
 "
 
 jq \

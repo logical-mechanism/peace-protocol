@@ -39,6 +39,14 @@ else
     exit 1;
 fi
 
+if command -v go &> /dev/null; then
+    echo -e "\033[1;35m go is installed and available on the PATH. \033[0m"
+else
+    echo -e "\033[1;31m go is not installed or not available on the PATH. \033[0m"
+    echo -e "\033[1;33m https://go.dev/doc/install \033[0m"
+    exit 1;
+fi
+
 if command -v aiken &> /dev/null; then
     echo -e "\033[1;35m aiken is installed and available on the PATH. \033[0m"
 else
@@ -80,6 +88,17 @@ cd contracts
 
 # change aiken build parameters inside of compile.sh
 ./compile.sh
+
+cd ..
+
+###############################################################################
+# Build snark
+###############################################################################
+echo -e "\033[1;36m\nBegin Snark Building\n\033[0m"
+
+cd snark
+
+./build.sh
 
 cd ..
 

@@ -21,7 +21,7 @@ export interface Capsule {
 }
 
 /**
- * Encrypt a UTF-8 message using AES-256-GCM with HKDF-derived key.
+ * Encrypt raw bytes using AES-256-GCM with HKDF-derived key.
  *
  * Key derivation:
  *   salt = generate(SLT_DOMAIN_TAG + context + KEM_DOMAIN_TAG)
@@ -32,10 +32,10 @@ export interface Capsule {
  *
  * @param context - Domain-separated context (typically r1 point)
  * @param kem - Key encapsulation material (hex)
- * @param msg - Plaintext message (UTF-8 string)
+ * @param msg - Plaintext bytes to encrypt (e.g., canonical CBOR payload)
  * @returns Capsule with nonce, aad, ciphertext
  */
-export async function encrypt(context: string, kem: string, msg: string): Promise<Capsule> {
+export async function encrypt(context: string, kem: string, msg: Uint8Array): Promise<Capsule> {
   // Derive salt
   const salt = generate(SLT_DOMAIN_TAG + context + KEM_DOMAIN_TAG);
   const saltBytes = new TextEncoder().encode(salt);
@@ -66,8 +66,7 @@ export async function encrypt(context: string, kem: string, msg: string): Promis
     ['encrypt']
   );
 
-  // Encrypt (use slice().buffer to get proper ArrayBuffer)
-  const msgBytes = new TextEncoder().encode(msg);
+  // Encrypt
   const ciphertext = await crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
@@ -75,7 +74,7 @@ export async function encrypt(context: string, kem: string, msg: string): Promis
       additionalData: new Uint8Array(aadBytes).buffer,
     },
     cryptoKey,
-    new Uint8Array(msgBytes).buffer
+    new Uint8Array(msg).buffer
   );
 
   return {
@@ -93,7 +92,7 @@ export async function encrypt(context: string, kem: string, msg: string): Promis
  * @param nonce - Nonce from capsule (hex)
  * @param ct - Ciphertext from capsule (hex)
  * @param aad - Associated data from capsule (hex)
- * @returns Decrypted plaintext as string
+ * @returns Decrypted plaintext as raw bytes (e.g., CBOR payload)
  */
 export async function decrypt(
   context: string,
@@ -101,7 +100,7 @@ export async function decrypt(
   nonce: string,
   ct: string,
   aad: string
-): Promise<string> {
+): Promise<Uint8Array> {
   // Derive salt (same as encryption)
   const salt = generate(SLT_DOMAIN_TAG + context + KEM_DOMAIN_TAG);
   const saltBytes = new TextEncoder().encode(salt);
@@ -120,7 +119,7 @@ export async function decrypt(
     ['decrypt']
   );
 
-  // Decrypt (use slice().buffer to get proper ArrayBuffer)
+  // Decrypt
   const nonceBytes = hexToBytes(nonce);
   const ctBytes = hexToBytes(ct);
   const aadBytes = hexToBytes(aad);
@@ -135,7 +134,7 @@ export async function decrypt(
     new Uint8Array(ctBytes).buffer
   );
 
-  return new TextDecoder().decode(plaintext);
+  return new Uint8Array(plaintext);
 }
 
 /**
