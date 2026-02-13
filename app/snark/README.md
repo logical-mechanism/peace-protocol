@@ -1,7 +1,5 @@
 # SNARK
 
-**WORK IN PROGRESS**
-
 Let's use GNARK to build a SNARK. 
 
 Statement to prove:

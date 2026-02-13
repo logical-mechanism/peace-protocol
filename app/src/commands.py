@@ -293,6 +293,8 @@ FIELD_NAMES = {0: "Locator", 1: "Secret", 2: "Digest"}
 
 def _print_decrypted_payload(data: bytes) -> None:
     """Parse a CBOR peace-payload and print it in a readable format."""
+    if isinstance(data, str):
+        data = data.encode("utf-8")
     try:
         fields = parse_payload(data)
     except (ValueError, Exception):

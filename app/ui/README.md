@@ -1,7 +1,5 @@
 # Peace Protocol UI
 
-A decentralized sealed-bid auction platform built on Cardano, featuring zero-knowledge proofs for bid privacy.
-
 ## Prerequisites
 
 - Node.js 22+
@@ -97,17 +95,14 @@ Copy `.env.example` to `.env` (backend) or `.env.development` (frontend) and fil
 
 ## Stub Mode
 
-The application runs in "stub mode" by default (`VITE_USE_STUBS=true`), which uses mock data instead of querying the Cardano blockchain. This is necessary because:
-
-1. **Contract deployment restrictions**: The Peace Protocol smart contracts cannot be deployed to preprod due to current protocol parameter restrictions
-2. **Development without wallet**: Allows UI development without needing testnet ADA or wallet setup
+The application supports a "stub mode" (`VITE_USE_STUBS=true`), which uses mock data instead of querying the Cardano blockchain. This is useful for UI development without needing testnet ADA or wallet setup.
 
 When stub mode is enabled:
 - Listings are loaded from local mock data
 - Transactions are simulated (no real blockchain interaction)
 - Wallet connection still works but transactions don't submit
 
-To disable stub mode and use real blockchain data, set `VITE_USE_STUBS=false` and configure Blockfrost API keys.
+To use real blockchain data, set `VITE_USE_STUBS=false` and configure Blockfrost API keys.
 
 ## Building SNARK Prover
 
@@ -135,7 +130,7 @@ Zero-knowledge proof generation in the browser is currently **not functional** d
 
 **Workaround**: Use the native CLI prover for production bid submissions. The UI shows proof generation status but actual proving must happen off-browser.
 
-SNARK files (`pk.bin`, `ccs.bin`) total ~700MB and should be hosted on a CDN for production use.
+SNARK files (`pk.bin`, `ccs.bin`) total ~500MB and should be hosted on a CDN for production use.
 
 ## Browser Compatibility
 
@@ -223,43 +218,3 @@ Production frontend serves on port 80 via nginx with:
 # Check what's using the port
 lsof -i :5173
 lsof -i :3001
-
-# Or change ports in docker-compose.yml
-```
-
-## Known Limitations
-
-1. **Contracts not deployed**: Smart contracts cannot be deployed to preprod yet due to protocol parameters
-2. **Browser SNARK proving**: Not functional - use native CLI prover
-3. **Firefox/Safari**: Limited wallet support
-4. **Stub mode only**: Real blockchain transactions not available until contract deployment
-
-## Remaining Phases
-
-The following phases from [ui-goals.md](./ui-goals.md) are incomplete or blocked:
-
-- **Phase 5: Blockchain Data Layer** - Blocked until contracts deployed to preprod
-  - Query encryptions/bids from contracts
-  - Parse inline datums
-  - Implement caching
-
-- **Phase 9: Create Listing Flow** - Partially complete (stub mode works)
-  - Real transaction submission blocked until contract deployment
-  - UI form and crypto logic are implemented
-
-- **Phase 11: SNARK Integration** - Permanently blocked for browser
-  - Go lacks WebAssembly memory64 support
-  - Browser-based proving hits 4GB WASM memory limit
-  - Workaround: Use native CLI prover
-
-- **Phase 12: Accept Bid Flow** - Blocked until contracts deployed
-  - Requires native CLI prover integration (upload proof JSON)
-  - Re-encryption logic needs live contracts
-
-- **Phase 15: Local Development Setup** - Completed
-  - Docker Compose created
-  - Documentation complete
-
----
-
-For AI assistance prompts, see [ui-goals.md](./ui-goals.md).
