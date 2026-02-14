@@ -4,6 +4,23 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.3] - 2026-02-13
+
+### Added
+
+- GitHub Actions CI pipeline with jobs for Aiken, Python, Go, and TypeScript
+- Architecture documentation with validator interaction map and data model (`documentation/architecture.md`)
+- Community files: `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`
+
+### Changed
+
+- README rewritten with architecture overview, validator size table, project structure, quick start, and testing instructions
+- Go CI runs short tests only (`-short` flag)
+
+### Removed
+
+- Legacy `app/snark/.github/workflows/continuous-integration.yml` (replaced by root CI)
+
 ## [0.2.2] - 2026-02-12
 
 ### Changed
