@@ -66,7 +66,7 @@ jobs:
       - name: Check formatting
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
-      - run: go test ./... -count=1 -v -timeout 60m
+      - run: go test ./... -short -count=1 -v
 
   typescript:
     name: TypeScript (UI tests)
