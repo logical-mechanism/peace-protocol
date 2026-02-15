@@ -57,15 +57,14 @@ The default `setup` command runs a single-party trusted setup suitable for testi
 # 1. Coordinator initializes the ceremony
 ./snark ceremony init -dir ceremony
 
-# 2. Contributors add entropy to Phase 1 (Powers of Tau), one at a time
-./snark ceremony contribute -dir ceremony -phase 1
+# 2. Contributors add entropy to Phase 1 (Powers of Tau), one at a time (20-40 mins)
 ./snark ceremony contribute -dir ceremony -phase 1
 
-# 3. Anyone can verify the Phase 1 contribution chain
+# 3. Anyone can verify the Phase 1 contribution chain (15-30 mins)
 ./snark ceremony verify -dir ceremony -phase 1
 
-# 4. Coordinator seals Phase 1 with a random beacon and initializes Phase 2
-./snark ceremony finalize -dir ceremony -phase 1 -beacon <hex>
+# 4. Coordinator seals Phase 1 with a random beacon and initializes Phase 2 (45-90 mins)
+./snark ceremony finalize -dir ceremony -phase 1 -beacon 40066bc169373272f9941d5d0d2af612a722f2db0707066bae24e4f571895ed9
 
 # 5. Contributors add entropy to Phase 2 (circuit-specific)
 ./snark ceremony contribute -dir ceremony -phase 2
@@ -74,10 +73,7 @@ The default `setup` command runs a single-party trusted setup suitable for testi
 ./snark ceremony verify -dir ceremony -phase 2
 
 # 7. Coordinator seals Phase 2 and extracts the proving/verifying keys
-./snark ceremony finalize -dir ceremony -phase 2 -beacon <hex>
-
-# 8. Use the ceremony keys for proving (same as setup-produced keys)
-./snark prove -setup ceremony -a <secret> -r <secret> -v <hex> -w0 <hex> -w1 <hex> -out proof
+./snark ceremony finalize -dir ceremony -phase 2 -beacon ca46b2c4e5aa84764d4d7893a2c7413d2f02f41167389a3f377634f15e93b996
 ```
 
 The `-beacon` value should be a publicly verifiable source of randomness committed to after all contributions are collected (e.g. a future block hash).
