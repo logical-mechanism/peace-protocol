@@ -88,6 +88,28 @@ pub fn for_reference_datum(
   reference_datum
 }
 
+/// Check that no output in the list holds a specific token. This is useful for
+/// verifying that a token has been burned and not sent to any output.
+///
+/// ```aiken
+/// search.no_output_holds_token(outputs, pid, tkn)
+/// ```
+pub fn no_output_holds_token(
+  outputs: List<Output>,
+  pid: PolicyId,
+  tkn: AssetName,
+) -> Bool {
+  when outputs is {
+    [] -> True
+    [output, ..rest] ->
+      if assets.quantity_of(output.value, pid, tkn) == 0 {
+        no_output_holds_token(rest, pid, tkn)
+      } else {
+        False
+      }
+  }
+}
+
 /// We need to find the first redeemer by searching for a spend output reference.
 ///
 /// ```aiken
