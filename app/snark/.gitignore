@@ -1,2 +1,5 @@
 secret.hash
 cover.out
+
+# Ceremony artifacts (500MB+ files)
+ceremony/
