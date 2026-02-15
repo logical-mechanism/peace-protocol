@@ -44,8 +44,45 @@ GOOS=js GOARCH=wasm go build -o prover.wasm .
 ## Testing
 
 ```bash
-go test -v -count=1 -timeout=120m 
+go test -v -count=1 -timeout=120m
 ```
+
+## Setup Ceremony
+
+The default `setup` command runs a single-party trusted setup suitable for testing. For production, use the MPC ceremony to distribute trust across multiple contributors. As long as at least one contributor is honest, the setup is secure.
+
+### Workflow
+
+```bash
+# 1. Coordinator initializes the ceremony
+./snark ceremony init -dir ceremony
+
+# 2. Contributors add entropy to Phase 1 (Powers of Tau), one at a time
+./snark ceremony contribute -dir ceremony -phase 1
+./snark ceremony contribute -dir ceremony -phase 1
+
+# 3. Anyone can verify the Phase 1 contribution chain
+./snark ceremony verify -dir ceremony -phase 1
+
+# 4. Coordinator seals Phase 1 with a random beacon and initializes Phase 2
+./snark ceremony finalize -dir ceremony -phase 1 -beacon <hex>
+
+# 5. Contributors add entropy to Phase 2 (circuit-specific)
+./snark ceremony contribute -dir ceremony -phase 2
+
+# 6. Verify the Phase 2 contribution chain
+./snark ceremony verify -dir ceremony -phase 2
+
+# 7. Coordinator seals Phase 2 and extracts the proving/verifying keys
+./snark ceremony finalize -dir ceremony -phase 2 -beacon <hex>
+
+# 8. Use the ceremony keys for proving (same as setup-produced keys)
+./snark prove -setup ceremony -a <secret> -r <secret> -v <hex> -w0 <hex> -w1 <hex> -out proof
+```
+
+The `-beacon` value should be a publicly verifiable source of randomness committed to after all contributions are collected (e.g. a future block hash).
+
+The ceremony directory contains sequentially numbered contribution files (`phase1_0000.bin`, `phase1_0001.bin`, ...) that form a verifiable chain. After finalization, `pk.bin`, `vk.bin`, and `vk.json` are written to the same directory.
 
 **Copyright (C) 2025 Logical Mechanism LLC**
 
