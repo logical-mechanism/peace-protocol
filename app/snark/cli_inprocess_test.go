@@ -357,3 +357,81 @@ func TestRun_Prove_NoVerifyWithoutSetup(t *testing.T) {
 	// For non-short mode this would actually prove — the test mainly covers the warning path
 	_ = code // Either 0 (success) or 1 (failure) is fine — we're testing CLI parsing
 }
+
+// ---------- ceremony CLI dispatch tests ----------
+
+func TestRun_Ceremony_NoSubcommand(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+}
+
+func TestRun_Ceremony_UnknownSubcommand(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony", "bogus"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+	if !strings.Contains(errBuf.String(), "unknown ceremony subcommand") {
+		t.Fatalf("unexpected stderr: %q", errBuf.String())
+	}
+}
+
+func TestRun_Ceremony_Contribute_MissingPhase(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony", "contribute"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+	if !strings.Contains(errBuf.String(), "-phase must be 1 or 2") {
+		t.Fatalf("unexpected stderr: %q", errBuf.String())
+	}
+}
+
+func TestRun_Ceremony_Contribute_InvalidPhase(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony", "contribute", "-phase", "3"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+}
+
+func TestRun_Ceremony_Verify_MissingPhase(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony", "verify"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+}
+
+func TestRun_Ceremony_Finalize_MissingPhase(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony", "finalize", "-beacon", "deadbeef"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+}
+
+func TestRun_Ceremony_Finalize_MissingBeacon(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony", "finalize", "-phase", "1"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+	if !strings.Contains(errBuf.String(), "-beacon is required") {
+		t.Fatalf("unexpected stderr: %q", errBuf.String())
+	}
+}
+
+func TestRun_Ceremony_Finalize_BadBeaconHex(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"ceremony", "finalize", "-phase", "1", "-beacon", "zzzz"}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("want 2 got %d", code)
+	}
+	if !strings.Contains(errBuf.String(), "invalid beacon hex") {
+		t.Fatalf("unexpected stderr: %q", errBuf.String())
+	}
+}
