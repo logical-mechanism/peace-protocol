@@ -2,8 +2,7 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
-use aiken/collection/list
-use aiken/option
+use aiken/collection/list.{has}
 use cardano/address.{Address, PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
@@ -54,24 +53,23 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         //
         and {
           // script output can not have a reference script
-          option.is_none(reference_script)?,
+          reference_script == None,
           // must be going to the bid contract
-          (Script(policy_id) == payment_credential)?,
+          Script(policy_id) == payment_credential,
           // a single token should be minted in this transaction
-          assets.has_nft_strict(mint, policy_id, token_name)?,
+          assets.has_nft_strict(mint, policy_id, token_name),
           // owner_vkh must sign
-          list.has(extra_signatories, owner_vkh)?,
+          has(extra_signatories, owner_vkh),
           // owner g1 point must be known
-          schnorr.verify(owner_g1, schnorr_proof)?,
+          schnorr.verify(owner_g1, schnorr_proof),
           // owner g1 point must be valid
-          register.is_register_valid(owner_g1)?,
+          register.is_register_valid(owner_g1),
           // token name needs to be in the datum
-          (pointer == token_name)?,
+          pointer == token_name,
         }
       }
       // single token burn here
-      LeaveBidBurn(tkn) ->
-        (( mint |> assets.flatten ) == [(policy_id, tkn, -1)])?
+      LeaveBidBurn(tkn) -> ( mint |> assets.flatten ) == [(policy_id, tkn, -1)]
     }
   }
 
@@ -105,18 +103,13 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               if is_holding_token {
                 // token must be burnt, so lets check that no output holds that token
                 let burn_token: Bool =
-                  list.all(
-                    outputs,
-                    fn(output) {
-                      assets.quantity_of(output.value, this_script, pointer) == 0
-                    },
-                  )
+                  search.no_output_holds_token(outputs, this_script, pointer)
                 //
                 and {
                   // owner_vkh must sign
-                  list.has(extra_signatories, owner_vkh)?,
+                  has(extra_signatories, owner_vkh),
                   // must burn token
-                  burn_token?,
+                  burn_token,
                 }
               } else {
                 // invalid start
@@ -149,12 +142,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                     )
               // burn this token
               let burn_token: Bool =
-                list.all(
-                  outputs,
-                  fn(output) {
-                    assets.quantity_of(output.value, this_script, pointer) == 0
-                  },
-                )
+                search.no_output_holds_token(outputs, this_script, pointer)
               // expect a single input if we filter all inputs for this payment credential
               expect [_]: List<Input> =
                 inputs
@@ -173,9 +161,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               expect UseEncryption(_, _, selected_bid_token, _) = spend_redeemer
               //
               and {
-                burn_token?,
-                assets.has_nft_strict(encryption_value, encryption, token)?,
-                (selected_bid_token == pointer)?,
+                burn_token,
+                assets.has_nft_strict(encryption_value, encryption, token),
+                selected_bid_token == pointer,
               }
             }
           }
