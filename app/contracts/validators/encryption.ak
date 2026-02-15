@@ -2,6 +2,7 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
+use aiken/collection/list.{has}
 use aiken/interval.{Finite, Interval, IntervalBound}
 use cardano/address.{Address, PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
@@ -22,34 +23,6 @@ use types/reference.{ReferenceDatum}
 use types/register
 use types/schnorr
 use util
-
-fn has(self: List<a>, elem: a) -> Bool {
-  when self is {
-    [] -> False
-    [x, ..rest] ->
-      if x == elem {
-        True
-      } else {
-        has(rest, elem)
-      }
-  }
-}
-
-fn no_output_holds_token(
-  outputs: List<Output>,
-  pid: PolicyId,
-  tkn: AssetName,
-) -> Bool {
-  when outputs is {
-    [] -> True
-    [output, ..rest] ->
-      if assets.quantity_of(output.value, pid, tkn) == 0 {
-        no_output_holds_token(rest, pid, tkn)
-      } else {
-        False
-      }
-  }
-}
 
 validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
   mint(redeemer: EncryptionMintRedeemer, policy_id: PolicyId, self: Transaction) {
@@ -153,7 +126,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               if is_holding_token {
                 // token must be burnt, so lets check that no output holds that token
                 let burn_token: Bool =
-                  no_output_holds_token(outputs, this_script, token)
+                  search.no_output_holds_token(outputs, this_script, token)
                 // cant remove if pending
                 expect Open = status
                 //
@@ -305,9 +278,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               //
               and {
                 // validity range stuff
-                (expected_ttl <= ttl)?,
-                (ttl <= 2 * expected_ttl)?,
-                (finite_interval_length <= encryption.snark_validity_window)?,
+                expected_ttl <= ttl,
+                ttl <= 2 * expected_ttl,
+                finite_interval_length <= encryption.snark_validity_window,
                 // owner must sign it
                 has(extra_signatories, owner_vkh),
                 // datum must go back to open

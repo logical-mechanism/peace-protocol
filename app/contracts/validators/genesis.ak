@@ -2,7 +2,6 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
-use aiken/option
 use cardano/address.{Address}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
@@ -37,11 +36,11 @@ validator contract(tx_id: TransactionId, tx_idx: Int) {
     //
     and {
       // a single token should be minted in this transaction
-      assets.has_nft_strict(mint, policy_id, token_name)?,
+      assets.has_nft_strict(mint, policy_id, token_name),
       // must be sent to the reference address
-      (output_address == reference_datum_address)?,
+      output_address == reference_datum_address,
       // script output can not have a reference script
-      option.is_none(reference_script)?,
+      reference_script == None,
     }
   }
 

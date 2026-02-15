@@ -8,6 +8,9 @@ set -e
 # SET UP VARS HERE
 source ../.env
 
+echo -e "\n \033[0;31m Reference Datum Removing Deprecated\n";
+exit;
+
 # get params
 ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.json
 

@@ -10,11 +10,9 @@ use types/register.{Register}
 use types/schnorr.{BindingProof, SchnorrProof}
 
 // six hours
-// pub const pending_ttl: Int = 1000 * 60 * 10
 pub const pending_ttl: Int = 1000 * 60 * 60 * 6
 
 // one hour
-// pub const snark_validity_window: Int = 1000 * 60 * 10
 pub const snark_validity_window: Int = 1000 * 60 * 60
 
 pub type Capsule {
