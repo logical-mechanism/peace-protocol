@@ -11,17 +11,20 @@ use search
 use types/groth.{GrothWitnessRedeemer, Register, RegisterRedeemer}
 use types/reference.{ReferenceDatum}
 
-validator groth_witness(genesis_pid: PolicyId, genesis_tkn: AssetName) {
+validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
   withdraw(redeemer: GrothWitnessRedeemer, _credential, self: Transaction) {
+    // these are small enough to pass in the redeemer
     let GrothWitnessRedeemer {
       groth_proof,
       groth_commitment_wire,
       groth_public,
       ..
     } = redeemer
+    // reference the snark vk from the reference datum
     let Transaction { reference_inputs, .. } = self
     let ReferenceDatum { snark_vk, .. }: ReferenceDatum =
       search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
+    //
     groth.verify_groth16(
       snark_vk,
       groth_proof,
@@ -37,6 +40,7 @@ validator groth_witness(genesis_pid: PolicyId, genesis_tkn: AssetName) {
   ) {
     let Register(script_hash) = redeemer
     when certificate is {
+      // can register only
       RegisterCredential { credential, .. } -> credential == Script(script_hash)
       _ -> False
     }
