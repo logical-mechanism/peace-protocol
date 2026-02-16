@@ -77,7 +77,7 @@ mkdir -p wallets
 # Wallet Creation
 ###############################################################################
 
-echo -e "\033[1;36m\nBegin Wallet Creation \033[0m"
+echo -e "\033[1;36m\nBegin Wallet Creation (NETWORK=${NETWORK})\033[0m"
 
 # create alice
 folder=wallets/alice
@@ -86,11 +86,11 @@ mkdir -p ${folder}
 if [ ! -f ${folder}/payment.skey ]; then
     echo -e "\033[1;32m\n Creating Alice Wallet \033[0m"
     ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 else
-    echo -e "\033[1;32m\n Alice Already Exists \033[0m"
+    echo -e "\033[1;32m\n Alice Keys Exist \033[0m"
 fi
+${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
+${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 echo -e "\033[1;33mAlice Hash: $(cat ${folder}/payment.hash) \033[0m"
 echo -e "\033[1;34mAlice Address: $(cat ${folder}/payment.addr) \033[0m"
 
@@ -102,11 +102,11 @@ mkdir -p ${folder}
 if [ ! -f ${folder}/payment.skey ]; then
     echo -e "\033[1;32m\n Creating Bob Wallet \033[0m"
     ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 else
-    echo -e "\033[1;32m\n Bob Already Exists \033[0m"
+    echo -e "\033[1;32m\n Bob Keys Exist \033[0m"
 fi
+${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
+${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 echo -e "\033[1;33mBob Hash: $(cat ${folder}/payment.hash) \033[0m"
 echo -e "\033[1;34mBob Address: $(cat ${folder}/payment.addr) \033[0m"
 
@@ -117,11 +117,11 @@ mkdir -p ${folder}
 if [ ! -f ${folder}/payment.skey ]; then
     echo -e "\033[1;32m\n Creating Collat Wallet \033[0m"
     ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 else
-    echo -e "\033[1;32m\n Collat Already Exists \033[0m"
+    echo -e "\033[1;32m\n Collat Keys Exist \033[0m"
 fi
+${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
+${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 echo -e "\033[1;33mCollateral Hash: $(cat ${folder}/payment.hash) \033[0m"
 echo -e "\033[1;34mCollateral Address: $(cat ${folder}/payment.addr) \033[0m"
 
@@ -132,11 +132,11 @@ mkdir -p ${folder}
 if [ ! -f ${folder}/payment.skey ]; then
     echo -e "\033[1;32m\n Creating Holder Wallet \033[0m"
     ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 else
-    echo -e "\033[1;32m\n Holder Already Exists \033[0m"
+    echo -e "\033[1;32m\n Holder Keys Exist \033[0m"
 fi
+${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
+${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 echo -e "\033[1;33mHolder Hash: $(cat ${folder}/payment.hash) \033[0m"
 echo -e "\033[1;34mHolder Address: $(cat ${folder}/payment.addr) \033[0m"
 
@@ -147,11 +147,11 @@ mkdir -p ${folder}
 if [ ! -f ${folder}/payment.skey ]; then
     echo -e "\033[1;32m\n Creating Genesis Wallet \033[0m"
     ${cli} address key-gen --verification-key-file ${folder}/payment.vkey --signing-key-file ${folder}/payment.skey
-    ${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
-    ${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 else
-    echo -e "\033[1;32m\n Genesis Already Exists \033[0m"
+    echo -e "\033[1;32m\n Genesis Keys Exist \033[0m"
 fi
+${cli} address build --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.addr ${network}
+${cli} address key-hash --payment-verification-key-file ${folder}/payment.vkey --out-file ${folder}/payment.hash
 echo -e "\033[1;33mGenesis Hash: $(cat ${folder}/payment.hash) \033[0m"
 echo -e "\033[1;34mGenesis Address: $(cat ${folder}/payment.addr) \033[0m"
 

@@ -1,0 +1,8 @@
+{
+  "genesis_tx_id": "e24c51069130ce8198867d8812aa48e7d1702e9e99064bc678e30af94fc1aa2f",
+  "genesis_tx_idx": 0,
+  "genesis_change_address": "addr_test1qrwejm9pza929cedhwkcsprtgs8l2carehs8z6jkse2qp344c43tmm0md55r4ufmxknr24kq6jkvt6spq60edeuhtf4sn2scds",
+  "staking_credential": "86c769419aaa673c963da04e4b5bae448d490e2ceac902cb82e4da76",
+  "path_to_cardano_cli": "cardano-cli",
+  "path_to_node_socket": "/home/logic/Documents/LogicalMechanism/peace-protocol/app/node/data/node.socket"
+}
