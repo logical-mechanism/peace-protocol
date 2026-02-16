@@ -4,6 +4,24 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] - 2026-02-15
+
+### Added
+
+- MPC trusted setup ceremony for SNARK prover with CLI subcommands (`ceremony.go`)
+- Network-based configuration files (`config.local.json`, `config.preprod.json`, `config.mainnet.json`)
+- Shared `search.ak` library for reusable token/datum/redeemer lookup functions
+- Example environment file (`example.env`) with network selection
+
+### Changed
+
+- Reference validator is now immutable (spend handler removed; datum cannot be updated or removed)
+- Mainnet builds compile without traces (`--trace-level silent`); local/preprod retain full traces
+- Shell commands source a single `.env` with `NETWORK` variable to select the target network
+- Validators refactored to use shared `search` library (deduplicated `has`, `no_output_holds_token`)
+- Bidding validator uses selective stdlib import (`list.{has}`) and drops `option` import
+- Removed `?` trace operators from bidding and encryption validators for cleaner boolean logic
+
 ## [0.2.3] - 2026-02-13
 
 ### Added
