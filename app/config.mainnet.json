@@ -1,0 +1,8 @@
+{
+  "genesis_tx_id": "",
+  "genesis_tx_idx": 0,
+  "genesis_change_address": "",
+  "staking_credential": "",
+  "path_to_cardano_cli": "cardano-cli",
+  "path_to_node_socket": ""
+}
