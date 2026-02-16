@@ -303,7 +303,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 0: Project Scaffold
+## Phase 0: Project Scaffold [ ]
 
 **Goal**: Set up the Tauri v2 project structure, copy reusable code from `app/ui/`, and establish the development workflow.
 
@@ -359,7 +359,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 1: Built-in Wallet
+## Phase 1: Built-in Wallet [ ]
 
 **Goal**: Implement a Daedalus-style wallet with mnemonic creation, import, password protection, and MeshWallet integration.
 
@@ -425,7 +425,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 2: Local Node Infrastructure
+## Phase 2: Local Node Infrastructure [ ]
 
 **Goal**: Manage cardano-node, Ogmios, Kupo, and Mithril as child processes from Tauri. Provide sync status to the frontend.
 
@@ -513,7 +513,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 3: Data Layer (Kupo Adapter + Backend Swap)
+## Phase 3: Data Layer (Kupo Adapter + Backend Swap) [ ]
 
 **Goal**: Wire the frontend's MeshTxBuilder to use local Ogmios (evaluation/submission) and Kupo (UTxO fetching). Adapt the Express backend to query Kupo for current state and Koios for historical data.
 
@@ -589,7 +589,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 4: Native SNARK Prover
+## Phase 4: Native SNARK Prover [ ]
 
 **Goal**: Replace the browser WASM SNARK prover with native `snark_cli` invocation via Tauri. Ship setup files compressed in the installer.
 
@@ -664,7 +664,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 5: Integration + Polish + Packaging
+## Phase 5: Integration + Polish + Packaging [ ]
 
 **Goal**: Wire all phases together, implement the complete first-run experience, build installers for all platforms.
 
