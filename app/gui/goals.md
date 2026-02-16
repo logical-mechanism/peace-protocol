@@ -303,7 +303,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 0: Project Scaffold [ ]
+## Phase 0: Project Scaffold [x]
 
 **Goal**: Set up the Tauri v2 project structure, copy reusable code from `app/ui/`, and establish the development workflow.
 
