@@ -435,7 +435,7 @@ cardano-cli latest query tip --testnet-magic ${TESTNET_MAGIC} 2>/dev/null || ech
 # ============================================================================
 echo -e "\033[1;33m\n=== Updating config.json with Genesis UTXO ===\033[0m"
 
-CONFIG_JSON_FILE="${SCRIPT_DIR}/../config.json"
+CONFIG_JSON_FILE="${SCRIPT_DIR}/../config.local.json"
 GENESIS_WALLET_ADDR=$(cat "${WALLETS_DIR}/genesis/payment.addr")
 
 # Query the genesis wallet UTXOs
