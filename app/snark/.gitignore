@@ -3,3 +3,5 @@ cover.out
 
 # Ceremony artifacts (500MB+ files)
 ceremony/
+ceremony-full.tar.gz
+ceremony-keys.tar.gz
