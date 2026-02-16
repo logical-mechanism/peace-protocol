@@ -39,6 +39,26 @@ TOTAL                          2552     99    96%
 ====================
 GO COVERAGE
 ====================
+snark/ceremony.go:30:		findContributions		100.0%
+snark/ceremony.go:48:		latestContribution		92.3%
+snark/ceremony.go:69:		contributionPath		100.0%
+snark/ceremony.go:74:		fileHash			75.0%
+snark/ceremony.go:89:		savePhase1			71.4%
+snark/ceremony.go:101:		loadPhase1			75.0%
+snark/ceremony.go:116:		savePhase2			71.4%
+snark/ceremony.go:128:		loadPhase2			75.0%
+snark/ceremony.go:143:		saveSrsCommons			71.4%
+snark/ceremony.go:155:		loadSrsCommons			75.0%
+snark/ceremony.go:170:		saveCCS				71.4%
+snark/ceremony.go:182:		loadR1CS			81.8%
+snark/ceremony.go:200:		domainSize			100.0%
+snark/ceremony.go:207:		CeremonyInit			75.0%
+snark/ceremony.go:237:		CeremonyContributePhase1	80.0%
+snark/ceremony.go:265:		CeremonyContributePhase2	80.0%
+snark/ceremony.go:293:		CeremonyVerifyPhase1		77.8%
+snark/ceremony.go:324:		CeremonyVerifyPhase2		77.8%
+snark/ceremony.go:356:		CeremonyFinalizePhase1		76.0%
+snark/ceremony.go:405:		CeremonyFinalizePhase2		73.0%
 snark/debug_verify.go:28:	debugVerify			0.0%
 snark/export.go:72:		exportProofBLS			80.0%
 snark/export.go:114:		exportVKBLS			82.9%
@@ -55,46 +75,47 @@ snark/export.go:700:		LoadSetupFiles			81.8%
 snark/export.go:742:		ExportVKOnly			78.9%
 snark/export.go:778:		SetupFilesExist			100.0%
 snark/export.go:788:		ReExportJSON			29.2%
-snark/kappa.go:70:		g1MulBase			80.0%
-snark/kappa.go:83:		parseG2CompressedHex		100.0%
-snark/kappa.go:99:		parseG1CompressedHex		100.0%
-snark/kappa.go:113:		fq12CanonicalBytes		100.0%
-snark/kappa.go:150:		fq12ToFrElements		100.0%
-snark/kappa.go:179:		domainTagFr			100.0%
-snark/kappa.go:187:		mimcHashFr			100.0%
-snark/kappa.go:198:		mimcHex				100.0%
-snark/kappa.go:211:		gtToHash			85.7%
-snark/kappa.go:244:		hkScalarFromA			86.7%
-snark/kappa.go:297:		Define				75.7%
-snark/kappa.go:375:		ProveAndVerifyW			81.0%
-snark/kappa.go:461:		domainTagBytes			100.0%
-snark/kappa.go:467:		gtToHashFromGT			100.0%
-snark/kappa.go:476:		gtDiv				100.0%
-snark/kappa.go:503:		DecryptToHash			85.7%
-snark/kappa.go:593:		fq12CanonicalBytesInCircuit	0.0%
-snark/kappa.go:615:		fpToNativeFr			100.0%
-snark/kappa.go:635:		fq12ToNativeFrElements		88.9%
-snark/kappa.go:654:		hashToFrMiMC			81.8%
-snark/kappa.go:688:		Define				82.9%
-snark/kappa.go:775:		ProveAndVerifyVW0W1		82.5%
-snark/kappa.go:904:		SetupVW0W1Circuit		71.4%
-snark/kappa.go:945:		ProveVW0W1FromSetup		80.0%
-snark/main.go:19:		main				0.0%
-snark/main.go:27:		run				81.0%
+snark/kappa.go:71:		g1MulBase			80.0%
+snark/kappa.go:84:		parseG2CompressedHex		100.0%
+snark/kappa.go:100:		parseG1CompressedHex		100.0%
+snark/kappa.go:114:		fq12CanonicalBytes		100.0%
+snark/kappa.go:151:		fq12ToFrElements		100.0%
+snark/kappa.go:180:		domainTagFr			100.0%
+snark/kappa.go:188:		mimcHashFr			100.0%
+snark/kappa.go:199:		mimcHex				100.0%
+snark/kappa.go:212:		gtToHash			85.7%
+snark/kappa.go:245:		hkScalarFromA			86.7%
+snark/kappa.go:298:		Define				75.7%
+snark/kappa.go:376:		ProveAndVerifyW			81.0%
+snark/kappa.go:462:		domainTagBytes			100.0%
+snark/kappa.go:468:		gtToHashFromGT			100.0%
+snark/kappa.go:477:		gtDiv				100.0%
+snark/kappa.go:504:		DecryptToHash			85.7%
+snark/kappa.go:594:		fq12CanonicalBytesInCircuit	0.0%
+snark/kappa.go:616:		fpToNativeFr			100.0%
+snark/kappa.go:636:		fq12ToNativeFrElements		88.9%
+snark/kappa.go:655:		hashToFrMiMC			81.8%
+snark/kappa.go:689:		Define				82.9%
+snark/kappa.go:776:		ProveAndVerifyVW0W1		82.5%
+snark/kappa.go:908:		CompileVW0W1Circuit		80.0%
+snark/kappa.go:917:		SetupVW0W1Circuit		69.2%
+snark/kappa.go:956:		ProveVW0W1FromSetup		80.0%
+snark/main.go:20:		main				0.0%
+snark/main.go:28:		run				66.8%
 snark/test_verify.go:25:	testVerify			0.0%
-total:				(statements)			63.3%
+total:				(statements)			64.6%
 
  RUN  v2.1.9 /home/logic/Documents/LogicalMechanism/peace-protocol/app/ui/fe
 
- ✓ src/utils/clipboard.test.ts (4 tests) 10ms
  ✓ src/utils/network.test.ts (17 tests) 5ms
- ✓ src/services/crypto/__tests__/snark-inputs.test.ts (6 tests) 48ms
- ✓ src/services/crypto/__tests__/hashing.test.ts (18 tests) 12ms
- ✓ src/services/crypto/__tests__/payload.test.ts (33 tests) 12ms
- ✓ src/services/crypto/__tests__/bls12381.test.ts (26 tests) 36ms
+ ✓ src/utils/clipboard.test.ts (4 tests) 12ms
+ ✓ src/services/crypto/__tests__/payload.test.ts (33 tests) 10ms
+ ✓ src/services/crypto/__tests__/bls12381.test.ts (26 tests) 32ms
+ ✓ src/services/crypto/__tests__/hashing.test.ts (18 tests) 10ms
+ ✓ src/services/crypto/__tests__/snark-inputs.test.ts (6 tests) 35ms
 
  Test Files  6 passed (6)
       Tests  104 passed (104)
-   Start at  21:31:35
-   Duration  940ms (transform 132ms, setup 110ms, collect 1.36s, tests 123ms, environment 2.11s, prepare 412ms)
+   Start at  22:46:18
+   Duration  946ms (transform 198ms, setup 132ms, collect 1.28s, tests 104ms, environment 2.24s, prepare 358ms)
 

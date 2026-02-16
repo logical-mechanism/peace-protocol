@@ -8,6 +8,9 @@ set -e
 # SET UP VARS HERE
 source ../.env
 
+echo -e "\n \033[0;31m Reference Datum Removing Deprecated\n";
+exit;
+
 # get params
 ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.json
 
@@ -20,11 +23,11 @@ collat_address=$(cat ../wallets/collat/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ../wallets/collat/payment.vkey)
 
 # genesis change address
-change_address=$(jq -r '.genesis_change_address' ../config.json)
+change_address=$(jq -r '.genesis_change_address' ${CONFIG_JSON})
 
 # the genesis token information
-tx_id=$(jq -r '.genesis_tx_id' ../config.json)
-tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+tx_id=$(jq -r '.genesis_tx_id' ${CONFIG_JSON})
+tx_idx=$(jq -r '.genesis_tx_idx' ${CONFIG_JSON})
 
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
 tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")

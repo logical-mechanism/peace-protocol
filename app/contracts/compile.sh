@@ -5,6 +5,8 @@
 
 set -e
 
+source ../.env
+
 # create directories if dont exist
 mkdir -p contracts
 mkdir -p hashes
@@ -14,15 +16,16 @@ rm contracts/* || true
 rm hashes/* || true
 rm -fr build/ || true
 
-# remove all traces for production
-# aiken build --trace-level silent --trace-filter user-defined
-
-# keep all traces for development
-aiken build --trace-level verbose --trace-filter all
+# mainnet: no traces; local/preprod: full traces
+if [ "${NETWORK}" = "mainnet" ]; then
+    aiken build --trace-level silent --trace-filter user-defined
+else
+    aiken build --trace-level verbose --trace-filter all
+fi
 
 echo -e "\033[1;36m\nBuilding Genesis Contract\033[0m"
-genesis_tx_id=$(jq -r '.genesis_tx_id' ../config.json)
-genesis_tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+genesis_tx_id=$(jq -r '.genesis_tx_id' ${CONFIG_JSON})
+genesis_tx_idx=$(jq -r '.genesis_tx_idx' ${CONFIG_JSON})
 genesis_tx_id_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(bytes.fromhex('${genesis_tx_id}'));print(encoded.hex())")
 genesis_tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${genesis_tx_idx});print(encoded.hex())")
 

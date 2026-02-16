@@ -17,8 +17,8 @@ SOCKET_PATH="${DATA_DIR}/node.socket"
 TESTNET_MAGIC=42
 MAX_TX_SIZE=32768
 SLOT_LENGTH=1.0
-EPOCH_LENGTH=500
-SECURITY_PARAM=432
+EPOCH_LENGTH=5000
+SECURITY_PARAM=1000
 INITIAL_FUNDS=100000000000  # 100,000 ADA per wallet in lovelace
 
 echo -e "\033[1;34m=== Starting Local Cardano Testnet ===\033[0m"
@@ -59,8 +59,8 @@ mkdir -p "${KEYS_DIR}/genesis"
 mkdir -p "${KEYS_DIR}/delegate"
 mkdir -p "${KEYS_DIR}/utxo"
 
-# Generate start time (now + 30 seconds to allow setup)
-START_TIME=$(date -u -d "+30 seconds" +"%Y-%m-%dT%H:%M:%SZ")
+# Generate start time (10 minutes in the past so validity range lookbacks work immediately)
+START_TIME=$(date -u -d "-10 minutes" +"%Y-%m-%dT%H:%M:%SZ")
 echo -e "\033[0;36mGenesis start time: ${START_TIME}\033[0m"
 
 # ============================================================================
@@ -435,7 +435,7 @@ cardano-cli latest query tip --testnet-magic ${TESTNET_MAGIC} 2>/dev/null || ech
 # ============================================================================
 echo -e "\033[1;33m\n=== Updating config.json with Genesis UTXO ===\033[0m"
 
-CONFIG_JSON_FILE="${SCRIPT_DIR}/../config.json"
+CONFIG_JSON_FILE="${SCRIPT_DIR}/../config.local.json"
 GENESIS_WALLET_ADDR=$(cat "${WALLETS_DIR}/genesis/payment.addr")
 
 # Query the genesis wallet UTXOs
