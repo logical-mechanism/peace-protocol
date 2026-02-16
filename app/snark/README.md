@@ -63,17 +63,23 @@ The default `setup` command runs a single-party trusted setup suitable for testi
 # 3. Anyone can verify the Phase 1 contribution chain (15-30 mins)
 ./snark ceremony verify -dir ceremony -phase 1
 
-# 4. Coordinator seals Phase 1 with a random beacon and initializes Phase 2 (45-90 mins)
+# 4. Coordinator seals Phase 1 with a random beacon and initializes Phase 2 (45-75 mins)
 ./snark ceremony finalize -dir ceremony -phase 1 -beacon 40066bc169373272f9941d5d0d2af612a722f2db0707066bae24e4f571895ed9
 
-# 5. Contributors add entropy to Phase 2 (circuit-specific)
+# 5. Contributors add entropy to Phase 2 (1-3 mins)
 ./snark ceremony contribute -dir ceremony -phase 2
 
-# 6. Verify the Phase 2 contribution chain
+# 6. Verify the Phase 2 contribution chain (1-3 mins)
 ./snark ceremony verify -dir ceremony -phase 2
 
-# 7. Coordinator seals Phase 2 and extracts the proving/verifying keys
+# 7. Coordinator seals Phase 2 and extracts the proving/verifying keys (30-60 mins)
 ./snark ceremony finalize -dir ceremony -phase 2 -beacon ca46b2c4e5aa84764d4d7893a2c7413d2f02f41167389a3f377634f15e93b996
+
+# 8. Archive the ceremony
+# Full archive for reproducibility (all contributions, ~2GB+)
+tar -czf ceremony-full.tar.gz -C ceremony .
+# Minimal archive for proving (just the keys needed to generate proofs)
+tar -czf ceremony-keys.tar.gz -C ceremony ccs.bin pk.bin vk.bin vk.json
 ```
 
 The `-beacon` value should be a publicly verifiable source of randomness committed to after all contributions are collected (e.g. a future block hash).
