@@ -60,7 +60,7 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # bidding
 bidding_script_path="../contracts/contracts/bidding_contract.plutus"
@@ -88,8 +88,8 @@ withdrawalString="${groth_address}+${rewardBalance}"
 echo "Withdraw: " $withdrawalString
 
 # the genesis token information
-tx_id=$(jq -r '.genesis_tx_id' ../config.json)
-tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+tx_id=$(jq -r '.genesis_tx_id' ${CONFIG_JSON})
+tx_idx=$(jq -r '.genesis_tx_idx' ${CONFIG_JSON})
 
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
 tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")

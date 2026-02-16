@@ -22,7 +22,7 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # bidding
 bidding_script_path="../contracts/contracts/bidding_contract.plutus"
