@@ -902,6 +902,7 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 //   - ccs.bin: compiled constraint system
 //   - pk.bin: proving key
 //   - vk.bin: verifying key
+//
 // CompileVW0W1Circuit compiles the vw0w1 circuit and returns the constraint system.
 // Shared between SetupVW0W1Circuit (single-party) and CeremonyInit (MPC).
 func CompileVW0W1Circuit() (constraint.ConstraintSystem, error) {
