@@ -17,6 +17,7 @@ import (
 	"math/big"
 
 	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 
@@ -901,17 +902,27 @@ func ProveAndVerifyVW0W1(a, r *big.Int, vHex, w0Hex, w1Hex, outDir string) error
 //   - ccs.bin: compiled constraint system
 //   - pk.bin: proving key
 //   - vk.bin: verifying key
+//
+// CompileVW0W1Circuit compiles the vw0w1 circuit and returns the constraint system.
+// Shared between SetupVW0W1Circuit (single-party) and CeremonyInit (MPC).
+func CompileVW0W1Circuit() (constraint.ConstraintSystem, error) {
+	var circuit vw0w1Circuit
+	ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		return nil, fmt.Errorf("compile: %w", err)
+	}
+	return ccs, nil
+}
+
 func SetupVW0W1Circuit(outDir string, force bool) error {
 	// Check if setup files already exist
 	if !force && SetupFilesExist(outDir) {
 		return nil // Already set up
 	}
 
-	// Compile circuit over BLS12-381 scalar field
-	var circuit vw0w1Circuit
-	ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
+	ccs, err := CompileVW0W1Circuit()
 	if err != nil {
-		return fmt.Errorf("compile: %w", err)
+		return err
 	}
 
 	// Setup keys (trusted setup)
