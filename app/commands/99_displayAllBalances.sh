@@ -14,7 +14,7 @@ ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.jso
 ${cli} conway query tip ${network} | jq
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ../config.json)
+staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # Loop the contract in the contract folder
 for script_file in ../contracts/contracts/*.plutus; do

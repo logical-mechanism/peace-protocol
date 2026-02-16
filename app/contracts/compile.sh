@@ -5,6 +5,8 @@
 
 set -e
 
+source ../.env
+
 # create directories if dont exist
 mkdir -p contracts
 mkdir -p hashes
@@ -21,8 +23,8 @@ rm -fr build/ || true
 aiken build --trace-level verbose --trace-filter all
 
 echo -e "\033[1;36m\nBuilding Genesis Contract\033[0m"
-genesis_tx_id=$(jq -r '.genesis_tx_id' ../config.json)
-genesis_tx_idx=$(jq -r '.genesis_tx_idx' ../config.json)
+genesis_tx_id=$(jq -r '.genesis_tx_id' ${CONFIG_JSON})
+genesis_tx_idx=$(jq -r '.genesis_tx_idx' ${CONFIG_JSON})
 genesis_tx_id_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(bytes.fromhex('${genesis_tx_id}'));print(encoded.hex())")
 genesis_tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${genesis_tx_idx});print(encoded.hex())")
 
