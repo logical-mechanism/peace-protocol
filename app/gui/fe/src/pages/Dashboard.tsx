@@ -1,7 +1,6 @@
-import { useWallet, useAddress, useLovelace } from '@meshsdk/react'
+import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useWalletPersistence } from '../hooks/useWalletPersistence'
 import { useWasm } from '../contexts/WasmContext'
 import { copyToClipboard } from '../utils/clipboard'
 import MarketplaceTab from '../components/MarketplaceTab'
@@ -42,10 +41,9 @@ const TABS: Tab[] = [
 ];
 
 export default function Dashboard() {
-  const { disconnect, wallet } = useWallet()
+  const { disconnect, wallet } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
-  const { clearWalletSession } = useWalletPersistence()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
@@ -130,9 +128,8 @@ export default function Dashboard() {
   }, [address])
 
   const handleDisconnect = useCallback(() => {
-    clearWalletSession()
     disconnect()
-  }, [clearWalletSession, disconnect])
+  }, [disconnect])
 
   const handlePlaceBid = useCallback((encryption: EncryptionDisplay) => {
     setSelectedEncryption(encryption)

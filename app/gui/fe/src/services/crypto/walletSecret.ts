@@ -18,6 +18,7 @@ import type { IWallet } from '@meshsdk/core';
 import { toInt } from './bls12381';
 import { generate } from './hashing';
 import { KEY_DOMAIN_TAG } from './constants';
+import { getPaymentKeyHex, deriveZkSecret } from './zkKeyDerivation';
 
 /**
  * Protocol version for key derivation.
@@ -64,7 +65,13 @@ function stringToHex(str: string): string {
  * @throws Error if signing fails or user rejects
  */
 export async function deriveSecretFromWallet(wallet: IWallet): Promise<bigint> {
-  // Get the user's address for the derivation
+  // Desktop path: use payment key hex if available (no signData needed)
+  const pkh = getPaymentKeyHex();
+  if (pkh) {
+    return deriveZkSecret(pkh);
+  }
+
+  // Browser path: fall back to signData-based derivation
   const addresses = await wallet.getUsedAddresses();
   if (addresses.length === 0) {
     // Fall back to unused addresses if no used ones

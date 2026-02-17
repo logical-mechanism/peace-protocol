@@ -359,7 +359,7 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 1: Built-in Wallet [ ]
+## Phase 1: Built-in Wallet [x]
 
 **Goal**: Implement a Daedalus-style wallet with mnemonic creation, import, password protection, and MeshWallet integration.
 

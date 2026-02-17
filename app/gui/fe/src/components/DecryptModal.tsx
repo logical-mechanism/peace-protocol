@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useWallet } from '@meshsdk/react';
+import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode } from '../services/crypto/decrypt';
 import { copyToClipboard } from '../utils/clipboard';
@@ -20,7 +20,7 @@ export default function DecryptModal({
   bid,
   encryption,
 }: DecryptModalProps) {
-  const { wallet } = useWallet();
+  const { wallet } = useWalletContext();
   const [state, setState] = useState<DecryptState>('idle');
   const [decryptedMessage, setDecryptedMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

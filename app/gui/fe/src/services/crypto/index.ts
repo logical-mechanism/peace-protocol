@@ -108,6 +108,13 @@ export {
   getSigningExplanation as getWalletSigningExplanation,
 } from './walletSecret';
 
+// ZK key derivation (desktop)
+export {
+  deriveZkSecret,
+  setPaymentKeyHex,
+  getPaymentKeyHex,
+} from './zkKeyDerivation';
+
 // Create bid
 export {
   createBidArtifacts,
