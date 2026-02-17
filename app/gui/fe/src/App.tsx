@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useWalletContext } from './contexts/WalletContext'
 import { useNode } from './contexts/NodeContext'
@@ -7,8 +8,17 @@ import WalletUnlock from './pages/WalletUnlock'
 import NodeSync from './pages/NodeSync'
 
 function App() {
-  const { walletState } = useWalletContext()
-  const { stage: nodeStage } = useNode()
+  const { walletState, refreshBalance } = useWalletContext()
+  const { stage: nodeStage, tipSlot } = useNode()
+  const prevTipRef = useRef<number | null>(null)
+
+  // Refresh wallet balance when chain tip advances (new block every ~20s)
+  useEffect(() => {
+    if (tipSlot !== null && tipSlot !== prevTipRef.current) {
+      prevTipRef.current = tipSlot
+      refreshBalance()
+    }
+  }, [tipSlot, refreshBalance])
 
   if (walletState === 'loading') {
     return (

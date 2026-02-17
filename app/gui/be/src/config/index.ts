@@ -17,6 +17,11 @@ export const config = {
     tokenMainnet: process.env.KOIOS_TOKEN_MAINNET || '',
   },
 
+  // Local Kupo HTTP API
+  kupo: {
+    url: process.env.KUPO_URL || 'http://localhost:1442',
+  },
+
   // Blockfrost
   blockfrost: {
     preprod: process.env.BLOCKFROST_PROJECT_ID_PREPROD || '',
@@ -60,11 +65,16 @@ export const config = {
     },
   },
 
-  // CORS
+  // CORS — always allow local origins since this is a desktop app.
+  // In dev: Vite serves on 127.0.0.1:5173
+  // In prod: Tauri webview uses tauri://localhost or https://tauri.localhost
   cors: {
-    origins: process.env.NODE_ENV === 'production'
-      ? ['https://preprod.yoursite.com', 'https://www.yoursite.com']
-      : ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origins: [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'tauri://localhost',
+      'https://tauri.localhost',
+    ] as string[],
   },
 } as const;
 
@@ -75,6 +85,7 @@ export function getNetworkConfig() {
   return {
     koiosUrl: config.koios[network],
     koiosToken,
+    kupoUrl: config.kupo.url,
     blockfrostProjectId: config.blockfrost[network],
     contracts: config.contracts[network],
   };

@@ -1,6 +1,6 @@
 use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
-use crate::process::{cardano, kupo, mithril, ogmios};
+use crate::process::{cardano, express, kupo, mithril, ogmios};
 use serde::Serialize;
 use tauri::Manager;
 
@@ -160,10 +160,13 @@ pub async fn get_process_status(
 
 /// Start the full node infrastructure stack.
 /// Order: cardano-node → wait for socket → ogmios → wait for health → kupo
+/// The wallet_address is used by Kupo to scope indexing to only the user's
+/// wallet + protocol contract addresses (instead of the entire chain).
 #[tauri::command]
 pub async fn start_node(
     manager: tauri::State<'_, NodeManager>,
     app_handle: tauri::AppHandle,
+    wallet_address: String,
 ) -> Result<(), String> {
     let app_data_dir = app_handle
         .path()
@@ -220,8 +223,28 @@ pub async fn start_node(
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }
 
-    // 5. Start Kupo (even if Ogmios isn't healthy yet — kupo connects to the node socket)
-    kupo::start_kupo(&manager, &config, &app_data_dir, &[]).await?;
+    // 5. Start Kupo scoped to contract addresses + wallet address
+    kupo::start_kupo(&manager, &config, &app_data_dir, &wallet_address).await?;
+
+    // 6. Start Express backend with contract config as env vars.
+    // In dev: be/ is at src-tauri/../be relative to the source tree.
+    // In prod: be/ is bundled as a resource.
+    // Skipped if the backend isn't built yet (dist/index.js missing).
+    let be_dir = app_handle
+        .path()
+        .resource_dir()
+        .ok()
+        .map(|r| r.join("be"))
+        .filter(|p| p.exists())
+        .unwrap_or_else(|| {
+            // Dev fallback: CARGO_MANIFEST_DIR is always src-tauri/
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../be")
+        });
+    if be_dir.join("dist/index.js").exists() {
+        express::start_express(&manager, &config, &be_dir).await?;
+    } else {
+        eprintln!("Express backend not built ({}), skipping", be_dir.join("dist/index.js").display());
+    }
 
     Ok(())
 }
@@ -229,6 +252,7 @@ pub async fn start_node(
 /// Stop all node infrastructure processes in reverse dependency order
 #[tauri::command]
 pub async fn stop_node(manager: tauri::State<'_, NodeManager>) -> Result<(), String> {
+    manager.stop("express").await?;
     manager.stop("kupo").await?;
     manager.stop("ogmios").await?;
     manager.stop("cardano-node").await?;

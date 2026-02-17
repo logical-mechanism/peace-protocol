@@ -1,4 +1,5 @@
 import { getNetworkConfig } from '../config/index.js';
+import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
 import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel } from '../types/index.js';
@@ -72,9 +73,9 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
 
 export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
   const { contracts } = getNetworkConfig();
-  const koios = getKoiosClient();
+  const kupo = getKupoClient();
 
-  const utxos = await koios.getAddressUtxos(contracts.encryptionAddress);
+  const utxos = await kupo.getAddressUtxos(contracts.encryptionAddress);
   const encryptions: EncryptionDisplay[] = [];
 
   for (const utxo of utxos) {

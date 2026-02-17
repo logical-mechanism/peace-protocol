@@ -8,7 +8,8 @@ pub fn get_network(app_handle: tauri::AppHandle) -> Result<String, String> {
     Ok(config.network.to_string())
 }
 
-/// Set the network (requires app restart to take effect)
+/// Set the network (requires app restart to take effect).
+/// Saves back to the bundled config.json in dev, or app data dir in prod.
 #[tauri::command]
 pub fn set_network(app_handle: tauri::AppHandle, network: String) -> Result<(), String> {
     let new_network = match network.to_lowercase().as_str() {
@@ -17,14 +18,22 @@ pub fn set_network(app_handle: tauri::AppHandle, network: String) -> Result<(), 
         _ => return Err(format!("Unknown network: {network}. Must be 'preprod' or 'mainnet'.")),
     };
 
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+    // Read current config, update network, and save
+    let config = app_handle.state::<AppConfig>();
+    let mut updated = config.inner().clone();
+    updated.network = new_network;
 
-    let mut config = AppConfig::load(&app_data_dir);
-    config.network = new_network;
-    config.save(&app_data_dir)?;
+    // Save to the dev resource file (in dev) or app data dir (in prod)
+    let dev_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/config.json");
+    if dev_path.exists() {
+        updated.save_to(&dev_path)?;
+    } else {
+        let app_data_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+        updated.save_to(&app_data_dir.join("config.json"))?;
+    }
 
     Ok(())
 }

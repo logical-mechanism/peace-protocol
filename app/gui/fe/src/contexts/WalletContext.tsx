@@ -10,6 +10,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { MeshWallet, EmbeddedWallet } from '@meshsdk/core'
 import type { IWallet } from '@meshsdk/core'
 import { setPaymentKeyHex } from '../services/crypto/zkKeyDerivation'
+import { getKupoAdapter, getOgmiosProvider } from '../services/providers'
 
 export type WalletLifecycle = 'loading' | 'no_wallet' | 'locked' | 'unlocked'
 
@@ -25,6 +26,7 @@ export interface WalletContextValue {
   lock: () => Promise<void>
   deleteWallet: () => Promise<void>
   disconnect: () => void
+  refreshBalance: () => Promise<void>
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null)
@@ -47,6 +49,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const initializeWallet = useCallback(async (words: string[]) => {
     const wallet = new MeshWallet({
       networkId: 0,
+      fetcher: getKupoAdapter(),
+      submitter: getOgmiosProvider(),
       key: { type: 'mnemonic', words },
     })
 
@@ -66,15 +70,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setAddress(addr)
     setPkh(paymentKey)
     setPaymentKeyHex(paymentKey)
+    setLovelace(null) // Updated by refreshBalance() once Kupo is running
     setWalletState('unlocked')
-
-    // Try to fetch lovelace balance (will fail without fetcher in Phase 1)
-    try {
-      const lv = await wallet.getLovelace()
-      setLovelace(lv)
-    } catch {
-      setLovelace(null)
-    }
   }, [])
 
   const createWalletFn = useCallback(
@@ -114,6 +111,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setWalletState('no_wallet')
   }, [])
 
+  const refreshBalanceFn = useCallback(async () => {
+    if (!meshWallet) return
+    try {
+      const lv = await meshWallet.getLovelace()
+      setLovelace(lv)
+    } catch {
+      // Kupo may not be ready yet
+    }
+  }, [meshWallet])
+
   const disconnectFn = useCallback(() => {
     lockFn()
   }, [lockFn])
@@ -130,6 +137,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     lock: lockFn,
     deleteWallet: deleteWalletFn,
     disconnect: disconnectFn,
+    refreshBalance: refreshBalanceFn,
   }
 
   return (

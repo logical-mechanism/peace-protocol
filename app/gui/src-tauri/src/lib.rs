@@ -33,8 +33,12 @@ pub fn run() {
                 mnemonic: Mutex::new(None),
             });
 
-            // App config (Phase 2)
-            let app_config = AppConfig::load(&app_data_dir);
+            // App config — reads from bundled resources/config.json
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .unwrap_or_else(|_| app_data_dir.clone());
+            let app_config = AppConfig::load(&resource_dir);
             app.manage(app_config);
 
             // Node manager (Phase 2)

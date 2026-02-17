@@ -2,19 +2,19 @@
  * Transaction Builder Service
  *
  * Builds and submits Cardano transactions for the Peace Protocol.
- * Uses MeshTxBuilder with BlockfrostProvider for real transactions.
+ * Uses MeshTxBuilder with local Kupo (fetcher) and Ogmios (evaluator).
  *
  * Configuration required (in .env):
  * - VITE_USE_STUBS=false (enable real transactions)
- * - VITE_BLOCKFROST_PROJECT_ID_PREPROD=<key> (for tx building/evaluation)
  *
  * Backend must have reference script UTxOs configured:
  * - ENCRYPTION_REF_TX_HASH_PREPROD=<hash>
  * - ENCRYPTION_REF_OUTPUT_INDEX_PREPROD=1
  */
 
-import { MeshTxBuilder, BlockfrostProvider, deserializeAddress } from '@meshsdk/core';
+import { MeshTxBuilder, deserializeAddress } from '@meshsdk/core';
 import type { IWallet } from '@meshsdk/core';
+import { getKupoAdapter, getOgmiosProvider } from './providers';
 import { createEncryptionWithWallet, getStubWarning, createBidArtifactsFromWallet } from './crypto';
 import {
   rng, g1Point, g2Point, scale, combine, invertG2, toInt, generate,
@@ -168,18 +168,12 @@ function buildPayloadFromForm(formData: CreateListingFormData): Uint8Array {
   return buildPayload({ locator, secret, digest });
 }
 
-/**
- * Get the Blockfrost provider for the current network.
- * Throws if the API key is not configured.
- */
-function getBlockfrostProvider(): BlockfrostProvider {
-  const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
-  if (!apiKey) {
-    throw new Error(
-      'Blockfrost API key not configured. Set VITE_BLOCKFROST_PROJECT_ID_PREPROD in fe/.env'
-    );
-  }
-  return new BlockfrostProvider(apiKey);
+/** Create a MeshTxBuilder wired to local Kupo + Ogmios. */
+function createTxBuilder(): MeshTxBuilder {
+  return new MeshTxBuilder({
+    fetcher: getKupoAdapter(),
+    evaluator: getOgmiosProvider(),
+  });
 }
 
 /**
@@ -345,11 +339,7 @@ export async function createListing(
     };
 
     // 9. Build transaction with MeshTxBuilder
-    const blockfrost = getBlockfrostProvider();
-    const txBuilder = new MeshTxBuilder({
-      fetcher: blockfrost,
-      evaluator: blockfrost,
-    });
+    const txBuilder = createTxBuilder();
 
     const policyId = config.contracts.encryptionPolicyId;
     const encryptionAddress = config.contracts.encryptionAddress;
@@ -485,11 +475,7 @@ export async function removeListing(
     };
 
     // 4. Build transaction
-    const blockfrost = getBlockfrostProvider();
-    const txBuilder = new MeshTxBuilder({
-      fetcher: blockfrost,
-      evaluator: blockfrost,
-    });
+    const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
       // Spend the encryption contract UTxO
@@ -637,11 +623,7 @@ export async function cancelPendingListing(
     };
 
     // 5. Build transaction
-    const blockfrost = getBlockfrostProvider();
-    const txBuilder = new MeshTxBuilder({
-      fetcher: blockfrost,
-      evaluator: blockfrost,
-    });
+    const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
       .spendingPlutusScriptV3()
@@ -810,8 +792,8 @@ export async function placeBid(
     await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
 
     // 7. Find the genesis token UTxO for read-only reference
-    const blockfrost = getBlockfrostProvider();
-    const referenceUtxos = await blockfrost.fetchAddressUTxOs(
+    const fetcher = getKupoAdapter();
+    const referenceUtxos = await fetcher.fetchAddressUTxOs(
       config.contracts.referenceAddress
     );
     const genesisUnit = config.genesisToken.policyId + config.genesisToken.tokenName;
@@ -855,10 +837,7 @@ export async function placeBid(
     // Bid amount in lovelace (the ADA locked at the script IS the bid)
     const bidAmountLovelace = Math.floor(bidAmountAda * 1_000_000).toString();
 
-    const txBuilder = new MeshTxBuilder({
-      fetcher: blockfrost,
-      evaluator: blockfrost,
-    });
+    const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
       // Explicit first input (bid token name is derived from this UTxO)
@@ -1003,11 +982,7 @@ export async function cancelBid(
     };
 
     // 4. Build transaction
-    const blockfrost = getBlockfrostProvider();
-    const txBuilder = new MeshTxBuilder({
-      fetcher: blockfrost,
-      evaluator: blockfrost,
-    });
+    const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
       // Spend the bid contract UTxO
@@ -1263,8 +1238,8 @@ export async function acceptBidSnark(
     };
 
     // 9. Find genesis token UTxO for read-only reference
-    const blockfrost = getBlockfrostProvider();
-    const referenceUtxos = await blockfrost.fetchAddressUTxOs(
+    const fetcher = getKupoAdapter();
+    const referenceUtxos = await fetcher.fetchAddressUTxOs(
       config.contracts.referenceAddress
     );
     const genesisUnit = config.genesisToken.policyId + config.genesisToken.tokenName;
@@ -1276,20 +1251,14 @@ export async function acceptBidSnark(
     }
 
     // 10. Compute groth stake address
-    // The groth validator is a withdraw handler. Its stake address is:
-    // For preprod: query Blockfrost for the script's stake address
     const grothScriptHash = config.contracts.grothPolicyId;
-    // Use Blockfrost to get the reward address balance
-    const grothStakeAddressBech32 = await fetchGrothStakeAddress(blockfrost, grothScriptHash, config.network);
+    const grothStakeAddressBech32 = fetchGrothStakeAddress(grothScriptHash, config.network);
 
     // Query the reward balance (must withdraw the full balance)
-    const rewardBalance = await fetchRewardBalance(blockfrost, grothStakeAddressBech32);
+    const rewardBalance = await fetchRewardBalance(grothStakeAddressBech32);
 
     // 11. Compute validity range as slot numbers
-    // Blockfrost provides slot/time conversion. Use approximate conversion:
-    // For preprod, shelley start epoch has known slot/time mapping.
-    // We'll use current tip to approximate.
-    const currentSlot = await fetchCurrentSlot(blockfrost);
+    const currentSlot = await fetchCurrentSlot();
     const invalidBefore = currentSlot - 300; // ~5 minutes ago
     const invalidHereafter = currentSlot + 1500; // ~25 minutes from now
 
@@ -1299,10 +1268,7 @@ export async function acceptBidSnark(
     const encRefScript = config.referenceScripts.encryption;
     const grothRefScript = config.referenceScripts.groth;
 
-    const txBuilder = new MeshTxBuilder({
-      fetcher: blockfrost,
-      evaluator: blockfrost,
-    });
+    const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
       // Spend encryption UTxO with UseSnark redeemer
@@ -1611,8 +1577,8 @@ export async function completeReEncryption(
     };
 
     // 15. Find genesis token UTxO
-    const blockfrost = getBlockfrostProvider();
-    const referenceUtxos = await blockfrost.fetchAddressUTxOs(
+    const fetcher = getKupoAdapter();
+    const referenceUtxos = await fetcher.fetchAddressUTxOs(
       config.contracts.referenceAddress
     );
     const genesisUnit = config.genesisToken.policyId + config.genesisToken.tokenName;
@@ -1623,7 +1589,7 @@ export async function completeReEncryption(
       throw new Error('Genesis token UTxO not found at reference contract address.');
     }
 
-    // 16. Refresh encryption UTxO from Blockfrost
+    // 16. Refresh encryption UTxO from Kupo
     // After Phase 12e, the old encryption UTxO was spent and a new one created.
     // The encryption object from React state may reference the old (spent) UTxO.
     const encPolicyId = config.contracts.encryptionPolicyId;
@@ -1633,7 +1599,7 @@ export async function completeReEncryption(
     const bidRefScript = config.referenceScripts.bidding;
 
     const encUnit = encPolicyId + encryption.tokenName;
-    const encryptionUtxos = await blockfrost.fetchAddressUTxOs(encryptionAddress);
+    const encryptionUtxos = await fetcher.fetchAddressUTxOs(encryptionAddress);
     const currentEncUtxo = encryptionUtxos.find(u =>
       u.output.amount.some(a => a.unit === encUnit && parseInt(a.quantity) >= 1)
     );
@@ -1644,10 +1610,7 @@ export async function completeReEncryption(
       );
     }
 
-    const txBuilder = new MeshTxBuilder({
-      fetcher: blockfrost,
-      evaluator: blockfrost,
-    });
+    const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
       // Spend encryption UTxO with UseEncryption redeemer
@@ -1726,11 +1689,10 @@ export async function completeReEncryption(
  * Compute the groth stake address from the script hash.
  * Constructs the bech32 stake address from the script hash.
  */
-async function fetchGrothStakeAddress(
-  _blockfrost: BlockfrostProvider,
+function fetchGrothStakeAddress(
   scriptHash: string,
   network: 'preprod' | 'mainnet'
-): Promise<string> {
+): string {
   // Script stake credential header byte: 0xf0 (testnet) / 0xf1 (mainnet)
   const headerByte = network === 'mainnet' ? 0xf1 : 0xf0;
   const scriptHashBytes = hexToUint8Array(scriptHash);
@@ -1744,21 +1706,21 @@ async function fetchGrothStakeAddress(
 }
 
 /**
- * Fetch the reward balance for a stake address from Blockfrost.
+ * Fetch the reward balance for a stake address via Koios (free tier, no key).
  */
 async function fetchRewardBalance(
-  _blockfrost: BlockfrostProvider,
   stakeAddress: string
 ): Promise<string> {
-  // Query Blockfrost REST API for the reward balance
-  const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
   const response = await fetch(
-    `https://cardano-preprod.blockfrost.io/api/v0/accounts/${stakeAddress}`,
-    { headers: { 'project_id': apiKey } }
+    'https://preprod.koios.rest/api/v1/account_info',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _stake_addresses: [stakeAddress] }),
+    }
   );
 
   if (!response.ok) {
-    // If account not found, reward balance is 0
     if (response.status === 404) {
       return '0';
     }
@@ -1766,27 +1728,21 @@ async function fetchRewardBalance(
   }
 
   const data = await response.json();
-  return data.withdrawable_amount || '0';
+  return data[0]?.withdrawable || '0';
 }
 
 /**
- * Fetch the current slot number from Blockfrost.
+ * Fetch the current slot number from local Kupo health endpoint.
  */
-async function fetchCurrentSlot(
-  _blockfrost: BlockfrostProvider // eslint-disable-line @typescript-eslint/no-unused-vars
-): Promise<number> {
-  const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
-  const response = await fetch(
-    'https://cardano-preprod.blockfrost.io/api/v0/blocks/latest',
-    { headers: { 'project_id': apiKey } }
-  );
-
+async function fetchCurrentSlot(): Promise<number> {
+  const response = await fetch('http://localhost:1442/health');
   if (!response.ok) {
-    throw new Error(`Failed to fetch latest block: ${response.statusText}`);
+    throw new Error(`Kupo health check failed: ${response.statusText}`);
   }
 
   const data = await response.json();
-  return data.slot;
+  // Kupo /health returns most_recent_checkpoint as a slot number
+  return data.most_recent_checkpoint || 0;
 }
 
 function hexToUint8Array(hex: string): Uint8Array {
@@ -1811,7 +1767,7 @@ export function getTransactionStubWarning(): string {
   if (USE_STUBS) {
     return (
       'Transaction submission is in STUB mode. No real transactions will be submitted. ' +
-      'Set VITE_USE_STUBS=false and configure Blockfrost API key to enable real transactions.'
+      'Set VITE_USE_STUBS=false to enable real transactions.'
     );
   }
   return '';

@@ -122,7 +122,8 @@ export function reconcileWithOnChain(
 }
 
 /**
- * Check pending tx hashes against Blockfrost and mark confirmed ones.
+ * Check pending tx hashes against Kupo and mark confirmed ones.
+ * Uses Kupo /matches to check if a transaction's outputs have been indexed.
  * Used for txs like remove-listing where the UTxO is consumed
  * and won't appear in on-chain UTxO queries.
  */
@@ -131,25 +132,22 @@ export async function resolvePendingTxs(walletPkh: string): Promise<TransactionR
   const pending = records.filter(r => r.status === 'pending');
   if (pending.length === 0) return records;
 
-  const apiKey = import.meta.env.VITE_BLOCKFROST_PROJECT_ID_PREPROD;
-  if (!apiKey) return records;
-
   let changed = false;
   for (const rec of pending) {
     // Skip stub tx hashes
     if (rec.txHash.startsWith('stub_')) continue;
     try {
+      // Check if Kupo has indexed any output from this transaction
       const res = await fetch(
-        `https://cardano-preprod.blockfrost.io/api/v0/txs/${rec.txHash}`,
-        { headers: { project_id: apiKey } }
+        `http://localhost:1442/matches/*@${rec.txHash}`
       );
       if (res.ok) {
-        rec.status = 'confirmed';
-        changed = true;
-      } else if (res.status === 404) {
-        // Tx not found yet — still pending, or failed
-        // If it's been more than 5 minutes, mark as failed
-        if (Date.now() - rec.timestamp > 5 * 60 * 1000) {
+        const matches = await res.json();
+        if (Array.isArray(matches) && matches.length > 0) {
+          rec.status = 'confirmed';
+          changed = true;
+        } else if (Date.now() - rec.timestamp > 5 * 60 * 1000) {
+          // No matches after 5 minutes — likely failed
           rec.status = 'failed';
           changed = true;
         }

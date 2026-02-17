@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNode, type NodeStage } from '../contexts/NodeContext'
+import { useWalletContext } from '../contexts/WalletContext'
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
@@ -108,6 +109,7 @@ const STAGES = [
 
 export default function NodeSync() {
   const navigate = useNavigate()
+  const { address } = useWalletContext()
   const {
     stage,
     syncProgress,
@@ -152,7 +154,7 @@ export default function NodeSync() {
     if (needsBootstrap) {
       await startBootstrap()
     } else {
-      await startNode()
+      await startNode(address ?? '')
     }
   }
 

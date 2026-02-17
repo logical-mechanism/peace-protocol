@@ -310,6 +310,183 @@ impl NodeManager {
         Ok(())
     }
 
+    /// Start a process by spawning an arbitrary command (not a sidecar).
+    /// Used for the Express backend which is a Node.js app, not a bundled binary.
+    /// Supports custom working directory and environment variables.
+    pub async fn start_command(
+        &self,
+        name: &str,
+        program: &str,
+        args: Vec<String>,
+        cwd: Option<&std::path::PathBuf>,
+        env_vars: Vec<(String, String)>,
+    ) -> Result<(), String> {
+        // Stop existing process gracefully if running
+        self.stop(name).await?;
+
+        // Set status to Starting
+        {
+            let mut procs = self.processes.lock().await;
+            if let Some(proc) = procs.get_mut(name) {
+                proc.info.status = ProcessStatus::Starting;
+                proc.log_buffer.clear();
+            } else {
+                procs.insert(
+                    name.to_string(),
+                    ManagedProcess {
+                        child: None,
+                        info: ProcessInfo {
+                            name: name.to_string(),
+                            status: ProcessStatus::Starting,
+                            pid: None,
+                            restart_count: 0,
+                            last_error: None,
+                        },
+                        restart_policy: RestartPolicy::default(),
+                        log_buffer: Vec::new(),
+                    },
+                );
+            }
+        }
+
+        self.emit_status(name, ProcessStatus::Starting, None);
+
+        // Build the tokio command
+        let mut cmd = tokio::process::Command::new(program);
+        cmd.args(&args)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        // Inherit minimal env so `node` works, then overlay our vars
+        if let Ok(path) = std::env::var("PATH") {
+            cmd.env("PATH", path);
+        }
+        if let Ok(home) = std::env::var("HOME") {
+            cmd.env("HOME", home);
+        }
+
+        for (key, val) in &env_vars {
+            cmd.env(key, val);
+        }
+
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+
+        let mut child = cmd.spawn().map_err(|e| {
+            let msg = format!("Failed to spawn '{}': {}", program, e);
+            self.emit_status(name, ProcessStatus::Error { message: msg.clone() }, None);
+            msg
+        })?;
+
+        let pid = child.id().unwrap_or(0);
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+
+        // Track by PID (no CommandChild for tokio processes)
+        {
+            let mut procs = self.processes.lock().await;
+            if let Some(proc) = procs.get_mut(name) {
+                proc.info.pid = Some(pid);
+                proc.info.status = ProcessStatus::Running;
+                proc.info.last_error = None;
+            }
+        }
+
+        self.emit_status(name, ProcessStatus::Running, None);
+
+        // Spawn background tasks for stdout/stderr capture + wait for exit
+        let app_handle = self.app_handle.clone();
+        let processes = self.processes.clone();
+        let process_name = name.to_string();
+
+        tauri::async_runtime::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+
+            if let Some(out) = stdout {
+                let app = app_handle.clone();
+                let procs = processes.clone();
+                let pname = process_name.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut lines = BufReader::new(out).lines();
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        if line.is_empty() { continue; }
+                        {
+                            let mut p = procs.lock().await;
+                            if let Some(proc) = p.get_mut(&pname) {
+                                proc.log_buffer.push(line.clone());
+                                if proc.log_buffer.len() > LOG_BUFFER_SIZE {
+                                    proc.log_buffer.remove(0);
+                                }
+                            }
+                        }
+                        let _ = app.emit("process-status", ProcessEvent {
+                            name: pname.clone(),
+                            status: ProcessStatus::Running,
+                            log_line: Some(line),
+                        });
+                    }
+                });
+            }
+
+            if let Some(err) = stderr {
+                let app = app_handle.clone();
+                let procs = processes.clone();
+                let pname = process_name.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut lines = BufReader::new(err).lines();
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        if line.is_empty() { continue; }
+                        let log_line = format!("[stderr] {}", line);
+                        {
+                            let mut p = procs.lock().await;
+                            if let Some(proc) = p.get_mut(&pname) {
+                                proc.log_buffer.push(log_line.clone());
+                                if proc.log_buffer.len() > LOG_BUFFER_SIZE {
+                                    proc.log_buffer.remove(0);
+                                }
+                            }
+                        }
+                        let _ = app.emit("process-status", ProcessEvent {
+                            name: pname.clone(),
+                            status: ProcessStatus::Running,
+                            log_line: Some(log_line),
+                        });
+                    }
+                });
+            }
+
+            // Wait for exit
+            let exit_status = child.wait().await;
+            let (code, msg) = match exit_status {
+                Ok(s) => (s.code(), format!("Process exited with code {:?}", s.code())),
+                Err(e) => (None, format!("Process wait error: {}", e)),
+            };
+            let status = if code == Some(0) {
+                ProcessStatus::Stopped
+            } else {
+                ProcessStatus::Error { message: msg.clone() }
+            };
+            {
+                let mut p = processes.lock().await;
+                if let Some(proc) = p.get_mut(&process_name) {
+                    proc.info.status = status.clone();
+                    proc.info.pid = None;
+                    if code != Some(0) {
+                        proc.info.last_error = Some(msg.clone());
+                    }
+                }
+            }
+            let _ = app_handle.emit("process-status", ProcessEvent {
+                name: process_name,
+                status,
+                log_line: Some(msg),
+            });
+        });
+
+        Ok(())
+    }
+
     /// Stop a process gracefully.
     /// Sends SIGTERM first, waits up to 30 seconds for exit, then falls back to SIGKILL.
     pub async fn stop(&self, name: &str) -> Result<(), String> {
@@ -398,8 +575,8 @@ impl NodeManager {
 
     /// Stop ALL processes (called on app shutdown)
     pub async fn shutdown_all(&self) {
-        // Stop in reverse dependency order: kupo, ogmios, cardano-node, mithril-client
-        for name in &["kupo", "ogmios", "cardano-node", "mithril-client"] {
+        // Stop in reverse dependency order: express, kupo, ogmios, cardano-node, mithril-client
+        for name in &["express", "kupo", "ogmios", "cardano-node", "mithril-client"] {
             let _ = self.stop(name).await;
         }
     }

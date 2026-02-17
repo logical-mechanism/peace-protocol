@@ -1,5 +1,6 @@
 import { getNetworkConfig } from '../config/index.js';
-import { getKoiosClient, type KoiosUtxo } from './koios.js';
+import { getKupoClient } from './kupo.js';
+import type { KoiosUtxo } from './koios.js';
 import { parseBidDatum } from './parsers.js';
 import type { BidDisplay, BidDatum } from '../types/index.js';
 
@@ -37,9 +38,9 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum): BidDisplay {
 
 export async function getAllBids(): Promise<BidDisplay[]> {
   const { contracts } = getNetworkConfig();
-  const koios = getKoiosClient();
+  const kupo = getKupoClient();
 
-  const utxos = await koios.getAddressUtxos(contracts.biddingAddress);
+  const utxos = await kupo.getAddressUtxos(contracts.biddingAddress);
   const bids: BidDisplay[] = [];
 
   for (const utxo of utxos) {

@@ -567,7 +567,7 @@ std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
 
 ---
 
-## Phase 3: Data Layer (Kupo Adapter + Backend Swap) [ ]
+## Phase 3: Data Layer (Kupo Adapter + Backend Swap) [x]
 
 **Goal**: Wire the frontend's MeshTxBuilder to use local Ogmios (evaluation/submission) and Kupo (UTxO fetching). Adapt the Express backend to query Kupo for current state and Koios for historical data.
 

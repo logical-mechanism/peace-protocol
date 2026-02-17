@@ -61,7 +61,7 @@ export interface NodeContextValue {
   needsBootstrap: boolean
   error: string | null
   logs: string[]
-  startNode: () => Promise<void>
+  startNode: (walletAddress: string) => Promise<void>
   stopNode: () => Promise<void>
   startBootstrap: () => Promise<void>
 }
@@ -174,11 +174,11 @@ export function NodeProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const startNode = useCallback(async () => {
+  const startNode = useCallback(async (walletAddress: string) => {
     setError(null)
     setStage('starting')
     try {
-      await invoke('start_node')
+      await invoke('start_node', { walletAddress })
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)

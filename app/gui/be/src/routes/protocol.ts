@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config, getNetworkConfig } from '../config/index.js';
 import { STUB_PROTOCOL_CONFIG } from '../stubs/index.js';
+import { getKupoClient } from '../services/kupo.js';
 import { getKoiosClient } from '../services/koios.js';
 import type { ProtocolConfig } from '../types/index.js';
 
@@ -72,8 +73,8 @@ router.get('/reference', async (_req: Request, res: Response) => {
     }
 
     const { contracts } = getNetworkConfig();
-    const koios = getKoiosClient();
-    const refUtxos = await koios.getAddressUtxos(contracts.referenceAddress);
+    const kupo = getKupoClient();
+    const refUtxos = await kupo.getAddressUtxos(contracts.referenceAddress);
 
     // Return the raw reference UTxOs for the frontend to use
     const references = refUtxos.map(utxo => ({
