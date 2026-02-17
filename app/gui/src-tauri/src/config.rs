@@ -31,6 +31,9 @@ pub struct ContractConfig {
     pub encryption_address: String,
     pub bidding_address: String,
     pub reference_address: String,
+    /// Address holding on-chain script reference UTxOs (encryption, bidding, groth scripts)
+    #[serde(default)]
+    pub script_reference_address: String,
     // Policy IDs
     #[serde(default)]
     pub encryption_policy_id: String,

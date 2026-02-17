@@ -35,7 +35,7 @@ fn setup_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
 async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
     let shell = app.shell();
     let command = shell
-        .sidecar("binaries/snark")
+        .sidecar("snark")
         .map_err(|e| format!("Failed to create snark sidecar: {e}"))?;
     let command = command.args(args);
 

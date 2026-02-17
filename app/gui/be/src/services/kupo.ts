@@ -218,6 +218,17 @@ function decodeCborItem(data: Uint8Array, offset: number): [unknown, number] {
     }
 
     case 4: { // Array
+      if (additional === 31) {
+        // Indefinite-length array: read items until break byte (0xff)
+        const items: unknown[] = [];
+        let pos = offset + 1;
+        while (data[pos] !== 0xff) {
+          const [item, newPos] = decodeCborItem(data, pos);
+          items.push(item);
+          pos = newPos;
+        }
+        return [{ list: items }, pos + 1]; // skip the 0xff break
+      }
       const [len, dataOffset] = decodeRawUint(additional, data, offset + 1);
       const items: unknown[] = [];
       let pos = dataOffset;
@@ -230,6 +241,18 @@ function decodeCborItem(data: Uint8Array, offset: number): [unknown, number] {
     }
 
     case 5: { // Map
+      if (additional === 31) {
+        // Indefinite-length map: read key-value pairs until break byte (0xff)
+        const entries: { k: unknown; v: unknown }[] = [];
+        let pos = offset + 1;
+        while (data[pos] !== 0xff) {
+          const [key, keyEnd] = decodeCborItem(data, pos);
+          const [val, valEnd] = decodeCborItem(data, keyEnd);
+          entries.push({ k: key, v: val });
+          pos = valEnd;
+        }
+        return [{ map: entries }, pos + 1]; // skip the 0xff break
+      }
       const [len, dataOffset] = decodeRawUint(additional, data, offset + 1);
       const entries: { k: unknown; v: unknown }[] = [];
       let pos = dataOffset;

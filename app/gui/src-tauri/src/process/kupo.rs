@@ -51,6 +51,9 @@ pub fn build_match_patterns(config: &AppConfig, wallet_address: &str) -> Vec<Str
         if !contracts.reference_address.is_empty() {
             patterns.push(contracts.reference_address.clone());
         }
+        if !contracts.script_reference_address.is_empty() {
+            patterns.push(contracts.script_reference_address.clone());
+        }
     }
 
     // Add wallet address

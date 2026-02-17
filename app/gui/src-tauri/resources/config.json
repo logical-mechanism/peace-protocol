@@ -7,16 +7,17 @@
     "encryption_address": "addr_test1zzq5eggu9zqzn2rqlrj4fuu8drmd5r5y9dpnd7tyztjwhdvxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmqrmpcts",
     "bidding_address": "addr_test1zr8k34stre2jg9st24m8mzq6apgh7qmgryxssf22actq0v5xca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmqwxs8ej",
     "reference_address": "addr_test1wztqy7naec6l3zu9xvkxw0l5tgxlpddpg3tmj28d540e94sm2pgld",
+    "script_reference_address": "addr_test1vr7axgxdn3ff7qs5226m884n5mv9fu736kwr98fw6xuq89geads5m",
     "encryption_policy_id": "814ca11c288029a860f8e554f38768f6da0e842b4336f96412e4ebb5",
     "bidding_policy_id": "cf68d60b1e5524160b55767d881ae8517f0368190d08254aee1607b2",
     "groth_policy_id": "8b86adfcf0701819bbfc990dcdc2df25f8a266cba87acc361b90c6dd",
     "genesis_policy_id": "2dd26dc74fbbbf599bbc2e561444c1acc631cdcc2af4761d5a3f6de4",
     "genesis_token_name": "004f53b5219580b9fb9e9f6bf7e127608b65b12a4e6bb196980394d9aa94a114",
     "encryption_ref_tx_hash": "37e3ae83d5d23fe5e211f35de02b9821304860d46e618c7b613cf449dcf71b3b",
-    "encryption_ref_output_index": 0,
+    "encryption_ref_output_index": 1,
     "bidding_ref_tx_hash": "3b16715859df5f0a2333652af8cfb7c3cfcc99c8d7e5e5e05eeaa506a6b0cef9",
-    "bidding_ref_output_index": 0,
+    "bidding_ref_output_index": 1,
     "groth_ref_tx_hash": "4a87b38f560e45d236d517616d9ea73619652a3932c37b43d0c133fd4920cad0",
-    "groth_ref_output_index": 0
+    "groth_ref_output_index": 1
   }
 }

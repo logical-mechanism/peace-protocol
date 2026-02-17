@@ -7,6 +7,7 @@
     "core:default",
     "core:window:default",
     "core:window:allow-set-title",
+    "shell:allow-open",
     "shell:allow-kill",
     {
       "identifier": "shell:allow-spawn",
@@ -15,7 +16,8 @@
         { "name": "binaries/ogmios", "sidecar": true },
         { "name": "binaries/kupo", "sidecar": true },
         { "name": "binaries/mithril-client", "sidecar": true },
-        { "name": "binaries/snark", "sidecar": true }
+        { "name": "binaries/snark", "sidecar": true },
+        { "name": "snark", "sidecar": true }
       ]
     }
   ]

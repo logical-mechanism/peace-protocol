@@ -54,6 +54,7 @@ pub fn run() {
             commands::wallet::unlock_wallet,
             commands::wallet::lock_wallet,
             commands::wallet::delete_wallet,
+            commands::wallet::reveal_mnemonic,
             // Node commands (Phase 2)
             commands::node::get_node_status,
             commands::node::get_process_status,
@@ -66,6 +67,7 @@ pub fn run() {
             commands::config::set_network,
             commands::config::get_data_dir,
             commands::config::get_app_config,
+            commands::config::get_disk_usage,
             // SNARK commands (Phase 4)
             commands::snark::snark_check_setup,
             commands::snark::snark_decompress_setup,

@@ -83,3 +83,23 @@ pub fn delete_wallet(state: tauri::State<'_, WalletState>) -> Result<(), String>
     *state.mnemonic.lock().unwrap() = None;
     Ok(())
 }
+
+/// Reveal the mnemonic by re-verifying the password.
+/// This re-decrypts from disk rather than using the in-memory copy,
+/// ensuring the password is correct before showing sensitive data.
+#[tauri::command]
+pub fn reveal_mnemonic(
+    state: tauri::State<'_, WalletState>,
+    password: String,
+) -> Result<Vec<String>, String> {
+    let json = std::fs::read_to_string(&state.wallet_path)
+        .map_err(|e| format!("Failed to read wallet file: {e}"))?;
+
+    let encrypted: EncryptedWallet =
+        serde_json::from_str(&json).map_err(|e| format!("Invalid wallet file format: {e}"))?;
+
+    let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
+    let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
+
+    Ok(words)
+}

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import WalletSetup from './pages/WalletSetup'
 import WalletUnlock from './pages/WalletUnlock'
 import NodeSync from './pages/NodeSync'
+import Settings from './pages/Settings'
 
 function App() {
   const { walletState, refreshBalance } = useWalletContext()
@@ -68,6 +69,16 @@ function App() {
         element={
           walletState === 'unlocked' ? (
             <Dashboard />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          walletState === 'unlocked' ? (
+            <Settings />
           ) : (
             <Navigate to="/" replace />
           )

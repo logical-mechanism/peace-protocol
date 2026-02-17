@@ -22,7 +22,7 @@ import type {
   GovernanceProposalInfo,
 } from '@meshsdk/core';
 
-/** Kupo /matches response item (with ?resolve_datums) */
+/** Kupo /matches response item */
 interface KupoMatch {
   transaction_index: number;
   transaction_id: string;
@@ -47,6 +47,12 @@ interface KupoMatch {
   } | null;
 }
 
+/** Kupo GET /scripts/{hash} response */
+interface KupoScript {
+  script: string;
+  language: string;
+}
+
 export class KupoAdapter implements IFetcher {
   private baseUrl: string;
 
@@ -61,7 +67,7 @@ export class KupoAdapter implements IFetcher {
    */
   async fetchAddressUTxOs(address: string, asset?: string): Promise<UTxO[]> {
     const matches = await this.queryMatches(address);
-    const utxos = matches.map((m) => this.matchToUtxo(m));
+    const utxos = await Promise.all(matches.map((m) => this.matchToUtxo(m)));
 
     if (asset) {
       return utxos.filter((u) =>
@@ -80,7 +86,7 @@ export class KupoAdapter implements IFetcher {
   async fetchUTxOs(hash: string, index?: number): Promise<UTxO[]> {
     const pattern = index !== undefined ? `${index}@${hash}` : `*@${hash}`;
     const matches = await this.queryMatches(pattern);
-    return matches.map((m) => this.matchToUtxo(m));
+    return Promise.all(matches.map((m) => this.matchToUtxo(m)));
   }
 
   /** Raw HTTP GET passthrough. */
@@ -148,9 +154,22 @@ export class KupoAdapter implements IFetcher {
   }
 
   /**
-   * Convert a Kupo match to a MeshSDK UTxO.
+   * Fetch script CBOR from Kupo's /scripts/{hash} endpoint.
+   * Returns the hex-encoded script bytes, or undefined if not found.
    */
-  private matchToUtxo(match: KupoMatch): UTxO {
+  private async fetchScript(scriptHash: string): Promise<string | undefined> {
+    const url = `${this.baseUrl}/scripts/${scriptHash}`;
+    const response = await fetch(url);
+    if (!response.ok) return undefined;
+    const data: KupoScript = await response.json();
+    return data.script ?? undefined;
+  }
+
+  /**
+   * Convert a Kupo match to a MeshSDK UTxO.
+   * If the match has a script_hash, fetches the script CBOR separately.
+   */
+  private async matchToUtxo(match: KupoMatch): Promise<UTxO> {
     // Build amount array: lovelace first
     const amount: Asset[] = [
       { unit: 'lovelace', quantity: String(match.value.coins) },
@@ -178,6 +197,12 @@ export class KupoAdapter implements IFetcher {
       plutusData = match.datum;
     }
 
+    // Fetch script CBOR from /scripts/{hash} for reference script UTxOs
+    let scriptRef: string | undefined;
+    if (match.script_hash) {
+      scriptRef = await this.fetchScript(match.script_hash);
+    }
+
     return {
       input: {
         txHash: match.transaction_id,
@@ -189,6 +214,7 @@ export class KupoAdapter implements IFetcher {
         dataHash: match.datum_hash ?? undefined,
         plutusData,
         scriptHash: match.script_hash ?? undefined,
+        scriptRef,
       },
     };
   }

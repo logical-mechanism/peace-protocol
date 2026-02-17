@@ -120,10 +120,14 @@ pub async fn start_cardano_node(
     std::fs::create_dir_all(&config.db_dir)
         .map_err(|e| format!("Failed to create node db dir: {e}"))?;
 
-    // Remove stale socket file from a previous run (e.g., unclean shutdown).
-    // cardano-node will recreate it once it's ready.
+    // Remove stale socket and lock files from a previous run (e.g., unclean shutdown).
+    // cardano-node will recreate them once it's ready.
     if config.socket_path.exists() {
         let _ = std::fs::remove_file(&config.socket_path);
+    }
+    let lock_file = config.db_dir.join("lock");
+    if lock_file.exists() {
+        let _ = std::fs::remove_file(&lock_file);
     }
 
     let args = config.build_args();

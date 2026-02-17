@@ -96,3 +96,13 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Force dark color scheme for form controls (WebKit in Tauri ignores CSS color on <select>) */
+select, input, textarea {
+  color-scheme: dark;
+}
+
+select option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}

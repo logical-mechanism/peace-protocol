@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
@@ -56,13 +56,31 @@ pub struct ProcessEvent {
 
 const LOG_BUFFER_SIZE: usize = 500;
 
+/// How this process was originally launched (for auto-restart)
+#[derive(Clone)]
+enum LaunchInfo {
+    Sidecar {
+        sidecar_name: String,
+        args: Vec<String>,
+    },
+    Command {
+        program: String,
+        args: Vec<String>,
+        cwd: Option<std::path::PathBuf>,
+        env_vars: Vec<(String, String)>,
+    },
+}
+
 /// A single managed child process with its metadata
 struct ManagedProcess {
     child: Option<CommandChild>,
     info: ProcessInfo,
-    #[allow(dead_code)]
     restart_policy: RestartPolicy,
     log_buffer: Vec<String>,
+    /// How this process was started (stored for auto-restart)
+    launch_info: Option<LaunchInfo>,
+    /// Set to true by stop() to prevent auto-restart after intentional shutdown
+    user_stopped: bool,
 }
 
 /// The central process manager, held in Tauri state.
@@ -70,13 +88,97 @@ struct ManagedProcess {
 pub struct NodeManager {
     processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
     app_handle: tauri::AppHandle,
+    pid_file: std::path::PathBuf,
 }
 
 impl NodeManager {
     pub fn new(app_handle: tauri::AppHandle) -> Self {
-        Self {
+        let pid_file = app_handle
+            .path()
+            .app_data_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"))
+            .join("managed_pids.json");
+
+        let mgr = Self {
             processes: Arc::new(Mutex::new(HashMap::new())),
             app_handle,
+            pid_file,
+        };
+
+        // Kill any orphaned processes from a previous crashed session
+        mgr.kill_orphans_from_pid_file();
+        mgr.kill_orphans_on_ports();
+        mgr
+    }
+
+    /// Kill orphaned processes tracked in the PID file from a previous session.
+    fn kill_orphans_from_pid_file(&self) {
+        let contents = match std::fs::read_to_string(&self.pid_file) {
+            Ok(c) => c,
+            Err(_) => return, // No pid file = no orphans
+        };
+
+        let pids: Vec<u32> = match serde_json::from_str(&contents) {
+            Ok(p) => p,
+            Err(_) => {
+                let _ = std::fs::remove_file(&self.pid_file);
+                return;
+            }
+        };
+
+        for pid in pids {
+            let alive = std::process::Command::new("kill")
+                .args(["-0", &pid.to_string()])
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+
+            if alive {
+                eprintln!("[NodeManager] Killing orphaned process pid={pid} from PID file");
+                let _ = std::process::Command::new("kill")
+                    .args(["-9", &pid.to_string()])
+                    .output();
+            }
+        }
+
+        let _ = std::fs::remove_file(&self.pid_file);
+    }
+
+    /// Kill any processes listening on our known ports (Express:3001, Ogmios:1337, Kupo:1442).
+    /// Catches orphans even when no PID file exists (e.g., first run after adding PID tracking).
+    fn kill_orphans_on_ports(&self) {
+        for port in [3001u16, 1337, 1442] {
+            let output = std::process::Command::new("fuser")
+                .args([&format!("{}/tcp", port)])
+                .output();
+
+            if let Ok(out) = output {
+                let pids_str = String::from_utf8_lossy(&out.stdout);
+                for token in pids_str.split_whitespace() {
+                    if let Ok(pid) = token.parse::<u32>() {
+                        eprintln!("[NodeManager] Killing orphan on port {port}: pid={pid}");
+                        let _ = std::process::Command::new("kill")
+                            .args(["-9", &pid.to_string()])
+                            .output();
+                    }
+                }
+            }
+        }
+    }
+
+    /// Persist all active PIDs to disk so they can be cleaned up after a crash.
+    fn save_pids_sync(pid_file: &std::path::Path, processes: &HashMap<String, ManagedProcess>) {
+        let pids: Vec<u32> = processes
+            .values()
+            .filter_map(|p| p.info.pid)
+            .collect();
+
+        if pids.is_empty() {
+            let _ = std::fs::remove_file(pid_file);
+        } else {
+            if let Ok(json) = serde_json::to_string(&pids) {
+                let _ = std::fs::write(pid_file, json);
+            }
         }
     }
 
@@ -96,6 +198,8 @@ impl NodeManager {
                 },
                 restart_policy,
                 log_buffer: Vec::new(),
+                launch_info: None,
+                user_stopped: false,
             },
         );
     }
@@ -111,12 +215,17 @@ impl NodeManager {
         // Stop existing process gracefully if running
         self.stop(name).await?;
 
-        // Set status to Starting
+        // Set status to Starting, store launch info, clear user_stopped
         {
             let mut procs = self.processes.lock().await;
             if let Some(proc) = procs.get_mut(name) {
                 proc.info.status = ProcessStatus::Starting;
                 proc.log_buffer.clear();
+                proc.user_stopped = false;
+                proc.launch_info = Some(LaunchInfo::Sidecar {
+                    sidecar_name: sidecar_name.to_string(),
+                    args: args.clone(),
+                });
             } else {
                 // Auto-register if not already registered
                 procs.insert(
@@ -132,6 +241,11 @@ impl NodeManager {
                         },
                         restart_policy: RestartPolicy::default(),
                         log_buffer: Vec::new(),
+                        launch_info: Some(LaunchInfo::Sidecar {
+                            sidecar_name: sidecar_name.to_string(),
+                            args: args.clone(),
+                        }),
+                        user_stopped: false,
                     },
                 );
             }
@@ -178,6 +292,7 @@ impl NodeManager {
                 proc.info.status = ProcessStatus::Running;
                 proc.info.last_error = None;
             }
+            Self::save_pids_sync(&self.pid_file, &procs);
         }
 
         self.emit_status(name, ProcessStatus::Running, None);
@@ -272,25 +387,198 @@ impl NodeManager {
                             "Process exited with code {:?}, signal {:?}",
                             payload.code, payload.signal
                         );
-                        let status = if payload.code == Some(0) {
-                            ProcessStatus::Stopped
-                        } else {
-                            ProcessStatus::Error {
-                                message: msg.clone(),
-                            }
-                        };
+                        let is_crash = payload.code != Some(0);
 
-                        {
+                        // Check if auto-restart is appropriate
+                        let should_restart = if is_crash {
                             let mut procs = processes.lock().await;
                             if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.info.status = status.clone();
                                 proc.child = None;
                                 proc.info.pid = None;
-                                if payload.code != Some(0) {
-                                    proc.info.last_error = Some(msg.clone());
+                                proc.info.last_error = Some(msg.clone());
+
+                                if proc.user_stopped {
+                                    // User intentionally stopped — do not restart
+                                    proc.info.status = ProcessStatus::Stopped;
+                                    false
+                                } else if proc.info.restart_count < proc.restart_policy.max_retries
+                                {
+                                    proc.info.restart_count += 1;
+                                    let delay = proc.restart_policy.initial_delay_ms as f64
+                                        * proc
+                                            .restart_policy
+                                            .backoff_multiplier
+                                            .powi((proc.info.restart_count - 1) as i32);
+                                    proc.info.status = ProcessStatus::Error {
+                                        message: format!(
+                                            "{} (restarting in {:.0}s, attempt {}/{})",
+                                            msg,
+                                            delay / 1000.0,
+                                            proc.info.restart_count,
+                                            proc.restart_policy.max_retries
+                                        ),
+                                    };
+                                    // Return delay for restart
+                                    let launch = proc.launch_info.clone();
+                                    drop(procs);
+
+                                    // Schedule restart after delay
+                                    if let Some(LaunchInfo::Sidecar {
+                                        sidecar_name,
+                                        args,
+                                    }) = launch
+                                    {
+                                        let app2 = app_handle.clone();
+                                        let procs2 = processes.clone();
+                                        let pname2 = process_name.clone();
+                                        tauri::async_runtime::spawn(async move {
+                                            tokio::time::sleep(
+                                                tokio::time::Duration::from_millis(delay as u64),
+                                            )
+                                            .await;
+
+                                            // Re-check that user hasn't stopped it during the delay
+                                            let still_should = {
+                                                let p = procs2.lock().await;
+                                                p.get(&pname2)
+                                                    .map(|pr| !pr.user_stopped)
+                                                    .unwrap_or(false)
+                                            };
+                                            if !still_should {
+                                                return;
+                                            }
+
+                                            let _ = app2.emit(
+                                                "process-status",
+                                                ProcessEvent {
+                                                    name: pname2.clone(),
+                                                    status: ProcessStatus::Starting,
+                                                    log_line: Some(
+                                                        "Auto-restarting...".to_string(),
+                                                    ),
+                                                },
+                                            );
+
+                                            let shell = app2.shell();
+                                            if let Ok(cmd) = shell.sidecar(&sidecar_name) {
+                                                if let Ok((mut rx2, child2)) =
+                                                    cmd.args(&args).spawn()
+                                                {
+                                                    let pid2 = child2.pid();
+                                                    {
+                                                        let mut p = procs2.lock().await;
+                                                        if let Some(proc) = p.get_mut(&pname2) {
+                                                            proc.child = Some(child2);
+                                                            proc.info.pid = Some(pid2);
+                                                            proc.info.status =
+                                                                ProcessStatus::Running;
+                                                        }
+                                                    }
+
+                                                    let _ = app2.emit(
+                                                        "process-status",
+                                                        ProcessEvent {
+                                                            name: pname2.clone(),
+                                                            status: ProcessStatus::Running,
+                                                            log_line: Some(format!(
+                                                                "Restarted (pid {})",
+                                                                pid2
+                                                            )),
+                                                        },
+                                                    );
+
+                                                    // Re-attach stdout/stderr reader
+                                                    let app3 = app2.clone();
+                                                    let procs3 = procs2.clone();
+                                                    let pname3 = pname2.clone();
+                                                    tauri::async_runtime::spawn(async move {
+                                                        while let Some(ev) = rx2.recv().await {
+                                                            match ev {
+                                                                CommandEvent::Stdout(data) => {
+                                                                    let line = String::from_utf8_lossy(&data).trim().to_string();
+                                                                    if line.is_empty() { continue; }
+                                                                    {
+                                                                        let mut p = procs3.lock().await;
+                                                                        if let Some(proc) = p.get_mut(&pname3) {
+                                                                            proc.log_buffer.push(line.clone());
+                                                                            if proc.log_buffer.len() > LOG_BUFFER_SIZE {
+                                                                                proc.log_buffer.remove(0);
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    let _ = app3.emit("process-status", ProcessEvent {
+                                                                        name: pname3.clone(),
+                                                                        status: ProcessStatus::Running,
+                                                                        log_line: Some(line),
+                                                                    });
+                                                                }
+                                                                CommandEvent::Stderr(data) => {
+                                                                    let line = String::from_utf8_lossy(&data).trim().to_string();
+                                                                    if line.is_empty() { continue; }
+                                                                    let log_line = format!("[stderr] {}", line);
+                                                                    {
+                                                                        let mut p = procs3.lock().await;
+                                                                        if let Some(proc) = p.get_mut(&pname3) {
+                                                                            proc.log_buffer.push(log_line.clone());
+                                                                            if proc.log_buffer.len() > LOG_BUFFER_SIZE {
+                                                                                proc.log_buffer.remove(0);
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    let _ = app3.emit("process-status", ProcessEvent {
+                                                                        name: pname3.clone(),
+                                                                        status: ProcessStatus::Running,
+                                                                        log_line: Some(log_line),
+                                                                    });
+                                                                }
+                                                                CommandEvent::Terminated(_) | CommandEvent::Error(_) => break,
+                                                                _ => {}
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        });
+                                    }
+
+                                    true
+                                } else {
+                                    proc.info.status = ProcessStatus::Error {
+                                        message: format!(
+                                            "{} (max restarts {} reached)",
+                                            msg, proc.restart_policy.max_retries
+                                        ),
+                                    };
+                                    false
                                 }
+                            } else {
+                                false
                             }
-                        }
+                        } else {
+                            // Clean exit (code 0) — just mark as stopped
+                            let mut procs = processes.lock().await;
+                            if let Some(proc) = procs.get_mut(&process_name) {
+                                proc.info.status = ProcessStatus::Stopped;
+                                proc.child = None;
+                                proc.info.pid = None;
+                            }
+                            false
+                        };
+
+                        let status = if is_crash && !should_restart {
+                            let procs = processes.lock().await;
+                            procs
+                                .get(&process_name)
+                                .map(|p| p.info.status.clone())
+                                .unwrap_or(ProcessStatus::Error {
+                                    message: msg.clone(),
+                                })
+                        } else if !is_crash {
+                            ProcessStatus::Stopped
+                        } else {
+                            // Restart is scheduled, don't emit final stopped
+                            break;
+                        };
 
                         let _ = app_handle.emit(
                             "process-status",
@@ -324,12 +612,20 @@ impl NodeManager {
         // Stop existing process gracefully if running
         self.stop(name).await?;
 
-        // Set status to Starting
+        // Set status to Starting, store launch info
+        let launch = LaunchInfo::Command {
+            program: program.to_string(),
+            args: args.clone(),
+            cwd: cwd.cloned(),
+            env_vars: env_vars.clone(),
+        };
         {
             let mut procs = self.processes.lock().await;
             if let Some(proc) = procs.get_mut(name) {
                 proc.info.status = ProcessStatus::Starting;
                 proc.log_buffer.clear();
+                proc.user_stopped = false;
+                proc.launch_info = Some(launch);
             } else {
                 procs.insert(
                     name.to_string(),
@@ -344,6 +640,8 @@ impl NodeManager {
                         },
                         restart_policy: RestartPolicy::default(),
                         log_buffer: Vec::new(),
+                        launch_info: Some(launch),
+                        user_stopped: false,
                     },
                 );
             }
@@ -391,6 +689,7 @@ impl NodeManager {
                 proc.info.status = ProcessStatus::Running;
                 proc.info.last_error = None;
             }
+            Self::save_pids_sync(&self.pid_file, &procs);
         }
 
         self.emit_status(name, ProcessStatus::Running, None);
@@ -489,13 +788,16 @@ impl NodeManager {
 
     /// Stop a process gracefully.
     /// Sends SIGTERM first, waits up to 30 seconds for exit, then falls back to SIGKILL.
+    /// Sets user_stopped to prevent auto-restart.
     pub async fn stop(&self, name: &str) -> Result<(), String> {
         let (child, pid) = {
             let mut procs = self.processes.lock().await;
             if let Some(proc) = procs.get_mut(name) {
+                proc.user_stopped = true;
                 let child = proc.child.take();
                 let pid = proc.info.pid.take();
                 proc.info.status = ProcessStatus::Stopped;
+                Self::save_pids_sync(&self.pid_file, &procs);
                 (child, pid)
             } else {
                 return Ok(());
@@ -579,6 +881,8 @@ impl NodeManager {
         for name in &["express", "kupo", "ogmios", "cardano-node", "mithril-client"] {
             let _ = self.stop(name).await;
         }
+        // Clean up PID file since all processes are stopped
+        let _ = std::fs::remove_file(&self.pid_file);
     }
 
     /// Emit a process status event to the frontend

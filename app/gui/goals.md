@@ -718,7 +718,7 @@ std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
 
 ---
 
-## Phase 5: Integration + Polish + Packaging [ ]
+## Phase 5: Integration + Polish + Packaging [x]
 
 **Goal**: Wire all phases together, implement the complete first-run experience, build installers for all platforms.
 

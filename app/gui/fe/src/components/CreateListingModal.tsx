@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 
 interface CreateListingFormData {
@@ -49,30 +49,30 @@ export default function CreateListingModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Handle escape key to close
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSubmitting) {
-        onClose();
-      }
-    },
-    [onClose, isSubmitting]
-  );
-
+  // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-      // Reset form when opening
       setFormData(INITIAL_FORM_DATA);
       setErrors({});
       setSubmitError(null);
     }
+  }, [isOpen]);
+
+  // Handle escape key to close (separate effect to avoid resetting form)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen, isSubmitting, onClose]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
