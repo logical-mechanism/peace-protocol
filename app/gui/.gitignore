@@ -14,6 +14,13 @@ target/
 src-tauri/target/
 src-tauri/gen/
 
+# Sidecar binaries (platform-specific, ~18-100MB each)
+src-tauri/binaries/
+
+# SNARK setup files (too large for git)
+src-tauri/resources/snark/*.zst
+src-tauri/resources/snark/*.bin
+
 # IDE
 .idea/
 .vscode/
