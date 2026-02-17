@@ -78,12 +78,12 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            // Graceful shutdown: kill all managed processes on app exit
             if let tauri::RunEvent::Exit = event {
+                // Synchronous SIGKILL of all managed processes.
+                // Cannot rely on async shutdown here — tokio runtime
+                // may already be tearing down, causing block_on to deadlock.
                 let manager = app_handle.state::<NodeManager>();
-                tauri::async_runtime::block_on(async {
-                    manager.shutdown_all().await;
-                });
+                manager.kill_all_sync();
             }
         });
 }

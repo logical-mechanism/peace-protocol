@@ -885,6 +885,43 @@ impl NodeManager {
         let _ = std::fs::remove_file(&self.pid_file);
     }
 
+    /// Synchronous kill of ALL tracked processes via SIGKILL.
+    /// Called from the RunEvent::Exit handler where async may not work reliably.
+    /// Does NOT wait for graceful shutdown — the app is exiting anyway.
+    pub fn kill_all_sync(&self) {
+        // Read PIDs from the pid file (most reliable source during exit)
+        if let Ok(contents) = std::fs::read_to_string(&self.pid_file) {
+            if let Ok(pids) = serde_json::from_str::<Vec<u32>>(&contents) {
+                for pid in &pids {
+                    eprintln!("[NodeManager] Exit: killing pid={pid}");
+                    let _ = std::process::Command::new("kill")
+                        .args(["-9", &pid.to_string()])
+                        .output();
+                }
+            }
+        }
+
+        // Also kill anything on our known ports as a safety net
+        for port in [3001u16, 1337, 1442] {
+            if let Ok(out) = std::process::Command::new("fuser")
+                .args([&format!("{}/tcp", port)])
+                .output()
+            {
+                let pids_str = String::from_utf8_lossy(&out.stdout);
+                for token in pids_str.split_whitespace() {
+                    if let Ok(pid) = token.parse::<u32>() {
+                        eprintln!("[NodeManager] Exit: killing orphan on port {port} pid={pid}");
+                        let _ = std::process::Command::new("kill")
+                            .args(["-9", &pid.to_string()])
+                            .output();
+                    }
+                }
+            }
+        }
+
+        let _ = std::fs::remove_file(&self.pid_file);
+    }
+
     /// Emit a process status event to the frontend
     fn emit_status(&self, name: &str, status: ProcessStatus, log_line: Option<String>) {
         let _ = self.app_handle.emit(
