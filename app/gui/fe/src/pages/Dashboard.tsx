@@ -2,6 +2,7 @@ import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletCon
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
+import { useNode } from '../contexts/NodeContext'
 import { copyToClipboard } from '../utils/clipboard'
 import MarketplaceTab from '../components/MarketplaceTab'
 import MySalesTab from '../components/MySalesTab'
@@ -45,6 +46,7 @@ export default function Dashboard() {
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
+  const { stage: nodeStage, syncProgress: nodeSyncProgress } = useNode()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('marketplace')
@@ -690,7 +692,53 @@ export default function Dashboard() {
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>
             Preprod
           </span>
-          {/* WASM Loading Indicator */}
+          {/* Node Sync Indicator */}
+          {nodeStage === 'synced' ? (
+            <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+              Node Synced
+            </span>
+          ) : nodeStage === 'syncing' ? (
+            <button
+              onClick={() => navigate('/node-sync')}
+              className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-full hover:bg-[var(--warning)]/20 transition-all cursor-pointer"
+              title="Click to view sync progress"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
+              Syncing {Math.round(nodeSyncProgress)}%
+            </button>
+          ) : nodeStage === 'error' ? (
+            <button
+              onClick={() => navigate('/node-sync')}
+              className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--error)] bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-full hover:bg-[var(--error)]/20 transition-all cursor-pointer"
+              title="Node error - click for details"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)]"></span>
+              Node Error
+            </button>
+          ) : nodeStage === 'starting' || nodeStage === 'bootstrapping' ? (
+            <button
+              onClick={() => navigate('/node-sync')}
+              className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
+              title="Click to view node progress"
+            >
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              {nodeStage === 'bootstrapping' ? 'Bootstrapping' : 'Starting'}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/node-sync')}
+              className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all cursor-pointer"
+              title="Node offline - click to start"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></span>
+              Node Offline
+            </button>
+          )}
+          {/* WASM Prover Indicator */}
           {wasmReady ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
@@ -702,39 +750,13 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
               title="Click to view loading progress"
             >
-              <svg
-                className="w-3 h-3 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               Prover {Math.round(wasmProgress)}%
             </button>
-          ) : (
-            <button
-              onClick={() => navigate('/loading')}
-              className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all cursor-pointer"
-              title="Load prover for listings, decryption & accepting bids"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              Load Prover
-            </button>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-4">
           {/* Create Listing Button */}

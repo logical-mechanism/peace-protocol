@@ -425,11 +425,65 @@ Each phase is designed to be **independently workable** in a separate AI context
 
 ---
 
-## Phase 2: Local Node Infrastructure [ ]
+## Phase 2: Local Node Infrastructure [x]
 
 **Goal**: Manage cardano-node, Ogmios, Kupo, and Mithril as child processes from Tauri. Provide sync status to the frontend.
 
 **Inputs**: Phase 0 scaffold
+
+### Implementation Status
+
+**All code is written, compiles, and runs.** Both previous runtime issues are resolved. Mithril bootstrap downloads the preprod snapshot (~3.3GB, ~3 min), cardano-node replays the ledger from the snapshot (~10-30 min for preprod), then Ogmios and Kupo start automatically.
+
+#### What's Done (compiles, not fully tested at runtime):
+- `src-tauri/src/config.rs` — AppConfig with Network enum, directory helpers, Mithril URLs
+- `src-tauri/src/process/mod.rs` — module declarations
+- `src-tauri/src/process/manager.rs` — NodeManager with Arc<Mutex<HashMap>> process tracking, sidecar spawning via tauri-plugin-shell, stdout/stderr capture, Tauri event emission
+- `src-tauri/src/process/cardano.rs` — CardanoNodeConfig, bundled config file copying from resources, CLI arg building
+- `src-tauri/src/process/ogmios.rs` — args, health check, sync progress from /health endpoint
+- `src-tauri/src/process/kupo.rs` — args, health check, default match patterns
+- `src-tauri/src/process/mithril.rs` — digest fetching from aggregator API, progress parsing
+- `src-tauri/src/commands/node.rs` — 6 Tauri commands (get_node_status, get_process_status, start_node, stop_node, start_mithril_bootstrap, get_process_logs), orchestrated startup (mithril → cardano-node → ogmios → kupo)
+- `src-tauri/src/commands/config.rs` — 4 Tauri commands (get_network, set_network, get_data_dir, get_app_config)
+- `src-tauri/src/lib.rs` — updated with config/process modules, shell plugin, state management, graceful shutdown
+- `fe/src/contexts/NodeContext.tsx` — NodeProvider with event listeners + 5s polling
+- `fe/src/pages/NodeSync.tsx` — full sync UI with progress bar, stage indicator, console log
+- `fe/src/App.tsx` — /node-sync route, root redirect based on wallet + node state
+- `fe/src/pages/Dashboard.tsx` — node sync indicator in nav (green/yellow/red/gray dot)
+- `src-tauri/capabilities/default.json` — shell:allow-spawn, shell:allow-kill added
+- `src-tauri/resources/cardano/preprod/` — config.json, topology.json, all genesis files present
+
+#### Resolved: WebKitGTK Crash
+
+**Fix**: Clearing the WebKit cache directory resolves the intermittent crash:
+```bash
+rm -rf ~/.local/share/com.peace-protocol.veiled-desktop/{WebKitCache,CacheStorage,storage,mediakeys,hsts-storage.sqlite}
+```
+Combined with the env vars already in `lib.rs`:
+```rust
+std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
+```
+
+#### Resolved: Mithril Client Command
+
+**Fix**: Use `cardano-db download <digest> --backend v1` instead of the deprecated `snapshot download`.
+- The raw HTTP API at `/artifact/snapshots` returns a `digest` field (not `hash` — the CLI reformats it)
+- The v2 backend has a server-side bug on preprod; `--backend v1` works correctly
+- v1 backend extracts to a `db/` subdirectory within `--download-dir`
+- cardano-node `--database-path` must point to that `db/` subdirectory
+
+#### Configuration Notes
+
+- `tauri.conf.json` has `externalBin` in bundle config for all 4 sidecars
+- `capabilities/default.json` has **scoped** `shell:allow-spawn` with `"sidecar": true` for each binary — bare `shell:allow-spawn` is insufficient
+- In dev mode, `resource_dir()` points to `target/debug/` which may have stale resources; the code falls back to `src-tauri/resources/` (source tree)
+- `devUrl` is `"http://127.0.0.1:5173"` (not localhost — WebKitGTK DNS workaround)
+- `reqwest` needs `rustls-tls` feature for HTTPS: `reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }`
+- Preprod config files include `peer-snapshot.json` (required by cardano-node 10.5.x with GenesisMode)
+- Real binaries are in `src-tauri/binaries/` with `-x86_64-unknown-linux-gnu` suffix (gitignored)
+
+### Original Task List
 
 **Tasks**:
 1. **Rust: Process manager** (`src-tauri/src/process/manager.rs`)

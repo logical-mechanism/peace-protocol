@@ -6,6 +6,16 @@
   "permissions": [
     "core:default",
     "core:window:default",
-    "core:window:allow-set-title"
+    "core:window:allow-set-title",
+    "shell:allow-kill",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        { "name": "binaries/cardano-node", "sidecar": true },
+        { "name": "binaries/ogmios", "sidecar": true },
+        { "name": "binaries/kupo", "sidecar": true },
+        { "name": "binaries/mithril-client", "sidecar": true }
+      ]
+    }
   ]
 }

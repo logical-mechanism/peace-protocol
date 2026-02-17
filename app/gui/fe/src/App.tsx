@@ -1,11 +1,14 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useWalletContext } from './contexts/WalletContext'
+import { useNode } from './contexts/NodeContext'
 import Dashboard from './pages/Dashboard'
 import WalletSetup from './pages/WalletSetup'
 import WalletUnlock from './pages/WalletUnlock'
+import NodeSync from './pages/NodeSync'
 
 function App() {
   const { walletState } = useWalletContext()
+  const { stage: nodeStage } = useNode()
 
   if (walletState === 'loading') {
     return (
@@ -41,6 +44,16 @@ function App() {
         }
       />
       <Route
+        path="/node-sync"
+        element={
+          walletState === 'unlocked' ? (
+            <NodeSync />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
         path="/dashboard"
         element={
           walletState === 'unlocked' ? (
@@ -50,7 +63,7 @@ function App() {
           )
         }
       />
-      {/* Root redirect based on wallet state */}
+      {/* Root redirect based on wallet state, then node state */}
       <Route
         path="/"
         element={
@@ -58,6 +71,8 @@ function App() {
             <Navigate to="/wallet-setup" replace />
           ) : walletState === 'locked' ? (
             <Navigate to="/wallet-unlock" replace />
+          ) : nodeStage === 'stopped' || nodeStage === 'bootstrapping' ? (
+            <Navigate to="/node-sync" replace />
           ) : (
             <Navigate to="/dashboard" replace />
           )

@@ -31,7 +31,7 @@ export default defineConfig({
     host: '0.0.0.0',
     hmr: {
       protocol: 'ws',
-      host: 'localhost',
+      host: '127.0.0.1',
       port: 5173,
     },
     watch: {
