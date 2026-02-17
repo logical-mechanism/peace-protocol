@@ -67,11 +67,11 @@ export interface CreateEncryptionResult {
 }
 
 /**
- * Check if WASM gt_to_hash is available via the worker.
+ * Check if native gt_to_hash is available via the snark CLI.
+ * Always true in the desktop app (no WASM worker initialization needed).
  */
 function isWasmGtToHashAvailable(): boolean {
-  const prover = getSnarkProver();
-  return prover.isWorkerReady();
+  return true;
 }
 
 /**

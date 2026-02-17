@@ -66,6 +66,12 @@ pub fn run() {
             commands::config::set_network,
             commands::config::get_data_dir,
             commands::config::get_app_config,
+            // SNARK commands (Phase 4)
+            commands::snark::snark_check_setup,
+            commands::snark::snark_decompress_setup,
+            commands::snark::snark_gt_to_hash,
+            commands::snark::snark_decrypt_to_hash,
+            commands::snark::snark_prove,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

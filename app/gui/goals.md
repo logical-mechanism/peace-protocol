@@ -643,7 +643,7 @@ std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
 
 ---
 
-## Phase 4: Native SNARK Prover [ ]
+## Phase 4: Native SNARK Prover [x]
 
 **Goal**: Replace the browser WASM SNARK prover with native `snark_cli` invocation via Tauri. Ship setup files compressed in the installer.
 

@@ -34,11 +34,11 @@ import { getSnarkProver } from '../snark';
 import { deriveSecretFromWallet } from './walletSecret';
 
 /**
- * Check if WASM decrypt_to_hash is available via the worker.
+ * Check if native decrypt_to_hash is available via the snark CLI.
+ * Always true in the desktop app (no WASM worker initialization needed).
  */
 export function isWasmDecryptAvailable(): boolean {
-  const prover = getSnarkProver();
-  return prover.isWorkerReady();
+  return true;
 }
 
 /**

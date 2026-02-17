@@ -35,13 +35,15 @@
     ],
     "resources": [
       "resources/config.json",
-      "resources/cardano/**/*"
+      "resources/cardano/**/*",
+      "resources/snark/**/*"
     ],
     "externalBin": [
       "binaries/cardano-node",
       "binaries/ogmios",
       "binaries/kupo",
-      "binaries/mithril-client"
+      "binaries/mithril-client",
+      "binaries/snark"
     ]
   }
 }

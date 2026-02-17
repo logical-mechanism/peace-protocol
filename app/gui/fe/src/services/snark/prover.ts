@@ -1,8 +1,9 @@
 /**
- * SNARK Prover Service
+ * SNARK Prover Service (Native Desktop)
  *
- * High-level API for generating Groth16 proofs in the browser.
- * Manages the Web Worker, file caching, and proof generation.
+ * Invokes the native snark CLI binary via Tauri for proof generation,
+ * GT hashing, and decryption hashing. Replaces the WASM Web Worker
+ * approach with sub-second hash operations and ~3 minute proof generation.
  *
  * Usage:
  *   const prover = new SnarkProver()
@@ -10,13 +11,7 @@
  *   const proof = await prover.generateProof({ a, r, v, w0, w1 })
  */
 
-import { snarkStorage, formatBytes, EXPECTED_FILE_SIZES } from './storage'
-import type {
-  WorkerMessage,
-  WorkerResponse,
-  HashResponse,
-  HashErrorResponse,
-} from './worker'
+import { invoke } from '@tauri-apps/api/core'
 
 export interface SnarkProofInputs {
   /** Secret scalar 'a' (hex string or decimal string) */
@@ -37,14 +32,9 @@ export interface SnarkProof {
 }
 
 export interface ProvingProgress {
-  stage: 'checking-cache' | 'downloading' | 'loading-wasm' | 'loading-keys' | 'proving' | 'complete'
+  stage: 'checking-setup' | 'proving' | 'complete'
   message: string
   percent: number
-  downloadProgress?: {
-    fileName: string
-    loaded: number
-    total: number
-  }
 }
 
 export interface ProverConfig {
@@ -52,212 +42,48 @@ export interface ProverConfig {
   useStubs?: boolean
   /** Stub proof delay in milliseconds */
   stubDelayMs?: number
-  /** Base URL for SNARK files (default: '/snark') */
-  baseUrl?: string
-  /** URLs for circuit files (for loading from external locations like file://) */
-  circuitFilesUrl?: string
 }
 
 export class SnarkProver {
-  private worker: Worker | null = null
-  private isInitialized = false
-  private initPromise: Promise<void> | null = null
+  private setupChecked = false
   private config: Required<ProverConfig>
-  private hashRequestId = 0
-  private pendingHashRequests = new Map<string, { resolve: (hash: string) => void; reject: (error: Error) => void }>()
 
   constructor(config: ProverConfig = {}) {
     this.config = {
       useStubs: config.useStubs ?? import.meta.env.VITE_USE_STUBS === 'true',
       stubDelayMs: config.stubDelayMs ?? 3000,
-      baseUrl: config.baseUrl ?? '/snark',
-      circuitFilesUrl: config.circuitFilesUrl ?? '',
     }
   }
 
   /**
-   * Check if SNARK files are cached in IndexedDB
+   * Check if SNARK setup files exist on disk
    */
-  async checkCache(): Promise<{ cached: boolean; sizes: { pk: number | null; ccs: number | null } }> {
-    const cached = await snarkStorage.hasAllFiles()
-    const sizes = await snarkStorage.getCachedFileSizes()
-    console.log('[SnarkProver] checkCache: cached =', cached, 'sizes =', sizes)
-    return { cached, sizes }
+  async checkSetup(): Promise<boolean> {
+    if (this.config.useStubs) return true
+    return invoke<boolean>('snark_check_setup')
   }
 
   /**
-   * Download SNARK files if not cached
-   *
-   * @param onProgress - Progress callback for download updates
-   * @returns true if files were downloaded, false if already cached
-   */
-  async ensureFilesDownloaded(
-    onProgress?: (progress: ProvingProgress) => void
-  ): Promise<boolean> {
-    console.log('[SnarkProver] ensureFilesDownloaded: checking cache...')
-    const { cached, sizes } = await this.checkCache()
-    console.log('[SnarkProver] ensureFilesDownloaded: cached =', cached, 'sizes =', sizes)
-
-    if (cached) {
-      console.log('[SnarkProver] ensureFilesDownloaded: files already cached, skipping download')
-      onProgress?.({
-        stage: 'checking-cache',
-        message: 'SNARK files already cached',
-        percent: 100,
-      })
-      return false
-    }
-
-    console.log('[SnarkProver] ensureFilesDownloaded: files not cached, starting download...')
-    // Download files
-    const filesToDownload = [
-      { name: 'pk.bin', size: EXPECTED_FILE_SIZES['pk.bin'] },
-      { name: 'ccs.bin', size: EXPECTED_FILE_SIZES['ccs.bin'] },
-    ]
-
-    const totalSize = filesToDownload.reduce((sum, f) => sum + f.size, 0)
-    let downloadedSize = 0
-
-    for (const file of filesToDownload) {
-      const url = this.config.circuitFilesUrl
-        ? `${this.config.circuitFilesUrl}/${file.name}`
-        : `${this.config.baseUrl}/${file.name}`
-
-      await snarkStorage.downloadAndCache(url, file.name, (progress) => {
-        const overallPercent = Math.round(
-          ((downloadedSize + progress.loaded) / totalSize) * 100
-        )
-        onProgress?.({
-          stage: 'downloading',
-          message: `Downloading ${file.name}...`,
-          percent: overallPercent,
-          downloadProgress: {
-            fileName: file.name,
-            loaded: progress.loaded,
-            total: progress.total,
-          },
-        })
-      })
-
-      downloadedSize += file.size
-      console.log(`[SnarkProver] ensureFilesDownloaded: ${file.name} downloaded and cached`)
-    }
-
-    console.log('[SnarkProver] ensureFilesDownloaded: all files downloaded')
-    return true
-  }
-
-  /**
-   * Get total size of files to download (for UI display)
-   */
-  getTotalDownloadSize(): number {
-    return EXPECTED_FILE_SIZES['pk.bin'] + EXPECTED_FILE_SIZES['ccs.bin']
-  }
-
-  /**
-   * Initialize the prover (loads WASM and proving keys)
-   *
-   * @param onProgress - Progress callback for initialization updates
+   * Initialize the prover: verify setup files exist, decompress if needed.
    */
   async initialize(onProgress?: (progress: ProvingProgress) => void): Promise<void> {
-    if (this.isInitialized) return
-
-    if (this.initPromise) {
-      return this.initPromise
+    if (this.setupChecked) return
+    if (this.config.useStubs) {
+      this.setupChecked = true
+      onProgress?.({ stage: 'complete', message: 'Prover ready (stub mode)', percent: 100 })
+      return
     }
 
-    this.initPromise = this._doInitialize(onProgress)
-    return this.initPromise
-  }
+    onProgress?.({ stage: 'checking-setup', message: 'Checking setup files...', percent: 0 })
 
-  private async _doInitialize(onProgress?: (progress: ProvingProgress) => void): Promise<void> {
-    try {
-      // Step 1: Ensure files are downloaded (even in stub mode, for the WASM module)
-      console.log('[SnarkProver] _doInitialize: starting, calling ensureFilesDownloaded...')
-      const downloaded = await this.ensureFilesDownloaded(onProgress)
-      console.log('[SnarkProver] _doInitialize: ensureFilesDownloaded returned', downloaded)
-
-      // Step 2: Create and initialize the worker
-      // Even in stub mode, we create the worker for hash functions (gtToHash, decryptToHash)
-      onProgress?.({
-        stage: 'loading-wasm',
-        message: 'Loading WASM prover...',
-        percent: 0,
-      })
-
-      // Load files from IndexedDB
-      console.log('[SnarkProver] _doInitialize: loading files from IndexedDB...')
-      const pkFile = await snarkStorage.getFile('pk.bin')
-      const ccsFile = await snarkStorage.getFile('ccs.bin')
-      console.log('[SnarkProver] _doInitialize: pkFile =', pkFile ? `${pkFile.size} bytes` : 'null')
-      console.log('[SnarkProver] _doInitialize: ccsFile =', ccsFile ? `${ccsFile.size} bytes` : 'null')
-
-      if (!pkFile || !ccsFile) {
-        console.error('[SnarkProver] _doInitialize: files missing after ensureFilesDownloaded!')
-        throw new Error('Proving keys not found in cache')
-      }
-
-      // Create worker
-      this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-
-      // Set up permanent message handler for hash responses
-      this.worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
-        const msg = event.data
-        if (msg.type === 'hash' || msg.type === 'hashError') {
-          this.handleHashResponse(msg as HashResponse | HashErrorResponse)
-        }
-      })
-
-      // Wait for worker to initialize
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Worker initialization timeout'))
-        }, 3 * 60 * 60 * 1000) // 3 hour timeout (proving key deserialization can take 100+ minutes)
-
-        const handleMessage = (event: MessageEvent<WorkerResponse>) => {
-          const msg = event.data
-
-          if (msg.type === 'progress') {
-            onProgress?.({
-              stage: msg.stage as ProvingProgress['stage'],
-              message: msg.message,
-              percent: msg.percent ?? 0,
-            })
-          } else if (msg.type === 'ready') {
-            clearTimeout(timeout)
-            this.worker?.removeEventListener('message', handleMessage)
-            resolve()
-          } else if (msg.type === 'error') {
-            clearTimeout(timeout)
-            this.worker?.removeEventListener('message', handleMessage)
-            reject(new Error(msg.message))
-          }
-        }
-
-        this.worker!.addEventListener('message', handleMessage)
-
-        // Send init message
-        // In stub mode, skip proving key setup but still load WASM for hash functions
-        this.worker!.postMessage({
-          type: 'init',
-          wasmUrl: `${this.config.baseUrl}/prover.wasm`,
-          pkData: pkFile.data,
-          ccsData: ccsFile.data,
-          skipProvingKeySetup: this.config.useStubs,
-        } as WorkerMessage)
-      })
-
-      onProgress?.({
-        stage: 'complete',
-        message: 'Prover ready',
-        percent: 100,
-      })
-
-      this.isInitialized = true
-    } catch (error) {
-      this.initPromise = null
-      throw error
+    const exists = await invoke<boolean>('snark_check_setup')
+    if (!exists) {
+      onProgress?.({ stage: 'checking-setup', message: 'Decompressing setup files...', percent: 10 })
+      await invoke('snark_decompress_setup')
     }
+
+    this.setupChecked = true
+    onProgress?.({ stage: 'complete', message: 'Prover ready', percent: 100 })
   }
 
   /**
@@ -270,63 +96,29 @@ export class SnarkProver {
     inputs: SnarkProofInputs,
     onProgress?: (progress: ProvingProgress) => void
   ): Promise<SnarkProof> {
-    // Ensure initialized
     await this.initialize(onProgress)
 
     if (this.config.useStubs) {
       return this._generateStubProof(onProgress)
     }
 
-    if (!this.worker) {
-      throw new Error('Worker not initialized')
-    }
+    onProgress?.({ stage: 'proving', message: 'Generating zero-knowledge proof (~3 min)...', percent: 10 })
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Proof generation timeout (exceeded 30 minutes)'))
-      }, 30 * 60 * 1000) // 30 minute timeout
-
-      const handleMessage = (event: MessageEvent<WorkerResponse>) => {
-        const msg = event.data
-
-        if (msg.type === 'progress') {
-          onProgress?.({
-            stage: 'proving',
-            message: msg.message,
-            percent: msg.percent ?? 0,
-          })
-        } else if (msg.type === 'proof') {
-          clearTimeout(timeout)
-          this.worker?.removeEventListener('message', handleMessage)
-          resolve({
-            proofJson: msg.proofJson,
-            publicJson: msg.publicJson,
-          })
-        } else if (msg.type === 'error') {
-          clearTimeout(timeout)
-          this.worker?.removeEventListener('message', handleMessage)
-          reject(new Error(msg.message))
-        }
-      }
-
-      this.worker!.addEventListener('message', handleMessage)
-
-      // Send prove message
-      this.worker!.postMessage({
-        type: 'prove',
-        secretA: inputs.secretA,
-        secretR: inputs.secretR,
-        publicV: inputs.publicV,
-        publicW0: inputs.publicW0,
-        publicW1: inputs.publicW1,
-      } as WorkerMessage)
+    const result = await invoke<{ proofJson: string; publicJson: string }>('snark_prove', {
+      a: inputs.secretA,
+      r: inputs.secretR,
+      v: inputs.publicV,
+      w0: inputs.publicW0,
+      w1: inputs.publicW1,
     })
+
+    onProgress?.({ stage: 'complete', message: 'Proof generated', percent: 100 })
+    return result
   }
 
   private async _generateStubProof(
     onProgress?: (progress: ProvingProgress) => void
   ): Promise<SnarkProof> {
-    // Simulate proving with delays
     const steps = 10
     const delayPerStep = this.config.stubDelayMs / steps
 
@@ -339,7 +131,6 @@ export class SnarkProver {
       })
     }
 
-    // Return stub proof
     const stubProof = {
       piA: 'a'.repeat(96),
       piB: 'b'.repeat(192),
@@ -360,83 +151,21 @@ export class SnarkProver {
   }
 
   /**
-   * Terminate the worker and clean up resources
-   */
-  dispose() {
-    if (this.worker) {
-      this.worker.terminate()
-      this.worker = null
-    }
-    this.isInitialized = false
-    this.initPromise = null
-  }
-
-  /**
-   * Clear cached SNARK files
-   */
-  async clearCache(): Promise<void> {
-    await snarkStorage.clearCache()
-  }
-
-  /**
-   * Check if the worker is available for hash operations.
-   * Hash operations are available once the WASM loads, before the full proving key setup.
-   */
-  isWorkerReady(): boolean {
-    return this.worker !== null
-  }
-
-  /**
    * Compute GT hash from scalar a.
-   * This is a lightweight operation available once WASM loads.
    * Used for creating encryption listings.
    *
    * @param secretA - Secret scalar (hex string with 0x prefix or decimal)
    * @returns Hash as hex string (56 chars)
    */
   async gtToHash(secretA: string): Promise<string> {
-    if (!this.worker) {
-      throw new Error('Worker not initialized. Call initialize() first.')
+    if (this.config.useStubs) {
+      return 'stub_hash_' + secretA.slice(0, 20).padEnd(46, '0')
     }
-
-    const id = `gtToHash-${++this.hashRequestId}`
-
-    return new Promise((resolve, reject) => {
-      this.pendingHashRequests.set(id, { resolve, reject })
-
-      const timeout = setTimeout(() => {
-        this.pendingHashRequests.delete(id)
-        reject(new Error('gtToHash timeout'))
-      }, 30000) // 30 second timeout
-
-      const cleanup = () => {
-        clearTimeout(timeout)
-        this.pendingHashRequests.delete(id)
-      }
-
-      // Wrap resolve/reject to include cleanup
-      const wrappedResolve = (hash: string) => {
-        cleanup()
-        resolve(hash)
-      }
-      const wrappedReject = (error: Error) => {
-        cleanup()
-        reject(error)
-      }
-
-      this.pendingHashRequests.set(id, { resolve: wrappedResolve, reject: wrappedReject })
-
-      this.worker!.postMessage({
-        type: 'gtToHash',
-        id,
-        secretA,
-      } as WorkerMessage)
-    })
+    return invoke<string>('snark_gt_to_hash', { a: secretA })
   }
 
   /**
    * Compute decryption hash.
-   * This is a lightweight operation available once WASM loads.
    * Used for decrypting encrypted data.
    *
    * @param g1b - G1 point (96 hex chars)
@@ -446,62 +175,17 @@ export class SnarkProver {
    * @returns Hash as hex string (56 chars)
    */
   async decryptToHash(g1b: string, r1: string, shared: string, g2b: string = ''): Promise<string> {
-    if (!this.worker) {
-      throw new Error('Worker not initialized. Call initialize() first.')
+    if (this.config.useStubs) {
+      return 'stub_decrypt_hash_' + g1b.slice(0, 20).padEnd(38, '0')
     }
-
-    const id = `decryptToHash-${++this.hashRequestId}`
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingHashRequests.delete(id)
-        reject(new Error('decryptToHash timeout'))
-      }, 30000) // 30 second timeout
-
-      const cleanup = () => {
-        clearTimeout(timeout)
-        this.pendingHashRequests.delete(id)
-      }
-
-      // Wrap resolve/reject to include cleanup
-      const wrappedResolve = (hash: string) => {
-        cleanup()
-        resolve(hash)
-      }
-      const wrappedReject = (error: Error) => {
-        cleanup()
-        reject(error)
-      }
-
-      this.pendingHashRequests.set(id, { resolve: wrappedResolve, reject: wrappedReject })
-
-      this.worker!.postMessage({
-        type: 'decryptToHash',
-        id,
-        g1b,
-        r1,
-        shared,
-        g2b,
-      } as WorkerMessage)
-    })
+    return invoke<string>('snark_decrypt_to_hash', { g1b, r1, shared, g2b })
   }
 
   /**
-   * Handle hash responses from worker.
-   * Called internally when worker sends hash or hashError messages.
+   * No-op in native mode (no worker to terminate)
    */
-  private handleHashResponse(msg: HashResponse | HashErrorResponse) {
-    const pending = this.pendingHashRequests.get(msg.id)
-    if (!pending) {
-      console.warn(`[SnarkProver] Received hash response for unknown request: ${msg.id}`)
-      return
-    }
-
-    if (msg.type === 'hash') {
-      pending.resolve(msg.hash)
-    } else {
-      pending.reject(new Error(msg.error))
-    }
+  dispose() {
+    this.setupChecked = false
   }
 }
 
@@ -514,6 +198,3 @@ export function getSnarkProver(config?: ProverConfig): SnarkProver {
   }
   return defaultProver
 }
-
-// Re-export utilities
-export { formatBytes, EXPECTED_FILE_SIZES }

@@ -1,18 +1,15 @@
 /**
  * React hook for SNARK proof generation.
  *
- * Provides a simple interface for checking cache status, downloading files,
- * and generating proofs with proper React state management.
+ * Provides a simple interface for checking setup status and
+ * generating proofs with proper React state management.
  *
  * Usage:
  *   const {
  *     isReady,
- *     isCached,
  *     isProving,
  *     progress,
  *     error,
- *     checkCache,
- *     downloadFiles,
  *     generateProof,
  *   } = useSnarkProver()
  */
@@ -22,39 +19,28 @@ import { getSnarkProver } from '../services/snark'
 import type { SnarkProofInputs, SnarkProof, ProvingProgress } from '../services/snark'
 
 export interface UseSnarkProverResult {
-  /** Whether the prover is fully initialized and ready */
+  /** Whether the prover setup files exist and are ready */
   isReady: boolean
-  /** Whether SNARK files are cached in IndexedDB */
-  isCached: boolean | null
   /** Whether proof generation is in progress */
   isProving: boolean
-  /** Whether files are being downloaded */
-  isDownloading: boolean
   /** Current progress information */
   progress: ProvingProgress | null
   /** Last error message */
   error: string | null
-  /** Check if files are cached */
-  checkCache: () => Promise<boolean>
-  /** Download and cache SNARK files */
-  downloadFiles: () => Promise<void>
+  /** Check if setup files exist */
+  checkSetup: () => Promise<boolean>
   /** Generate a SNARK proof */
   generateProof: (inputs: SnarkProofInputs) => Promise<SnarkProof | null>
   /** Clear the error state */
   clearError: () => void
-  /** Clear cached files */
-  clearCache: () => Promise<void>
 }
 
 export function useSnarkProver(): UseSnarkProverResult {
   const [isReady, setIsReady] = useState(false)
-  const [isCached, setIsCached] = useState<boolean | null>(null)
   const [isProving, setIsProving] = useState(false)
-  const [isDownloading, setIsDownloading] = useState(false)
   const [progress, setProgress] = useState<ProvingProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Keep track of mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -64,51 +50,20 @@ export function useSnarkProver(): UseSnarkProverResult {
     }
   }, [])
 
-  const checkCache = useCallback(async (): Promise<boolean> => {
+  const checkSetup = useCallback(async (): Promise<boolean> => {
     try {
       const prover = getSnarkProver()
-      const { cached } = await prover.checkCache()
+      const exists = await prover.checkSetup()
       if (isMountedRef.current) {
-        setIsCached(cached)
+        setIsReady(exists)
       }
-      return cached
+      return exists
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to check cache'
+      const message = err instanceof Error ? err.message : 'Failed to check setup'
       if (isMountedRef.current) {
         setError(message)
       }
       return false
-    }
-  }, [])
-
-  const downloadFiles = useCallback(async (): Promise<void> => {
-    if (isMountedRef.current) {
-      setIsDownloading(true)
-      setError(null)
-      setProgress(null)
-    }
-
-    try {
-      const prover = getSnarkProver()
-      await prover.ensureFilesDownloaded((prog) => {
-        if (isMountedRef.current) {
-          setProgress(prog)
-        }
-      })
-      if (isMountedRef.current) {
-        setIsCached(true)
-        setIsReady(true)
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Download failed'
-      if (isMountedRef.current) {
-        setError(message)
-      }
-      throw err
-    } finally {
-      if (isMountedRef.current) {
-        setIsDownloading(false)
-      }
     }
   }, [])
 
@@ -146,42 +101,18 @@ export function useSnarkProver(): UseSnarkProverResult {
     }
   }, [])
 
-  const clearCache = useCallback(async (): Promise<void> => {
-    try {
-      const prover = getSnarkProver()
-      await prover.clearCache()
-      if (isMountedRef.current) {
-        setIsCached(false)
-        setIsReady(false)
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to clear cache'
-      if (isMountedRef.current) {
-        setError(message)
-      }
-    }
-  }, [])
-
-  // Check cache on mount
+  // Check setup on mount
   useEffect(() => {
-    checkCache().then((cached) => {
-      if (cached && isMountedRef.current) {
-        setIsReady(true)
-      }
-    })
-  }, [checkCache])
+    checkSetup()
+  }, [checkSetup])
 
   return {
     isReady,
-    isCached,
     isProving,
-    isDownloading,
     progress,
     error,
-    checkCache,
-    downloadFiles,
+    checkSetup,
     generateProof,
     clearError,
-    clearCache,
   }
 }
