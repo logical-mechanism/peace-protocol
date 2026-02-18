@@ -6,8 +6,12 @@ mod process;
 use commands::wallet::WalletState;
 use config::AppConfig;
 use process::manager::NodeManager;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::Manager;
+
+/// Global flag to prevent duplicate shutdown attempts.
+static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -47,6 +51,32 @@ pub fn run() {
 
             Ok(())
         })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Prevent the window from closing immediately — the 30s
+                // process shutdown would block the event loop and trigger
+                // the OS "force quit" dialog.
+                api.prevent_close();
+
+                if SHUTTING_DOWN.swap(true, Ordering::SeqCst) {
+                    // Already shutting down from a previous click; skip.
+                    return;
+                }
+
+                let app_handle = window.app_handle().clone();
+
+                // Hide the window immediately so the user sees instant feedback.
+                let _ = window.hide();
+
+                // Run the blocking shutdown on a dedicated thread so the
+                // Tauri event loop stays responsive.
+                std::thread::spawn(move || {
+                    let manager = app_handle.state::<NodeManager>();
+                    manager.kill_all_sync();
+                    app_handle.exit(0);
+                });
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             // Wallet commands (Phase 1)
             commands::wallet::wallet_exists,
@@ -79,11 +109,13 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
-                // Synchronous SIGKILL of all managed processes.
-                // Cannot rely on async shutdown here — tokio runtime
-                // may already be tearing down, causing block_on to deadlock.
-                let manager = app_handle.state::<NodeManager>();
-                manager.kill_all_sync();
+                // Last-resort cleanup: if the window close handler didn't
+                // run (e.g. the app was killed externally), fire-and-forget
+                // SIGTERMs without waiting so we don't block here.
+                if !SHUTTING_DOWN.load(Ordering::SeqCst) {
+                    let manager = app_handle.state::<NodeManager>();
+                    manager.sigterm_all();
+                }
             }
         });
 }

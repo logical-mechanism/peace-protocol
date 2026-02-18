@@ -165,6 +165,7 @@ export default function NodeSync() {
   const [showConsole, setShowConsole] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const timerRef = useRef<number | null>(null)
+  const wasBootstrappingRef = useRef(false)
 
   // Elapsed timer when not stopped
   useEffect(() => {
@@ -179,6 +180,19 @@ export default function NodeSync() {
       if (timerRef.current) clearInterval(timerRef.current)
     }
   }, [stage])
+
+  // Auto-start node stack after Mithril bootstrap completes.
+  // Detects bootstrapping→stopped transition with needsBootstrap=false
+  // (confirms chain data now exists on disk).
+  useEffect(() => {
+    if (stage === 'bootstrapping') {
+      wasBootstrappingRef.current = true
+    }
+    if (wasBootstrappingRef.current && stage === 'stopped' && !needsBootstrap) {
+      wasBootstrappingRef.current = false
+      startNode(address ?? '')
+    }
+  }, [stage, needsBootstrap, startNode, address])
 
   // Navigate to dashboard when synced
   const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99)

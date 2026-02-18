@@ -391,6 +391,13 @@ impl NodeManager {
                             }
                         }
 
+                        // Emit structured mithril-progress events for the download UI
+                        if process_name == "mithril-client" {
+                            if let Some(progress) = crate::process::mithril::parse_mithril_output(&line) {
+                                let _ = app_handle.emit("mithril-progress", progress);
+                            }
+                        }
+
                         let _ = app_handle.emit(
                             "process-status",
                             ProcessEvent {
@@ -571,6 +578,12 @@ impl NodeManager {
                                                                             if proc.log_buffer.len() > LOG_BUFFER_SIZE {
                                                                                 proc.log_buffer.remove(0);
                                                                             }
+                                                                        }
+                                                                    }
+                                                                    // Emit structured mithril-progress events for the download UI
+                                                                    if pname3 == "mithril-client" {
+                                                                        if let Some(progress) = crate::process::mithril::parse_mithril_output(&line) {
+                                                                            let _ = app3.emit("mithril-progress", progress);
                                                                         }
                                                                     }
                                                                     let _ = app3.emit("process-status", ProcessEvent {
@@ -1031,6 +1044,27 @@ impl NodeManager {
             }
 
             std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+
+        let _ = std::fs::remove_file(&self.pid_file);
+    }
+
+    /// Fire-and-forget SIGTERM to all tracked processes.
+    /// Used as a last-resort in RunEvent::Exit where we must not block.
+    pub fn sigterm_all(&self) {
+        let mut all_pids: Vec<u32> = Vec::new();
+
+        if let Ok(contents) = std::fs::read_to_string(&self.pid_file) {
+            if let Ok(pids) = serde_json::from_str::<Vec<u32>>(&contents) {
+                all_pids.extend(pids);
+            }
+        }
+
+        for pid in &all_pids {
+            eprintln!("[NodeManager] Exit (fallback): SIGTERM pid={pid}");
+            let _ = std::process::Command::new("kill")
+                .args(["-TERM", &pid.to_string()])
+                .output();
         }
 
         let _ = std::fs::remove_file(&self.pid_file);
