@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWalletContext } from '../contexts/WalletContext'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 export default function WalletUnlock() {
   const { unlockWallet, deleteWallet } = useWalletContext()
@@ -116,13 +117,14 @@ export default function WalletUnlock() {
           <button
             onClick={handleUnlock}
             disabled={!password || isUnlocking}
-            className="w-full px-6 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full px-6 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             style={{
               background:
                 password && !isUnlocking ? 'var(--accent)' : 'var(--bg-elevated)',
               color: '#fff',
             }}
           >
+            {isUnlocking && <LoadingSpinner size="sm" className="text-white" />}
             {isUnlocking ? 'Unlocking...' : 'Unlock'}
           </button>
 

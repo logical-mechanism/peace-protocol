@@ -1,5 +1,5 @@
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
@@ -43,7 +43,7 @@ const TABS: Tab[] = [
 ];
 
 export default function Dashboard() {
-  const { disconnect, wallet } = useWalletContext()
+  const { disconnect, wallet, refreshBalance } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
@@ -98,6 +98,17 @@ export default function Dashboard() {
       setTxHistory([])
     }
   }, [userPkh, historyKey])
+
+  // Eagerly refresh balance when Dashboard mounts and node is synced.
+  // Covers the gap between wallet unlock (lovelace=null) and the first
+  // tipSlot change (~20s). Only fires once via ref guard.
+  const initialBalanceFetched = useRef(false)
+  useEffect(() => {
+    if (nodeStage === 'synced' && !initialBalanceFetched.current) {
+      initialBalanceFetched.current = true
+      refreshBalance()
+    }
+  }, [nodeStage, refreshBalance])
 
   // Record a transaction and schedule auto-refresh with escalating retries.
   // Txs can sit in the mempool for over a minute, so a single 20s check isn't enough.

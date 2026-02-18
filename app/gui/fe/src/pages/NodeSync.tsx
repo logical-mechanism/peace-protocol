@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNode, type NodeStage } from '../contexts/NodeContext'
 import { useWalletContext } from '../contexts/WalletContext'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
@@ -164,6 +165,7 @@ export default function NodeSync() {
 
   const [showConsole, setShowConsole] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
+  const [isStarting, setIsStarting] = useState(false)
   const timerRef = useRef<number | null>(null)
   const wasBootstrappingRef = useRef(false)
 
@@ -194,6 +196,13 @@ export default function NodeSync() {
     }
   }, [stage, needsBootstrap, startNode, address])
 
+  // Reset isStarting when stage transitions away from stopped
+  useEffect(() => {
+    if (stage !== 'stopped') {
+      setIsStarting(false)
+    }
+  }, [stage])
+
   // Navigate to dashboard when synced
   const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99)
 
@@ -202,10 +211,15 @@ export default function NodeSync() {
   }
 
   const handleStart = async () => {
-    if (needsBootstrap) {
-      await startBootstrap()
-    } else {
-      await startNode(address ?? '')
+    setIsStarting(true)
+    try {
+      if (needsBootstrap) {
+        await startBootstrap()
+      } else {
+        await startNode(address ?? '')
+      }
+    } catch {
+      setIsStarting(false)
     }
   }
 
@@ -370,9 +384,15 @@ export default function NodeSync() {
             {stage === 'stopped' && (
               <button
                 onClick={handleStart}
-                className="flex-1 py-3 px-4 bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer"
+                disabled={isStarting}
+                className="flex-1 py-3 px-4 bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {needsBootstrap ? 'Download Snapshot & Start' : 'Start Node'}
+                {isStarting && <LoadingSpinner size="sm" className="text-white" />}
+                {isStarting
+                  ? 'Starting...'
+                  : needsBootstrap
+                  ? 'Download Snapshot & Start'
+                  : 'Start Node'}
               </button>
             )}
 
