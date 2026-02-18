@@ -204,6 +204,22 @@ function decodeCborItem(data: Uint8Array, offset: number): [unknown, number] {
     }
 
     case 2: { // Byte string
+      if (additional === 31) {
+        // Indefinite-length byte string: concatenate chunks until break (0xff).
+        // Cardano's CBOR encoding splits byte strings >64 bytes into chunks,
+        // so all G2 points (96 bytes) use this encoding.
+        let hex = '';
+        let pos = offset + 1;
+        while (data[pos] !== 0xff) {
+          const chunkAdditional = data[pos] & 0x1f;
+          const [chunkLen, chunkDataOffset] = decodeRawUint(chunkAdditional, data, pos + 1);
+          hex += Array.from(data.slice(chunkDataOffset, chunkDataOffset + chunkLen))
+            .map((b) => b.toString(16).padStart(2, '0'))
+            .join('');
+          pos = chunkDataOffset + chunkLen;
+        }
+        return [{ bytes: hex }, pos + 1]; // skip 0xff break
+      }
       const [len, dataOffset] = decodeRawUint(additional, data, offset + 1);
       const hex = Array.from(data.slice(dataOffset, dataOffset + len))
         .map((b) => b.toString(16).padStart(2, '0'))

@@ -111,7 +111,10 @@ impl NodeManager {
         mgr
     }
 
-    /// Kill orphaned processes tracked in the PID file from a previous session.
+    /// Kill orphaned processes from a previous session.
+    /// Sends SIGTERM first and waits up to 10 seconds before SIGKILL,
+    /// in case the previous session's shutdown is still in progress
+    /// (e.g., cardano-node flushing ledger state).
     fn kill_orphans_from_pid_file(&self) {
         let contents = match std::fs::read_to_string(&self.pid_file) {
             Ok(c) => c,
@@ -126,20 +129,32 @@ impl NodeManager {
             }
         };
 
-        for pid in pids {
-            let alive = std::process::Command::new("kill")
-                .args(["-0", &pid.to_string()])
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false);
+        let alive_pids: Vec<u32> = pids
+            .into_iter()
+            .filter(|pid| {
+                std::process::Command::new("kill")
+                    .args(["-0", &pid.to_string()])
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false)
+            })
+            .collect();
 
-            if alive {
-                eprintln!("[NodeManager] Killing orphaned process pid={pid} from PID file");
-                let _ = std::process::Command::new("kill")
-                    .args(["-9", &pid.to_string()])
-                    .output();
-            }
+        if alive_pids.is_empty() {
+            let _ = std::fs::remove_file(&self.pid_file);
+            return;
         }
+
+        // SIGTERM first
+        for pid in &alive_pids {
+            eprintln!("[NodeManager] Sending SIGTERM to orphan pid={pid} from PID file");
+            let _ = std::process::Command::new("kill")
+                .args(["-TERM", &pid.to_string()])
+                .output();
+        }
+
+        // Wait up to 10 seconds
+        Self::wait_for_pids_to_exit(&alive_pids, 10);
 
         let _ = std::fs::remove_file(&self.pid_file);
     }
@@ -147,6 +162,8 @@ impl NodeManager {
     /// Kill any processes listening on our known ports (Express:3001, Ogmios:1337, Kupo:1442).
     /// Catches orphans even when no PID file exists (e.g., first run after adding PID tracking).
     fn kill_orphans_on_ports(&self) {
+        let mut orphan_pids: Vec<u32> = Vec::new();
+
         for port in [3001u16, 1337, 1442] {
             let output = std::process::Command::new("fuser")
                 .args([&format!("{}/tcp", port)])
@@ -156,13 +173,63 @@ impl NodeManager {
                 let pids_str = String::from_utf8_lossy(&out.stdout);
                 for token in pids_str.split_whitespace() {
                     if let Ok(pid) = token.parse::<u32>() {
-                        eprintln!("[NodeManager] Killing orphan on port {port}: pid={pid}");
-                        let _ = std::process::Command::new("kill")
-                            .args(["-9", &pid.to_string()])
-                            .output();
+                        if !orphan_pids.contains(&pid) {
+                            orphan_pids.push(pid);
+                        }
                     }
                 }
             }
+        }
+
+        if orphan_pids.is_empty() {
+            return;
+        }
+
+        // SIGTERM first
+        for pid in &orphan_pids {
+            eprintln!("[NodeManager] Sending SIGTERM to orphan on port: pid={pid}");
+            let _ = std::process::Command::new("kill")
+                .args(["-TERM", &pid.to_string()])
+                .output();
+        }
+
+        // Wait up to 10 seconds
+        Self::wait_for_pids_to_exit(&orphan_pids, 10);
+    }
+
+    /// Wait for a set of PIDs to exit, up to `timeout_secs`.
+    /// Any still alive after the timeout are SIGKILL'd.
+    fn wait_for_pids_to_exit(pids: &[u32], timeout_secs: u64) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
+
+        loop {
+            let still_alive: Vec<u32> = pids
+                .iter()
+                .copied()
+                .filter(|pid| {
+                    std::process::Command::new("kill")
+                        .args(["-0", &pid.to_string()])
+                        .output()
+                        .map(|o| o.status.success())
+                        .unwrap_or(false)
+                })
+                .collect();
+
+            if still_alive.is_empty() {
+                return;
+            }
+
+            if std::time::Instant::now() >= deadline {
+                for pid in &still_alive {
+                    eprintln!("[NodeManager] SIGKILL orphan pid={pid} (did not exit after SIGTERM)");
+                    let _ = std::process::Command::new("kill")
+                        .args(["-9", &pid.to_string()])
+                        .output();
+                }
+                return;
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(500));
         }
     }
 
@@ -885,23 +952,23 @@ impl NodeManager {
         let _ = std::fs::remove_file(&self.pid_file);
     }
 
-    /// Synchronous kill of ALL tracked processes via SIGKILL.
+    /// Synchronous graceful shutdown of ALL tracked processes.
     /// Called from the RunEvent::Exit handler where async may not work reliably.
-    /// Does NOT wait for graceful shutdown — the app is exiting anyway.
+    ///
+    /// Sends SIGTERM first and waits up to 15 seconds for processes to exit
+    /// cleanly (cardano-node needs this to flush its ledger state to disk).
+    /// Only falls back to SIGKILL for processes that don't exit in time.
     pub fn kill_all_sync(&self) {
-        // Read PIDs from the pid file (most reliable source during exit)
+        let mut all_pids: Vec<u32> = Vec::new();
+
+        // Collect PIDs from the pid file
         if let Ok(contents) = std::fs::read_to_string(&self.pid_file) {
             if let Ok(pids) = serde_json::from_str::<Vec<u32>>(&contents) {
-                for pid in &pids {
-                    eprintln!("[NodeManager] Exit: killing pid={pid}");
-                    let _ = std::process::Command::new("kill")
-                        .args(["-9", &pid.to_string()])
-                        .output();
-                }
+                all_pids.extend(pids);
             }
         }
 
-        // Also kill anything on our known ports as a safety net
+        // Also collect PIDs from known ports as a safety net
         for port in [3001u16, 1337, 1442] {
             if let Ok(out) = std::process::Command::new("fuser")
                 .args([&format!("{}/tcp", port)])
@@ -910,13 +977,60 @@ impl NodeManager {
                 let pids_str = String::from_utf8_lossy(&out.stdout);
                 for token in pids_str.split_whitespace() {
                     if let Ok(pid) = token.parse::<u32>() {
-                        eprintln!("[NodeManager] Exit: killing orphan on port {port} pid={pid}");
-                        let _ = std::process::Command::new("kill")
-                            .args(["-9", &pid.to_string()])
-                            .output();
+                        if !all_pids.contains(&pid) {
+                            all_pids.push(pid);
+                        }
                     }
                 }
             }
+        }
+
+        if all_pids.is_empty() {
+            let _ = std::fs::remove_file(&self.pid_file);
+            return;
+        }
+
+        // Step 1: Send SIGTERM to all processes
+        for pid in &all_pids {
+            eprintln!("[NodeManager] Exit: sending SIGTERM to pid={pid}");
+            let _ = std::process::Command::new("kill")
+                .args(["-TERM", &pid.to_string()])
+                .output();
+        }
+
+        // Step 2: Wait up to 15 seconds for all to exit gracefully.
+        // cardano-node needs time to flush its in-memory ledger to disk.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            let still_alive: Vec<u32> = all_pids
+                .iter()
+                .copied()
+                .filter(|pid| {
+                    std::process::Command::new("kill")
+                        .args(["-0", &pid.to_string()])
+                        .output()
+                        .map(|o| o.status.success())
+                        .unwrap_or(false)
+                })
+                .collect();
+
+            if still_alive.is_empty() {
+                eprintln!("[NodeManager] Exit: all processes exited cleanly");
+                break;
+            }
+
+            if std::time::Instant::now() >= deadline {
+                // Step 3: SIGKILL any survivors
+                for pid in &still_alive {
+                    eprintln!("[NodeManager] Exit: SIGKILL pid={pid} (did not exit after SIGTERM)");
+                    let _ = std::process::Command::new("kill")
+                        .args(["-9", &pid.to_string()])
+                        .output();
+                }
+                break;
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(500));
         }
 
         let _ = std::fs::remove_file(&self.pid_file);

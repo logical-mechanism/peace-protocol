@@ -13,6 +13,7 @@ import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
 import SnarkProvingModal from '../components/SnarkProvingModal'
+import ConfirmModal from '../components/ConfirmModal'
 import { useToast } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import {
@@ -69,6 +70,15 @@ export default function Dashboard() {
   const [acceptBidR0, setAcceptBidR0] = useState<bigint | null>(null)
   const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
   const toast = useToast()
+
+  // Confirmation modal state for destructive actions
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string
+    message: string
+    confirmLabel: string
+    onConfirm: () => Promise<void>
+  } | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
 
   // Compute payment key hash from wallet address for PKH-based filtering
   const userPkh = useMemo(() => {
@@ -189,57 +199,63 @@ export default function Dashboard() {
     setActiveTab('history')
   }, [wallet, toast, recordTransaction])
 
-  const handleRemoveListing = useCallback(async (encryption: EncryptionDisplay) => {
+  const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
       toast.error('Error', 'Wallet not connected')
       return
     }
 
-    try {
-      const result = await removeListing(wallet, {
-        tokenName: encryption.tokenName,
-        utxo: encryption.utxo,
-        datum: encryption.datum,
-      })
+    const label = encryption.description || encryption.tokenName.slice(0, 16) + '...'
+    setConfirmAction({
+      title: 'Remove Listing?',
+      message: `This will permanently remove "${label}" from the marketplace and burn the encryption token. This action submits an on-chain transaction and cannot be undone.`,
+      confirmLabel: 'Remove Listing',
+      onConfirm: async () => {
+        try {
+          const result = await removeListing(wallet, {
+            tokenName: encryption.tokenName,
+            utxo: encryption.utxo,
+            datum: encryption.datum,
+          })
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to remove listing')
-      }
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to remove listing')
+          }
 
-      if (result.isStub) {
-        toast.warning(
-          'Listing Removed (Stub Mode)',
-          `Listing removed in stub mode. No real transaction submitted.`,
-          8000
-        )
-      } else if (result.txHash) {
-        toast.transactionSuccess('Listing Removed!', result.txHash)
-      } else {
-        toast.success('Listing Removed!', 'Transaction submitted successfully')
-      }
+          if (result.isStub) {
+            toast.warning(
+              'Listing Removed (Stub Mode)',
+              `Listing removed in stub mode. No real transaction submitted.`,
+              8000
+            )
+          } else if (result.txHash) {
+            toast.transactionSuccess('Listing Removed!', result.txHash)
+          } else {
+            toast.success('Listing Removed!', 'Transaction submitted successfully')
+          }
 
-      // Record in history
-      if (result.txHash) {
-        recordTransaction({
-          txHash: result.txHash,
-          type: 'remove-listing',
-          tokenName: encryption.tokenName,
-          timestamp: Date.now(),
-          status: result.isStub ? 'confirmed' : 'pending',
-          description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
-        })
-      }
+          if (result.txHash) {
+            recordTransaction({
+              txHash: result.txHash,
+              type: 'remove-listing',
+              tokenName: encryption.tokenName,
+              timestamp: Date.now(),
+              status: result.isStub ? 'confirmed' : 'pending',
+              description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
+            })
+          }
 
-      // Refresh and switch to History tab to show pending tx
-      setRefreshKey(prev => prev + 1)
-      setActiveTab('history')
-    } catch (error) {
-      console.error('Failed to remove listing:', error)
-      toast.error(
-        'Failed to Remove Listing',
-        error instanceof Error ? error.message : 'Unknown error occurred'
-      )
-    }
+          setRefreshKey(prev => prev + 1)
+          setActiveTab('history')
+        } catch (error) {
+          console.error('Failed to remove listing:', error)
+          toast.error(
+            'Failed to Remove Listing',
+            error instanceof Error ? error.message : 'Unknown error occurred'
+          )
+        }
+      },
+    })
   }, [wallet, toast, recordTransaction])
 
   const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
@@ -363,50 +379,57 @@ export default function Dashboard() {
     }
   }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction])
 
-  const handleCancelPending = useCallback(async (encryption: EncryptionDisplay) => {
+  const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
       toast.error('Error', 'Wallet not connected')
       return
     }
 
-    try {
-      const result = await cancelPendingListing(wallet, encryption)
+    const label = encryption.description || encryption.tokenName.slice(0, 16) + '...'
+    setConfirmAction({
+      title: 'Cancel Pending Sale?',
+      message: `This will cancel the pending sale for "${label}" and return the listing to active status. This submits an on-chain transaction.`,
+      confirmLabel: 'Cancel Sale',
+      onConfirm: async () => {
+        try {
+          const result = await cancelPendingListing(wallet, encryption)
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to cancel pending listing')
-      }
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to cancel pending listing')
+          }
 
-      if (result.isStub) {
-        toast.warning(
-          'Pending Cancelled (Stub Mode)',
-          `Pending listing cancelled in stub mode. No real transaction submitted.`,
-          8000
-        )
-      } else if (result.txHash) {
-        toast.transactionSuccess('Pending Listing Cancelled!', result.txHash)
-      }
+          if (result.isStub) {
+            toast.warning(
+              'Pending Cancelled (Stub Mode)',
+              `Pending listing cancelled in stub mode. No real transaction submitted.`,
+              8000
+            )
+          } else if (result.txHash) {
+            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash)
+          }
 
-      // Record in history
-      if (result.txHash) {
-        recordTransaction({
-          txHash: result.txHash,
-          type: 'cancel-pending',
-          tokenName: encryption.tokenName,
-          timestamp: Date.now(),
-          status: result.isStub ? 'confirmed' : 'pending',
-          description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
-        })
-      }
+          if (result.txHash) {
+            recordTransaction({
+              txHash: result.txHash,
+              type: 'cancel-pending',
+              tokenName: encryption.tokenName,
+              timestamp: Date.now(),
+              status: result.isStub ? 'confirmed' : 'pending',
+              description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
+            })
+          }
 
-      setRefreshKey(prev => prev + 1)
-      setActiveTab('history')
-    } catch (error) {
-      console.error('Failed to cancel pending listing:', error)
-      toast.error(
-        'Failed to Cancel Pending',
-        error instanceof Error ? error.message : 'Unknown error occurred'
-      )
-    }
+          setRefreshKey(prev => prev + 1)
+          setActiveTab('history')
+        } catch (error) {
+          console.error('Failed to cancel pending listing:', error)
+          toast.error(
+            'Failed to Cancel Pending',
+            error instanceof Error ? error.message : 'Unknown error occurred'
+          )
+        }
+      },
+    })
   }, [wallet, toast, recordTransaction])
 
   const handleCompleteSale = useCallback(async (encryption: EncryptionDisplay) => {
@@ -477,64 +500,68 @@ export default function Dashboard() {
     }
   }, [wallet, toast, recordTransaction])
 
-  const handleCancelBid = useCallback(async (bid: BidDisplay) => {
+  const handleCancelBid = useCallback((bid: BidDisplay) => {
     if (!wallet) {
       toast.error('Error', 'Wallet not connected')
       return
     }
 
-    // Show stub warning if applicable
-    const stubWarning = getTransactionStubWarning()
-    if (stubWarning) {
-      console.warn(stubWarning)
-    }
+    const amountAda = (bid.amount / 1_000_000).toLocaleString()
+    setConfirmAction({
+      title: 'Cancel Bid?',
+      message: `This will cancel your bid of ${amountAda} ADA and return the funds to your wallet. This submits an on-chain transaction.`,
+      confirmLabel: 'Cancel Bid',
+      onConfirm: async () => {
+        const stubWarning = getTransactionStubWarning()
+        if (stubWarning) {
+          console.warn(stubWarning)
+        }
 
-    try {
-      const result = await cancelBid(wallet, {
-        tokenName: bid.tokenName,
-        utxo: bid.utxo,
-        datum: bid.datum,
-      })
+        try {
+          const result = await cancelBid(wallet, {
+            tokenName: bid.tokenName,
+            utxo: bid.utxo,
+            datum: bid.datum,
+          })
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to cancel bid')
-      }
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to cancel bid')
+          }
 
-      // Show success message
-      if (result.isStub) {
-        toast.warning(
-          'Bid Cancelled (Stub Mode)',
-          `Bid cancelled in stub mode. No real transaction submitted. Amount: ${(bid.amount / 1_000_000).toLocaleString()} ADA`,
-          8000
-        )
-      } else if (result.txHash) {
-        toast.transactionSuccess('Bid Cancelled!', result.txHash)
-      } else {
-        toast.success('Bid Cancelled!', 'Transaction submitted successfully')
-      }
+          if (result.isStub) {
+            toast.warning(
+              'Bid Cancelled (Stub Mode)',
+              `Bid cancelled in stub mode. No real transaction submitted. Amount: ${amountAda} ADA`,
+              8000
+            )
+          } else if (result.txHash) {
+            toast.transactionSuccess('Bid Cancelled!', result.txHash)
+          } else {
+            toast.success('Bid Cancelled!', 'Transaction submitted successfully')
+          }
 
-      // Record in history
-      if (result.txHash) {
-        recordTransaction({
-          txHash: result.txHash,
-          type: 'cancel-bid',
-          tokenName: bid.tokenName,
-          timestamp: Date.now(),
-          status: result.isStub ? 'confirmed' : 'pending',
-          description: `Cancel bid of ${(bid.amount / 1_000_000).toLocaleString()} ADA`,
-        })
-      }
+          if (result.txHash) {
+            recordTransaction({
+              txHash: result.txHash,
+              type: 'cancel-bid',
+              tokenName: bid.tokenName,
+              timestamp: Date.now(),
+              status: result.isStub ? 'confirmed' : 'pending',
+              description: `Cancel bid of ${amountAda} ADA`,
+            })
+          }
 
-      // Refresh and switch to History tab to show pending tx
-      setRefreshKey(prev => prev + 1)
-      setActiveTab('history')
-    } catch (error) {
-      console.error('Failed to cancel bid:', error)
-      toast.error(
-        'Failed to Cancel Bid',
-        error instanceof Error ? error.message : 'Unknown error occurred'
-      )
-    }
+          setRefreshKey(prev => prev + 1)
+          setActiveTab('history')
+        } catch (error) {
+          console.error('Failed to cancel bid:', error)
+          toast.error(
+            'Failed to Cancel Bid',
+            error instanceof Error ? error.message : 'Unknown error occurred'
+          )
+        }
+      },
+    })
   }, [wallet, toast, recordTransaction])
 
   const handleDecrypt = useCallback(async (bid: BidDisplay) => {
@@ -919,6 +946,31 @@ export default function Dashboard() {
         }}
         bid={selectedBid}
         encryption={selectedEncryption}
+      />
+
+      {/* Confirmation Modal (destructive actions) */}
+      <ConfirmModal
+        isOpen={confirmAction !== null}
+        onClose={() => {
+          if (!confirmLoading) {
+            setConfirmAction(null)
+          }
+        }}
+        onConfirm={async () => {
+          if (!confirmAction) return
+          setConfirmLoading(true)
+          try {
+            await confirmAction.onConfirm()
+          } finally {
+            setConfirmLoading(false)
+            setConfirmAction(null)
+          }
+        }}
+        title={confirmAction?.title ?? ''}
+        message={confirmAction?.message ?? ''}
+        confirmLabel={confirmAction?.confirmLabel ?? 'Confirm'}
+        confirmVariant="danger"
+        loading={confirmLoading}
       />
 
       {/* SNARK Proving Modal (Accept Bid Step 1) */}
