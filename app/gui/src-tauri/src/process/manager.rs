@@ -112,7 +112,7 @@ impl NodeManager {
     }
 
     /// Kill orphaned processes from a previous session.
-    /// Sends SIGTERM first and waits up to 10 seconds before SIGKILL,
+    /// Sends SIGTERM first and waits up to 30 seconds before SIGKILL,
     /// in case the previous session's shutdown is still in progress
     /// (e.g., cardano-node flushing ledger state).
     fn kill_orphans_from_pid_file(&self) {
@@ -153,8 +153,8 @@ impl NodeManager {
                 .output();
         }
 
-        // Wait up to 10 seconds
-        Self::wait_for_pids_to_exit(&alive_pids, 10);
+        // Wait up to 30 seconds
+        Self::wait_for_pids_to_exit(&alive_pids, 30);
 
         let _ = std::fs::remove_file(&self.pid_file);
     }
@@ -193,8 +193,8 @@ impl NodeManager {
                 .output();
         }
 
-        // Wait up to 10 seconds
-        Self::wait_for_pids_to_exit(&orphan_pids, 10);
+        // Wait up to 30 seconds
+        Self::wait_for_pids_to_exit(&orphan_pids, 30);
     }
 
     /// Wait for a set of PIDs to exit, up to `timeout_secs`.
@@ -955,7 +955,7 @@ impl NodeManager {
     /// Synchronous graceful shutdown of ALL tracked processes.
     /// Called from the RunEvent::Exit handler where async may not work reliably.
     ///
-    /// Sends SIGTERM first and waits up to 15 seconds for processes to exit
+    /// Sends SIGTERM first and waits up to 30 seconds for processes to exit
     /// cleanly (cardano-node needs this to flush its ledger state to disk).
     /// Only falls back to SIGKILL for processes that don't exit in time.
     pub fn kill_all_sync(&self) {
@@ -998,9 +998,9 @@ impl NodeManager {
                 .output();
         }
 
-        // Step 2: Wait up to 15 seconds for all to exit gracefully.
+        // Step 2: Wait up to 30 seconds for all to exit gracefully.
         // cardano-node needs time to flush its in-memory ledger to disk.
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
             let still_alive: Vec<u32> = all_pids
                 .iter()

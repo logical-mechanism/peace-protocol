@@ -37,7 +37,7 @@ export default function Settings() {
   const { walletState, lock } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
-  const { stage, syncProgress, tipSlot, tipHeight, network, processes } = useNode()
+  const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes } = useNode()
 
   // Settings state
   const [currentNetwork, setCurrentNetwork] = useState<string>('')
@@ -144,7 +144,7 @@ export default function Settings() {
   const nodeStageLabel = (s: string) => {
     switch (s) {
       case 'synced': return 'Fully Synced'
-      case 'syncing': return `Syncing (${(syncProgress * 100).toFixed(1)}%)`
+      case 'syncing': return `Syncing (${syncProgress.toFixed(1)}%)`
       case 'starting': return 'Starting...'
       case 'bootstrapping': return 'Bootstrapping...'
       case 'stopped': return 'Stopped'
@@ -257,16 +257,30 @@ export default function Settings() {
               </div>
 
               {stage === 'syncing' && (
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">
-                    <span>Sync Progress</span>
-                    <span>{(syncProgress * 100).toFixed(2)}%</span>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">
+                      <span>Node Sync</span>
+                      <span>{syncProgress >= 99.9 ? 'Synced' : `${syncProgress.toFixed(1)}%`}</span>
+                    </div>
+                    <div className="w-full h-3 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
+                        style={{ width: `${Math.min(syncProgress, 100)}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full h-3 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
-                      style={{ width: `${Math.min(syncProgress * 100, 100)}%` }}
-                    />
+                  <div>
+                    <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">
+                      <span>Kupo Indexer</span>
+                      <span>{kupoSyncProgress >= 99.9 ? 'Synced' : `${kupoSyncProgress.toFixed(1)}%`}</span>
+                    </div>
+                    <div className="w-full h-3 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
+                        style={{ width: `${Math.min(kupoSyncProgress, 100)}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}

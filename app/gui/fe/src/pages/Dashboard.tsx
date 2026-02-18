@@ -47,7 +47,7 @@ export default function Dashboard() {
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
-  const { stage: nodeStage, syncProgress: nodeSyncProgress } = useNode()
+  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress } = useNode()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('marketplace')
@@ -732,7 +732,7 @@ export default function Dashboard() {
               title="Click to view sync progress"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
-              Syncing {Math.round(nodeSyncProgress)}%
+              Syncing {Math.round(Math.min(nodeSyncProgress, kupoSyncProgress))}%
             </button>
           ) : nodeStage === 'error' ? (
             <button

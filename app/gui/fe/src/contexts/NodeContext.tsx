@@ -37,6 +37,7 @@ export interface MithrilProgress {
 interface NodeStatus {
   overall: string
   sync_progress: number
+  kupo_sync_progress: number
   tip_slot: number | null
   tip_height: number | null
   network: string
@@ -53,6 +54,7 @@ interface ProcessEvent {
 export interface NodeContextValue {
   stage: NodeStage
   syncProgress: number
+  kupoSyncProgress: number
   tipSlot: number | null
   tipHeight: number | null
   network: string
@@ -80,6 +82,7 @@ export function useNode(): NodeContextValue {
 export function NodeProvider({ children }: { children: ReactNode }) {
   const [stage, setStage] = useState<NodeStage>('stopped')
   const [syncProgress, setSyncProgress] = useState(0)
+  const [kupoSyncProgress, setKupoSyncProgress] = useState(0)
   const [tipSlot, setTipSlot] = useState<number | null>(null)
   const [tipHeight, setTipHeight] = useState<number | null>(null)
   const [network, setNetwork] = useState('preprod')
@@ -141,6 +144,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
 
         setNetwork(status.network)
         setSyncProgress(status.sync_progress * 100)
+        setKupoSyncProgress(status.kupo_sync_progress * 100)
         setTipSlot(status.tip_slot)
         setTipHeight(status.tip_height)
         setProcesses(status.processes)
@@ -191,6 +195,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
       await invoke('stop_node')
       setStage('stopped')
       setSyncProgress(0)
+      setKupoSyncProgress(0)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)
@@ -212,6 +217,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const value: NodeContextValue = {
     stage,
     syncProgress,
+    kupoSyncProgress,
     tipSlot,
     tipHeight,
     network,

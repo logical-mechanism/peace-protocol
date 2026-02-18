@@ -20,6 +20,7 @@ pub enum OverallNodeState {
 pub struct NodeStatus {
     pub overall: OverallNodeState,
     pub sync_progress: f64,
+    pub kupo_sync_progress: f64,
     pub tip_slot: Option<u64>,
     pub tip_height: Option<u64>,
     pub network: String,
@@ -57,6 +58,7 @@ pub async fn get_node_status(
             return Ok(NodeStatus {
                 overall: OverallNodeState::Bootstrapping,
                 sync_progress: 0.0,
+                kupo_sync_progress: 0.0,
                 tip_slot: None,
                 tip_height: None,
                 network: config.network.to_string(),
@@ -72,6 +74,7 @@ pub async fn get_node_status(
         return Ok(NodeStatus {
             overall: OverallNodeState::Error,
             sync_progress: 0.0,
+            kupo_sync_progress: 0.0,
             tip_slot: None,
             tip_height: None,
             network: config.network.to_string(),
@@ -95,6 +98,7 @@ pub async fn get_node_status(
         return Ok(NodeStatus {
             overall: OverallNodeState::Stopped,
             sync_progress: 0.0,
+            kupo_sync_progress: 0.0,
             tip_slot: None,
             tip_height: None,
             network: config.network.to_string(),
@@ -120,7 +124,32 @@ pub async fn get_node_status(
                 .await
                 .unwrap_or((0, 0));
 
-            let overall = if sync >= 0.999 {
+            // Query Kupo sync progress (if Kupo is running)
+            let kupo_status = manager.get_status("kupo").await;
+            let kupo_running = kupo_status
+                .as_ref()
+                .map(|s| {
+                    matches!(
+                        s.status,
+                        ProcessStatus::Running | ProcessStatus::Ready
+                    )
+                })
+                .unwrap_or(false);
+
+            let kupo_sync = if kupo_running {
+                match kupo::get_sync_progress(config.kupo_port).await {
+                    Ok(progress) => progress,
+                    Err(e) => {
+                        eprintln!("[NodeManager] Kupo sync progress query failed: {e}");
+                        0.0
+                    }
+                }
+            } else {
+                0.0
+            };
+
+            // Only mark as Synced when BOTH node and Kupo are synced
+            let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
                 OverallNodeState::Synced
             } else {
                 OverallNodeState::Syncing
@@ -129,6 +158,7 @@ pub async fn get_node_status(
             return Ok(NodeStatus {
                 overall,
                 sync_progress: sync,
+                kupo_sync_progress: kupo_sync,
                 tip_slot: Some(tip_slot),
                 tip_height: Some(tip_height),
                 network: config.network.to_string(),
@@ -142,6 +172,7 @@ pub async fn get_node_status(
     Ok(NodeStatus {
         overall: OverallNodeState::Starting,
         sync_progress: 0.0,
+        kupo_sync_progress: 0.0,
         tip_slot: None,
         tip_height: None,
         network: config.network.to_string(),

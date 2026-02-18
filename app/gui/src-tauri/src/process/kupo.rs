@@ -119,3 +119,47 @@ pub async fn health_check(port: u16) -> bool {
         Err(_) => false,
     }
 }
+
+/// Query Kupo sync progress from its /health endpoint.
+/// Returns a value from 0.0 to 1.0 representing how far Kupo has indexed
+/// relative to the node's current tip.
+///
+/// Kupo v2.11 returns Prometheus metrics text:
+///   kupo_most_recent_checkpoint  115706396
+///   kupo_most_recent_node_tip  115706396
+///   kupo_network_synchronization  0.98619  (overall chain sync, NOT indexing progress)
+///
+/// We use checkpoint/node_tip because that tells us Kupo's indexing progress.
+/// kupo_network_synchronization just mirrors the node's chain sync percentage.
+pub async fn get_sync_progress(port: u16) -> Result<f64, String> {
+    let url = format!("http://127.0.0.1:{}/health", port);
+    let resp = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Kupo health request failed: {e}"))?;
+
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read Kupo health response body: {e}"))?;
+
+    // Parse Prometheus metrics: "metric_name  value"
+    let mut checkpoint: Option<f64> = None;
+    let mut node_tip: Option<f64> = None;
+
+    for line in body.lines() {
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if let Some(v) = line.strip_prefix("kupo_most_recent_checkpoint") {
+            checkpoint = v.trim().parse().ok();
+        } else if let Some(v) = line.strip_prefix("kupo_most_recent_node_tip") {
+            node_tip = v.trim().parse().ok();
+        }
+    }
+
+    match (checkpoint, node_tip) {
+        (Some(cp), Some(tip)) if tip > 0.0 => Ok((cp / tip).min(1.0)),
+        (Some(_), Some(_)) => Ok(0.0), // tip is 0, node hasn't synced yet
+        _ => Err("kupo_most_recent_checkpoint or kupo_most_recent_node_tip not found in Kupo health response".to_string()),
+    }
+}

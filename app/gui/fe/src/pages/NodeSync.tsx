@@ -34,6 +34,42 @@ function ProgressBar({ percent }: { percent: number }) {
   )
 }
 
+function ServiceProgress({ label, percent, detail }: {
+  label: string
+  percent: number
+  detail?: string
+}) {
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">
+        <span className="flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: percent >= 99.9
+                ? 'var(--success)'
+                : percent > 0
+                ? 'var(--warning)'
+                : 'var(--text-muted)'
+            }}
+          />
+          {label}
+        </span>
+        <span>{percent >= 99.9 ? 'Synced' : `${percent.toFixed(1)}%`}</span>
+      </div>
+      <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+      </div>
+      {detail && (
+        <div className="text-xs text-[var(--text-muted)] mt-0.5">{detail}</div>
+      )}
+    </div>
+  )
+}
+
 interface StageIndicatorProps {
   stages: { key: string; label: string }[]
   currentStage: NodeStage
@@ -113,6 +149,7 @@ export default function NodeSync() {
   const {
     stage,
     syncProgress,
+    kupoSyncProgress,
     tipSlot,
     tipHeight,
     network,
@@ -144,7 +181,7 @@ export default function NodeSync() {
   }, [stage])
 
   // Navigate to dashboard when synced
-  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99)
+  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99)
 
   const handleContinue = () => {
     navigate('/dashboard')
@@ -189,9 +226,14 @@ export default function NodeSync() {
       statusMessage = 'Starting node infrastructure...'
       break
     case 'syncing':
-      progressPercent = syncProgress
-      statusMessage = `Syncing with ${network} network... ${syncProgress.toFixed(1)}%`
-      if (tipSlot) statusMessage += ` (slot ${tipSlot.toLocaleString()})`
+      progressPercent = Math.min(syncProgress, kupoSyncProgress)
+      if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
+        statusMessage = `Fully synced with ${network} network`
+      } else if (syncProgress >= 99.9) {
+        statusMessage = `Node synced, waiting for Kupo indexer...`
+      } else {
+        statusMessage = `Syncing with ${network} network...`
+      }
       break
     case 'synced':
       progressPercent = 100
@@ -260,8 +302,24 @@ export default function NodeSync() {
             <StageIndicator stages={STAGES} currentStage={stage} />
           </div>
 
-          {/* Progress Bar (when active) */}
-          {stage !== 'stopped' && stage !== 'error' && (
+          {/* Progress Bars (when active) */}
+          {stage === 'syncing' && (
+            <div className="mb-4">
+              <ServiceProgress
+                label="Cardano Node"
+                percent={syncProgress}
+                detail={tipSlot ? `Slot ${tipSlot.toLocaleString()}` : undefined}
+              />
+              <ServiceProgress
+                label="Kupo Indexer"
+                percent={kupoSyncProgress}
+              />
+              <div className="mt-2 text-sm text-[var(--text-muted)]">
+                {statusMessage}
+              </div>
+            </div>
+          )}
+          {stage !== 'stopped' && stage !== 'error' && stage !== 'syncing' && (
             <div className="mb-4">
               <ProgressBar percent={progressPercent} />
               <div className="flex justify-between mt-2 text-sm text-[var(--text-muted)]">
