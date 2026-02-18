@@ -128,9 +128,7 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
   const koios = getKoiosClient();
 
   // Step 1: Get all transaction hashes for this encryption token
-  console.log(`[getEncryptionLevels] Querying asset_txs for policy=${contracts.encryptionPolicyId.slice(0, 16)}... token=${tokenName.slice(0, 16)}...`);
   const assetTxs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
-  console.log(`[getEncryptionLevels] Found ${assetTxs.length} asset tx(s)`);
   if (assetTxs.length === 0) {
     throw new Error(`No transactions found for encryption token ${tokenName}`);
   }
@@ -139,35 +137,26 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
 
   // Step 2: Get transaction info with inline datums
   const txInfos = await koios.getTxInfoBatch(txHashes);
-  console.log(`[getEncryptionLevels] Got ${txInfos.length} tx info(s)`);
 
   // Step 3: Sort by block_height descending (newest first)
   txInfos.sort((a, b) => b.block_height - a.block_height);
 
   // Step 4-5: Extract levels from inline datums at the encryption contract address
   const levels: EncryptionLevel[] = [];
-  console.log(`[getEncryptionLevels] Looking for outputs at address: ${contracts.encryptionAddress}`);
 
   for (let i = 0; i < txInfos.length; i++) {
     const tx = txInfos[i];
-    console.log(`[getEncryptionLevels] TX ${i}: ${tx.tx_hash?.slice(0, 16)}... block=${tx.block_height} outputs=${tx.outputs?.length ?? 'undefined'}`);
 
     // Find the output at the encryption contract address
     const encOutput = tx.outputs?.find(
       o => o.payment_addr?.bech32 === contracts.encryptionAddress
     );
     if (!encOutput) {
-      console.log(`[getEncryptionLevels] TX ${i}: No output at encryption address`);
-      if (tx.outputs?.length) {
-        console.log(`[getEncryptionLevels] TX ${i}: Available addresses:`, tx.outputs.map(o => o.payment_addr?.bech32?.slice(0, 30) + '...'));
-      }
       continue;
     }
     if (!encOutput.inline_datum?.value) {
-      console.log(`[getEncryptionLevels] TX ${i}: Output found but no inline_datum`);
       continue;
     }
-    console.log(`[getEncryptionLevels] TX ${i}: Found output with inline datum`);
 
     // The datum is a Plutus constructor: fields[3] = half_level, fields[4] = full_level
     const datumValue = encOutput.inline_datum.value as { constructor: number; fields: unknown[] };
@@ -210,6 +199,5 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
     }
   }
 
-  console.log(`[getEncryptionLevels] Built ${levels.length} level(s) for token ${tokenName.slice(0, 16)}...`);
   return levels;
 }

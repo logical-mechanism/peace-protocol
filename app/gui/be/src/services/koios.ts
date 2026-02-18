@@ -115,6 +115,9 @@ class KoiosClient {
       body: JSON.stringify({ _tx_hashes: [txHash] }),
     });
 
+    if (result.length === 0) {
+      throw new Error(`Transaction not found: ${txHash}`);
+    }
     return result[0];
   }
 
@@ -171,6 +174,9 @@ class KoiosClient {
    */
   async getTip(): Promise<{ block_no: number; block_time: number; epoch_no: number }> {
     const result = await this.request<Array<{ block_no: number; block_time: number; epoch_no: number }>>('/tip');
+    if (result.length === 0) {
+      throw new Error('No tip data returned from Koios');
+    }
     return result[0];
   }
 
@@ -180,6 +186,9 @@ class KoiosClient {
   async getProtocolParams(): Promise<unknown> {
     // Koios GET /epoch_params returns latest epoch params when no _epoch_no specified
     const result = await this.request<unknown[]>('/epoch_params');
+    if (result.length === 0) {
+      throw new Error('No protocol parameters returned from Koios');
+    }
     return result[0];
   }
 }

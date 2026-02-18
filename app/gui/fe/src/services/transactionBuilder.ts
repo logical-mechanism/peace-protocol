@@ -235,13 +235,6 @@ export async function createListing(
       // Store secrets (a, r) in IndexedDB
       await storeSecrets(tokenName, artifacts.a, artifacts.r);
 
-      // Log what would be submitted
-      console.log('[STUB] Would submit transaction with:');
-      console.log('  Token name:', tokenName);
-      console.log('  Description:', formData.description);
-      console.log('  Suggested price:', formData.suggestedPrice || 'Not set');
-      console.log('  Storage layer:', getStorageLayerUri(formData));
-
       return {
         success: true,
         txHash: `stub_${Date.now().toString(16)}_${tokenName.slice(0, 16)}`,
@@ -716,12 +709,6 @@ export async function placeBid(
       const artifacts = await createBidArtifactsFromWallet(wallet);
       await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
 
-      const bidAmountLovelace = Math.floor(bidAmountAda * 1_000_000);
-      console.log('[STUB] Would submit bid transaction with:');
-      console.log('  Bid token name:', bidTokenName);
-      console.log('  Encryption token:', encryptionTokenName);
-      console.log('  Bid amount:', bidAmountAda, 'ADA (', bidAmountLovelace, 'lovelace)');
-
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       return {
@@ -934,7 +921,6 @@ export async function cancelBid(
 
       try {
         await removeBidSecrets(bid.tokenName);
-        console.log('[STUB] Removed bid secrets for:', bid.tokenName);
       } catch (error) {
         console.warn('[STUB] Failed to remove bid secrets:', error);
       }
