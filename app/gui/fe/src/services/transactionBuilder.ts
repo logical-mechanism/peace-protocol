@@ -1264,25 +1264,11 @@ export async function acceptBidSnark(
     const invalidBefore = currentSlot - 300; // ~5 minutes ago
     const invalidHereafter = currentSlot + 1500; // ~25 minutes from now
 
-    console.log('[acceptBidSnark] currentSlot:', currentSlot, 'range:', invalidBefore, '-', invalidHereafter);
-    console.log('[acceptBidSnark] grothStake:', grothStakeAddressBech32, 'rewardBalance:', rewardBalance);
-    console.log('[acceptBidSnark] encUtxo:', encryption.utxo.txHash, '#', encryption.utxo.outputIndex);
-    console.log('[acceptBidSnark] proofData:', JSON.parse(snarkProof.proofJson));
-    console.log('[acceptBidSnark] publicData:', JSON.parse(snarkProof.publicJson));
-    const bigIntReplacer = (_k: string, v: unknown) => typeof v === 'bigint' ? v.toString() : v;
-    console.log('[acceptBidSnark] spendRedeemer:', JSON.stringify(spendRedeemer, bigIntReplacer));
-    console.log('[acceptBidSnark] grothWitnessRedeemer:', JSON.stringify(grothWitnessRedeemer, bigIntReplacer));
-    console.log('[acceptBidSnark] outputDatum:', JSON.stringify(outputDatum, bigIntReplacer));
-    console.log('[acceptBidSnark] genesisUtxo:', genesisUtxo.input.txHash, '#', genesisUtxo.input.outputIndex);
-
     // 12. Build transaction
     const policyId = config.contracts.encryptionPolicyId;
     const encryptionAddress = config.contracts.encryptionAddress;
     const encRefScript = config.referenceScripts.encryption;
     const grothRefScript = config.referenceScripts.groth;
-
-    console.log('[acceptBidSnark] encRefScript:', encRefScript.txHash, '#', encRefScript.outputIndex);
-    console.log('[acceptBidSnark] grothRefScript:', grothRefScript.txHash, '#', grothRefScript.outputIndex);
 
     const txBuilder = createTxBuilder();
 
@@ -1326,14 +1312,11 @@ export async function acceptBidSnark(
     let unsignedTx: string;
     try {
       unsignedTx = await txBuilder.complete();
-      console.log('[acceptBidSnark] tx built successfully, length:', unsignedTx.length);
-      console.log('[acceptBidSnark] CBOR:', unsignedTx);
     } catch (evalError) {
       console.error('[acceptBidSnark] .complete() FAILED - evaluation error:', evalError);
       // Try to get the raw CBOR without evaluation for manual debugging
       try {
-        const rawCbor = txBuilder.completeSync();
-        console.log('[acceptBidSnark] raw CBOR (no eval):', rawCbor);
+        txBuilder.completeSync();
       } catch (syncError) {
         console.error('[acceptBidSnark] completeSync() also failed:', syncError);
       }
@@ -1342,12 +1325,10 @@ export async function acceptBidSnark(
 
     // 13. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
-    console.log('[acceptBidSnark] tx signed, CBOR:', signedTx);
 
     let txHash: string;
     try {
       txHash = await wallet.submitTx(signedTx);
-      console.log('[acceptBidSnark] submitted, txHash:', txHash);
     } catch (submitError) {
       console.error('[acceptBidSnark] submitTx FAILED:', submitError);
       throw submitError;

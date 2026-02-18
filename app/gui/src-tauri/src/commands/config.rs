@@ -101,15 +101,16 @@ fn dir_size(path: &std::path::Path) -> u64 {
         .map(|entries| {
             entries
                 .filter_map(|e| e.ok())
-                .map(|e| {
-                    let meta = e.metadata().unwrap_or_else(|_| {
-                        std::fs::metadata(e.path()).expect("metadata")
-                    });
-                    if meta.is_dir() {
+                .filter_map(|e| {
+                    let meta = e
+                        .metadata()
+                        .or_else(|_| std::fs::metadata(e.path()))
+                        .ok()?;
+                    Some(if meta.is_dir() {
                         dir_size(&e.path())
                     } else {
                         meta.len()
-                    }
+                    })
                 })
                 .sum()
         })

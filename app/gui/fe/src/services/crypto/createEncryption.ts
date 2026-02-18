@@ -92,11 +92,7 @@ async function gtToHashWasm(a: bigint): Promise<string> {
   // Convert bigint to string with 0x prefix
   const aStr = '0x' + a.toString(16);
 
-  console.log('[WASM] Calling gnarkGtToHash via worker with a =', aStr.slice(0, 20) + '...');
-
   const hash = await prover.gtToHash(aStr);
-
-  console.log('[WASM] gnarkGtToHash returned hash:', hash.slice(0, 20) + '...');
   return hash;
 }
 

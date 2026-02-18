@@ -22,12 +22,6 @@ export const config = {
     url: process.env.KUPO_URL || 'http://localhost:1442',
   },
 
-  // Blockfrost
-  blockfrost: {
-    preprod: process.env.BLOCKFROST_PROJECT_ID_PREPROD || '',
-    mainnet: process.env.BLOCKFROST_PROJECT_ID_MAINNET || '',
-  },
-
   // Contract addresses (will be populated after preprod deployment)
   contracts: {
     preprod: {
@@ -86,7 +80,6 @@ export function getNetworkConfig() {
     koiosUrl: config.koios[network],
     koiosToken,
     kupoUrl: config.kupo.url,
-    blockfrostProjectId: config.blockfrost[network],
     contracts: config.contracts[network],
   };
 }

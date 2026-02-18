@@ -62,15 +62,22 @@ pub fn unlock_wallet(
     let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
     let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
 
-    *state.mnemonic.lock().unwrap() = Some(mnemonic);
+    *state
+        .mnemonic
+        .lock()
+        .map_err(|_| "Internal error: wallet state lock poisoned".to_string())? = Some(mnemonic);
 
     Ok(words)
 }
 
 /// Lock the wallet by clearing the mnemonic from memory.
 #[tauri::command]
-pub fn lock_wallet(state: tauri::State<'_, WalletState>) {
-    *state.mnemonic.lock().unwrap() = None;
+pub fn lock_wallet(state: tauri::State<'_, WalletState>) -> Result<(), String> {
+    *state
+        .mnemonic
+        .lock()
+        .map_err(|_| "Internal error: wallet state lock poisoned".to_string())? = None;
+    Ok(())
 }
 
 /// Delete the wallet file and clear in-memory state.
@@ -80,7 +87,10 @@ pub fn delete_wallet(state: tauri::State<'_, WalletState>) -> Result<(), String>
         std::fs::remove_file(&state.wallet_path)
             .map_err(|e| format!("Failed to delete wallet file: {e}"))?;
     }
-    *state.mnemonic.lock().unwrap() = None;
+    *state
+        .mnemonic
+        .lock()
+        .map_err(|_| "Internal error: wallet state lock poisoned".to_string())? = None;
     Ok(())
 }
 

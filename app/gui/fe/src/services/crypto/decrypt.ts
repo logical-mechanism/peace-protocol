@@ -58,15 +58,7 @@ export function isWasmDecryptAvailable(): boolean {
 async function decryptToHashWasm(g1b: string, r1: string, shared: string, g2b: string = ''): Promise<string> {
   const prover = getSnarkProver();
 
-  console.log('[WASM] Calling gnarkDecryptToHash via worker with:');
-  console.log('  g1b:', g1b.slice(0, 20) + '...');
-  console.log('  r1:', r1.slice(0, 20) + '...');
-  console.log('  shared:', shared.slice(0, 20) + '...');
-  console.log('  g2b:', g2b ? g2b.slice(0, 20) + '...' : '(empty - half-level)');
-
   const hash = await prover.decryptToHash(g1b, r1, shared, g2b);
-
-  console.log('[WASM] gnarkDecryptToHash returned hash:', hash.slice(0, 20) + '...');
   return hash;
 }
 
@@ -209,21 +201,13 @@ export async function computeKEM(
     return null;
   }
 
-  console.log('[computeKEM] Starting KEM computation with', levels.length, 'level(s)');
-  console.log('[computeKEM] Bidder secret b =', '0x' + b.toString(16).slice(0, 16) + '...');
-
   // Initial shared secret: [b]H0
   let shared = scale(H0, b); // H0 is G2 point, scale returns G2 point
-  console.log('[computeKEM] Initial shared = [b]H0:', shared.slice(0, 20) + '...');
 
   let kemHash: string | null = null;
 
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i];
-    console.log(`[computeKEM] Processing level ${i + 1}/${levels.length}`);
-    console.log('  r1:', level.r1.slice(0, 20) + '...');
-    console.log('  r2_g1:', level.r2_g1.slice(0, 20) + '...');
-    console.log('  r2_g2:', level.r2_g2 ? level.r2_g2.slice(0, 20) + '...' : '(none - half-level)');
 
     // Pass raw datum values to WASM DecryptToHash.
     // The Go function computes: k = e(g1b, H0) / e(r1, shared)
@@ -234,14 +218,12 @@ export async function computeKEM(
 
     try {
       kemHash = await decryptToHashWasm(g1b, level.r1, shared, g2b);
-      console.log(`  KEM hash from level ${i + 1}:`, kemHash.slice(0, 20) + '...');
 
       // For multi-level decryption, update shared for next level
       // shared = [hash]G2
       if (i < levels.length - 1) {
         const hashScalar = BigInt('0x' + kemHash);
         shared = g2Point(hashScalar);
-        console.log('  Updated shared for next level:', shared.slice(0, 20) + '...');
       }
     } catch (err) {
       console.error(`[computeKEM] Failed at level ${i + 1}:`, err);
@@ -249,7 +231,6 @@ export async function computeKEM(
     }
   }
 
-  console.log('[computeKEM] Final KEM hash:', kemHash);
   return kemHash;
 }
 
@@ -300,8 +281,6 @@ async function decryptReal(
   bid: BidDisplay,
   _encryption: EncryptionDisplay // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<DecryptionResult> {
-  console.log('[decryptReal] Starting real decryption for bid:', bid.tokenName);
-
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
     console.warn('[decryptReal] WASM decryption not available');
@@ -323,8 +302,6 @@ async function decryptReal(
       error: 'Failed to derive secret from wallet. Please approve the signing request.',
     };
   }
-  console.log('[decryptReal] Derived b from wallet =', '0x' + b.toString(16).slice(0, 16) + '...');
-
   // Step 3: Fetch encryption history
   const history = await fetchEncryptionHistory(bid.encryptionToken);
   if (!history) {
@@ -335,8 +312,6 @@ async function decryptReal(
         'Could not fetch encryption history. This requires contracts to be deployed on preprod.',
     };
   }
-  console.log('[decryptReal] Fetched encryption history with', history.levels.length, 'level(s)');
-
   // Step 4: Compute KEM using WASM
   try {
     const kem = await computeKEM(b, history.levels);
@@ -346,8 +321,6 @@ async function decryptReal(
         error: 'Failed to compute decryption key (KEM).',
       };
     }
-    console.log('[decryptReal] Computed KEM:', kem.slice(0, 20) + '... (length=' + kem.length + ')');
-
     if (kem.length !== 64) {
       return {
         success: false,
@@ -361,11 +334,6 @@ async function decryptReal(
     // After re-encryption, the full_level.r1b = original half_level.r1b,
     // so we use the LAST level's r1 (matching Python recursive_decrypt).
     const r1 = history.levels[history.levels.length - 1].r1;
-    console.log('[decryptReal] Decrypting capsule with:');
-    console.log('  r1 (context):', r1.slice(0, 20) + '...');
-    console.log('  nonce:', history.capsule.nonce);
-    console.log('  aad:', history.capsule.aad.slice(0, 20) + '...');
-    console.log('  ct length:', history.capsule.ct.length);
 
     const rawBytes = await eciesDecrypt(
       r1,
@@ -374,7 +342,6 @@ async function decryptReal(
       history.capsule.ct,
       history.capsule.aad
     );
-    console.log('[decryptReal] Decryption successful!');
 
     // Parse the CBOR peace-payload
     let payload: Map<number, Uint8Array> | undefined;
@@ -492,8 +459,6 @@ export async function decryptEncryption(
   wallet: IWallet,
   encryption: EncryptionDisplay
 ): Promise<DecryptionResult> {
-  console.log('[decryptEncryption] Starting decryption for encryption:', encryption.tokenName);
-
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
     return {
@@ -513,8 +478,6 @@ export async function decryptEncryption(
       error: 'Failed to derive secret from wallet. Please approve the signing request.',
     };
   }
-  console.log('[decryptEncryption] Derived b from wallet =', '0x' + b.toString(16).slice(0, 16) + '...');
-
   // Step 3: Fetch full encryption history from backend
   // The decryption protocol requires ALL levels from the token's tx history:
   //   1. Current half-level (no r2_g2) with shared = [b]H0
@@ -529,7 +492,6 @@ export async function decryptEncryption(
       r2_g1: l.r2_g1,
       r2_g2: l.r2_g2,
     }));
-    console.log('[decryptEncryption] Fetched', levels.length, 'encryption level(s) from backend');
   } catch (err) {
     console.error('[decryptEncryption] Failed to fetch encryption levels:', err);
     return {
@@ -554,13 +516,10 @@ export async function decryptEncryption(
         error: 'Failed to compute decryption key (KEM).',
       };
     }
-    console.log('[decryptEncryption] Computed KEM:', kem.slice(0, 20) + '... (length=' + kem.length + ')');
-
     // Validate KEM length: WASM MiMC produces 64 hex chars (32 bytes).
     // If the encryption was created with the old stub (blake2b-224 = 56 hex chars),
     // the AES key derivation will never match and decryption will fail.
     if (kem.length !== 64) {
-      console.error('[decryptEncryption] Unexpected KEM length:', kem.length, '(expected 64)');
       return {
         success: false,
         error: `KEM length mismatch (got ${kem.length} hex chars, expected 64). ` +
@@ -574,11 +533,6 @@ export async function decryptEncryption(
     // so we use the LAST level's r1 (matching Python recursive_decrypt).
     const capsule = encryption.datum.capsule;
     const contextR1 = levels[levels.length - 1].r1;
-    console.log('[decryptEncryption] Decrypting capsule with:');
-    console.log('  context r1:', contextR1.slice(0, 20) + '...');
-    console.log('  nonce:', capsule.nonce);
-    console.log('  aad:', capsule.aad.slice(0, 20) + '...');
-    console.log('  ct length:', capsule.ct.length);
 
     const rawBytes = await eciesDecrypt(
       contextR1,
@@ -587,7 +541,6 @@ export async function decryptEncryption(
       capsule.ct,
       capsule.aad
     );
-    console.log('[decryptEncryption] Decryption successful!');
 
     // Parse the CBOR peace-payload
     let payload: Map<number, Uint8Array> | undefined;

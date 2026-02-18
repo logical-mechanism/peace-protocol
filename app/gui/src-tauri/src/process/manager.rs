@@ -83,6 +83,16 @@ struct ManagedProcess {
     user_stopped: bool,
 }
 
+impl ManagedProcess {
+    /// Append a log line to the buffer, evicting the oldest entry if full.
+    fn append_log(&mut self, line: String) {
+        self.log_buffer.push(line);
+        if self.log_buffer.len() > LOG_BUFFER_SIZE {
+            self.log_buffer.remove(0);
+        }
+    }
+}
+
 /// The central process manager, held in Tauri state.
 /// Manages the lifecycle of all sidecar processes.
 pub struct NodeManager {
@@ -234,6 +244,7 @@ impl NodeManager {
     }
 
     /// Persist all active PIDs to disk so they can be cleaned up after a crash.
+    /// Uses atomic write (tmp + rename) to prevent corruption on crash.
     fn save_pids_sync(pid_file: &std::path::Path, processes: &HashMap<String, ManagedProcess>) {
         let pids: Vec<u32> = processes
             .values()
@@ -242,9 +253,10 @@ impl NodeManager {
 
         if pids.is_empty() {
             let _ = std::fs::remove_file(pid_file);
-        } else {
-            if let Ok(json) = serde_json::to_string(&pids) {
-                let _ = std::fs::write(pid_file, json);
+        } else if let Ok(json) = serde_json::to_string(&pids) {
+            let tmp = pid_file.with_extension("tmp");
+            if std::fs::write(&tmp, &json).is_ok() {
+                let _ = std::fs::rename(&tmp, pid_file);
             }
         }
     }
@@ -384,10 +396,7 @@ impl NodeManager {
                         {
                             let mut procs = processes.lock().await;
                             if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.log_buffer.push(line.clone());
-                                if proc.log_buffer.len() > LOG_BUFFER_SIZE {
-                                    proc.log_buffer.remove(0);
-                                }
+                                proc.append_log(line.clone());
                             }
                         }
 
@@ -417,10 +426,7 @@ impl NodeManager {
                         {
                             let mut procs = processes.lock().await;
                             if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.log_buffer.push(format!("[stderr] {}", line));
-                                if proc.log_buffer.len() > LOG_BUFFER_SIZE {
-                                    proc.log_buffer.remove(0);
-                                }
+                                proc.append_log(format!("[stderr] {}", line));
                             }
                         }
 
@@ -574,10 +580,7 @@ impl NodeManager {
                                                                     {
                                                                         let mut p = procs3.lock().await;
                                                                         if let Some(proc) = p.get_mut(&pname3) {
-                                                                            proc.log_buffer.push(line.clone());
-                                                                            if proc.log_buffer.len() > LOG_BUFFER_SIZE {
-                                                                                proc.log_buffer.remove(0);
-                                                                            }
+                                                                            proc.append_log(line.clone());
                                                                         }
                                                                     }
                                                                     // Emit structured mithril-progress events for the download UI
@@ -599,10 +602,7 @@ impl NodeManager {
                                                                     {
                                                                         let mut p = procs3.lock().await;
                                                                         if let Some(proc) = p.get_mut(&pname3) {
-                                                                            proc.log_buffer.push(log_line.clone());
-                                                                            if proc.log_buffer.len() > LOG_BUFFER_SIZE {
-                                                                                proc.log_buffer.remove(0);
-                                                                            }
+                                                                            proc.append_log(log_line.clone());
                                                                         }
                                                                     }
                                                                     let _ = app3.emit("process-status", ProcessEvent {
@@ -793,10 +793,7 @@ impl NodeManager {
                         {
                             let mut p = procs.lock().await;
                             if let Some(proc) = p.get_mut(&pname) {
-                                proc.log_buffer.push(line.clone());
-                                if proc.log_buffer.len() > LOG_BUFFER_SIZE {
-                                    proc.log_buffer.remove(0);
-                                }
+                                proc.append_log(line.clone());
                             }
                         }
                         let _ = app.emit("process-status", ProcessEvent {
@@ -820,10 +817,7 @@ impl NodeManager {
                         {
                             let mut p = procs.lock().await;
                             if let Some(proc) = p.get_mut(&pname) {
-                                proc.log_buffer.push(log_line.clone());
-                                if proc.log_buffer.len() > LOG_BUFFER_SIZE {
-                                    proc.log_buffer.remove(0);
-                                }
+                                proc.append_log(log_line.clone());
                             }
                         }
                         let _ = app.emit("process-status", ProcessEvent {

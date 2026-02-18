@@ -172,9 +172,17 @@ function decodePlutusData(cborHex: string): unknown {
 }
 
 function hexToBytes(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) {
+    throw new Error(`hexToBytes: odd-length hex string (${hex.length} chars)`);
+  }
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    const pair = hex.substring(i * 2, i * 2 + 2);
+    const val = parseInt(pair, 16);
+    if (Number.isNaN(val)) {
+      throw new Error(`hexToBytes: invalid hex chars "${pair}" at position ${i * 2}`);
+    }
+    bytes[i] = val;
   }
   return bytes;
 }

@@ -6,7 +6,7 @@ import routes from './routes/index.js';
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // CORS configuration
 app.use(
@@ -55,14 +55,14 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 // Start server
 app.listen(config.port, () => {
   console.log(`
-╔════════════════════════════════════════════════════════════╗
-║                  Peace Protocol API                         ║
-╠════════════════════════════════════════════════════════════╣
-║  Server running on http://localhost:${config.port.toString().padEnd(4)}                  ║
-║  Network: ${config.network.padEnd(8)}                                       ║
-║  Stub Mode: ${config.useStubs ? 'enabled ' : 'disabled'}                                      ║
-║  Environment: ${config.nodeEnv.padEnd(12)}                               ║
-╚════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════╗
+║                  Peace Protocol API                      ║
+╠══════════════════════════════════════════════════════════╣
+║  Server:      http://localhost:${config.port.toString().padEnd(24)}║
+║  Network:     ${config.network.padEnd(41)}║
+║  Stub Mode:   ${(config.useStubs ? 'enabled' : 'disabled').padEnd(41)}║
+║  Environment: ${config.nodeEnv.padEnd(41)}║
+╚══════════════════════════════════════════════════════════╝
 
 API Endpoints:
   GET  /health                         - Health check

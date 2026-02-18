@@ -149,7 +149,6 @@ export default function MySalesTab({
         onRemoveListing(encryption);
       } else {
         // Placeholder for Phase 9
-        console.log('Remove listing:', encryption.tokenName);
         alert(
           `Remove listing coming in Phase 9!\n\nThis will require a transaction to remove the encryption from the contract.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`
         );
@@ -164,7 +163,6 @@ export default function MySalesTab({
         onAcceptBid(encryption, bid);
       } else {
         // Placeholder for Phase 12
-        console.log('Accept bid:', bid.tokenName, 'for:', encryption.tokenName);
         alert(
           `Accept bid coming in Phase 12!\n\nThis will trigger the SNARK proof generation followed by re-encryption transaction.\n\nBid: ${bid.amount.toLocaleString()} lovelace\nBidder: ${bid.bidder.slice(0, 16)}...`
         );
@@ -180,7 +178,6 @@ export default function MySalesTab({
         onCancelPending(encryption);
       } else {
         // Placeholder for Phase 9
-        console.log('Cancel pending:', encryption.tokenName);
         alert(
           `Cancel pending coming in Phase 9!\n\nThis will cancel the pending sale and return the encryption to active status.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`
         );
