@@ -45,7 +45,7 @@ export default function WalletUnlock() {
             className="text-3xl font-bold mb-2"
             style={{ color: 'var(--text-primary)' }}
           >
-            Veiled Desktop
+            Veiled
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Enter your password to unlock

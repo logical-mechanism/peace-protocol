@@ -1,8 +1,8 @@
 {
-  "name": "veiled-desktop",
-  "version": "0.1.0",
+  "name": "veiled",
+  "version": "0.3.0",
   "private": true,
-  "description": "Veiled Desktop - Peace Protocol Desktop Application",
+  "description": "Veiled - Peace Protocol Desktop Application",
   "scripts": {
     "dev": "npm --prefix fe run dev",
     "build": "npm --prefix fe run build",

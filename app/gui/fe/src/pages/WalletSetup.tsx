@@ -157,7 +157,7 @@ export default function WalletSetup() {
               className="text-4xl font-bold mb-3"
               style={{ color: 'var(--text-primary)' }}
             >
-              Veiled Desktop
+              Veiled
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
               Encrypted data marketplace on Cardano

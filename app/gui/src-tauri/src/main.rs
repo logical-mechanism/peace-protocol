@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    veiled_desktop_lib::run()
+    veiled_lib::run()
 }
