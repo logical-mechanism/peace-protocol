@@ -4386,8 +4386,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "veiled-desktop"
-version = "0.1.0"
+name = "veiled"
+version = "0.3.0"
 dependencies = [
  "aes-gcm",
  "argon2",
