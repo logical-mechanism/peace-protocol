@@ -14,7 +14,7 @@ import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
 import SnarkProvingModal from '../components/SnarkProvingModal'
 import ConfirmModal from '../components/ConfirmModal'
-import { useToast } from '../components/Toast'
+import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import {
   createListing, removeListing, placeBid, cancelBid,
@@ -1001,7 +1001,7 @@ export default function Dashboard() {
       />
 
       {/* Toast Notifications */}
-      <toast.ToastContainer />
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
     </div>
   )
 }

@@ -273,7 +273,6 @@ export function useToast() {
     warning,
     info,
     transactionSuccess,
-    ToastContainer: () => <ToastContainer toasts={toasts} onClose={removeToast} />,
   };
 }
 
