@@ -8,7 +8,7 @@
     "build": "npm --prefix fe run build",
     "dev:be": "npm --prefix be run dev",
     "dev:all": "concurrently -n be,fe -c blue,green \"npm run dev:be\" \"npm run dev\"",
-    "install:all": "npm install && npm --prefix fe install && npm --prefix be install",
+    "install:all": "npm install && npm --prefix fe install && npm --prefix be install && npm --prefix be run build",
     "tauri": "tauri"
   },
   "devDependencies": {
