@@ -81,7 +81,8 @@ export default function SnarkProvingModal({
         setProof(generatedProof)
         setState('success')
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Proof generation failed'
+        console.error('SNARK proof generation error:', err)
+        const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Proof generation failed'
         setError(message)
         setState('error')
       }
@@ -118,7 +119,8 @@ export default function SnarkProvingModal({
           setProof(generatedProof)
           setState('success')
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Proof generation failed'
+          console.error('SNARK proof generation error:', err)
+          const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Proof generation failed'
           setError(message)
           setState('error')
         }

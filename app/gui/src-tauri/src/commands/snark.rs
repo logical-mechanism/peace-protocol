@@ -33,15 +33,23 @@ fn setup_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
 /// Spawn the snark sidecar, collect stdout, and return it on successful exit.
 /// Returns an error if the process exits with a non-zero code.
 async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
+    eprintln!("[snark] running: snark {}", args.join(" "));
+
     let shell = app.shell();
     let command = shell
         .sidecar("snark")
-        .map_err(|e| format!("Failed to create snark sidecar: {e}"))?;
+        .map_err(|e| {
+            eprintln!("[snark] failed to create sidecar: {e}");
+            format!("Failed to create snark sidecar: {e}")
+        })?;
     let command = command.args(args);
 
     let (mut rx, _child) = command
         .spawn()
-        .map_err(|e| format!("Failed to spawn snark: {e}"))?;
+        .map_err(|e| {
+            eprintln!("[snark] failed to spawn: {e}");
+            format!("Failed to spawn snark: {e}")
+        })?;
 
     let mut stdout_lines = Vec::new();
     let mut stderr_lines = Vec::new();
@@ -61,16 +69,19 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
                 }
             }
             CommandEvent::Error(err) => {
+                eprintln!("[snark] process error: {err}");
                 return Err(format!("snark process error: {err}"));
             }
             CommandEvent::Terminated(payload) => {
                 if payload.code != Some(0) {
                     let stderr = stderr_lines.join("\n");
+                    eprintln!("[snark] exited with code {:?}: {}", payload.code, stderr);
                     return Err(format!(
                         "snark exited with code {:?}: {}",
                         payload.code, stderr
                     ));
                 }
+                eprintln!("[snark] completed successfully");
                 break;
             }
             _ => {}
@@ -86,7 +97,8 @@ pub async fn snark_check_setup(app: tauri::AppHandle) -> Result<bool, String> {
     let dir = setup_dir(&app)?;
     let pk = dir.join("pk.bin");
     let ccs = dir.join("ccs.bin");
-    Ok(pk.exists() && ccs.exists())
+    let vk = dir.join("vk.bin");
+    Ok(pk.exists() && ccs.exists() && vk.exists())
 }
 
 /// Decompress bundled .zst setup files to the app data directory.
@@ -157,6 +169,20 @@ pub async fn snark_decompress_setup(app: tauri::AppHandle) -> Result<(), String>
         })
         .await
         .map_err(|e| format!("Decompression task failed: {e}"))??;
+    }
+
+    // Copy vk.bin (small, not compressed — only ~2.7KB)
+    let vk_output = dir.join("vk.bin");
+    if !vk_output.exists() {
+        let vk_source = snark_resource_dir.join("vk.bin");
+        if !vk_source.exists() {
+            return Err(format!(
+                "vk.bin not found in resources: {}",
+                vk_source.display()
+            ));
+        }
+        std::fs::copy(&vk_source, &vk_output)
+            .map_err(|e| format!("Failed to copy vk.bin: {e}"))?;
     }
 
     let _ = app.emit(

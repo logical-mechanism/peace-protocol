@@ -170,10 +170,12 @@ function buildPayloadFromForm(formData: CreateListingFormData): Uint8Array {
 
 /** Create a MeshTxBuilder wired to local Kupo + Ogmios. */
 function createTxBuilder(): MeshTxBuilder {
-  return new MeshTxBuilder({
+  const txBuilder = new MeshTxBuilder({
     fetcher: getKupoAdapter(),
     evaluator: getOgmiosProvider(),
   });
+  txBuilder.txEvaluationMultiplier = 1.0;
+  return txBuilder;
 }
 
 /**
@@ -1262,15 +1264,30 @@ export async function acceptBidSnark(
     const invalidBefore = currentSlot - 300; // ~5 minutes ago
     const invalidHereafter = currentSlot + 1500; // ~25 minutes from now
 
+    console.log('[acceptBidSnark] currentSlot:', currentSlot, 'range:', invalidBefore, '-', invalidHereafter);
+    console.log('[acceptBidSnark] grothStake:', grothStakeAddressBech32, 'rewardBalance:', rewardBalance);
+    console.log('[acceptBidSnark] encUtxo:', encryption.utxo.txHash, '#', encryption.utxo.outputIndex);
+    console.log('[acceptBidSnark] proofData:', JSON.parse(snarkProof.proofJson));
+    console.log('[acceptBidSnark] publicData:', JSON.parse(snarkProof.publicJson));
+    const bigIntReplacer = (_k: string, v: unknown) => typeof v === 'bigint' ? v.toString() : v;
+    console.log('[acceptBidSnark] spendRedeemer:', JSON.stringify(spendRedeemer, bigIntReplacer));
+    console.log('[acceptBidSnark] grothWitnessRedeemer:', JSON.stringify(grothWitnessRedeemer, bigIntReplacer));
+    console.log('[acceptBidSnark] outputDatum:', JSON.stringify(outputDatum, bigIntReplacer));
+    console.log('[acceptBidSnark] genesisUtxo:', genesisUtxo.input.txHash, '#', genesisUtxo.input.outputIndex);
+
     // 12. Build transaction
     const policyId = config.contracts.encryptionPolicyId;
     const encryptionAddress = config.contracts.encryptionAddress;
     const encRefScript = config.referenceScripts.encryption;
     const grothRefScript = config.referenceScripts.groth;
 
+    console.log('[acceptBidSnark] encRefScript:', encRefScript.txHash, '#', encRefScript.outputIndex);
+    console.log('[acceptBidSnark] grothRefScript:', grothRefScript.txHash, '#', grothRefScript.outputIndex);
+
     const txBuilder = createTxBuilder();
 
-    const unsignedTx = await txBuilder
+    // Build the transaction chain
+    txBuilder
       // Spend encryption UTxO with UseSnark redeemer
       .spendingPlutusScriptV3()
       .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
@@ -1304,12 +1321,37 @@ export async function acceptBidSnark(
       .requiredSignerHash(ownerPkh)
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
-      .complete();
+      .selectUtxosFrom(utxos);
+
+    let unsignedTx: string;
+    try {
+      unsignedTx = await txBuilder.complete();
+      console.log('[acceptBidSnark] tx built successfully, length:', unsignedTx.length);
+      console.log('[acceptBidSnark] CBOR:', unsignedTx);
+    } catch (evalError) {
+      console.error('[acceptBidSnark] .complete() FAILED - evaluation error:', evalError);
+      // Try to get the raw CBOR without evaluation for manual debugging
+      try {
+        const rawCbor = txBuilder.completeSync();
+        console.log('[acceptBidSnark] raw CBOR (no eval):', rawCbor);
+      } catch (syncError) {
+        console.error('[acceptBidSnark] completeSync() also failed:', syncError);
+      }
+      throw evalError;
+    }
 
     // 13. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
-    const txHash = await wallet.submitTx(signedTx);
+    console.log('[acceptBidSnark] tx signed, CBOR:', signedTx);
+
+    let txHash: string;
+    try {
+      txHash = await wallet.submitTx(signedTx);
+      console.log('[acceptBidSnark] submitted, txHash:', txHash);
+    } catch (submitError) {
+      console.error('[acceptBidSnark] submitTx FAILED:', submitError);
+      throw submitError;
+    }
 
     // 14. Store hop secrets for Phase 12f
     await storeAcceptBidSecrets(
@@ -1706,43 +1748,31 @@ function fetchGrothStakeAddress(
 }
 
 /**
- * Fetch the reward balance for a stake address via Koios (free tier, no key).
+ * Return the reward balance for the groth stake address.
+ *
+ * The groth stake address is a Plutus V3 script address used solely to trigger
+ * the groth validator via withdrawal. It is never delegated to a pool and never
+ * earns staking rewards, so the balance is always "0". The withdrawal of "0" is
+ * valid and exists only to trigger the groth validator script on-chain.
  */
 async function fetchRewardBalance(
-  stakeAddress: string
+  _stakeAddress: string
 ): Promise<string> {
-  const response = await fetch(
-    'https://preprod.koios.rest/api/v1/account_info',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ _stake_addresses: [stakeAddress] }),
-    }
-  );
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      return '0';
-    }
-    throw new Error(`Failed to fetch reward balance: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data[0]?.withdrawable || '0';
+  return '0';
 }
 
 /**
- * Fetch the current slot number from local Kupo health endpoint.
+ * Fetch the current slot number from local Ogmios health endpoint.
+ * Ogmios /health returns JSON with lastKnownTip.slot.
  */
 async function fetchCurrentSlot(): Promise<number> {
-  const response = await fetch('http://localhost:1442/health');
+  const response = await fetch('http://127.0.0.1:1337/health');
   if (!response.ok) {
-    throw new Error(`Kupo health check failed: ${response.statusText}`);
+    throw new Error(`Ogmios health check failed: ${response.statusText}`);
   }
 
   const data = await response.json();
-  // Kupo /health returns most_recent_checkpoint as a slot number
-  return data.most_recent_checkpoint || 0;
+  return data.lastKnownTip?.slot || 0;
 }
 
 function hexToUint8Array(hex: string): Uint8Array {
