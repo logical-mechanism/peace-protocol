@@ -28,7 +28,7 @@ class FixedOgmiosProvider extends OgmiosProvider {
     const results = await super.evaluateTx(tx);
     return results.map((r) => ({
       ...r,
-      tag: r.tag === 'WITHDRAW' ? 'REWARD' : r.tag,
+      tag: (r.tag as string) === 'WITHDRAW' ? 'REWARD' : r.tag,
     }));
   }
 }
