@@ -93,6 +93,14 @@ impl ManagedProcess {
     }
 }
 
+/// Send a signal to a process using libc::kill directly.
+/// Returns true if the signal was delivered (process exists), false otherwise.
+/// Using libc avoids spawning external `/usr/bin/kill` which can fail inside AppImage.
+fn send_signal(pid: u32, signal: i32) -> bool {
+    // SAFETY: libc::kill is a POSIX syscall; invalid pid/signal returns -1 (not UB).
+    unsafe { libc::kill(pid as i32, signal) == 0 }
+}
+
 /// The central process manager, held in Tauri state.
 /// Manages the lifecycle of all sidecar processes.
 pub struct NodeManager {
@@ -141,13 +149,7 @@ impl NodeManager {
 
         let alive_pids: Vec<u32> = pids
             .into_iter()
-            .filter(|pid| {
-                std::process::Command::new("kill")
-                    .args(["-0", &pid.to_string()])
-                    .output()
-                    .map(|o| o.status.success())
-                    .unwrap_or(false)
-            })
+            .filter(|pid| send_signal(*pid, 0))
             .collect();
 
         if alive_pids.is_empty() {
@@ -158,9 +160,7 @@ impl NodeManager {
         // SIGTERM first
         for pid in &alive_pids {
             eprintln!("[NodeManager] Sending SIGTERM to orphan pid={pid} from PID file");
-            let _ = std::process::Command::new("kill")
-                .args(["-TERM", &pid.to_string()])
-                .output();
+            send_signal(*pid, libc::SIGTERM);
         }
 
         // Wait up to 30 seconds
@@ -198,9 +198,7 @@ impl NodeManager {
         // SIGTERM first
         for pid in &orphan_pids {
             eprintln!("[NodeManager] Sending SIGTERM to orphan on port: pid={pid}");
-            let _ = std::process::Command::new("kill")
-                .args(["-TERM", &pid.to_string()])
-                .output();
+            send_signal(*pid, libc::SIGTERM);
         }
 
         // Wait up to 30 seconds
@@ -216,13 +214,7 @@ impl NodeManager {
             let still_alive: Vec<u32> = pids
                 .iter()
                 .copied()
-                .filter(|pid| {
-                    std::process::Command::new("kill")
-                        .args(["-0", &pid.to_string()])
-                        .output()
-                        .map(|o| o.status.success())
-                        .unwrap_or(false)
-                })
+                .filter(|pid| send_signal(*pid, 0))
                 .collect();
 
             if still_alive.is_empty() {
@@ -232,9 +224,7 @@ impl NodeManager {
             if std::time::Instant::now() >= deadline {
                 for pid in &still_alive {
                     eprintln!("[NodeManager] SIGKILL orphan pid={pid} (did not exit after SIGTERM)");
-                    let _ = std::process::Command::new("kill")
-                        .args(["-9", &pid.to_string()])
-                        .output();
+                    send_signal(*pid, libc::SIGKILL);
                 }
                 return;
             }
@@ -882,19 +872,12 @@ impl NodeManager {
 
         if let Some(pid) = pid {
             // Send SIGTERM for graceful shutdown
-            let _ = std::process::Command::new("kill")
-                .args(["-TERM", &pid.to_string()])
-                .output();
+            send_signal(pid, libc::SIGTERM);
 
             // Wait up to 30 seconds for the process to exit gracefully
             let mut exited = false;
             for _ in 0..60 {
-                let alive = std::process::Command::new("kill")
-                    .args(["-0", &pid.to_string()])
-                    .output()
-                    .map(|o| o.status.success())
-                    .unwrap_or(false);
-                if !alive {
+                if !send_signal(pid, 0) {
                     exited = true;
                     break;
                 }
@@ -1000,9 +983,7 @@ impl NodeManager {
         // Step 1: Send SIGTERM to all processes
         for pid in &all_pids {
             eprintln!("[NodeManager] Exit: sending SIGTERM to pid={pid}");
-            let _ = std::process::Command::new("kill")
-                .args(["-TERM", &pid.to_string()])
-                .output();
+            send_signal(*pid, libc::SIGTERM);
         }
 
         // Step 2: Wait up to 30 seconds for all to exit gracefully.
@@ -1012,13 +993,7 @@ impl NodeManager {
             let still_alive: Vec<u32> = all_pids
                 .iter()
                 .copied()
-                .filter(|pid| {
-                    std::process::Command::new("kill")
-                        .args(["-0", &pid.to_string()])
-                        .output()
-                        .map(|o| o.status.success())
-                        .unwrap_or(false)
-                })
+                .filter(|pid| send_signal(*pid, 0))
                 .collect();
 
             if still_alive.is_empty() {
@@ -1030,9 +1005,7 @@ impl NodeManager {
                 // Step 3: SIGKILL any survivors
                 for pid in &still_alive {
                     eprintln!("[NodeManager] Exit: SIGKILL pid={pid} (did not exit after SIGTERM)");
-                    let _ = std::process::Command::new("kill")
-                        .args(["-9", &pid.to_string()])
-                        .output();
+                    send_signal(*pid, libc::SIGKILL);
                 }
                 break;
             }
@@ -1056,9 +1029,7 @@ impl NodeManager {
 
         for pid in &all_pids {
             eprintln!("[NodeManager] Exit (fallback): SIGTERM pid={pid}");
-            let _ = std::process::Command::new("kill")
-                .args(["-TERM", &pid.to_string()])
-                .output();
+            send_signal(*pid, libc::SIGTERM);
         }
 
         let _ = std::fs::remove_file(&self.pid_file);
