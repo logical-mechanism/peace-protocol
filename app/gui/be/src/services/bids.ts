@@ -10,8 +10,9 @@ interface ParsedBidCip20 {
 
 /**
  * Fetch and parse CIP-20 metadata (key 674) from the bid tx.
- * Format: { msg: [description, bidAmount, storageLayer, futurePrice] }
- * We only need the 4th element (futurePrice) — the rest is already on BidDisplay.
+ * Format: { msg: [futurePrice] }
+ * The bid only carries the bidder's desired re-listing price.
+ * Description and storageLayer come from the seller's encryption UTxO.
  */
 async function fetchBidCip20Metadata(txHash: string): Promise<ParsedBidCip20> {
   try {
@@ -21,9 +22,9 @@ async function fetchBidCip20Metadata(txHash: string): Promise<ParsedBidCip20> {
     if (!cip20?.json || typeof cip20.json !== 'object') return {};
 
     const json = cip20.json as { msg?: string[] };
-    if (!Array.isArray(json.msg) || json.msg.length < 4) return {};
+    if (!Array.isArray(json.msg) || json.msg.length < 1) return {};
 
-    const futurePriceStr = json.msg[3];
+    const futurePriceStr = json.msg[0];
     const futurePrice = futurePriceStr ? parseFloat(futurePriceStr) : undefined;
 
     return {

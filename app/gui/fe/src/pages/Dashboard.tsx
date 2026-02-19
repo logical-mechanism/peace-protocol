@@ -177,8 +177,6 @@ export default function Dashboard() {
     }
 
     const result = await placeBid(wallet, encryptionTokenName, bidAmountAda, encryptionUtxo, {
-      description: selectedEncryption?.description,
-      storageLayer: selectedEncryption?.storageLayer,
       futurePrice,
     })
 

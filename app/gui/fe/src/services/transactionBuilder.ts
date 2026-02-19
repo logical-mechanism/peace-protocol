@@ -680,7 +680,7 @@ export async function placeBid(
   encryptionTokenName: string,
   bidAmountAda: number,
   encryptionUtxo: { txHash: string; outputIndex: number },
-  metadata?: { description?: string; storageLayer?: string; futurePrice?: number }
+  metadata?: { futurePrice?: number }
 ): Promise<TransactionResult> {
   try {
     // STUB MODE
@@ -858,12 +858,11 @@ export async function placeBid(
       )
       // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata: carry description, bid amount, storageLayer, futurePrice
+      // CIP-20 metadata: only the bidder's desired future listing price
+      // Description and storageLayer are the seller's data — carried forward
+      // in Phase 12e/12f from the encryption UTxO, not from the bid.
       .metadataValue(674, {
         msg: [
-          metadata?.description || '',
-          bidAmountAda.toString(),
-          metadata?.storageLayer || '',
           metadata?.futurePrice?.toString() || '',
         ],
       })
