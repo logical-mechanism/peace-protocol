@@ -293,16 +293,6 @@ export default function Dashboard() {
     }
 
     try {
-      // Step 0: Early check that seller secrets exist (needed for Phase 12f later)
-      const { hasSecrets } = await import('../services/secretStorage')
-      if (!await hasSecrets(encryption.tokenName)) {
-        toast.error(
-          'Seller Secrets Missing',
-          'Cannot accept bid: seller secrets not found. You may have cleared browser data or created this listing on another device.'
-        )
-        return
-      }
-
       // Step 1: Prepare SNARK inputs (computes V, W0, W1 for the circuit)
       toast.info('Preparing', 'Computing SNARK proof inputs...')
       const { inputs, a0, r0, hk } = await prepareSnarkInputs(bid)
