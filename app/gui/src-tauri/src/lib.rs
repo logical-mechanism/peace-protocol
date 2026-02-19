@@ -17,10 +17,11 @@ static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Workaround for WebKitGTK sandbox crash on newer kernels (6.17+)
+    // Workaround for WebKitGTK crashes on newer kernels (6.17+) and older GPUs
     #[cfg(target_os = "linux")]
     {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
     }
 
