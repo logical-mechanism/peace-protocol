@@ -26,9 +26,12 @@ async function fetchBidCip20Metadata(txHash: string): Promise<ParsedBidCip20> {
 
     const futurePriceStr = json.msg[0];
     const futurePrice = futurePriceStr ? parseFloat(futurePriceStr) : undefined;
+    const result = futurePrice && !isNaN(futurePrice) ? futurePrice : undefined;
+
+    console.log(`[bids] fetchBidCip20Metadata(${txHash}): msg=${JSON.stringify(json.msg)}, futurePriceStr="${futurePriceStr}", parsed=${futurePrice}, result=${result}`);
 
     return {
-      futurePrice: futurePrice && !isNaN(futurePrice) ? futurePrice : undefined,
+      futurePrice: result,
     };
   } catch (err) {
     console.warn(`Failed to fetch CIP-20 metadata for bid ${txHash}:`, err);

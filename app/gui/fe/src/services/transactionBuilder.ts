@@ -1420,6 +1420,7 @@ export async function completeReEncryption(
   encryption: EncryptionDisplay,
   bid: BidDisplay
 ): Promise<TransactionResult> {
+  console.log('[completeReEncryption] bid received:', JSON.stringify({ tokenName: bid.tokenName, futurePrice: bid.futurePrice, amount: bid.amount }));
   try {
     if (USE_STUBS) {
       console.warn('[STUB] completeReEncryption');
@@ -1613,6 +1614,8 @@ export async function completeReEncryption(
         'Please wait a minute and try again.'
       );
     }
+
+    console.log('[completeReEncryption] metadata price will be:', bid.futurePrice ?? bid.amount / 1_000_000, '(futurePrice:', bid.futurePrice, ', amount:', bid.amount, ')');
 
     const txBuilder = createTxBuilder();
 

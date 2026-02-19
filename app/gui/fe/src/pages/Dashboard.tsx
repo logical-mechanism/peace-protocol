@@ -465,6 +465,8 @@ export default function Dashboard() {
         return
       }
 
+      console.log('[handleCompleteSale] acceptedBid:', JSON.stringify({ tokenName: acceptedBid.tokenName, futurePrice: acceptedBid.futurePrice, amount: acceptedBid.amount }))
+
       toast.info('Submitting', 'Submitting re-encryption transaction...')
       const result = await completeReEncryption(wallet, encryption, acceptedBid)
 
