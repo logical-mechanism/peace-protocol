@@ -634,6 +634,13 @@ export async function cancelPendingListing(
         collateral[0].output.address
       )
       .requiredSignerHash(ownerPkh)
+      .metadataValue(674, {
+        msg: [
+          encryption.description || '',
+          encryption.suggestedPrice?.toString() || '0',
+          encryption.storageLayer || '',
+        ]
+      })
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos)
       .complete();
