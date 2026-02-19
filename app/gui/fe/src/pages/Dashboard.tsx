@@ -16,6 +16,7 @@ import SnarkProvingModal from '../components/SnarkProvingModal'
 import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
+import { cleanupStaleSecrets } from '../services/secretCleanup'
 import {
   createListing, removeListing, placeBid, cancelBid,
   cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
@@ -174,7 +175,10 @@ export default function Dashboard() {
       console.warn(stubWarning)
     }
 
-    const result = await placeBid(wallet, encryptionTokenName, bidAmountAda, encryptionUtxo)
+    const result = await placeBid(wallet, encryptionTokenName, bidAmountAda, encryptionUtxo, {
+      description: selectedEncryption?.description,
+      storageLayer: selectedEncryption?.storageLayer,
+    })
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to place bid')
@@ -663,6 +667,9 @@ export default function Dashboard() {
           b => b.bidderPkh === userPkh && b.status === 'pending'
         )
         setMyBidsCount(userBids.length)
+
+        // Best-effort cleanup of stale secrets after confirmed ownership changes
+        cleanupStaleSecrets(userPkh, encryptions).catch(() => {})
       } catch (error) {
         console.error('Failed to fetch stats:', error)
         setMyListingsCount(0)

@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+use crate::crypto::secrets::{derive_secrets_key, SecretsKey};
 use crate::crypto::wallet::{decrypt_mnemonic, encrypt_mnemonic, EncryptedWallet};
 
 /// Application state for wallet management.
@@ -48,9 +49,11 @@ pub fn create_wallet(
 
 /// Unlock the wallet by decrypting the mnemonic with the password.
 /// Returns the mnemonic words as a JSON array of strings.
+/// Also derives the secrets encryption key from the mnemonic.
 #[tauri::command]
 pub fn unlock_wallet(
     state: tauri::State<'_, WalletState>,
+    secrets_key_state: tauri::State<'_, SecretsKey>,
     password: String,
 ) -> Result<Vec<String>, String> {
     let json = std::fs::read_to_string(&state.wallet_path)
@@ -62,6 +65,13 @@ pub fn unlock_wallet(
     let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
     let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
 
+    // Derive the secrets encryption key from the mnemonic
+    let secrets_key = derive_secrets_key(&mnemonic)?;
+    *secrets_key_state
+        .0
+        .lock()
+        .map_err(|_| "Internal error: secrets key lock poisoned".to_string())? = Some(secrets_key);
+
     *state
         .mnemonic
         .lock()
@@ -70,9 +80,24 @@ pub fn unlock_wallet(
     Ok(words)
 }
 
-/// Lock the wallet by clearing the mnemonic from memory.
+/// Lock the wallet by clearing the mnemonic and secrets key from memory.
 #[tauri::command]
-pub fn lock_wallet(state: tauri::State<'_, WalletState>) -> Result<(), String> {
+pub fn lock_wallet(
+    state: tauri::State<'_, WalletState>,
+    secrets_key_state: tauri::State<'_, SecretsKey>,
+) -> Result<(), String> {
+    // Zero and clear the secrets encryption key
+    {
+        let mut guard = secrets_key_state
+            .0
+            .lock()
+            .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
+        if let Some(ref mut key) = *guard {
+            key.fill(0);
+        }
+        *guard = None;
+    }
+
     *state
         .mnemonic
         .lock()
@@ -80,13 +105,29 @@ pub fn lock_wallet(state: tauri::State<'_, WalletState>) -> Result<(), String> {
     Ok(())
 }
 
-/// Delete the wallet file and clear in-memory state.
+/// Delete the wallet file and clear in-memory state (mnemonic + secrets key).
 #[tauri::command]
-pub fn delete_wallet(state: tauri::State<'_, WalletState>) -> Result<(), String> {
+pub fn delete_wallet(
+    state: tauri::State<'_, WalletState>,
+    secrets_key_state: tauri::State<'_, SecretsKey>,
+) -> Result<(), String> {
     if state.wallet_path.exists() {
         std::fs::remove_file(&state.wallet_path)
             .map_err(|e| format!("Failed to delete wallet file: {e}"))?;
     }
+
+    // Zero and clear the secrets encryption key
+    {
+        let mut guard = secrets_key_state
+            .0
+            .lock()
+            .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
+        if let Some(ref mut key) = *guard {
+            key.fill(0);
+        }
+        *guard = None;
+    }
+
     *state
         .mnemonic
         .lock()

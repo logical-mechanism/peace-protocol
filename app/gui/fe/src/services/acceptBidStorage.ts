@@ -4,6 +4,10 @@
  * Stores hop secrets (a0, r0, hk) between Phase 12e (SNARK tx) and Phase 12f (re-encryption tx).
  * These secrets are generated fresh for the SNARK proof and needed for the re-encryption step.
  *
+ * Storage is backed by JSON files in the Tauri app data directory
+ * (secrets/accept-bid/{encryptionTokenName}.json), which persists across WebView resets
+ * unlike IndexedDB in WebKitGTK.
+ *
  * The flow:
  * 1. Phase 12e: Seller generates SNARK proof with fresh (a0, r0), stores them here
  * 2. Phase 12e tx confirms on-chain (encryption status → Pending)
@@ -12,9 +16,7 @@
  * 5. Secrets are cleaned up
  */
 
-const DB_NAME = 'peace-protocol';
-const DB_VERSION = 3; // Increment version to add new store
-const STORE_NAME = 'accept-bid-secrets';
+import { invoke } from '@tauri-apps/api/core';
 
 /**
  * Accept bid secret structure.
@@ -32,46 +34,6 @@ export interface AcceptBidSecrets {
 }
 
 /**
- * Open the IndexedDB database.
- */
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      reject(new Error('Failed to open IndexedDB'));
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-
-      // Create seller-secrets store if it doesn't exist (from Phase 9)
-      if (!db.objectStoreNames.contains('seller-secrets')) {
-        const sellerStore = db.createObjectStore('seller-secrets', { keyPath: 'tokenName' });
-        sellerStore.createIndex('createdAt', 'createdAt', { unique: false });
-      }
-
-      // Create bidder-secrets store if it doesn't exist (from Phase 12b)
-      if (!db.objectStoreNames.contains('bidder-secrets')) {
-        const bidStore = db.createObjectStore('bidder-secrets', { keyPath: 'bidTokenName' });
-        bidStore.createIndex('createdAt', 'createdAt', { unique: false });
-        bidStore.createIndex('encryptionTokenName', 'encryptionTokenName', { unique: false });
-      }
-
-      // Create accept-bid-secrets store
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'encryptionTokenName' });
-        store.createIndex('createdAt', 'createdAt', { unique: false });
-      }
-    };
-  });
-}
-
-/**
  * Store accept-bid secrets after Phase 12e SNARK tx.
  */
 export async function storeAcceptBidSecrets(
@@ -84,37 +46,15 @@ export async function storeAcceptBidSecrets(
   ttl: number,
   snarkTxHash: string
 ): Promise<void> {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-
-    const secrets: AcceptBidSecrets = {
-      encryptionTokenName,
-      bidTokenName,
-      a0: a0.toString(16),
-      r0: r0.toString(16),
-      hk: hk.toString(16),
-      grothPublic,
-      ttl,
-      snarkTxHash,
-      createdAt: new Date().toISOString(),
-    };
-
-    const request = store.put(secrets);
-
-    request.onsuccess = () => {
-      resolve();
-    };
-
-    request.onerror = () => {
-      reject(new Error('Failed to store accept-bid secrets'));
-    };
-
-    transaction.oncomplete = () => {
-      db.close();
-    };
+  await invoke('store_accept_bid_secrets', {
+    encryptionTokenName,
+    bidTokenName,
+    a0: a0.toString(16),
+    r0: r0.toString(16),
+    hk: hk.toString(16),
+    grothPublic,
+    ttl,
+    snarkTxHash,
   });
 }
 
@@ -123,70 +63,53 @@ export async function storeAcceptBidSecrets(
  */
 export async function getAcceptBidSecrets(
   encryptionTokenName: string
-): Promise<{ a0: bigint; r0: bigint; hk: bigint; bidTokenName: string; grothPublic: string[]; ttl: number; snarkTxHash: string } | null> {
-  const db = await openDB();
+): Promise<{
+  a0: bigint;
+  r0: bigint;
+  hk: bigint;
+  bidTokenName: string;
+  grothPublic: string[];
+  ttl: number;
+  snarkTxHash: string;
+} | null> {
+  const result = await invoke<{
+    a0: string;
+    r0: string;
+    hk: string;
+    bidTokenName: string;
+    grothPublic: string[];
+    ttl: number;
+    snarkTxHash: string;
+  } | null>('get_accept_bid_secrets', { encryptionTokenName });
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.get(encryptionTokenName);
-
-    request.onsuccess = () => {
-      const result = request.result as AcceptBidSecrets | undefined;
-      if (result) {
-        resolve({
-          a0: BigInt('0x' + result.a0),
-          r0: BigInt('0x' + result.r0),
-          hk: result.hk ? BigInt('0x' + result.hk) : 0n,
-          bidTokenName: result.bidTokenName,
-          grothPublic: result.grothPublic,
-          ttl: result.ttl,
-          snarkTxHash: result.snarkTxHash,
-        });
-      } else {
-        resolve(null);
-      }
-    };
-
-    request.onerror = () => {
-      reject(new Error('Failed to retrieve accept-bid secrets'));
-    };
-
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+  if (!result) return null;
+  return {
+    a0: BigInt('0x' + result.a0),
+    r0: BigInt('0x' + result.r0),
+    hk: result.hk ? BigInt('0x' + result.hk) : 0n,
+    bidTokenName: result.bidTokenName,
+    grothPublic: result.grothPublic,
+    ttl: result.ttl,
+    snarkTxHash: result.snarkTxHash,
+  };
 }
 
 /**
  * Remove accept-bid secrets (after Phase 12f completes or on cancel).
  */
-export async function removeAcceptBidSecrets(encryptionTokenName: string): Promise<void> {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(encryptionTokenName);
-
-    request.onsuccess = () => {
-      resolve();
-    };
-
-    request.onerror = () => {
-      reject(new Error('Failed to remove accept-bid secrets'));
-    };
-
-    transaction.oncomplete = () => {
-      db.close();
-    };
-  });
+export async function removeAcceptBidSecrets(
+  encryptionTokenName: string
+): Promise<void> {
+  await invoke('remove_accept_bid_secrets', { encryptionTokenName });
 }
 
 /**
  * Check if accept-bid secrets exist for an encryption.
  */
-export async function hasAcceptBidSecrets(encryptionTokenName: string): Promise<boolean> {
-  const secrets = await getAcceptBidSecrets(encryptionTokenName);
-  return secrets !== null;
+export async function hasAcceptBidSecrets(
+  encryptionTokenName: string
+): Promise<boolean> {
+  return await invoke<boolean>('has_accept_bid_secrets', {
+    encryptionTokenName,
+  });
 }

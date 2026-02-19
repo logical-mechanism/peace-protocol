@@ -3,7 +3,9 @@ mod config;
 mod crypto;
 mod process;
 
+use commands::secrets::SecretsDir;
 use commands::wallet::WalletState;
+use crypto::secrets::SecretsKey;
 use config::AppConfig;
 use process::manager::NodeManager;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -48,6 +50,15 @@ pub fn run() {
             // Node manager (Phase 2)
             let node_manager = NodeManager::new(app.handle().clone());
             app.manage(node_manager);
+
+            // Secret storage directory (filesystem-backed, survives WebView resets)
+            let secrets_dir = app_data_dir.join("secrets");
+            std::fs::create_dir_all(&secrets_dir)
+                .expect("Failed to create secrets directory");
+            app.manage(SecretsDir(secrets_dir));
+
+            // Secrets encryption key (derived from mnemonic on wallet unlock)
+            app.manage(SecretsKey(Mutex::new(None)));
 
             Ok(())
         })
@@ -104,6 +115,19 @@ pub fn run() {
             commands::snark::snark_gt_to_hash,
             commands::snark::snark_decrypt_to_hash,
             commands::snark::snark_prove,
+            // Secret storage commands
+            commands::secrets::store_seller_secrets,
+            commands::secrets::get_seller_secrets,
+            commands::secrets::remove_seller_secrets,
+            commands::secrets::list_seller_secrets,
+            commands::secrets::store_bid_secrets,
+            commands::secrets::get_bid_secrets,
+            commands::secrets::get_bid_secrets_for_encryption,
+            commands::secrets::remove_bid_secrets,
+            commands::secrets::store_accept_bid_secrets,
+            commands::secrets::get_accept_bid_secrets,
+            commands::secrets::remove_accept_bid_secrets,
+            commands::secrets::has_accept_bid_secrets,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

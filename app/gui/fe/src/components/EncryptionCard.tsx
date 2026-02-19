@@ -11,6 +11,7 @@ interface EncryptionCardProps {
   encryption: EncryptionDisplay;
   onPlaceBid?: (encryption: EncryptionDisplay) => void;
   isOwnListing?: boolean;
+  hasBid?: boolean;
   compact?: boolean;
 }
 
@@ -18,6 +19,7 @@ export default function EncryptionCard({
   encryption,
   onPlaceBid,
   isOwnListing = false,
+  hasBid = false,
   compact = false,
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
@@ -49,7 +51,7 @@ export default function EncryptionCard({
     return `${price.toLocaleString()} ADA`;
   };
 
-  const canBid = encryption.status === 'active' && !isOwnListing;
+  const canBid = encryption.status === 'active' && !isOwnListing && !hasBid;
 
   // Get storage layer label - returns "No data layer" for unknown/missing values
   const getStorageLayerLabel = (storageLayer?: string): string => {
@@ -132,6 +134,11 @@ export default function EncryptionCard({
               >
                 Bid
               </button>
+            )}
+            {hasBid && encryption.status === 'active' && !isOwnListing && (
+              <span className="px-3 py-1.5 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                Bid Placed
+              </span>
             )}
           </div>
         </div>
@@ -248,6 +255,12 @@ export default function EncryptionCard({
           >
             Place Bid
           </button>
+        )}
+
+        {hasBid && encryption.status === 'active' && !isOwnListing && (
+          <div className="mt-4 text-center text-xs text-[var(--text-muted)]">
+            You have a bid on this listing
+          </div>
         )}
 
         {isOwnListing && (

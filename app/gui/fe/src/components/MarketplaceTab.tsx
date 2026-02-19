@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { encryptionsApi } from '../services/api';
+import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
 import LoadingSpinner from './LoadingSpinner';
@@ -16,6 +16,7 @@ interface MarketplaceTabProps {
 
 export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
+  const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -27,14 +28,27 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
     setLoading(true);
     setError(null);
     try {
-      const data = await encryptionsApi.getAll();
+      const [data, allBids] = await Promise.all([
+        encryptionsApi.getAll(),
+        bidsApi.getAll(),
+      ]);
       setEncryptions(data);
+
+      // Build set of encryption tokens the user has pending bids on
+      if (userPkh) {
+        const userBidTokens = new Set<string>(
+          allBids
+            .filter((b) => b.bidderPkh === userPkh && b.status === 'pending')
+            .map((b) => b.encryptionToken)
+        );
+        setUserBidEncryptionTokens(userBidTokens);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch listings');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userPkh]);
 
   useEffect(() => {
     fetchEncryptions();
@@ -272,6 +286,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               encryption={encryption}
               onPlaceBid={onPlaceBid}
               isOwnListing={isOwnListing(encryption)}
+              hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
             />
           ))}
         </div>
@@ -283,6 +298,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               encryption={encryption}
               onPlaceBid={onPlaceBid}
               isOwnListing={isOwnListing(encryption)}
+              hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
               compact
             />
           ))}

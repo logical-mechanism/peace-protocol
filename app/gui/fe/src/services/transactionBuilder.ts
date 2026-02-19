@@ -25,7 +25,7 @@ import {
 } from './crypto';
 import { storeSecrets, getSecrets } from './secretStorage';
 import { storeBidSecrets, removeBidSecrets } from './bidSecretStorage';
-import { storeAcceptBidSecrets, getAcceptBidSecrets, removeAcceptBidSecrets } from './acceptBidStorage';
+import { storeAcceptBidSecrets, getAcceptBidSecrets } from './acceptBidStorage';
 import { deriveSecretFromWallet } from './crypto/walletSecret';
 import { bech32 } from '@scure/base';
 import { buildPayload } from './crypto/payload';
@@ -538,12 +538,7 @@ export async function cancelPendingListing(
       console.warn('[STUB] cancelPendingListing');
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Clean up accept-bid secrets
-      try {
-        await removeAcceptBidSecrets(encryption.tokenName);
-      } catch (error) {
-        console.warn('[STUB] Failed to remove accept-bid secrets:', error);
-      }
+      // Accept-bid secrets are cleaned up by secretCleanup after confirmed ownership change
 
       return {
         success: true,
@@ -646,12 +641,7 @@ export async function cancelPendingListing(
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
 
-    // Clean up accept-bid secrets
-    try {
-      await removeAcceptBidSecrets(encryption.tokenName);
-    } catch (error) {
-      console.warn('Failed to remove accept-bid secrets after cancel:', error);
-    }
+    // Accept-bid secrets are cleaned up by secretCleanup after confirmed ownership change
 
     return {
       success: true,
@@ -689,7 +679,8 @@ export async function placeBid(
   wallet: IWallet,
   encryptionTokenName: string,
   bidAmountAda: number,
-  encryptionUtxo: { txHash: string; outputIndex: number }
+  encryptionUtxo: { txHash: string; outputIndex: number },
+  metadata?: { description?: string; storageLayer?: string }
 ): Promise<TransactionResult> {
   try {
     // STUB MODE
@@ -867,6 +858,14 @@ export async function placeBid(
       )
       // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
+      // CIP-20 metadata: carry description, bid amount as price, storageLayer
+      .metadataValue(674, {
+        msg: [
+          metadata?.description || '',
+          bidAmountAda.toString(),
+          metadata?.storageLayer || '',
+        ],
+      })
       // Change and UTxO selection
       // Exclude firstUtxo from coin selection pool — it's already an explicit input.
       // Including it causes the selector to undercount available ADA.
@@ -1425,12 +1424,7 @@ export async function completeReEncryption(
       console.warn('[STUB] completeReEncryption');
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Clean up secrets
-      try {
-        await removeAcceptBidSecrets(encryption.tokenName);
-      } catch (error) {
-        console.warn('[STUB] Failed to remove accept-bid secrets:', error);
-      }
+      // Accept-bid secrets are cleaned up by secretCleanup after confirmed ownership change
 
       return {
         success: true,
@@ -1656,11 +1650,11 @@ export async function completeReEncryption(
       )
       // Required signer
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata: carry forward description and storageLayer from original listing
+      // CIP-20 metadata: carry forward description and storageLayer, use bid amount as new price
       .metadataValue(674, {
         msg: [
           encryption.description || '',
-          '0',
+          (bid.amount / 1_000_000).toString(),
           encryption.storageLayer || '',
         ],
       })
@@ -1673,12 +1667,7 @@ export async function completeReEncryption(
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
 
-    // 18. Clean up secrets
-    try {
-      await removeAcceptBidSecrets(encryption.tokenName);
-    } catch (error) {
-      console.warn('Failed to remove accept-bid secrets after re-encryption:', error);
-    }
+    // Accept-bid secrets are cleaned up by secretCleanup after confirmed ownership change
 
     return {
       success: true,
