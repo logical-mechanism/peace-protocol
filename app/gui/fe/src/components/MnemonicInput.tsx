@@ -41,10 +41,13 @@ export default function MnemonicInput({
   const showDropdown = focused && trimmed.length > 0 && matches.length > 0 &&
     !(matches.length === 1 && matches[0] === trimmed)
 
-  // Reset highlight when matches change
-  useEffect(() => {
+  // Reset highlight when matches change (render-time adjustment per React docs)
+  const matchKey = `${matches.length}:${trimmed}`
+  const [prevMatchKey, setPrevMatchKey] = useState(matchKey)
+  if (matchKey !== prevMatchKey) {
+    setPrevMatchKey(matchKey)
     setHighlightIndex(0)
-  }, [matches.length, trimmed])
+  }
 
   // Scroll highlighted item into view
   useEffect(() => {
@@ -184,7 +187,7 @@ export default function MnemonicInput({
   )
 }
 
-/** Validate that all words are in the BIP-39 English wordlist */
+// eslint-disable-next-line react-refresh/only-export-components
 export function validateMnemonicWords(words: string[]): boolean {
   return words.length === 24 && words.every((w) => WORDLIST.includes(w.toLowerCase()))
 }

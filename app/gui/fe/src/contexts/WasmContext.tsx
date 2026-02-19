@@ -151,6 +151,7 @@ export function WasmProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (initRef.current) return
     initRef.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time async init
     startLoading()
   }, [startLoading])
 

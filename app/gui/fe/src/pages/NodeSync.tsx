@@ -168,11 +168,22 @@ export default function NodeSync() {
   const [isStarting, setIsStarting] = useState(false)
   const timerRef = useRef<number | null>(null)
   const wasBootstrappingRef = useRef(false)
+  const [prevStage, setPrevStage] = useState(stage)
+
+  // Render-time state adjustments when stage changes (per React docs)
+  if (stage !== prevStage) {
+    if (stage !== 'stopped' && stage !== 'synced') {
+      setElapsedTime(0)
+    }
+    if (stage !== 'stopped') {
+      setIsStarting(false)
+    }
+    setPrevStage(stage)
+  }
 
   // Elapsed timer when not stopped
   useEffect(() => {
     if (stage !== 'stopped' && stage !== 'synced') {
-      setElapsedTime(0)
       timerRef.current = window.setInterval(() => {
         setElapsedTime((prev) => prev + 1)
       }, 1000)
@@ -195,13 +206,6 @@ export default function NodeSync() {
       startNode(address ?? '')
     }
   }, [stage, needsBootstrap, startNode, address])
-
-  // Reset isStarting when stage transitions away from stopped
-  useEffect(() => {
-    if (stage !== 'stopped') {
-      setIsStarting(false)
-    }
-  }, [stage])
 
   // Navigate to dashboard when synced
   const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99)

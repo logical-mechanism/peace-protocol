@@ -55,7 +55,7 @@ export default function PlaceBidModal({
       setSubmitError(null);
       setShowFuturePrice(false);
     }
-  }, [isOpen]);
+  }, [isOpen, encryption?.suggestedPrice]);
 
   // Handle escape key to close (separate effect to avoid resetting form)
   useEffect(() => {

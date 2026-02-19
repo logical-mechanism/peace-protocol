@@ -145,7 +145,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/** Primary hook: replaces useWallet() from @meshsdk/react */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWalletContext(): WalletContextValue {
   const context = useContext(WalletContext)
   if (!context) {
@@ -154,13 +154,13 @@ export function useWalletContext(): WalletContextValue {
   return context
 }
 
-/** Compatibility hook: replaces useAddress() from @meshsdk/react */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAddress(): string | undefined {
   const { address } = useWalletContext()
   return address ?? undefined
 }
 
-/** Compatibility hook: replaces useLovelace() from @meshsdk/react */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLovelace(): string | undefined {
   const { lovelace } = useWalletContext()
   return lovelace ?? undefined
