@@ -1,10 +1,41 @@
 import { getNetworkConfig } from '../config/index.js';
 import { getKupoClient } from './kupo.js';
-import type { KoiosUtxo } from './koios.js';
+import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { parseBidDatum } from './parsers.js';
 import type { BidDisplay, BidDatum } from '../types/index.js';
 
-function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum): BidDisplay {
+interface ParsedBidCip20 {
+  futurePrice?: number;
+}
+
+/**
+ * Fetch and parse CIP-20 metadata (key 674) from the bid tx.
+ * Format: { msg: [description, bidAmount, storageLayer, futurePrice] }
+ * We only need the 4th element (futurePrice) — the rest is already on BidDisplay.
+ */
+async function fetchBidCip20Metadata(txHash: string): Promise<ParsedBidCip20> {
+  try {
+    const koios = getKoiosClient();
+    const metadata = await koios.getTxMetadata(txHash);
+    const cip20 = metadata.find(m => m.key === '674');
+    if (!cip20?.json || typeof cip20.json !== 'object') return {};
+
+    const json = cip20.json as { msg?: string[] };
+    if (!Array.isArray(json.msg) || json.msg.length < 4) return {};
+
+    const futurePriceStr = json.msg[3];
+    const futurePrice = futurePriceStr ? parseFloat(futurePriceStr) : undefined;
+
+    return {
+      futurePrice: futurePrice && !isNaN(futurePrice) ? futurePrice : undefined,
+    };
+  } catch (err) {
+    console.warn(`Failed to fetch CIP-20 metadata for bid ${txHash}:`, err);
+    return {};
+  }
+}
+
+function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum, cip20: ParsedBidCip20): BidDisplay {
   // Find the bid token in the asset list
   const { contracts } = getNetworkConfig();
   const bidAsset = utxo.asset_list?.find(
@@ -26,6 +57,7 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum): BidDisplay {
     bidderPkh: datum.owner_vkh,
     encryptionToken: datum.token,
     amount,
+    futurePrice: cip20.futurePrice,
     status,
     createdAt: new Date(utxo.block_time * 1000).toISOString(),
     utxo: {
@@ -48,7 +80,8 @@ export async function getAllBids(): Promise<BidDisplay[]> {
 
     try {
       const datum = parseBidDatum(utxo.inline_datum.value);
-      bids.push(utxoToBidDisplay(utxo, datum));
+      const cip20 = await fetchBidCip20Metadata(utxo.tx_hash);
+      bids.push(utxoToBidDisplay(utxo, datum, cip20));
     } catch (err) {
       console.warn(`Failed to parse bid datum at ${utxo.tx_hash}#${utxo.tx_index}:`, err);
     }

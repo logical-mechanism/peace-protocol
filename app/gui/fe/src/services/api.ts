@@ -111,6 +111,7 @@ export interface BidDisplay {
   bidderPkh: string;
   encryptionToken: string;
   amount: number;
+  futurePrice?: number;
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
   createdAt: string;
   utxo: {

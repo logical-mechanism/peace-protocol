@@ -4,21 +4,29 @@ import type { EncryptionDisplay } from '../services/api';
 
 interface PlaceBidFormData {
   bidAmount: string;
+  futurePrice: string;
 }
 
 interface FormErrors {
   bidAmount?: string;
+  futurePrice?: string;
 }
 
 interface PlaceBidModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (encryptionTokenName: string, bidAmountAda: number, encryptionUtxo: { txHash: string; outputIndex: number }) => Promise<void>;
+  onSubmit: (
+    encryptionTokenName: string,
+    bidAmountAda: number,
+    encryptionUtxo: { txHash: string; outputIndex: number },
+    futurePrice: number
+  ) => Promise<void>;
   encryption: EncryptionDisplay | null;
 }
 
 const INITIAL_FORM_DATA: PlaceBidFormData = {
   bidAmount: '',
+  futurePrice: '',
 };
 
 // Minimum bid in ADA (to cover UTxO minimum)
@@ -34,15 +42,18 @@ export default function PlaceBidModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showFuturePrice, setShowFuturePrice] = useState(false);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
     if (isOpen) {
       setFormData({
         bidAmount: encryption?.suggestedPrice?.toString() || '',
+        futurePrice: encryption?.suggestedPrice?.toString() || '',
       });
       setErrors({});
       setSubmitError(null);
+      setShowFuturePrice(false);
     }
   }, [isOpen]);
 
@@ -79,6 +90,16 @@ export default function PlaceBidModal({
       }
     }
 
+    // Future price validation (only if section is open and value provided)
+    if (showFuturePrice && formData.futurePrice.trim()) {
+      const price = parseFloat(formData.futurePrice);
+      if (isNaN(price) || price < 0) {
+        newErrors.futurePrice = 'Future price must be a non-negative number';
+      } else if (price > 1000000000) {
+        newErrors.futurePrice = 'Future price is too high';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -110,7 +131,10 @@ export default function PlaceBidModal({
 
     try {
       const bidAmountAda = parseFloat(formData.bidAmount);
-      await onSubmit(encryption.tokenName, bidAmountAda, encryption.utxo);
+      const futurePrice = showFuturePrice && formData.futurePrice.trim()
+        ? parseFloat(formData.futurePrice)
+        : encryption?.suggestedPrice ?? bidAmountAda;
+      await onSubmit(encryption.tokenName, bidAmountAda, encryption.utxo, futurePrice);
       onClose();
     } catch (error) {
       console.error('Failed to place bid:', error);
@@ -257,7 +281,7 @@ export default function PlaceBidModal({
                   <button
                     type="button"
                     onClick={() =>
-                      setFormData({ bidAmount: encryption.suggestedPrice!.toString() })
+                      setFormData((prev) => ({ ...prev, bidAmount: encryption.suggestedPrice!.toString() }))
                     }
                     disabled={isSubmitting}
                     className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
@@ -267,9 +291,10 @@ export default function PlaceBidModal({
                   <button
                     type="button"
                     onClick={() =>
-                      setFormData({
+                      setFormData((prev) => ({
+                        ...prev,
                         bidAmount: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
-                      })
+                      }))
                     }
                     disabled={isSubmitting}
                     className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
@@ -279,9 +304,10 @@ export default function PlaceBidModal({
                   <button
                     type="button"
                     onClick={() =>
-                      setFormData({
+                      setFormData((prev) => ({
+                        ...prev,
                         bidAmount: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
-                      })
+                      }))
                     }
                     disabled={isSubmitting}
                     className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
@@ -291,6 +317,100 @@ export default function PlaceBidModal({
                 </div>
               </div>
             )}
+
+            {/* Future Listing Price (collapsible) */}
+            <div className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowFuturePrice(!showFuturePrice)}
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+              >
+                <span>Set Future Listing Price</span>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-150 ${showFuturePrice ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showFuturePrice && (
+                <div className="px-4 pb-4 pt-1 border-t border-[var(--border-subtle)]">
+                  <label
+                    htmlFor="futurePrice"
+                    className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+                  >
+                    Future Listing Price (ADA)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      id="futurePrice"
+                      name="futurePrice"
+                      value={formData.futurePrice}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                      placeholder="0.00"
+                      className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
+                        errors.futurePrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                      }`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">
+                      ADA
+                    </span>
+                  </div>
+                  {errors.futurePrice && (
+                    <p className="mt-1 text-xs text-[var(--error)]">{errors.futurePrice}</p>
+                  )}
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    The suggested price for the next listing after you win. Defaults to the current price.
+                  </p>
+                  {/* Quick price buttons */}
+                  {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, futurePrice: encryption.suggestedPrice!.toString() }))
+                        }
+                        disabled={isSubmitting}
+                        className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      >
+                        Same Price
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            futurePrice: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
+                          }))
+                        }
+                        disabled={isSubmitting}
+                        className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      >
+                        +10%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            futurePrice: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
+                          }))
+                        }
+                        disabled={isSubmitting}
+                        className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      >
+                        +25%
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Submit Error */}
             {submitError && (

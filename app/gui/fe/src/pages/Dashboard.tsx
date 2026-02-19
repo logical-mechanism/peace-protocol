@@ -163,7 +163,8 @@ export default function Dashboard() {
   const handlePlaceBidSubmit = useCallback(async (
     encryptionTokenName: string,
     bidAmountAda: number,
-    encryptionUtxo: { txHash: string; outputIndex: number }
+    encryptionUtxo: { txHash: string; outputIndex: number },
+    futurePrice: number
   ) => {
     if (!wallet) {
       throw new Error('Wallet not connected')
@@ -178,6 +179,7 @@ export default function Dashboard() {
     const result = await placeBid(wallet, encryptionTokenName, bidAmountAda, encryptionUtxo, {
       description: selectedEncryption?.description,
       storageLayer: selectedEncryption?.storageLayer,
+      futurePrice,
     })
 
     if (!result.success) {

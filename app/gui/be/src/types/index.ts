@@ -105,6 +105,7 @@ export interface BidDisplay {
   bidderPkh: string;              // payment key hash
   encryptionToken: string;        // pointer to encryption
   amount: number;                 // lovelace
+  futurePrice?: number;           // ADA — bidder's desired re-listing price (from CIP-20 metadata)
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
   createdAt: string;              // ISO date
   utxo: {

@@ -680,7 +680,7 @@ export async function placeBid(
   encryptionTokenName: string,
   bidAmountAda: number,
   encryptionUtxo: { txHash: string; outputIndex: number },
-  metadata?: { description?: string; storageLayer?: string }
+  metadata?: { description?: string; storageLayer?: string; futurePrice?: number }
 ): Promise<TransactionResult> {
   try {
     // STUB MODE
@@ -858,12 +858,13 @@ export async function placeBid(
       )
       // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata: carry description, bid amount as price, storageLayer
+      // CIP-20 metadata: carry description, bid amount, storageLayer, futurePrice
       .metadataValue(674, {
         msg: [
           metadata?.description || '',
           bidAmountAda.toString(),
           metadata?.storageLayer || '',
+          metadata?.futurePrice?.toString() || '',
         ],
       })
       // Change and UTxO selection
@@ -1651,11 +1652,11 @@ export async function completeReEncryption(
       )
       // Required signer
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata: carry forward description and storageLayer, use bid amount as new price
+      // CIP-20 metadata: carry forward description and storageLayer, use bidder's future price
       .metadataValue(674, {
         msg: [
           encryption.description || '',
-          (bid.amount / 1_000_000).toString(),
+          (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
           encryption.storageLayer || '',
         ],
       })
@@ -1667,6 +1668,11 @@ export async function completeReEncryption(
     // 17. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
+
+    // Store (a0, r0) as seller secrets so secretCleanup can track this token.
+    // These match the new encryption's half-level and will be deleted after
+    // confirmed ownership change (K=15 blocks).
+    await storeSecrets(encryption.tokenName, a0, r0);
 
     // Accept-bid secrets are cleaned up by secretCleanup after confirmed ownership change
 
