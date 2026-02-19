@@ -1,16 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub enum Network {
+    #[default]
     Preprod,
     Mainnet,
-}
-
-impl Default for Network {
-    fn default() -> Self {
-        Network::Preprod
-    }
 }
 
 impl std::fmt::Display for Network {
@@ -70,20 +65,62 @@ impl ContractConfig {
             Network::Mainnet => "MAINNET",
         };
         vec![
-            (format!("ENCRYPTION_CONTRACT_ADDRESS_{suffix}"), self.encryption_address.clone()),
-            (format!("BIDDING_CONTRACT_ADDRESS_{suffix}"), self.bidding_address.clone()),
-            (format!("REFERENCE_CONTRACT_ADDRESS_{suffix}"), self.reference_address.clone()),
-            (format!("ENCRYPTION_POLICY_ID_{suffix}"), self.encryption_policy_id.clone()),
-            (format!("BIDDING_POLICY_ID_{suffix}"), self.bidding_policy_id.clone()),
-            (format!("GROTH_POLICY_ID_{suffix}"), self.groth_policy_id.clone()),
-            (format!("GENESIS_POLICY_ID_{suffix}"), self.genesis_policy_id.clone()),
-            (format!("GENESIS_TOKEN_NAME_{suffix}"), self.genesis_token_name.clone()),
-            (format!("ENCRYPTION_REF_TX_HASH_{suffix}"), self.encryption_ref_tx_hash.clone()),
-            (format!("ENCRYPTION_REF_OUTPUT_INDEX_{suffix}"), self.encryption_ref_output_index.to_string()),
-            (format!("BIDDING_REF_TX_HASH_{suffix}"), self.bidding_ref_tx_hash.clone()),
-            (format!("BIDDING_REF_OUTPUT_INDEX_{suffix}"), self.bidding_ref_output_index.to_string()),
-            (format!("GROTH_REF_TX_HASH_{suffix}"), self.groth_ref_tx_hash.clone()),
-            (format!("GROTH_REF_OUTPUT_INDEX_{suffix}"), self.groth_ref_output_index.to_string()),
+            (
+                format!("ENCRYPTION_CONTRACT_ADDRESS_{suffix}"),
+                self.encryption_address.clone(),
+            ),
+            (
+                format!("BIDDING_CONTRACT_ADDRESS_{suffix}"),
+                self.bidding_address.clone(),
+            ),
+            (
+                format!("REFERENCE_CONTRACT_ADDRESS_{suffix}"),
+                self.reference_address.clone(),
+            ),
+            (
+                format!("ENCRYPTION_POLICY_ID_{suffix}"),
+                self.encryption_policy_id.clone(),
+            ),
+            (
+                format!("BIDDING_POLICY_ID_{suffix}"),
+                self.bidding_policy_id.clone(),
+            ),
+            (
+                format!("GROTH_POLICY_ID_{suffix}"),
+                self.groth_policy_id.clone(),
+            ),
+            (
+                format!("GENESIS_POLICY_ID_{suffix}"),
+                self.genesis_policy_id.clone(),
+            ),
+            (
+                format!("GENESIS_TOKEN_NAME_{suffix}"),
+                self.genesis_token_name.clone(),
+            ),
+            (
+                format!("ENCRYPTION_REF_TX_HASH_{suffix}"),
+                self.encryption_ref_tx_hash.clone(),
+            ),
+            (
+                format!("ENCRYPTION_REF_OUTPUT_INDEX_{suffix}"),
+                self.encryption_ref_output_index.to_string(),
+            ),
+            (
+                format!("BIDDING_REF_TX_HASH_{suffix}"),
+                self.bidding_ref_tx_hash.clone(),
+            ),
+            (
+                format!("BIDDING_REF_OUTPUT_INDEX_{suffix}"),
+                self.bidding_ref_output_index.to_string(),
+            ),
+            (
+                format!("GROTH_REF_TX_HASH_{suffix}"),
+                self.groth_ref_tx_hash.clone(),
+            ),
+            (
+                format!("GROTH_REF_OUTPUT_INDEX_{suffix}"),
+                self.groth_ref_output_index.to_string(),
+            ),
         ]
     }
 }
@@ -117,7 +154,7 @@ impl AppConfig {
     /// In prod: reads from the bundled resource directory
     ///
     /// Edit `src-tauri/resources/config.json` to set contract addresses before building.
-    pub fn load(_resource_dir: &PathBuf) -> Self {
+    pub fn load(_resource_dir: &Path) -> Self {
         // Try the resource dir that Tauri resolved (works in prod builds)
         for path in [
             _resource_dir.join("resources/config.json"),
@@ -138,7 +175,7 @@ impl AppConfig {
     }
 
     /// Save config to a specific file path.
-    pub fn save_to(&self, path: &PathBuf) -> Result<(), String> {
+    pub fn save_to(&self, path: &Path) -> Result<(), String> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create config dir: {e}"))?;
@@ -149,27 +186,27 @@ impl AppConfig {
     }
 
     /// Get the chain data directory for the current network
-    pub fn chain_data_dir(&self, app_data_dir: &PathBuf) -> PathBuf {
+    pub fn chain_data_dir(&self, app_data_dir: &Path) -> PathBuf {
         app_data_dir.join(self.network.to_string())
     }
 
     /// Get the node database directory
-    pub fn node_db_dir(&self, app_data_dir: &PathBuf) -> PathBuf {
+    pub fn node_db_dir(&self, app_data_dir: &Path) -> PathBuf {
         self.chain_data_dir(app_data_dir).join("node-db")
     }
 
     /// Get the kupo database directory
-    pub fn kupo_db_dir(&self, app_data_dir: &PathBuf) -> PathBuf {
+    pub fn kupo_db_dir(&self, app_data_dir: &Path) -> PathBuf {
         self.chain_data_dir(app_data_dir).join("kupo-db")
     }
 
     /// Get the config files directory for the current network
-    pub fn config_dir(&self, app_data_dir: &PathBuf) -> PathBuf {
+    pub fn config_dir(&self, app_data_dir: &Path) -> PathBuf {
         self.chain_data_dir(app_data_dir).join("config")
     }
 
     /// Get the node socket path
-    pub fn node_socket_path(&self, app_data_dir: &PathBuf) -> PathBuf {
+    pub fn node_socket_path(&self, app_data_dir: &Path) -> PathBuf {
         self.chain_data_dir(app_data_dir).join("node.socket")
     }
 
@@ -180,7 +217,10 @@ impl AppConfig {
             ("NODE_ENV".to_string(), "production".to_string()),
             ("NETWORK".to_string(), self.network.to_string()),
             ("USE_STUBS".to_string(), "false".to_string()),
-            ("KUPO_URL".to_string(), format!("http://127.0.0.1:{}", self.kupo_port)),
+            (
+                "KUPO_URL".to_string(),
+                format!("http://127.0.0.1:{}", self.kupo_port),
+            ),
         ];
 
         if let Some(ref contracts) = self.contracts {
@@ -193,12 +233,8 @@ impl AppConfig {
     /// Get the mithril aggregator URL for the current network
     pub fn mithril_aggregator_url(&self) -> &str {
         match self.network {
-            Network::Preprod => {
-                "https://aggregator.release-preprod.api.mithril.network/aggregator"
-            }
-            Network::Mainnet => {
-                "https://aggregator.release-mainnet.api.mithril.network/aggregator"
-            }
+            Network::Preprod => "https://aggregator.release-preprod.api.mithril.network/aggregator",
+            Network::Mainnet => "https://aggregator.release-mainnet.api.mithril.network/aggregator",
         }
     }
 
@@ -235,9 +271,18 @@ mod tests {
     fn test_directory_paths() {
         let config = AppConfig::default();
         let base = PathBuf::from("/tmp/test-app");
-        assert_eq!(config.chain_data_dir(&base), PathBuf::from("/tmp/test-app/preprod"));
-        assert_eq!(config.node_db_dir(&base), PathBuf::from("/tmp/test-app/preprod/node-db"));
-        assert_eq!(config.kupo_db_dir(&base), PathBuf::from("/tmp/test-app/preprod/kupo-db"));
+        assert_eq!(
+            config.chain_data_dir(&base),
+            PathBuf::from("/tmp/test-app/preprod")
+        );
+        assert_eq!(
+            config.node_db_dir(&base),
+            PathBuf::from("/tmp/test-app/preprod/node-db")
+        );
+        assert_eq!(
+            config.kupo_db_dir(&base),
+            PathBuf::from("/tmp/test-app/preprod/kupo-db")
+        );
         assert_eq!(
             config.node_socket_path(&base),
             PathBuf::from("/tmp/test-app/preprod/node.socket")

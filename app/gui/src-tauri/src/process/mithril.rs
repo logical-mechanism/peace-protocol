@@ -1,7 +1,7 @@
 use crate::config::AppConfig;
 use crate::process::manager::NodeManager;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Progress of a Mithril bootstrap operation
 #[derive(Clone, Serialize)]
@@ -21,7 +21,6 @@ pub enum MithrilStage {
     Verifying,
     Extracting,
     Complete,
-    Error,
 }
 
 /// Fetch the latest snapshot digest from the Mithril aggregator API.
@@ -49,11 +48,10 @@ async fn fetch_latest_digest(aggregator_url: &str) -> Result<String, String> {
 pub async fn start_mithril_bootstrap(
     manager: &NodeManager,
     app_config: &AppConfig,
-    app_data_dir: &PathBuf,
+    app_data_dir: &Path,
 ) -> Result<(), String> {
     let db_dir = app_config.node_db_dir(app_data_dir);
-    std::fs::create_dir_all(&db_dir)
-        .map_err(|e| format!("Failed to create node db dir: {e}"))?;
+    std::fs::create_dir_all(&db_dir).map_err(|e| format!("Failed to create node db dir: {e}"))?;
 
     let digest = fetch_latest_digest(app_config.mithril_aggregator_url()).await?;
 
@@ -84,10 +82,7 @@ pub fn parse_mithril_output(line: &str) -> Option<MithrilProgress> {
     let json: serde_json::Value = serde_json::from_str(line).ok()?;
 
     let step = json.get("step")?.as_str()?;
-    let progress = json
-        .get("progress")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(0.0);
+    let progress = json.get("progress").and_then(|v| v.as_f64()).unwrap_or(0.0);
     let bytes_downloaded = json
         .get("bytes_downloaded")
         .and_then(|v| v.as_u64())
@@ -121,6 +116,6 @@ pub fn parse_mithril_output(line: &str) -> Option<MithrilProgress> {
 }
 
 /// Check whether Mithril bootstrap is needed (no chain data directory or it's empty)
-pub fn needs_bootstrap(app_config: &AppConfig, app_data_dir: &PathBuf) -> bool {
+pub fn needs_bootstrap(app_config: &AppConfig, app_data_dir: &Path) -> bool {
     !super::cardano::has_chain_data(app_config, app_data_dir)
 }

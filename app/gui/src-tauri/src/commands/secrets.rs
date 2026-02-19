@@ -2,7 +2,7 @@ use crate::crypto::secrets::{
     decrypt_secret, encrypt_secret, secure_delete, EncryptedSecret, SecretsKey,
 };
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Managed state holding the base directory for secret storage.
 pub struct SecretsDir(pub PathBuf);
@@ -29,8 +29,7 @@ fn encrypt_and_write(key: &[u8; 32], path: &std::path::Path, data: &[u8]) -> Res
 }
 
 fn read_and_decrypt(key: &[u8; 32], path: &std::path::Path) -> Result<Vec<u8>, String> {
-    let json =
-        std::fs::read_to_string(path).map_err(|e| format!("Failed to read secret: {e}"))?;
+    let json = std::fs::read_to_string(path).map_err(|e| format!("Failed to read secret: {e}"))?;
     let encrypted: EncryptedSecret =
         serde_json::from_str(&json).map_err(|e| format!("Invalid secret file: {e}"))?;
     decrypt_secret(key, &encrypted)
@@ -59,7 +58,7 @@ pub struct SellerSecretResult {
     r: String,
 }
 
-fn seller_dir(base: &PathBuf) -> PathBuf {
+fn seller_dir(base: &Path) -> PathBuf {
     base.join("seller")
 }
 
@@ -103,8 +102,8 @@ pub fn get_seller_secrets(
         return Ok(None);
     }
     let plaintext = read_and_decrypt(&key, &path)?;
-    let plaintext_str =
-        String::from_utf8(plaintext).map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
+    let plaintext_str = String::from_utf8(plaintext)
+        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
     let file: SellerSecretFile =
         serde_json::from_str(&plaintext_str).map_err(|e| format!("Invalid seller secret: {e}"))?;
     Ok(Some(SellerSecretResult {
@@ -179,7 +178,7 @@ pub struct BidSecretResult {
     encryption_token_name: String,
 }
 
-fn bid_dir(base: &PathBuf) -> PathBuf {
+fn bid_dir(base: &Path) -> PathBuf {
     base.join("bid")
 }
 
@@ -193,8 +192,7 @@ pub fn store_bid_secrets(
 ) -> Result<(), String> {
     let key = get_secrets_key(&key_state)?;
     let dir = bid_dir(&state.0);
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("Failed to create bid secrets dir: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create bid secrets dir: {e}"))?;
 
     let file = BidSecretFile {
         bid_token_name: bid_token_name.clone(),
@@ -223,8 +221,8 @@ pub fn get_bid_secrets(
         return Ok(None);
     }
     let plaintext = read_and_decrypt(&key, &path)?;
-    let plaintext_str =
-        String::from_utf8(plaintext).map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
+    let plaintext_str = String::from_utf8(plaintext)
+        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
     let file: BidSecretFile =
         serde_json::from_str(&plaintext_str).map_err(|e| format!("Invalid bid secret: {e}"))?;
     Ok(Some(BidSecretResult {
@@ -306,10 +304,11 @@ pub struct AcceptBidSecretResult {
     snark_tx_hash: String,
 }
 
-fn accept_bid_dir(base: &PathBuf) -> PathBuf {
+fn accept_bid_dir(base: &Path) -> PathBuf {
     base.join("accept-bid")
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn store_accept_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
@@ -360,8 +359,8 @@ pub fn get_accept_bid_secrets(
         return Ok(None);
     }
     let plaintext = read_and_decrypt(&key, &path)?;
-    let plaintext_str =
-        String::from_utf8(plaintext).map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
+    let plaintext_str = String::from_utf8(plaintext)
+        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
     let file: AcceptBidSecretFile = serde_json::from_str(&plaintext_str)
         .map_err(|e| format!("Invalid accept-bid secret: {e}"))?;
     Ok(Some(AcceptBidSecretResult {

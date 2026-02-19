@@ -64,10 +64,10 @@ enum LaunchInfo {
         args: Vec<String>,
     },
     Command {
-        program: String,
-        args: Vec<String>,
-        cwd: Option<std::path::PathBuf>,
-        env_vars: Vec<(String, String)>,
+        _program: String,
+        _args: Vec<String>,
+        _cwd: Option<std::path::PathBuf>,
+        _env_vars: Vec<(String, String)>,
     },
 }
 
@@ -223,7 +223,9 @@ impl NodeManager {
 
             if std::time::Instant::now() >= deadline {
                 for pid in &still_alive {
-                    eprintln!("[NodeManager] SIGKILL orphan pid={pid} (did not exit after SIGTERM)");
+                    eprintln!(
+                        "[NodeManager] SIGKILL orphan pid={pid} (did not exit after SIGTERM)"
+                    );
                     send_signal(*pid, libc::SIGKILL);
                 }
                 return;
@@ -236,10 +238,7 @@ impl NodeManager {
     /// Persist all active PIDs to disk so they can be cleaned up after a crash.
     /// Uses atomic write (tmp + rename) to prevent corruption on crash.
     fn save_pids_sync(pid_file: &std::path::Path, processes: &HashMap<String, ManagedProcess>) {
-        let pids: Vec<u32> = processes
-            .values()
-            .filter_map(|p| p.info.pid)
-            .collect();
+        let pids: Vec<u32> = processes.values().filter_map(|p| p.info.pid).collect();
 
         if pids.is_empty() {
             let _ = std::fs::remove_file(pid_file);
@@ -249,28 +248,6 @@ impl NodeManager {
                 let _ = std::fs::rename(&tmp, pid_file);
             }
         }
-    }
-
-    /// Register a process slot without starting it
-    pub async fn register(&self, name: &str, restart_policy: RestartPolicy) {
-        let mut procs = self.processes.lock().await;
-        procs.insert(
-            name.to_string(),
-            ManagedProcess {
-                child: None,
-                info: ProcessInfo {
-                    name: name.to_string(),
-                    status: ProcessStatus::Stopped,
-                    pid: None,
-                    restart_count: 0,
-                    last_error: None,
-                },
-                restart_policy,
-                log_buffer: Vec::new(),
-                launch_info: None,
-                user_stopped: false,
-            },
-        );
     }
 
     /// Start a process by spawning the sidecar binary.
@@ -392,7 +369,9 @@ impl NodeManager {
 
                         // Emit structured mithril-progress events for the download UI
                         if process_name == "mithril-client" {
-                            if let Some(progress) = crate::process::mithril::parse_mithril_output(&line) {
+                            if let Some(progress) =
+                                crate::process::mithril::parse_mithril_output(&line)
+                            {
                                 let _ = app_handle.emit("mithril-progress", progress);
                             }
                         }
@@ -493,18 +472,15 @@ impl NodeManager {
                                     drop(procs);
 
                                     // Schedule restart after delay
-                                    if let Some(LaunchInfo::Sidecar {
-                                        sidecar_name,
-                                        args,
-                                    }) = launch
+                                    if let Some(LaunchInfo::Sidecar { sidecar_name, args }) = launch
                                     {
                                         let app2 = app_handle.clone();
                                         let procs2 = processes.clone();
                                         let pname2 = process_name.clone();
                                         tauri::async_runtime::spawn(async move {
-                                            tokio::time::sleep(
-                                                tokio::time::Duration::from_millis(delay as u64),
-                                            )
+                                            tokio::time::sleep(tokio::time::Duration::from_millis(
+                                                delay as u64,
+                                            ))
                                             .await;
 
                                             // Re-check that user hasn't stopped it during the delay
@@ -565,12 +541,24 @@ impl NodeManager {
                                                         while let Some(ev) = rx2.recv().await {
                                                             match ev {
                                                                 CommandEvent::Stdout(data) => {
-                                                                    let line = String::from_utf8_lossy(&data).trim().to_string();
-                                                                    if line.is_empty() { continue; }
+                                                                    let line =
+                                                                        String::from_utf8_lossy(
+                                                                            &data,
+                                                                        )
+                                                                        .trim()
+                                                                        .to_string();
+                                                                    if line.is_empty() {
+                                                                        continue;
+                                                                    }
                                                                     {
-                                                                        let mut p = procs3.lock().await;
-                                                                        if let Some(proc) = p.get_mut(&pname3) {
-                                                                            proc.append_log(line.clone());
+                                                                        let mut p =
+                                                                            procs3.lock().await;
+                                                                        if let Some(proc) =
+                                                                            p.get_mut(&pname3)
+                                                                        {
+                                                                            proc.append_log(
+                                                                                line.clone(),
+                                                                            );
                                                                         }
                                                                     }
                                                                     // Emit structured mithril-progress events for the download UI
@@ -586,13 +574,28 @@ impl NodeManager {
                                                                     });
                                                                 }
                                                                 CommandEvent::Stderr(data) => {
-                                                                    let line = String::from_utf8_lossy(&data).trim().to_string();
-                                                                    if line.is_empty() { continue; }
-                                                                    let log_line = format!("[stderr] {}", line);
+                                                                    let line =
+                                                                        String::from_utf8_lossy(
+                                                                            &data,
+                                                                        )
+                                                                        .trim()
+                                                                        .to_string();
+                                                                    if line.is_empty() {
+                                                                        continue;
+                                                                    }
+                                                                    let log_line = format!(
+                                                                        "[stderr] {}",
+                                                                        line
+                                                                    );
                                                                     {
-                                                                        let mut p = procs3.lock().await;
-                                                                        if let Some(proc) = p.get_mut(&pname3) {
-                                                                            proc.append_log(log_line.clone());
+                                                                        let mut p =
+                                                                            procs3.lock().await;
+                                                                        if let Some(proc) =
+                                                                            p.get_mut(&pname3)
+                                                                        {
+                                                                            proc.append_log(
+                                                                                log_line.clone(),
+                                                                            );
                                                                         }
                                                                     }
                                                                     let _ = app3.emit("process-status", ProcessEvent {
@@ -601,7 +604,8 @@ impl NodeManager {
                                                                         log_line: Some(log_line),
                                                                     });
                                                                 }
-                                                                CommandEvent::Terminated(_) | CommandEvent::Error(_) => break,
+                                                                CommandEvent::Terminated(_)
+                                                                | CommandEvent::Error(_) => break,
                                                                 _ => {}
                                                             }
                                                         }
@@ -684,10 +688,10 @@ impl NodeManager {
 
         // Set status to Starting, store launch info
         let launch = LaunchInfo::Command {
-            program: program.to_string(),
-            args: args.clone(),
-            cwd: cwd.cloned(),
-            env_vars: env_vars.clone(),
+            _program: program.to_string(),
+            _args: args.clone(),
+            _cwd: cwd.cloned(),
+            _env_vars: env_vars.clone(),
         };
         {
             let mut procs = self.processes.lock().await;
@@ -743,7 +747,13 @@ impl NodeManager {
 
         let mut child = cmd.spawn().map_err(|e| {
             let msg = format!("Failed to spawn '{}': {}", program, e);
-            self.emit_status(name, ProcessStatus::Error { message: msg.clone() }, None);
+            self.emit_status(
+                name,
+                ProcessStatus::Error {
+                    message: msg.clone(),
+                },
+                None,
+            );
             msg
         })?;
 
@@ -779,18 +789,23 @@ impl NodeManager {
                 tauri::async_runtime::spawn(async move {
                     let mut lines = BufReader::new(out).lines();
                     while let Ok(Some(line)) = lines.next_line().await {
-                        if line.is_empty() { continue; }
+                        if line.is_empty() {
+                            continue;
+                        }
                         {
                             let mut p = procs.lock().await;
                             if let Some(proc) = p.get_mut(&pname) {
                                 proc.append_log(line.clone());
                             }
                         }
-                        let _ = app.emit("process-status", ProcessEvent {
-                            name: pname.clone(),
-                            status: ProcessStatus::Running,
-                            log_line: Some(line),
-                        });
+                        let _ = app.emit(
+                            "process-status",
+                            ProcessEvent {
+                                name: pname.clone(),
+                                status: ProcessStatus::Running,
+                                log_line: Some(line),
+                            },
+                        );
                     }
                 });
             }
@@ -802,7 +817,9 @@ impl NodeManager {
                 tauri::async_runtime::spawn(async move {
                     let mut lines = BufReader::new(err).lines();
                     while let Ok(Some(line)) = lines.next_line().await {
-                        if line.is_empty() { continue; }
+                        if line.is_empty() {
+                            continue;
+                        }
                         let log_line = format!("[stderr] {}", line);
                         {
                             let mut p = procs.lock().await;
@@ -810,11 +827,14 @@ impl NodeManager {
                                 proc.append_log(log_line.clone());
                             }
                         }
-                        let _ = app.emit("process-status", ProcessEvent {
-                            name: pname.clone(),
-                            status: ProcessStatus::Running,
-                            log_line: Some(log_line),
-                        });
+                        let _ = app.emit(
+                            "process-status",
+                            ProcessEvent {
+                                name: pname.clone(),
+                                status: ProcessStatus::Running,
+                                log_line: Some(log_line),
+                            },
+                        );
                     }
                 });
             }
@@ -828,7 +848,9 @@ impl NodeManager {
             let status = if code == Some(0) {
                 ProcessStatus::Stopped
             } else {
-                ProcessStatus::Error { message: msg.clone() }
+                ProcessStatus::Error {
+                    message: msg.clone(),
+                }
             };
             {
                 let mut p = processes.lock().await;
@@ -840,11 +862,14 @@ impl NodeManager {
                     }
                 }
             }
-            let _ = app_handle.emit("process-status", ProcessEvent {
-                name: process_name,
-                status,
-                log_line: Some(msg),
-            });
+            let _ = app_handle.emit(
+                "process-status",
+                ProcessEvent {
+                    name: process_name,
+                    status,
+                    log_line: Some(msg),
+                },
+            );
         });
 
         Ok(())
@@ -886,7 +911,10 @@ impl NodeManager {
 
             // Fall back to SIGKILL if graceful shutdown timed out
             if !exited {
-                eprintln!("Process '{}' (pid {}) did not exit after SIGTERM, sending SIGKILL", name, pid);
+                eprintln!(
+                    "Process '{}' (pid {}) did not exit after SIGTERM, sending SIGKILL",
+                    name, pid
+                );
                 if let Some(child) = child {
                     let _ = child.kill();
                 }
@@ -911,16 +939,6 @@ impl NodeManager {
         procs.values().map(|p| p.info.clone()).collect()
     }
 
-    /// Update the status of a process externally (e.g., from health checks)
-    pub async fn set_status(&self, name: &str, status: ProcessStatus) {
-        let mut procs = self.processes.lock().await;
-        if let Some(proc) = procs.get_mut(name) {
-            proc.info.status = status.clone();
-        }
-        drop(procs);
-        self.emit_status(name, status, None);
-    }
-
     /// Get recent log lines for a process
     pub async fn get_logs(&self, name: &str, lines: usize) -> Vec<String> {
         let procs = self.processes.lock().await;
@@ -930,16 +948,6 @@ impl NodeManager {
         } else {
             Vec::new()
         }
-    }
-
-    /// Stop ALL processes (called on app shutdown)
-    pub async fn shutdown_all(&self) {
-        // Stop in reverse dependency order: express, kupo, ogmios, cardano-node, mithril-client
-        for name in &["express", "kupo", "ogmios", "cardano-node", "mithril-client"] {
-            let _ = self.stop(name).await;
-        }
-        // Clean up PID file since all processes are stopped
-        let _ = std::fs::remove_file(&self.pid_file);
     }
 
     /// Synchronous graceful shutdown of ALL tracked processes.

@@ -1,11 +1,11 @@
 use crate::config::AppConfig;
 use crate::process::manager::NodeManager;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Build Kupo command-line arguments
 pub fn build_kupo_args(
     app_config: &AppConfig,
-    app_data_dir: &PathBuf,
+    app_data_dir: &Path,
     match_patterns: &[String],
 ) -> Vec<String> {
     let socket = app_config.node_socket_path(app_data_dir);
@@ -76,7 +76,7 @@ pub fn build_match_patterns(config: &AppConfig, wallet_address: &str) -> Vec<Str
 pub async fn start_kupo(
     manager: &NodeManager,
     app_config: &AppConfig,
-    app_data_dir: &PathBuf,
+    app_data_dir: &Path,
     wallet_address: &str,
 ) -> Result<(), String> {
     let kupo_dir = app_config.kupo_db_dir(app_data_dir);
@@ -95,12 +95,13 @@ pub async fn start_kupo(
     };
 
     if !patterns_match && kupo_dir.exists() {
-        eprintln!("Kupo match patterns changed (or first tracked run), wiping entire workdir for re-sync");
+        eprintln!(
+            "Kupo match patterns changed (or first tracked run), wiping entire workdir for re-sync"
+        );
         let _ = std::fs::remove_dir_all(&kupo_dir);
     }
 
-    std::fs::create_dir_all(&kupo_dir)
-        .map_err(|e| format!("Failed to create kupo db dir: {e}"))?;
+    std::fs::create_dir_all(&kupo_dir).map_err(|e| format!("Failed to create kupo db dir: {e}"))?;
 
     // Save current patterns — written before start so we track what we attempted.
     // If Kupo fails for other reasons, patterns_file will match next run and skip the wipe.
@@ -109,15 +110,6 @@ pub async fn start_kupo(
 
     let args = build_kupo_args(app_config, app_data_dir, &patterns);
     manager.start("kupo", "kupo", args).await
-}
-
-/// Health check: GET http://127.0.0.1:{port}/health
-pub async fn health_check(port: u16) -> bool {
-    let url = format!("http://127.0.0.1:{}/health", port);
-    match reqwest::get(&url).await {
-        Ok(resp) => resp.status().is_success(),
-        Err(_) => false,
-    }
 }
 
 /// Query Kupo sync progress from its /health endpoint.

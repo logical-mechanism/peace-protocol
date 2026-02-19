@@ -5,8 +5,8 @@ mod process;
 
 use commands::secrets::SecretsDir;
 use commands::wallet::WalletState;
-use crypto::secrets::SecretsKey;
 use config::AppConfig;
+use crypto::secrets::SecretsKey;
 use process::manager::NodeManager;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -53,8 +53,7 @@ pub fn run() {
 
             // Secret storage directory (filesystem-backed, survives WebView resets)
             let secrets_dir = app_data_dir.join("secrets");
-            std::fs::create_dir_all(&secrets_dir)
-                .expect("Failed to create secrets directory");
+            std::fs::create_dir_all(&secrets_dir).expect("Failed to create secrets directory");
             app.manage(SecretsDir(secrets_dir));
 
             // Secrets encryption key (derived from mnemonic on wallet unlock)

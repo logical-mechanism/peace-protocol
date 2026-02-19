@@ -30,8 +30,7 @@ const SECRETS_KEY_SALT: &[u8; 16] = b"PEACE_SECRETS_V1";
 /// Uses Argon2id with light parameters (4 MiB, 1 iteration) since the
 /// mnemonic already has 256 bits of entropy.
 pub fn derive_secrets_key(mnemonic: &str) -> Result<[u8; 32], String> {
-    let params =
-        Params::new(4096, 1, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
+    let params = Params::new(4096, 1, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0u8; 32];
     argon2
@@ -45,8 +44,7 @@ pub fn encrypt_secret(key: &[u8; 32], plaintext: &[u8]) -> Result<EncryptedSecre
     let mut nonce_bytes = [0u8; 12];
     rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
 
-    let cipher =
-        Aes256Gcm::new_from_slice(key).map_err(|e| format!("Cipher init: {e}"))?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| format!("Cipher init: {e}"))?;
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher
@@ -69,8 +67,7 @@ pub fn decrypt_secret(key: &[u8; 32], encrypted: &EncryptedSecret) -> Result<Vec
         return Err("Invalid secret file: bad nonce length".to_string());
     }
 
-    let cipher =
-        Aes256Gcm::new_from_slice(key).map_err(|e| format!("Cipher init: {e}"))?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| format!("Cipher init: {e}"))?;
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     cipher
@@ -102,8 +99,7 @@ pub fn secure_delete(path: &std::path::Path) -> Result<(), String> {
             .map_err(|e| format!("Failed to sync overwrite: {e}"))?;
     }
 
-    std::fs::remove_file(path)
-        .map_err(|e| format!("Failed to remove secret file: {e}"))?;
+    std::fs::remove_file(path).map_err(|e| format!("Failed to remove secret file: {e}"))?;
 
     Ok(())
 }

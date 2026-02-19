@@ -69,7 +69,9 @@ pub async fn get_node_status(
     }
 
     // Check if any process has an error
-    let has_error = processes.iter().any(|p| matches!(p.status, ProcessStatus::Error { .. }));
+    let has_error = processes
+        .iter()
+        .any(|p| matches!(p.status, ProcessStatus::Error { .. }));
     if has_error {
         return Ok(NodeStatus {
             overall: OverallNodeState::Error,
@@ -110,12 +112,7 @@ pub async fn get_node_status(
     // If Ogmios is running, try to get sync progress from it
     let ogmios_running = ogmios_status
         .as_ref()
-        .map(|s| {
-            matches!(
-                s.status,
-                ProcessStatus::Running | ProcessStatus::Ready
-            )
-        })
+        .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
         .unwrap_or(false);
 
     if ogmios_running {
@@ -128,12 +125,7 @@ pub async fn get_node_status(
             let kupo_status = manager.get_status("kupo").await;
             let kupo_running = kupo_status
                 .as_ref()
-                .map(|s| {
-                    matches!(
-                        s.status,
-                        ProcessStatus::Running | ProcessStatus::Ready
-                    )
-                })
+                .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
                 .unwrap_or(false);
 
             let kupo_sync = if kupo_running {
@@ -226,7 +218,14 @@ pub async fn start_node(
         let status = manager.get_status("cardano-node").await;
         let still_running = status
             .as_ref()
-            .map(|s| matches!(s.status, ProcessStatus::Starting | ProcessStatus::Running | ProcessStatus::Syncing { .. }))
+            .map(|s| {
+                matches!(
+                    s.status,
+                    ProcessStatus::Starting
+                        | ProcessStatus::Running
+                        | ProcessStatus::Syncing { .. }
+                )
+            })
             .unwrap_or(false);
         if !still_running {
             return Err("cardano-node exited before creating its socket".to_string());
@@ -274,7 +273,10 @@ pub async fn start_node(
     if be_dir.join("dist/index.js").exists() {
         express::start_express(&manager, &config, &be_dir).await?;
     } else {
-        eprintln!("Express backend not built ({}), skipping", be_dir.join("dist/index.js").display());
+        eprintln!(
+            "Express backend not built ({}), skipping",
+            be_dir.join("dist/index.js").display()
+        );
     }
 
     Ok(())

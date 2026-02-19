@@ -36,20 +36,16 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
     eprintln!("[snark] running: snark {}", args.join(" "));
 
     let shell = app.shell();
-    let command = shell
-        .sidecar("snark")
-        .map_err(|e| {
-            eprintln!("[snark] failed to create sidecar: {e}");
-            format!("Failed to create snark sidecar: {e}")
-        })?;
+    let command = shell.sidecar("snark").map_err(|e| {
+        eprintln!("[snark] failed to create sidecar: {e}");
+        format!("Failed to create snark sidecar: {e}")
+    })?;
     let command = command.args(args);
 
-    let (mut rx, _child) = command
-        .spawn()
-        .map_err(|e| {
-            eprintln!("[snark] failed to spawn: {e}");
-            format!("Failed to spawn snark: {e}")
-        })?;
+    let (mut rx, _child) = command.spawn().map_err(|e| {
+        eprintln!("[snark] failed to spawn: {e}");
+        format!("Failed to spawn snark: {e}")
+    })?;
 
     let mut stdout_lines = Vec::new();
     let mut stderr_lines = Vec::new();
@@ -108,8 +104,7 @@ pub async fn snark_decompress_setup(app: tauri::AppHandle) -> Result<(), String>
     use tauri::Emitter;
 
     let dir = setup_dir(&app)?;
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("Failed to create snark setup dir: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create snark setup dir: {e}"))?;
 
     let resource_dir = app
         .path()
@@ -181,8 +176,7 @@ pub async fn snark_decompress_setup(app: tauri::AppHandle) -> Result<(), String>
                 vk_source.display()
             ));
         }
-        std::fs::copy(&vk_source, &vk_output)
-            .map_err(|e| format!("Failed to copy vk.bin: {e}"))?;
+        std::fs::copy(&vk_source, &vk_output).map_err(|e| format!("Failed to copy vk.bin: {e}"))?;
     }
 
     let _ = app.emit(
@@ -254,8 +248,7 @@ pub async fn snark_prove(
     let snark_dir = setup_dir(&app)?;
 
     // Create a temporary directory for output files
-    let tmp_dir = tempfile::tempdir()
-        .map_err(|e| format!("Failed to create temp dir: {e}"))?;
+    let tmp_dir = tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {e}"))?;
     let out_dir = tmp_dir.path().to_string_lossy().to_string();
 
     let args = vec![

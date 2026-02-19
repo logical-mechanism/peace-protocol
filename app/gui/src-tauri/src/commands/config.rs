@@ -15,7 +15,11 @@ pub fn set_network(app_handle: tauri::AppHandle, network: String) -> Result<(), 
     let new_network = match network.to_lowercase().as_str() {
         "preprod" => Network::Preprod,
         "mainnet" => Network::Mainnet,
-        _ => return Err(format!("Unknown network: {network}. Must be 'preprod' or 'mainnet'.")),
+        _ => {
+            return Err(format!(
+                "Unknown network: {network}. Must be 'preprod' or 'mainnet'."
+            ))
+        }
     };
 
     // Read current config, update network, and save
@@ -24,7 +28,8 @@ pub fn set_network(app_handle: tauri::AppHandle, network: String) -> Result<(), 
     updated.network = new_network;
 
     // Save to the dev resource file (in dev) or app data dir (in prod)
-    let dev_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/config.json");
+    let dev_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/config.json");
     if dev_path.exists() {
         updated.save_to(&dev_path)?;
     } else {
@@ -102,10 +107,7 @@ fn dir_size(path: &std::path::Path) -> u64 {
             entries
                 .filter_map(|e| e.ok())
                 .filter_map(|e| {
-                    let meta = e
-                        .metadata()
-                        .or_else(|_| std::fs::metadata(e.path()))
-                        .ok()?;
+                    let meta = e.metadata().or_else(|_| std::fs::metadata(e.path())).ok()?;
                     Some(if meta.is_dir() {
                         dir_size(&e.path())
                     } else {

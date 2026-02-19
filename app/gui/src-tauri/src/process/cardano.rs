@@ -1,6 +1,6 @@
 use crate::config::AppConfig;
 use crate::process::manager::NodeManager;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Paths to all config files needed by cardano-node
 pub struct CardanoNodeConfig {
@@ -14,7 +14,7 @@ impl CardanoNodeConfig {
     /// Build config paths from app config and data directory.
     /// Note: Mithril v1 extracts the snapshot into a `db/` subdirectory within
     /// the download-dir, so cardano-node's database-path must point there.
-    pub fn new(app_config: &AppConfig, app_data_dir: &PathBuf) -> Self {
+    pub fn new(app_config: &AppConfig, app_data_dir: &Path) -> Self {
         let config_dir = app_config.config_dir(app_data_dir);
         Self {
             config_json: config_dir.join("config.json"),
@@ -48,7 +48,10 @@ impl CardanoNodeConfig {
         // Build candidate source directories in priority order.
         // Dev path (src-tauri/resources/) is always up-to-date; the prod path
         // (target/debug/resources/) can be stale from an earlier build.
-        let prod_path = resource_dir.join("resources").join("cardano").join(&network_name);
+        let prod_path = resource_dir
+            .join("resources")
+            .join("cardano")
+            .join(&network_name);
         let dev_path = resource_dir
             .parent() // target/
             .and_then(|p| p.parent()) // src-tauri/
@@ -75,12 +78,15 @@ impl CardanoNodeConfig {
             if !dst.exists() {
                 let found = source_dirs.iter().find_map(|dir| {
                     let src = dir.join(file);
-                    if src.exists() { Some(src) } else { None }
+                    if src.exists() {
+                        Some(src)
+                    } else {
+                        None
+                    }
                 });
                 if let Some(src) = found {
-                    std::fs::copy(&src, &dst).map_err(|e| {
-                        format!("Failed to copy {file} from resources: {e}")
-                    })?;
+                    std::fs::copy(&src, &dst)
+                        .map_err(|e| format!("Failed to copy {file} from resources: {e}"))?;
                 } else {
                     eprintln!("Warning: bundled config file not found: {file}");
                 }
@@ -110,7 +116,7 @@ impl CardanoNodeConfig {
 pub async fn start_cardano_node(
     manager: &NodeManager,
     app_config: &AppConfig,
-    app_data_dir: &PathBuf,
+    app_data_dir: &Path,
     app_handle: &tauri::AppHandle,
 ) -> Result<(), String> {
     let config = CardanoNodeConfig::new(app_config, app_data_dir);
@@ -131,15 +137,12 @@ pub async fn start_cardano_node(
     }
 
     let args = config.build_args();
-    manager
-        .start("cardano-node", "cardano-node", args)
-        .await
+    manager.start("cardano-node", "cardano-node", args).await
 }
 
 /// Check if cardano-node has a database (i.e., has been bootstrapped).
 /// Mithril v1 extracts to `node-db/db/`, so we check for markers there.
-pub fn has_chain_data(app_config: &AppConfig, app_data_dir: &PathBuf) -> bool {
+pub fn has_chain_data(app_config: &AppConfig, app_data_dir: &Path) -> bool {
     let db_dir = app_config.node_db_dir(app_data_dir).join("db");
-    db_dir.join("protocolMagicId").exists()
-        || db_dir.join("immutable").exists()
+    db_dir.join("protocolMagicId").exists() || db_dir.join("immutable").exists()
 }

@@ -1,9 +1,9 @@
 use crate::config::AppConfig;
 use crate::process::manager::NodeManager;
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Build Ogmios command-line arguments
-pub fn build_ogmios_args(app_config: &AppConfig, app_data_dir: &PathBuf) -> Vec<String> {
+pub fn build_ogmios_args(app_config: &AppConfig, app_data_dir: &Path) -> Vec<String> {
     let socket = app_config.node_socket_path(app_data_dir);
     let config_json = app_config.config_dir(app_data_dir).join("config.json");
 
@@ -23,7 +23,7 @@ pub fn build_ogmios_args(app_config: &AppConfig, app_data_dir: &PathBuf) -> Vec<
 pub async fn start_ogmios(
     manager: &NodeManager,
     app_config: &AppConfig,
-    app_data_dir: &PathBuf,
+    app_data_dir: &Path,
 ) -> Result<(), String> {
     let args = build_ogmios_args(app_config, app_data_dir);
     manager.start("ogmios", "ogmios", args).await
