@@ -41,7 +41,7 @@ const KEY_DERIVATION_MESSAGE = `PEACE_PROTOCOL_${KEY_DERIVATION_VERSION}`;
  * @param _address - The user's payment address (used in derivation, not message)
  * @returns Message string to sign
  */
-export function buildKeyDerivationMessage(_address: string): string { // eslint-disable-line @typescript-eslint/no-unused-vars
+export function buildKeyDerivationMessage(_address: string): string {
   return KEY_DERIVATION_MESSAGE;
 }
 

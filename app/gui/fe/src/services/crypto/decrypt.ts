@@ -279,7 +279,7 @@ async function decryptWithStub(
 async function decryptReal(
   wallet: IWallet,
   bid: BidDisplay,
-  _encryption: EncryptionDisplay // eslint-disable-line @typescript-eslint/no-unused-vars
+  _encryption: EncryptionDisplay
 ): Promise<DecryptionResult> {
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
