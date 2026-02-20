@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
+import { getAutolockMinutes, setAutolockMinutes } from '../services/autolock'
 import { useNode } from '../contexts/NodeContext'
 import { copyToClipboard } from '../utils/clipboard'
 
@@ -48,6 +49,7 @@ export default function Settings() {
   const [mnemonicError, setMnemonicError] = useState('')
   const [mnemonicLoading, setMnemonicLoading] = useState(false)
   const [networkSwitching, setNetworkSwitching] = useState(false)
+  const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [addressCopied, setAddressCopied] = useState(false)
   const [activeSection, setActiveSection] = useState<string>('node')
 
@@ -407,6 +409,29 @@ export default function Settings() {
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* Auto-Lock */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <h2 className="text-lg font-medium mb-2">Auto-Lock</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                Automatically lock the wallet after a period of inactivity.
+              </p>
+              <select
+                value={autolockValue}
+                onChange={(e) => {
+                  const mins = Number(e.target.value)
+                  setAutolockValue(mins)
+                  setAutolockMinutes(mins)
+                }}
+                className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+              >
+                <option value={5}>5 minutes</option>
+                <option value={15}>15 minutes</option>
+                <option value={30}>30 minutes</option>
+                <option value={60}>1 hour</option>
+                <option value={0}>Never</option>
+              </select>
             </div>
 
             {/* Lock Wallet */}

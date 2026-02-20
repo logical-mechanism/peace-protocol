@@ -36,10 +36,7 @@ pub fn run() {
 
             // Wallet state (Phase 1)
             let wallet_path = app_data_dir.join("wallet.json");
-            app.manage(WalletState {
-                wallet_path,
-                mnemonic: Mutex::new(None),
-            });
+            app.manage(WalletState { wallet_path });
 
             // App config — reads from bundled resources/config.json
             let resource_dir = app

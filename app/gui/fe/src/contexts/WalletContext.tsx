@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from 'react'
 import { invoke } from '@tauri-apps/api/core'
@@ -11,6 +12,7 @@ import { MeshWallet, EmbeddedWallet } from '@meshsdk/core'
 import type { IWallet } from '@meshsdk/core'
 import { setPaymentKeyHex } from '../services/crypto/zkKeyDerivation'
 import { getKupoAdapter, getOgmiosProvider } from '../services/providers'
+import { getAutolockMinutes, AUTOLOCK_CHECK_INTERVAL } from '../services/autolock'
 
 export type WalletLifecycle = 'loading' | 'no_wallet' | 'locked' | 'unlocked'
 
@@ -19,7 +21,6 @@ export interface WalletContextValue {
   wallet: IWallet | null
   address: string | null
   lovelace: string | null
-  paymentKeyHex: string | null
   connected: boolean
   createWallet: (mnemonic: string[], password: string) => Promise<void>
   unlockWallet: (password: string) => Promise<void>
@@ -36,7 +37,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [meshWallet, setMeshWallet] = useState<MeshWallet | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [lovelace, setLovelace] = useState<string | null>(null)
-  const [pkh, setPkh] = useState<string | null>(null)
 
   // Check wallet existence on mount
   useEffect(() => {
@@ -68,7 +68,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     setMeshWallet(wallet)
     setAddress(addr)
-    setPkh(paymentKey)
     setPaymentKeyHex(paymentKey)
     setLovelace(null) // Updated by refreshBalance() once Kupo is running
     setWalletState('unlocked')
@@ -96,7 +95,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setMeshWallet(null)
     setAddress(null)
     setLovelace(null)
-    setPkh(null)
     setPaymentKeyHex(null)
     setWalletState('locked')
   }, [])
@@ -106,10 +104,39 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setMeshWallet(null)
     setAddress(null)
     setLovelace(null)
-    setPkh(null)
     setPaymentKeyHex(null)
     setWalletState('no_wallet')
   }, [])
+
+  // --- Auto-lock on inactivity ---
+  const lastActivityRef = useRef(0)
+
+  // Reset activity timestamp on user interaction
+  useEffect(() => {
+    if (walletState !== 'unlocked') return
+
+    lastActivityRef.current = Date.now()
+    const resetActivity = () => {
+      lastActivityRef.current = Date.now()
+    }
+    document.addEventListener('mousedown', resetActivity)
+    document.addEventListener('keydown', resetActivity)
+
+    const interval = setInterval(() => {
+      const minutes = getAutolockMinutes()
+      if (minutes === 0) return // 0 = never auto-lock
+      const elapsed = Date.now() - lastActivityRef.current
+      if (elapsed >= minutes * 60_000) {
+        lockFn()
+      }
+    }, AUTOLOCK_CHECK_INTERVAL)
+
+    return () => {
+      document.removeEventListener('mousedown', resetActivity)
+      document.removeEventListener('keydown', resetActivity)
+      clearInterval(interval)
+    }
+  }, [walletState, lockFn])
 
   const refreshBalanceFn = useCallback(async () => {
     if (!meshWallet) return
@@ -130,7 +157,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     wallet: meshWallet,
     address,
     lovelace,
-    paymentKeyHex: pkh,
     connected: walletState === 'unlocked',
     createWallet: createWalletFn,
     unlockWallet: unlockWalletFn,
