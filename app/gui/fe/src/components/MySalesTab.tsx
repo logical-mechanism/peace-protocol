@@ -5,7 +5,7 @@ import SalesListingCard from './SalesListingCard';
 import BidsModal from './BidsModal';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
-import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
+import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids';
@@ -150,6 +150,9 @@ export default function MySalesTab({
 
   const handleRemoveListing = useCallback(
     (encryption: EncryptionDisplay) => {
+      // Optimistic cleanup — user can re-download if the tx fails
+      deleteCachedImage(encryption.tokenName).catch(() => {});
+
       if (onRemoveListing) {
         onRemoveListing(encryption);
       } else {

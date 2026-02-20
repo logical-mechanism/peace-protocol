@@ -34,3 +34,7 @@ export async function banImage(tokenName: string): Promise<void> {
 export async function unbanImage(tokenName: string): Promise<void> {
   return invoke<void>('unban_image', { tokenName });
 }
+
+export async function deleteCachedImage(tokenName: string): Promise<void> {
+  return invoke<void>('delete_cached_image', { tokenName });
+}

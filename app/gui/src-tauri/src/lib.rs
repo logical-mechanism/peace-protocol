@@ -143,6 +143,7 @@ pub fn run() {
             commands::media::list_cached_images,
             commands::media::ban_image,
             commands::media::unban_image,
+            commands::media::delete_cached_image,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

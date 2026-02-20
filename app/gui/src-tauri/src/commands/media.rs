@@ -213,3 +213,23 @@ pub fn unban_image(state: tauri::State<'_, MediaDir>, token_name: String) -> Res
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn delete_cached_image(
+    state: tauri::State<'_, MediaDir>,
+    token_name: String,
+) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+
+    let img = img_path(&state.0, &token_name);
+    if img.exists() {
+        let _ = std::fs::remove_file(&img);
+    }
+
+    let ban = banned_path(&state.0, &token_name);
+    if ban.exists() {
+        let _ = std::fs::remove_file(&ban);
+    }
+
+    Ok(())
+}
