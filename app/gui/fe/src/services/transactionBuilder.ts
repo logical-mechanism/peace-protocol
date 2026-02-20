@@ -50,7 +50,7 @@ const COINS_PER_UTXO_BYTE = 4310;
  * @param datum - Plutus JSON datum object
  * @returns Lovelace amount as a string (with 20% safety margin, min 2 ADA)
  */
-function estimateMinLovelace(datum: object): string {
+export function estimateMinLovelace(datum: object): string {
   const json = JSON.stringify(datum, (_key, value) =>
     typeof value === 'bigint' ? value.toString() : value
   );
@@ -97,7 +97,7 @@ export interface TransactionResult {
  * @param outputIndex - Output index
  * @returns Token name (64 hex chars)
  */
-function computeTokenName(txHash: string, outputIndex: number): string {
+export function computeTokenName(txHash: string, outputIndex: number): string {
   // CBOR encode the output index
   // For small integers (0-23), CBOR is just the value
   // For 24-255, CBOR is 0x18 + value
@@ -121,7 +121,7 @@ function computeTokenName(txHash: string, outputIndex: number): string {
  * Get storage layer URI from form data.
  * Text category uses on-chain storage; other categories will use the data layer.
  */
-function getStorageLayerUri(formData: CreateListingFormData): string {
+export function getStorageLayerUri(formData: CreateListingFormData): string {
   if (formData.category === 'text') {
     return 'on-chain';
   }

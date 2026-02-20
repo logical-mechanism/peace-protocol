@@ -55,6 +55,7 @@ app/gui/
 │   │   ├── routes/                  # encryptions, bids, protocol, chain
 │   │   ├── services/
 │   │   │   ├── kupo.ts              # Kupo HTTP client (current UTxOs)
+│   │   │   ├── cbor.ts              # CBOR decoder + slot-to-time (extracted from kupo.ts)
 │   │   │   ├── koios.ts             # Koios REST client (history, metadata, params)
 │   │   │   ├── encryptions.ts       # Encryption query logic
 │   │   │   ├── bids.ts              # Bid query logic
@@ -94,6 +95,7 @@ app/gui/
 ├── build.sh                         # Runs `npm run install:all && tauri build`
 ├── run.sh                           # Runs `npm run install:all && tauri dev` (with WebKit env vars)
 ├── lint.sh                          # eslint (fe), tsc (be), cargo fmt, clippy
+├── test.sh                          # vitest (fe) + vitest (be)
 └── CHANGELOG.md                     # Version history
 ```
 
@@ -287,10 +289,21 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 
 **Stub mode:** Set `USE_STUBS=true` in `be/.env` to develop without running cardano-node/Kupo.
 
-**Tests:** `cd fe && npm test` (Vitest + jsdom + React Testing Library)
-- Only crypto unit tests exist: `fe/src/services/crypto/__tests__/` (bls12381, hashing, payload, snark-inputs) and `fe/src/utils/` (clipboard, network)
-- No component or integration tests — adding them requires mocking Tauri invoke + context providers (no test utilities for this yet)
-- Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver`
+**Tests:** `cd app/gui && bash test.sh` (runs both frontend + backend tests)
+- Frontend: `cd fe && npm test` (Vitest + jsdom)
+- Backend: `cd be && npm test` (Vitest + node)
+- Frontend test locations:
+  - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret
+  - `fe/src/services/__tests__/` — transactionBuilder, transactionHistory, autolock
+  - `fe/src/config/__tests__/` — categories
+  - `fe/src/hooks/__tests__/` — usePasswordStrength
+  - `fe/src/utils/` — clipboard, network
+- Backend test locations:
+  - `be/src/services/__tests__/` — parsers (datum + CIP-20), kupo-cbor, kupo (matchToKoiosUtxo)
+- Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
+- Tests using WebCrypto (ecies) use `// @vitest-environment node` pragma
+- Tests importing transactionBuilder mock `@meshsdk/core`, `@meshsdk/provider`, and Tauri storage modules to avoid libsodium WASM
+- No component or integration tests — adding them requires mocking Tauri invoke + context providers
 
 **Production build:** `npx tauri build` (creates platform installer with bundled binaries)
 
@@ -307,7 +320,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **127.0.0.1 not localhost** — WebKitGTK on Linux has DNS resolution issues; all local URLs use 127.0.0.1
 - **WebKitGTK env vars** — `WEBKIT_DISABLE_DMABUF_RENDERER=1` and sandbox disabled (Linux only, set in lib.rs)
 - **Kupo CBOR chunking** — G2 points (>64 bytes) use indefinite-length CBOR byte strings; parser handles chunk reassembly
-- **Slot-to-time conversion** — Network-specific Shelley era offsets (preprod vs mainnet); implemented in be/src/services/kupo.ts
+- **Slot-to-time conversion** — Network-specific Shelley era offsets (preprod vs mainnet); implemented in be/src/services/cbor.ts
 - **Sidecar binaries** — gitignored, platform-specific (~600MB total); must be placed in `src-tauri/binaries/` before build
 - **CSP is null** — permissive content security policy; acceptable for desktop but not web
 - **FixedOgmiosProvider** — Patches Ogmios response tags (WITHDRAW → REWARD) for MeshTxBuilder compatibility

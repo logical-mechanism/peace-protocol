@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`deriveUserSecret > empty string input produces a valid scalar (snapshot) 1`] = `7889736631947868345348561430434313242867907178373597662329590899612n`;

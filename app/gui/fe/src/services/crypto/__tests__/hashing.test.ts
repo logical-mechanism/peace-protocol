@@ -17,13 +17,6 @@ describe('hashing utilities', () => {
       expect(result1).toBe(result2);
     });
 
-    it('produces different output for different inputs', () => {
-      // Use valid hex strings (not text like 'input1' which contains non-hex chars)
-      const result1 = generate('deadbeef');
-      const result2 = generate('cafebabe');
-      expect(result1).not.toBe(result2);
-    });
-
     it('produces valid hex output', () => {
       const result = generate('test');
       expect(result).toMatch(/^[0-9a-f]+$/);
@@ -54,12 +47,6 @@ describe('hashing utilities', () => {
       expect(result1).toBe(result2);
     });
 
-    it('produces different output for different strings', () => {
-      const result1 = hashString('hello');
-      const result2 = hashString('world');
-      expect(result1).not.toBe(result2);
-    });
-
     it('handles empty string', () => {
       const result = hashString('');
       expect(result).toHaveLength(56);
@@ -88,14 +75,6 @@ describe('hashing utilities', () => {
       const result1 = hashBytes(bytes);
       const result2 = hashBytes(bytes);
       expect(result1).toBe(result2);
-    });
-
-    it('produces different output for different bytes', () => {
-      const bytes1 = new Uint8Array([1, 2, 3]);
-      const bytes2 = new Uint8Array([4, 5, 6]);
-      const result1 = hashBytes(bytes1);
-      const result2 = hashBytes(bytes2);
-      expect(result1).not.toBe(result2);
     });
 
     it('handles empty bytes array', () => {

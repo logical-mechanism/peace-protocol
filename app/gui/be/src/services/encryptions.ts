@@ -4,12 +4,29 @@ import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
 import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel } from '../types/index.js';
 
-interface ParsedCip20 {
+export interface ParsedCip20 {
   description?: string;
   suggestedPrice?: number;
   storageLayer?: string;
   imageLink?: string;
   category?: string;
+}
+
+/**
+ * Parse CIP-20 msg array into structured metadata fields.
+ * Format: [description, suggestedPrice, storageLayer, imageLink?, category?]
+ */
+export function parseCip20Fields(msg: string[]): ParsedCip20 {
+  const [description, priceStr, storageLayer, imageLink, category] = msg;
+  const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
+
+  return {
+    description: description || undefined,
+    suggestedPrice: suggestedPrice !== undefined && !isNaN(suggestedPrice) ? suggestedPrice : undefined,
+    storageLayer: storageLayer || undefined,
+    imageLink: imageLink || undefined,
+    category: category || undefined,
+  };
 }
 
 /**
@@ -26,16 +43,7 @@ async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
     const json = cip20.json as { msg?: string[] };
     if (!Array.isArray(json.msg)) return {};
 
-    const [description, priceStr, storageLayer, imageLink, category] = json.msg;
-    const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
-
-    return {
-      description: description || undefined,
-      suggestedPrice: suggestedPrice && !isNaN(suggestedPrice) ? suggestedPrice : undefined,
-      storageLayer: storageLayer || undefined,
-      imageLink: imageLink || undefined,
-      category: category || undefined,
-    };
+    return parseCip20Fields(json.msg);
   } catch (err) {
     console.warn(`Failed to fetch CIP-20 metadata for ${txHash}:`, err);
     return {};

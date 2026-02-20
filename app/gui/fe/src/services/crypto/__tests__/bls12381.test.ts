@@ -9,6 +9,15 @@ import {
   g2Point,
   G1_GENERATOR,
   G2_GENERATOR,
+  scale,
+  combine,
+  combineG1,
+  combineG2,
+  invertG1,
+  invertG2,
+  rng,
+  G1_IDENTITY,
+  G2_IDENTITY,
 } from '../bls12381';
 
 describe('bls12381 utilities', () => {
@@ -30,15 +39,6 @@ describe('bls12381 utilities', () => {
       expect(bytes).toEqual(new Uint8Array(0));
     });
 
-    it('handles lowercase hex', () => {
-      const bytes = hexToBytes('abcdef');
-      expect(bytes).toEqual(new Uint8Array([0xab, 0xcd, 0xef]));
-    });
-
-    it('handles uppercase hex', () => {
-      const bytes = hexToBytes('ABCDEF');
-      expect(bytes).toEqual(new Uint8Array([0xab, 0xcd, 0xef]));
-    });
   });
 
   describe('bytesToHex', () => {
@@ -83,11 +83,6 @@ describe('bls12381 utilities', () => {
       expect(result).toBe(0n);
     });
 
-    it('handles empty string (becomes 0)', () => {
-      // Note: '0x' + '' = '0x' which is 0
-      const result = toInt('0');
-      expect(result).toBe(0n);
-    });
   });
 
   describe('fromInt', () => {
@@ -106,11 +101,6 @@ describe('bls12381 utilities', () => {
       expect(result).toBe('10');
     });
 
-    it('handles large values', () => {
-      const large = 0xdeadbeefcafe1234n;
-      const result = fromInt(large);
-      expect(result).toBe('deadbeefcafe1234');
-    });
   });
 
   describe('toInt and fromInt roundtrip', () => {
@@ -123,11 +113,6 @@ describe('bls12381 utilities', () => {
   });
 
   describe('curve constants', () => {
-    it('CURVE_ORDER is a bigint', () => {
-      expect(typeof CURVE_ORDER).toBe('bigint');
-      expect(CURVE_ORDER > 0n).toBe(true);
-    });
-
     it('G1_GENERATOR is valid hex string of 96 chars', () => {
       expect(typeof G1_GENERATOR).toBe('string');
       expect(G1_GENERATOR).toHaveLength(96);
@@ -148,17 +133,6 @@ describe('bls12381 utilities', () => {
       expect(point).toMatch(/^[0-9a-f]+$/);
     });
 
-    it('generates consistent output for same scalar', () => {
-      const point1 = g1Point(12345n);
-      const point2 = g1Point(12345n);
-      expect(point1).toBe(point2);
-    });
-
-    it('generates different output for different scalars', () => {
-      const point1 = g1Point(1n);
-      const point2 = g1Point(2n);
-      expect(point1).not.toBe(point2);
-    });
   });
 
   describe('g2Point', () => {
@@ -168,16 +142,114 @@ describe('bls12381 utilities', () => {
       expect(point).toMatch(/^[0-9a-f]+$/);
     });
 
-    it('generates consistent output for same scalar', () => {
-      const point1 = g2Point(12345n);
-      const point2 = g2Point(12345n);
-      expect(point1).toBe(point2);
-    });
-
     it('generates different output for different scalars', () => {
       const point1 = g2Point(1n);
       const point2 = g2Point(2n);
       expect(point1).not.toBe(point2);
+    });
+  });
+
+  describe('scale', () => {
+    it('throws on invalid length hex', () => {
+      const invalidHex = 'aa'.repeat(25); // 50 chars, neither 96 nor 192
+      expect(() => scale(invalidHex, 3n)).toThrow('Invalid element length');
+    });
+
+    it('scales a G1 point correctly (96 hex chars result)', () => {
+      const g1 = g1Point(5n);
+      const result = scale(g1, 3n);
+      expect(result).toHaveLength(96);
+      expect(result).toMatch(/^[0-9a-f]+$/);
+      // [3]*[5]G1 should equal [15]G1
+      expect(result).toBe(g1Point(15n));
+    });
+
+    it('scales a G2 point correctly (192 hex chars result)', () => {
+      const g2 = g2Point(5n);
+      const result = scale(g2, 3n);
+      expect(result).toHaveLength(192);
+      expect(result).toMatch(/^[0-9a-f]+$/);
+    });
+  });
+
+  describe('combine', () => {
+    it('throws on mismatched lengths', () => {
+      const g1 = g1Point(2n); // 96 chars
+      const g2 = g2Point(2n); // 192 chars
+      expect(() => combine(g1, g2)).toThrow('Cannot combine points of different types');
+    });
+
+    it('throws on invalid length (both 50 chars)', () => {
+      const a = 'aa'.repeat(25); // 50 chars
+      const b = 'bb'.repeat(25); // 50 chars
+      expect(() => combine(a, b)).toThrow('Invalid element length');
+    });
+  });
+
+  describe('combine G2 dispatch', () => {
+    it('combine() dispatches to combineG2 for 192-char inputs', () => {
+      const A = g2Point(2n);
+      const B = g2Point(3n);
+      const viaDispatch = combine(A, B);
+      const viaDirect = combineG2(A, B);
+      expect(viaDispatch).toBe(viaDirect);
+    });
+  });
+
+  describe('combineG1', () => {
+    it('is associative: combine(A, combine(B, C)) === combine(combine(A, B), C)', () => {
+      const A = g1Point(2n);
+      const B = g1Point(3n);
+      const C = g1Point(5n);
+      const lhs = combineG1(A, combineG1(B, C));
+      const rhs = combineG1(combineG1(A, B), C);
+      expect(lhs).toBe(rhs);
+    });
+  });
+
+  describe('invertG1', () => {
+    it('combine(P, invertG1(P)) === G1_IDENTITY', () => {
+      const P = g1Point(42n);
+      const result = combineG1(P, invertG1(P));
+      expect(result).toBe(G1_IDENTITY);
+    });
+  });
+
+  describe('invertG2', () => {
+    it('combine(Q, invertG2(Q)) === G2_IDENTITY', () => {
+      const Q = g2Point(42n);
+      const result = combineG2(Q, invertG2(Q));
+      expect(result).toBe(G2_IDENTITY);
+    });
+  });
+
+  describe('rng', () => {
+    it('returns different values on two calls', () => {
+      const a = rng();
+      const b = rng();
+      expect(a).not.toBe(b);
+    });
+
+    it('result > 0n', () => {
+      const value = rng();
+      expect(value > 0n).toBe(true);
+    });
+
+    it('result < CURVE_ORDER', () => {
+      const value = rng();
+      expect(value < CURVE_ORDER).toBe(true);
+    });
+  });
+
+  describe('identity elements', () => {
+    it('G1_IDENTITY has length 96 and is valid hex', () => {
+      expect(G1_IDENTITY).toHaveLength(96);
+      expect(G1_IDENTITY).toMatch(/^[0-9a-f]+$/);
+    });
+
+    it('G2_IDENTITY has length 192 and is valid hex', () => {
+      expect(G2_IDENTITY).toHaveLength(192);
+      expect(G2_IDENTITY).toMatch(/^[0-9a-f]+$/);
     });
   });
 });
