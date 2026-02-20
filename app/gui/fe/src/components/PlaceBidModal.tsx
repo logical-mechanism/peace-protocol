@@ -173,7 +173,7 @@ export default function PlaceBidModal({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
+      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
@@ -241,12 +241,54 @@ export default function PlaceBidModal({
 
             {/* Bid Amount */}
             <div>
-              <label
-                htmlFor="bidAmount"
-                className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-              >
-                Your Bid Amount (ADA) <span className="text-[var(--error)]">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  htmlFor="bidAmount"
+                  className="text-sm font-medium text-[var(--text-primary)]"
+                >
+                  Your Bid Amount (ADA) <span className="text-[var(--error)]">*</span>
+                </label>
+                {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, bidAmount: encryption.suggestedPrice!.toString() }))
+                      }
+                      disabled={isSubmitting}
+                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                    >
+                      Suggested ({encryption.suggestedPrice} ADA)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          bidAmount: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
+                        }))
+                      }
+                      disabled={isSubmitting}
+                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                    >
+                      +10%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          bidAmount: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
+                        }))
+                      }
+                      disabled={isSubmitting}
+                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                    >
+                      +25%
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -273,51 +315,6 @@ export default function PlaceBidModal({
               </p>
             </div>
 
-            {/* Quick bid buttons */}
-            {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-2">Quick Bid</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, bidAmount: encryption.suggestedPrice!.toString() }))
-                    }
-                    disabled={isSubmitting}
-                    className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
-                  >
-                    Suggested ({encryption.suggestedPrice} ADA)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        bidAmount: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
-                      }))
-                    }
-                    disabled={isSubmitting}
-                    className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
-                  >
-                    +10%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        bidAmount: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
-                      }))
-                    }
-                    disabled={isSubmitting}
-                    className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
-                  >
-                    +25%
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Future Listing Price (collapsible) */}
             <div className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
               <button
@@ -338,12 +335,54 @@ export default function PlaceBidModal({
               </button>
               {showFuturePrice && (
                 <div className="px-4 pb-4 pt-1 border-t border-[var(--border-subtle)]">
-                  <label
-                    htmlFor="futurePrice"
-                    className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-                  >
-                    Future Listing Price (ADA)
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label
+                      htmlFor="futurePrice"
+                      className="text-sm font-medium text-[var(--text-primary)]"
+                    >
+                      Future Listing Price (ADA)
+                    </label>
+                    {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({ ...prev, futurePrice: encryption.suggestedPrice!.toString() }))
+                          }
+                          disabled={isSubmitting}
+                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                        >
+                          Same Price
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              futurePrice: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
+                            }))
+                          }
+                          disabled={isSubmitting}
+                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                        >
+                          +10%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              futurePrice: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
+                            }))
+                          }
+                          disabled={isSubmitting}
+                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                        >
+                          +25%
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type="text"
@@ -367,47 +406,6 @@ export default function PlaceBidModal({
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
                     The suggested price for the next listing after you win. Defaults to the current price.
                   </p>
-                  {/* Quick price buttons */}
-                  {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({ ...prev, futurePrice: encryption.suggestedPrice!.toString() }))
-                        }
-                        disabled={isSubmitting}
-                        className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
-                      >
-                        Same Price
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            futurePrice: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
-                          }))
-                        }
-                        disabled={isSubmitting}
-                        className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
-                      >
-                        +10%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            futurePrice: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
-                          }))
-                        }
-                        disabled={isSubmitting}
-                        className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
-                      >
-                        +25%
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
