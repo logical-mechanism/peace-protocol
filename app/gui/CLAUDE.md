@@ -36,7 +36,10 @@ app/gui/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios singletons
 │   │   │   ├── kupoAdapter.ts       # IFetcher implementation for MeshSDK
-│   │   │   ├── transactionBuilder.ts # All tx building (~1800 lines)
+│   │   │   ├── transactionBuilder.ts # All tx building (~1780 lines)
+│   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
+│   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
+│   │   │   ├── secretCleanup.ts     # Deferred secret deletion after on-chain confirmation
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation
 │   │   │   ├── snark/               # Native SNARK prover interface
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid, tx history
@@ -76,7 +79,8 @@ app/gui/
 │   │       ├── node.rs              # start, stop, status, bootstrap
 │   │       ├── config.rs            # get/set network, disk usage
 │   │       ├── snark.rs             # prove, gt-to-hash, decrypt-to-hash, setup
-│   │       └── secrets.rs           # store/get/remove seller, bid, accept-bid secrets
+│   │       ├── secrets.rs           # store/get/remove seller, bid, accept-bid secrets
+│   │       └── media.rs             # image download, cache, ban/unban, delete
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
 │   │   ├── cardano/{network}/       # Node configs (topology, genesis files)
@@ -85,10 +89,10 @@ app/gui/
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
 │   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm
-├── build.sh                         # Runs `tauri dev` (NOTE: name is misleading)
-├── run.sh                           # Runs `tauri build` (NOTE: name is misleading)
-├── CHANGELOG.md                     # Version history
-└── goals.md                         # Implementation phases (all complete)
+├── build.sh                         # Runs `npm run install:all && tauri build`
+├── run.sh                           # Runs `npm run install:all && tauri dev` (with WebKit env vars)
+├── lint.sh                          # eslint (fe), tsc (be), cargo fmt, clippy
+└── CHANGELOG.md                     # Version history
 ```
 
 ## Frontend Patterns
@@ -109,11 +113,12 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (4 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, Bids, Confirm) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard)
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, ListingImage) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactionBuilder.ts ~1800 lines):
+**Transaction building** (fe/src/services/transactionBuilder.ts ~1780 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
 - `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`
+- `extractPaymentKeyHash()`, `isRealTransactionsAvailable()`, `getTransactionStubWarning()`
 - Uses MeshTxBuilder with local Kupo (IFetcher) + Ogmios (ISubmitter/IEvaluator)
 
 **Crypto services** (fe/src/services/crypto/):
@@ -125,12 +130,18 @@ app/gui/
 - `payload.ts` — CBOR serialization via cborg
 - `createEncryption.ts` / `createBid.ts` — Full artifact creation
 - `zkKeyDerivation.ts` — Deterministic ZK secret from wallet key material
+- `constants.ts` — Domain tags, public G2 points
+- `decrypt.ts` — Decryption flow (native CLI required for BLS pairings)
+- `hashing.ts` — Hashing utilities
+- `level.ts` — HalfLevel/FullLevel type definitions
+- `walletSecret.ts` — BLS secret derivation from wallet signature
 
-**Local storage** (fe/src/services/*Storage.ts):
+**Local storage** (fe/src/services/*Storage.ts + autolock.ts):
 - `secretStorage` — encryption secrets by token name
 - `bidSecretStorage` — bid secrets for later decryption
 - `acceptBidStorage` — accept-bid workflow state (A0, R0, Hk, proof)
 - `transactionHistory` — tx log with timestamps and hashes
+- `autolock` — inactivity timeout in minutes (default 15, 0 = never)
 
 **Styling:** Dark theme via CSS custom properties in index.css, Tailwind utility classes, fonts Inter + JetBrains Mono. Hard-coded dark mode (no light theme). All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*` tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
@@ -182,7 +193,7 @@ app/gui/
 
 **Datum parsing** (be/src/services/parsers.ts): Decodes CBOR/Plutus JSON inline datums into TypeScript types. Handles indefinite-length byte strings (G2 points > 64 bytes are CBOR-chunked).
 
-**CIP-20 metadata** (key 674): Encryption creation tx includes `{ msg: [description, suggestedPrice, storageLayer] }`. Bid creation tx includes `{ msg: [futurePrice] }`.
+**CIP-20 metadata** (key 674): Encryption creation tx includes `{ msg: [description, suggestedPrice, storageLayer, imageLink?] }`. Bid creation tx includes `{ msg: [futurePrice] }`.
 
 **Error responses:** All routes return `{ error: { code, message } }` on failure. 500 for internal errors (real message in dev, generic in prod), 404 for missing endpoints. Malformed datums at contract addresses are silently skipped with a console warning — frontend sees incomplete data. No retry/circuit-breaker for Kupo/Koios failures.
 
@@ -237,7 +248,7 @@ app/gui/
 - `FullEncryptionLevel` — { r1b, r2_g1b, r2_g2b, r4b } (G1, G1, G2, G2)
 
 **Display models** (be types, consumed by fe):
-- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, createdAt, utxo, datum
+- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, createdAt, utxo, datum
 - `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
@@ -254,6 +265,7 @@ app/gui/
 - Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`
 - SNARK: `snark_check_setup`, `snark_decompress_setup`, `snark_prove`, `snark_gt_to_hash`, `snark_decrypt_to_hash`
 - Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
+- Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -294,7 +306,6 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **WebKitGTK env vars** — `WEBKIT_DISABLE_DMABUF_RENDERER=1` and sandbox disabled (Linux only, set in lib.rs)
 - **Kupo CBOR chunking** — G2 points (>64 bytes) use indefinite-length CBOR byte strings; parser handles chunk reassembly
 - **Slot-to-time conversion** — Network-specific Shelley era offsets (preprod vs mainnet); implemented in be/src/services/kupo.ts
-- **build.sh / run.sh are swapped** — build.sh runs `tauri dev`, run.sh runs `tauri build`
 - **Sidecar binaries** — gitignored, platform-specific (~600MB total); must be placed in `src-tauri/binaries/` before build
 - **CSP is null** — permissive content security policy; acceptable for desktop but not web
 - **FixedOgmiosProvider** — Patches Ogmios response tags (WITHDRAW → REWARD) for MeshTxBuilder compatibility
@@ -306,4 +317,6 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **Modal two-effect pattern** — combining form reset + keyboard effects into one useEffect clears form on every keystroke
 - **No Express param validation** — tokenName, pkh params are not sanitized or validated (except status enum)
 - **Datum parsing failures are silent** — bad datums logged as warnings, skipped from results; frontend sees incomplete data
+- **Auto-lock timer** — configurable inactivity timeout (default 15 min, 0 = never); stored in localStorage; timer runs in WalletContext
+- **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
 - **Provider nesting order** — WalletProvider → NodeProvider → WasmProvider (in main.tsx); order matters for context dependencies
