@@ -1,0 +1,31 @@
+[package]
+name = "veiled"
+version = "0.3.0"
+description = "Veiled - Peace Protocol Encrypted Data Marketplace"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "veiled_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tokio = { version = "1", features = ["sync", "time", "process", "io-util"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+aes-gcm = "0.10"
+argon2 = "0.5"
+rand = "0.8"
+zstd = "0.13"
+tempfile = "3"
+libc = "0.2"
+base64 = "0.22"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

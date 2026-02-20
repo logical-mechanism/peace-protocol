@@ -1,8 +1,8 @@
 {
-  "genesis_tx_id": "",
+  "genesis_tx_id": "4f53b5219580b9fb9e9f6bf7e127608b65b12a4e6bb196980394d9aa94a114e5",
   "genesis_tx_idx": 0,
-  "genesis_change_address": "",
-  "staking_credential": "",
+  "genesis_change_address": "addr_test1qrwejm9pza929cedhwkcsprtgs8l2carehs8z6jkse2qp344c43tmm0md55r4ufmxknr24kq6jkvt6spq60edeuhtf4sn2scds",
+  "staking_credential": "86c769419aaa673c963da04e4b5bae448d490e2ceac902cb82e4da76",
   "path_to_cardano_cli": "cardano-cli",
-  "path_to_node_socket": ""
+  "path_to_node_socket": "/home/logic/Documents/LogicalMechanism/testnets/node-preprod/db-testnet/node.socket"
 }

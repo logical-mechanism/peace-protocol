@@ -1,1 +1,3 @@
 /data/
+app/gui/src-tauri/binaries/
+app/gui/src-tauri/resources/snark/*.bin.zst
