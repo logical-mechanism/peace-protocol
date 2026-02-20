@@ -78,7 +78,7 @@ export interface BidDatum {
 // CIP-20 metadata structure (from tx metadata key 674)
 // See: https://cips.cardano.org/cip/CIP-20
 export interface Cip20Metadata {
-  msg: string[];  // [description, suggestedPrice, storageLayer]
+  msg: string[];  // [description, suggestedPrice, storageLayer, imageLink?]
 }
 
 // API display types (enriched for UI)
@@ -91,6 +91,7 @@ export interface EncryptionDisplay {
   description?: string;           // Human-readable description of the encrypted data
   suggestedPrice?: number;        // ADA, parsed from metadata
   storageLayer?: string;          // Storage layer info (e.g., "ipfs://...", "arweave://...")
+  imageLink?: string;             // Optional preview image URL (from CIP-20 metadata msg[3])
   createdAt: string;              // ISO date
   utxo: {
     txHash: string;

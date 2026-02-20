@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
+import ListingImage from './ListingImage';
 import { needsTruncation, truncateDescription } from './descriptionUtils';
 
 // Default fallback price when suggested price can't be parsed
@@ -13,6 +14,8 @@ interface EncryptionCardProps {
   isOwnListing?: boolean;
   hasBid?: boolean;
   compact?: boolean;
+  initialCached?: boolean;
+  initialBanned?: boolean;
 }
 
 export default function EncryptionCard({
@@ -21,6 +24,8 @@ export default function EncryptionCard({
   isOwnListing = false,
   hasBid = false,
   compact = false,
+  initialCached = false,
+  initialBanned = false,
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
 
@@ -212,24 +217,14 @@ export default function EncryptionCard({
           </div>
         )}
 
-        {/* Lock Icon */}
-        <div className="flex justify-center py-4">
-          <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center">
-            <svg
-              className="w-7 h-7 text-[var(--accent)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-              />
-            </svg>
-          </div>
-        </div>
+        {/* Image / Lock Icon */}
+        <ListingImage
+          tokenName={encryption.tokenName}
+          imageLink={encryption.imageLink}
+          size="md"
+          initialCached={initialCached}
+          initialBanned={initialBanned}
+        />
 
         {/* Price */}
         <div className="text-center mb-4">

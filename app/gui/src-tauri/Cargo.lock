@@ -4391,6 +4391,7 @@ version = "0.3.0"
 dependencies = [
  "aes-gcm",
  "argon2",
+ "base64 0.22.1",
  "libc",
  "rand 0.8.5",
  "reqwest 0.12.28",

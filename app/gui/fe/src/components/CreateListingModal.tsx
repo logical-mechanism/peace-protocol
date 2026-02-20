@@ -10,6 +10,7 @@ interface CreateListingFormData {
   arweaveId: string;
   contentKey: string;
   contentHash: string;
+  imageLink: string;
 }
 
 interface FormErrors {
@@ -20,6 +21,7 @@ interface FormErrors {
   arweaveId?: string;
   contentKey?: string;
   contentHash?: string;
+  imageLink?: string;
 }
 
 interface CreateListingModalProps {
@@ -37,6 +39,7 @@ const INITIAL_FORM_DATA: CreateListingFormData = {
   arweaveId: '',
   contentKey: '',
   contentHash: '',
+  imageLink: '',
 };
 
 export default function CreateListingModal({
@@ -129,6 +132,18 @@ export default function CreateListingModal({
     if (formData.contentHash.trim()) {
       if (!/^[0-9a-fA-F]*$/.test(formData.contentHash) || formData.contentHash.length % 2 !== 0) {
         newErrors.contentHash = 'Must be valid hex (even number of 0-9, a-f characters)';
+      }
+    }
+
+    // Image link validation (optional)
+    if (formData.imageLink.trim()) {
+      try {
+        const url = new URL(formData.imageLink.trim());
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          newErrors.imageLink = 'Image link must use http:// or https://';
+        }
+      } catch {
+        newErrors.imageLink = 'Invalid URL format';
       }
     }
 
@@ -448,6 +463,34 @@ export default function CreateListingModal({
                 </p>
               </div>
             )}
+
+            {/* Image Link (optional, always shown) */}
+            <div>
+              <label
+                htmlFor="imageLink"
+                className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+              >
+                Image Link
+              </label>
+              <input
+                type="text"
+                id="imageLink"
+                name="imageLink"
+                value={formData.imageLink}
+                onChange={handleInputChange}
+                disabled={isSubmitting}
+                placeholder="https://example.com/preview.png"
+                className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
+                  errors.imageLink ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                }`}
+              />
+              {errors.imageLink && (
+                <p className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>
+              )}
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Optional. Public preview image URL for your listing.
+              </p>
+            </div>
 
             {/* Submit Error */}
             {submitError && (

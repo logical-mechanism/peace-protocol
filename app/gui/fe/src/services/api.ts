@@ -78,6 +78,7 @@ export interface Cip20Metadata {
   description?: string;
   suggestedPrice?: number;
   storageLayer?: string;
+  imageLink?: string;
 }
 
 export interface EncryptionDisplay {
@@ -89,6 +90,7 @@ export interface EncryptionDisplay {
   description?: string;
   suggestedPrice?: number;
   storageLayer?: string;
+  imageLink?: string;
   createdAt: string;
   utxo: {
     txHash: string;

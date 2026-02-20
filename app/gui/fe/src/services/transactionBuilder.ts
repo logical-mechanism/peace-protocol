@@ -368,12 +368,13 @@ export async function createListing(
       )
       // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata (description, suggestedPrice, storageLayer)
+      // CIP-20 metadata (description, suggestedPrice, storageLayer, imageLink)
       .metadataValue(674, {
         msg: [
           formData.description,
           formData.suggestedPrice || '0',
           getStorageLayerUri(formData),
+          formData.imageLink || '',
         ],
       })
       // Change and UTxO selection
@@ -1296,6 +1297,7 @@ export async function acceptBidSnark(
           encryption.description || '',
           encryption.suggestedPrice?.toString() || '0',
           encryption.storageLayer || '',
+          encryption.imageLink || '',
         ],
       })
       // Change and UTxO selection
@@ -1667,6 +1669,7 @@ export async function completeReEncryption(
           encryption.description || '',
           (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
           encryption.storageLayer || '',
+          encryption.imageLink || '',
         ],
       })
       // Change and UTxO selection

@@ -21,6 +21,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     description: 'Premium API keys for major crypto exchanges. Includes rate limit bypasses.',
     suggestedPrice: 100,
     storageLayer: 'on-chain',
+    imageLink: 'https://picsum.photos/seed/api-keys/400/300',
     createdAt: '2025-01-15T10:00:00Z',
     utxo: {
       txHash: 'aabbccdd11223344556677889900aabbccdd11223344556677889900aabbccdd',
@@ -56,6 +57,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     description: 'Exclusive trading signals from verified whale wallets. Updated daily.',
     suggestedPrice: 250,
     storageLayer: 'ipfs://QmX7bVbZTv5cR5GzL8wEt3Z9n4YP2J3s8KmC9q4xF1Y2dH',
+    imageLink: 'https://picsum.photos/seed/whale-signals/400/300',
     createdAt: '2025-01-16T14:30:00Z',
     utxo: {
       txHash: 'bbccddee22334455667788990011aabbccddee22334455667788990011aabbcc',
@@ -177,6 +179,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     description: 'Complete smart contract audit report with fixes. Private audit by top firm.',
     suggestedPrice: 1000,
     storageLayer: 'ipfs://QmY9cDdZTv5cR5GzL8wEt3Z9n4YP2J3s8KmC9q4xF1Y2eK',
+    imageLink: 'https://picsum.photos/seed/audit-report/400/300',
     createdAt: '2025-01-19T11:20:00Z',
     utxo: {
       txHash: 'eeff001155667788990011223344aabbccddeeff001155667788990011223344',

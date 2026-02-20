@@ -5,6 +5,7 @@ import SalesListingCard from './SalesListingCard';
 import BidsModal from './BidsModal';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
+import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids';
@@ -29,6 +30,7 @@ export default function MySalesTab({
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
+  const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -50,6 +52,9 @@ export default function MySalesTab({
         ? allEncryptions.filter((e) => e.sellerPkh === userPkh)
         : [];
       setEncryptions(userEncryptions);
+
+      // Fetch image cache status for all listings
+      listCachedImages().then(setImageCacheStatus).catch(() => {});
 
       // Fetch bids for all user listings
       if (userEncryptions.length > 0) {
@@ -390,6 +395,8 @@ export default function MySalesTab({
               onRemove={handleRemoveListing}
               onCancelPending={handleCancelPending}
               onCompleteSale={onCompleteSale}
+              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
             />
           ))}
         </div>
@@ -404,6 +411,8 @@ export default function MySalesTab({
               onRemove={handleRemoveListing}
               onCancelPending={handleCancelPending}
               compact
+              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
             />
           ))}
         </div>

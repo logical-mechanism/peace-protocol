@@ -4,6 +4,7 @@ import type { EncryptionDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon, SearchIcon } from './EmptyState';
+import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low';
@@ -17,6 +18,7 @@ interface MarketplaceTabProps {
 export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
+  const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -33,6 +35,9 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
         bidsApi.getAll(),
       ]);
       setEncryptions(data);
+
+      // Fetch image cache status for all listings
+      listCachedImages().then(setImageCacheStatus).catch(() => {});
 
       // Build set of encryption tokens the user has pending bids on
       if (userPkh) {
@@ -287,6 +292,8 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               onPlaceBid={onPlaceBid}
               isOwnListing={isOwnListing(encryption)}
               hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
+              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
             />
           ))}
         </div>
@@ -300,6 +307,8 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               isOwnListing={isOwnListing(encryption)}
               hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
               compact
+              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
             />
           ))}
         </div>

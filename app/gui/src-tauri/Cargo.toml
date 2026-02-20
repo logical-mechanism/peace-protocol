@@ -25,6 +25,7 @@ rand = "0.8"
 zstd = "0.13"
 tempfile = "3"
 libc = "0.2"
+base64 = "0.22"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
