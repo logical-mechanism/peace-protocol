@@ -81,7 +81,7 @@ function StageIndicator({ stages, currentStage }: StageIndicatorProps) {
   const currentIndex = stageOrder.indexOf(currentStage)
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 justify-center">
       {stages.map((s, i) => {
         const stageIndex = stageOrder.indexOf(s.key as NodeStage)
         const isActive = s.key === currentStage
@@ -384,7 +384,7 @@ export default function NodeSync() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 justify-center">
             {stage === 'stopped' && (
               <button
                 onClick={handleStart}
