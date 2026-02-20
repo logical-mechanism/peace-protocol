@@ -4,6 +4,22 @@ use std::path::{Path, PathBuf};
 /// Managed state holding the base directory for cached images.
 pub struct MediaDir(pub PathBuf);
 
+/// Managed state holding the base directory for purchased/decrypted content.
+pub struct ContentDir(pub PathBuf);
+
+/// Valid content categories (must match fe/src/config/categories.ts).
+const VALID_CATEGORIES: &[&str] = &["text", "document", "audio", "image", "video", "other"];
+
+/// Create all category subdirectories under the content root.
+pub fn ensure_content_dirs(base: &Path) -> Result<(), String> {
+    for category in VALID_CATEGORIES {
+        let dir = base.join(category);
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| format!("Failed to create content/{category} directory: {e}"))?;
+    }
+    Ok(())
+}
+
 /// Maximum download size: 10 MB.
 const MAX_DOWNLOAD_BYTES: usize = 10 * 1024 * 1024;
 
@@ -232,4 +248,57 @@ pub fn delete_cached_image(
     }
 
     Ok(())
+}
+
+// ── Content commands (for future data layer) ──────────────────────────
+
+fn validate_category(category: &str) -> Result<(), String> {
+    if VALID_CATEGORIES.contains(&category) {
+        Ok(())
+    } else {
+        Err(format!("Invalid category: {category}"))
+    }
+}
+
+fn validate_file_name(file_name: &str) -> Result<(), String> {
+    if file_name.is_empty() || file_name.len() > 255 {
+        return Err("Invalid file name".to_string());
+    }
+    // Reject path traversal attempts
+    if file_name.contains('/') || file_name.contains('\\') || file_name.contains("..") {
+        return Err("File name must not contain path separators".to_string());
+    }
+    Ok(())
+}
+
+/// Save decrypted content to the appropriate category folder.
+/// Returns the absolute path of the saved file.
+#[tauri::command]
+pub fn save_content(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+    file_name: String,
+    data: Vec<u8>,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+    validate_file_name(&file_name)?;
+
+    if data.is_empty() {
+        return Err("Content data is empty".to_string());
+    }
+
+    // Create a subdirectory per token to avoid name collisions
+    let token_dir = state.0.join(&category).join(&token_name);
+    std::fs::create_dir_all(&token_dir)
+        .map_err(|e| format!("Failed to create content directory: {e}"))?;
+
+    let file_path = token_dir.join(&file_name);
+    std::fs::write(&file_path, &data).map_err(|e| format!("Failed to save content: {e}"))?;
+
+    file_path
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "File path contains invalid UTF-8".to_string())
 }

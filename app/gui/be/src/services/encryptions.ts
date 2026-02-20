@@ -9,11 +9,12 @@ interface ParsedCip20 {
   suggestedPrice?: number;
   storageLayer?: string;
   imageLink?: string;
+  category?: string;
 }
 
 /**
  * Fetch and parse CIP-20 metadata (key 674) from the creation tx.
- * Format: { msg: [description, suggestedPrice, storageLayer, imageLink?] }
+ * Format: { msg: [description, suggestedPrice, storageLayer, imageLink?, category?] }
  */
 async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
   try {
@@ -25,7 +26,7 @@ async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
     const json = cip20.json as { msg?: string[] };
     if (!Array.isArray(json.msg)) return {};
 
-    const [description, priceStr, storageLayer, imageLink] = json.msg;
+    const [description, priceStr, storageLayer, imageLink, category] = json.msg;
     const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
 
     return {
@@ -33,6 +34,7 @@ async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
       suggestedPrice: suggestedPrice && !isNaN(suggestedPrice) ? suggestedPrice : undefined,
       storageLayer: storageLayer || undefined,
       imageLink: imageLink || undefined,
+      category: category || undefined,
     };
   } catch (err) {
     console.warn(`Failed to fetch CIP-20 metadata for ${txHash}:`, err);
@@ -65,6 +67,7 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
     suggestedPrice: cip20.suggestedPrice,
     storageLayer: cip20.storageLayer,
     imageLink: cip20.imageLink,
+    category: cip20.category,
     createdAt: new Date(utxo.block_time * 1000).toISOString(),
     utxo: {
       txHash: utxo.tx_hash,

@@ -55,22 +55,10 @@ export default function SalesListingCard({
     return `${price.toLocaleString()} ADA`;
   };
 
-  // Get storage layer label - returns "No data layer" for unknown/missing values
-  const getStorageLayerLabel = (storageLayer?: string): string => {
-    if (!storageLayer) return 'No data layer';
-    if (storageLayer === 'on-chain') return 'On-chain';
-    if (storageLayer.startsWith('ipfs://')) return 'IPFS';
-    if (storageLayer.startsWith('arweave://')) return 'Arweave';
-    return 'No data layer';
-  };
-
-  // Check if storage layer is unknown/missing
-  const isUnknownStorageLayer = (storageLayer?: string): boolean => {
-    if (!storageLayer) return true;
-    if (storageLayer === 'on-chain') return false;
-    if (storageLayer.startsWith('ipfs://')) return false;
-    if (storageLayer.startsWith('arweave://')) return false;
-    return true;
+  // Get category label, defaulting to "Text" for backward compatibility
+  const getCategoryLabel = (category?: string): string => {
+    if (!category) return 'Text';
+    return category.charAt(0).toUpperCase() + category.slice(1);
   };
 
   // Calculate TTL countdown for pending status
@@ -122,14 +110,8 @@ export default function SalesListingCard({
                     {truncateToken(encryption.tokenName)}
                   </span>
                   <EncryptionStatusBadge status={encryption.status} />
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border ${
-                      isUnknownStorageLayer(encryption.storageLayer)
-                        ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
-                        : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
-                    }`}
-                  >
-                    {getStorageLayerLabel(encryption.storageLayer)}
+                  <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
+                    {getCategoryLabel(encryption.category)}
                   </span>
                 </div>
                 {encryption.description && (

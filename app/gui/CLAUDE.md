@@ -29,6 +29,8 @@ app/gui/
 │   │   ├── App.tsx                  # Router + auth/state guards
 │   │   ├── main.tsx                 # Entry: ErrorBoundary → Wallet → Node → Wasm → Router
 │   │   ├── index.css                # CSS variables (dark theme) + Tailwind v4
+│   │   ├── config/                 # App configuration
+│   │   │   └── categories.ts      # File category definitions + integration flags
 │   │   ├── contexts/               # WalletContext, NodeContext, WasmContext
 │   │   ├── pages/                   # WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings
 │   │   ├── components/              # Tabs, modals, cards, presentational
@@ -193,7 +195,7 @@ app/gui/
 
 **Datum parsing** (be/src/services/parsers.ts): Decodes CBOR/Plutus JSON inline datums into TypeScript types. Handles indefinite-length byte strings (G2 points > 64 bytes are CBOR-chunked).
 
-**CIP-20 metadata** (key 674): Encryption creation tx includes `{ msg: [description, suggestedPrice, storageLayer, imageLink?] }`. Bid creation tx includes `{ msg: [futurePrice] }`.
+**CIP-20 metadata** (key 674): Encryption creation tx includes `{ msg: [description, suggestedPrice, storageLayer, imageLink?, category?] }`. Bid creation tx includes `{ msg: [futurePrice] }`.
 
 **Error responses:** All routes return `{ error: { code, message } }` on failure. 500 for internal errors (real message in dev, generic in prod), 404 for missing endpoints. Malformed datums at contract addresses are silently skipped with a console warning — frontend sees incomplete data. No retry/circuit-breaker for Kupo/Koios failures.
 
@@ -248,7 +250,7 @@ app/gui/
 - `FullEncryptionLevel` — { r1b, r2_g1b, r2_g2b, r4b } (G1, G1, G2, G2)
 
 **Display models** (be types, consumed by fe):
-- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, createdAt, utxo, datum
+- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, category?, createdAt, utxo, datum
 - `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
@@ -265,7 +267,7 @@ app/gui/
 - Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`
 - SNARK: `snark_check_setup`, `snark_decompress_setup`, `snark_prove`, `snark_gt_to_hash`, `snark_decrypt_to_hash`
 - Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
-- Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`
+- Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -320,3 +322,4 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **Auto-lock timer** — configurable inactivity timeout (default 15 min, 0 = never); stored in localStorage; timer runs in WalletContext
 - **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
 - **Provider nesting order** — WalletProvider → NodeProvider → WasmProvider (in main.tsx); order matters for context dependencies
+- **File categories** — Defined in `fe/src/config/categories.ts`. Only `text` is enabled (on-chain); other categories (document, audio, image, video, other) gated by `enabled` flag until data layer is implemented. Category stored in CIP-20 metadata msg[4]. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command

@@ -29,7 +29,6 @@ import { storeAcceptBidSecrets, getAcceptBidSecrets } from './acceptBidStorage';
 import { deriveSecretFromWallet } from './crypto/walletSecret';
 import { bech32 } from '@scure/base';
 import { buildPayload } from './crypto/payload';
-import { hexToBytes } from './crypto/bls12381';
 import { protocolApi } from './api';
 import type { EncryptionDisplay, BidDisplay } from './api';
 import { getSnarkProver, type SnarkProof } from './snark';
@@ -120,52 +119,26 @@ function computeTokenName(txHash: string, outputIndex: number): string {
 
 /**
  * Get storage layer URI from form data.
+ * Text category uses on-chain storage; other categories will use the data layer.
  */
 function getStorageLayerUri(formData: CreateListingFormData): string {
-  switch (formData.storageLayer) {
-    case 'ipfs':
-      return `ipfs://${formData.ipfsHash}`;
-    case 'arweave':
-      return `ar://${formData.arweaveId}`;
-    case 'on-chain':
-    default:
-      return 'on-chain';
+  if (formData.category === 'text') {
+    return 'on-chain';
   }
+  return 'data-layer';
 }
 
 /**
  * Build a canonical CBOR peace-payload from form data.
  *
- * - On-chain: locator = secretMessage as UTF-8 bytes
- * - IPFS: locator = IPFS hash as UTF-8 bytes
- * - Arweave: locator = Arweave ID as UTF-8 bytes
- *
- * Optional fields 1 (secret) and 2 (digest) are included
- * when contentKey / contentHash are provided.
+ * - Text category: locator = secretMessage as UTF-8 bytes (on-chain)
+ * - Other categories: locator = file bytes (when data layer is implemented)
  */
 function buildPayloadFromForm(formData: CreateListingFormData): Uint8Array {
-  let locator: Uint8Array;
-  switch (formData.storageLayer) {
-    case 'ipfs':
-      locator = new TextEncoder().encode(formData.ipfsHash);
-      break;
-    case 'arweave':
-      locator = new TextEncoder().encode(formData.arweaveId);
-      break;
-    case 'on-chain':
-    default:
-      locator = new TextEncoder().encode(formData.secretMessage);
-      break;
-  }
-
-  const secret = formData.contentKey
-    ? hexToBytes(formData.contentKey)
-    : undefined;
-  const digest = formData.contentHash
-    ? hexToBytes(formData.contentHash)
-    : undefined;
-
-  return buildPayload({ locator, secret, digest });
+  // Currently only text category is enabled; file categories will
+  // be handled when the data layer is implemented.
+  const locator = new TextEncoder().encode(formData.secretMessage);
+  return buildPayload({ locator });
 }
 
 /** Create a MeshTxBuilder wired to local Kupo + Ogmios. */
@@ -368,13 +341,14 @@ export async function createListing(
       )
       // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata (description, suggestedPrice, storageLayer, imageLink)
+      // CIP-20 metadata (description, suggestedPrice, storageLayer, imageLink, category)
       .metadataValue(674, {
         msg: [
           formData.description,
           formData.suggestedPrice || '0',
           getStorageLayerUri(formData),
           formData.imageLink || '',
+          formData.category,
         ],
       })
       // Change and UTxO selection
@@ -640,6 +614,8 @@ export async function cancelPendingListing(
           encryption.description || '',
           encryption.suggestedPrice?.toString() || '0',
           encryption.storageLayer || '',
+          encryption.imageLink || '',
+          encryption.category || '',
         ]
       })
       .changeAddress(changeAddress)
@@ -1298,6 +1274,7 @@ export async function acceptBidSnark(
           encryption.suggestedPrice?.toString() || '0',
           encryption.storageLayer || '',
           encryption.imageLink || '',
+          encryption.category || '',
         ],
       })
       // Change and UTxO selection
@@ -1663,13 +1640,14 @@ export async function completeReEncryption(
       )
       // Required signer
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata: carry forward description and storageLayer, use bidder's future price
+      // CIP-20 metadata: carry forward description, storageLayer, category; use bidder's future price
       .metadataValue(674, {
         msg: [
           encryption.description || '',
           (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
           encryption.storageLayer || '',
           encryption.imageLink || '',
+          encryption.category || '',
         ],
       })
       // Change and UTxO selection

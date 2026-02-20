@@ -1,26 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+import { FILE_CATEGORIES, isCategoryEnabled, type FileCategory } from '../config/categories';
 
-interface CreateListingFormData {
+export interface CreateListingFormData {
+  category: FileCategory;
   secretMessage: string;
+  file: File | null;
   description: string;
   suggestedPrice: string;
-  storageLayer: 'on-chain' | 'ipfs' | 'arweave';
-  ipfsHash: string;
-  arweaveId: string;
-  contentKey: string;
-  contentHash: string;
   imageLink: string;
 }
 
 interface FormErrors {
   secretMessage?: string;
+  file?: string;
   description?: string;
   suggestedPrice?: string;
-  ipfsHash?: string;
-  arweaveId?: string;
-  contentKey?: string;
-  contentHash?: string;
   imageLink?: string;
 }
 
@@ -31,15 +26,45 @@ interface CreateListingModalProps {
 }
 
 const INITIAL_FORM_DATA: CreateListingFormData = {
+  category: 'text',
   secretMessage: '',
+  file: null,
   description: '',
   suggestedPrice: '',
-  storageLayer: 'on-chain',
-  ipfsHash: '',
-  arweaveId: '',
-  contentKey: '',
-  contentHash: '',
   imageLink: '',
+};
+
+const CATEGORY_ICONS: Record<FileCategory, JSX.Element> = {
+  text: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+    </svg>
+  ),
+  document: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
+  audio: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+    </svg>
+  ),
+  image: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  ),
+  video: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  ),
+  other: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+    </svg>
+  ),
 };
 
 export default function CreateListingModal({
@@ -51,6 +76,7 @@ export default function CreateListingModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -77,15 +103,26 @@ export default function CreateListingModal({
     };
   }, [isOpen, isSubmitting, onClose]);
 
+  const selectedCategoryConfig = FILE_CATEGORIES.find((c) => c.id === formData.category);
+  const isSelectedCategoryEnabled = isCategoryEnabled(formData.category);
+  const canSubmit = isSelectedCategoryEnabled && !isSubmitting;
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Secret message validation (only for on-chain storage)
-    if (formData.storageLayer === 'on-chain') {
+    // Secret message validation (text category only)
+    if (formData.category === 'text') {
       if (!formData.secretMessage.trim()) {
         newErrors.secretMessage = 'Secret message is required';
-      } else if (formData.secretMessage.length > 10000) {
-        newErrors.secretMessage = 'Message must be less than 10,000 characters';
+      } else if (formData.secretMessage.length > 280) {
+        newErrors.secretMessage = 'Message must be 280 characters or less';
+      }
+    }
+
+    // File validation (non-text enabled categories)
+    if (formData.category !== 'text' && isSelectedCategoryEnabled) {
+      if (!formData.file) {
+        newErrors.file = 'File is required';
       }
     }
 
@@ -106,35 +143,6 @@ export default function CreateListingModal({
       }
     }
 
-    // Storage layer specific validation
-    if (formData.storageLayer === 'ipfs') {
-      if (!formData.ipfsHash.trim()) {
-        newErrors.ipfsHash = 'IPFS hash is required when using IPFS storage';
-      } else if (!formData.ipfsHash.startsWith('Qm') && !formData.ipfsHash.startsWith('bafy')) {
-        newErrors.ipfsHash = 'Invalid IPFS hash format (should start with Qm or bafy)';
-      }
-    }
-
-    if (formData.storageLayer === 'arweave') {
-      if (!formData.arweaveId.trim()) {
-        newErrors.arweaveId = 'Arweave ID is required when using Arweave storage';
-      } else if (formData.arweaveId.length !== 43) {
-        newErrors.arweaveId = 'Arweave ID should be 43 characters';
-      }
-    }
-
-    // Optional hex field validation (content key and content hash)
-    if (formData.contentKey.trim()) {
-      if (!/^[0-9a-fA-F]*$/.test(formData.contentKey) || formData.contentKey.length % 2 !== 0) {
-        newErrors.contentKey = 'Must be valid hex (even number of 0-9, a-f characters)';
-      }
-    }
-    if (formData.contentHash.trim()) {
-      if (!/^[0-9a-fA-F]*$/.test(formData.contentHash) || formData.contentHash.length % 2 !== 0) {
-        newErrors.contentHash = 'Must be valid hex (even number of 0-9, a-f characters)';
-      }
-    }
-
     // Image link validation (optional)
     if (formData.imageLink.trim()) {
       try {
@@ -152,21 +160,59 @@ export default function CreateListingModal({
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
     setSubmitError(null);
   };
 
+  const handleCategoryChange = (category: FileCategory) => {
+    if (isSubmitting) return;
+    setFormData((prev) => ({
+      ...prev,
+      category,
+      // Clear content fields when switching categories
+      secretMessage: '',
+      file: null,
+    }));
+    setErrors({});
+    setSubmitError(null);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFormData((prev) => ({ ...prev, file }));
+    if (errors.file) {
+      setErrors((prev) => ({ ...prev, file: undefined }));
+    }
+    setSubmitError(null);
+  };
+
+  const handleRemoveFile = () => {
+    setFormData((prev) => ({ ...prev, file: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!canSubmit || !validateForm()) {
       return;
     }
 
@@ -234,8 +280,51 @@ export default function CreateListingModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
-            {/* Secret Message (on-chain only) */}
-            {formData.storageLayer === 'on-chain' && (
+            {/* Category Selector */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                Data Type <span className="text-[var(--error)]">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {FILE_CATEGORIES.map((cat) => {
+                  const isSelected = formData.category === cat.id;
+                  const isEnabled = cat.enabled;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleCategoryChange(cat.id)}
+                      disabled={isSubmitting}
+                      className={`relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-[var(--radius-md)] border text-xs transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
+                        isSelected
+                          ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                          : isEnabled
+                            ? 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                            : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {!isEnabled && (
+                        <div className="absolute top-1 right-1">
+                          <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                      )}
+                      {CATEGORY_ICONS[cat.id]}
+                      <span className="font-medium">{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedCategoryConfig && (
+                <p className="mt-1.5 text-xs text-[var(--text-muted)]">
+                  {selectedCategoryConfig.description}
+                </p>
+              )}
+            </div>
+
+            {/* Content Area — Text category */}
+            {formData.category === 'text' && (
               <div>
                 <label
                   htmlFor="secretMessage"
@@ -259,8 +348,103 @@ export default function CreateListingModal({
                   <p className="mt-1 text-xs text-[var(--error)]">{errors.secretMessage}</p>
                 )}
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  {formData.secretMessage.length}/10,000 characters
+                  {formData.secretMessage.length}/280 characters
                 </p>
+              </div>
+            )}
+
+            {/* Content Area — Non-text category (enabled) */}
+            {formData.category !== 'text' && isSelectedCategoryEnabled && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                  Upload File <span className="text-[var(--error)]">*</span>
+                </label>
+                {formData.file ? (
+                  <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+                    <div className="flex-shrink-0 text-[var(--accent)]">
+                      {CATEGORY_ICONS[formData.category]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[var(--text-primary)] truncate">{formData.file.name}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{formatFileSize(formData.file.size)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      disabled={isSubmitting}
+                      className="p-1 text-[var(--text-muted)] hover:text-[var(--error)] transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-150 ${
+                      errors.file
+                        ? 'border-[var(--error)] bg-[var(--error)]/5'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
+                    }`}
+                  >
+                    <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="text-sm text-[var(--text-secondary)]">Click to select a file</span>
+                    {selectedCategoryConfig && selectedCategoryConfig.acceptedExtensions.length > 0 && (
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {selectedCategoryConfig.acceptedExtensions.join(', ')}
+                      </span>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileChange}
+                      disabled={isSubmitting}
+                      accept={selectedCategoryConfig?.acceptedExtensions.join(',') || undefined}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+                {errors.file && (
+                  <p className="mt-1 text-xs text-[var(--error)]">{errors.file}</p>
+                )}
+              </div>
+            )}
+
+            {/* Content Area — Non-text category (disabled / Coming Soon) */}
+            {formData.category !== 'text' && !isSelectedCategoryEnabled && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                  Upload File
+                </label>
+                <div className="relative">
+                  <div className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-md)] bg-[var(--bg-secondary)] opacity-40">
+                    <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="text-sm text-[var(--text-muted)]">Click to select a file</span>
+                    {selectedCategoryConfig && selectedCategoryConfig.acceptedExtensions.length > 0 && (
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {selectedCategoryConfig.acceptedExtensions.join(', ')}
+                      </span>
+                    )}
+                  </div>
+                  {/* Coming Soon overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">Coming Soon</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        Available when the data layer is integrated
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -325,145 +509,6 @@ export default function CreateListingModal({
               </p>
             </div>
 
-            {/* Storage Layer */}
-            <div>
-              <label
-                htmlFor="storageLayer"
-                className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-              >
-                Data Storage Layer
-              </label>
-              <select
-                id="storageLayer"
-                name="storageLayer"
-                value={formData.storageLayer}
-                onChange={handleInputChange}
-                disabled={isSubmitting}
-                className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 cursor-pointer"
-              >
-                <option value="on-chain">On-chain (included in datum)</option>
-                <option value="ipfs">IPFS (decentralized storage)</option>
-                <option value="arweave">Arweave (permanent storage)</option>
-              </select>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                On-chain storage includes data directly in the transaction.
-              </p>
-            </div>
-
-            {/* IPFS Hash (conditional) */}
-            {formData.storageLayer === 'ipfs' && (
-              <div>
-                <label
-                  htmlFor="ipfsHash"
-                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-                >
-                  IPFS Hash <span className="text-[var(--error)]">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="ipfsHash"
-                  name="ipfsHash"
-                  value={formData.ipfsHash}
-                  onChange={handleInputChange}
-                  disabled={isSubmitting}
-                  placeholder="QmYwAPJzv5CZsnA625..."
-                  className={`w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
-                    errors.ipfsHash ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
-                  }`}
-                />
-                {errors.ipfsHash && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.ipfsHash}</p>
-                )}
-              </div>
-            )}
-
-            {/* Arweave ID (conditional) */}
-            {formData.storageLayer === 'arweave' && (
-              <div>
-                <label
-                  htmlFor="arweaveId"
-                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-                >
-                  Arweave Transaction ID <span className="text-[var(--error)]">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="arweaveId"
-                  name="arweaveId"
-                  value={formData.arweaveId}
-                  onChange={handleInputChange}
-                  disabled={isSubmitting}
-                  placeholder="43 character base64 ID..."
-                  className={`w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
-                    errors.arweaveId ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
-                  }`}
-                />
-                {errors.arweaveId && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.arweaveId}</p>
-                )}
-              </div>
-            )}
-
-            {/* Content Key (optional, for off-chain storage) */}
-            {formData.storageLayer !== 'on-chain' && (
-              <div>
-                <label
-                  htmlFor="contentKey"
-                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-                >
-                  Content Key
-                </label>
-                <input
-                  type="text"
-                  id="contentKey"
-                  name="contentKey"
-                  value={formData.contentKey}
-                  onChange={handleInputChange}
-                  disabled={isSubmitting}
-                  placeholder="Hex-encoded decryption key for off-chain content..."
-                  className={`w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
-                    errors.contentKey ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
-                  }`}
-                />
-                {errors.contentKey && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.contentKey}</p>
-                )}
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Optional. Access/decryption key for the off-chain content (hex).
-                </p>
-              </div>
-            )}
-
-            {/* Content Hash (optional, for off-chain storage) */}
-            {formData.storageLayer !== 'on-chain' && (
-              <div>
-                <label
-                  htmlFor="contentHash"
-                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-                >
-                  Content Hash
-                </label>
-                <input
-                  type="text"
-                  id="contentHash"
-                  name="contentHash"
-                  value={formData.contentHash}
-                  onChange={handleInputChange}
-                  disabled={isSubmitting}
-                  placeholder="Hex-encoded integrity hash of the content..."
-                  className={`w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
-                    errors.contentHash ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
-                  }`}
-                />
-                {errors.contentHash && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.contentHash}</p>
-                )}
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Optional. Integrity hash for verifying the off-chain content (hex).
-                </p>
-              </div>
-            )}
-
             {/* Image Link (optional, always shown) */}
             <div>
               <label
@@ -521,7 +566,7 @@ export default function CreateListingModal({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={!canSubmit}
                 className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
@@ -550,6 +595,3 @@ export default function CreateListingModal({
     </div>
   );
 }
-
-// Export form data type for use in other components
-export type { CreateListingFormData };

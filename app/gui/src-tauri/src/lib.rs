@@ -3,7 +3,7 @@ mod config;
 mod crypto;
 mod process;
 
-use commands::media::MediaDir;
+use commands::media::{ContentDir, MediaDir};
 use commands::secrets::SecretsDir;
 use commands::wallet::WalletState;
 use config::AppConfig;
@@ -58,13 +58,17 @@ pub fn run() {
             // Secrets encryption key (derived from mnemonic on wallet unlock)
             app.manage(SecretsKey(Mutex::new(None)));
 
-            // Media directory (for cached images, future video/docs)
+            // Media directory (for cached listing preview images)
             let media_images_dir = app_data_dir.join("media").join("images");
             std::fs::create_dir_all(&media_images_dir)
                 .expect("Failed to create media/images directory");
-            let _ = std::fs::create_dir_all(app_data_dir.join("media").join("video"));
-            let _ = std::fs::create_dir_all(app_data_dir.join("media").join("docs"));
             app.manage(MediaDir(media_images_dir));
+
+            // Content directory (for purchased/decrypted files, organized by category)
+            let content_dir = app_data_dir.join("media").join("content");
+            commands::media::ensure_content_dirs(&content_dir)
+                .expect("Failed to create content directories");
+            app.manage(ContentDir(content_dir));
 
             Ok(())
         })
@@ -141,6 +145,8 @@ pub fn run() {
             commands::media::ban_image,
             commands::media::unban_image,
             commands::media::delete_cached_image,
+            // Content commands (for future data layer)
+            commands::media::save_content,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
