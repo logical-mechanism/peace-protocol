@@ -13,10 +13,40 @@ export interface ParsedCip20 {
 }
 
 /**
- * Parse CIP-20 msg array into structured metadata fields.
- * Format: [description, suggestedPrice, storageLayer, imageLink?, category?]
+ * Parse CIP-20 metadata into structured fields.
+ *
+ * Supports two formats:
+ * - New (structured): { msg: [...descChunks], p: "price", s: "storage", i: [...urlChunks], c: "category" }
+ * - Old (flat array):  { msg: [description, suggestedPrice, storageLayer, imageLink, category] }
+ *
+ * Detection: if the object has a `p` key, it's the new format.
  */
-export function parseCip20Fields(msg: string[]): ParsedCip20 {
+export function parseCip20Fields(msg: string[], fullJson?: Record<string, unknown>): ParsedCip20 {
+  // New structured format: detect by presence of `p` key
+  if (fullJson && 'p' in fullJson) {
+    const descChunks = Array.isArray(fullJson.msg) ? (fullJson.msg as string[]) : [];
+    const description = descChunks.join('') || undefined;
+
+    const priceStr = typeof fullJson.p === 'string' ? fullJson.p : '';
+    const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
+
+    const storageLayer = (typeof fullJson.s === 'string' ? fullJson.s : '') || undefined;
+
+    const imageChunks = Array.isArray(fullJson.i) ? (fullJson.i as string[]) : [];
+    const imageLink = imageChunks.join('') || undefined;
+
+    const category = (typeof fullJson.c === 'string' ? fullJson.c : '') || undefined;
+
+    return {
+      description,
+      suggestedPrice: suggestedPrice !== undefined && !isNaN(suggestedPrice) ? suggestedPrice : undefined,
+      storageLayer,
+      imageLink,
+      category,
+    };
+  }
+
+  // Old flat-array format (backward compatibility)
   const [description, priceStr, storageLayer, imageLink, category] = msg;
   const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
 
@@ -31,7 +61,7 @@ export function parseCip20Fields(msg: string[]): ParsedCip20 {
 
 /**
  * Fetch and parse CIP-20 metadata (key 674) from the creation tx.
- * Format: { msg: [description, suggestedPrice, storageLayer, imageLink?, category?] }
+ * Supports both old flat-array format and new structured format.
  */
 async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
   try {
@@ -40,10 +70,10 @@ async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
     const cip20 = metadata.find(m => m.key === '674');
     if (!cip20?.json || typeof cip20.json !== 'object') return {};
 
-    const json = cip20.json as { msg?: string[] };
-    if (!Array.isArray(json.msg)) return {};
+    const json = cip20.json as Record<string, unknown>;
+    const msgArray = Array.isArray(json.msg) ? (json.msg as string[]) : [];
 
-    return parseCip20Fields(json.msg);
+    return parseCip20Fields(msgArray, json);
   } catch (err) {
     console.warn(`Failed to fetch CIP-20 metadata for ${txHash}:`, err);
     return {};

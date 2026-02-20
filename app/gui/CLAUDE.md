@@ -42,6 +42,7 @@ app/gui/
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
 │   │   │   ├── secretCleanup.ts     # Deferred secret deletion after on-chain confirmation
+│   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation
 │   │   │   ├── snark/               # Native SNARK prover interface
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid, tx history
@@ -197,7 +198,11 @@ app/gui/
 
 **Datum parsing** (be/src/services/parsers.ts): Decodes CBOR/Plutus JSON inline datums into TypeScript types. Handles indefinite-length byte strings (G2 points > 64 bytes are CBOR-chunked).
 
-**CIP-20 metadata** (key 674): Encryption creation tx includes `{ msg: [description, suggestedPrice, storageLayer, imageLink?, category?] }`. Bid creation tx includes `{ msg: [futurePrice] }`.
+**CIP-20 metadata** (key 674): Two formats exist (Cardano metadata strings have a 64-byte limit):
+- **New (structured)**: `{ msg: [...descriptionChunks], p: "price", s: "storageLayer", i: [...imageLinkChunks], c: "category" }`. Long strings (description, imageLink) are split into <=64-byte UTF-8 chunks via `fe/src/services/metadata.ts`. Detected by presence of `p` key.
+- **Old (flat array)**: `{ msg: [description, suggestedPrice, storageLayer, imageLink?, category?] }`. Breaks if any string exceeds 64 bytes.
+- **Bid tx**: `{ msg: [futurePrice] }` (unchanged; futurePrice is always short).
+- Backend `parseCip20Fields()` in `be/src/services/encryptions.ts` handles both formats via backward-compatible detection.
 
 **Error responses:** All routes return `{ error: { code, message } }` on failure. 500 for internal errors (real message in dev, generic in prod), 404 for missing endpoints. Malformed datums at contract addresses are silently skipped with a console warning — frontend sees incomplete data. No retry/circuit-breaker for Kupo/Koios failures.
 
@@ -294,7 +299,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret
-  - `fe/src/services/__tests__/` — transactionBuilder, transactionHistory, autolock
+  - `fe/src/services/__tests__/` — transactionBuilder, transactionHistory, autolock, metadata
   - `fe/src/config/__tests__/` — categories
   - `fe/src/hooks/__tests__/` — usePasswordStrength
   - `fe/src/utils/` — clipboard, network

@@ -315,6 +315,83 @@ describe('parseCip20Fields — boundary', () => {
   });
 });
 
+describe('parseCip20Fields — new structured format', () => {
+  it('detects new format by presence of "p" key', () => {
+    const fullJson = {
+      msg: ['A chunked ', 'description'],
+      p: '10.5',
+      s: 'on-chain',
+      i: ['https://example.com/', 'long-path/image.png'],
+      c: 'text',
+    };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBe('A chunked description');
+    expect(result.suggestedPrice).toBe(10.5);
+    expect(result.storageLayer).toBe('on-chain');
+    expect(result.imageLink).toBe('https://example.com/long-path/image.png');
+    expect(result.category).toBe('text');
+  });
+
+  it('handles single-element msg and image arrays', () => {
+    const fullJson = {
+      msg: ['Short desc'],
+      p: '5',
+      s: 'on-chain',
+      i: ['https://img.png'],
+      c: 'text',
+    };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBe('Short desc');
+    expect(result.imageLink).toBe('https://img.png');
+  });
+
+  it('handles empty description and image chunks', () => {
+    const fullJson = { msg: [''], p: '5', s: 'on-chain', i: [''], c: 'text' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBeUndefined();
+    expect(result.imageLink).toBeUndefined();
+  });
+
+  it('handles missing optional fields gracefully', () => {
+    const fullJson = { msg: ['desc'], p: '0', s: '', i: [], c: '' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBe('desc');
+    expect(result.suggestedPrice).toBe(0);
+    expect(result.storageLayer).toBeUndefined();
+    expect(result.imageLink).toBeUndefined();
+    expect(result.category).toBeUndefined();
+  });
+
+  it('falls back to old format when "p" key is absent', () => {
+    const oldMsg = ['A cool item', '10.5', 'on-chain', 'https://img.png', 'text'];
+    const result = parseCip20Fields(oldMsg);
+    expect(result.description).toBe('A cool item');
+    expect(result.suggestedPrice).toBe(10.5);
+    expect(result.storageLayer).toBe('on-chain');
+  });
+
+  it('falls back to old format when fullJson is undefined', () => {
+    const result = parseCip20Fields(['desc', '5', 'on-chain']);
+    expect(result.description).toBe('desc');
+    expect(result.suggestedPrice).toBe(5);
+  });
+
+  it('handles non-numeric price in new format', () => {
+    const fullJson = { msg: ['desc'], p: 'not-a-number', s: '', i: [], c: '' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.suggestedPrice).toBeUndefined();
+  });
+
+  it('handles many description chunks', () => {
+    const chunks = Array.from({ length: 8 }, (_, i) => `chunk${i}_`.padEnd(64, 'x'));
+    const fullJson = { msg: chunks, p: '100', s: 'data-layer', i: [''], c: 'document' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBe(chunks.join(''));
+    expect(result.suggestedPrice).toBe(100);
+    expect(result.category).toBe('document');
+  });
+});
+
 describe('parseBidCip20Fields', () => {
   it('parses valid future price', () => {
     const result = parseBidCip20Fields(['10.5']);

@@ -231,7 +231,10 @@ export default function PlaceBidModal({
                 {encryption.description && (
                   <div className="mt-2 pt-2 border-t border-[var(--border-subtle)]">
                     <span className="text-xs text-[var(--text-muted)]">Description</span>
-                    <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
+                    <p
+                      className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-1"
+                      title={encryption.description}
+                    >
                       {encryption.description}
                     </p>
                   </div>

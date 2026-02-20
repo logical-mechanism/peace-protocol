@@ -33,6 +33,7 @@ import { protocolApi } from './api';
 import type { EncryptionDisplay, BidDisplay } from './api';
 import { getSnarkProver, type SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
+import { buildEncryptionMetadata, buildBidMetadata } from './metadata';
 
 // Environment flag for stub mode
 const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
@@ -342,15 +343,13 @@ export async function createListing(
       // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
       // CIP-20 metadata (description, suggestedPrice, storageLayer, imageLink, category)
-      .metadataValue(674, {
-        msg: [
-          formData.description,
-          formData.suggestedPrice || '0',
-          getStorageLayerUri(formData),
-          formData.imageLink || '',
-          formData.category,
-        ],
-      })
+      .metadataValue(674, buildEncryptionMetadata(
+        formData.description,
+        formData.suggestedPrice || '0',
+        getStorageLayerUri(formData),
+        formData.imageLink || '',
+        formData.category,
+      ))
       // Change and UTxO selection
       // Exclude firstUtxo from coin selection pool — it's already an explicit input.
       // Including it causes the selector to undercount available ADA.
@@ -609,15 +608,13 @@ export async function cancelPendingListing(
         collateral[0].output.address
       )
       .requiredSignerHash(ownerPkh)
-      .metadataValue(674, {
-        msg: [
-          encryption.description || '',
-          encryption.suggestedPrice?.toString() || '0',
-          encryption.storageLayer || '',
-          encryption.imageLink || '',
-          encryption.category || '',
-        ]
-      })
+      .metadataValue(674, buildEncryptionMetadata(
+        encryption.description || '',
+        encryption.suggestedPrice?.toString() || '0',
+        encryption.storageLayer || '',
+        encryption.imageLink || '',
+        encryption.category || '',
+      ))
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos)
       .complete();
@@ -845,11 +842,9 @@ export async function placeBid(
       // CIP-20 metadata: only the bidder's desired future listing price
       // Description and storageLayer are the seller's data — carried forward
       // in Phase 12e/12f from the encryption UTxO, not from the bid.
-      .metadataValue(674, {
-        msg: [
-          metadata?.futurePrice?.toString() || '',
-        ],
-      })
+      .metadataValue(674, buildBidMetadata(
+        metadata?.futurePrice?.toString() || '',
+      ))
       // Change and UTxO selection
       // Exclude firstUtxo from coin selection pool — it's already an explicit input.
       // Including it causes the selector to undercount available ADA.
@@ -1268,15 +1263,13 @@ export async function acceptBidSnark(
       // Required signer
       .requiredSignerHash(ownerPkh)
       // CIP-20 metadata: carry forward from original listing so Phase 12f can read it
-      .metadataValue(674, {
-        msg: [
-          encryption.description || '',
-          encryption.suggestedPrice?.toString() || '0',
-          encryption.storageLayer || '',
-          encryption.imageLink || '',
-          encryption.category || '',
-        ],
-      })
+      .metadataValue(674, buildEncryptionMetadata(
+        encryption.description || '',
+        encryption.suggestedPrice?.toString() || '0',
+        encryption.storageLayer || '',
+        encryption.imageLink || '',
+        encryption.category || '',
+      ))
       // Change and UTxO selection
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos);
@@ -1641,15 +1634,13 @@ export async function completeReEncryption(
       // Required signer
       .requiredSignerHash(ownerPkh)
       // CIP-20 metadata: carry forward description, storageLayer, category; use bidder's future price
-      .metadataValue(674, {
-        msg: [
-          encryption.description || '',
-          (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
-          encryption.storageLayer || '',
-          encryption.imageLink || '',
-          encryption.category || '',
-        ],
-      })
+      .metadataValue(674, buildEncryptionMetadata(
+        encryption.description || '',
+        (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
+        encryption.storageLayer || '',
+        encryption.imageLink || '',
+        encryption.category || '',
+      ))
       // Change and UTxO selection
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos)

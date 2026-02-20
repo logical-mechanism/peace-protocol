@@ -171,7 +171,10 @@ export default function EncryptionCard({
             onClick={hasLongDescription ? () => setDescriptionModalOpen(true) : undefined}
           >
             <div className="flex items-start gap-2">
-              <p className="text-sm text-[var(--text-secondary)] line-clamp-2 flex-1">
+              <p
+                className="text-sm text-[var(--text-secondary)] line-clamp-1 flex-1"
+                title={encryption.description}
+              >
                 {truncateDescription(encryption.description)}
               </p>
               {hasLongDescription && (
