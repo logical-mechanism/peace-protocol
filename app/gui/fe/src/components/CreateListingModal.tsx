@@ -249,7 +249,7 @@ export default function CreateListingModal({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
+      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
@@ -285,7 +285,7 @@ export default function CreateListingModal({
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                 Data Type <span className="text-[var(--error)]">*</span>
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-6 gap-2">
                 {FILE_CATEGORIES.map((cat) => {
                   const isSelected = formData.category === cat.id;
                   const isEnabled = cat.enabled;
@@ -295,7 +295,7 @@ export default function CreateListingModal({
                       type="button"
                       onClick={() => handleCategoryChange(cat.id)}
                       disabled={isSubmitting}
-                      className={`relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-[var(--radius-md)] border text-xs transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
+                      className={`relative flex flex-row items-center justify-center gap-1.5 px-2 py-2 rounded-[var(--radius-md)] border text-xs transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
                         isSelected
                           ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
                           : isEnabled
@@ -304,8 +304,8 @@ export default function CreateListingModal({
                       }`}
                     >
                       {!isEnabled && (
-                        <div className="absolute top-1 right-1">
-                          <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="absolute top-0.5 right-0.5">
+                          <svg className="w-2.5 h-2.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                           </svg>
                         </div>
@@ -476,65 +476,68 @@ export default function CreateListingModal({
               </p>
             </div>
 
-            {/* Suggested Price */}
-            <div>
-              <label
-                htmlFor="suggestedPrice"
-                className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-              >
-                Suggested Price (ADA)
-              </label>
-              <div className="relative">
+            {/* Price + Image Link — two-column row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Suggested Price */}
+              <div>
+                <label
+                  htmlFor="suggestedPrice"
+                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+                >
+                  Suggested Price (ADA)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="suggestedPrice"
+                    name="suggestedPrice"
+                    value={formData.suggestedPrice}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                    placeholder="0.00"
+                    className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
+                      errors.suggestedPrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                    }`}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">
+                    ADA
+                  </span>
+                </div>
+                {errors.suggestedPrice && (
+                  <p className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>
+                )}
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Optional. Buyers can bid any amount.
+                </p>
+              </div>
+
+              {/* Image Link */}
+              <div>
+                <label
+                  htmlFor="imageLink"
+                  className="block text-sm font-medium text-[var(--text-primary)] mb-2"
+                >
+                  Image Link
+                </label>
                 <input
                   type="text"
-                  id="suggestedPrice"
-                  name="suggestedPrice"
-                  value={formData.suggestedPrice}
+                  id="imageLink"
+                  name="imageLink"
+                  value={formData.imageLink}
                   onChange={handleInputChange}
                   disabled={isSubmitting}
-                  placeholder="0.00"
-                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
-                    errors.suggestedPrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                  placeholder="https://example.com/preview.png"
+                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
+                    errors.imageLink ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">
-                  ADA
-                </span>
+                {errors.imageLink && (
+                  <p className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>
+                )}
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Optional. Public preview image URL.
+                </p>
               </div>
-              {errors.suggestedPrice && (
-                <p className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>
-              )}
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Optional. Buyers can bid any amount regardless of this price.
-              </p>
-            </div>
-
-            {/* Image Link (optional, always shown) */}
-            <div>
-              <label
-                htmlFor="imageLink"
-                className="block text-sm font-medium text-[var(--text-primary)] mb-2"
-              >
-                Image Link
-              </label>
-              <input
-                type="text"
-                id="imageLink"
-                name="imageLink"
-                value={formData.imageLink}
-                onChange={handleInputChange}
-                disabled={isSubmitting}
-                placeholder="https://example.com/preview.png"
-                className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
-                  errors.imageLink ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
-                }`}
-              />
-              {errors.imageLink && (
-                <p className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>
-              )}
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Optional. Public preview image URL for your listing.
-              </p>
             </div>
 
             {/* Submit Error */}
