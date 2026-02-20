@@ -61,6 +61,24 @@ export default function SalesListingCard({
     return category.charAt(0).toUpperCase() + category.slice(1);
   };
 
+  // Get storage layer label - returns "No data layer" for unknown/missing values
+  const getStorageLayerLabel = (storageLayer?: string): string => {
+    if (!storageLayer) return 'No data layer';
+    if (storageLayer === 'on-chain') return 'On-chain';
+    if (storageLayer.startsWith('ipfs://')) return 'IPFS';
+    if (storageLayer.startsWith('arweave://')) return 'Arweave';
+    return 'No data layer';
+  };
+
+  // Check if storage layer is unknown/missing
+  const isUnknownStorageLayer = (storageLayer?: string): boolean => {
+    if (!storageLayer) return true;
+    if (storageLayer === 'on-chain') return false;
+    if (storageLayer.startsWith('ipfs://')) return false;
+    if (storageLayer.startsWith('arweave://')) return false;
+    return true;
+  };
+
   // Calculate TTL countdown for pending status
   const getPendingTTL = () => {
     if (encryption.status !== 'pending') return null;
