@@ -141,7 +141,10 @@ export default function DecryptModal({
               {encryption && (
                 <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
                   {encryption.description && (
-                    <p className="text-sm text-[var(--text-secondary)] mb-3">
+                    <p
+                      className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-1"
+                      title={encryption.description}
+                    >
                       {encryption.description}
                     </p>
                   )}
