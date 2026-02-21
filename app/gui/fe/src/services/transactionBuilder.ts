@@ -172,7 +172,7 @@ async function buildPayloadForIagon(file: File, tokenName: string): Promise<Uint
 
   const fileInfo = await iagonUpload(
     apiKey,
-    new Blob([encryptedBlob]),
+    encryptedBlob,
     iagonFilename
   );
 

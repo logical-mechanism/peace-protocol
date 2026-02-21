@@ -18,7 +18,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import { cleanupStaleSecrets } from '../services/secretCleanup'
-import { isIagonConnected } from '../services/iagonAuth'
+import { isIagonConnected, connectIagon } from '../services/iagonAuth'
 import { useBidNotifications } from '../hooks/useBidNotifications'
 import {
   createListing, removeListing, placeBid, cancelBid,
@@ -77,10 +77,26 @@ export default function Dashboard() {
   const toast = useToast()
   const [iagonConnected, setIagonConnected] = useState(false)
 
-  // Check Iagon connection status
+  // Check Iagon connection status; silently auto-connect if not yet connected
   useEffect(() => {
-    isIagonConnected().then(setIagonConnected).catch(() => setIagonConnected(false))
-  }, [])
+    let cancelled = false
+    isIagonConnected()
+      .then(connected => {
+        if (cancelled) return
+        if (connected) {
+          setIagonConnected(true)
+        } else if (wallet && address) {
+          // Silently attempt CIP-8 auth — succeeds if wallet has an Iagon account
+          connectIagon(wallet, address)
+            .then(() => { if (!cancelled) setIagonConnected(true) })
+            .catch(() => { if (!cancelled) setIagonConnected(false) })
+        } else {
+          setIagonConnected(false)
+        }
+      })
+      .catch(() => { if (!cancelled) setIagonConnected(false) })
+    return () => { cancelled = true }
+  }, [wallet, address])
 
   // Confirmation modal state for destructive actions
   const [confirmAction, setConfirmAction] = useState<{
@@ -1011,6 +1027,7 @@ export default function Dashboard() {
         }}
         bid={selectedBid}
         encryption={selectedEncryption}
+        isIagonConnected={iagonConnected}
       />
 
       {/* Confirmation Modal (destructive actions) */}

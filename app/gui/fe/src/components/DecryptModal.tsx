@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
@@ -11,6 +12,7 @@ interface DecryptModalProps {
   onClose: () => void;
   bid: BidDisplay | null;
   encryption: EncryptionDisplay | null;
+  isIagonConnected?: boolean;
 }
 
 type DecryptState = 'idle' | 'decrypting' | 'success' | 'error';
@@ -20,7 +22,9 @@ export default function DecryptModal({
   onClose,
   bid,
   encryption,
+  isIagonConnected = false,
 }: DecryptModalProps) {
+  const navigate = useNavigate();
   const { wallet } = useWalletContext();
   const [state, setState] = useState<DecryptState>('idle');
   const [decryptedMessage, setDecryptedMessage] = useState<string | null>(null);
@@ -197,6 +201,31 @@ export default function DecryptModal({
                       </span>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Iagon connection required warning */}
+              {encryption?.storageLayer === 'iagon' && !isIagonConnected && (
+                <div className="flex items-start gap-3 p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-md)]">
+                  <svg className="w-5 h-5 text-[var(--warning)] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--warning)]">Iagon Connection Required</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      This content is stored on Iagon. Connect your Iagon account to download and decrypt it.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate('/settings', { state: { section: 'datalayer' } });
+                      }}
+                      className="mt-2 px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
+                    >
+                      Go to Settings
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -466,7 +495,8 @@ export default function DecryptModal({
               </button>
               <button
                 onClick={handleDecrypt}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+                disabled={encryption?.storageLayer === 'iagon' && !isIagonConnected}
+                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path

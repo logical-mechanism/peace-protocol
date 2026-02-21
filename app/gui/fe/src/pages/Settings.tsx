@@ -6,13 +6,14 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
 import { getAutolockMinutes, setAutolockMinutes } from '../services/autolock'
 import { useNode } from '../contexts/NodeContext'
 import { copyToClipboard } from '../utils/clipboard'
 import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey } from '../services/iagonAuth'
+import { verifyApiKey } from '../services/iagonApi'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -36,7 +37,7 @@ function formatBytes(bytes: number): string {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { walletState, lock } = useWalletContext()
+  const { walletState, lock, wallet } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
   const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes } = useNode()
@@ -52,12 +53,16 @@ export default function Settings() {
   const [networkSwitching, setNetworkSwitching] = useState(false)
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [addressCopied, setAddressCopied] = useState(false)
-  const [activeSection, setActiveSection] = useState<string>('node')
+  const location = useLocation()
+  const [activeSection, setActiveSection] = useState<string>(
+    (location.state as { section?: string })?.section || 'node'
+  )
 
   // Iagon data layer
   const [iagonConnected, setIagonConnected] = useState(false)
   const [iagonLoading, setIagonLoading] = useState(false)
   const [iagonError, setIagonError] = useState('')
+  const [manualApiKey, setManualApiKey] = useState('')
 
   // Process logs
   const [selectedProcess, setSelectedProcess] = useState<string>('cardano-node')
@@ -202,11 +207,12 @@ export default function Settings() {
       setIagonConnected(true)
     } catch (err) {
       console.error('Failed to connect Iagon:', err)
-      setIagonError(err instanceof Error ? err.message : 'Failed to connect to Iagon')
+      const msg = err instanceof Error ? err.message : 'Failed to connect to Iagon'
+      setIagonError(`${msg}. You can paste your API key from app.iagon.com below instead.`)
     } finally {
       setIagonLoading(false)
     }
-  }, [address])
+  }, [wallet, address])
 
   const handleDisconnectIagon = useCallback(async () => {
     setIagonLoading(true)
@@ -239,6 +245,26 @@ export default function Settings() {
       setIagonLoading(false)
     }
   }, [])
+
+  const handleSaveManualKey = useCallback(async () => {
+    if (!manualApiKey.trim()) return
+    setIagonLoading(true)
+    setIagonError('')
+    try {
+      const valid = await verifyApiKey(manualApiKey.trim())
+      if (!valid) {
+        setIagonError('API key is invalid or expired. Check your key and try again.')
+        return
+      }
+      await invoke('store_iagon_api_key', { apiKey: manualApiKey.trim() })
+      setIagonConnected(true)
+      setManualApiKey('')
+    } catch (err) {
+      setIagonError(err instanceof Error ? err.message : 'Failed to save API key')
+    } finally {
+      setIagonLoading(false)
+    }
+  }, [manualApiKey])
 
   return (
     <div className="min-h-screen">
@@ -573,6 +599,25 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Account requirement callout */}
+              {!iagonConnected && (
+                <div className="mb-6 p-3 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    <strong className="text-[var(--accent)]">Before connecting:</strong> You need an Iagon account with active storage.
+                    Visit{' '}
+                    <a
+                      href="https://app.iagon.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[var(--accent)] hover:underline"
+                    >
+                      app.iagon.com
+                    </a>{' '}
+                    to create one, then return here to connect.
+                  </p>
+                </div>
+              )}
+
               {/* Error */}
               {iagonError && (
                 <div className="mb-4 p-3 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-[var(--radius-md)]">
@@ -632,6 +677,41 @@ export default function Settings() {
                 </p>
               )}
             </div>
+
+            {/* Manual API key input */}
+            {!iagonConnected && (
+              <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+                <h3 className="text-sm font-medium mb-2">Paste API Key</h3>
+                <p className="text-xs text-[var(--text-muted)] mb-3">
+                  If wallet signing doesn&apos;t work, paste your API key from{' '}
+                  <a
+                    href="https://app.iagon.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--accent)] hover:underline"
+                  >
+                    app.iagon.com
+                  </a>
+                  {' '}instead.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualApiKey}
+                    onChange={(e) => setManualApiKey(e.target.value)}
+                    placeholder="Paste your Iagon API key"
+                    className="flex-1 px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                  <button
+                    onClick={handleSaveManualKey}
+                    disabled={iagonLoading || !manualApiKey.trim()}
+                    className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {iagonLoading ? 'Saving...' : 'Save Key'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Info card */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">

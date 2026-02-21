@@ -143,6 +143,14 @@ pub fn run() {
             commands::iagon::get_iagon_api_key,
             commands::iagon::remove_iagon_api_key,
             commands::iagon::has_iagon_api_key,
+            // Iagon HTTP proxy commands (bypass CORS)
+            commands::iagon::iagon_get_nonce,
+            commands::iagon::iagon_verify,
+            commands::iagon::iagon_generate_api_key,
+            commands::iagon::iagon_verify_api_key,
+            commands::iagon::iagon_upload,
+            commands::iagon::iagon_download,
+            commands::iagon::iagon_delete_file,
             // Media commands (image caching)
             commands::media::download_image,
             commands::media::get_cached_image,

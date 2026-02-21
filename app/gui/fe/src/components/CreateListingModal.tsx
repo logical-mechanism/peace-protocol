@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
 import { FILE_CATEGORIES, isCategoryEnabled, type FileCategory } from '../config/categories';
 
@@ -74,6 +75,7 @@ export default function CreateListingModal({
   onSubmit,
   isIagonConnected = false,
 }: CreateListingModalProps) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -438,16 +440,26 @@ export default function CreateListingModal({
                   </div>
                   {/* Iagon not connected overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-sm">
-                      <div className="flex items-center gap-2">
+                    <div className="px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-sm text-center">
+                      <div className="flex items-center justify-center gap-2 mb-1">
                         <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
                         <span className="text-sm font-medium text-[var(--text-primary)]">Iagon Required</span>
                       </div>
-                      <p className="text-xs text-[var(--text-muted)] mt-1">
-                        Connect your Iagon account in Settings &gt; Data Layer
+                      <p className="text-xs text-[var(--text-muted)] mb-2">
+                        Connect your Iagon account to upload files.
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          navigate('/settings', { state: { section: 'datalayer' } });
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
+                      >
+                        Go to Settings
+                      </button>
                     </div>
                   </div>
                 </div>
