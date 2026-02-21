@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 /* Design System CSS Variables from ui-goals.md */
 :root {
