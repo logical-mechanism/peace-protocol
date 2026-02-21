@@ -46,8 +46,9 @@ app/gui/
 │   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation
 │   │   │   ├── snark/               # Native SNARK prover interface
+│   │   │   ├── bidNotifications.ts   # localStorage: seen-bid state for notification diffing
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid, tx history
-│   │   ├── hooks/                   # useSnarkProver
+│   │   ├── hooks/                   # useSnarkProver, useBidNotifications
 │   │   └── utils/                   # clipboard, network (blockscout URLs)
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
@@ -147,6 +148,7 @@ app/gui/
 - `bidSecretStorage` — bid secrets for later decryption
 - `acceptBidStorage` — accept-bid workflow state (A0, R0, Hk, proof)
 - `transactionHistory` — tx log with timestamps and hashes
+- `bidNotifications` — seen-bid state for seller notification diffing (PKH-keyed)
 - `autolock` — inactivity timeout in minutes (default 15, 0 = never)
 
 **Styling:** Dark theme via CSS custom properties in index.css, Tailwind utility classes, fonts Inter + JetBrains Mono. Hard-coded dark mode (no light theme). All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*` tokens. No per-component CSS files — all inline Tailwind utilities + variables.
@@ -168,6 +170,7 @@ app/gui/
 **Data refresh & polling:**
 - `NodeContext` polls `get_node_status` every 5000ms via `setInterval`
 - Balance refreshed when `tipSlot` changes (App.tsx); eager refresh on Dashboard mount
+- Bid notifications: `useBidNotifications` hook in Dashboard watches `tipSlot` changes, checks for new bids on seller's listings (30s throttle), diffs against localStorage seen-bid state, shows tab badge + toast
 - Tx confirmation: escalating `setTimeout` — 20s → 45s → 90s → 180s after submission
 - No React Query/SWR — all manual polling with setInterval/setTimeout
 - `lovelace` from WalletContext can be `null` before Kupo is running — all consumers must handle nullish
@@ -301,7 +304,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret
-  - `fe/src/services/__tests__/` — transactionBuilder, transactionHistory, autolock, metadata
+  - `fe/src/services/__tests__/` — transactionBuilder, transactionHistory, autolock, metadata, bidNotifications
   - `fe/src/config/__tests__/` — categories
   - `fe/src/hooks/__tests__/` — usePasswordStrength
   - `fe/src/utils/` — clipboard, network

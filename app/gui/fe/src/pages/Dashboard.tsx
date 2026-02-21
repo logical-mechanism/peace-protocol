@@ -18,6 +18,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import { cleanupStaleSecrets } from '../services/secretCleanup'
+import { useBidNotifications } from '../hooks/useBidNotifications'
 import {
   createListing, removeListing, placeBid, cancelBid,
   cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
@@ -50,7 +51,7 @@ export default function Dashboard() {
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
-  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress } = useNode()
+  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('marketplace')
@@ -92,6 +93,37 @@ export default function Dashboard() {
       return undefined
     }
   }, [address])
+
+  // Bid notification system — watches tipSlot for new bids on seller's listings
+  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
+
+  // Fire toast when new bids arrive mid-session (not on initial load).
+  // toast is excluded from deps: its methods are stable useCallbacks but the
+  // object reference is recreated each render (no useMemo in useToast).
+  const isInitialBidCheck = useRef(true)
+  useEffect(() => {
+    if (!bidNotifications.isReady) return
+    if (isInitialBidCheck.current) {
+      isInitialBidCheck.current = false
+      return
+    }
+    if (bidNotifications.unseenBidCount > 0) {
+      toast.info(
+        'New Bids Received',
+        `You have ${bidNotifications.unseenBidCount} new ${bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'} on your listings`,
+        8000
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
+
+  // Mark bids as seen when user switches to My Sales tab
+  const { markAllSeen } = bidNotifications
+  useEffect(() => {
+    if (activeTab === 'my-sales') {
+      markAllSeen()
+    }
+  }, [activeTab, markAllSeen])
 
   // Load transaction history when PKH changes
   useEffect(() => {
@@ -694,6 +726,7 @@ export default function Dashboard() {
             onCancelPending={handleCancelPending}
             onCompleteSale={handleCompleteSale}
             onCreateListing={() => setShowCreateListing(true)}
+            onBidsViewed={bidNotifications.markListingSeen}
           />
         )
       case 'my-purchases':
@@ -885,6 +918,11 @@ export default function Dashboard() {
             <p className="text-2xl font-semibold text-[var(--accent)]">
               {myListingsCount === null ? '...' : `${myListingsCount} active`}
             </p>
+            {bidNotifications.unseenBidCount > 0 && (
+              <p className="text-sm text-[var(--success)] mt-1">
+                {bidNotifications.unseenBidCount} new {bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'}
+              </p>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('my-purchases')}
@@ -915,6 +953,11 @@ export default function Dashboard() {
                 }`}
               >
                 {tab.label}
+                {tab.id === 'my-sales' && bidNotifications.unseenBidCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse">
+                    {bidNotifications.unseenBidCount}
+                  </span>
+                )}
                 {tab.id === 'history' && pendingTxCount > 0 && (
                   <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full">
                     {pendingTxCount}
