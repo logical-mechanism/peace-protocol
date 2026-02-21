@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
-import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode } from '../services/crypto/decrypt';
+import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
 import { copyToClipboard } from '../utils/clipboard';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -26,6 +26,7 @@ export default function DecryptModal({
   const [error, setError] = useState<string | null>(null);
   const [isStub, setIsStub] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function DecryptModal({
       setError(null);
       setIsStub(false);
       setCopied(false);
+      setProgress(null);
       /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [isOpen]);
@@ -45,14 +47,21 @@ export default function DecryptModal({
 
     setState('decrypting');
     setError(null);
+    setProgress(null);
+
+    const onProgress: OnDecryptProgress = (current, total) => {
+      setProgress({ current, total });
+    };
 
     try {
       // Use bid-based decryption if bid is available, otherwise decrypt directly from encryption
       const result = bid
-        ? await decryptBid(wallet, bid, encryption)
-        : await decryptEncryption(wallet, encryption);
+        ? await decryptBid(wallet, bid, encryption, onProgress)
+        : await decryptEncryption(wallet, encryption, onProgress);
 
       if (result.success && result.message) {
+        // Brief pause at 100% so user sees the completed bar
+        await new Promise((resolve) => setTimeout(resolve, 400));
         setState('success');
         setDecryptedMessage(result.message);
         setIsStub(result.isStub || false);
@@ -80,6 +89,7 @@ export default function DecryptModal({
     setDecryptedMessage(null);
     setError(null);
     setIsStub(false);
+    setProgress(null);
     onClose();
   }, [onClose]);
 
@@ -221,9 +231,32 @@ export default function DecryptModal({
               <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
                 Decrypting...
               </h3>
-              <p className="text-sm text-[var(--text-muted)]">
+              <p className="text-sm text-[var(--text-muted)] mb-6">
                 Processing encryption layers and deriving keys
               </p>
+
+              {/* Progress bar */}
+              {progress && progress.total > 0 && (
+                <div className="max-w-sm mx-auto space-y-2">
+                  <div className="h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${
+                        progress.current >= progress.total
+                          ? 'bg-[var(--success)]'
+                          : 'bg-[var(--accent)]'
+                      }`}
+                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-[var(--text-muted)]">
+                    <span>
+                      Layer {progress.current} of {progress.total}
+                    </span>
+                    <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs text-[var(--text-muted)] mt-4">
                 Do not close this window
               </p>

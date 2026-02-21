@@ -92,6 +92,13 @@ export interface DecryptionResult {
 }
 
 /**
+ * Progress callback for decryption operations.
+ * @param current - Number of levels processed so far
+ * @param total - Total number of encryption levels to process
+ */
+export type OnDecryptProgress = (current: number, total: number) => void;
+
+/**
  * Encryption history fetched from Koios.
  * Contains all the re-encryption hops for the token.
  */
@@ -188,7 +195,8 @@ export async function fetchEncryptionHistory(
  */
 export async function computeKEM(
   b: bigint,
-  levels: EncryptionLevel[]
+  levels: EncryptionLevel[],
+  onProgress?: OnDecryptProgress
 ): Promise<string | null> {
   // Check if WASM is available
   if (!isWasmDecryptAvailable()) {
@@ -206,6 +214,8 @@ export async function computeKEM(
 
   let kemHash: string | null = null;
 
+  onProgress?.(0, levels.length);
+
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i];
 
@@ -218,6 +228,7 @@ export async function computeKEM(
 
     try {
       kemHash = await decryptToHashWasm(g1b, level.r1, shared, g2b);
+      onProgress?.(i + 1, levels.length);
 
       // For multi-level decryption, update shared for next level
       // shared = [hash]G2
@@ -243,10 +254,16 @@ export async function computeKEM(
  */
 async function decryptWithStub(
   bid: BidDisplay,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
-  // Simulate some processing time
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  // Simulate progress with 5 fake levels over ~1.5s total
+  const fakeLevels = 5;
+  onProgress?.(0, fakeLevels);
+  for (let i = 0; i < fakeLevels; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    onProgress?.(i + 1, fakeLevels);
+  }
 
   // Get the stub message for this encryption
   const message = STUB_DECRYPTED_MESSAGES[bid.encryptionToken];
@@ -279,7 +296,8 @@ async function decryptWithStub(
 async function decryptReal(
   wallet: IWallet,
   bid: BidDisplay,
-  _encryption: EncryptionDisplay
+  _encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
@@ -314,7 +332,7 @@ async function decryptReal(
   }
   // Step 4: Compute KEM using WASM
   try {
-    const kem = await computeKEM(b, history.levels);
+    const kem = await computeKEM(b, history.levels, onProgress);
     if (!kem) {
       return {
         success: false,
@@ -391,7 +409,8 @@ async function decryptReal(
 export async function decryptBid(
   wallet: IWallet,
   bid: BidDisplay,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
   // Validate bid status
   if (bid.status !== 'accepted') {
@@ -403,11 +422,11 @@ export async function decryptBid(
 
   // Check stub mode
   if (isStubMode()) {
-    return decryptWithStub(bid, encryption);
+    return decryptWithStub(bid, encryption, onProgress);
   }
 
   // Attempt real decryption
-  return decryptReal(wallet, bid, encryption);
+  return decryptReal(wallet, bid, encryption, onProgress);
 }
 
 /**
@@ -457,7 +476,8 @@ export async function canDecrypt(
  */
 export async function decryptEncryption(
   wallet: IWallet,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
@@ -509,7 +529,7 @@ export async function decryptEncryption(
 
   // Step 4: Compute KEM using WASM
   try {
-    const kem = await computeKEM(b, levels);
+    const kem = await computeKEM(b, levels, onProgress);
     if (!kem) {
       return {
         success: false,
