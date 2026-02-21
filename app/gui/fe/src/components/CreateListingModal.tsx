@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
 import { FILE_CATEGORIES, isCategoryEnabled, type FileCategory } from '../config/categories';
+import type { ListingCreationStep } from '../services/transactionBuilder';
 
 export interface CreateListingFormData {
   category: FileCategory;
@@ -23,7 +24,7 @@ interface FormErrors {
 interface CreateListingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateListingFormData) => Promise<void>;
+  onSubmit: (data: CreateListingFormData, onProgress?: (step: ListingCreationStep) => void) => Promise<void>;
   isIagonConnected?: boolean;
 }
 
@@ -80,6 +81,7 @@ export default function CreateListingModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [creationStep, setCreationStep] = useState<ListingCreationStep | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
@@ -88,6 +90,7 @@ export default function CreateListingModal({
       setFormData(INITIAL_FORM_DATA);
       setErrors({});
       setSubmitError(null);
+      setCreationStep(null);
     }
   }, [isOpen]);
 
@@ -226,9 +229,10 @@ export default function CreateListingModal({
 
     setIsSubmitting(true);
     setSubmitError(null);
+    setCreationStep(null);
 
     try {
-      await onSubmit(formData);
+      await onSubmit(formData, setCreationStep);
       onClose();
     } catch (error) {
       console.error('Failed to create listing:', error);
@@ -237,6 +241,7 @@ export default function CreateListingModal({
       );
     } finally {
       setIsSubmitting(false);
+      setCreationStep(null);
     }
   };
 
@@ -596,7 +601,13 @@ export default function CreateListingModal({
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Creating...
+                    {creationStep === 'encrypting' && 'Encrypting file...'}
+                    {creationStep === 'uploading' && 'Uploading to Iagon...'}
+                    {creationStep === 'verifying' && 'Verifying upload...'}
+                    {creationStep === 'building' && 'Building transaction...'}
+                    {creationStep === 'signing' && 'Waiting for signature...'}
+                    {creationStep === 'submitting' && 'Submitting transaction...'}
+                    {!creationStep && 'Creating...'}
                   </>
                 ) : (
                   <>

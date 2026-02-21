@@ -138,6 +138,12 @@ pub fn run() {
             commands::secrets::get_accept_bid_secrets,
             commands::secrets::remove_accept_bid_secrets,
             commands::secrets::has_accept_bid_secrets,
+            // Listing draft commands
+            commands::secrets::store_listing_draft,
+            commands::secrets::update_listing_draft,
+            commands::secrets::get_listing_draft,
+            commands::secrets::list_listing_drafts,
+            commands::secrets::remove_listing_draft,
             // Iagon data layer commands
             commands::iagon::store_iagon_api_key,
             commands::iagon::get_iagon_api_key,
@@ -151,6 +157,7 @@ pub fn run() {
             commands::iagon::iagon_upload,
             commands::iagon::iagon_download,
             commands::iagon::iagon_delete_file,
+            commands::iagon::iagon_search_files,
             // Media commands (image caching)
             commands::media::download_image,
             commands::media::get_cached_image,

@@ -340,3 +340,42 @@ pub async fn iagon_delete_file(api_key: String, file_id: String) -> Result<(), S
     }
     Ok(())
 }
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct IagonSearchResult {
+    pub files: Vec<IagonFileInfo>,
+}
+
+#[tauri::command]
+pub async fn iagon_search_files(
+    api_key: String,
+    query: String,
+) -> Result<IagonSearchResult, String> {
+    let client = build_client()?;
+    let res = client
+        .get(format!("{IAGON_BASE}/storage/filter"))
+        .header("x-api-key", &api_key)
+        .query(&[
+            ("q", query.as_str()),
+            ("visibility", "public"),
+            ("listingType", "index"),
+        ])
+        .send()
+        .await
+        .map_err(map_reqwest_error)?;
+
+    let status = res.status();
+    let body = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(map_iagon_error(status, &body));
+    }
+    let v: serde_json::Value =
+        serde_json::from_str(&body).map_err(|e| format!("Invalid search response: {e}"))?;
+    let files = v
+        .get("files")
+        .cloned()
+        .unwrap_or(serde_json::Value::Array(vec![]));
+    let files: Vec<IagonFileInfo> = serde_json::from_value(files)
+        .map_err(|e| format!("Failed to parse search results: {e}"))?;
+    Ok(IagonSearchResult { files })
+}

@@ -12,8 +12,9 @@ import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletCon
 import { getAutolockMinutes, setAutolockMinutes } from '../services/autolock'
 import { useNode } from '../contexts/NodeContext'
 import { copyToClipboard } from '../utils/clipboard'
-import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey } from '../services/iagonAuth'
-import { verifyApiKey } from '../services/iagonApi'
+import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../services/iagonAuth'
+import { verifyApiKey, deleteFile as iagonDeleteFile } from '../services/iagonApi'
+import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -64,6 +65,10 @@ export default function Settings() {
   const [iagonError, setIagonError] = useState('')
   const [manualApiKey, setManualApiKey] = useState('')
 
+  // Orphaned Iagon files (from failed/abandoned listing drafts)
+  const [orphanedDrafts, setOrphanedDrafts] = useState<ListingDraft[]>([])
+  const [orphanCleanupLoading, setOrphanCleanupLoading] = useState<string | null>(null)
+
   // Process logs
   const [selectedProcess, setSelectedProcess] = useState<string>('cardano-node')
   const [processLogs, setProcessLogs] = useState<ProcessLog | null>(null)
@@ -75,6 +80,46 @@ export default function Settings() {
     invoke<DiskUsage>('get_disk_usage').then(setDiskUsage).catch(console.error)
     isIagonConnected().then(setIagonConnected).catch(console.error)
   }, [])
+
+  // Load orphaned drafts when datalayer section is active
+  useEffect(() => {
+    if (activeSection !== 'datalayer') return
+    getOrphanedDrafts().then(setOrphanedDrafts).catch(() => {})
+  }, [activeSection])
+
+  const handleDeleteOrphan = useCallback(async (draft: ListingDraft) => {
+    if (!draft.iagonFileId) return
+    setOrphanCleanupLoading(draft.id)
+    try {
+      const apiKey = await getStoredApiKey()
+      if (apiKey && draft.iagonFileId) {
+        await iagonDeleteFile(apiKey, draft.iagonFileId)
+      }
+      await removeListingDraft(draft.id)
+      setOrphanedDrafts(prev => prev.filter(d => d.id !== draft.id))
+    } catch (err) {
+      console.error('Failed to delete orphaned file:', err)
+      setIagonError(err instanceof Error ? err.message : 'Failed to delete file')
+    } finally {
+      setOrphanCleanupLoading(null)
+    }
+  }, [])
+
+  const handleDeleteAllOrphans = useCallback(async () => {
+    if (!confirm('Delete all orphaned files from Iagon? This cannot be undone.')) return
+    const apiKey = await getStoredApiKey()
+    for (const draft of orphanedDrafts) {
+      try {
+        if (apiKey && draft.iagonFileId) {
+          await iagonDeleteFile(apiKey, draft.iagonFileId)
+        }
+        await removeListingDraft(draft.id)
+      } catch {
+        // continue with others
+      }
+    }
+    setOrphanedDrafts([])
+  }, [orphanedDrafts])
 
   const handleNetworkSwitch = useCallback(async (newNetwork: string) => {
     if (newNetwork === currentNetwork) return
@@ -709,6 +754,57 @@ export default function Settings() {
                   >
                     {iagonLoading ? 'Saving...' : 'Save Key'}
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Orphaned Files Cleanup */}
+            {orphanedDrafts.length > 0 && (
+              <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-medium">Orphaned Files</h3>
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                      Files uploaded to Iagon whose listing transactions failed or were abandoned.
+                    </p>
+                  </div>
+                  {orphanedDrafts.length > 1 && (
+                    <button
+                      onClick={handleDeleteAllOrphans}
+                      className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer"
+                    >
+                      Delete All
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {orphanedDrafts.map((draft) => (
+                    <div
+                      key={draft.id}
+                      className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[var(--text-primary)] truncate">
+                          {draft.originalFilename}
+                        </p>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          {draft.category} &middot;{' '}
+                          {draft.originalFileSize < 1024 * 1024
+                            ? `${(draft.originalFileSize / 1024).toFixed(1)} KB`
+                            : `${(draft.originalFileSize / (1024 * 1024)).toFixed(1)} MB`}
+                          {' '}&middot; {draft.status}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteOrphan(draft)}
+                        disabled={orphanCleanupLoading === draft.id}
+                        className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {orphanCleanupLoading === draft.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

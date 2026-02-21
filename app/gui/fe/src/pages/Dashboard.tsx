@@ -21,12 +21,14 @@ import { cleanupStaleSecrets } from '../services/secretCleanup'
 import { isIagonConnected, connectIagon } from '../services/iagonAuth'
 import { useBidNotifications } from '../hooks/useBidNotifications'
 import {
-  createListing, removeListing, placeBid, cancelBid,
+  createListing, retryListingFromDraft, removeListing, placeBid, cancelBid,
   cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
-  getTransactionStubWarning, extractPaymentKeyHash
+  getTransactionStubWarning, extractPaymentKeyHash,
+  type ListingCreationStep,
 } from '../services/transactionBuilder'
 import { getAcceptBidSecrets } from '../services/acceptBidStorage'
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage'
+import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
@@ -98,6 +100,111 @@ export default function Dashboard() {
       .catch(() => { if (!cancelled) setIagonConnected(false) })
     return () => { cancelled = true }
   }, [wallet, address])
+
+  // ── Draft recovery: check for unfinished file listings on startup ─────
+  const [recoverableDraft, setRecoverableDraft] = useState<ListingDraft | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    getRecoverableDrafts()
+      .then(drafts => {
+        if (cancelled || drafts.length === 0) return
+        // Show the most recent recoverable draft
+        setRecoverableDraft(drafts[0])
+      })
+      .catch(() => {}) // best-effort
+    return () => { cancelled = true }
+  }, [])
+
+  const handleDraftRecovery = useCallback(async (action: 'resume' | 'discard') => {
+    if (!recoverableDraft) return
+    if (action === 'discard') {
+      try {
+        await updateListingDraft(recoverableDraft.id, { status: 'abandoned' })
+      } catch {
+        // best-effort
+      }
+      setRecoverableDraft(null)
+      return
+    }
+
+    // Resume: retry from draft
+    if (!wallet) {
+      toast.error('Wallet Required', 'Connect your wallet to resume the listing.')
+      return
+    }
+
+    try {
+      const result = await retryListingFromDraft(wallet, recoverableDraft)
+      if (!result.success) {
+        toast.error('Retry Failed', result.error || 'Failed to retry listing')
+        return
+      }
+
+      if (result.txHash) {
+        toast.transactionSuccess('Listing Resumed!', result.txHash)
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'create-listing',
+          tokenName: result.tokenName,
+          timestamp: Date.now(),
+          status: 'pending',
+          description: recoverableDraft.description,
+        })
+      }
+      setRecoverableDraft(null)
+      setRefreshKey(prev => prev + 1)
+      setActiveTab('history')
+    } catch (error) {
+      toast.error(
+        'Retry Failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
+    }
+  }, [recoverableDraft, wallet, toast, recordTransaction])
+
+  // Retry a listing from History tab (failed tx with a draft)
+  const handleRetryListing = useCallback(async (draftId: string) => {
+    if (!wallet) {
+      toast.error('Wallet Required', 'Connect your wallet to retry the listing.')
+      return
+    }
+
+    try {
+      const { getListingDraft } = await import('../services/listingDraftStorage')
+      const draft = await getListingDraft(draftId)
+      if (!draft) {
+        toast.error('Draft Not Found', 'The listing draft could not be found. It may have been cleaned up.')
+        return
+      }
+
+      const result = await retryListingFromDraft(wallet, draft)
+      if (!result.success) {
+        toast.error('Retry Failed', result.error || 'Failed to retry listing')
+        return
+      }
+
+      if (result.txHash) {
+        toast.transactionSuccess('Listing Retried!', result.txHash)
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'create-listing',
+          tokenName: result.tokenName,
+          timestamp: Date.now(),
+          status: 'pending',
+          description: draft.description,
+          draftId,
+        })
+      }
+      setRefreshKey(prev => prev + 1)
+      setHistoryKey(prev => prev + 1)
+    } catch (error) {
+      toast.error(
+        'Retry Failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
+    }
+  }, [wallet, toast, recordTransaction])
 
   // Confirmation modal state for destructive actions
   const [confirmAction, setConfirmAction] = useState<{
@@ -650,7 +757,10 @@ export default function Dashboard() {
     setShowDecrypt(true)
   }, [])
 
-  const handleCreateListing = useCallback(async (formData: CreateListingFormData) => {
+  const handleCreateListing = useCallback(async (
+    formData: CreateListingFormData,
+    onProgress?: (step: ListingCreationStep) => void,
+  ) => {
     if (!wallet) {
       throw new Error('Wallet not connected')
     }
@@ -661,7 +771,7 @@ export default function Dashboard() {
       console.warn(stubWarning)
     }
 
-    const result = await createListing(wallet, formData)
+    const result = await createListing(wallet, formData, onProgress)
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to create listing')
@@ -704,7 +814,7 @@ export default function Dashboard() {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }
 
-    // Record in history
+    // Record in history (include draftId for file listings so retry is possible)
     if (result.txHash) {
       recordTransaction({
         txHash: result.txHash,
@@ -713,6 +823,7 @@ export default function Dashboard() {
         timestamp: Date.now(),
         status: result.isStub ? 'confirmed' : 'pending',
         description: formData.description,
+        draftId: result.draftId,
       })
     }
 
@@ -795,6 +906,7 @@ export default function Dashboard() {
             transactions={txHistory}
             onClearHistory={() => setHistoryKey(prev => prev + 1)}
             onHistoryUpdated={setTxHistory}
+            onRetryListing={handleRetryListing}
           />
         )
       case 'library':
@@ -952,6 +1064,35 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {/* Draft Recovery Banner */}
+        {recoverableDraft && (
+          <div className="mb-6 p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                Unfinished Listing Found
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                A file listing for "{recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
+                The file is still on Iagon — you can resume without re-uploading.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+              <button
+                onClick={() => handleDraftRecovery('discard')}
+                className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+              >
+                Discard
+              </button>
+              <button
+                onClick={() => handleDraftRecovery('resume')}
+                className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+              >
+                Resume Listing
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
           <button

@@ -391,3 +391,262 @@ pub fn has_accept_bid_secrets(
     let path = accept_bid_dir(&state.0).join(format!("{encryption_token_name}.json"));
     Ok(path.exists())
 }
+
+// ── Listing drafts ─────────────────────────────────────────────────────
+
+/// Listing draft — persists multi-step listing creation state so the expensive
+/// Iagon upload never needs to repeat on retry or crash recovery.
+#[derive(Serialize, Deserialize)]
+struct ListingDraftFile {
+    id: String,
+    status: String,
+    created_at: String,
+    updated_at: String,
+    // Form data
+    category: String,
+    description: String,
+    suggested_price: String,
+    image_link: String,
+    original_filename: String,
+    original_file_size: u64,
+    // Iagon upload result
+    #[serde(default)]
+    iagon_file_id: Option<String>,
+    #[serde(default)]
+    iagon_filename: Option<String>,
+    // File encryption keys (hex)
+    #[serde(default)]
+    file_key: Option<String>,
+    #[serde(default)]
+    file_nonce: Option<String>,
+    #[serde(default)]
+    file_digest: Option<String>,
+    // Transaction details
+    #[serde(default)]
+    token_name: Option<String>,
+    #[serde(default)]
+    tx_hash: Option<String>,
+    // Error tracking
+    #[serde(default)]
+    last_error: Option<String>,
+    #[serde(default)]
+    retry_count: u32,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListingDraftResult {
+    id: String,
+    status: String,
+    created_at: String,
+    updated_at: String,
+    category: String,
+    description: String,
+    suggested_price: String,
+    image_link: String,
+    original_filename: String,
+    original_file_size: u64,
+    iagon_file_id: Option<String>,
+    iagon_filename: Option<String>,
+    file_key: Option<String>,
+    file_nonce: Option<String>,
+    file_digest: Option<String>,
+    token_name: Option<String>,
+    tx_hash: Option<String>,
+    last_error: Option<String>,
+    retry_count: u32,
+}
+
+fn listing_draft_dir(base: &Path) -> PathBuf {
+    base.join("listing-drafts")
+}
+
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub fn store_listing_draft(
+    state: tauri::State<'_, SecretsDir>,
+    key_state: tauri::State<'_, SecretsKey>,
+    id: String,
+    status: String,
+    category: String,
+    description: String,
+    suggested_price: String,
+    image_link: String,
+    original_filename: String,
+    original_file_size: u64,
+) -> Result<(), String> {
+    let key = get_secrets_key(&key_state)?;
+    let dir = listing_draft_dir(&state.0);
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Failed to create listing-drafts dir: {e}"))?;
+
+    let now = chrono_now();
+    let file = ListingDraftFile {
+        id: id.clone(),
+        status,
+        created_at: now.clone(),
+        updated_at: now,
+        category,
+        description,
+        suggested_price,
+        image_link,
+        original_filename,
+        original_file_size,
+        iagon_file_id: None,
+        iagon_filename: None,
+        file_key: None,
+        file_nonce: None,
+        file_digest: None,
+        token_name: None,
+        tx_hash: None,
+        last_error: None,
+        retry_count: 0,
+    };
+    let plaintext =
+        serde_json::to_string(&file).map_err(|e| format!("Failed to serialize: {e}"))?;
+    encrypt_and_write(&key, &dir.join(format!("{id}.json")), plaintext.as_bytes())
+}
+
+#[tauri::command]
+pub fn update_listing_draft(
+    state: tauri::State<'_, SecretsDir>,
+    key_state: tauri::State<'_, SecretsKey>,
+    id: String,
+    updates_json: String,
+) -> Result<(), String> {
+    let key = get_secrets_key(&key_state)?;
+    let dir = listing_draft_dir(&state.0);
+    let path = dir.join(format!("{id}.json"));
+    if !path.exists() {
+        return Err(format!("Listing draft {id} not found"));
+    }
+    let plaintext = read_and_decrypt(&key, &path)?;
+    let plaintext_str = String::from_utf8(plaintext)
+        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
+    let mut file: ListingDraftFile =
+        serde_json::from_str(&plaintext_str).map_err(|e| format!("Invalid listing draft: {e}"))?;
+
+    // Apply partial updates from a JSON object
+    let updates: serde_json::Value =
+        serde_json::from_str(&updates_json).map_err(|e| format!("Invalid updates JSON: {e}"))?;
+
+    if let Some(v) = updates.get("status").and_then(|v| v.as_str()) {
+        file.status = v.to_string();
+    }
+    if let Some(v) = updates.get("iagonFileId").and_then(|v| v.as_str()) {
+        file.iagon_file_id = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("iagonFilename").and_then(|v| v.as_str()) {
+        file.iagon_filename = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("fileKey").and_then(|v| v.as_str()) {
+        file.file_key = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("fileNonce").and_then(|v| v.as_str()) {
+        file.file_nonce = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("fileDigest").and_then(|v| v.as_str()) {
+        file.file_digest = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("tokenName").and_then(|v| v.as_str()) {
+        file.token_name = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("txHash").and_then(|v| v.as_str()) {
+        file.tx_hash = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("lastError") {
+        file.last_error = if v.is_null() {
+            None
+        } else {
+            v.as_str().map(|s| s.to_string())
+        };
+    }
+    if let Some(v) = updates.get("retryCount").and_then(|v| v.as_u64()) {
+        file.retry_count = v as u32;
+    }
+
+    file.updated_at = chrono_now();
+
+    let new_plaintext =
+        serde_json::to_string(&file).map_err(|e| format!("Failed to serialize: {e}"))?;
+    encrypt_and_write(&key, &path, new_plaintext.as_bytes())
+}
+
+#[tauri::command]
+pub fn get_listing_draft(
+    state: tauri::State<'_, SecretsDir>,
+    key_state: tauri::State<'_, SecretsKey>,
+    id: String,
+) -> Result<Option<ListingDraftResult>, String> {
+    let key = get_secrets_key(&key_state)?;
+    let path = listing_draft_dir(&state.0).join(format!("{id}.json"));
+    if !path.exists() {
+        return Ok(None);
+    }
+    let plaintext = read_and_decrypt(&key, &path)?;
+    let plaintext_str = String::from_utf8(plaintext)
+        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
+    let file: ListingDraftFile =
+        serde_json::from_str(&plaintext_str).map_err(|e| format!("Invalid listing draft: {e}"))?;
+    Ok(Some(draft_file_to_result(file)))
+}
+
+#[tauri::command]
+pub fn list_listing_drafts(
+    state: tauri::State<'_, SecretsDir>,
+    key_state: tauri::State<'_, SecretsKey>,
+) -> Result<Vec<ListingDraftResult>, String> {
+    let key = get_secrets_key(&key_state)?;
+    let dir = listing_draft_dir(&state.0);
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut results = Vec::new();
+    for entry in
+        std::fs::read_dir(&dir).map_err(|e| format!("Failed to read listing-drafts dir: {e}"))?
+    {
+        let entry = entry.map_err(|e| format!("Failed to read dir entry: {e}"))?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        if let Ok(plaintext) = read_and_decrypt(&key, &path) {
+            if let Ok(plaintext_str) = String::from_utf8(plaintext) {
+                if let Ok(file) = serde_json::from_str::<ListingDraftFile>(&plaintext_str) {
+                    results.push(draft_file_to_result(file));
+                }
+            }
+        }
+    }
+    Ok(results)
+}
+
+#[tauri::command]
+pub fn remove_listing_draft(state: tauri::State<'_, SecretsDir>, id: String) -> Result<(), String> {
+    let path = listing_draft_dir(&state.0).join(format!("{id}.json"));
+    secure_delete(&path)
+}
+
+fn draft_file_to_result(file: ListingDraftFile) -> ListingDraftResult {
+    ListingDraftResult {
+        id: file.id,
+        status: file.status,
+        created_at: file.created_at,
+        updated_at: file.updated_at,
+        category: file.category,
+        description: file.description,
+        suggested_price: file.suggested_price,
+        image_link: file.image_link,
+        original_filename: file.original_filename,
+        original_file_size: file.original_file_size,
+        iagon_file_id: file.iagon_file_id,
+        iagon_filename: file.iagon_filename,
+        file_key: file.file_key,
+        file_nonce: file.file_nonce,
+        file_digest: file.file_digest,
+        token_name: file.token_name,
+        tx_hash: file.tx_hash,
+        last_error: file.last_error,
+        retry_count: file.retry_count,
+    }
+}

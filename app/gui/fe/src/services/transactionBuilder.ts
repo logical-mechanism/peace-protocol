@@ -35,8 +35,14 @@ import { getSnarkProver, type SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 import { buildEncryptionMetadata, buildBidMetadata } from './metadata';
 import { encryptFileForUpload, encodeFileSecret } from './crypto/fileEncryption';
-import { uploadFile as iagonUpload } from './iagonApi';
+import { uploadFile as iagonUpload, searchFiles as iagonSearch } from './iagonApi';
 import { getStoredApiKey } from './iagonAuth';
+import { hexToBytes, bytesToHex } from './crypto/bls12381';
+import {
+  createListingDraft,
+  updateListingDraft,
+  type ListingDraft,
+} from './listingDraftStorage';
 
 // Environment flag for stub mode
 const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
@@ -82,6 +88,59 @@ export function estimateMinLovelace(datum: object): string {
   return Math.max(2_000_000, Math.ceil(minLovelace * 1.2)).toString();
 }
 
+// ── Listing creation step tracking ──────────────────────────────────────
+
+/** Steps during listing creation, used for progress UI. */
+export type ListingCreationStep =
+  | 'encrypting'
+  | 'uploading'
+  | 'verifying'
+  | 'building'
+  | 'signing'
+  | 'submitting';
+
+/**
+ * Build a peace-payload from saved draft fields (hex strings) instead of a File object.
+ * Used for retries where the Iagon file is already uploaded.
+ */
+function buildPayloadFromDraftFields(
+  iagonFileId: string,
+  fileKeyHex: string,
+  fileNonceHex: string,
+  fileDigestHex: string
+): Uint8Array {
+  const locator = new TextEncoder().encode(iagonFileId);
+  const secret = encodeFileSecret(hexToBytes(fileKeyHex), hexToBytes(fileNonceHex));
+  const digest = hexToBytes(fileDigestHex);
+  return buildPayload({ locator, secret, digest });
+}
+
+/**
+ * Verify a file exists on Iagon using the search/filter endpoint.
+ * Retries up to `maxAttempts` with `delayMs` between attempts.
+ */
+async function verifyIagonUpload(
+  apiKey: string,
+  filename: string,
+  maxAttempts = 3,
+  delayMs = 2000
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const files = await iagonSearch(apiKey, filename);
+      if (files.some((f) => f.name === filename)) {
+        return true;
+      }
+    } catch (err) {
+      console.warn(`Iagon search attempt ${attempt} failed:`, err);
+    }
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
+}
+
 /**
  * Result of a transaction submission.
  */
@@ -90,6 +149,8 @@ export interface TransactionResult {
   txHash?: string;
   tokenName?: string;
   error?: string;
+  /** Draft ID for file listings — used for retry/recovery. */
+  draftId?: string;
   isStub?: boolean;
 }
 
@@ -208,37 +269,40 @@ export function extractPaymentKeyHash(address: string): string {
 /**
  * Create a new encryption listing.
  *
- * Flow:
- * 1. Fetch protocol config from backend (addresses, policy IDs, ref scripts)
- * 2. Get wallet UTxOs, address, collateral
- * 3. Compute token name from first UTxO
- * 4. Generate encryption artifacts (prompts wallet signing)
- * 5. Store secrets in IndexedDB
- * 6. Build transaction with MeshTxBuilder
- * 7. Sign and submit
+ * For text listings, the flow is simple (no file upload, no draft).
+ * For file listings, uses a persistent draft to track the multi-step
+ * process so that the expensive Iagon upload is never repeated on retry.
+ *
+ * Flow (file listings):
+ * 1. Create draft → encrypt file → upload to Iagon → verify upload
+ * 2. Fetch config, wallet info, compute token name
+ * 3. Build payload from draft fields → generate encryption artifacts
+ * 4. Store secrets → build tx → sign → submit
  *
  * @param wallet - Connected browser wallet
  * @param formData - Form data from CreateListingModal
- * @returns Transaction result
+ * @param onProgress - Optional callback for progress UI updates
+ * @returns Transaction result (includes draftId for file listings)
  */
 export async function createListing(
   wallet: IWallet,
-  formData: CreateListingFormData
+  formData: CreateListingFormData,
+  onProgress?: (step: ListingCreationStep) => void,
 ): Promise<TransactionResult> {
+  let draftId: string | undefined;
+
   try {
     // STUB MODE
     if (USE_STUBS) {
       console.warn('[STUB] createListing - using stub mode');
       console.warn(getStubWarning());
 
-      // Generate a fake UTxO for token name computation
       const fakeUtxo = {
         txHash: Array(64).fill('a').join(''),
         outputIndex: 0,
       };
       const tokenName = computeTokenName(fakeUtxo.txHash, fakeUtxo.outputIndex);
 
-      // Build CBOR payload from form data and create encryption artifacts
       const payloadBytes = formData.category === 'text'
         ? buildPayloadFromForm(formData)
         : await buildPayloadForIagon(formData.file!, tokenName);
@@ -246,10 +310,9 @@ export async function createListing(
         wallet,
         payloadBytes,
         tokenName,
-        true // useStubs = true (for gt_to_hash)
+        true
       );
 
-      // Store secrets (a, r) in IndexedDB
       await storeSecrets(tokenName, artifacts.a, artifacts.r);
 
       return {
@@ -262,7 +325,89 @@ export async function createListing(
 
     // === REAL IMPLEMENTATION ===
 
-    // 1. Fetch protocol config from backend
+    // ── Step 1: File encryption & upload (file listings only) ───────
+
+    let payloadBuilder: () => Uint8Array;
+
+    if (formData.category === 'text') {
+      // Text listings: no upload, no draft
+      payloadBuilder = () => buildPayloadFromForm(formData);
+    } else {
+      // File listings: encrypt → upload → verify with draft persistence
+      draftId = crypto.randomUUID();
+
+      onProgress?.('encrypting');
+      await createListingDraft(
+        draftId,
+        formData.category,
+        formData.description,
+        formData.suggestedPrice || '0',
+        formData.imageLink || '',
+        formData.file!.name,
+        formData.file!.size,
+      );
+
+      // Encrypt file
+      const fileBytes = new Uint8Array(await formData.file!.arrayBuffer());
+      const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
+
+      // Save encryption keys to draft before upload
+      const fileKeyHex = bytesToHex(key);
+      const fileNonceHex = bytesToHex(nonce);
+      const fileDigestHex = bytesToHex(digest);
+      await updateListingDraft(draftId, {
+        fileKey: fileKeyHex,
+        fileNonce: fileNonceHex,
+        fileDigest: fileDigestHex,
+      });
+
+      // Upload to Iagon
+      onProgress?.('uploading');
+      const apiKey = await getStoredApiKey();
+      if (!apiKey) {
+        throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
+      }
+
+      const ext = formData.file!.name.includes('.')
+        ? formData.file!.name.slice(formData.file!.name.lastIndexOf('.'))
+        : '';
+      // Use draft ID for filename since token name isn't known yet
+      const iagonFilename = `${draftId}${ext}.enc`;
+
+      const fileInfo = await iagonUpload(apiKey, encryptedBlob, iagonFilename);
+
+      await updateListingDraft(draftId, {
+        status: 'uploaded',
+        iagonFileId: fileInfo._id,
+        iagonFilename: iagonFilename,
+      });
+
+      // Verify the upload is accessible
+      onProgress?.('verifying');
+      const verified = await verifyIagonUpload(apiKey, iagonFilename);
+      if (!verified) {
+        await updateListingDraft(draftId, {
+          status: 'failed',
+          lastError: 'Upload verification failed: file not found on Iagon after upload.',
+        });
+        throw new Error(
+          'Upload verification failed: file not found on Iagon after upload. ' +
+          'The file may still be propagating. You can retry from the History tab.'
+        );
+      }
+
+      await updateListingDraft(draftId, { status: 'verified' });
+
+      // Capture draft fields for payload builder
+      const savedFileId = fileInfo._id;
+      payloadBuilder = () =>
+        buildPayloadFromDraftFields(savedFileId, fileKeyHex, fileNonceHex, fileDigestHex);
+    }
+
+    // ── Step 2: Fetch config & wallet info ──────────────────────────
+
+    onProgress?.('building');
+
     const config = await protocolApi.getConfig();
     if (!config.contracts.encryptionAddress || !config.contracts.encryptionPolicyId) {
       throw new Error(
@@ -276,7 +421,6 @@ export async function createListing(
       );
     }
 
-    // 2. Get wallet info
     const utxos = await wallet.getUtxos();
     if (utxos.length === 0) {
       throw new Error('No UTxOs found in wallet. Fund your wallet with preprod ADA first.');
@@ -296,12 +440,10 @@ export async function createListing(
       );
     }
 
-    // 3. Extract payment key hash
+    // ── Step 3: Compute token name & build payload ──────────────────
+
     const ownerPkh = extractPaymentKeyHash(usedAddresses[0]);
 
-    // 4. Sort UTxOs lexicographically (txHash then outputIndex) to match
-    //    the Cardano ledger's input ordering. The on-chain validator computes
-    //    the token name from the first *sorted* input, not the wallet's order.
     utxos.sort((a, b) => {
       const hashCmp = a.input.txHash.localeCompare(b.input.txHash);
       if (hashCmp !== 0) return hashCmp;
@@ -314,82 +456,72 @@ export async function createListing(
       firstUtxo.input.outputIndex
     );
 
-    // 5. Build CBOR payload from form data and generate encryption artifacts
-    //    Text: locator = message bytes (on-chain)
-    //    Files: locator = Iagon file ID, secret = AES key+nonce, digest = SHA-256
-    const payloadBytes = formData.category === 'text'
-      ? buildPayloadFromForm(formData)
-      : await buildPayloadForIagon(formData.file!, tokenName);
+    const payloadBytes = payloadBuilder();
     const artifacts = await createEncryptionWithWallet(
       wallet,
       payloadBytes,
       tokenName,
-      false // useStubs = false — use real WASM if available
+      false
     );
 
-    // 6. Store secrets BEFORE submitting transaction
+    // Store secrets BEFORE submitting transaction
     await storeSecrets(tokenName, artifacts.a, artifacts.r);
 
-    // 7. Build inline datum (EncryptionDatum)
-    // Field order must match Aiken: owner_vkh, owner_g1, token, half_level, full_level, capsule, status
+    if (draftId) {
+      await updateListingDraft(draftId, { tokenName, status: 'signing' });
+    }
+
+    // ── Step 4: Build, sign, submit ─────────────────────────────────
+
     const datum = {
       constructor: 0,
       fields: [
-        { bytes: ownerPkh },                      // owner_vkh (28 bytes)
-        artifacts.plutusJson.register,             // owner_g1: Register { generator, public_value }
-        { bytes: tokenName },                      // token (32 bytes)
-        artifacts.plutusJson.halfLevel,            // half_level: HalfEncryptionLevel
-        artifacts.plutusJson.fullLevel,            // full_level: None (constructor 1, [])
-        artifacts.plutusJson.capsule,              // capsule: Capsule { nonce, aad, ct }
-        { constructor: 0, fields: [] },            // status: Open (constructor 0)
+        { bytes: ownerPkh },
+        artifacts.plutusJson.register,
+        { bytes: tokenName },
+        artifacts.plutusJson.halfLevel,
+        artifacts.plutusJson.fullLevel,
+        artifacts.plutusJson.capsule,
+        { constructor: 0, fields: [] },
       ],
     };
 
-    // 8. Build mint redeemer: EntryEncryptionMint(SchnorrProof, BindingProof) — constructor 0
     const mintRedeemer = {
       constructor: 0,
       fields: [
-        artifacts.plutusJson.schnorr,              // SchnorrProof { z_b, g_r_b }
-        artifacts.plutusJson.binding,              // BindingProof { z_a_b, z_r_b, t_1_b, t_2_b }
+        artifacts.plutusJson.schnorr,
+        artifacts.plutusJson.binding,
       ],
     };
 
-    // 9. Build transaction with MeshTxBuilder
     const txBuilder = createTxBuilder();
-
     const policyId = config.contracts.encryptionPolicyId;
     const encryptionAddress = config.contracts.encryptionAddress;
     const refScript = config.referenceScripts.encryption;
 
     const unsignedTx = await txBuilder
-      // Explicit first input (token name is derived from this UTxO)
       .txIn(
         firstUtxo.input.txHash,
         firstUtxo.input.outputIndex,
         firstUtxo.output.amount,
         firstUtxo.output.address
       )
-      // Mint +1 encryption token using reference script
       .mintPlutusScriptV3()
       .mint('1', policyId, tokenName)
       .mintTxInReference(refScript.txHash, refScript.outputIndex)
       .mintRedeemerValue(mintRedeemer, 'JSON')
-      // Output to encryption contract with inline datum
       .txOut(encryptionAddress, [
         { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
         { unit: policyId + tokenName, quantity: '1' },
       ])
       .txOutInlineDatumValue(datum, 'JSON')
-      // Collateral for script execution
       .txInCollateral(
         collateral[0].input.txHash,
         collateral[0].input.outputIndex,
         collateral[0].output.amount,
         collateral[0].output.address
       )
-      // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata (description, suggestedPrice, storageLayer, imageLink, category)
       .metadataValue(674, buildEncryptionMetadata(
         formData.description,
         formData.suggestedPrice || '0',
@@ -397,29 +529,262 @@ export async function createListing(
         formData.imageLink || '',
         formData.category,
       ))
-      // Change and UTxO selection
-      // Exclude firstUtxo from coin selection pool — it's already an explicit input.
-      // Including it causes the selector to undercount available ADA.
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos.filter(u =>
         !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
       ))
       .complete();
 
-    // 10. Sign and submit
+    onProgress?.('signing');
     const signedTx = await wallet.signTx(unsignedTx);
+
+    onProgress?.('submitting');
     const txHash = await wallet.submitTx(signedTx);
+
+    if (draftId) {
+      await updateListingDraft(draftId, { txHash, status: 'submitted' });
+    }
 
     return {
       success: true,
       txHash,
       tokenName,
+      draftId,
     };
   } catch (error) {
     console.error('Failed to create listing:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+
+    // Update draft with error (best-effort)
+    if (draftId) {
+      try {
+        await updateListingDraft(draftId, {
+          status: 'failed',
+          lastError: errorMsg,
+        });
+      } catch {
+        // Don't mask the original error
+      }
+    }
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMsg,
+      draftId,
+    };
+  }
+}
+
+/**
+ * Retry creating a listing from a saved draft.
+ *
+ * Skips file encryption and Iagon upload — uses the already-uploaded file
+ * referenced by the draft's iagonFileId. Builds a fresh transaction with
+ * the current wallet UTxOs (which may produce a different token name).
+ *
+ * @param wallet - Connected browser wallet
+ * @param draft - The listing draft to retry from
+ * @param onProgress - Optional callback for progress UI updates
+ * @returns Transaction result
+ */
+export async function retryListingFromDraft(
+  wallet: IWallet,
+  draft: ListingDraft,
+  onProgress?: (step: ListingCreationStep) => void,
+): Promise<TransactionResult> {
+  if (!draft.iagonFileId || !draft.fileKey || !draft.fileNonce || !draft.fileDigest) {
+    return {
+      success: false,
+      error: 'Draft is missing upload data. Cannot retry — please create a new listing.',
+      draftId: draft.id,
+    };
+  }
+
+  try {
+    // Verify the file is still on Iagon
+    onProgress?.('verifying');
+    const apiKey = await getStoredApiKey();
+    if (!apiKey) {
+      throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
+    }
+
+    if (draft.iagonFilename) {
+      const verified = await verifyIagonUpload(apiKey, draft.iagonFilename);
+      if (!verified) {
+        await updateListingDraft(draft.id, {
+          status: 'failed',
+          lastError: 'File no longer found on Iagon. You may need to create a new listing.',
+        });
+        throw new Error('File no longer found on Iagon. You may need to create a new listing.');
+      }
+    }
+
+    // Build payload from saved draft fields (no re-upload needed)
+    onProgress?.('building');
+    const payloadBytes = buildPayloadFromDraftFields(
+      draft.iagonFileId,
+      draft.fileKey,
+      draft.fileNonce,
+      draft.fileDigest,
+    );
+
+    // Fetch config & wallet info
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionAddress || !config.contracts.encryptionPolicyId) {
+      throw new Error(
+        'Protocol config missing contract addresses. Ensure backend .env is configured.'
+      );
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error(
+        'Encryption reference script UTxO not configured. ' +
+        'Set ENCRYPTION_REF_TX_HASH_PREPROD in backend .env'
+      );
+    }
+
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet. Fund your wallet with preprod ADA first.');
+    }
+
+    const usedAddresses = await wallet.getUsedAddresses();
+    if (usedAddresses.length === 0) {
+      throw new Error('No used addresses found in wallet.');
+    }
+    const changeAddress = await wallet.getChangeAddress();
+
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error(
+        'No collateral set in wallet. Set collateral in your wallet settings ' +
+        '(Eternl: Settings > Collateral).'
+      );
+    }
+
+    const ownerPkh = extractPaymentKeyHash(usedAddresses[0]);
+
+    utxos.sort((a, b) => {
+      const hashCmp = a.input.txHash.localeCompare(b.input.txHash);
+      if (hashCmp !== 0) return hashCmp;
+      return a.input.outputIndex - b.input.outputIndex;
+    });
+
+    const firstUtxo = utxos[0];
+    const tokenName = computeTokenName(
+      firstUtxo.input.txHash,
+      firstUtxo.input.outputIndex
+    );
+
+    const artifacts = await createEncryptionWithWallet(
+      wallet,
+      payloadBytes,
+      tokenName,
+      false,
+    );
+
+    await storeSecrets(tokenName, artifacts.a, artifacts.r);
+
+    await updateListingDraft(draft.id, {
+      tokenName,
+      status: 'signing',
+      retryCount: draft.retryCount + 1,
+      lastError: null,
+    });
+
+    // Build tx
+    const datum = {
+      constructor: 0,
+      fields: [
+        { bytes: ownerPkh },
+        artifacts.plutusJson.register,
+        { bytes: tokenName },
+        artifacts.plutusJson.halfLevel,
+        artifacts.plutusJson.fullLevel,
+        artifacts.plutusJson.capsule,
+        { constructor: 0, fields: [] },
+      ],
+    };
+
+    const mintRedeemer = {
+      constructor: 0,
+      fields: [
+        artifacts.plutusJson.schnorr,
+        artifacts.plutusJson.binding,
+      ],
+    };
+
+    const txBuilder = createTxBuilder();
+    const policyId = config.contracts.encryptionPolicyId;
+    const encryptionAddress = config.contracts.encryptionAddress;
+    const refScript = config.referenceScripts.encryption;
+
+    const unsignedTx = await txBuilder
+      .txIn(
+        firstUtxo.input.txHash,
+        firstUtxo.input.outputIndex,
+        firstUtxo.output.amount,
+        firstUtxo.output.address
+      )
+      .mintPlutusScriptV3()
+      .mint('1', policyId, tokenName)
+      .mintTxInReference(refScript.txHash, refScript.outputIndex)
+      .mintRedeemerValue(mintRedeemer, 'JSON')
+      .txOut(encryptionAddress, [
+        { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
+        { unit: policyId + tokenName, quantity: '1' },
+      ])
+      .txOutInlineDatumValue(datum, 'JSON')
+      .txInCollateral(
+        collateral[0].input.txHash,
+        collateral[0].input.outputIndex,
+        collateral[0].output.amount,
+        collateral[0].output.address
+      )
+      .requiredSignerHash(ownerPkh)
+      .metadataValue(674, buildEncryptionMetadata(
+        draft.description,
+        draft.suggestedPrice || '0',
+        'iagon',
+        draft.imageLink || '',
+        draft.category,
+      ))
+      .changeAddress(changeAddress)
+      .selectUtxosFrom(utxos.filter(u =>
+        !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
+      ))
+      .complete();
+
+    onProgress?.('signing');
+    const signedTx = await wallet.signTx(unsignedTx);
+
+    onProgress?.('submitting');
+    const txHash = await wallet.submitTx(signedTx);
+
+    await updateListingDraft(draft.id, { txHash, status: 'submitted' });
+
+    return {
+      success: true,
+      txHash,
+      tokenName,
+      draftId: draft.id,
+    };
+  } catch (error) {
+    console.error('Failed to retry listing from draft:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+
+    try {
+      await updateListingDraft(draft.id, {
+        status: 'failed',
+        lastError: errorMsg,
+      });
+    } catch {
+      // Don't mask the original error
+    }
+
+    return {
+      success: false,
+      error: errorMsg,
+      draftId: draft.id,
     };
   }
 }

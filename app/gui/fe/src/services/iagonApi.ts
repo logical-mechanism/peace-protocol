@@ -108,3 +108,18 @@ export async function deleteFile(
 ): Promise<void> {
   await invoke('iagon_delete_file', { apiKey, fileId });
 }
+
+/**
+ * Search for files on Iagon by query string.
+ * Uses the /storage/filter endpoint to check if a file exists without downloading it.
+ */
+export async function searchFiles(
+  apiKey: string,
+  query: string
+): Promise<IagonFileInfo[]> {
+  const result = await invoke<{ files: IagonFileInfo[] }>('iagon_search_files', {
+    apiKey,
+    query,
+  });
+  return result.files;
+}
