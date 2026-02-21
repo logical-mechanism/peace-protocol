@@ -26,6 +26,7 @@ import {
   getTransactionStubWarning, extractPaymentKeyHash
 } from '../services/transactionBuilder'
 import { getAcceptBidSecrets } from '../services/acceptBidStorage'
+import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
@@ -666,6 +667,30 @@ export default function Dashboard() {
       throw new Error(result.error || 'Failed to create listing')
     }
 
+    // Save content to local library so the creator's own files appear in Library tab
+    if (result.tokenName) {
+      try {
+        const category = formData.category;
+        const contentBytes = category === 'text'
+          ? new TextEncoder().encode(formData.secretMessage)
+          : new Uint8Array(await formData.file!.arrayBuffer());
+
+        await saveDecryptedContent(result.tokenName, category, contentBytes);
+        await saveContentMetadata({
+          tokenName: result.tokenName,
+          description: formData.description,
+          suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
+          storageLayer: category === 'text' ? 'on-chain' : 'iagon',
+          imageLink: formData.imageLink || undefined,
+          category,
+          seller: address,
+          decryptedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Failed to save listing content to library:', err);
+      }
+    }
+
     // Show success message
     if (result.isStub) {
       toast.warning(
@@ -694,7 +719,7 @@ export default function Dashboard() {
     // Refresh and switch to History tab to show pending tx
     setRefreshKey(prev => prev + 1)
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, address, toast, recordTransaction])
 
   // Fetch user stats
   useEffect(() => {
