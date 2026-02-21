@@ -87,6 +87,7 @@ export interface DecryptionResult {
   success: boolean;
   message?: string; // Field 0 (locator) decoded as UTF-8 for display
   payload?: Map<number, Uint8Array>; // Structured CBOR payload fields
+  rawContent?: Uint8Array; // Raw bytes of field 0 for saving to disk
   error?: string; // Error message if failed
   isStub?: boolean; // True if using stub data
 }
@@ -272,14 +273,17 @@ async function decryptWithStub(
     return {
       success: true,
       message,
+      rawContent: new TextEncoder().encode(message),
       isStub: true,
     };
   }
 
   // Fallback for unknown tokens
+  const fallback = `[Stub Mode]\n\nDecrypted content for:\nToken: ${bid.encryptionToken.slice(0, 16)}...\n\nDescription: ${encryption?.description || 'No description'}\n\nThis is placeholder content since we're in development mode without live contracts.`;
   return {
     success: true,
-    message: `[Stub Mode]\n\nDecrypted content for:\nToken: ${bid.encryptionToken.slice(0, 16)}...\n\nDescription: ${encryption?.description || 'No description'}\n\nThis is placeholder content since we're in development mode without live contracts.`,
+    message: fallback,
+    rawContent: new TextEncoder().encode(fallback),
     isStub: true,
   };
 }
@@ -363,11 +367,13 @@ async function decryptReal(
 
     // Parse the CBOR peace-payload
     let payload: Map<number, Uint8Array> | undefined;
+    let rawContent: Uint8Array;
     let message: string;
     try {
       payload = parsePayload(rawBytes);
+      rawContent = payload.get(0)!;
       // Display field 0 (locator) as UTF-8 text
-      message = new TextDecoder().decode(payload.get(0)!);
+      message = new TextDecoder().decode(rawContent);
       if (payload.size > 1) {
         // Show structured info for multi-field payloads
         const parts = [`Locator: ${message}`];
@@ -377,6 +383,7 @@ async function decryptReal(
       }
     } catch {
       // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
+      rawContent = rawBytes;
       message = new TextDecoder().decode(rawBytes);
     }
 
@@ -384,6 +391,7 @@ async function decryptReal(
       success: true,
       message,
       payload,
+      rawContent,
       isStub: false,
     };
   } catch (err) {
@@ -564,10 +572,12 @@ export async function decryptEncryption(
 
     // Parse the CBOR peace-payload
     let payload: Map<number, Uint8Array> | undefined;
+    let rawContent: Uint8Array;
     let message: string;
     try {
       payload = parsePayload(rawBytes);
-      message = new TextDecoder().decode(payload.get(0)!);
+      rawContent = payload.get(0)!;
+      message = new TextDecoder().decode(rawContent);
       if (payload.size > 1) {
         const parts = [`Locator: ${message}`];
         if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
@@ -576,6 +586,7 @@ export async function decryptEncryption(
       }
     } catch {
       // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
+      rawContent = rawBytes;
       message = new TextDecoder().decode(rawBytes);
     }
 
@@ -583,6 +594,7 @@ export async function decryptEncryption(
       success: true,
       message,
       payload,
+      rawContent,
       isStub: false,
     };
   } catch (err) {
