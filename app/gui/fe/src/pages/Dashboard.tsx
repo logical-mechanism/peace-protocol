@@ -116,6 +116,91 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [])
 
+  // Confirmation modal state for destructive actions
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string
+    message: string
+    confirmLabel: string
+    onConfirm: () => Promise<void>
+  } | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+
+  // Compute payment key hash from wallet address for PKH-based filtering
+  const userPkh = useMemo(() => {
+    if (!address) return undefined
+    try {
+      return extractPaymentKeyHash(address)
+    } catch {
+      return undefined
+    }
+  }, [address])
+
+  // Bid notification system — watches tipSlot for new bids on seller's listings
+  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
+
+  // Fire toast when new bids arrive mid-session (not on initial load).
+  // toast is excluded from deps: its methods are stable useCallbacks but the
+  // object reference is recreated each render (no useMemo in useToast).
+  const isInitialBidCheck = useRef(true)
+  useEffect(() => {
+    if (!bidNotifications.isReady) return
+    if (isInitialBidCheck.current) {
+      isInitialBidCheck.current = false
+      return
+    }
+    if (bidNotifications.unseenBidCount > 0) {
+      toast.info(
+        'New Bids Received',
+        `You have ${bidNotifications.unseenBidCount} new ${bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'} on your listings`,
+        8000
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
+
+  // Mark bids as seen when user switches to My Sales tab
+  const { markAllSeen } = bidNotifications
+  useEffect(() => {
+    if (activeTab === 'my-sales') {
+      markAllSeen()
+    }
+  }, [activeTab, markAllSeen])
+
+  // Load transaction history when PKH changes
+  useEffect(() => {
+    if (userPkh) {
+      setTxHistory(getTransactions(userPkh))
+    } else {
+      setTxHistory([])
+    }
+  }, [userPkh, historyKey])
+
+  // Eagerly refresh balance when Dashboard mounts and node is synced.
+  // Covers the gap between wallet unlock (lovelace=null) and the first
+  // tipSlot change (~20s). Only fires once via ref guard.
+  const initialBalanceFetched = useRef(false)
+  useEffect(() => {
+    if (nodeStage === 'synced' && !initialBalanceFetched.current) {
+      initialBalanceFetched.current = true
+      refreshBalance()
+    }
+  }, [nodeStage, refreshBalance])
+
+  // Record a transaction and schedule auto-refresh with escalating retries.
+  // Txs can sit in the mempool for over a minute, so a single 20s check isn't enough.
+  const recordTransaction = useCallback((record: TransactionRecord) => {
+    if (!userPkh) return
+    addTransaction(userPkh, record)
+    setTxHistory(getTransactions(userPkh))
+    // Retry at 20s, 45s, 90s, and 180s to handle mempool delays
+    for (const delay of [20_000, 45_000, 90_000, 180_000]) {
+      setTimeout(() => {
+        setRefreshKey(prev => prev + 1)
+        setHistoryKey(prev => prev + 1)
+      }, delay)
+    }
+  }, [userPkh])
+
   const handleDraftRecovery = useCallback(async (action: 'resume' | 'discard') => {
     if (!recoverableDraft) return
     if (action === 'discard') {
@@ -205,91 +290,6 @@ export default function Dashboard() {
       )
     }
   }, [wallet, toast, recordTransaction])
-
-  // Confirmation modal state for destructive actions
-  const [confirmAction, setConfirmAction] = useState<{
-    title: string
-    message: string
-    confirmLabel: string
-    onConfirm: () => Promise<void>
-  } | null>(null)
-  const [confirmLoading, setConfirmLoading] = useState(false)
-
-  // Compute payment key hash from wallet address for PKH-based filtering
-  const userPkh = useMemo(() => {
-    if (!address) return undefined
-    try {
-      return extractPaymentKeyHash(address)
-    } catch {
-      return undefined
-    }
-  }, [address])
-
-  // Bid notification system — watches tipSlot for new bids on seller's listings
-  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
-
-  // Fire toast when new bids arrive mid-session (not on initial load).
-  // toast is excluded from deps: its methods are stable useCallbacks but the
-  // object reference is recreated each render (no useMemo in useToast).
-  const isInitialBidCheck = useRef(true)
-  useEffect(() => {
-    if (!bidNotifications.isReady) return
-    if (isInitialBidCheck.current) {
-      isInitialBidCheck.current = false
-      return
-    }
-    if (bidNotifications.unseenBidCount > 0) {
-      toast.info(
-        'New Bids Received',
-        `You have ${bidNotifications.unseenBidCount} new ${bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'} on your listings`,
-        8000
-      )
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
-
-  // Mark bids as seen when user switches to My Sales tab
-  const { markAllSeen } = bidNotifications
-  useEffect(() => {
-    if (activeTab === 'my-sales') {
-      markAllSeen()
-    }
-  }, [activeTab, markAllSeen])
-
-  // Load transaction history when PKH changes
-  useEffect(() => {
-    if (userPkh) {
-      setTxHistory(getTransactions(userPkh))
-    } else {
-      setTxHistory([])
-    }
-  }, [userPkh, historyKey])
-
-  // Eagerly refresh balance when Dashboard mounts and node is synced.
-  // Covers the gap between wallet unlock (lovelace=null) and the first
-  // tipSlot change (~20s). Only fires once via ref guard.
-  const initialBalanceFetched = useRef(false)
-  useEffect(() => {
-    if (nodeStage === 'synced' && !initialBalanceFetched.current) {
-      initialBalanceFetched.current = true
-      refreshBalance()
-    }
-  }, [nodeStage, refreshBalance])
-
-  // Record a transaction and schedule auto-refresh with escalating retries.
-  // Txs can sit in the mempool for over a minute, so a single 20s check isn't enough.
-  const recordTransaction = useCallback((record: TransactionRecord) => {
-    if (!userPkh) return
-    addTransaction(userPkh, record)
-    setTxHistory(getTransactions(userPkh))
-    // Retry at 20s, 45s, 90s, and 180s to handle mempool delays
-    for (const delay of [20_000, 45_000, 90_000, 180_000]) {
-      setTimeout(() => {
-        setRefreshKey(prev => prev + 1)
-        setHistoryKey(prev => prev + 1)
-      }, delay)
-    }
-  }, [userPkh])
 
   const pendingTxCount = useMemo(
     () => txHistory.filter(tx => tx.status === 'pending').length,

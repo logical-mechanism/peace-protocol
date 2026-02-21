@@ -158,6 +158,7 @@ pub fn run() {
             commands::iagon::iagon_download,
             commands::iagon::iagon_delete_file,
             commands::iagon::iagon_search_files,
+            commands::iagon::iagon_list_files,
             // Media commands (image caching)
             commands::media::download_image,
             commands::media::get_cached_image,

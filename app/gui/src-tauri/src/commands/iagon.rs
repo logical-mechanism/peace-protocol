@@ -379,3 +379,30 @@ pub async fn iagon_search_files(
         .map_err(|e| format!("Failed to parse search results: {e}"))?;
     Ok(IagonSearchResult { files })
 }
+
+#[tauri::command]
+pub async fn iagon_list_files(api_key: String) -> Result<IagonSearchResult, String> {
+    let client = build_client()?;
+    let res = client
+        .get(format!("{IAGON_BASE}/storage/directory"))
+        .header("x-api-key", &api_key)
+        .query(&[("visibility", "public"), ("listingType", "index")])
+        .send()
+        .await
+        .map_err(map_reqwest_error)?;
+
+    let status = res.status();
+    let body = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(map_iagon_error(status, &body));
+    }
+    let v: serde_json::Value =
+        serde_json::from_str(&body).map_err(|e| format!("Invalid directory response: {e}"))?;
+    let files = v
+        .pointer("/data/files")
+        .cloned()
+        .unwrap_or(serde_json::Value::Array(vec![]));
+    let files: Vec<IagonFileInfo> =
+        serde_json::from_value(files).map_err(|e| format!("Failed to parse file list: {e}"))?;
+    Ok(IagonSearchResult { files })
+}

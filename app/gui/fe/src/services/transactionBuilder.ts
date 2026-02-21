@@ -35,7 +35,7 @@ import { getSnarkProver, type SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 import { buildEncryptionMetadata, buildBidMetadata } from './metadata';
 import { encryptFileForUpload, encodeFileSecret } from './crypto/fileEncryption';
-import { uploadFile as iagonUpload, searchFiles as iagonSearch } from './iagonApi';
+import { uploadFile as iagonUpload, listFiles as iagonListFiles } from './iagonApi';
 import { getStoredApiKey } from './iagonAuth';
 import { hexToBytes, bytesToHex } from './crypto/bls12381';
 import {
@@ -116,28 +116,35 @@ function buildPayloadFromDraftFields(
 }
 
 /**
- * Verify a file exists on Iagon using the search/filter endpoint.
+ * Verify a file exists on Iagon by listing the user's directory and matching by _id.
  * Retries up to `maxAttempts` with `delayMs` between attempts.
  */
 async function verifyIagonUpload(
   apiKey: string,
-  filename: string,
+  fileId: string,
   maxAttempts = 3,
   delayMs = 2000
 ): Promise<boolean> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const files = await iagonSearch(apiKey, filename);
-      if (files.some((f) => f.name === filename)) {
+      const files = await iagonListFiles(apiKey);
+      console.log(
+        `[verifyIagonUpload] Attempt ${attempt}/${maxAttempts} for _id "${fileId}":`,
+        JSON.stringify(files, null, 2)
+      );
+      if (files.some((f) => f._id === fileId)) {
+        console.log(`[verifyIagonUpload] File verified on attempt ${attempt}`);
         return true;
       }
     } catch (err) {
-      console.warn(`Iagon search attempt ${attempt} failed:`, err);
+      console.warn(`[verifyIagonUpload] List attempt ${attempt} failed:`, err);
     }
     if (attempt < maxAttempts) {
+      console.log(`[verifyIagonUpload] Waiting ${delayMs}ms before retry...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
+  console.warn(`[verifyIagonUpload] File _id "${fileId}" not found after ${maxAttempts} attempts`);
   return false;
 }
 
@@ -375,6 +382,7 @@ export async function createListing(
       const iagonFilename = `${draftId}${ext}.enc`;
 
       const fileInfo = await iagonUpload(apiKey, encryptedBlob, iagonFilename);
+      console.log('[createListing] Iagon upload response:', JSON.stringify(fileInfo, null, 2));
 
       await updateListingDraft(draftId, {
         status: 'uploaded',
@@ -384,7 +392,7 @@ export async function createListing(
 
       // Verify the upload is accessible
       onProgress?.('verifying');
-      const verified = await verifyIagonUpload(apiKey, iagonFilename);
+      const verified = await verifyIagonUpload(apiKey, fileInfo._id);
       if (!verified) {
         await updateListingDraft(draftId, {
           status: 'failed',
@@ -608,8 +616,8 @@ export async function retryListingFromDraft(
       throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
     }
 
-    if (draft.iagonFilename) {
-      const verified = await verifyIagonUpload(apiKey, draft.iagonFilename);
+    if (draft.iagonFileId) {
+      const verified = await verifyIagonUpload(apiKey, draft.iagonFileId);
       if (!verified) {
         await updateListingDraft(draft.id, {
           status: 'failed',

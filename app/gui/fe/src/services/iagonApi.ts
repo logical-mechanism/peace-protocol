@@ -123,3 +123,14 @@ export async function searchFiles(
   });
   return result.files;
 }
+
+/**
+ * List all files in the user's Iagon root directory.
+ * Uses the /storage/directory endpoint — more reliable than search for verification.
+ */
+export async function listFiles(apiKey: string): Promise<IagonFileInfo[]> {
+  const result = await invoke<{ files: IagonFileInfo[] }>('iagon_list_files', {
+    apiKey,
+  });
+  return result.files;
+}
