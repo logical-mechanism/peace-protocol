@@ -47,9 +47,6 @@ export default function WalletUnlock() {
           >
             Veiled
           </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Enter your password to unlock
-          </p>
         </div>
 
         {/* Unlock card */}
@@ -86,7 +83,6 @@ export default function WalletUnlock() {
                   border: `1px solid ${error ? 'var(--error)' : 'var(--border-subtle)'}`,
                   outline: 'none',
                 }}
-                placeholder="Enter spending password"
                 autoComplete="current-password"
                 autoFocus
                 disabled={isUnlocking}

@@ -287,26 +287,7 @@ export default function NodeSync() {
           style={{ boxShadow: 'var(--shadow-lg)' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--bg-secondary)]">
-              {stage === 'error' ? (
-                <svg className="w-6 h-6 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              ) : stage === 'synced' ? (
-                <svg className="w-6 h-6 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : stage === 'stopped' ? (
-                <svg className="w-6 h-6 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              )}
-            </div>
+          <div className="mb-6 text-center">
             <div>
               <h1 className="text-xl font-semibold">
                 {stage === 'stopped'

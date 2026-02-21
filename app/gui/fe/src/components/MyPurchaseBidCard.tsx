@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { BidStatusBadge } from './Badge';
+import DescriptionModal from './DescriptionModal';
+import { truncateDescription } from './descriptionUtils';
 
 interface MyPurchaseBidCardProps {
   bid: BidDisplay;
@@ -16,6 +19,8 @@ export default function MyPurchaseBidCard({
   onDecrypt,
   compact = false,
 }: MyPurchaseBidCardProps) {
+  const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+
   const truncateToken = (token: string) => {
     if (!token) return '';
     return `${token.slice(0, 8)}...${token.slice(-4)}`;
@@ -60,6 +65,7 @@ export default function MyPurchaseBidCard({
 
   if (compact) {
     return (
+      <>
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
         <div className="flex items-center justify-between gap-4">
           {/* Left: Bid info */}
@@ -101,8 +107,11 @@ export default function MyPurchaseBidCard({
                 <BidStatusBadge status={bid.status} />
               </div>
               {encryption?.description && (
-                <p className="text-sm text-[var(--text-secondary)] truncate">
-                  {encryption.description}
+                <p
+                  className="text-sm text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                  onClick={() => setDescriptionModalOpen(true)}
+                >
+                  {truncateDescription(encryption.description)}
                 </p>
               )}
               {!encryption?.description && (
@@ -150,10 +159,19 @@ export default function MyPurchaseBidCard({
           </div>
         </div>
       </div>
+
+      <DescriptionModal
+        isOpen={descriptionModalOpen}
+        onClose={() => setDescriptionModalOpen(false)}
+        description={encryption?.description || ''}
+        tokenName={encryption?.tokenName}
+      />
+      </>
     );
   }
 
   return (
+    <>
     <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
@@ -173,9 +191,15 @@ export default function MyPurchaseBidCard({
 
       {/* Encryption Description (if available) */}
       {encryption?.description && (
-        <div className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-          <p className="text-sm text-[var(--text-secondary)] line-clamp-2">
-            {encryption.description}
+        <div
+          className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+          onClick={() => setDescriptionModalOpen(true)}
+        >
+          <p
+            className="text-sm text-[var(--text-secondary)] line-clamp-1"
+            title={encryption.description}
+          >
+            {truncateDescription(encryption.description)}
           </p>
         </div>
       )}
@@ -290,5 +314,13 @@ export default function MyPurchaseBidCard({
         )}
       </div>
     </div>
+
+    <DescriptionModal
+      isOpen={descriptionModalOpen}
+      onClose={() => setDescriptionModalOpen(false)}
+      description={encryption?.description || ''}
+      tokenName={encryption?.tokenName}
+    />
+    </>
   );
 }
