@@ -8,6 +8,7 @@ import MarketplaceTab from '../components/MarketplaceTab'
 import MySalesTab from '../components/MySalesTab'
 import MyPurchasesTab from '../components/MyPurchasesTab'
 import HistoryTab from '../components/HistoryTab'
+import LibraryTab from '../components/LibraryTab'
 import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
@@ -29,7 +30,7 @@ import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'
 import type { CreateListingFormData } from '../components/CreateListingModal'
 
-type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history';
+type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library';
 
 interface Tab {
   id: TabId;
@@ -41,6 +42,7 @@ const TABS: Tab[] = [
   { id: 'my-sales', label: 'My Sales' },
   { id: 'my-purchases', label: 'My Purchases' },
   { id: 'history', label: 'History' },
+  { id: 'library', label: 'Library' },
 ];
 
 export default function Dashboard() {
@@ -714,6 +716,8 @@ export default function Dashboard() {
             onHistoryUpdated={setTxHistory}
           />
         )
+      case 'library':
+        return <LibraryTab />
       default:
         return null
     }

@@ -41,6 +41,7 @@ app/gui/
 │   │   │   ├── transactionBuilder.ts # All tx building (~1780 lines)
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
+│   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete content)
 │   │   │   ├── secretCleanup.ts     # Deferred secret deletion after on-chain confirmation
 │   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation
@@ -115,10 +116,10 @@ app/gui/
 | `/wallet-setup` | no_wallet | WalletSetup (create/import mnemonic) |
 | `/wallet-unlock` | locked | WalletUnlock (password entry) |
 | `/node-sync` | unlocked + node not synced | NodeSync (progress bars) |
-| `/dashboard` | unlocked + node synced | Dashboard (4 tabs) |
+| `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, ListingImage) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + descriptionUtils
 
 **Transaction building** (fe/src/services/transactionBuilder.ts ~1780 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
@@ -275,6 +276,7 @@ app/gui/
 - SNARK: `snark_check_setup`, `snark_decompress_setup`, `snark_prove`, `snark_gt_to_hash`, `snark_decrypt_to_hash`
 - Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
 - Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`
+- Library: `list_library_items`, `read_library_content`, `delete_library_item`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -341,3 +343,4 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
 - **Provider nesting order** — WalletProvider → NodeProvider → WasmProvider (in main.tsx); order matters for context dependencies
 - **File categories** — Defined in `fe/src/config/categories.ts`. Only `text` is enabled (on-chain); other categories (document, audio, image, video, other) gated by `enabled` flag until data layer is implemented. Category stored in CIP-20 metadata msg[4]. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
+- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes, `delete_library_item` removes the token directory. Text content displayed inline with copy; non-text categories show placeholder until viewers are implemented. LibraryCard supports grid/compact modes like SalesListingCard

@@ -147,6 +147,10 @@ pub fn run() {
             commands::media::delete_cached_image,
             // Content commands (for future data layer)
             commands::media::save_content,
+            // Library commands (browse/read/delete decrypted content)
+            commands::media::list_library_items,
+            commands::media::read_library_content,
+            commands::media::delete_library_item,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
