@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { LibraryItem } from '../services/libraryService';
 import { readLibraryContent, deleteLibraryItem } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import ConfirmModal from './ConfirmModal';
 import LoadingSpinner from './LoadingSpinner';
 import Badge from './Badge';
+
+const PdfViewer = lazy(() => import('./PdfViewer'));
 
 interface LibraryContentModalProps {
   isOpen: boolean;
@@ -51,6 +53,7 @@ export default function LibraryContentModal({
 }: LibraryContentModalProps) {
   const [state, setState] = useState<ModalState>('loading');
   const [textContent, setTextContent] = useState<string | null>(null);
+  const [rawContent, setRawContent] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -63,6 +66,7 @@ export default function LibraryContentModal({
     /* eslint-disable react-hooks/set-state-in-effect */
     setState('loading');
     setTextContent(null);
+    setRawContent(null);
     setError(null);
     setCopied(false);
     setConfirmingDelete(false);
@@ -85,8 +89,9 @@ export default function LibraryContentModal({
         if (item.category === 'text' || !item.category) {
           const text = new TextDecoder().decode(data);
           setTextContent(text);
+        } else if (item.category === 'document') {
+          setRawContent(data);
         }
-        // For non-text categories, we don't display content inline yet
         setState('loaded');
       } catch (err) {
         if (cancelled) return;
@@ -142,6 +147,7 @@ export default function LibraryContentModal({
   if (!isOpen || !item) return null;
 
   const isText = item.category === 'text' || !item.category;
+  const isDocument = item.category === 'document';
 
   return (
     <>
@@ -153,7 +159,7 @@ export default function LibraryContentModal({
         />
 
         {/* Modal */}
-        <div className="relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isDocument ? 'max-w-4xl' : 'max-w-2xl'}`}>
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
             <div>
@@ -272,8 +278,20 @@ export default function LibraryContentModal({
               </div>
             )}
 
-            {/* Loaded state — non-text placeholder */}
-            {state === 'loaded' && !isText && (
+            {/* Loaded state — PDF document viewer */}
+            {state === 'loaded' && isDocument && rawContent && (
+              <Suspense fallback={
+                <div className="py-12 text-center">
+                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
+                  <p className="text-sm text-[var(--text-muted)]">Loading PDF viewer...</p>
+                </div>
+              }>
+                <PdfViewer data={rawContent} />
+              </Suspense>
+            )}
+
+            {/* Loaded state — non-text/non-document placeholder */}
+            {state === 'loaded' && !isText && !isDocument && (
               <div className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-center space-y-3">
                 <div className="w-14 h-14 mx-auto rounded-full bg-[var(--accent-muted)] flex items-center justify-center">
                   <svg className="w-7 h-7 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

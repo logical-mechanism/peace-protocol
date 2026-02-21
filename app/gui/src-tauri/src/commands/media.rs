@@ -50,6 +50,21 @@ fn detect_content_type(bytes: &[u8]) -> &'static str {
     if bytes.len() > 11 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
         return "image/webp";
     }
+    // SVG: starts with "<svg" or "<?xml" (possibly with leading whitespace/BOM)
+    let trimmed = if bytes.len() >= 3 && bytes[..3] == [0xEF, 0xBB, 0xBF] {
+        &bytes[3..] // skip UTF-8 BOM
+    } else {
+        bytes
+    };
+    let trimmed = trimmed
+        .iter()
+        .skip_while(|b| b.is_ascii_whitespace())
+        .copied()
+        .take(5)
+        .collect::<Vec<u8>>();
+    if trimmed.starts_with(b"<svg") || trimmed.starts_with(b"<?xml") {
+        return "image/svg+xml";
+    }
     "image/png" // fallback
 }
 
