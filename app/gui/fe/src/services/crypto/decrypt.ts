@@ -28,10 +28,53 @@ import { encryptionsApi } from '../api';
 import { decrypt as eciesDecrypt } from './ecies';
 import { parsePayload } from './payload';
 import { bytesToHex } from './bls12381';
+import { decryptDownloadedFile, decodeFileSecret, verifyFileDigest } from './fileEncryption';
+import { downloadFile as iagonDownload } from '../iagonApi';
+import { getStoredApiKey } from '../iagonAuth';
 import { g2Point, scale } from './bls12381';
 import { H0 } from './constants';
 import { getSnarkProver } from '../snark';
 import { deriveSecretFromWallet } from './walletSecret';
+
+/**
+ * Resolve an Iagon-backed payload by downloading and decrypting the file.
+ *
+ * Extracts the Iagon file ID from field 0 (locator), the AES key+nonce
+ * from field 1 (secret), downloads the encrypted file, decrypts it,
+ * and optionally verifies integrity via field 2 (digest).
+ */
+async function resolveIagonPayload(
+  payload: Map<number, Uint8Array>
+): Promise<{ rawContent: Uint8Array; message: string }> {
+  const locator = payload.get(0)!;
+  const secret = payload.get(1)!;
+  const digest = payload.get(2);
+
+  const fileId = new TextDecoder().decode(locator);
+  const { key, nonce } = decodeFileSecret(secret);
+
+  // Get Iagon API key
+  const apiKey = await getStoredApiKey();
+  if (!apiKey) {
+    throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
+  }
+
+  // Download encrypted file from Iagon
+  const encryptedBlob = await iagonDownload(apiKey, fileId);
+
+  // Decrypt with AES-256-GCM
+  const rawContent = await decryptDownloadedFile(encryptedBlob, key, nonce);
+
+  // Verify integrity if digest is available
+  if (digest) {
+    await verifyFileDigest(rawContent, digest);
+  }
+
+  return {
+    rawContent,
+    message: `File downloaded and decrypted (${rawContent.length} bytes)`,
+  };
+}
 
 /**
  * Check if native decrypt_to_hash is available via the snark CLI.
@@ -300,7 +343,7 @@ async function decryptWithStub(
 async function decryptReal(
   wallet: IWallet,
   bid: BidDisplay,
-  _encryption: EncryptionDisplay,
+  encryption: EncryptionDisplay,
   onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
   // Step 1: Check if WASM is available
@@ -372,14 +415,21 @@ async function decryptReal(
     try {
       payload = parsePayload(rawBytes);
       rawContent = payload.get(0)!;
-      // Display field 0 (locator) as UTF-8 text
-      message = new TextDecoder().decode(rawContent);
-      if (payload.size > 1) {
-        // Show structured info for multi-field payloads
-        const parts = [`Locator: ${message}`];
-        if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
-        if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
-        message = parts.join('\n');
+
+      if (encryption.storageLayer === 'iagon' && payload.has(1)) {
+        // Off-chain file: locator = Iagon file ID, secret = AES key+nonce
+        const result = await resolveIagonPayload(payload);
+        rawContent = result.rawContent;
+        message = result.message;
+      } else {
+        // On-chain text: locator = text content
+        message = new TextDecoder().decode(rawContent);
+        if (payload.size > 1) {
+          const parts = [`Locator: ${message}`];
+          if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
+          if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
+          message = parts.join('\n');
+        }
       }
     } catch {
       // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
@@ -577,12 +627,21 @@ export async function decryptEncryption(
     try {
       payload = parsePayload(rawBytes);
       rawContent = payload.get(0)!;
-      message = new TextDecoder().decode(rawContent);
-      if (payload.size > 1) {
-        const parts = [`Locator: ${message}`];
-        if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
-        if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
-        message = parts.join('\n');
+
+      if (encryption.storageLayer === 'iagon' && payload.has(1)) {
+        // Off-chain file: locator = Iagon file ID, secret = AES key+nonce
+        const result = await resolveIagonPayload(payload);
+        rawContent = result.rawContent;
+        message = result.message;
+      } else {
+        // On-chain text: locator = text content
+        message = new TextDecoder().decode(rawContent);
+        if (payload.size > 1) {
+          const parts = [`Locator: ${message}`];
+          if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
+          if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
+          message = parts.join('\n');
+        }
       }
     } catch {
       // Fallback: treat raw bytes as UTF-8 text (backward compatibility)

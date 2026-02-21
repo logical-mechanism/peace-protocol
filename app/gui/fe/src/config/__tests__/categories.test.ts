@@ -8,18 +8,18 @@ describe('categories', () => {
     expect(config!.enabled).toBe(true);
   });
 
-  it('getCategoryConfig document returns config with enabled: false', () => {
+  it('getCategoryConfig document returns config with enabled: true', () => {
     const config = getCategoryConfig('document');
     expect(config).toBeDefined();
-    expect(config!.enabled).toBe(false);
+    expect(config!.enabled).toBe(true);
   });
 
   it('isCategoryEnabled text is true', () => {
     expect(isCategoryEnabled('text')).toBe(true);
   });
 
-  it('isCategoryEnabled video is false', () => {
-    expect(isCategoryEnabled('video')).toBe(false);
+  it('isCategoryEnabled video is true', () => {
+    expect(isCategoryEnabled('video')).toBe(true);
   });
 
   it('getCategoryConfig with unknown string returns undefined', () => {

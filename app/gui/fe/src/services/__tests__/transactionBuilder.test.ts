@@ -98,17 +98,17 @@ describe('getStorageLayerUri', () => {
     expect(getStorageLayerUri(makeFormData('text'))).toBe('on-chain');
   });
 
-  it('document category returns data-layer', () => {
-    expect(getStorageLayerUri(makeFormData('document'))).toBe('data-layer');
+  it('document category returns iagon', () => {
+    expect(getStorageLayerUri(makeFormData('document'))).toBe('iagon');
   });
 
-  it('image category returns data-layer', () => {
-    expect(getStorageLayerUri(makeFormData('image'))).toBe('data-layer');
+  it('image category returns iagon', () => {
+    expect(getStorageLayerUri(makeFormData('image'))).toBe('iagon');
   });
 
-  it('all non-text categories return data-layer', () => {
+  it('all non-text categories return iagon', () => {
     for (const cat of ['document', 'audio', 'image', 'video', 'other'] as FileCategory[]) {
-      expect(getStorageLayerUri(makeFormData(cat))).toBe('data-layer');
+      expect(getStorageLayerUri(makeFormData(cat))).toBe('iagon');
     }
   });
 });

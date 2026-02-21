@@ -34,6 +34,9 @@ import type { EncryptionDisplay, BidDisplay } from './api';
 import { getSnarkProver, type SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 import { buildEncryptionMetadata, buildBidMetadata } from './metadata';
+import { encryptFileForUpload, encodeFileSecret } from './crypto/fileEncryption';
+import { uploadFile as iagonUpload } from './iagonApi';
+import { getStoredApiKey } from './iagonAuth';
 
 // Environment flag for stub mode
 const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
@@ -120,26 +123,64 @@ export function computeTokenName(txHash: string, outputIndex: number): string {
 
 /**
  * Get storage layer URI from form data.
- * Text category uses on-chain storage; other categories will use the data layer.
+ * Text category uses on-chain storage; other categories use Iagon.
  */
 export function getStorageLayerUri(formData: CreateListingFormData): string {
   if (formData.category === 'text') {
     return 'on-chain';
   }
-  return 'data-layer';
+  return 'iagon';
 }
 
 /**
  * Build a canonical CBOR peace-payload from form data.
  *
  * - Text category: locator = secretMessage as UTF-8 bytes (on-chain)
- * - Other categories: locator = file bytes (when data layer is implemented)
+ * - Other categories: locator = Iagon file ID (set by buildPayloadForIagon)
  */
 function buildPayloadFromForm(formData: CreateListingFormData): Uint8Array {
-  // Currently only text category is enabled; file categories will
-  // be handled when the data layer is implemented.
   const locator = new TextEncoder().encode(formData.secretMessage);
   return buildPayload({ locator });
+}
+
+/**
+ * Encrypt a file and upload it to Iagon, returning a peace-payload with:
+ *   - locator (field 0): Iagon file ID
+ *   - secret  (field 1): AES-256-GCM key + nonce (44 bytes)
+ *   - digest  (field 2): SHA-256 of original file
+ *
+ * @param file - The File object from the form
+ * @param tokenName - Token name for the listing (used as Iagon filename)
+ * @returns CBOR-encoded peace-payload bytes
+ */
+async function buildPayloadForIagon(file: File, tokenName: string): Promise<Uint8Array> {
+  // Read file bytes
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+
+  // Encrypt for off-chain storage
+  const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
+
+  // Upload encrypted blob to Iagon
+  const apiKey = await getStoredApiKey();
+  if (!apiKey) {
+    throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
+  }
+
+  // Use token name + original extension as the Iagon filename
+  const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+  const iagonFilename = `${tokenName}${ext}.enc`;
+
+  const fileInfo = await iagonUpload(
+    apiKey,
+    new Blob([encryptedBlob]),
+    iagonFilename
+  );
+
+  // Build peace-payload with Iagon reference
+  const locator = new TextEncoder().encode(fileInfo._id);
+  const secret = encodeFileSecret(key, nonce);
+
+  return buildPayload({ locator, secret, digest });
 }
 
 /** Create a MeshTxBuilder wired to local Kupo + Ogmios. */
@@ -198,7 +239,9 @@ export async function createListing(
       const tokenName = computeTokenName(fakeUtxo.txHash, fakeUtxo.outputIndex);
 
       // Build CBOR payload from form data and create encryption artifacts
-      const payloadBytes = buildPayloadFromForm(formData);
+      const payloadBytes = formData.category === 'text'
+        ? buildPayloadFromForm(formData)
+        : await buildPayloadForIagon(formData.file!, tokenName);
       const artifacts = await createEncryptionWithWallet(
         wallet,
         payloadBytes,
@@ -272,7 +315,11 @@ export async function createListing(
     );
 
     // 5. Build CBOR payload from form data and generate encryption artifacts
-    const payloadBytes = buildPayloadFromForm(formData);
+    //    Text: locator = message bytes (on-chain)
+    //    Files: locator = Iagon file ID, secret = AES key+nonce, digest = SHA-256
+    const payloadBytes = formData.category === 'text'
+      ? buildPayloadFromForm(formData)
+      : await buildPayloadForIagon(formData.file!, tokenName);
     const artifacts = await createEncryptionWithWallet(
       wallet,
       payloadBytes,

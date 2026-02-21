@@ -18,6 +18,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import { cleanupStaleSecrets } from '../services/secretCleanup'
+import { isIagonConnected } from '../services/iagonAuth'
 import { useBidNotifications } from '../hooks/useBidNotifications'
 import {
   createListing, removeListing, placeBid, cancelBid,
@@ -74,6 +75,12 @@ export default function Dashboard() {
   const [acceptBidR0, setAcceptBidR0] = useState<bigint | null>(null)
   const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
   const toast = useToast()
+  const [iagonConnected, setIagonConnected] = useState(false)
+
+  // Check Iagon connection status
+  useEffect(() => {
+    isIagonConnected().then(setIagonConnected).catch(() => setIagonConnected(false))
+  }, [])
 
   // Confirmation modal state for destructive actions
   const [confirmAction, setConfirmAction] = useState<{
@@ -980,6 +987,7 @@ export default function Dashboard() {
         isOpen={showCreateListing}
         onClose={() => setShowCreateListing(false)}
         onSubmit={handleCreateListing}
+        isIagonConnected={iagonConnected}
       />
 
       {/* Place Bid Modal */}

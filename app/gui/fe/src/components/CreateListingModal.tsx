@@ -23,6 +23,7 @@ interface CreateListingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: CreateListingFormData) => Promise<void>;
+  isIagonConnected?: boolean;
 }
 
 const INITIAL_FORM_DATA: CreateListingFormData = {
@@ -71,6 +72,7 @@ export default function CreateListingModal({
   isOpen,
   onClose,
   onSubmit,
+  isIagonConnected = false,
 }: CreateListingModalProps) {
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -105,7 +107,11 @@ export default function CreateListingModal({
 
   const selectedCategoryConfig = FILE_CATEGORIES.find((c) => c.id === formData.category);
   const isSelectedCategoryEnabled = isCategoryEnabled(formData.category);
-  const canSubmit = isSelectedCategoryEnabled && !isSubmitting;
+  // Non-text categories require Iagon connection for file upload
+  const isCategoryUsable = formData.category === 'text'
+    ? isSelectedCategoryEnabled
+    : isSelectedCategoryEnabled && isIagonConnected;
+  const canSubmit = isCategoryUsable && !isSubmitting;
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -288,7 +294,7 @@ export default function CreateListingModal({
               <div className="grid grid-cols-6 gap-2">
                 {FILE_CATEGORIES.map((cat) => {
                   const isSelected = formData.category === cat.id;
-                  const isEnabled = cat.enabled;
+                  const isUsable = cat.id === 'text' ? cat.enabled : cat.enabled && isIagonConnected;
                   return (
                     <button
                       key={cat.id}
@@ -298,15 +304,15 @@ export default function CreateListingModal({
                       className={`relative flex flex-row items-center justify-center gap-1.5 px-2 py-2 rounded-[var(--radius-md)] border text-xs transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
                         isSelected
                           ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                          : isEnabled
+                          : isUsable
                             ? 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]'
                             : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)]'
                       }`}
                     >
-                      {!isEnabled && (
+                      {!isUsable && (
                         <div className="absolute top-0.5 right-0.5">
                           <svg className="w-2.5 h-2.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                           </svg>
                         </div>
                       )}
@@ -353,8 +359,8 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* Content Area — Non-text category (enabled) */}
-            {formData.category !== 'text' && isSelectedCategoryEnabled && (
+            {/* Content Area — Non-text category (enabled + Iagon connected) */}
+            {formData.category !== 'text' && isCategoryUsable && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                   Upload File <span className="text-[var(--error)]">*</span>
@@ -412,8 +418,8 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* Content Area — Non-text category (disabled / Coming Soon) */}
-            {formData.category !== 'text' && !isSelectedCategoryEnabled && (
+            {/* Content Area — Non-text category (Iagon not connected) */}
+            {formData.category !== 'text' && !isCategoryUsable && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                   Upload File
@@ -430,17 +436,17 @@ export default function CreateListingModal({
                       </span>
                     )}
                   </div>
-                  {/* Coming Soon overlay */}
+                  {/* Iagon not connected overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-sm">
                       <div className="flex items-center gap-2">
                         <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        <span className="text-sm font-medium text-[var(--text-primary)]">Coming Soon</span>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">Iagon Required</span>
                       </div>
                       <p className="text-xs text-[var(--text-muted)] mt-1">
-                        Available when the data layer is integrated
+                        Connect your Iagon account in Settings &gt; Data Layer
                       </p>
                     </div>
                   </div>
@@ -553,8 +559,11 @@ export default function CreateListingModal({
             {/* Info box about what happens next */}
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
-                <strong>Note:</strong> Creating a listing will encrypt your data as a standardized CBOR payload and store it on-chain.
-                You'll need to sign a transaction with your wallet.
+                <strong>Note:</strong> Creating a listing will encrypt your data as a standardized CBOR payload.
+                {formData.category === 'text'
+                  ? ' Text data is stored on-chain.'
+                  : ' Files are encrypted and uploaded to Iagon, with a reference stored on-chain.'}
+                {' '}You'll need to sign a transaction with your wallet.
               </p>
             </div>
 

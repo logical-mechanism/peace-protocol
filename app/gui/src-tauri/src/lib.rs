@@ -138,6 +138,11 @@ pub fn run() {
             commands::secrets::get_accept_bid_secrets,
             commands::secrets::remove_accept_bid_secrets,
             commands::secrets::has_accept_bid_secrets,
+            // Iagon data layer commands
+            commands::iagon::store_iagon_api_key,
+            commands::iagon::get_iagon_api_key,
+            commands::iagon::remove_iagon_api_key,
+            commands::iagon::has_iagon_api_key,
             // Media commands (image caching)
             commands::media::download_image,
             commands::media::get_cached_image,
