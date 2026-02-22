@@ -526,7 +526,7 @@ export default function Dashboard() {
       setRefreshKey(prev => prev + 1)
       setActiveTab('history')
 
-      toast.info(
+      toast.warning(
         'Next Step',
         'Once the SNARK transaction confirms on-chain, return to My Sales to complete the re-encryption step.',
         10000

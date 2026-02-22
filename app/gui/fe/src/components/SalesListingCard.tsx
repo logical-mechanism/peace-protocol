@@ -65,6 +65,7 @@ export default function SalesListingCard({
   const getStorageLayerLabel = (storageLayer?: string): string => {
     if (!storageLayer) return 'No data layer';
     if (storageLayer === 'on-chain') return 'On-chain';
+    if (storageLayer === 'iagon') return 'Iagon';
     if (storageLayer.startsWith('ipfs://')) return 'IPFS';
     if (storageLayer.startsWith('arweave://')) return 'Arweave';
     return 'No data layer';
@@ -74,6 +75,7 @@ export default function SalesListingCard({
   const isUnknownStorageLayer = (storageLayer?: string): boolean => {
     if (!storageLayer) return true;
     if (storageLayer === 'on-chain') return false;
+    if (storageLayer === 'iagon') return false;
     if (storageLayer.startsWith('ipfs://')) return false;
     if (storageLayer.startsWith('arweave://')) return false;
     return true;
