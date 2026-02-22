@@ -8,6 +8,7 @@ import Badge from './Badge';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
 const ImageViewer = lazy(() => import('./ImageViewer'));
+const AudioPlayer = lazy(() => import('./AudioPlayer'));
 
 interface LibraryContentModalProps {
   isOpen: boolean;
@@ -93,7 +94,10 @@ function getViewMode(category: string, fileExtension?: string) {
     return 'download' as const;
   }
 
-  // Remaining categories (audio, video) — download for now
+  // Audio category gets its own player
+  if (category === 'audio') return 'audio' as const;
+
+  // Remaining categories (video) — download for now
   return 'download' as const;
 }
 
@@ -160,7 +164,7 @@ export default function LibraryContentModal({
           const text = new TextDecoder().decode(data);
           setTextContent(text);
         }
-        if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'download') {
+        if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'download') {
           setRawContent(data);
         }
         setState('loaded');
@@ -237,7 +241,7 @@ export default function LibraryContentModal({
   if (!isOpen || !item) return null;
 
   const viewMode = getViewMode(item.category, item.fileExtension);
-  const isWideModal = viewMode === 'pdf' || viewMode === 'image';
+  const isWideModal = viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio';
   const fileTypeLabel = item.fileExtension
     ? (FILE_TYPE_LABELS[item.fileExtension.toLowerCase()] || `${item.fileExtension.toUpperCase().slice(1)} File`)
     : getCategoryLabel(item.category) + ' file';
@@ -397,6 +401,18 @@ export default function LibraryContentModal({
                 </div>
               }>
                 <ImageViewer data={rawContent} mimeType={extensionToMimeType(item.fileExtension)} />
+              </Suspense>
+            )}
+
+            {/* Loaded state — Audio player */}
+            {state === 'loaded' && viewMode === 'audio' && rawContent && (
+              <Suspense fallback={
+                <div className="py-12 text-center">
+                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
+                  <p className="text-sm text-[var(--text-muted)]">Loading audio player...</p>
+                </div>
+              }>
+                <AudioPlayer data={rawContent} fileExtension={item.fileExtension!} />
               </Suspense>
             )}
 
