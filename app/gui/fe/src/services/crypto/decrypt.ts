@@ -28,10 +28,106 @@ import { encryptionsApi } from '../api';
 import { decrypt as eciesDecrypt } from './ecies';
 import { parsePayload } from './payload';
 import { bytesToHex } from './bls12381';
+import { decryptDownloadedFile, decodeFileSecret, verifyFileDigest } from './fileEncryption';
+import { downloadFile as iagonDownload } from '../iagonApi';
+import { getStoredApiKey } from '../iagonAuth';
 import { g2Point, scale } from './bls12381';
 import { H0 } from './constants';
 import { getSnarkProver } from '../snark';
 import { deriveSecretFromWallet } from './walletSecret';
+
+/**
+ * Resolve an Iagon-backed payload by downloading and decrypting the file.
+ *
+ * Extracts the Iagon file ID from field 0 (locator), the AES key+nonce
+ * from field 1 (secret), downloads the encrypted file, decrypts it,
+ * and optionally verifies integrity via field 2 (digest).
+ */
+async function resolveIagonPayload(
+  payload: Map<number, Uint8Array>
+): Promise<{ rawContent: Uint8Array; message: string }> {
+  const locator = payload.get(0)!;
+  const secret = payload.get(1)!;
+  const digest = payload.get(2);
+
+  const fileId = new TextDecoder().decode(locator);
+  const { key, nonce } = decodeFileSecret(secret);
+
+  // Get Iagon API key
+  const apiKey = await getStoredApiKey();
+  if (!apiKey) {
+    throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
+  }
+
+  // Download encrypted file from Iagon
+  const encryptedBlob = await iagonDownload(apiKey, fileId);
+
+  // Decrypt with AES-256-GCM
+  const rawContent = await decryptDownloadedFile(encryptedBlob, key, nonce);
+
+  // Verify integrity if digest is available
+  if (digest) {
+    await verifyFileDigest(rawContent, digest);
+  }
+
+  return {
+    rawContent,
+    message: `File downloaded and decrypted (${rawContent.length} bytes)`,
+  };
+}
+
+/**
+ * Resolve ECIES-decrypted bytes into final content.
+ *
+ * Attempts to parse a CBOR peace-payload. If the bytes are not valid CBOR,
+ * falls back to treating them as raw UTF-8 text (backward compatibility
+ * with pre-CBOR encryptions).
+ *
+ * IMPORTANT: Only parsePayload errors trigger the fallback. Errors from
+ * resolveIagonPayload (network, AES-GCM auth, digest mismatch) propagate
+ * to the caller so they can be reported as failures — never silently saved
+ * as corrupt content.
+ */
+async function resolveDecryptedPayload(
+  rawBytes: Uint8Array,
+  encryption: EncryptionDisplay
+): Promise<{
+  payload?: Map<number, Uint8Array>;
+  rawContent: Uint8Array;
+  message: string;
+}> {
+  let payload: Map<number, Uint8Array>;
+  try {
+    payload = parsePayload(rawBytes);
+  } catch {
+    // Not valid CBOR — treat as raw UTF-8 text (backward compat)
+    return {
+      rawContent: rawBytes,
+      message: new TextDecoder().decode(rawBytes),
+    };
+  }
+
+  // CBOR parsed — resolve content based on storage layer
+  const rawContent = payload.get(0)!;
+
+  if (encryption.storageLayer === 'iagon' && payload.has(1)) {
+    // Off-chain file: download from Iagon and decrypt with AES-GCM.
+    // Errors here intentionally propagate — caller must handle as failure.
+    const result = await resolveIagonPayload(payload);
+    return { payload, rawContent: result.rawContent, message: result.message };
+  }
+
+  // On-chain text content
+  let message = new TextDecoder().decode(rawContent);
+  if (payload.size > 1) {
+    const parts = [`Locator: ${message}`];
+    if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
+    if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
+    message = parts.join('\n');
+  }
+
+  return { payload, rawContent, message };
+}
 
 /**
  * Check if native decrypt_to_hash is available via the snark CLI.
@@ -87,9 +183,17 @@ export interface DecryptionResult {
   success: boolean;
   message?: string; // Field 0 (locator) decoded as UTF-8 for display
   payload?: Map<number, Uint8Array>; // Structured CBOR payload fields
+  rawContent?: Uint8Array; // Raw bytes of field 0 for saving to disk
   error?: string; // Error message if failed
   isStub?: boolean; // True if using stub data
 }
+
+/**
+ * Progress callback for decryption operations.
+ * @param current - Number of levels processed so far
+ * @param total - Total number of encryption levels to process
+ */
+export type OnDecryptProgress = (current: number, total: number) => void;
 
 /**
  * Encryption history fetched from Koios.
@@ -188,7 +292,8 @@ export async function fetchEncryptionHistory(
  */
 export async function computeKEM(
   b: bigint,
-  levels: EncryptionLevel[]
+  levels: EncryptionLevel[],
+  onProgress?: OnDecryptProgress
 ): Promise<string | null> {
   // Check if WASM is available
   if (!isWasmDecryptAvailable()) {
@@ -206,6 +311,8 @@ export async function computeKEM(
 
   let kemHash: string | null = null;
 
+  onProgress?.(0, levels.length);
+
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i];
 
@@ -218,6 +325,7 @@ export async function computeKEM(
 
     try {
       kemHash = await decryptToHashWasm(g1b, level.r1, shared, g2b);
+      onProgress?.(i + 1, levels.length);
 
       // For multi-level decryption, update shared for next level
       // shared = [hash]G2
@@ -243,10 +351,16 @@ export async function computeKEM(
  */
 async function decryptWithStub(
   bid: BidDisplay,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
-  // Simulate some processing time
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  // Simulate progress with 5 fake levels over ~1.5s total
+  const fakeLevels = 5;
+  onProgress?.(0, fakeLevels);
+  for (let i = 0; i < fakeLevels; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    onProgress?.(i + 1, fakeLevels);
+  }
 
   // Get the stub message for this encryption
   const message = STUB_DECRYPTED_MESSAGES[bid.encryptionToken];
@@ -255,14 +369,17 @@ async function decryptWithStub(
     return {
       success: true,
       message,
+      rawContent: new TextEncoder().encode(message),
       isStub: true,
     };
   }
 
   // Fallback for unknown tokens
+  const fallback = `[Stub Mode]\n\nDecrypted content for:\nToken: ${bid.encryptionToken.slice(0, 16)}...\n\nDescription: ${encryption?.description || 'No description'}\n\nThis is placeholder content since we're in development mode without live contracts.`;
   return {
     success: true,
-    message: `[Stub Mode]\n\nDecrypted content for:\nToken: ${bid.encryptionToken.slice(0, 16)}...\n\nDescription: ${encryption?.description || 'No description'}\n\nThis is placeholder content since we're in development mode without live contracts.`,
+    message: fallback,
+    rawContent: new TextEncoder().encode(fallback),
     isStub: true,
   };
 }
@@ -279,7 +396,8 @@ async function decryptWithStub(
 async function decryptReal(
   wallet: IWallet,
   bid: BidDisplay,
-  _encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
@@ -314,7 +432,7 @@ async function decryptReal(
   }
   // Step 4: Compute KEM using WASM
   try {
-    const kem = await computeKEM(b, history.levels);
+    const kem = await computeKEM(b, history.levels, onProgress);
     if (!kem) {
       return {
         success: false,
@@ -343,29 +461,16 @@ async function decryptReal(
       history.capsule.aad
     );
 
-    // Parse the CBOR peace-payload
-    let payload: Map<number, Uint8Array> | undefined;
-    let message: string;
-    try {
-      payload = parsePayload(rawBytes);
-      // Display field 0 (locator) as UTF-8 text
-      message = new TextDecoder().decode(payload.get(0)!);
-      if (payload.size > 1) {
-        // Show structured info for multi-field payloads
-        const parts = [`Locator: ${message}`];
-        if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
-        if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
-        message = parts.join('\n');
-      }
-    } catch {
-      // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
-      message = new TextDecoder().decode(rawBytes);
-    }
+    // Parse ECIES-decrypted bytes and resolve to final content.
+    // parsePayload errors fall back to raw text (backward compat).
+    // resolveIagonPayload errors propagate to the outer catch.
+    const resolved = await resolveDecryptedPayload(rawBytes, encryption);
 
     return {
       success: true,
-      message,
-      payload,
+      message: resolved.message,
+      payload: resolved.payload,
+      rawContent: resolved.rawContent,
       isStub: false,
     };
   } catch (err) {
@@ -391,7 +496,8 @@ async function decryptReal(
 export async function decryptBid(
   wallet: IWallet,
   bid: BidDisplay,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
   // Validate bid status
   if (bid.status !== 'accepted') {
@@ -403,11 +509,11 @@ export async function decryptBid(
 
   // Check stub mode
   if (isStubMode()) {
-    return decryptWithStub(bid, encryption);
+    return decryptWithStub(bid, encryption, onProgress);
   }
 
   // Attempt real decryption
-  return decryptReal(wallet, bid, encryption);
+  return decryptReal(wallet, bid, encryption, onProgress);
 }
 
 /**
@@ -457,7 +563,8 @@ export async function canDecrypt(
  */
 export async function decryptEncryption(
   wallet: IWallet,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<DecryptionResult> {
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
@@ -509,7 +616,7 @@ export async function decryptEncryption(
 
   // Step 4: Compute KEM using WASM
   try {
-    const kem = await computeKEM(b, levels);
+    const kem = await computeKEM(b, levels, onProgress);
     if (!kem) {
       return {
         success: false,
@@ -542,27 +649,16 @@ export async function decryptEncryption(
       capsule.aad
     );
 
-    // Parse the CBOR peace-payload
-    let payload: Map<number, Uint8Array> | undefined;
-    let message: string;
-    try {
-      payload = parsePayload(rawBytes);
-      message = new TextDecoder().decode(payload.get(0)!);
-      if (payload.size > 1) {
-        const parts = [`Locator: ${message}`];
-        if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
-        if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
-        message = parts.join('\n');
-      }
-    } catch {
-      // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
-      message = new TextDecoder().decode(rawBytes);
-    }
+    // Parse ECIES-decrypted bytes and resolve to final content.
+    // parsePayload errors fall back to raw text (backward compat).
+    // resolveIagonPayload errors propagate to the outer catch.
+    const resolved = await resolveDecryptedPayload(rawBytes, encryption);
 
     return {
       success: true,
-      message,
-      payload,
+      message: resolved.message,
+      payload: resolved.payload,
+      rawContent: resolved.rawContent,
       isStub: false,
     };
   } catch (err) {

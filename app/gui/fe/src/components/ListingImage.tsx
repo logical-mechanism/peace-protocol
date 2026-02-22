@@ -107,7 +107,7 @@ export default function ListingImage({
       );
     }
     return (
-      <div className="flex justify-center py-4">
+      <div className="w-full h-40 rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]">
         <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center">
           <svg
             className="w-7 h-7 text-[var(--accent)]"

@@ -104,14 +104,14 @@ func testVerify() {
 	// Build public witness
 	// The witness interface in gnark expects the vector directly
 	// Try with 37 inputs (including "1")
-	fmt.Println("=== Testing with 37 inputs (including '1') ===")
+	// fmt.Println("=== Testing with 37 inputs (including '1') ===")
 	inputs37 := make([]fr.Element, len(publicJSON.Inputs))
 	for i, s := range publicJSON.Inputs {
 		inputs37[i].SetString(s)
 	}
 
 	// Try with 36 inputs (skipping "1")
-	fmt.Println("\n=== Testing with 36 inputs (skipping '1') ===")
+	// fmt.Println("\n=== Testing with 36 inputs (skipping '1') ===")
 	inputs36 := make([]fr.Element, len(publicJSON.Inputs)-1)
 	for i := 1; i < len(publicJSON.Inputs); i++ {
 		inputs36[i-1].SetString(publicJSON.Inputs[i])
@@ -119,6 +119,6 @@ func testVerify() {
 
 	// For now, just print that we would test
 	// The witness API in gnark requires a circuit schema, which we don't have here
-	fmt.Println("Note: Direct witness construction requires circuit schema")
-	fmt.Println("The proof was verified successfully during generation")
+	// fmt.Println("Note: Direct witness construction requires circuit schema")
+	// fmt.Println("The proof was verified successfully during generation")
 }

@@ -59,3 +59,12 @@ echo -e "\033[1;36m\nRunning Frontend Tests\033[0m"
 cd ui/fe
 npx vitest run 2>&1 | tee -a "../../$OUT"
 cd ../..
+
+# --------------------
+# TAURI (GUI)
+# --------------------
+
+echo -e "\033[1;36m\nRunning GUI Tests\033[0m"
+cd gui
+./test.sh | tee -a "../../$OUT"
+cd ../..

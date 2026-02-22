@@ -29,18 +29,30 @@ app/gui/
 │   │   ├── App.tsx                  # Router + auth/state guards
 │   │   ├── main.tsx                 # Entry: ErrorBoundary → Wallet → Node → Wasm → Router
 │   │   ├── index.css                # CSS variables (dark theme) + Tailwind v4
+│   │   ├── config/                 # App configuration
+│   │   │   └── categories.ts      # File category definitions + integration flags
 │   │   ├── contexts/               # WalletContext, NodeContext, WasmContext
 │   │   ├── pages/                   # WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings
-│   │   ├── components/              # Tabs, modals, cards, presentational
+│   │   ├── components/              # Tabs, modals, cards, PdfViewer, presentational
 │   │   ├── services/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios singletons
 │   │   │   ├── kupoAdapter.ts       # IFetcher implementation for MeshSDK
-│   │   │   ├── transactionBuilder.ts # All tx building (~1800 lines)
-│   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation
+│   │   │   ├── transactionBuilder.ts # All tx building (~2168 lines)
+│   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
+│   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
+│   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete content)
+│   │   │   ├── secretCleanup.ts     # Deferred secret deletion after on-chain confirmation
+│   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
+│   │   │   ├── iagonApi.ts          # Iagon HTTP endpoints via Tauri invoke (CORS bypass)
+│   │   │   ├── iagonAuth.ts         # CIP-8 wallet auth + API key management for Iagon
+│   │   │   ├── contentStorage.ts    # Saves decrypted files + metadata to media/content/
+│   │   │   ├── listingDraftStorage.ts # Persists multi-step listing creation state (Tauri-backed)
+│   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation, file encryption
 │   │   │   ├── snark/               # Native SNARK prover interface
-│   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid, tx history
-│   │   ├── hooks/                   # useSnarkProver
+│   │   │   ├── bidNotifications.ts   # localStorage: seen-bid state for notification diffing
+│   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid, tx history, listing drafts
+│   │   ├── hooks/                   # useSnarkProver, useBidNotifications
 │   │   └── utils/                   # clipboard, network (blockscout URLs)
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
@@ -50,6 +62,7 @@ app/gui/
 │   │   ├── routes/                  # encryptions, bids, protocol, chain
 │   │   ├── services/
 │   │   │   ├── kupo.ts              # Kupo HTTP client (current UTxOs)
+│   │   │   ├── cbor.ts              # CBOR decoder + slot-to-time (extracted from kupo.ts)
 │   │   │   ├── koios.ts             # Koios REST client (history, metadata, params)
 │   │   │   ├── encryptions.ts       # Encryption query logic
 │   │   │   ├── bids.ts              # Bid query logic
@@ -76,7 +89,9 @@ app/gui/
 │   │       ├── node.rs              # start, stop, status, bootstrap
 │   │       ├── config.rs            # get/set network, disk usage
 │   │       ├── snark.rs             # prove, gt-to-hash, decrypt-to-hash, setup
-│   │       └── secrets.rs           # store/get/remove seller, bid, accept-bid secrets
+│   │       ├── secrets.rs           # store/get/remove seller, bid, accept-bid, listing-draft secrets
+│   │       ├── iagon.rs             # Iagon API key storage + HTTP proxy (reqwest, CORS bypass)
+│   │       └── media.rs             # image download, cache, ban/unban, delete, content save
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
 │   │   ├── cardano/{network}/       # Node configs (topology, genesis files)
@@ -84,16 +99,17 @@ app/gui/
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
-│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm
-├── build.sh                         # Runs `tauri dev` (NOTE: name is misleading)
-├── run.sh                           # Runs `tauri build` (NOTE: name is misleading)
-├── CHANGELOG.md                     # Version history
-└── goals.md                         # Implementation phases (all complete)
+│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest
+├── build.sh                         # Runs `npm run install:all && tauri build`
+├── run.sh                           # Runs `npm run install:all && tauri dev` (with WebKit env vars)
+├── lint.sh                          # eslint (fe), tsc (be), cargo fmt, clippy
+├── test.sh                          # vitest (fe) + vitest (be)
+└── CHANGELOG.md                     # Version history
 ```
 
 ## Frontend Patterns
 
-**Stack:** React 19 + Vite 7 + Tailwind v4 + React Router v7 + MeshSDK 1.8
+**Stack:** React 19 + Vite 7.2 + Tailwind v4 + React Router v7 + TypeScript 5.9 + MeshSDK 1.8
 
 **State management — 3 React Contexts** (nested in main.tsx):
 - `WalletContext` — lifecycle (`loading`→`no_wallet`→`locked`→`unlocked`), MeshWallet instance, address, balance, payment key hex
@@ -106,14 +122,17 @@ app/gui/
 | `/wallet-setup` | no_wallet | WalletSetup (create/import mnemonic) |
 | `/wallet-unlock` | locked | WalletUnlock (password entry) |
 | `/node-sync` | unlocked + node not synced | NodeSync (progress bars) |
-| `/dashboard` | unlocked + node synced | Dashboard (4 tabs) |
+| `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, Bids, Confirm) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard)
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + descriptionUtils
 
-**Transaction building** (fe/src/services/transactionBuilder.ts ~1800 lines):
+**Transaction building** (fe/src/services/transactionBuilder.ts ~2168 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
 - `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`
+- `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`
+- `extractPaymentKeyHash()`, `isRealTransactionsAvailable()`, `getTransactionStubWarning()`
+- `ListingCreationStep` type exported for multi-step progress UI callbacks
 - Uses MeshTxBuilder with local Kupo (IFetcher) + Ogmios (ISubmitter/IEvaluator)
 
 **Crypto services** (fe/src/services/crypto/):
@@ -125,12 +144,22 @@ app/gui/
 - `payload.ts` — CBOR serialization via cborg
 - `createEncryption.ts` / `createBid.ts` — Full artifact creation
 - `zkKeyDerivation.ts` — Deterministic ZK secret from wallet key material
+- `constants.ts` — Domain tags, public G2 points
+- `decrypt.ts` — Decryption flow (native CLI required for BLS pairings)
+- `hashing.ts` — Hashing utilities
+- `level.ts` — HalfLevel/FullLevel type definitions
+- `walletSecret.ts` — BLS secret derivation from wallet signature
+- `fileEncryption.ts` — AES-256-GCM file encryption/decryption via Web Crypto API (pre-upload to Iagon)
 
-**Local storage** (fe/src/services/*Storage.ts):
+**Local storage** (fe/src/services/*Storage.ts + autolock.ts):
 - `secretStorage` — encryption secrets by token name
 - `bidSecretStorage` — bid secrets for later decryption
 - `acceptBidStorage` — accept-bid workflow state (A0, R0, Hk, proof)
 - `transactionHistory` — tx log with timestamps and hashes
+- `bidNotifications` — seen-bid state for seller notification diffing (PKH-keyed)
+- `listingDraftStorage` — multi-step listing creation state (Tauri-backed encrypted JSON, not localStorage). Lifecycle: uploading → uploaded → verified → signing → submitted → confirmed/failed/abandoned. Prevents re-uploading to Iagon on retry/crash.
+- `contentStorage` — saves decrypted files + metadata to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
+- `autolock` — inactivity timeout in minutes (default 15, 0 = never)
 
 **Styling:** Dark theme via CSS custom properties in index.css, Tailwind utility classes, fonts Inter + JetBrains Mono. Hard-coded dark mode (no light theme). All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*` tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
@@ -151,6 +180,7 @@ app/gui/
 **Data refresh & polling:**
 - `NodeContext` polls `get_node_status` every 5000ms via `setInterval`
 - Balance refreshed when `tipSlot` changes (App.tsx); eager refresh on Dashboard mount
+- Bid notifications: `useBidNotifications` hook in Dashboard watches `tipSlot` changes, checks for new bids on seller's listings (30s throttle), diffs against localStorage seen-bid state, shows tab badge + toast
 - Tx confirmation: escalating `setTimeout` — 20s → 45s → 90s → 180s after submission
 - No React Query/SWR — all manual polling with setInterval/setTimeout
 - `lovelace` from WalletContext can be `null` before Kupo is running — all consumers must handle nullish
@@ -182,11 +212,42 @@ app/gui/
 
 **Datum parsing** (be/src/services/parsers.ts): Decodes CBOR/Plutus JSON inline datums into TypeScript types. Handles indefinite-length byte strings (G2 points > 64 bytes are CBOR-chunked).
 
-**CIP-20 metadata** (key 674): Encryption creation tx includes `{ msg: [description, suggestedPrice, storageLayer] }`. Bid creation tx includes `{ msg: [futurePrice] }`.
+**CIP-20 metadata** (key 674): Two formats exist (Cardano metadata strings have a 64-byte limit):
+- **New (structured)**: `{ msg: [...descriptionChunks], p: "price", s: "storageLayer", i: [...imageLinkChunks], c: "category" }`. Long strings (description, imageLink) are split into <=64-byte UTF-8 chunks via `fe/src/services/metadata.ts`. Detected by presence of `p` key.
+- **Old (flat array)**: `{ msg: [description, suggestedPrice, storageLayer, imageLink?, category?] }`. Breaks if any string exceeds 64 bytes.
+- **Bid tx**: `{ msg: [futurePrice] }` (unchanged; futurePrice is always short).
+- Backend `parseCip20Fields()` in `be/src/services/encryptions.ts` handles both formats via backward-compatible detection.
 
 **Error responses:** All routes return `{ error: { code, message } }` on failure. 500 for internal errors (real message in dev, generic in prod), 404 for missing endpoints. Malformed datums at contract addresses are silently skipped with a console warning — frontend sees incomplete data. No retry/circuit-breaker for Kupo/Koios failures.
 
 **Stub mode:** When `USE_STUBS=true`, all endpoints return hardcoded sample data. No Kupo/Koios needed.
+
+## Iagon Decentralized Storage
+
+**Purpose:** Off-chain file storage for non-text file categories. Text content remains on-chain in the ECIES capsule; all other categories (document, audio, image, video, other) are encrypted client-side and uploaded to Iagon (`gw.iagon.com/api/v2`).
+
+**Auth flow** (fe/src/services/iagonAuth.ts):
+1. `addressToHex(bech32Address)` — convert wallet address for Iagon API
+2. `getNonce(hexAddress)` → UUID nonce from `POST /public/nonce`
+3. `wallet.signData(nonce, address)` → CIP-8 signature (via MeshSDK)
+4. `verifySignature(hex, sig, key)` → session JWT from `POST /public/verify`
+5. `generateApiKey(jwt, "veiled-desktop")` → persistent API key from `POST /key/generate`
+6. API key stored encrypted in `secrets/iagon/api_key.json` (same AES scheme as other secrets)
+
+**CORS bypass:** All Iagon HTTP requests are proxied through Rust Tauri commands (`src-tauri/src/commands/iagon.rs`) using `reqwest` (60s timeout, rustls-tls). The frontend never calls Iagon directly — all calls go through `invoke()` wrappers in `fe/src/services/iagonApi.ts`.
+
+**Upload flow** (for file-based listings):
+1. `encryptFileForUpload(fileBytes)` → AES-256-GCM encrypted blob + random key + nonce + SHA-256 digest
+2. `iagon_upload(apiKey, encryptedBlob, filename)` → `IagonFileInfo` with `_id` for download/delete
+3. Key + nonce (44 bytes) packed into peace-payload capsule secret field
+4. Buyer decrypts capsule → `decodeFileSecret()` → `iagon_download()` → `decryptDownloadedFile()` → `verifyFileDigest()`
+5. Files uploaded as `visibility: public` (content is already client-side encrypted)
+
+**Listing draft recovery** (fe/src/services/listingDraftStorage.ts):
+- Each file listing creation generates a draft ID and persists state at each step
+- If the app closes after Iagon upload but before tx submission, the draft survives (Tauri filesystem-backed, not IndexedDB)
+- `getRecoverableDrafts()` finds drafts that can resume from the last successful step
+- `getOrphanedDrafts()` finds abandoned uploads for Iagon cleanup
 
 ## Tauri/Rust Core
 
@@ -205,13 +266,15 @@ app/gui/
 - Stored as JSON: `{ version, salt, nonce, ciphertext }` at `app_data_dir/wallet.json`
 - Mnemonic held in memory only while unlocked; zeroed on lock
 
-**Secrets** (src-tauri/src/commands/secrets.rs):
+**Secrets** (src-tauri/src/commands/secrets.rs + iagon.rs):
 - AES key derived from mnemonic via `derive_secrets_key()` — Argon2id with light params (4 MiB, 1 iter), fixed salt `"PEACE_SECRETS_V1"`
 - File format: `{ version: 1, nonce: hex(12 bytes), ciphertext: hex }` (AES-256-GCM)
-- Three secret types stored in `app_data_dir/secrets/`:
+- Five secret types stored in `app_data_dir/secrets/`:
   - `seller/{token_name}.json` — `{ a, r }` scalars
   - `bid/{encryption_token}.json` — array of `{ bidTokenName, sk_bid }`
   - `accept-bid/{encryption_token}.json` — `{ A0, R0, Hk, proof }` workflow state
+  - `listing-drafts/{draftId}.json` — multi-step listing creation state (form data, Iagon file ID, AES key/nonce, tx hash)
+  - `iagon/api_key.json` — Iagon persistent API key
 - Secure delete: overwrite zeros → flush → `fs::remove_file()`
 - All Tauri commands return `Result<T, String>` — no custom error types, all stringified
 
@@ -237,7 +300,7 @@ app/gui/
 - `FullEncryptionLevel` — { r1b, r2_g1b, r2_g2b, r4b } (G1, G1, G2, G2)
 
 **Display models** (be types, consumed by fe):
-- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, createdAt, utxo, datum
+- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, category?, createdAt, utxo, datum
 - `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
@@ -248,12 +311,17 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (invoke from frontend):
+**Tauri commands** (62 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`
 - SNARK: `snark_check_setup`, `snark_decompress_setup`, `snark_prove`, `snark_gt_to_hash`, `snark_decrypt_to_hash`
 - Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
+- Listing Drafts: `store_listing_draft`, `update_listing_draft`, `get_listing_draft`, `list_listing_drafts`, `remove_listing_draft`
+- Iagon Keys: `store_iagon_api_key`, `get_iagon_api_key`, `remove_iagon_api_key`, `has_iagon_api_key`
+- Iagon HTTP: `iagon_get_nonce`, `iagon_verify`, `iagon_generate_api_key`, `iagon_verify_api_key`, `iagon_upload`, `iagon_download`, `iagon_delete_file`, `iagon_search_files`, `iagon_list_files`
+- Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`
+- Library: `list_library_items`, `read_library_content`, `delete_library_item`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -273,10 +341,21 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 
 **Stub mode:** Set `USE_STUBS=true` in `be/.env` to develop without running cardano-node/Kupo.
 
-**Tests:** `cd fe && npm test` (Vitest + jsdom + React Testing Library)
-- Only crypto unit tests exist: `fe/src/services/crypto/__tests__/` (bls12381, hashing, payload, snark-inputs) and `fe/src/utils/` (clipboard, network)
-- No component or integration tests — adding them requires mocking Tauri invoke + context providers (no test utilities for this yet)
-- Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver`
+**Tests:** `cd app/gui && bash test.sh` (runs both frontend + backend tests)
+- Frontend: `cd fe && npm test` (Vitest + jsdom)
+- Backend: `cd be && npm test` (Vitest + node)
+- Frontend test locations:
+  - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret
+  - `fe/src/services/__tests__/` — transactionBuilder, transactionHistory, autolock, metadata, bidNotifications
+  - `fe/src/config/__tests__/` — categories
+  - `fe/src/hooks/__tests__/` — usePasswordStrength
+  - `fe/src/utils/` — clipboard, network
+- Backend test locations:
+  - `be/src/services/__tests__/` — parsers (datum + CIP-20), kupo-cbor, kupo (matchToKoiosUtxo)
+- Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
+- Tests using WebCrypto (ecies) use `// @vitest-environment node` pragma
+- Tests importing transactionBuilder mock `@meshsdk/core`, `@meshsdk/provider`, and Tauri storage modules to avoid libsodium WASM
+- No component or integration tests — adding them requires mocking Tauri invoke + context providers
 
 **Production build:** `npx tauri build` (creates platform installer with bundled binaries)
 
@@ -293,8 +372,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **127.0.0.1 not localhost** — WebKitGTK on Linux has DNS resolution issues; all local URLs use 127.0.0.1
 - **WebKitGTK env vars** — `WEBKIT_DISABLE_DMABUF_RENDERER=1` and sandbox disabled (Linux only, set in lib.rs)
 - **Kupo CBOR chunking** — G2 points (>64 bytes) use indefinite-length CBOR byte strings; parser handles chunk reassembly
-- **Slot-to-time conversion** — Network-specific Shelley era offsets (preprod vs mainnet); implemented in be/src/services/kupo.ts
-- **build.sh / run.sh are swapped** — build.sh runs `tauri dev`, run.sh runs `tauri build`
+- **Slot-to-time conversion** — Network-specific Shelley era offsets (preprod vs mainnet); implemented in be/src/services/cbor.ts
 - **Sidecar binaries** — gitignored, platform-specific (~600MB total); must be placed in `src-tauri/binaries/` before build
 - **CSP is null** — permissive content security policy; acceptable for desktop but not web
 - **FixedOgmiosProvider** — Patches Ogmios response tags (WITHDRAW → REWARD) for MeshTxBuilder compatibility
@@ -306,4 +384,12 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **Modal two-effect pattern** — combining form reset + keyboard effects into one useEffect clears form on every keystroke
 - **No Express param validation** — tokenName, pkh params are not sanitized or validated (except status enum)
 - **Datum parsing failures are silent** — bad datums logged as warnings, skipped from results; frontend sees incomplete data
+- **Auto-lock timer** — configurable inactivity timeout (default 15 min, 0 = never); stored in localStorage; timer runs in WalletContext
+- **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
 - **Provider nesting order** — WalletProvider → NodeProvider → WasmProvider (in main.tsx); order matters for context dependencies
+- **File categories** — Defined in `fe/src/config/categories.ts`. All categories now enabled. `text` uses on-chain storage (capsule only); all other categories (document, audio, image, video, other) use Iagon off-chain storage (AES-256-GCM encrypted before upload). Category stored in CIP-20 metadata. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
+- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes, `delete_library_item` removes the token directory. Text content displayed inline with copy; PDFs rendered via PdfViewer component; other non-text categories show placeholder. LibraryCard supports grid/compact modes like SalesListingCard
+- **PdfViewer** — Uses `react-pdf` (pdfjs-dist worker). Renders decrypted PDFs from `Uint8Array` via Blob URL. Zoom 0.5x-3.0x, page navigation, fullscreen overlay at `z-[60]` (above modal `z-50`). Blob URL created in useEffect to handle React StrictMode double-mount
+- **Iagon requires internet** — Iagon operations (upload, download, auth) require internet access. Unlike on-chain text listings, file-based listings fail if `gw.iagon.com` is unreachable. The `reqwest` client has a 60s timeout
+- **Listing drafts persist across WebView resets** — Stored as encrypted JSON in `secrets/listing-drafts/` (filesystem), not IndexedDB (which WebKitGTK can clear). This is why `listingDraftStorage` uses Tauri invoke instead of localStorage
+- **File encryption key in capsule** — The AES-256-GCM key + nonce (44 bytes) for off-chain file decryption is packed into the peace-payload capsule secret field. Losing the capsule means losing access to the file

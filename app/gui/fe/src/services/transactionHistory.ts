@@ -15,6 +15,8 @@ export interface TransactionRecord {
   timestamp: number;
   status: TransactionStatus;
   description?: string;
+  /** Listing draft ID for file listings — enables retry without re-upload. */
+  draftId?: string;
 }
 
 const STORAGE_KEY_PREFIX = 'peace_tx_history_';

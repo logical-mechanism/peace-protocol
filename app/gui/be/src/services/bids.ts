@@ -4,8 +4,23 @@ import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { parseBidDatum } from './parsers.js';
 import type { BidDisplay, BidDatum } from '../types/index.js';
 
-interface ParsedBidCip20 {
+export interface ParsedBidCip20 {
   futurePrice?: number;
+}
+
+/**
+ * Parse bid CIP-20 msg array into structured metadata fields.
+ * Format: [futurePrice]
+ */
+export function parseBidCip20Fields(msg: string[]): ParsedBidCip20 {
+  if (msg.length < 1) return {};
+
+  const futurePriceStr = msg[0];
+  const futurePrice = futurePriceStr ? parseFloat(futurePriceStr) : undefined;
+
+  return {
+    futurePrice: futurePrice !== undefined && !isNaN(futurePrice) ? futurePrice : undefined,
+  };
 }
 
 /**
@@ -24,15 +39,7 @@ async function fetchBidCip20Metadata(txHash: string): Promise<ParsedBidCip20> {
     const json = cip20.json as { msg?: string[] };
     if (!Array.isArray(json.msg) || json.msg.length < 1) return {};
 
-    const futurePriceStr = json.msg[0];
-    const futurePrice = futurePriceStr ? parseFloat(futurePriceStr) : undefined;
-    const result = futurePrice && !isNaN(futurePrice) ? futurePrice : undefined;
-
-    console.log(`[bids] fetchBidCip20Metadata(${txHash}): msg=${JSON.stringify(json.msg)}, futurePriceStr="${futurePriceStr}", parsed=${futurePrice}, result=${result}`);
-
-    return {
-      futurePrice: result,
-    };
+    return parseBidCip20Fields(json.msg);
   } catch (err) {
     console.warn(`Failed to fetch CIP-20 metadata for bid ${txHash}:`, err);
     return {};

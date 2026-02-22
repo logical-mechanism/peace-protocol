@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
-import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode } from '../services/crypto/decrypt';
+import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
+import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage';
 import { copyToClipboard } from '../utils/clipboard';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -10,6 +12,7 @@ interface DecryptModalProps {
   onClose: () => void;
   bid: BidDisplay | null;
   encryption: EncryptionDisplay | null;
+  isIagonConnected?: boolean;
 }
 
 type DecryptState = 'idle' | 'decrypting' | 'success' | 'error';
@@ -19,13 +22,17 @@ export default function DecryptModal({
   onClose,
   bid,
   encryption,
+  isIagonConnected = false,
 }: DecryptModalProps) {
+  const navigate = useNavigate();
   const { wallet } = useWalletContext();
   const [state, setState] = useState<DecryptState>('idle');
   const [decryptedMessage, setDecryptedMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStub, setIsStub] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+  const [savedPath, setSavedPath] = useState<string | null>(null);
 
   // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
@@ -36,6 +43,8 @@ export default function DecryptModal({
       setError(null);
       setIsStub(false);
       setCopied(false);
+      setProgress(null);
+      setSavedPath(null);
       /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [isOpen]);
@@ -45,14 +54,44 @@ export default function DecryptModal({
 
     setState('decrypting');
     setError(null);
+    setProgress(null);
+
+    const onProgress: OnDecryptProgress = (current, total) => {
+      setProgress({ current, total });
+    };
 
     try {
       // Use bid-based decryption if bid is available, otherwise decrypt directly from encryption
       const result = bid
-        ? await decryptBid(wallet, bid, encryption)
-        : await decryptEncryption(wallet, encryption);
+        ? await decryptBid(wallet, bid, encryption, onProgress)
+        : await decryptEncryption(wallet, encryption, onProgress);
 
       if (result.success && result.message) {
+        // Brief pause at 100% so user sees the completed bar
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        // Auto-save decrypted content and metadata to library
+        const category = encryption?.category || 'text';
+        const contentBytes = result.rawContent ?? new TextEncoder().encode(result.message);
+        try {
+          const path = await saveDecryptedContent(encryption!.tokenName, category, contentBytes);
+          setSavedPath(path);
+          // Save metadata alongside content for library display
+          await saveContentMetadata({
+            tokenName: encryption!.tokenName,
+            description: encryption!.description,
+            suggestedPrice: encryption!.suggestedPrice,
+            storageLayer: encryption!.storageLayer,
+            imageLink: encryption!.imageLink,
+            category,
+            seller: encryption!.seller,
+            createdAt: encryption!.createdAt,
+            decryptedAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.warn('Failed to save decrypted content:', err);
+        }
+
         setState('success');
         setDecryptedMessage(result.message);
         setIsStub(result.isStub || false);
@@ -80,6 +119,8 @@ export default function DecryptModal({
     setDecryptedMessage(null);
     setError(null);
     setIsStub(false);
+    setProgress(null);
+    setSavedPath(null);
     onClose();
   }, [onClose]);
 
@@ -112,7 +153,11 @@ export default function DecryptModal({
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
           <div>
             <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-              {state === 'success' ? 'Decrypted Message' : 'Decrypt Content'}
+              {state === 'success'
+                ? (!encryption?.category || encryption.category === 'text'
+                    ? 'Decrypted Message'
+                    : 'Decrypted Content')
+                : 'Decrypt Content'}
             </h2>
             {(bid || encryption) && (
               <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -141,7 +186,10 @@ export default function DecryptModal({
               {encryption && (
                 <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
                   {encryption.description && (
-                    <p className="text-sm text-[var(--text-secondary)] mb-3">
+                    <p
+                      className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-1"
+                      title={encryption.description}
+                    >
                       {encryption.description}
                     </p>
                   )}
@@ -153,6 +201,31 @@ export default function DecryptModal({
                       </span>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Iagon connection required warning */}
+              {encryption?.storageLayer === 'iagon' && !isIagonConnected && (
+                <div className="flex items-start gap-3 p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-md)]">
+                  <svg className="w-5 h-5 text-[var(--warning)] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--warning)]">Iagon Connection Required</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      This content is stored on Iagon. Connect your Iagon account to download and decrypt it.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate('/settings', { state: { section: 'datalayer' } });
+                      }}
+                      className="mt-2 px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
+                    >
+                      Go to Settings
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -218,9 +291,32 @@ export default function DecryptModal({
               <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
                 Decrypting...
               </h3>
-              <p className="text-sm text-[var(--text-muted)]">
+              <p className="text-sm text-[var(--text-muted)] mb-6">
                 Processing encryption layers and deriving keys
               </p>
+
+              {/* Progress bar */}
+              {progress && progress.total > 0 && (
+                <div className="max-w-sm mx-auto space-y-2">
+                  <div className="h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${
+                        progress.current >= progress.total
+                          ? 'bg-[var(--success)]'
+                          : 'bg-[var(--accent)]'
+                      }`}
+                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-[var(--text-muted)]">
+                    <span>
+                      Layer {progress.current} of {progress.total}
+                    </span>
+                    <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs text-[var(--text-muted)] mt-4">
                 Do not close this window
               </p>
@@ -252,39 +348,60 @@ export default function DecryptModal({
                 </div>
               )}
 
-              {/* Decrypted content */}
-              <div className="relative">
-                <div className="absolute top-3 right-3">
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
-                  >
-                    {copied ? (
-                      <>
-                        <svg className="w-3.5 h-3.5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                        Copy
-                      </>
-                    )}
-                  </button>
+              {/* Decrypted content — text gets inline display, non-text gets file card */}
+              {!encryption?.category || encryption.category === 'text' ? (
+                <div className="relative">
+                  <div className="absolute top-3 right-3">
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                    >
+                      {copied ? (
+                        <>
+                          <svg className="w-3.5 h-3.5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="p-4 pt-12 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-x-auto font-mono text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words min-h-[200px] max-h-[400px] overflow-y-auto">
+                    {decryptedMessage}
+                  </pre>
                 </div>
-                <pre className="p-4 pt-12 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-x-auto font-mono text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words min-h-[200px] max-h-[400px] overflow-y-auto">
-                  {decryptedMessage}
-                </pre>
-              </div>
+              ) : (
+                <div className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-center space-y-3">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-[var(--accent-muted)] flex items-center justify-center">
+                    <svg className="w-7 h-7 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    {encryption.category.charAt(0).toUpperCase() + encryption.category.slice(1)} file decrypted
+                  </p>
+                  {encryption.description && (
+                    <p className="text-xs text-[var(--text-muted)]">{encryption.description}</p>
+                  )}
+                </div>
+              )}
 
               {/* Success message */}
               <div className="flex items-center gap-3 p-3 bg-[var(--success-muted)] rounded-[var(--radius-md)]">
@@ -302,9 +419,33 @@ export default function DecryptModal({
                   />
                 </svg>
                 <span className="text-sm text-[var(--success)]">
-                  Decryption successful! The message content is shown above.
+                  {!encryption?.category || encryption.category === 'text'
+                    ? 'Decryption successful! The message content is shown above.'
+                    : 'Decryption successful! Content has been saved to your library.'}
                 </span>
               </div>
+
+              {/* Saved to library indicator */}
+              {savedPath && (
+                <div className="flex items-center gap-2 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                  <svg
+                    className="w-4 h-4 text-[var(--success)] flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span className="text-sm text-[var(--text-muted)]">
+                    Saved to library
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -354,7 +495,8 @@ export default function DecryptModal({
               </button>
               <button
                 onClick={handleDecrypt}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+                disabled={encryption?.storageLayer === 'iagon' && !isIagonConnected}
+                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path

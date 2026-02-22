@@ -24,7 +24,7 @@ export default function SnarkProvingModal({
   inputs,
 }: SnarkProvingModalProps) {
   const [state, setState] = useState<ProvingState>('idle')
-  const [progress, setProgress] = useState<ProvingProgress | null>(null)
+  const [, setProgress] = useState<ProvingProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [proof, setProof] = useState<SnarkProof | null>(null)
@@ -231,22 +231,6 @@ export default function SnarkProvingModal({
                   This may take ~3 minutes
                 </p>
               </div>
-
-              {/* Progress bar */}
-              {progress && (
-                <div className="space-y-2">
-                  <div className="h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[var(--accent)] transition-all duration-500 ease-out"
-                      style={{ width: `${progress.percent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-[var(--text-muted)]">
-                    <span>{progress.message}</span>
-                    <span>{progress.percent}%</span>
-                  </div>
-                </div>
-              )}
 
               {/* Timer */}
               <div className="text-center">

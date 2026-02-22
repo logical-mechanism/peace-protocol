@@ -3,7 +3,7 @@ import type { EncryptionDisplay } from '../services/api';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
-import { needsTruncation, truncateDescription } from './descriptionUtils';
+import { truncateDescription } from './descriptionUtils';
 
 // Default fallback price when suggested price can't be parsed
 const DEFAULT_FALLBACK_PRICE = 1;
@@ -55,10 +55,17 @@ export default function SalesListingCard({
     return `${price.toLocaleString()} ADA`;
   };
 
+  // Get category label, defaulting to "Text" for backward compatibility
+  const getCategoryLabel = (category?: string): string => {
+    if (!category) return 'Text';
+    return category.charAt(0).toUpperCase() + category.slice(1);
+  };
+
   // Get storage layer label - returns "No data layer" for unknown/missing values
   const getStorageLayerLabel = (storageLayer?: string): string => {
     if (!storageLayer) return 'No data layer';
     if (storageLayer === 'on-chain') return 'On-chain';
+    if (storageLayer === 'iagon') return 'Iagon';
     if (storageLayer.startsWith('ipfs://')) return 'IPFS';
     if (storageLayer.startsWith('arweave://')) return 'Arweave';
     return 'No data layer';
@@ -68,6 +75,7 @@ export default function SalesListingCard({
   const isUnknownStorageLayer = (storageLayer?: string): boolean => {
     if (!storageLayer) return true;
     if (storageLayer === 'on-chain') return false;
+    if (storageLayer === 'iagon') return false;
     if (storageLayer.startsWith('ipfs://')) return false;
     if (storageLayer.startsWith('arweave://')) return false;
     return true;
@@ -98,8 +106,6 @@ export default function SalesListingCard({
   const isActive = encryption.status === 'active';
   const isPending = encryption.status === 'pending';
   const isCompleted = encryption.status === 'completed';
-  const hasLongDescription = needsTruncation(encryption.description);
-
   if (compact) {
     return (
       <>
@@ -122,44 +128,17 @@ export default function SalesListingCard({
                     {truncateToken(encryption.tokenName)}
                   </span>
                   <EncryptionStatusBadge status={encryption.status} />
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border ${
-                      isUnknownStorageLayer(encryption.storageLayer)
-                        ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
-                        : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
-                    }`}
-                  >
-                    {getStorageLayerLabel(encryption.storageLayer)}
+                  <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
+                    {getCategoryLabel(encryption.category)}
                   </span>
                 </div>
                 {encryption.description && (
-                  <div
-                    className={`flex items-center gap-1 ${
-                      hasLongDescription ? 'cursor-pointer' : ''
-                    }`}
-                    onClick={hasLongDescription ? () => setDescriptionModalOpen(true) : undefined}
+                  <p
+                    className="text-sm text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                    onClick={() => setDescriptionModalOpen(true)}
                   >
-                    <p className={`text-sm text-[var(--text-secondary)] truncate ${
-                      hasLongDescription ? 'hover:text-[var(--text-primary)]' : ''
-                    }`}>
-                      {truncateDescription(encryption.description)}
-                    </p>
-                    {hasLongDescription && (
-                      <svg
-                        className="w-3.5 h-3.5 text-[var(--accent)] flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                    )}
-                  </div>
+                    {truncateDescription(encryption.description)}
+                  </p>
                 )}
               </div>
             </div>
@@ -266,31 +245,15 @@ export default function SalesListingCard({
         {/* Description */}
         {encryption.description && (
           <div
-            className={`mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] ${
-              hasLongDescription ? 'cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]' : ''
-            }`}
-            onClick={hasLongDescription ? () => setDescriptionModalOpen(true) : undefined}
+            className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+            onClick={() => setDescriptionModalOpen(true)}
           >
-            <div className="flex items-start gap-2">
-              <p className="text-sm text-[var(--text-secondary)] line-clamp-2 flex-1">
-                {truncateDescription(encryption.description)}
-              </p>
-              {hasLongDescription && (
-                <svg
-                  className="w-4 h-4 text-[var(--accent)] flex-shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-              )}
-            </div>
+            <p
+              className="text-sm text-[var(--text-secondary)] line-clamp-1"
+              title={encryption.description}
+            >
+              {truncateDescription(encryption.description)}
+            </p>
           </div>
         )}
 

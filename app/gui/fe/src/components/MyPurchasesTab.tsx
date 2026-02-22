@@ -3,6 +3,8 @@ import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
+import DescriptionModal from './DescriptionModal';
+import { truncateDescription } from './descriptionUtils';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
 
@@ -32,6 +34,9 @@ export default function MyPurchasesTab({
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [descModalOpen, setDescModalOpen] = useState(false);
+  const [descModalContent, setDescModalContent] = useState('');
+  const [descModalToken, setDescModalToken] = useState<string | undefined>();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -256,9 +261,21 @@ export default function MyPurchasesTab({
                 </div>
 
                 {enc.description && (
-                  <p className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-2">
-                    {enc.description}
-                  </p>
+                  <div
+                    className="mb-3 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+                    onClick={() => {
+                      setDescModalContent(enc.description || '');
+                      setDescModalToken(enc.tokenName);
+                      setDescModalOpen(true);
+                    }}
+                  >
+                    <p
+                      className="text-sm text-[var(--text-secondary)] line-clamp-1"
+                      title={enc.description}
+                    >
+                      {truncateDescription(enc.description)}
+                    </p>
+                  </div>
                 )}
 
                 <button
@@ -459,6 +476,13 @@ export default function MyPurchasesTab({
         </div>
       )}
     </div>)}
+
+      <DescriptionModal
+        isOpen={descModalOpen}
+        onClose={() => setDescModalOpen(false)}
+        description={descModalContent}
+        tokenName={descModalToken}
+      />
     </div>
   );
 }

@@ -13,7 +13,7 @@
 import type { EncryptionDisplay } from './api';
 import { chainApi } from './api';
 import { listSecrets, removeSecrets } from './secretStorage';
-import { hasAcceptBidSecrets, removeAcceptBidSecrets } from './acceptBidStorage';
+import { getAcceptBidSecrets, removeAcceptBidSecrets } from './acceptBidStorage';
 
 /**
  * Minimum block confirmations before secrets are deleted.
@@ -90,8 +90,11 @@ export async function cleanupStaleSecrets(
         // Path 2: We still own this encryption and it's active (not pending).
         // If accept-bid secrets exist, they're stale from a cancelled pending sale.
         try {
-          const hasStaleHopSecrets = await hasAcceptBidSecrets(tokenName);
-          if (!hasStaleHopSecrets) continue;
+          const hopSecrets = await getAcceptBidSecrets(tokenName);
+          if (!hopSecrets) continue;
+          // Secrets still within their validity window are NOT stale —
+          // they belong to a Phase 12e tx that hasn't confirmed yet.
+          if (Date.now() < hopSecrets.ttl) continue;
 
           const { confirmations } = await chainApi.getConfirmations(
             encryption.utxo.txHash

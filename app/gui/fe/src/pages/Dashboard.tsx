@@ -8,6 +8,7 @@ import MarketplaceTab from '../components/MarketplaceTab'
 import MySalesTab from '../components/MySalesTab'
 import MyPurchasesTab from '../components/MyPurchasesTab'
 import HistoryTab from '../components/HistoryTab'
+import LibraryTab from '../components/LibraryTab'
 import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
@@ -17,19 +18,24 @@ import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import { cleanupStaleSecrets } from '../services/secretCleanup'
+import { isIagonConnected, connectIagon } from '../services/iagonAuth'
+import { useBidNotifications } from '../hooks/useBidNotifications'
 import {
-  createListing, removeListing, placeBid, cancelBid,
+  createListing, retryListingFromDraft, removeListing, placeBid, cancelBid,
   cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
-  getTransactionStubWarning, extractPaymentKeyHash
+  getTransactionStubWarning, extractPaymentKeyHash,
+  type ListingCreationStep,
 } from '../services/transactionBuilder'
 import { getAcceptBidSecrets } from '../services/acceptBidStorage'
+import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage'
+import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'
 import type { CreateListingFormData } from '../components/CreateListingModal'
 
-type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history';
+type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library';
 
 interface Tab {
   id: TabId;
@@ -41,6 +47,7 @@ const TABS: Tab[] = [
   { id: 'my-sales', label: 'My Sales' },
   { id: 'my-purchases', label: 'My Purchases' },
   { id: 'history', label: 'History' },
+  { id: 'library', label: 'Library' },
 ];
 
 export default function Dashboard() {
@@ -48,7 +55,7 @@ export default function Dashboard() {
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
-  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress } = useNode()
+  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('marketplace')
@@ -71,6 +78,43 @@ export default function Dashboard() {
   const [acceptBidR0, setAcceptBidR0] = useState<bigint | null>(null)
   const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
   const toast = useToast()
+  const [iagonConnected, setIagonConnected] = useState(false)
+
+  // Check Iagon connection status; silently auto-connect if not yet connected
+  useEffect(() => {
+    let cancelled = false
+    isIagonConnected()
+      .then(connected => {
+        if (cancelled) return
+        if (connected) {
+          setIagonConnected(true)
+        } else if (wallet && address) {
+          // Silently attempt CIP-8 auth — succeeds if wallet has an Iagon account
+          connectIagon(wallet, address)
+            .then(() => { if (!cancelled) setIagonConnected(true) })
+            .catch(() => { if (!cancelled) setIagonConnected(false) })
+        } else {
+          setIagonConnected(false)
+        }
+      })
+      .catch(() => { if (!cancelled) setIagonConnected(false) })
+    return () => { cancelled = true }
+  }, [wallet, address])
+
+  // ── Draft recovery: check for unfinished file listings on startup ─────
+  const [recoverableDraft, setRecoverableDraft] = useState<ListingDraft | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    getRecoverableDrafts()
+      .then(drafts => {
+        if (cancelled || drafts.length === 0) return
+        // Show the most recent recoverable draft
+        setRecoverableDraft(drafts[0])
+      })
+      .catch(() => {}) // best-effort
+    return () => { cancelled = true }
+  }, [])
 
   // Confirmation modal state for destructive actions
   const [confirmAction, setConfirmAction] = useState<{
@@ -90,6 +134,37 @@ export default function Dashboard() {
       return undefined
     }
   }, [address])
+
+  // Bid notification system — watches tipSlot for new bids on seller's listings
+  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
+
+  // Fire toast when new bids arrive mid-session (not on initial load).
+  // toast is excluded from deps: its methods are stable useCallbacks but the
+  // object reference is recreated each render (no useMemo in useToast).
+  const isInitialBidCheck = useRef(true)
+  useEffect(() => {
+    if (!bidNotifications.isReady) return
+    if (isInitialBidCheck.current) {
+      isInitialBidCheck.current = false
+      return
+    }
+    if (bidNotifications.unseenBidCount > 0) {
+      toast.info(
+        'New Bids Received',
+        `You have ${bidNotifications.unseenBidCount} new ${bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'} on your listings`,
+        8000
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
+
+  // Mark bids as seen when user switches to My Sales tab
+  const { markAllSeen } = bidNotifications
+  useEffect(() => {
+    if (activeTab === 'my-sales') {
+      markAllSeen()
+    }
+  }, [activeTab, markAllSeen])
 
   // Load transaction history when PKH changes
   useEffect(() => {
@@ -125,6 +200,96 @@ export default function Dashboard() {
       }, delay)
     }
   }, [userPkh])
+
+  const handleDraftRecovery = useCallback(async (action: 'resume' | 'discard') => {
+    if (!recoverableDraft) return
+    if (action === 'discard') {
+      try {
+        await updateListingDraft(recoverableDraft.id, { status: 'abandoned' })
+      } catch {
+        // best-effort
+      }
+      setRecoverableDraft(null)
+      return
+    }
+
+    // Resume: retry from draft
+    if (!wallet) {
+      toast.error('Wallet Required', 'Connect your wallet to resume the listing.')
+      return
+    }
+
+    try {
+      const result = await retryListingFromDraft(wallet, recoverableDraft)
+      if (!result.success) {
+        toast.error('Retry Failed', result.error || 'Failed to retry listing')
+        return
+      }
+
+      if (result.txHash) {
+        toast.transactionSuccess('Listing Resumed!', result.txHash)
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'create-listing',
+          tokenName: result.tokenName,
+          timestamp: Date.now(),
+          status: 'pending',
+          description: recoverableDraft.description,
+        })
+      }
+      setRecoverableDraft(null)
+      setRefreshKey(prev => prev + 1)
+      setActiveTab('history')
+    } catch (error) {
+      toast.error(
+        'Retry Failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
+    }
+  }, [recoverableDraft, wallet, toast, recordTransaction])
+
+  // Retry a listing from History tab (failed tx with a draft)
+  const handleRetryListing = useCallback(async (draftId: string) => {
+    if (!wallet) {
+      toast.error('Wallet Required', 'Connect your wallet to retry the listing.')
+      return
+    }
+
+    try {
+      const { getListingDraft } = await import('../services/listingDraftStorage')
+      const draft = await getListingDraft(draftId)
+      if (!draft) {
+        toast.error('Draft Not Found', 'The listing draft could not be found. It may have been cleaned up.')
+        return
+      }
+
+      const result = await retryListingFromDraft(wallet, draft)
+      if (!result.success) {
+        toast.error('Retry Failed', result.error || 'Failed to retry listing')
+        return
+      }
+
+      if (result.txHash) {
+        toast.transactionSuccess('Listing Retried!', result.txHash)
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'create-listing',
+          tokenName: result.tokenName,
+          timestamp: Date.now(),
+          status: 'pending',
+          description: draft.description,
+          draftId,
+        })
+      }
+      setRefreshKey(prev => prev + 1)
+      setHistoryKey(prev => prev + 1)
+    } catch (error) {
+      toast.error(
+        'Retry Failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
+    }
+  }, [wallet, toast, recordTransaction])
 
   const pendingTxCount = useMemo(
     () => txHistory.filter(tx => tx.status === 'pending').length,
@@ -361,7 +526,7 @@ export default function Dashboard() {
       setRefreshKey(prev => prev + 1)
       setActiveTab('history')
 
-      toast.info(
+      toast.warning(
         'Next Step',
         'Once the SNARK transaction confirms on-chain, return to My Sales to complete the re-encryption step.',
         10000
@@ -592,7 +757,10 @@ export default function Dashboard() {
     setShowDecrypt(true)
   }, [])
 
-  const handleCreateListing = useCallback(async (formData: CreateListingFormData) => {
+  const handleCreateListing = useCallback(async (
+    formData: CreateListingFormData,
+    onProgress?: (step: ListingCreationStep) => void,
+  ) => {
     if (!wallet) {
       throw new Error('Wallet not connected')
     }
@@ -603,10 +771,34 @@ export default function Dashboard() {
       console.warn(stubWarning)
     }
 
-    const result = await createListing(wallet, formData)
+    const result = await createListing(wallet, formData, onProgress)
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to create listing')
+    }
+
+    // Save content to local library so the creator's own files appear in Library tab
+    if (result.tokenName) {
+      try {
+        const category = formData.category;
+        const contentBytes = category === 'text'
+          ? new TextEncoder().encode(formData.secretMessage)
+          : new Uint8Array(await formData.file!.arrayBuffer());
+
+        await saveDecryptedContent(result.tokenName, category, contentBytes);
+        await saveContentMetadata({
+          tokenName: result.tokenName,
+          description: formData.description,
+          suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
+          storageLayer: category === 'text' ? 'on-chain' : 'iagon',
+          imageLink: formData.imageLink || undefined,
+          category,
+          seller: address,
+          decryptedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('Failed to save listing content to library:', err);
+      }
     }
 
     // Show success message
@@ -622,7 +814,7 @@ export default function Dashboard() {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }
 
-    // Record in history
+    // Record in history (include draftId for file listings so retry is possible)
     if (result.txHash) {
       recordTransaction({
         txHash: result.txHash,
@@ -631,13 +823,14 @@ export default function Dashboard() {
         timestamp: Date.now(),
         status: result.isStub ? 'confirmed' : 'pending',
         description: formData.description,
+        draftId: result.draftId,
       })
     }
 
     // Refresh and switch to History tab to show pending tx
     setRefreshKey(prev => prev + 1)
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, address, toast, recordTransaction])
 
   // Fetch user stats
   useEffect(() => {
@@ -692,6 +885,7 @@ export default function Dashboard() {
             onCancelPending={handleCancelPending}
             onCompleteSale={handleCompleteSale}
             onCreateListing={() => setShowCreateListing(true)}
+            onBidsViewed={bidNotifications.markListingSeen}
           />
         )
       case 'my-purchases':
@@ -712,8 +906,11 @@ export default function Dashboard() {
             transactions={txHistory}
             onClearHistory={() => setHistoryKey(prev => prev + 1)}
             onHistoryUpdated={setTxHistory}
+            onRetryListing={handleRetryListing}
           />
         )
+      case 'library':
+        return <LibraryTab />
       default:
         return null
     }
@@ -867,6 +1064,35 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {/* Draft Recovery Banner */}
+        {recoverableDraft && (
+          <div className="mb-6 p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                Unfinished Listing Found
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                A file listing for "{recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
+                The file is still on Iagon — you can resume without re-uploading.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+              <button
+                onClick={() => handleDraftRecovery('discard')}
+                className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+              >
+                Discard
+              </button>
+              <button
+                onClick={() => handleDraftRecovery('resume')}
+                className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+              >
+                Resume Listing
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
           <button
@@ -881,6 +1107,11 @@ export default function Dashboard() {
             <p className="text-2xl font-semibold text-[var(--accent)]">
               {myListingsCount === null ? '...' : `${myListingsCount} active`}
             </p>
+            {bidNotifications.unseenBidCount > 0 && (
+              <p className="text-sm text-[var(--success)] mt-1">
+                {bidNotifications.unseenBidCount} new {bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'}
+              </p>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('my-purchases')}
@@ -911,6 +1142,11 @@ export default function Dashboard() {
                 }`}
               >
                 {tab.label}
+                {tab.id === 'my-sales' && bidNotifications.unseenBidCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse">
+                    {bidNotifications.unseenBidCount}
+                  </span>
+                )}
                 {tab.id === 'history' && pendingTxCount > 0 && (
                   <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full">
                     {pendingTxCount}
@@ -933,6 +1169,7 @@ export default function Dashboard() {
         isOpen={showCreateListing}
         onClose={() => setShowCreateListing(false)}
         onSubmit={handleCreateListing}
+        isIagonConnected={iagonConnected}
       />
 
       {/* Place Bid Modal */}
@@ -956,6 +1193,7 @@ export default function Dashboard() {
         }}
         bid={selectedBid}
         encryption={selectedEncryption}
+        isIagonConnected={iagonConnected}
       />
 
       {/* Confirmation Modal (destructive actions) */}

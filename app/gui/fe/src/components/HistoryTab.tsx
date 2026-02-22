@@ -17,6 +17,7 @@ interface HistoryTabProps {
   transactions: TransactionRecord[];
   onClearHistory?: () => void;
   onHistoryUpdated?: (records: TransactionRecord[]) => void;
+  onRetryListing?: (draftId: string) => void;
 }
 
 export default function HistoryTab({
@@ -24,6 +25,7 @@ export default function HistoryTab({
   transactions,
   onClearHistory,
   onHistoryUpdated,
+  onRetryListing,
 }: HistoryTabProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'failed'>('all');
   const [allRecords, setAllRecords] = useState<TransactionRecord[]>(transactions);
@@ -223,6 +225,17 @@ export default function HistoryTab({
                 </p>
               )}
             </div>
+
+            {/* Retry button for failed file listings */}
+            {tx.status === 'failed' && tx.draftId && onRetryListing && (
+              <button
+                onClick={() => onRetryListing(tx.draftId!)}
+                className="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+                title="Retry listing without re-uploading the file"
+              >
+                Retry
+              </button>
+            )}
 
             {/* Timestamp */}
             <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">

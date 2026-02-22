@@ -5,10 +5,12 @@ import EncryptionCard from './EncryptionCard';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon, SearchIcon } from './EmptyState';
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
+import { FILE_CATEGORIES } from '../config/categories';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low';
 type StatusFilter = 'all' | 'active' | 'pending';
+type CategoryFilter = 'all' | string;
 
 interface MarketplaceTabProps {
   userPkh?: string;
@@ -24,6 +26,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchEncryptions = useCallback(async () => {
@@ -68,6 +71,11 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
       result = result.filter((e) => e.status === statusFilter);
     }
 
+    // Filter by category
+    if (categoryFilter !== 'all') {
+      result = result.filter((e) => (e.category || 'text') === categoryFilter);
+    }
+
     // Search filter (by token name or seller address)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -95,7 +103,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
     }
 
     return result;
-  }, [encryptions, statusFilter, searchQuery, sortBy]);
+  }, [encryptions, statusFilter, categoryFilter, searchQuery, sortBy]);
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
@@ -175,6 +183,18 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="pending">Pending</option>
+          </select>
+
+          {/* Category Filter */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+          >
+            <option value="all">All Categories</option>
+            {FILE_CATEGORIES.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.label}</option>
+            ))}
           </select>
 
           {/* Sort */}
@@ -259,7 +279,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
 
       {/* Content */}
       {filteredAndSorted.length === 0 ? (
-        searchQuery || statusFilter !== 'all' ? (
+        searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' ? (
           <EmptyState
             icon={<SearchIcon />}
             title="No matching listings"
@@ -269,6 +289,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
                 onClick={() => {
                   setSearchQuery('');
                   setStatusFilter('all');
+                  setCategoryFilter('all');
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >

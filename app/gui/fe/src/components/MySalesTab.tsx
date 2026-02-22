@@ -18,6 +18,7 @@ interface MySalesTabProps {
   onCancelPending?: (encryption: EncryptionDisplay) => void;
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   onCreateListing?: () => void;
+  onBidsViewed?: (encryptionTokenName: string) => void;
 }
 
 export default function MySalesTab({
@@ -27,6 +28,7 @@ export default function MySalesTab({
   onCancelPending,
   onCompleteSale,
   onCreateListing,
+  onBidsViewed,
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
@@ -141,7 +143,8 @@ export default function MySalesTab({
   const handleViewBids = useCallback((encryption: EncryptionDisplay) => {
     setSelectedListing(encryption);
     setBidsModalOpen(true);
-  }, []);
+    onBidsViewed?.(encryption.tokenName);
+  }, [onBidsViewed]);
 
   const handleCloseBidsModal = useCallback(() => {
     setBidsModalOpen(false);

@@ -22,6 +22,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     suggestedPrice: 100,
     storageLayer: 'on-chain',
     imageLink: 'https://picsum.photos/seed/api-keys/400/300',
+    category: 'text',
     createdAt: '2025-01-15T10:00:00Z',
     utxo: {
       txHash: 'aabbccdd11223344556677889900aabbccdd11223344556677889900aabbccdd',
@@ -56,8 +57,9 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     // CIP-20 metadata
     description: 'Exclusive trading signals from verified whale wallets. Updated daily.',
     suggestedPrice: 250,
-    storageLayer: 'ipfs://QmX7bVbZTv5cR5GzL8wEt3Z9n4YP2J3s8KmC9q4xF1Y2dH',
+    storageLayer: 'on-chain',
     imageLink: 'https://picsum.photos/seed/whale-signals/400/300',
+    category: 'text',
     createdAt: '2025-01-16T14:30:00Z',
     utxo: {
       txHash: 'bbccddee22334455667788990011aabbccddee22334455667788990011aabbcc',
@@ -92,7 +94,8 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     // CIP-20 metadata
     description: 'Zero-day vulnerability report for popular DeFi protocol. Responsible disclosure.',
     suggestedPrice: 500,
-    storageLayer: 'arweave://Tx8vK2pQ3nL5mR7xY9wZ1aB4cD6eF8gH0iJ2kL4mN6oP',
+    storageLayer: 'on-chain',
+    category: 'document',
     createdAt: '2025-01-17T09:15:00Z',
     utxo: {
       txHash: 'ccddeeff33445566778899001122aabbccddeeff33445566778899001122aabb',
@@ -144,6 +147,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     description: 'Historical MEV data and patterns from past 30 days. CSV format.',
     suggestedPrice: 75,
     storageLayer: 'on-chain',
+    category: 'text',
     createdAt: '2025-01-18T16:45:00Z',
     utxo: {
       txHash: 'ddeeff0044556677889900112233aabbccddeeff0044556677889900112233aa',
@@ -178,8 +182,9 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     // CIP-20 metadata
     description: 'Complete smart contract audit report with fixes. Private audit by top firm.',
     suggestedPrice: 1000,
-    storageLayer: 'ipfs://QmY9cDdZTv5cR5GzL8wEt3Z9n4YP2J3s8KmC9q4xF1Y2eK',
+    storageLayer: 'on-chain',
     imageLink: 'https://picsum.photos/seed/audit-report/400/300',
+    category: 'document',
     createdAt: '2025-01-19T11:20:00Z',
     utxo: {
       txHash: 'eeff001155667788990011223344aabbccddeeff001155667788990011223344',
@@ -217,8 +222,9 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
     description: 'This is an extremely long description that is designed to test the truncation feature of the encryption cards. It contains more than two hundred characters to ensure that the description modal is triggered when users click on it. This description also includes some technical details about the encrypted data: it contains sensitive financial records, proprietary algorithms, and confidential business intelligence that has been securely encrypted using state-of-the-art cryptographic methods. The buyer will receive full access to all this valuable information upon successful bid acceptance and decryption.',
     // 2. Missing/undefined price (will fall back to 1 ADA)
     suggestedPrice: undefined,
-    // 3. Unknown storage layer (not on-chain, ipfs://, or arweave://)
-    storageLayer: 'custom-server://data.example.com/encrypted/12345',
+    // 3. Storage layer
+    storageLayer: 'on-chain',
+    category: 'text',
     createdAt: '2025-01-20T08:00:00Z',
     utxo: {
       txHash: 'ff00112266778899aabbccddeeff00112266778899aabbccddeeff0011223344',

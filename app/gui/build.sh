@@ -7,4 +7,4 @@ echo "Installing dependencies and building backend..."
 npm run install:all
 
 echo "Building production release..."
-npx tauri build
+npx tauri build --debug

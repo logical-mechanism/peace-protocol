@@ -9,7 +9,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNode, type NodeStage } from '../contexts/NodeContext'
 import { useWalletContext } from '../contexts/WalletContext'
-import LoadingSpinner from '../components/LoadingSpinner'
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
@@ -81,7 +80,7 @@ function StageIndicator({ stages, currentStage }: StageIndicatorProps) {
   const currentIndex = stageOrder.indexOf(currentStage)
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 justify-center">
       {stages.map((s, i) => {
         const stageIndex = stageOrder.indexOf(s.key as NodeStage)
         const isActive = s.key === currentStage
@@ -154,6 +153,7 @@ export default function NodeSync() {
     tipSlot,
     tipHeight,
     network,
+    processes,
     mithrilProgress,
     needsBootstrap,
     error,
@@ -253,10 +253,18 @@ export default function NodeSync() {
         statusMessage = 'Preparing to download blockchain snapshot...'
       }
       break
-    case 'starting':
-      progressPercent = 10
-      statusMessage = 'Starting node infrastructure...'
+    case 'starting': {
+      progressPercent = Math.min(syncProgress, kupoSyncProgress) || 5
+      const nodeProc = processes.find(p => p.name === 'cardano-node')
+      const ogmiosProc = processes.find(p => p.name === 'ogmios')
+      if (!nodeProc || nodeProc.status.type === 'Starting')
+        statusMessage = 'Starting Cardano node...'
+      else if (!ogmiosProc || ogmiosProc.status.type !== 'Running')
+        statusMessage = 'Waiting for chain bridge...'
+      else
+        statusMessage = 'Connecting to network...'
       break
+    }
     case 'syncing':
       progressPercent = Math.min(syncProgress, kupoSyncProgress)
       if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
@@ -288,27 +296,7 @@ export default function NodeSync() {
           style={{ boxShadow: 'var(--shadow-lg)' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--bg-secondary)]">
-              {stage === 'error' ? (
-                <svg className="w-6 h-6 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              ) : stage === 'synced' ? (
-                <svg className="w-6 h-6 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : stage === 'stopped' ? (
-                <svg className="w-6 h-6 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6 text-[var(--accent)] animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              )}
-            </div>
+          <div className="mb-6 text-center">
             <div>
               <h1 className="text-xl font-semibold">
                 {stage === 'stopped'
@@ -340,18 +328,24 @@ export default function NodeSync() {
               <ServiceProgress
                 label="Cardano Node"
                 percent={syncProgress}
-                detail={tipSlot ? `Slot ${tipSlot.toLocaleString()}` : undefined}
+                detail={tipSlot ? `Slot ${tipSlot.toLocaleString()}` : syncProgress === 0 ? 'Starting...' : undefined}
               />
               <ServiceProgress
                 label="Kupo Indexer"
                 percent={kupoSyncProgress}
+                detail={kupoSyncProgress === 0 ? 'Waiting...' : undefined}
               />
               <div className="mt-2 text-sm text-[var(--text-muted)]">
                 {statusMessage}
               </div>
             </div>
           )}
-          {stage !== 'stopped' && stage !== 'error' && stage !== 'syncing' && (
+          {stage === 'starting' && (
+            <div className="mb-4 text-sm text-[var(--text-muted)]">
+              {statusMessage}
+            </div>
+          )}
+          {stage !== 'stopped' && stage !== 'error' && stage !== 'syncing' && stage !== 'starting' && (
             <div className="mb-4">
               <ProgressBar percent={progressPercent} />
               <div className="flex justify-between mt-2 text-sm text-[var(--text-muted)]">
@@ -384,14 +378,13 @@ export default function NodeSync() {
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 justify-center">
             {stage === 'stopped' && (
               <button
                 onClick={handleStart}
                 disabled={isStarting}
                 className="flex-1 py-3 px-4 bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isStarting && <LoadingSpinner size="sm" className="text-white" />}
                 {isStarting
                   ? 'Starting...'
                   : needsBootstrap

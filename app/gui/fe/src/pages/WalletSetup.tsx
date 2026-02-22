@@ -4,6 +4,9 @@ import { MeshWallet } from '@meshsdk/core'
 import { useWalletContext } from '../contexts/WalletContext'
 import { copyToClipboard } from '../utils/clipboard'
 import MnemonicInput, { validateMnemonicWords } from '../components/MnemonicInput'
+import { usePasswordStrength } from '../hooks/usePasswordStrength'
+import type { PasswordStrength } from '../hooks/usePasswordStrength'
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
 
 type Mode = 'choose' | 'create' | 'import'
 type CreateStep = 'generate' | 'verify' | 'password'
@@ -58,8 +61,10 @@ export default function WalletSetup() {
     )
   }, [verifyIndices, verifyInputs, mnemonic])
 
+  const strength = usePasswordStrength(password)
+
   const passwordValid =
-    password.length >= 8 && password === confirmPassword
+    strength.allMet && password === confirmPassword
 
   const handleCopyMnemonic = useCallback(() => {
     copyToClipboard(mnemonic.join(' '))
@@ -115,8 +120,8 @@ export default function WalletSetup() {
       setError('All 24 words are required')
       return
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+    if (!strength.allMet) {
+      setError('Password does not meet all requirements')
       return
     }
     if (password !== confirmPassword) {
@@ -140,6 +145,7 @@ export default function WalletSetup() {
     importWords,
     password,
     confirmPassword,
+    strength,
     createWallet,
     navigate,
   ])
@@ -392,6 +398,7 @@ export default function WalletSetup() {
               error={error}
               isSubmitting={isSubmitting}
               passwordValid={passwordValid}
+              strength={strength}
               onPasswordChange={setPassword}
               onConfirmChange={setConfirmPassword}
               onToggleShow={() => setShowPassword(!showPassword)}
@@ -507,6 +514,7 @@ export default function WalletSetup() {
             error={error}
             isSubmitting={isSubmitting}
             passwordValid={passwordValid}
+            strength={strength}
             onPasswordChange={setPassword}
             onConfirmChange={setConfirmPassword}
             onToggleShow={() => setShowPassword(!showPassword)}
@@ -526,6 +534,7 @@ function PasswordForm({
   error,
   isSubmitting,
   passwordValid,
+  strength,
   onPasswordChange,
   onConfirmChange,
   onToggleShow,
@@ -537,6 +546,7 @@ function PasswordForm({
   error: string | null
   isSubmitting: boolean
   passwordValid: boolean
+  strength: PasswordStrength
   onPasswordChange: (v: string) => void
   onConfirmChange: (v: string) => void
   onToggleShow: () => void
@@ -561,7 +571,7 @@ function PasswordForm({
             className="block text-sm mb-1"
             style={{ color: 'var(--text-muted)' }}
           >
-            Password (min 8 characters)
+            Password
           </label>
           <div className="relative">
             <input
@@ -587,6 +597,7 @@ function PasswordForm({
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
+          <PasswordStrengthIndicator strength={strength} password={password} />
         </div>
 
         <div>

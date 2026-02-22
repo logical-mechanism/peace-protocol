@@ -3,7 +3,7 @@ mod config;
 mod crypto;
 mod process;
 
-use commands::media::MediaDir;
+use commands::media::{ContentDir, MediaDir};
 use commands::secrets::SecretsDir;
 use commands::wallet::WalletState;
 use config::AppConfig;
@@ -23,7 +23,6 @@ pub fn run() {
     {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-        std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");
     }
 
     tauri::Builder::default()
@@ -58,13 +57,17 @@ pub fn run() {
             // Secrets encryption key (derived from mnemonic on wallet unlock)
             app.manage(SecretsKey(Mutex::new(None)));
 
-            // Media directory (for cached images, future video/docs)
+            // Media directory (for cached listing preview images)
             let media_images_dir = app_data_dir.join("media").join("images");
             std::fs::create_dir_all(&media_images_dir)
                 .expect("Failed to create media/images directory");
-            let _ = std::fs::create_dir_all(app_data_dir.join("media").join("video"));
-            let _ = std::fs::create_dir_all(app_data_dir.join("media").join("docs"));
             app.manage(MediaDir(media_images_dir));
+
+            // Content directory (for purchased/decrypted files, organized by category)
+            let content_dir = app_data_dir.join("media").join("content");
+            commands::media::ensure_content_dirs(&content_dir)
+                .expect("Failed to create content directories");
+            app.manage(ContentDir(content_dir));
 
             Ok(())
         })
@@ -134,6 +137,27 @@ pub fn run() {
             commands::secrets::get_accept_bid_secrets,
             commands::secrets::remove_accept_bid_secrets,
             commands::secrets::has_accept_bid_secrets,
+            // Listing draft commands
+            commands::secrets::store_listing_draft,
+            commands::secrets::update_listing_draft,
+            commands::secrets::get_listing_draft,
+            commands::secrets::list_listing_drafts,
+            commands::secrets::remove_listing_draft,
+            // Iagon data layer commands
+            commands::iagon::store_iagon_api_key,
+            commands::iagon::get_iagon_api_key,
+            commands::iagon::remove_iagon_api_key,
+            commands::iagon::has_iagon_api_key,
+            // Iagon HTTP proxy commands (bypass CORS)
+            commands::iagon::iagon_get_nonce,
+            commands::iagon::iagon_verify,
+            commands::iagon::iagon_generate_api_key,
+            commands::iagon::iagon_verify_api_key,
+            commands::iagon::iagon_upload,
+            commands::iagon::iagon_download,
+            commands::iagon::iagon_delete_file,
+            commands::iagon::iagon_search_files,
+            commands::iagon::iagon_list_files,
             // Media commands (image caching)
             commands::media::download_image,
             commands::media::get_cached_image,
@@ -141,6 +165,12 @@ pub fn run() {
             commands::media::ban_image,
             commands::media::unban_image,
             commands::media::delete_cached_image,
+            // Content commands (for future data layer)
+            commands::media::save_content,
+            // Library commands (browse/read/delete decrypted content)
+            commands::media::list_library_items,
+            commands::media::read_library_content,
+            commands::media::delete_library_item,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
