@@ -115,6 +115,7 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
   };
 }
 
+/** Fetch all encryption UTxOs from Kupo and enrich with CIP-20 metadata. */
 export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
   const { contracts } = getNetworkConfig();
   const kupo = getKupoClient();
@@ -137,11 +138,13 @@ export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
   return encryptions;
 }
 
+/** Find a single encryption by its token name, or null if not found. */
 export async function getEncryptionByToken(tokenName: string): Promise<EncryptionDisplay | null> {
   const encryptions = await getAllEncryptions();
   return encryptions.find(e => e.tokenName === tokenName) || null;
 }
 
+/** Filter encryptions by seller payment key hash (case-insensitive substring match). */
 export async function getEncryptionsByUser(pkh: string): Promise<EncryptionDisplay[]> {
   const encryptions = await getAllEncryptions();
   return encryptions.filter(e =>
@@ -149,6 +152,7 @@ export async function getEncryptionsByUser(pkh: string): Promise<EncryptionDispl
   );
 }
 
+/** Filter encryptions by display status (active, pending, or completed). */
 export async function getEncryptionsByStatus(
   status: 'active' | 'pending' | 'completed'
 ): Promise<EncryptionDisplay[]> {

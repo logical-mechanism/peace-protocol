@@ -128,19 +128,13 @@ async function verifyIagonUpload(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const files = await iagonListFiles(apiKey);
-      console.log(
-        `[verifyIagonUpload] Attempt ${attempt}/${maxAttempts} for _id "${fileId}":`,
-        JSON.stringify(files, null, 2)
-      );
       if (files.some((f) => f._id === fileId)) {
-        console.log(`[verifyIagonUpload] File verified on attempt ${attempt}`);
         return true;
       }
     } catch (err) {
       console.warn(`[verifyIagonUpload] List attempt ${attempt} failed:`, err);
     }
     if (attempt < maxAttempts) {
-      console.log(`[verifyIagonUpload] Waiting ${delayMs}ms before retry...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -382,7 +376,6 @@ export async function createListing(
       const iagonFilename = `${draftId}${ext}.enc`;
 
       const fileInfo = await iagonUpload(apiKey, encryptedBlob, iagonFilename);
-      console.log('[createListing] Iagon upload response:', JSON.stringify(fileInfo, null, 2));
 
       await updateListingDraft(draftId, {
         status: 'uploaded',
@@ -1819,7 +1812,6 @@ export async function completeReEncryption(
   encryption: EncryptionDisplay,
   bid: BidDisplay
 ): Promise<TransactionResult> {
-  console.log('[completeReEncryption] bid received:', JSON.stringify({ tokenName: bid.tokenName, futurePrice: bid.futurePrice, amount: bid.amount }));
   try {
     if (USE_STUBS) {
       console.warn('[STUB] completeReEncryption');
@@ -2013,8 +2005,6 @@ export async function completeReEncryption(
         'Please wait a minute and try again.'
       );
     }
-
-    console.log('[completeReEncryption] metadata price will be:', bid.futurePrice ?? bid.amount / 1_000_000, '(futurePrice:', bid.futurePrice, ', amount:', bid.amount, ')');
 
     const txBuilder = createTxBuilder();
 
