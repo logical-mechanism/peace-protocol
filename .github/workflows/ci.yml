@@ -83,3 +83,38 @@ jobs:
           cache-dependency-path: app/ui/fe/package-lock.json
       - run: npm ci
       - run: npx vitest run
+
+  tauri:
+    name: Tauri (desktop app)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/gui
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/gui/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/gui/src-tauri
+      - run: npm run install:all
+      - run: npm --prefix fe run lint
+      - run: npm --prefix be run lint
+      - run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+      - run: npm --prefix fe run test
+      - run: npm --prefix be run test
