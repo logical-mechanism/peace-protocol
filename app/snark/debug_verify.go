@@ -52,10 +52,10 @@ func debugVerify() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("nPublic: %d\n", vkJSON.NPublic)
-	fmt.Printf("len(IC): %d\n", len(vkJSON.VkIC))
-	fmt.Printf("len(public inputs): %d\n", len(publicJSON.Inputs))
-	fmt.Printf("inputs[0]: %s\n", publicJSON.Inputs[0])
+	// fmt.Printf("nPublic: %d\n", vkJSON.NPublic)
+	// fmt.Printf("len(IC): %d\n", len(vkJSON.VkIC))
+	// fmt.Printf("len(public inputs): %d\n", len(publicJSON.Inputs))
+	// fmt.Printf("inputs[0]: %s\n", publicJSON.Inputs[0])
 
 	// Parse IC
 	IC := make([]bls12381.G1Affine, len(vkJSON.VkIC))
@@ -72,7 +72,7 @@ func debugVerify() {
 	}
 
 	// Compute vk_x using the exported public inputs (including leading "1")
-	fmt.Println("\n=== vk_x with all 37 public inputs (including leading '1') ===")
+	// fmt.Println("\n=== vk_x with all 37 public inputs (including leading '1') ===")
 	vkx_full := IC[0]
 	for i := 0; i < len(publicJSON.Inputs); i++ {
 		var s fr.Element
@@ -86,11 +86,11 @@ func debugVerify() {
 		term.ScalarMultiplication(&IC[i+1], &sBig)
 		vkx_full.Add(&vkx_full, &term)
 	}
-	vkx_full_bytes := vkx_full.Bytes()
-	fmt.Printf("vk_x (hex): %s\n", hex.EncodeToString(vkx_full_bytes[:]))
+	// vkx_full_bytes := vkx_full.Bytes()
+	// fmt.Printf("vk_x (hex): %s\n", hex.EncodeToString(vkx_full_bytes[:]))
 
 	// Compute vk_x using only the 36 public inputs (skipping leading "1")
-	fmt.Println("\n=== vk_x with 36 public inputs (skipping leading '1') ===")
+	// fmt.Println("\n=== vk_x with 36 public inputs (skipping leading '1') ===")
 	vkx_36 := IC[0]
 	for i := 1; i < len(publicJSON.Inputs); i++ {
 		var s fr.Element
@@ -104,11 +104,11 @@ func debugVerify() {
 		term.ScalarMultiplication(&IC[i], &sBig)
 		vkx_36.Add(&vkx_36, &term)
 	}
-	vkx_36_bytes := vkx_36.Bytes()
-	fmt.Printf("vk_x (hex): %s\n", hex.EncodeToString(vkx_36_bytes[:]))
+	// vkx_36_bytes := vkx_36.Bytes()
+	// fmt.Printf("vk_x (hex): %s\n", hex.EncodeToString(vkx_36_bytes[:]))
 
 	// Compute vk_x using 36 inputs with only 37 IC elements
-	fmt.Println("\n=== vk_x with 36 inputs and first 37 IC elements ===")
+	// fmt.Println("\n=== vk_x with 36 inputs and first 37 IC elements ===")
 	vkx_37ic := IC[0]
 	for i := 1; i < len(publicJSON.Inputs); i++ {
 		var s fr.Element
@@ -117,7 +117,7 @@ func debugVerify() {
 			os.Exit(1)
 		}
 		if i >= 37 {
-			fmt.Println("  WARNING: i >= 37, skipping")
+			// fmt.Println("  WARNING: i >= 37, skipping")
 			continue
 		}
 		var sBig big.Int
@@ -126,11 +126,11 @@ func debugVerify() {
 		term.ScalarMultiplication(&IC[i], &sBig)
 		vkx_37ic.Add(&vkx_37ic, &term)
 	}
-	vkx_37ic_bytes := vkx_37ic.Bytes()
-	fmt.Printf("vk_x (hex): %s\n", hex.EncodeToString(vkx_37ic_bytes[:]))
+	// vkx_37ic_bytes := vkx_37ic.Bytes()
+	// fmt.Printf("vk_x (hex): %s\n", hex.EncodeToString(vkx_37ic_bytes[:]))
 
 	// Now load proof and VK and verify using gnark
-	fmt.Println("\n=== Verifying with gnark ===")
+	// fmt.Println("\n=== Verifying with gnark ===")
 
 	// Load proof
 	proofData, err := os.ReadFile(filepath.Join(outDir, "proof.json"))
@@ -180,7 +180,7 @@ func debugVerify() {
 	right.Mul(&right, &p2)
 	right.Mul(&right, &p3)
 
-	fmt.Printf("left == right (with 36-input vk_x): %v\n", left.Equal(&right))
+	// fmt.Printf("left == right (with 36-input vk_x): %v\n", left.Equal(&right))
 
 	// Try with 37-input vk_x
 	p2_full, _ := bls12381.Pair([]bls12381.G1Affine{vkx_full}, []bls12381.G2Affine{gamma})
@@ -188,10 +188,10 @@ func debugVerify() {
 	right_full.Mul(&right_full, &p2_full)
 	right_full.Mul(&right_full, &p3)
 
-	fmt.Printf("left == right (with 37-input vk_x): %v\n", left.Equal(&right_full))
+	// fmt.Printf("left == right (with 37-input vk_x): %v\n", left.Equal(&right_full))
 
 	// Try alternative formulation: e(A,B) · e(vk_x, -γ) · e(C, -δ) = e(α, β)
-	fmt.Println("\n=== Alternative: e(A,B) · e(vk_x, -γ) · e(C, -δ) = e(α, β) ===")
+	// fmt.Println("\n=== Alternative: e(A,B) · e(vk_x, -γ) · e(C, -δ) = e(α, β) ===")
 
 	var neg_gamma, neg_delta bls12381.G2Affine
 	neg_gamma.Neg(&gamma)
@@ -204,10 +204,10 @@ func debugVerify() {
 	left_alt.Mul(&left_alt, &p2_neg)
 	left_alt.Mul(&left_alt, &p3_neg)
 
-	fmt.Printf("left_alt == p1 (with 36-input vk_x, negated γ,δ): %v\n", left_alt.Equal(&p1))
+	// fmt.Printf("left_alt == p1 (with 36-input vk_x, negated γ,δ): %v\n", left_alt.Equal(&p1))
 
 	// Try with negated A: e(-A, B) · e(α, β) · e(vk_x, γ) · e(C, δ) = 1
-	fmt.Println("\n=== Alternative: e(-A, B) · e(α, β) · e(vk_x, γ) · e(C, δ) = 1 ===")
+	// fmt.Println("\n=== Alternative: e(-A, B) · e(α, β) · e(vk_x, γ) · e(C, δ) = 1 ===")
 
 	var neg_A bls12381.G1Affine
 	neg_A.Neg(&A)
@@ -222,5 +222,5 @@ func debugVerify() {
 	var one bls12381.GT
 	one.SetOne()
 
-	fmt.Printf("product == 1 (with 36-input vk_x, -A): %v\n", product.Equal(&one))
+	// fmt.Printf("product == 1 (with 36-input vk_x, -A): %v\n", product.Equal(&one))
 }

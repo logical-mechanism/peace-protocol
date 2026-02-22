@@ -302,12 +302,14 @@ pub async fn iagon_upload(
 #[tauri::command]
 pub async fn iagon_download(api_key: String, file_id: String) -> Result<Vec<u8>, String> {
     let client = build_client()?;
-    let form = reqwest::multipart::Form::new().text("id", file_id);
+
+    // Iagon download expects application/x-www-form-urlencoded, NOT multipart/form-data
+    let params = [("id", file_id.as_str())];
 
     let res = client
-        .post(format!("{IAGON_BASE}/storage/download"))
+        .post(format!("{IAGON_BASE}/storage/download/"))
         .header("x-api-key", &api_key)
-        .multipart(form)
+        .form(&params)
         .send()
         .await
         .map_err(map_reqwest_error)?;

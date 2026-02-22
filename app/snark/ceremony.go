@@ -228,8 +228,8 @@ func CeremonyInit(dir string, force bool) error {
 		return err
 	}
 
-	fmt.Printf("  constraints: %d\n", ccs.GetNbConstraints())
-	fmt.Printf("  domain size: %d\n", N)
+	// fmt.Printf("  constraints: %d\n", ccs.GetNbConstraints())
+	// fmt.Printf("  domain size: %d\n", N)
 	return nil
 }
 
