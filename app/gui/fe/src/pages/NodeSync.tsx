@@ -153,6 +153,7 @@ export default function NodeSync() {
     tipSlot,
     tipHeight,
     network,
+    processes,
     mithrilProgress,
     needsBootstrap,
     error,
@@ -252,10 +253,18 @@ export default function NodeSync() {
         statusMessage = 'Preparing to download blockchain snapshot...'
       }
       break
-    case 'starting':
-      progressPercent = 10
-      statusMessage = 'Starting node infrastructure...'
+    case 'starting': {
+      progressPercent = Math.min(syncProgress, kupoSyncProgress) || 5
+      const nodeProc = processes.find(p => p.name === 'cardano-node')
+      const ogmiosProc = processes.find(p => p.name === 'ogmios')
+      if (!nodeProc || nodeProc.status.type === 'Starting')
+        statusMessage = 'Starting Cardano node...'
+      else if (!ogmiosProc || ogmiosProc.status.type !== 'Running')
+        statusMessage = 'Waiting for chain bridge...'
+      else
+        statusMessage = 'Connecting to network...'
       break
+    }
     case 'syncing':
       progressPercent = Math.min(syncProgress, kupoSyncProgress)
       if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
@@ -314,16 +323,17 @@ export default function NodeSync() {
           </div>
 
           {/* Progress Bars (when active) */}
-          {stage === 'syncing' && (
+          {(stage === 'syncing' || stage === 'starting') && (
             <div className="mb-4">
               <ServiceProgress
                 label="Cardano Node"
                 percent={syncProgress}
-                detail={tipSlot ? `Slot ${tipSlot.toLocaleString()}` : undefined}
+                detail={tipSlot ? `Slot ${tipSlot.toLocaleString()}` : syncProgress === 0 ? 'Starting...' : undefined}
               />
               <ServiceProgress
                 label="Kupo Indexer"
                 percent={kupoSyncProgress}
+                detail={kupoSyncProgress === 0 ? 'Waiting...' : undefined}
               />
               <div className="mt-2 text-sm text-[var(--text-muted)]">
                 {statusMessage}

@@ -85,7 +85,11 @@ pub async fn get_node_status(
         });
     }
 
-    // Check if node is running
+    // Check if node process is active (starting or running)
+    let node_starting = node_status
+        .as_ref()
+        .map(|s| matches!(s.status, ProcessStatus::Starting))
+        .unwrap_or(false);
     let node_running = node_status
         .as_ref()
         .map(|s| {
@@ -96,7 +100,7 @@ pub async fn get_node_status(
         })
         .unwrap_or(false);
 
-    if !node_running {
+    if !node_starting && !node_running {
         return Ok(NodeStatus {
             overall: OverallNodeState::Stopped,
             sync_progress: 0.0,
@@ -109,13 +113,34 @@ pub async fn get_node_status(
         });
     }
 
-    // If Ogmios is running, try to get sync progress from it
-    let ogmios_running = ogmios_status
+    // Node process is spawning but not Running yet
+    if node_starting && !node_running {
+        return Ok(NodeStatus {
+            overall: OverallNodeState::Starting,
+            sync_progress: 0.0,
+            kupo_sync_progress: 0.0,
+            tip_slot: None,
+            tip_height: None,
+            network: config.network.to_string(),
+            processes,
+            needs_bootstrap: needs_bootstrap_check,
+        });
+    }
+
+    // Try to get sync progress from Ogmios if it's in any active state.
+    // Query even during Starting — the HTTP request will simply fail if
+    // Ogmios isn't ready yet, which is handled gracefully below.
+    let ogmios_active = ogmios_status
         .as_ref()
-        .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
+        .map(|s| {
+            matches!(
+                s.status,
+                ProcessStatus::Starting | ProcessStatus::Running | ProcessStatus::Ready
+            )
+        })
         .unwrap_or(false);
 
-    if ogmios_running {
+    if ogmios_active {
         if let Ok(sync) = ogmios::get_sync_progress(config.ogmios_port).await {
             let (tip_slot, tip_height) = ogmios::get_tip_info(config.ogmios_port)
                 .await
@@ -160,9 +185,10 @@ pub async fn get_node_status(
         }
     }
 
-    // Node running but Ogmios not ready yet
+    // Node running but Ogmios not ready yet — report as Syncing so the
+    // frontend shows service progress bars immediately (at 0%).
     Ok(NodeStatus {
-        overall: OverallNodeState::Starting,
+        overall: OverallNodeState::Syncing,
         sync_progress: 0.0,
         kupo_sync_progress: 0.0,
         tip_slot: None,

@@ -384,7 +384,7 @@ export default function Settings() {
                 )}
               </div>
 
-              {stage === 'syncing' && (
+              {(stage === 'syncing' || stage === 'starting') && (
                 <div className="mt-4 space-y-3">
                   <div>
                     <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">

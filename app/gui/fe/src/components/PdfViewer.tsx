@@ -24,10 +24,19 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Memoize the file prop to avoid unnecessary reloads.
-  // Copy into a fresh Uint8Array so it's a true structured-cloneable object
-  // (Tauri IPC returns a proxy that WebKitGTK can't clone for the pdf.js worker).
-  const file = useMemo(() => ({ data: new Uint8Array(data) }), [data]);
+  // Create a Blob URL from the raw bytes. pdf.js will fetch() from this URL
+  // inside its Web Worker, bypassing structured clone of the Uint8Array entirely.
+  // This avoids a WebKitGTK bug where large typed arrays get corrupted during
+  // structured clone to Web Workers via postMessage.
+  const blobUrl = useMemo(() => {
+    const blob = new Blob([new Uint8Array(data)], { type: 'application/pdf' });
+    return URL.createObjectURL(blob);
+  }, [data]);
+
+  // Revoke the Blob URL when data changes or component unmounts to free memory.
+  useEffect(() => {
+    return () => URL.revokeObjectURL(blobUrl);
+  }, [blobUrl]);
 
   const onDocumentLoadSuccess = useCallback(({ numPages: total }: { numPages: number }) => {
     setNumPages(total);
@@ -154,7 +163,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
 
   const pdfContent = (
     <Document
-      file={file}
+      file={blobUrl}
       onLoadSuccess={onDocumentLoadSuccess}
       onLoadError={onDocumentLoadError}
       loading={
