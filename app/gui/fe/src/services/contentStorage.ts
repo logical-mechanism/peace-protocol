@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
-/** Map category to default file extension. */
+/** Map category to default file extension (fallback when no explicit extension is known). */
 function getExtension(category: string): string {
   switch (category) {
     case 'text':
@@ -29,6 +29,7 @@ export interface ContentMetadata {
   storageLayer?: string;
   imageLink?: string;
   category: string;
+  fileExtension?: string; // Original file extension from payload field 3 (e.g. ".pdf", ".docx")
   seller?: string;
   createdAt?: string;
   decryptedAt: string; // ISO timestamp of when content was decrypted
@@ -39,17 +40,19 @@ export interface ContentMetadata {
  *
  * Files are stored at: media/content/{category}/{tokenName}/{tokenName}.{ext}
  *
- * @param tokenName - Encryption token name (used as both directory and file name)
- * @param category  - File category from CIP-20 metadata
- * @param data      - Raw decrypted bytes
+ * @param tokenName     - Encryption token name (used as both directory and file name)
+ * @param category      - File category from CIP-20 metadata
+ * @param data          - Raw decrypted bytes
+ * @param fileExtension - Original file extension from payload field 3 (e.g. ".pdf", ".docx")
  * @returns Absolute path of the saved file
  */
 export async function saveDecryptedContent(
   tokenName: string,
   category: string,
-  data: Uint8Array
+  data: Uint8Array,
+  fileExtension?: string,
 ): Promise<string> {
-  const fileName = tokenName + getExtension(category);
+  const fileName = tokenName + (fileExtension || getExtension(category));
   return invoke<string>('save_content', {
     tokenName,
     category,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { LibraryItem } from '../services/libraryService';
-import { readLibraryContent, deleteLibraryItem } from '../services/libraryService';
+import { readLibraryContent, deleteLibraryItem, exportLibraryContent } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import ConfirmModal from './ConfirmModal';
 import LoadingSpinner from './LoadingSpinner';
@@ -45,6 +45,43 @@ const truncateSeller = (seller: string) => {
   return `${seller.slice(0, 10)}...${seller.slice(-6)}`;
 };
 
+/** Map file extensions to human-readable labels. */
+const FILE_TYPE_LABELS: Record<string, string> = {
+  '.pdf': 'PDF Document',
+  '.doc': 'Word Document',
+  '.docx': 'Word Document',
+  '.xls': 'Excel Spreadsheet',
+  '.xlsx': 'Excel Spreadsheet',
+  '.csv': 'CSV File',
+  '.txt': 'Text File',
+  '.rtf': 'Rich Text Document',
+};
+
+/** Determine view mode based on category and file extension. */
+function getViewMode(category: string, fileExtension?: string) {
+  const ext = fileExtension?.toLowerCase();
+
+  // Text category always renders as text
+  if (category === 'text' || !category) {
+    return 'text' as const;
+  }
+
+  // Other category is always download-only
+  if (category === 'other') {
+    return 'download' as const;
+  }
+
+  // Document category: branch on file extension
+  if (category === 'document') {
+    if (ext === '.csv' || ext === '.txt') return 'text' as const;
+    if (ext === '.pdf' || !ext) return 'pdf' as const;
+    return 'download' as const;
+  }
+
+  // Non-document/non-text categories (audio, image, video) — download for now
+  return 'download' as const;
+}
+
 export default function LibraryContentModal({
   isOpen,
   onClose,
@@ -58,12 +95,13 @@ export default function LibraryContentModal({
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportedPath, setExportedPath] = useState<string | null>(null);
 
   // Effect 1: Reset state and load content when modal opens
   useEffect(() => {
     if (!isOpen || !item) return;
 
-    /* eslint-disable react-hooks/set-state-in-effect */
     setState('loading');
     setTextContent(null);
     setRawContent(null);
@@ -71,7 +109,8 @@ export default function LibraryContentModal({
     setCopied(false);
     setConfirmingDelete(false);
     setDeleting(false);
-    /* eslint-enable react-hooks/set-state-in-effect */
+    setExporting(false);
+    setExportedPath(null);
 
     if (item.contentMissing) {
       setState('error');
@@ -86,10 +125,13 @@ export default function LibraryContentModal({
         const data = await readLibraryContent(item.tokenName, item.category);
         if (cancelled) return;
 
-        if (item.category === 'text' || !item.category) {
+        const viewMode = getViewMode(item.category, item.fileExtension);
+
+        if (viewMode === 'text') {
           const text = new TextDecoder().decode(data);
           setTextContent(text);
-        } else if (item.category === 'document') {
+        }
+        if (viewMode === 'pdf' || viewMode === 'download') {
           setRawContent(data);
         }
         setState('loaded');
@@ -144,10 +186,34 @@ export default function LibraryContentModal({
     }
   }, [item, onDelete, onClose]);
 
+  const handleExport = useCallback(async () => {
+    if (!item) return;
+    setExporting(true);
+    setExportedPath(null);
+    try {
+      const ext = item.fileExtension || (item.category === 'document' ? '.pdf' : '.bin');
+      const suggestedFilename = item.tokenName + ext;
+      const path = await exportLibraryContent(item.tokenName, item.category, suggestedFilename);
+      if (path) {
+        setExportedPath(path);
+        setTimeout(() => setExportedPath(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to export library item:', err);
+    } finally {
+      setExporting(false);
+    }
+  }, [item]);
+
   if (!isOpen || !item) return null;
 
-  const isText = item.category === 'text' || !item.category;
-  const isDocument = item.category === 'document';
+  const viewMode = getViewMode(item.category, item.fileExtension);
+  const isWideModal = viewMode === 'pdf';
+  const fileTypeLabel = item.fileExtension
+    ? (FILE_TYPE_LABELS[item.fileExtension.toLowerCase()] || `${item.fileExtension.toUpperCase().slice(1)} File`)
+    : getCategoryLabel(item.category) + ' file';
+  // Show Save As for all non-text categories (documents, other, audio, image, video)
+  const showSaveAs = item.category !== 'text' && !!item.category;
 
   return (
     <>
@@ -159,7 +225,7 @@ export default function LibraryContentModal({
         />
 
         {/* Modal */}
-        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isDocument ? 'max-w-4xl' : 'max-w-2xl'}`}>
+        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'}`}>
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
             <div>
@@ -186,6 +252,9 @@ export default function LibraryContentModal({
             <div className="mb-6 p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="accent">{getCategoryLabel(item.category)}</Badge>
+                {item.fileExtension && (
+                  <Badge variant="default">{item.fileExtension.toUpperCase().slice(1)}</Badge>
+                )}
                 {item.contentMissing && <Badge variant="warning">Content Missing</Badge>}
               </div>
 
@@ -247,8 +316,8 @@ export default function LibraryContentModal({
               </div>
             )}
 
-            {/* Loaded state — text content */}
-            {state === 'loaded' && isText && textContent !== null && (
+            {/* Loaded state — text content (text category, CSV, TXT documents) */}
+            {state === 'loaded' && viewMode === 'text' && textContent !== null && (
               <div className="relative">
                 <div className="absolute top-3 right-3">
                   <button
@@ -279,7 +348,7 @@ export default function LibraryContentModal({
             )}
 
             {/* Loaded state — PDF document viewer */}
-            {state === 'loaded' && isDocument && rawContent && (
+            {state === 'loaded' && viewMode === 'pdf' && rawContent && (
               <Suspense fallback={
                 <div className="py-12 text-center">
                   <LoadingSpinner size="lg" className="mx-auto mb-4" />
@@ -290,8 +359,8 @@ export default function LibraryContentModal({
               </Suspense>
             )}
 
-            {/* Loaded state — non-text/non-document placeholder */}
-            {state === 'loaded' && !isText && !isDocument && (
+            {/* Loaded state — download-only (non-renderable documents, other category, etc.) */}
+            {state === 'loaded' && viewMode === 'download' && (
               <div className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-center space-y-3">
                 <div className="w-14 h-14 mx-auto rounded-full bg-[var(--accent-muted)] flex items-center justify-center">
                   <svg className="w-7 h-7 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,11 +368,23 @@ export default function LibraryContentModal({
                   </svg>
                 </div>
                 <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {getCategoryLabel(item.category)} file
+                  {fileTypeLabel}
                 </p>
                 <p className="text-xs text-[var(--text-muted)]">
-                  Content viewing for {item.category} files is not yet available.
+                  This file type cannot be previewed. Use Save As to open it with an external application.
                 </p>
+              </div>
+            )}
+
+            {/* Export success indicator */}
+            {exportedPath && (
+              <div className="mt-4 flex items-center gap-2 p-3 bg-[var(--success-muted)] rounded-[var(--radius-md)]">
+                <svg className="w-4 h-4 text-[var(--success)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-[var(--success)] truncate">
+                  Saved to {exportedPath}
+                </span>
               </div>
             )}
           </div>
@@ -317,9 +398,33 @@ export default function LibraryContentModal({
               >
                 Delete from Library
               </button>
+              {showSaveAs && (
+                <button
+                  onClick={handleExport}
+                  disabled={exporting || state !== 'loaded'}
+                  className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    viewMode === 'download'
+                      ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
+                      : 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {exporting ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  )}
+                  Save As
+                </button>
+              )}
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer"
+                className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                  viewMode === 'download' && showSaveAs
+                    ? 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
+                    : 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
+                }`}
               >
                 Close
               </button>

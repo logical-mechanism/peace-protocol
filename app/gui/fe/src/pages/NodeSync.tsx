@@ -7,8 +7,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useNode, type NodeStage } from '../contexts/NodeContext'
+import { useNode, type NodeStage, type ProcessInfo } from '../contexts/NodeContext'
 import { useWalletContext } from '../contexts/WalletContext'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
@@ -30,42 +31,6 @@ function ProgressBar({ percent }: { percent: number }) {
         className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
         style={{ width: `${Math.min(percent, 100)}%` }}
       />
-    </div>
-  )
-}
-
-function ServiceProgress({ label, percent, detail }: {
-  label: string
-  percent: number
-  detail?: string
-}) {
-  return (
-    <div className="mb-3 last:mb-0">
-      <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">
-        <span className="flex items-center gap-2">
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{
-              backgroundColor: percent >= 99.9
-                ? 'var(--success)'
-                : percent > 0
-                ? 'var(--warning)'
-                : 'var(--text-muted)'
-            }}
-          />
-          {label}
-        </span>
-        <span>{percent >= 99.9 ? 'Synced' : `${percent.toFixed(1)}%`}</span>
-      </div>
-      <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
-          style={{ width: `${Math.min(percent, 100)}%` }}
-        />
-      </div>
-      {detail && (
-        <div className="text-xs text-[var(--text-muted)] mt-0.5">{detail}</div>
-      )}
     </div>
   )
 }
@@ -136,6 +101,81 @@ function ConsoleLog({ logs }: { logs: string[] }) {
   )
 }
 
+const SERVICE_ITEMS = [
+  { name: 'cardano-node', label: 'Cardano Node', startingText: 'Replaying ledger...' },
+  { name: 'ogmios', label: 'Ogmios Bridge', startingText: 'Connecting...' },
+  { name: 'kupo', label: 'Kupo Indexer', startingText: 'Starting...' },
+]
+
+function getServiceState(name: string, processes: ProcessInfo[]): {
+  indicator: 'waiting' | 'active' | 'ready' | 'error'
+  text: string
+} {
+  const proc = processes.find(p => p.name === name)
+  if (!proc) return { indicator: 'waiting', text: 'Waiting...' }
+  const item = SERVICE_ITEMS.find(s => s.name === name)
+  switch (proc.status.type) {
+    case 'Starting':
+    case 'Syncing':
+      return { indicator: 'active', text: item?.startingText ?? 'Starting...' }
+    case 'Running':
+    case 'Ready':
+      return { indicator: 'ready', text: 'Ready' }
+    case 'Error':
+      return { indicator: 'error', text: proc.last_error ?? 'Error' }
+    default:
+      return { indicator: 'waiting', text: 'Waiting...' }
+  }
+}
+
+function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
+  return (
+    <div className="mb-4 space-y-3">
+      {SERVICE_ITEMS.map(({ name, label }) => {
+        const state = getServiceState(name, processes)
+        return (
+          <div key={name} className="flex items-center gap-3">
+            {state.indicator === 'waiting' && (
+              <span className="w-4 h-4 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-[var(--text-muted)]" />
+              </span>
+            )}
+            {state.indicator === 'active' && (
+              <LoadingSpinner size="sm" label={label} />
+            )}
+            {state.indicator === 'ready' && (
+              <span className="w-4 h-4 flex items-center justify-center text-[var(--success)] text-sm">
+                ✓
+              </span>
+            )}
+            {state.indicator === 'error' && (
+              <span className="w-4 h-4 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-[var(--error)]" />
+              </span>
+            )}
+            <span className={`text-sm ${
+              state.indicator === 'ready'
+                ? 'text-[var(--success)]'
+                : state.indicator === 'error'
+                ? 'text-[var(--error)]'
+                : 'text-[var(--text-secondary)]'
+            }`}>
+              {label}
+            </span>
+            <span className={`text-xs ml-auto ${
+              state.indicator === 'error'
+                ? 'text-[var(--error)]'
+                : 'text-[var(--text-muted)]'
+            }`}>
+              {state.text}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const STAGES = [
   { key: 'bootstrapping', label: 'Bootstrap' },
   { key: 'starting', label: 'Starting' },
@@ -150,7 +190,6 @@ export default function NodeSync() {
     stage,
     syncProgress,
     kupoSyncProgress,
-    tipSlot,
     tipHeight,
     network,
     processes,
@@ -177,6 +216,10 @@ export default function NodeSync() {
     }
     if (stage !== 'stopped') {
       setIsStarting(false)
+    }
+    // Auto-expand console during starting phase so users see real activity
+    if (stage === 'starting') {
+      setShowConsole(true)
     }
     setPrevStage(stage)
   }
@@ -322,36 +365,51 @@ export default function NodeSync() {
             <StageIndicator stages={STAGES} currentStage={stage} />
           </div>
 
-          {/* Progress Bars (when active) */}
+          {/* Sync status checklist (when syncing) */}
           {stage === 'syncing' && (
             <div className="mb-4">
-              <ServiceProgress
-                label="Cardano Node"
-                percent={syncProgress}
-                detail={tipSlot ? `Slot ${tipSlot.toLocaleString()}` : syncProgress === 0 ? 'Starting...' : undefined}
-              />
-              <ServiceProgress
-                label="Kupo Indexer"
-                percent={kupoSyncProgress}
-                detail={kupoSyncProgress === 0 ? 'Waiting...' : undefined}
-              />
-              <div className="mt-2 text-sm text-[var(--text-muted)]">
+              <div className="space-y-3 mb-3">
+                {[
+                  { label: 'Cardano Node', synced: syncProgress >= 99.9, activeText: 'Syncing...' },
+                  { label: 'Kupo Indexer', synced: kupoSyncProgress >= 99.9, activeText: 'Indexing...' },
+                ].map(({ label, synced, activeText }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    {synced ? (
+                      <span className="w-4 h-4 flex items-center justify-center text-[var(--success)] text-sm">✓</span>
+                    ) : (
+                      <LoadingSpinner size="sm" label={label} />
+                    )}
+                    <span className={`text-sm ${synced ? 'text-[var(--success)]' : 'text-[var(--text-secondary)]'}`}>
+                      {label}
+                    </span>
+                    <span className={`text-xs ml-auto ${synced ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`}>
+                      {synced ? 'Synced' : activeText}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-sm text-[var(--text-muted)]">
                 {statusMessage}
               </div>
             </div>
           )}
           {stage === 'starting' && (
-            <div className="mb-4 text-sm text-[var(--text-muted)]">
-              {statusMessage}
-            </div>
+            <ServiceChecklist processes={processes} />
           )}
-          {stage !== 'stopped' && stage !== 'error' && stage !== 'syncing' && stage !== 'starting' && (
+          {/* Mithril bootstrap progress bar */}
+          {stage === 'bootstrapping' && (
             <div className="mb-4">
               <ProgressBar percent={progressPercent} />
               <div className="flex justify-between mt-2 text-sm text-[var(--text-muted)]">
                 <span>{statusMessage}</span>
                 <span>{Math.round(progressPercent)}%</span>
               </div>
+            </div>
+          )}
+          {/* Synced status message */}
+          {stage === 'synced' && (
+            <div className="mb-4 text-sm text-center text-[var(--text-muted)]">
+              {statusMessage}
             </div>
           )}
 

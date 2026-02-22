@@ -330,6 +330,7 @@ struct ContentMetadataJson {
     storage_layer: Option<String>,
     image_link: Option<String>,
     category: String,
+    file_extension: Option<String>,
     seller: Option<String>,
     created_at: Option<String>,
     decrypted_at: String,
@@ -345,6 +346,7 @@ pub struct LibraryItem {
     pub suggested_price: Option<f64>,
     pub storage_layer: Option<String>,
     pub image_link: Option<String>,
+    pub file_extension: Option<String>,
     pub seller: Option<String>,
     pub created_at: Option<String>,
     pub decrypted_at: String,
@@ -407,6 +409,7 @@ pub fn list_library_items(state: tauri::State<'_, ContentDir>) -> Result<Vec<Lib
                 suggested_price: meta.suggested_price,
                 storage_layer: meta.storage_layer,
                 image_link: meta.image_link,
+                file_extension: meta.file_extension,
                 seller: meta.seller,
                 created_at: meta.created_at,
                 decrypted_at: meta.decrypted_at,
@@ -459,6 +462,48 @@ pub fn delete_library_item(
     }
 
     Ok(())
+}
+
+/// Export a library item to a user-chosen location via native save dialog.
+#[tauri::command]
+pub async fn export_library_content(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+    suggested_filename: String,
+) -> Result<Option<String>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    // Find the content file
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    // Open native save dialog
+    use tauri_plugin_dialog::DialogExt;
+    let dest = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested_filename)
+        .blocking_save_file();
+
+    match dest {
+        Some(path) => {
+            let dest_path = path
+                .as_path()
+                .ok_or_else(|| "Invalid save path".to_string())?;
+            std::fs::copy(&content_path, dest_path)
+                .map_err(|e| format!("Failed to save file: {e}"))?;
+            Ok(Some(dest_path.to_string_lossy().to_string()))
+        }
+        None => Ok(None), // User cancelled
+    }
 }
 
 /// Check if a content (non-metadata) file exists in the token directory.

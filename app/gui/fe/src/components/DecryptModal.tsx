@@ -74,7 +74,7 @@ export default function DecryptModal({
         const category = encryption?.category || 'text';
         const contentBytes = result.rawContent ?? new TextEncoder().encode(result.message);
         try {
-          const path = await saveDecryptedContent(encryption!.tokenName, category, contentBytes);
+          const path = await saveDecryptedContent(encryption!.tokenName, category, contentBytes, result.fileExtension);
           setSavedPath(path);
           // Save metadata alongside content for library display
           await saveContentMetadata({
@@ -84,6 +84,7 @@ export default function DecryptModal({
             storageLayer: encryption!.storageLayer,
             imageLink: encryption!.imageLink,
             category,
+            fileExtension: result.fileExtension,
             seller: encryption!.seller,
             createdAt: encryption!.createdAt,
             decryptedAt: new Date().toISOString(),

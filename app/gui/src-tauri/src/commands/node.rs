@@ -185,10 +185,10 @@ pub async fn get_node_status(
         }
     }
 
-    // Node running but Ogmios not ready yet — report as Syncing so the
-    // frontend shows service progress bars immediately (at 0%).
+    // Node running but Ogmios not ready yet — report as Starting so the
+    // frontend shows the service checklist instead of empty progress bars.
     Ok(NodeStatus {
-        overall: OverallNodeState::Syncing,
+        overall: OverallNodeState::Starting,
         sync_progress: 0.0,
         kupo_sync_progress: 0.0,
         tip_slot: None,

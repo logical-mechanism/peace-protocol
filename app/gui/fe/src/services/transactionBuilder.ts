@@ -242,7 +242,14 @@ async function buildPayloadForIagon(file: File, tokenName: string): Promise<Uint
   const locator = new TextEncoder().encode(fileInfo._id);
   const secret = encodeFileSecret(key, nonce);
 
-  return buildPayload({ locator, secret, digest });
+  // Store original file extension as field 3 (filetype) so decryptors know the format
+  let extra: Map<number, Uint8Array> | undefined;
+  if (ext) {
+    extra = new Map();
+    extra.set(3, new TextEncoder().encode(ext));
+  }
+
+  return buildPayload({ locator, secret, digest, extra });
 }
 
 /** Create a MeshTxBuilder wired to local Kupo + Ogmios. */

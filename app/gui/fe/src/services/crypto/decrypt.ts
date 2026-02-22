@@ -41,17 +41,20 @@ import { deriveSecretFromWallet } from './walletSecret';
  *
  * Extracts the Iagon file ID from field 0 (locator), the AES key+nonce
  * from field 1 (secret), downloads the encrypted file, decrypts it,
- * and optionally verifies integrity via field 2 (digest).
+ * optionally verifies integrity via field 2 (digest), and extracts the
+ * original file extension from field 3 (filetype).
  */
 async function resolveIagonPayload(
   payload: Map<number, Uint8Array>
-): Promise<{ rawContent: Uint8Array; message: string }> {
+): Promise<{ rawContent: Uint8Array; message: string; fileExtension?: string }> {
   const locator = payload.get(0)!;
   const secret = payload.get(1)!;
   const digest = payload.get(2);
+  const fileTypeRaw = payload.get(3);
 
   const fileId = new TextDecoder().decode(locator);
   const { key, nonce } = decodeFileSecret(secret);
+  const fileExtension = fileTypeRaw ? new TextDecoder().decode(fileTypeRaw) : undefined;
 
   // Get Iagon API key
   const apiKey = await getStoredApiKey();
@@ -73,6 +76,7 @@ async function resolveIagonPayload(
   return {
     rawContent,
     message: `File downloaded and decrypted (${rawContent.length} bytes)`,
+    fileExtension,
   };
 }
 
@@ -95,6 +99,7 @@ async function resolveDecryptedPayload(
   payload?: Map<number, Uint8Array>;
   rawContent: Uint8Array;
   message: string;
+  fileExtension?: string;
 }> {
   let payload: Map<number, Uint8Array>;
   try {
@@ -114,7 +119,7 @@ async function resolveDecryptedPayload(
     // Off-chain file: download from Iagon and decrypt with AES-GCM.
     // Errors here intentionally propagate — caller must handle as failure.
     const result = await resolveIagonPayload(payload);
-    return { payload, rawContent: result.rawContent, message: result.message };
+    return { payload, rawContent: result.rawContent, message: result.message, fileExtension: result.fileExtension };
   }
 
   // On-chain text content
@@ -184,6 +189,7 @@ export interface DecryptionResult {
   message?: string; // Field 0 (locator) decoded as UTF-8 for display
   payload?: Map<number, Uint8Array>; // Structured CBOR payload fields
   rawContent?: Uint8Array; // Raw bytes of field 0 for saving to disk
+  fileExtension?: string; // Field 3 (filetype) — original file extension (e.g. ".pdf", ".docx")
   error?: string; // Error message if failed
   isStub?: boolean; // True if using stub data
 }
@@ -471,6 +477,7 @@ async function decryptReal(
       message: resolved.message,
       payload: resolved.payload,
       rawContent: resolved.rawContent,
+      fileExtension: resolved.fileExtension,
       isStub: false,
     };
   } catch (err) {
@@ -659,6 +666,7 @@ export async function decryptEncryption(
       message: resolved.message,
       payload: resolved.payload,
       rawContent: resolved.rawContent,
+      fileExtension: resolved.fileExtension,
       isStub: false,
     };
   } catch (err) {
