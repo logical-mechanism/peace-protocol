@@ -323,7 +323,7 @@ export default function NodeSync() {
           </div>
 
           {/* Progress Bars (when active) */}
-          {(stage === 'syncing' || stage === 'starting') && (
+          {stage === 'syncing' && (
             <div className="mb-4">
               <ServiceProgress
                 label="Cardano Node"
@@ -340,7 +340,12 @@ export default function NodeSync() {
               </div>
             </div>
           )}
-          {stage !== 'stopped' && stage !== 'error' && stage !== 'syncing' && (
+          {stage === 'starting' && (
+            <div className="mb-4 text-sm text-[var(--text-muted)]">
+              {statusMessage}
+            </div>
+          )}
+          {stage !== 'stopped' && stage !== 'error' && stage !== 'syncing' && stage !== 'starting' && (
             <div className="mb-4">
               <ProgressBar percent={progressPercent} />
               <div className="flex justify-between mt-2 text-sm text-[var(--text-muted)]">
