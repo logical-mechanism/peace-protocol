@@ -13,6 +13,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@meshsdk/core": "^1.8.14",
     "@meshsdk/provider": "^1.8.14",
     "@meshsdk/react": "^1.8.14",

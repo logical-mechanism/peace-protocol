@@ -9,6 +9,7 @@ import Badge from './Badge';
 const PdfViewer = lazy(() => import('./PdfViewer'));
 const ImageViewer = lazy(() => import('./ImageViewer'));
 const AudioPlayer = lazy(() => import('./AudioPlayer'));
+const VideoPlayer = lazy(() => import('./VideoPlayer'));
 
 interface LibraryContentModalProps {
   isOpen: boolean;
@@ -64,6 +65,11 @@ const FILE_TYPE_LABELS: Record<string, string> = {
   '.webp': 'WebP Image',
   '.svg': 'SVG Image',
   '.bmp': 'BMP Image',
+  '.mp4': 'MP4 Video',
+  '.mkv': 'MKV Video',
+  '.avi': 'AVI Video',
+  '.mov': 'MOV Video',
+  '.webm': 'WebM Video',
 };
 
 /** Determine view mode based on category and file extension. */
@@ -97,7 +103,9 @@ function getViewMode(category: string, fileExtension?: string) {
   // Audio category gets its own player
   if (category === 'audio') return 'audio' as const;
 
-  // Remaining categories (video) — download for now
+  // Video category: always try the video player (ffmpeg.wasm remuxes unsupported formats)
+  if (category === 'video') return 'video' as const;
+
   return 'download' as const;
 }
 
@@ -113,6 +121,19 @@ function extensionToMimeType(ext?: string): string {
     '.bmp': 'image/bmp',
   };
   return map[ext?.toLowerCase() ?? ''] ?? 'image/png';
+}
+
+/** Map video file extension to MIME type for Blob creation. */
+function videoExtensionToMimeType(ext?: string): string {
+  const map: Record<string, string> = {
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mov': 'video/mp4',
+    '.ogg': 'video/ogg',
+    '.mkv': 'video/x-matroska',
+    '.avi': 'video/x-msvideo',
+  };
+  return map[ext?.toLowerCase() ?? ''] ?? 'video/mp4';
 }
 
 export default function LibraryContentModal({
@@ -164,7 +185,7 @@ export default function LibraryContentModal({
           const text = new TextDecoder().decode(data);
           setTextContent(text);
         }
-        if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'download') {
+        if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video' || viewMode === 'download') {
           setRawContent(data);
         }
         setState('loaded');
@@ -241,7 +262,7 @@ export default function LibraryContentModal({
   if (!isOpen || !item) return null;
 
   const viewMode = getViewMode(item.category, item.fileExtension);
-  const isWideModal = viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio';
+  const isWideModal = viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video';
   const fileTypeLabel = item.fileExtension
     ? (FILE_TYPE_LABELS[item.fileExtension.toLowerCase()] || `${item.fileExtension.toUpperCase().slice(1)} File`)
     : getCategoryLabel(item.category) + ' file';
@@ -413,6 +434,22 @@ export default function LibraryContentModal({
                 </div>
               }>
                 <AudioPlayer data={rawContent} fileExtension={item.fileExtension!} />
+              </Suspense>
+            )}
+
+            {/* Loaded state — Video player */}
+            {state === 'loaded' && viewMode === 'video' && rawContent && (
+              <Suspense fallback={
+                <div className="py-12 text-center">
+                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
+                  <p className="text-sm text-[var(--text-muted)]">Loading video player...</p>
+                </div>
+              }>
+                <VideoPlayer
+                  data={rawContent}
+                  mimeType={videoExtensionToMimeType(item.fileExtension)}
+                  fileExtension={item.fileExtension || '.mp4'}
+                />
               </Suspense>
             )}
 
