@@ -12,6 +12,11 @@
 const AES_KEY_BYTES = 32; // AES-256
 const NONCE_BYTES = 12; // GCM standard nonce
 
+/** Extract the underlying ArrayBuffer slice for Web Crypto API compatibility. */
+function toBuffer(data: Uint8Array): ArrayBuffer {
+  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+}
+
 /**
  * Result of encrypting a file for off-chain upload.
  */
@@ -45,7 +50,7 @@ export async function encryptFileForUpload(
   // Import key for AES-GCM
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    toBuffer(key),
     { name: 'AES-GCM' },
     false,
     ['encrypt']
@@ -53,13 +58,13 @@ export async function encryptFileForUpload(
 
   // Encrypt
   const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce },
+    { name: 'AES-GCM', iv: toBuffer(nonce) },
     cryptoKey,
-    fileBytes
+    toBuffer(fileBytes)
   );
 
   // SHA-256 digest of original plaintext
-  const digestBuf = await crypto.subtle.digest('SHA-256', fileBytes);
+  const digestBuf = await crypto.subtle.digest('SHA-256', toBuffer(fileBytes));
 
   return {
     encryptedBlob: new Uint8Array(encrypted),
@@ -84,16 +89,16 @@ export async function decryptDownloadedFile(
 ): Promise<Uint8Array> {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    toBuffer(key),
     { name: 'AES-GCM' },
     false,
     ['decrypt']
   );
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: nonce },
+    { name: 'AES-GCM', iv: toBuffer(nonce) },
     cryptoKey,
-    encryptedBlob
+    toBuffer(encryptedBlob)
   );
 
   return new Uint8Array(decrypted);
@@ -137,7 +142,7 @@ export async function verifyFileDigest(
   expectedDigest: Uint8Array
 ): Promise<void> {
   const actualDigest = new Uint8Array(
-    await crypto.subtle.digest('SHA-256', content)
+    await crypto.subtle.digest('SHA-256', toBuffer(content))
   );
   if (actualDigest.length !== expectedDigest.length) {
     throw new Error('File integrity check failed: digest length mismatch');

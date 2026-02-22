@@ -73,7 +73,7 @@ describe('estimateMinLovelace', () => {
   });
 
   it('large datum returns > 2_000_000', () => {
-    const datum = {
+    const datum: object = {
       constructor: 0,
       fields: [
         { bytes: 'ff'.repeat(200) },

@@ -25,7 +25,7 @@ import { getNonce, verifySignature, generateApiKey, verifyApiKey } from './iagon
  * The Iagon API expects the full address bytes in hex (e.g. 57 bytes for a base address).
  */
 export function addressToHex(bech32Address: string): string {
-  const decoded = bech32.decode(bech32Address, 120);
+  const decoded = bech32.decode(bech32Address as `${string}1${string}`, 120);
   const bytes = bech32.fromWords(decoded.words);
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, '0'))
