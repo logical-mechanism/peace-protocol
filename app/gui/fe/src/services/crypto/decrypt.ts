@@ -77,6 +77,59 @@ async function resolveIagonPayload(
 }
 
 /**
+ * Resolve ECIES-decrypted bytes into final content.
+ *
+ * Attempts to parse a CBOR peace-payload. If the bytes are not valid CBOR,
+ * falls back to treating them as raw UTF-8 text (backward compatibility
+ * with pre-CBOR encryptions).
+ *
+ * IMPORTANT: Only parsePayload errors trigger the fallback. Errors from
+ * resolveIagonPayload (network, AES-GCM auth, digest mismatch) propagate
+ * to the caller so they can be reported as failures — never silently saved
+ * as corrupt content.
+ */
+async function resolveDecryptedPayload(
+  rawBytes: Uint8Array,
+  encryption: EncryptionDisplay
+): Promise<{
+  payload?: Map<number, Uint8Array>;
+  rawContent: Uint8Array;
+  message: string;
+}> {
+  let payload: Map<number, Uint8Array>;
+  try {
+    payload = parsePayload(rawBytes);
+  } catch {
+    // Not valid CBOR — treat as raw UTF-8 text (backward compat)
+    return {
+      rawContent: rawBytes,
+      message: new TextDecoder().decode(rawBytes),
+    };
+  }
+
+  // CBOR parsed — resolve content based on storage layer
+  const rawContent = payload.get(0)!;
+
+  if (encryption.storageLayer === 'iagon' && payload.has(1)) {
+    // Off-chain file: download from Iagon and decrypt with AES-GCM.
+    // Errors here intentionally propagate — caller must handle as failure.
+    const result = await resolveIagonPayload(payload);
+    return { payload, rawContent: result.rawContent, message: result.message };
+  }
+
+  // On-chain text content
+  let message = new TextDecoder().decode(rawContent);
+  if (payload.size > 1) {
+    const parts = [`Locator: ${message}`];
+    if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
+    if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
+    message = parts.join('\n');
+  }
+
+  return { payload, rawContent, message };
+}
+
+/**
  * Check if native decrypt_to_hash is available via the snark CLI.
  * Always true in the desktop app (no WASM worker initialization needed).
  */
@@ -408,40 +461,16 @@ async function decryptReal(
       history.capsule.aad
     );
 
-    // Parse the CBOR peace-payload
-    let payload: Map<number, Uint8Array> | undefined;
-    let rawContent: Uint8Array;
-    let message: string;
-    try {
-      payload = parsePayload(rawBytes);
-      rawContent = payload.get(0)!;
-
-      if (encryption.storageLayer === 'iagon' && payload.has(1)) {
-        // Off-chain file: locator = Iagon file ID, secret = AES key+nonce
-        const result = await resolveIagonPayload(payload);
-        rawContent = result.rawContent;
-        message = result.message;
-      } else {
-        // On-chain text: locator = text content
-        message = new TextDecoder().decode(rawContent);
-        if (payload.size > 1) {
-          const parts = [`Locator: ${message}`];
-          if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
-          if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
-          message = parts.join('\n');
-        }
-      }
-    } catch {
-      // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
-      rawContent = rawBytes;
-      message = new TextDecoder().decode(rawBytes);
-    }
+    // Parse ECIES-decrypted bytes and resolve to final content.
+    // parsePayload errors fall back to raw text (backward compat).
+    // resolveIagonPayload errors propagate to the outer catch.
+    const resolved = await resolveDecryptedPayload(rawBytes, encryption);
 
     return {
       success: true,
-      message,
-      payload,
-      rawContent,
+      message: resolved.message,
+      payload: resolved.payload,
+      rawContent: resolved.rawContent,
       isStub: false,
     };
   } catch (err) {
@@ -620,40 +649,16 @@ export async function decryptEncryption(
       capsule.aad
     );
 
-    // Parse the CBOR peace-payload
-    let payload: Map<number, Uint8Array> | undefined;
-    let rawContent: Uint8Array;
-    let message: string;
-    try {
-      payload = parsePayload(rawBytes);
-      rawContent = payload.get(0)!;
-
-      if (encryption.storageLayer === 'iagon' && payload.has(1)) {
-        // Off-chain file: locator = Iagon file ID, secret = AES key+nonce
-        const result = await resolveIagonPayload(payload);
-        rawContent = result.rawContent;
-        message = result.message;
-      } else {
-        // On-chain text: locator = text content
-        message = new TextDecoder().decode(rawContent);
-        if (payload.size > 1) {
-          const parts = [`Locator: ${message}`];
-          if (payload.has(1)) parts.push(`Secret: ${bytesToHex(payload.get(1)!)}`);
-          if (payload.has(2)) parts.push(`Digest: ${bytesToHex(payload.get(2)!)}`);
-          message = parts.join('\n');
-        }
-      }
-    } catch {
-      // Fallback: treat raw bytes as UTF-8 text (backward compatibility)
-      rawContent = rawBytes;
-      message = new TextDecoder().decode(rawBytes);
-    }
+    // Parse ECIES-decrypted bytes and resolve to final content.
+    // parsePayload errors fall back to raw text (backward compat).
+    // resolveIagonPayload errors propagate to the outer catch.
+    const resolved = await resolveDecryptedPayload(rawBytes, encryption);
 
     return {
       success: true,
-      message,
-      payload,
-      rawContent,
+      message: resolved.message,
+      payload: resolved.payload,
+      rawContent: resolved.rawContent,
       isStub: false,
     };
   } catch (err) {
