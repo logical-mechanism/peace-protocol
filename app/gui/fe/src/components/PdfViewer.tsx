@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -24,19 +24,18 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Create a Blob URL from the raw bytes. pdf.js will fetch() from this URL
-  // inside its Web Worker, bypassing structured clone of the Uint8Array entirely.
-  // This avoids a WebKitGTK bug where large typed arrays get corrupted during
-  // structured clone to Web Workers via postMessage.
-  const blobUrl = useMemo(() => {
-    const blob = new Blob([new Uint8Array(data)], { type: 'application/pdf' });
-    return URL.createObjectURL(blob);
-  }, [data]);
+  // Create a Blob URL inside useEffect so each mount (including React
+  // StrictMode remounts) gets a fresh URL that won't be prematurely revoked.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
-  // Revoke the Blob URL when data changes or component unmounts to free memory.
   useEffect(() => {
-    return () => URL.revokeObjectURL(blobUrl);
-  }, [blobUrl]);
+    const blob = new Blob([new Uint8Array(data)], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setBlobUrl(url);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    return () => URL.revokeObjectURL(url);
+  }, [data]);
 
   const onDocumentLoadSuccess = useCallback(({ numPages: total }: { numPages: number }) => {
     setNumPages(total);
@@ -161,17 +160,19 @@ export default function PdfViewer({ data }: PdfViewerProps) {
     </div>
   );
 
-  const pdfContent = (
+  const pdfLoading = (
+    <div className="py-12 text-center">
+      <LoadingSpinner size="lg" className="mx-auto mb-4" />
+      <p className="text-sm text-[var(--text-muted)]">Loading PDF...</p>
+    </div>
+  );
+
+  const pdfContent = blobUrl ? (
     <Document
       file={blobUrl}
       onLoadSuccess={onDocumentLoadSuccess}
       onLoadError={onDocumentLoadError}
-      loading={
-        <div className="py-12 text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-sm text-[var(--text-muted)]">Loading PDF...</p>
-        </div>
-      }
+      loading={pdfLoading}
     >
       <Page
         pageNumber={currentPage}
@@ -185,7 +186,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
         renderAnnotationLayer={true}
       />
     </Document>
-  );
+  ) : pdfLoading;
 
   // Fullscreen overlay
   if (isFullscreen) {
