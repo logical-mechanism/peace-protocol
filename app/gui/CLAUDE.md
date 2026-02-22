@@ -46,7 +46,7 @@ app/gui/
 │   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
 │   │   │   ├── iagonApi.ts          # Iagon HTTP endpoints via Tauri invoke (CORS bypass)
 │   │   │   ├── iagonAuth.ts         # CIP-8 wallet auth + API key management for Iagon
-│   │   │   ├── contentStorage.ts    # Saves decrypted files + metadata to media/content/
+│   │   │   ├── contentStorage.ts    # Saves decrypted files + metadata to media/content/; uses fileExtension (payload field 3) for correct filename, falls back to category default
 │   │   │   ├── listingDraftStorage.ts # Persists multi-step listing creation state (Tauri-backed)
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation, file encryption
 │   │   │   ├── snark/               # Native SNARK prover interface
@@ -125,7 +125,7 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + descriptionUtils
 
 **Transaction building** (fe/src/services/transactionBuilder.ts ~2168 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
@@ -141,7 +141,7 @@ app/gui/
 - `ecies.ts` — ECIES encryption/decryption
 - `binding.ts` — Binding proofs for secrets
 - `register.ts` — BLS12-381 key registers
-- `payload.ts` — CBOR serialization via cborg
+- `payload.ts` — CBOR peace-payload encoding/decoding via cborg (fields: 0=locator, 1=secret, 2=digest, 3=filetype)
 - `createEncryption.ts` / `createBid.ts` — Full artifact creation
 - `zkKeyDerivation.ts` — Deterministic ZK secret from wallet key material
 - `constants.ts` — Domain tags, public G2 points
@@ -239,8 +239,8 @@ app/gui/
 **Upload flow** (for file-based listings):
 1. `encryptFileForUpload(fileBytes)` → AES-256-GCM encrypted blob + random key + nonce + SHA-256 digest
 2. `iagon_upload(apiKey, encryptedBlob, filename)` → `IagonFileInfo` with `_id` for download/delete
-3. Key + nonce (44 bytes) packed into peace-payload capsule secret field
-4. Buyer decrypts capsule → `decodeFileSecret()` → `iagon_download()` → `decryptDownloadedFile()` → `verifyFileDigest()`
+3. Key + nonce (44 bytes) packed into peace-payload capsule secret field; original file extension stored in field 3 (filetype)
+4. Buyer decrypts capsule → `decodeFileSecret()` + extracts fileExtension (field 3) → `iagon_download()` → `decryptDownloadedFile()` → `verifyFileDigest()` → file saved with original extension
 5. Files uploaded as `visibility: public` (content is already client-side encrypted)
 
 **Listing draft recovery** (fe/src/services/listingDraftStorage.ts):
@@ -388,8 +388,9 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change
 - **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
 - **Provider nesting order** — WalletProvider → NodeProvider → WasmProvider (in main.tsx); order matters for context dependencies
 - **File categories** — Defined in `fe/src/config/categories.ts`. All categories now enabled. `text` uses on-chain storage (capsule only); all other categories (document, audio, image, video, other) use Iagon off-chain storage (AES-256-GCM encrypted before upload). Category stored in CIP-20 metadata. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
-- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes, `delete_library_item` removes the token directory. Text content displayed inline with copy; PDFs rendered via PdfViewer component; other non-text categories show placeholder. LibraryCard supports grid/compact modes like SalesListingCard
+- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes, `delete_library_item` removes the token directory. LibraryContentModal uses fileExtension from payload field 3 to determine view mode: text (inline), PDF (PdfViewer), images (ImageViewer with fullscreen), audio (HTML5 player), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
 - **PdfViewer** — Uses `react-pdf` (pdfjs-dist worker). Renders decrypted PDFs from `Uint8Array` via Blob URL. Zoom 0.5x-3.0x, page navigation, fullscreen overlay at `z-[60]` (above modal `z-50`). Blob URL created in useEffect to handle React StrictMode double-mount
+- **ImageViewer** — Renders decrypted images from `Uint8Array` via Blob URL with MIME type derived from fileExtension. Zoom and fullscreen overlay at `z-[60]` (above modal `z-50`). Supports PNG, JPEG, GIF, WebP, SVG, BMP
 - **Iagon requires internet** — Iagon operations (upload, download, auth) require internet access. Unlike on-chain text listings, file-based listings fail if `gw.iagon.com` is unreachable. The `reqwest` client has a 60s timeout
 - **Listing drafts persist across WebView resets** — Stored as encrypted JSON in `secrets/listing-drafts/` (filesystem), not IndexedDB (which WebKitGTK can clear). This is why `listingDraftStorage` uses Tauri invoke instead of localStorage
-- **File encryption key in capsule** — The AES-256-GCM key + nonce (44 bytes) for off-chain file decryption is packed into the peace-payload capsule secret field. Losing the capsule means losing access to the file
+- **File encryption key in capsule** — The peace-payload capsule for file listings contains: field 0 (Iagon file ID), field 1 (AES key + nonce, 44 bytes), field 2 (SHA-256 digest), field 3 (original file extension). Losing the capsule means losing access to the file
