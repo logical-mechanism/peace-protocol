@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, type JSX } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
-import { FILE_CATEGORIES, isCategoryEnabled, type FileCategory } from '../config/categories';
+import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 
 export interface CreateListingFormData {
@@ -35,39 +35,6 @@ const INITIAL_FORM_DATA: CreateListingFormData = {
   description: '',
   suggestedPrice: '',
   imageLink: '',
-};
-
-const CATEGORY_ICONS: Record<FileCategory, JSX.Element> = {
-  text: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-    </svg>
-  ),
-  document: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  ),
-  audio: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
-    </svg>
-  ),
-  image: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  ),
-  video: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-    </svg>
-  ),
-  other: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-    </svg>
-  ),
 };
 
 export default function CreateListingModal({
@@ -110,13 +77,8 @@ export default function CreateListingModal({
     };
   }, [isOpen, isSubmitting, onClose]);
 
-  const selectedCategoryConfig = FILE_CATEGORIES.find((c) => c.id === formData.category);
-  const isSelectedCategoryEnabled = isCategoryEnabled(formData.category);
-  // Non-text categories require Iagon connection for file upload
-  const isCategoryUsable = formData.category === 'text'
-    ? isSelectedCategoryEnabled
-    : isSelectedCategoryEnabled && isIagonConnected;
-  const canSubmit = isCategoryUsable && !isSubmitting;
+  const isFileMode = formData.category !== 'text';
+  const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -130,8 +92,8 @@ export default function CreateListingModal({
       }
     }
 
-    // File validation (non-text enabled categories)
-    if (formData.category !== 'text' && isSelectedCategoryEnabled) {
+    // File validation (file mode)
+    if (isFileMode) {
       if (!formData.file) {
         newErrors.file = 'File is required';
       }
@@ -181,18 +143,16 @@ export default function CreateListingModal({
     setSubmitError(null);
   };
 
-  const handleCategoryChange = (category: FileCategory) => {
+  const handleModeToggle = (mode: 'text' | 'file') => {
     if (isSubmitting) return;
     setFormData((prev) => ({
       ...prev,
-      category,
-      // Clear content fields when switching categories
+      category: mode === 'text' ? 'text' : 'other',
       secretMessage: '',
       file: null,
     }));
     setErrors({});
     setSubmitError(null);
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -200,7 +160,8 @@ export default function CreateListingModal({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    setFormData((prev) => ({ ...prev, file }));
+    const category = file ? detectCategoryFromExtension(file.name) : 'other';
+    setFormData((prev) => ({ ...prev, file, category }));
     if (errors.file) {
       setErrors((prev) => ({ ...prev, file: undefined }));
     }
@@ -208,7 +169,7 @@ export default function CreateListingModal({
   };
 
   const handleRemoveFile = () => {
-    setFormData((prev) => ({ ...prev, file: null }));
+    setFormData((prev) => ({ ...prev, file: null, category: 'other' }));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -293,47 +254,55 @@ export default function CreateListingModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
-            {/* Category Selector */}
+            {/* Mode Toggle: Text vs File */}
             <div>
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                 Data Type <span className="text-[var(--error)]">*</span>
               </label>
-              <div className="grid grid-cols-6 gap-2">
-                {FILE_CATEGORIES.map((cat) => {
-                  const isSelected = formData.category === cat.id;
-                  const isUsable = cat.id === 'text' ? cat.enabled : cat.enabled && isIagonConnected;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => handleCategoryChange(cat.id)}
-                      disabled={isSubmitting}
-                      className={`relative flex flex-row items-center justify-center gap-1.5 px-2 py-2 rounded-[var(--radius-md)] border text-xs transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
-                        isSelected
-                          ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                          : isUsable
-                            ? 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)]'
-                      }`}
-                    >
-                      {!isUsable && (
-                        <div className="absolute top-0.5 right-0.5">
-                          <svg className="w-2.5 h-2.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                          </svg>
-                        </div>
-                      )}
-                      {CATEGORY_ICONS[cat.id]}
-                      <span className="font-medium">{cat.label}</span>
-                    </button>
-                  );
-                })}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleModeToggle('text')}
+                  disabled={isSubmitting}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-[var(--radius-md)] border text-sm transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
+                    !isFileMode
+                      ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                      : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  </svg>
+                  <span className="font-medium">Text</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeToggle('file')}
+                  disabled={isSubmitting}
+                  className={`relative flex items-center justify-center gap-2 px-3 py-2.5 rounded-[var(--radius-md)] border text-sm transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
+                    isFileMode
+                      ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                      : isIagonConnected
+                        ? 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-muted)]'
+                  }`}
+                >
+                  {!isIagonConnected && (
+                    <div className="absolute top-1 right-1">
+                      <svg className="w-2.5 h-2.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                    </div>
+                  )}
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span className="font-medium">File</span>
+                </button>
               </div>
-              {selectedCategoryConfig && (
-                <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-                  {selectedCategoryConfig.description}
-                </p>
-              )}
+              <p className="mt-1.5 text-xs text-[var(--text-muted)]">
+                {isFileMode ? 'Upload any file — type is auto-detected' : 'On-chain text message (no file upload)'}
+              </p>
             </div>
 
             {/* Content Area — Text category */}
@@ -366,19 +335,21 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* Content Area — Non-text category (enabled + Iagon connected) */}
-            {formData.category !== 'text' && isCategoryUsable && (
+            {/* Content Area — File mode (Iagon connected) */}
+            {isFileMode && isIagonConnected && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                   Upload File <span className="text-[var(--error)]">*</span>
                 </label>
                 {formData.file ? (
                   <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
-                    <div className="flex-shrink-0 text-[var(--accent)]">
-                      {CATEGORY_ICONS[formData.category]}
-                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[var(--text-primary)] truncate">{formData.file.name}</p>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-sm text-[var(--text-primary)] truncate">{formData.file.name}</p>
+                        <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
+                          {getCategoryConfig(formData.category)?.label || 'Other'}
+                        </span>
+                      </div>
                       <p className="text-xs text-[var(--text-muted)]">{formatFileSize(formData.file.size)}</p>
                     </div>
                     <button
@@ -403,18 +374,15 @@ export default function CreateListingModal({
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <span className="text-sm text-[var(--text-secondary)]">Click to select a file</span>
-                    {selectedCategoryConfig && selectedCategoryConfig.acceptedExtensions.length > 0 && (
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {selectedCategoryConfig.acceptedExtensions.join(', ')}
-                      </span>
-                    )}
+                    <span className="text-sm text-[var(--text-secondary)]">Click to select any file</span>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      Type will be detected automatically
+                    </span>
                     <input
                       ref={fileInputRef}
                       type="file"
                       onChange={handleFileChange}
                       disabled={isSubmitting}
-                      accept={selectedCategoryConfig?.acceptedExtensions.join(',') || undefined}
                       className="hidden"
                     />
                   </label>
@@ -425,8 +393,8 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* Content Area — Non-text category (Iagon not connected) */}
-            {formData.category !== 'text' && !isCategoryUsable && (
+            {/* Content Area — File mode (Iagon not connected) */}
+            {isFileMode && !isIagonConnected && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                   Upload File
@@ -437,11 +405,6 @@ export default function CreateListingModal({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     <span className="text-sm text-[var(--text-muted)]">Click to select a file</span>
-                    {selectedCategoryConfig && selectedCategoryConfig.acceptedExtensions.length > 0 && (
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {selectedCategoryConfig.acceptedExtensions.join(', ')}
-                      </span>
-                    )}
                   </div>
                   {/* Iagon not connected overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -577,9 +540,9 @@ export default function CreateListingModal({
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
                 <strong>Note:</strong> Creating a listing will encrypt your data as a standardized CBOR payload.
-                {formData.category === 'text'
-                  ? ' Text data is stored on-chain.'
-                  : ' Files are encrypted and uploaded to Iagon, with a reference stored on-chain.'}
+                {isFileMode
+                  ? ' Files are encrypted and uploaded to Iagon, with a reference stored on-chain.'
+                  : ' Text data is stored on-chain.'}
                 {' '}You'll need to sign a transaction with your wallet.
               </p>
             </div>

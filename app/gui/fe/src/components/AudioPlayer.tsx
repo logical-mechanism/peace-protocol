@@ -13,6 +13,7 @@ function getMimeType(ext: string): string {
     '.ogg': 'audio/ogg',
     '.aac': 'audio/aac',
     '.m4a': 'audio/mp4',
+    '.opus': 'audio/opus',
   };
   return map[ext.toLowerCase()] || 'audio/mpeg';
 }

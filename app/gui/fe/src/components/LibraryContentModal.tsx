@@ -70,41 +70,39 @@ const FILE_TYPE_LABELS: Record<string, string> = {
   '.avi': 'AVI Video',
   '.mov': 'MOV Video',
   '.webm': 'WebM Video',
+  '.mp3': 'MP3 Audio',
+  '.wav': 'WAV Audio',
+  '.flac': 'FLAC Audio',
+  '.ogg': 'OGG Audio',
+  '.aac': 'AAC Audio',
+  '.m4a': 'M4A Audio',
 };
 
-/** Determine view mode based on category and file extension. */
+/** Determine view mode based on file extension, falling back to category for old listings. */
 function getViewMode(category: string, fileExtension?: string) {
-  const ext = fileExtension?.toLowerCase();
-
-  // Text category always renders as text
+  // Text category (on-chain, no file) always renders as text
   if (category === 'text' || !category) {
     return 'text' as const;
   }
 
-  // Other category is always download-only
-  if (category === 'other') {
-    return 'download' as const;
-  }
+  const ext = fileExtension?.toLowerCase();
 
-  // Document category: branch on file extension
-  if (category === 'document') {
+  // Extension-first detection for known file types
+  if (ext) {
+    if (['.mp3', '.wav', '.flac', '.ogg', '.aac', '.m4a', '.opus'].includes(ext)) return 'audio' as const;
+    if (['.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v'].includes(ext)) return 'video' as const;
+    if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'].includes(ext)) return 'image' as const;
+    if (ext === '.pdf') return 'pdf' as const;
     if (ext === '.csv' || ext === '.txt') return 'text' as const;
-    if (ext === '.pdf' || !ext) return 'pdf' as const;
+    // Known extension but no viewer — download
     return 'download' as const;
   }
 
-  // Image category: browser-viewable extensions get the image viewer
-  if (category === 'image') {
-    const viewable = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
-    if (!ext || viewable.includes(ext)) return 'image' as const;
-    return 'download' as const;
-  }
-
-  // Audio category gets its own player
+  // No extension: fall back to category-based logic (backward compat for old listings)
   if (category === 'audio') return 'audio' as const;
-
-  // Video category: always try the video player (ffmpeg.wasm remuxes unsupported formats)
   if (category === 'video') return 'video' as const;
+  if (category === 'image') return 'image' as const;
+  if (category === 'document') return 'pdf' as const;
 
   return 'download' as const;
 }
