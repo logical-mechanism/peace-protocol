@@ -127,13 +127,13 @@ func wasmProve(aStr, rStr, vHex, w0Hex, w1Hex string) (*ProofResultWASM, error) 
 	if _, ok := a.SetString(aStr, 0); !ok || a.Sign() == 0 {
 		return nil, fmt.Errorf("could not parse a (must be non-zero integer)")
 	}
-	fmt.Printf("[WASM] wasmProve: parsed a = %s\n", a.String())
+	// fmt.Printf("[WASM] wasmProve: parsed a = %s\n", a.String())
 
 	r := new(big.Int)
 	if _, ok := r.SetString(rStr, 0); !ok {
 		return nil, fmt.Errorf("could not parse r")
 	}
-	fmt.Printf("[WASM] wasmProve: parsed r = %s\n", r.String())
+	// fmt.Printf("[WASM] wasmProve: parsed r = %s\n", r.String())
 
 	// Parse public G1 points
 	fmt.Println("[WASM] wasmProve: parsing G1 point v...")
@@ -162,7 +162,7 @@ func wasmProve(aStr, rStr, vHex, w0Hex, w1Hex string) (*ProofResultWASM, error) 
 	var aRed, rRed big.Int
 	aFr.BigInt(&aRed)
 	rFr.BigInt(&rRed)
-	fmt.Printf("[WASM] wasmProve: reduced a = %s, r = %s\n", aRed.String(), rRed.String())
+	// fmt.Printf("[WASM] wasmProve: reduced a = %s, r = %s\n", aRed.String(), rRed.String())
 
 	// Extract affine coords to big.Int
 	fmt.Println("[WASM] wasmProve: extracting affine coordinates...")
@@ -427,8 +427,8 @@ func gnarkProveJSInner(args []js.Value) (result interface{}) {
 
 	// Validate inputs before logging (avoid slice bounds errors)
 	fmt.Println("[WASM] Starting proof generation...")
-	fmt.Printf("[WASM]   secretA: %s\n", secretA)
-	fmt.Printf("[WASM]   secretR: %s\n", secretR)
+	// fmt.Printf("[WASM]   secretA: %s\n", secretA)
+	// fmt.Printf("[WASM]   secretR: %s\n", secretR)
 	fmt.Printf("[WASM]   publicV length: %d (expected 96)\n", len(publicV))
 	fmt.Printf("[WASM]   publicW0 length: %d (expected 96)\n", len(publicW0))
 	fmt.Printf("[WASM]   publicW1 length: %d (expected 96)\n", len(publicW1))
@@ -515,7 +515,7 @@ func gnarkGtToHashJS(this js.Value, args []js.Value) interface{} {
 	}
 
 	aStr := args[0].String()
-	fmt.Printf("[WASM] gnarkGtToHash: parsing a = %s\n", aStr)
+	// fmt.Printf("[WASM] gnarkGtToHash: parsing a = %s\n", aStr)
 
 	a := new(big.Int)
 	if _, ok := a.SetString(aStr, 0); !ok || a.Sign() == 0 {
