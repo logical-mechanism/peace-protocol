@@ -120,6 +120,7 @@ export default function Dashboard() {
   const [confirmAction, setConfirmAction] = useState<{
     title: string
     message: string
+    description?: string
     confirmLabel: string
     onConfirm: () => Promise<void>
   } | null>(null)
@@ -385,10 +386,11 @@ export default function Dashboard() {
       return
     }
 
-    const label = encryption.description || encryption.tokenName.slice(0, 16) + '...'
+    const label = encryption.tokenName.slice(0, 16) + '...'
     setConfirmAction({
       title: 'Remove Listing?',
       message: `This will permanently remove "${label}" from the marketplace and burn the encryption token. This action submits an on-chain transaction and cannot be undone.`,
+      description: encryption.description,
       confirmLabel: 'Remove Listing',
       onConfirm: async () => {
         try {
@@ -1216,6 +1218,7 @@ export default function Dashboard() {
         }}
         title={confirmAction?.title ?? ''}
         message={confirmAction?.message ?? ''}
+        description={confirmAction?.description}
         confirmLabel={confirmAction?.confirmLabel ?? 'Confirm'}
         confirmVariant="danger"
         loading={confirmLoading}

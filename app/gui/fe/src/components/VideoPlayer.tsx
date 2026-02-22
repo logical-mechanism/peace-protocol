@@ -86,7 +86,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension }: VideoPlay
         const inputName = `input${fileExtension}`;
         const mp4Bytes = await remuxToMp4(new Uint8Array(data), inputName);
         if (cancelled) return;
-        const mp4Blob = new Blob([mp4Bytes], { type: 'video/mp4' });
+        const mp4Blob = new Blob([mp4Bytes as BlobPart], { type: 'video/mp4' });
         const mp4Url = URL.createObjectURL(mp4Blob);
         currentUrl = mp4Url;
         setBlobUrl(mp4Url);

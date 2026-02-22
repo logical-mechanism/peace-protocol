@@ -307,7 +307,7 @@ export default function LibraryContentModal({
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="accent">{getCategoryLabel(item.category)}</Badge>
                 {item.fileExtension && (
-                  <Badge variant="default">{item.fileExtension.toUpperCase().slice(1)}</Badge>
+                  <Badge variant="neutral">{item.fileExtension.toUpperCase().slice(1)}</Badge>
                 )}
                 {item.contentMissing && <Badge variant="warning">Content Missing</Badge>}
               </div>
