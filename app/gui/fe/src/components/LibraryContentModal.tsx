@@ -7,6 +7,7 @@ import LoadingSpinner from './LoadingSpinner';
 import Badge from './Badge';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
+const ImageViewer = lazy(() => import('./ImageViewer'));
 
 interface LibraryContentModalProps {
   isOpen: boolean;
@@ -55,6 +56,13 @@ const FILE_TYPE_LABELS: Record<string, string> = {
   '.csv': 'CSV File',
   '.txt': 'Text File',
   '.rtf': 'Rich Text Document',
+  '.png': 'PNG Image',
+  '.jpg': 'JPEG Image',
+  '.jpeg': 'JPEG Image',
+  '.gif': 'GIF Image',
+  '.webp': 'WebP Image',
+  '.svg': 'SVG Image',
+  '.bmp': 'BMP Image',
 };
 
 /** Determine view mode based on category and file extension. */
@@ -78,8 +86,29 @@ function getViewMode(category: string, fileExtension?: string) {
     return 'download' as const;
   }
 
-  // Non-document/non-text categories (audio, image, video) — download for now
+  // Image category: browser-viewable extensions get the image viewer
+  if (category === 'image') {
+    const viewable = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
+    if (!ext || viewable.includes(ext)) return 'image' as const;
+    return 'download' as const;
+  }
+
+  // Remaining categories (audio, video) — download for now
   return 'download' as const;
+}
+
+/** Map image file extension to MIME type for Blob creation. */
+function extensionToMimeType(ext?: string): string {
+  const map: Record<string, string> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml',
+    '.bmp': 'image/bmp',
+  };
+  return map[ext?.toLowerCase() ?? ''] ?? 'image/png';
 }
 
 export default function LibraryContentModal({
@@ -131,7 +160,7 @@ export default function LibraryContentModal({
           const text = new TextDecoder().decode(data);
           setTextContent(text);
         }
-        if (viewMode === 'pdf' || viewMode === 'download') {
+        if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'download') {
           setRawContent(data);
         }
         setState('loaded');
@@ -208,7 +237,7 @@ export default function LibraryContentModal({
   if (!isOpen || !item) return null;
 
   const viewMode = getViewMode(item.category, item.fileExtension);
-  const isWideModal = viewMode === 'pdf';
+  const isWideModal = viewMode === 'pdf' || viewMode === 'image';
   const fileTypeLabel = item.fileExtension
     ? (FILE_TYPE_LABELS[item.fileExtension.toLowerCase()] || `${item.fileExtension.toUpperCase().slice(1)} File`)
     : getCategoryLabel(item.category) + ' file';
@@ -356,6 +385,18 @@ export default function LibraryContentModal({
                 </div>
               }>
                 <PdfViewer data={rawContent} />
+              </Suspense>
+            )}
+
+            {/* Loaded state — image viewer */}
+            {state === 'loaded' && viewMode === 'image' && rawContent && (
+              <Suspense fallback={
+                <div className="py-12 text-center">
+                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
+                  <p className="text-sm text-[var(--text-muted)]">Loading image viewer...</p>
+                </div>
+              }>
+                <ImageViewer data={rawContent} mimeType={extensionToMimeType(item.fileExtension)} />
               </Suspense>
             )}
 
