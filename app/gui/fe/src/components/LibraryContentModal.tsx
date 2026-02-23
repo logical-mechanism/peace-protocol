@@ -76,6 +76,10 @@ const FILE_TYPE_LABELS: Record<string, string> = {
   '.ogg': 'OGG Audio',
   '.aac': 'AAC Audio',
   '.m4a': 'M4A Audio',
+  '.opus': 'Opus Audio',
+  '.m4v': 'M4V Video',
+  '.pptx': 'PowerPoint Presentation',
+  '.odt': 'OpenDocument Text',
 };
 
 /** Determine view mode based on file extension, falling back to category for old listings. */
@@ -130,6 +134,7 @@ function videoExtensionToMimeType(ext?: string): string {
     '.ogg': 'video/ogg',
     '.mkv': 'video/x-matroska',
     '.avi': 'video/x-msvideo',
+    '.m4v': 'video/mp4',
   };
   return map[ext?.toLowerCase() ?? ''] ?? 'video/mp4';
 }
@@ -431,7 +436,7 @@ export default function LibraryContentModal({
                   <p className="text-sm text-[var(--text-muted)]">Loading audio player...</p>
                 </div>
               }>
-                <AudioPlayer data={rawContent} fileExtension={item.fileExtension!} />
+                <AudioPlayer data={rawContent} fileExtension={item.fileExtension || '.mp3'} />
               </Suspense>
             )}
 

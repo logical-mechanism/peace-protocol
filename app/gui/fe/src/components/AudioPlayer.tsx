@@ -39,17 +39,33 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number>(0);
   const seekBarRef = useRef<HTMLDivElement | null>(null);
+  // Accumulate old blob URLs — only revoke on unmount to avoid StrictMode race conditions.
+  // GStreamer (WebKitGTK) keeps loading from the URL asynchronously, so revoking early
+  // causes "Failed to load resource" errors.
+  const blobUrlsRef = useRef<string[]>([]);
+
+  // Revoke all blob URLs on unmount only
+  useEffect(() => {
+    return () => {
+      for (const url of blobUrlsRef.current) {
+        URL.revokeObjectURL(url);
+      }
+      blobUrlsRef.current = [];
+    };
+  }, []);
 
   // Create blob URL + Audio element
   useEffect(() => {
     const blob = new Blob([new Uint8Array(data)], { type: getMimeType(fileExtension) });
     const url = URL.createObjectURL(blob);
+    blobUrlsRef.current.push(url);
 
     const audio = new Audio();
     audio.src = url;
     audio.volume = volume;
-    audio.preload = 'metadata';
+    audio.preload = 'auto';
     audioRef.current = audio;
+    audio.load();
 
     const onLoadedMetadata = () => setDuration(audio.duration);
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
@@ -68,8 +84,6 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
-      audio.src = '';
-      URL.revokeObjectURL(url);
       audioContextRef.current?.close();
       audioContextRef.current = null;
       sourceRef.current = null;
@@ -134,10 +148,10 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
   }, []);
 
   // Lazy AudioContext initialization (on first play)
-  const ensureAudioContext = useCallback(() => {
+  const ensureAudioContext = useCallback(async () => {
     if (audioContextRef.current) {
       if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
+        await audioContextRef.current.resume();
       }
       return;
     }
@@ -157,14 +171,24 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
       sourceRef.current = source;
     }
 
+    // Resume if created in suspended state (autoplay policy)
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
     drawVisualization();
   }, [drawVisualization]);
 
-  const handlePlay = useCallback(() => {
+  const handlePlay = useCallback(async () => {
     if (!audioRef.current) return;
-    ensureAudioContext();
-    audioRef.current.play();
-    setIsPlaying(true);
+    await ensureAudioContext();
+    try {
+      await audioRef.current.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.error('Failed to play audio:', err);
+      setError('Failed to play audio. The format may not be supported.');
+    }
   }, [ensureAudioContext]);
 
   const handlePause = useCallback(() => {
@@ -237,7 +261,7 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
           </span>
         </div>
         <span className="text-[10px] text-[var(--text-muted)]">
-          {fileExtension.toUpperCase().slice(1)}
+          {(fileExtension || '.mp3').toUpperCase().slice(1)}
         </span>
       </div>
 

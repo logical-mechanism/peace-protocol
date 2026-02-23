@@ -44,6 +44,8 @@ export interface ListingDraft {
   fileKey?: string;
   fileNonce?: string;
   fileDigest?: string;
+  // Original file extension (e.g. ".mp3", ".pdf")
+  fileExtension?: string;
   // Transaction details
   tokenName?: string;
   txHash?: string;
@@ -61,6 +63,7 @@ export type ListingDraftUpdates = Partial<
     | 'fileKey'
     | 'fileNonce'
     | 'fileDigest'
+    | 'fileExtension'
     | 'tokenName'
     | 'txHash'
     | 'retryCount'

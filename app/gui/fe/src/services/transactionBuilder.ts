@@ -107,12 +107,18 @@ function buildPayloadFromDraftFields(
   iagonFileId: string,
   fileKeyHex: string,
   fileNonceHex: string,
-  fileDigestHex: string
+  fileDigestHex: string,
+  fileExtension?: string,
 ): Uint8Array {
   const locator = new TextEncoder().encode(iagonFileId);
   const secret = encodeFileSecret(hexToBytes(fileKeyHex), hexToBytes(fileNonceHex));
   const digest = hexToBytes(fileDigestHex);
-  return buildPayload({ locator, secret, digest });
+  let extra: Map<number, Uint8Array> | undefined;
+  if (fileExtension) {
+    extra = new Map();
+    extra.set(3, new TextEncoder().encode(fileExtension));
+  }
+  return buildPayload({ locator, secret, digest, extra });
 }
 
 /**
@@ -355,11 +361,16 @@ export async function createListing(
         formData.file!.size,
       );
 
+      // Extract original file extension for payload field 3 (filetype)
+      const ext = formData.file!.name.includes('.')
+        ? formData.file!.name.slice(formData.file!.name.lastIndexOf('.'))
+        : '';
+
       // Encrypt file
       const fileBytes = new Uint8Array(await formData.file!.arrayBuffer());
       const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
 
-      // Save encryption keys to draft before upload
+      // Save encryption keys + file extension to draft before upload
       const fileKeyHex = bytesToHex(key);
       const fileNonceHex = bytesToHex(nonce);
       const fileDigestHex = bytesToHex(digest);
@@ -367,6 +378,7 @@ export async function createListing(
         fileKey: fileKeyHex,
         fileNonce: fileNonceHex,
         fileDigest: fileDigestHex,
+        fileExtension: ext || undefined,
       });
 
       // Upload to Iagon
@@ -375,10 +387,6 @@ export async function createListing(
       if (!apiKey) {
         throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
       }
-
-      const ext = formData.file!.name.includes('.')
-        ? formData.file!.name.slice(formData.file!.name.lastIndexOf('.'))
-        : '';
       // Use draft ID for filename since token name isn't known yet
       const iagonFilename = `${draftId}${ext}.enc`;
 
@@ -409,7 +417,7 @@ export async function createListing(
       // Capture draft fields for payload builder
       const savedFileId = fileInfo._id;
       payloadBuilder = () =>
-        buildPayloadFromDraftFields(savedFileId, fileKeyHex, fileNonceHex, fileDigestHex);
+        buildPayloadFromDraftFields(savedFileId, fileKeyHex, fileNonceHex, fileDigestHex, ext);
     }
 
     // ── Step 2: Fetch config & wallet info ──────────────────────────
@@ -634,6 +642,7 @@ export async function retryListingFromDraft(
       draft.fileKey,
       draft.fileNonce,
       draft.fileDigest,
+      draft.fileExtension,
     );
 
     // Fetch config & wallet info
