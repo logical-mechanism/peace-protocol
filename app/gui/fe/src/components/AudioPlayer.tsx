@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 
 interface AudioPlayerProps {
   data: Uint8Array;
@@ -25,104 +26,185 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+/** Minimal in-place radix-2 Cooley-Tukey FFT. n must be a power of 2. */
+function fftInPlace(re: Float32Array, im: Float32Array): void {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    while (j & bit) { j ^= bit; bit >>= 1; }
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+  for (let len = 2; len <= n; len *= 2) {
+    const half = len >> 1;
+    const ang = -2 * Math.PI / len;
+    const wR = Math.cos(ang), wI = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cR = 1, cI = 0;
+      for (let j = 0; j < half; j++) {
+        const k = i + j + half;
+        const tR = cR * re[k] - cI * im[k];
+        const tI = cR * im[k] + cI * re[k];
+        re[k] = re[i + j] - tR;
+        im[k] = im[i + j] - tI;
+        re[i + j] += tR;
+        im[i + j] += tI;
+        const nR = cR * wR - cI * wI;
+        cI = cR * wI + cI * wR;
+        cR = nR;
+      }
+    }
+  }
+}
+
+const BAR_COUNT = 32;
+const FFT_SIZE = 1024;
+const SMOOTHING = 0.8;
+const TARGET_FPS = 24;
+const FRAME_INTERVAL = 1000 / TARGET_FPS;
+
 export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.75);
+  const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  // Native <audio> element for playback — no Web Audio API in the output path
+  const audioRef = useRef<HTMLAudioElement>(null);
+  // Decoded PCM buffer for FFT visualization (not for playback)
+  const bufferRef = useRef<AudioBuffer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animationRef = useRef<number>(0);
+  const rafRef = useRef<number>(0);
   const seekBarRef = useRef<HTMLDivElement | null>(null);
-  // Accumulate old blob URLs — only revoke on unmount to avoid StrictMode race conditions.
-  // GStreamer (WebKitGTK) keeps loading from the URL asynchronously, so revoking early
-  // causes "Failed to load resource" errors.
-  const blobUrlsRef = useRef<string[]>([]);
+  const isPlayingRef = useRef(false);
+  const prevBarsRef = useRef(new Float32Array(BAR_COUNT));
+  const fftReRef = useRef(new Float32Array(FFT_SIZE));
+  const fftImRef = useRef(new Float32Array(FFT_SIZE));
 
-  // Revoke all blob URLs on unmount only
-  useEffect(() => {
-    return () => {
-      for (const url of blobUrlsRef.current) {
-        URL.revokeObjectURL(url);
-      }
-      blobUrlsRef.current = [];
-    };
-  }, []);
+  // --- Load audio element + decode PCM for visualization ---
 
-  // Create blob URL + Audio element
   useEffect(() => {
+    let cancelled = false;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setIsReady(false);
+    setError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    isPlayingRef.current = false;
+    prevBarsRef.current.fill(0);
+    bufferRef.current = null;
+
+    // Blob URL for native <audio> playback — GStreamer handles output directly,
+    // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
     const blob = new Blob([new Uint8Array(data)], { type: getMimeType(fileExtension) });
     const url = URL.createObjectURL(blob);
-    blobUrlsRef.current.push(url);
-
-    const audio = new Audio();
     audio.src = url;
-    audio.volume = volume;
-    audio.preload = 'auto';
-    audioRef.current = audio;
-    audio.load();
 
-    const onLoadedMetadata = () => setDuration(audio.duration);
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onEnded = () => setIsPlaying(false);
-    const onError = () => setError('Failed to decode audio. Format may not be supported.');
+    // Decode in parallel for FFT visualization (doesn't affect playback)
+    const offlineCtx = new OfflineAudioContext(2, 1, 44100);
+    offlineCtx.decodeAudioData(data.slice().buffer)
+      .then(buffer => { if (!cancelled) bufferRef.current = buffer; })
+      .catch(() => {}); // Visualization degrades gracefully if decode fails
+
+    const onLoadedMetadata = () => { if (!cancelled) setDuration(audio.duration); };
+    const onCanPlay = () => { if (!cancelled) setIsReady(true); };
+    const onTimeUpdate = () => { if (!cancelled) setCurrentTime(audio.currentTime); };
+    const onEnded = () => {
+      if (cancelled) return;
+      isPlayingRef.current = false;
+      setIsPlaying(false);
+    };
+    const onError = () => {
+      if (cancelled) return;
+      const code = audio.error?.code;
+      if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+        setError('Audio format not supported. Try converting to MP3 or OGG.');
+      } else {
+        setError('Failed to load audio. The format may not be supported.');
+      }
+    };
 
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
 
     return () => {
-      cancelAnimationFrame(animationRef.current);
+      cancelled = true;
       audio.pause();
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
-      audioContextRef.current?.close();
-      audioContextRef.current = null;
-      sourceRef.current = null;
-      analyserRef.current = null;
+      // Detach from GStreamer before revoking
+      audio.removeAttribute('src');
+      audio.load();
+      URL.revokeObjectURL(url);
+      cancelAnimationFrame(rafRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, fileExtension]);
 
-  // Canvas visualization loop
-  const drawVisualization = useCallback(() => {
-    const analyser = analyserRef.current;
-    const canvas = canvasRef.current;
-    if (!analyser || !canvas) return;
+  // --- Visualization: FFT computed from decoded AudioBuffer ---
 
+  const drawFrame = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    const { width, height } = canvas;
+    ctx.clearRect(0, 0, width, height);
 
-    const draw = () => {
-      animationRef.current = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
+    const buffer = bufferRef.current;
+    const audio = audioRef.current;
+    const gap = 2;
+    const barWidth = (width - gap * (BAR_COUNT - 1)) / BAR_COUNT;
 
-      const { width, height } = canvas;
-      ctx.clearRect(0, 0, width, height);
+    if (buffer && audio && isPlayingRef.current) {
+      const channel = buffer.getChannelData(0);
+      const startSample = Math.floor(audio.currentTime * buffer.sampleRate);
 
-      const barCount = 32;
-      const barsPerBin = Math.floor(bufferLength / barCount);
-      const gap = 2;
-      const barWidth = (width - gap * (barCount - 1)) / barCount;
+      const re = fftReRef.current;
+      const im = fftImRef.current;
+      re.fill(0);
+      im.fill(0);
 
-      for (let i = 0; i < barCount; i++) {
-        let sum = 0;
-        for (let j = 0; j < barsPerBin; j++) {
-          sum += dataArray[i * barsPerBin + j];
+      // Hann-windowed samples
+      for (let i = 0; i < FFT_SIZE; i++) {
+        const idx = startSample + i;
+        const sample = idx >= 0 && idx < channel.length ? channel[idx] : 0;
+        re[i] = sample * 0.5 * (1 - Math.cos(2 * Math.PI * i / (FFT_SIZE - 1)));
+      }
+
+      fftInPlace(re, im);
+
+      const binsPerBar = Math.floor((FFT_SIZE / 2) / BAR_COUNT);
+
+      for (let i = 0; i < BAR_COUNT; i++) {
+        let mag = 0;
+        for (let j = 0; j < binsPerBar; j++) {
+          const k = i * binsPerBar + j;
+          mag += Math.sqrt(re[k] * re[k] + im[k] * im[k]);
         }
-        const average = sum / barsPerBin;
-        const barHeight = (average / 255) * height;
+        // dB-scale normalization (similar to AnalyserNode)
+        const avgMag = mag / binsPerBar;
+        const dB = avgMag > 0 ? 20 * Math.log10(avgMag / FFT_SIZE) : -100;
+        const normalized = Math.max(0, Math.min(1, (dB + 70) / 50)); // -70dB floor, -20dB ceiling
+        prevBarsRef.current[i] = SMOOTHING * prevBarsRef.current[i] + (1 - SMOOTHING) * normalized;
+
+        const barHeight = prevBarsRef.current[i] * height;
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
@@ -132,98 +214,111 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
         gradient.addColorStop(1, '#a5b4fc');
         ctx.fillStyle = gradient;
 
-        // Segmented bars (retro Winamp style)
-        const segmentHeight = 3;
-        const segmentGap = 1;
-        let currentY = height;
-        while (currentY > y) {
-          const segTop = Math.max(y, currentY - segmentHeight);
-          ctx.fillRect(x, segTop, barWidth, currentY - segTop);
-          currentY -= segmentHeight + segmentGap;
+        const segH = 3, segGap = 1;
+        let curY = height;
+        while (curY > y) {
+          const top = Math.max(y, curY - segH);
+          ctx.fillRect(x, top, barWidth, curY - top);
+          curY -= segH + segGap;
         }
       }
-    };
+    } else {
+      // Decay bars smoothly when not playing
+      for (let i = 0; i < BAR_COUNT; i++) {
+        prevBarsRef.current[i] *= 0.92;
+        if (prevBarsRef.current[i] < 0.005) continue;
 
-    draw();
+        const barHeight = prevBarsRef.current[i] * height;
+        const x = i * (barWidth + gap);
+        const y = height - barHeight;
+
+        const gradient = ctx.createLinearGradient(x, height, x, y);
+        gradient.addColorStop(0, '#6366f1');
+        gradient.addColorStop(0.5, '#818cf8');
+        gradient.addColorStop(1, '#a5b4fc');
+        ctx.fillStyle = gradient;
+
+        const segH = 3, segGap = 1;
+        let curY = height;
+        while (curY > y) {
+          const top = Math.max(y, curY - segH);
+          ctx.fillRect(x, top, barWidth, curY - top);
+          curY -= segH + segGap;
+        }
+      }
+    }
   }, []);
 
-  // Lazy AudioContext initialization (on first play)
-  const ensureAudioContext = useCallback(async () => {
-    if (audioContextRef.current) {
-      if (audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
+  // Animation loop — throttled to TARGET_FPS to reduce CPU pressure on WebKitGTK
+  useEffect(() => {
+    let running = true;
+    let lastTime = 0;
+    const loop = (now: number) => {
+      if (!running) return;
+      if (now - lastTime >= FRAME_INTERVAL) {
+        lastTime = now;
+        drawFrame();
       }
-      return;
-    }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      running = false;
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [drawFrame]);
 
-    const ctx = new AudioContext();
-    audioContextRef.current = ctx;
+  // --- Transport handlers ---
 
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.8;
-    analyserRef.current = analyser;
-
-    if (audioRef.current && !sourceRef.current) {
-      const source = ctx.createMediaElementSource(audioRef.current);
-      source.connect(analyser);
-      analyser.connect(ctx.destination);
-      sourceRef.current = source;
-    }
-
-    // Resume if created in suspended state (autoplay policy)
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-
-    drawVisualization();
-  }, [drawVisualization]);
-
-  const handlePlay = useCallback(async () => {
-    if (!audioRef.current) return;
-    await ensureAudioContext();
-    try {
-      await audioRef.current.play();
+  const handlePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !isReady) return;
+    audio.play().then(() => {
+      isPlayingRef.current = true;
       setIsPlaying(true);
-    } catch (err) {
-      console.error('Failed to play audio:', err);
-      setError('Failed to play audio. The format may not be supported.');
-    }
-  }, [ensureAudioContext]);
+    }).catch(err => {
+      console.error('Failed to play:', err);
+      setError('Failed to play audio.');
+    });
+  }, [isReady]);
 
   const handlePause = useCallback(() => {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    isPlayingRef.current = false;
     setIsPlaying(false);
   }, []);
 
   const handleStop = useCallback(() => {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    isPlayingRef.current = false;
     setIsPlaying(false);
     setCurrentTime(0);
   }, []);
 
   const handleSkipBack = useCallback(() => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
-  }, []);
+    const audio = audioRef.current;
+    if (!audio || !isReady) return;
+    audio.currentTime = Math.max(0, audio.currentTime - 10);
+  }, [isReady]);
 
   const handleSkipForward = useCallback(() => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.min(
-      audioRef.current.duration || 0,
-      audioRef.current.currentTime + 10,
-    );
-  }, []);
+    const audio = audioRef.current;
+    if (!audio || !isReady) return;
+    audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
+  }, [isReady]);
 
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || !seekBarRef.current || !duration) return;
+    const audio = audioRef.current;
+    if (!audio || !seekBarRef.current || !duration || !isReady) return;
     const rect = seekBarRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    audioRef.current.currentTime = ratio * duration;
-  }, [duration]);
+    audio.currentTime = ratio * duration;
+  }, [duration, isReady]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
@@ -231,10 +326,17 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     if (audioRef.current) audioRef.current.volume = v;
   }, []);
 
+  // --- Render ---
+
   if (error) {
     return (
-      <div className="p-4 bg-[var(--error-muted)] rounded-[var(--radius-md)] text-center">
-        <p className="text-sm text-[var(--error)]">{error}</p>
+      <div className="bg-[var(--winamp-bg)] border border-[var(--winamp-border-dark)] rounded-[var(--radius-sm)] overflow-hidden shadow-lg">
+        <div className="p-6 text-center space-y-2">
+          <p className="text-sm text-[var(--error)]">{error}</p>
+          <p className="text-xs text-[var(--text-muted)]">
+            Use Save As to play with an external application.
+          </p>
+        </div>
       </div>
     );
   }
@@ -248,6 +350,9 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
 
   return (
     <div className="bg-[var(--winamp-bg)] border border-[var(--winamp-border-dark)] rounded-[var(--radius-sm)] overflow-hidden shadow-lg">
+      {/* Hidden audio element — native GStreamer output, no Web Audio API */}
+      <audio ref={audioRef} preload="auto" style={{ display: 'none' }} />
+
       {/* Title Bar */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-[var(--winamp-bg-dark)] to-[var(--winamp-bg)] border-b border-[var(--winamp-border-dark)]">
         <div className="flex items-center gap-2">
@@ -266,7 +371,7 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
       </div>
 
       {/* Visualization Canvas */}
-      <div className="winamp-groove mx-2 mt-2">
+      <div className="winamp-groove mx-2 mt-2 relative">
         <canvas
           ref={canvasRef}
           width={480}
@@ -274,6 +379,12 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
           className="w-full block bg-[var(--winamp-bg-dark)]"
           style={{ imageRendering: 'pixelated' }}
         />
+        {!isReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[var(--winamp-bg-dark)]/80">
+            <LoadingSpinner size="sm" className="mr-2" />
+            <span className="text-xs text-[var(--text-muted)]">Loading audio...</span>
+          </div>
+        )}
       </div>
 
       {/* LED Display Row */}
@@ -288,7 +399,7 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
           </span>
         </div>
         <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase">
-          {isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
+          {!isReady ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
         </span>
       </div>
 
@@ -321,6 +432,8 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
             onClick={isPlaying ? handlePause : handlePlay}
             className={transportBtnLg}
             title={isPlaying ? 'Pause' : 'Play'}
+            disabled={!isReady}
+            style={{ opacity: isReady ? 1 : 0.4 }}
           >
             {isPlaying ? (
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
