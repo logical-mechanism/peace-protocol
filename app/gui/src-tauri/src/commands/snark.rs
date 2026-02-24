@@ -3,6 +3,16 @@ use tauri::Manager;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
+/// Write a JSON object to a temporary file for passing secrets to the snark sidecar.
+/// Returns the NamedTempFile (must be kept alive until the sidecar reads it).
+fn write_secrets_file(secrets: serde_json::Value) -> Result<tempfile::NamedTempFile, String> {
+    let file = tempfile::NamedTempFile::new()
+        .map_err(|e| format!("Failed to create secrets temp file: {e}"))?;
+    serde_json::to_writer(&file, &secrets)
+        .map_err(|e| format!("Failed to write secrets temp file: {e}"))?;
+    Ok(file)
+}
+
 /// Result of a SNARK proof generation
 #[derive(Debug, Clone, Serialize)]
 pub struct SnarkProofResult {
@@ -33,19 +43,15 @@ fn setup_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
 /// Spawn the snark sidecar, collect stdout, and return it on successful exit.
 /// Returns an error if the process exits with a non-zero code.
 async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
-    eprintln!("[snark] running: snark {}", args.join(" "));
-
     let shell = app.shell();
-    let command = shell.sidecar("snark").map_err(|e| {
-        eprintln!("[snark] failed to create sidecar: {e}");
-        format!("Failed to create snark sidecar: {e}")
-    })?;
+    let command = shell
+        .sidecar("snark")
+        .map_err(|e| format!("Failed to create snark sidecar: {e}"))?;
     let command = command.args(args);
 
-    let (mut rx, _child) = command.spawn().map_err(|e| {
-        eprintln!("[snark] failed to spawn: {e}");
-        format!("Failed to spawn snark: {e}")
-    })?;
+    let (mut rx, _child) = command
+        .spawn()
+        .map_err(|e| format!("Failed to spawn snark: {e}"))?;
 
     let mut stdout_lines = Vec::new();
     let mut stderr_lines = Vec::new();
@@ -65,19 +71,16 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
                 }
             }
             CommandEvent::Error(err) => {
-                eprintln!("[snark] process error: {err}");
                 return Err(format!("snark process error: {err}"));
             }
             CommandEvent::Terminated(payload) => {
                 if payload.code != Some(0) {
                     let stderr = stderr_lines.join("\n");
-                    eprintln!("[snark] exited with code {:?}: {}", payload.code, stderr);
                     return Err(format!(
                         "snark exited with code {:?}: {}",
                         payload.code, stderr
                     ));
                 }
-                eprintln!("[snark] completed successfully");
                 break;
             }
             _ => {}
@@ -192,17 +195,23 @@ pub async fn snark_decompress_setup(app: tauri::AppHandle) -> Result<(), String>
 }
 
 /// Compute GT hash from a secret scalar.
-/// Spawns: snark hash -a <a>
+/// Writes secrets to a temp file and passes -input flag to the sidecar.
 /// Returns the hash hex string from stdout.
 #[tauri::command]
 pub async fn snark_gt_to_hash(app: tauri::AppHandle, a: String) -> Result<String, String> {
-    let args = vec!["hash".to_string(), "-a".to_string(), a];
+    let secrets_file = write_secrets_file(serde_json::json!({ "a": a }))?;
+    let args = vec![
+        "hash".to_string(),
+        "-input".to_string(),
+        secrets_file.path().to_string_lossy().to_string(),
+    ];
     let output = run_snark(&app, args).await?;
+    drop(secrets_file);
     Ok(output.trim().to_string())
 }
 
 /// Compute decryption hash.
-/// Spawns: snark decrypt -g1b <g1b> -r1 <r1> -shared <shared> [-g2b <g2b>]
+/// Writes secrets to a temp file and passes -input flag to the sidecar.
 /// Returns the hash hex string from stdout.
 #[tauri::command]
 pub async fn snark_decrypt_to_hash(
@@ -212,28 +221,25 @@ pub async fn snark_decrypt_to_hash(
     shared: String,
     g2b: String,
 ) -> Result<String, String> {
-    let mut args = vec![
+    let secrets_file = write_secrets_file(serde_json::json!({
+        "g1b": g1b,
+        "r1": r1,
+        "shared": shared,
+        "g2b": g2b,
+    }))?;
+    let args = vec![
         "decrypt".to_string(),
-        "-g1b".to_string(),
-        g1b,
-        "-r1".to_string(),
-        r1,
-        "-shared".to_string(),
-        shared,
+        "-input".to_string(),
+        secrets_file.path().to_string_lossy().to_string(),
     ];
-
-    // Only pass -g2b if non-empty (constructor==0 branch)
-    if !g2b.is_empty() {
-        args.push("-g2b".to_string());
-        args.push(g2b);
-    }
-
     let output = run_snark(&app, args).await?;
+    drop(secrets_file);
     Ok(output.trim().to_string())
 }
 
 /// Generate a SNARK proof.
-/// Spawns: snark prove -a <a> -r <r> -v <v> -w0 <w0> -w1 <w1> -setup <dir> -out <tmp>
+/// Writes secrets to a temp file and passes -input flag to the sidecar.
+/// Non-secret paths (-setup, -out) remain as CLI args.
 /// Reads proof.json and public.json from the output directory.
 /// Returns { proofJson, publicJson }.
 #[tauri::command]
@@ -251,18 +257,18 @@ pub async fn snark_prove(
     let tmp_dir = tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {e}"))?;
     let out_dir = tmp_dir.path().to_string_lossy().to_string();
 
+    let secrets_file = write_secrets_file(serde_json::json!({
+        "a": a,
+        "r": r,
+        "v": v,
+        "w0": w0,
+        "w1": w1,
+    }))?;
+
     let args = vec![
         "prove".to_string(),
-        "-a".to_string(),
-        a,
-        "-r".to_string(),
-        r,
-        "-v".to_string(),
-        v,
-        "-w0".to_string(),
-        w0,
-        "-w1".to_string(),
-        w1,
+        "-input".to_string(),
+        secrets_file.path().to_string_lossy().to_string(),
         "-setup".to_string(),
         snark_dir.to_string_lossy().to_string(),
         "-out".to_string(),
@@ -270,6 +276,7 @@ pub async fn snark_prove(
     ];
 
     run_snark(&app, args).await?;
+    drop(secrets_file);
 
     // Read output files
     let proof_path = tmp_dir.path().join("proof.json");

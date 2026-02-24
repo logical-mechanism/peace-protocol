@@ -8,12 +8,31 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
 )
+
+// loadInputFile reads a JSON file at path into a map[string]string, then
+// immediately deletes the file to minimize the window during which secrets
+// are on disk. Returns an error if reading or parsing fails.
+func loadInputFile(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read input file: %w", err)
+	}
+	// Delete immediately after reading to minimize exposure window
+	os.Remove(path)
+
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("failed to parse input file JSON: %w", err)
+	}
+	return m, nil
+}
 
 // main is the native CLI entry point. It delegates to run() and exits with
 // the returned status code. Excluded from WASM builds via the build tag.
@@ -61,10 +80,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 		hashCmd := flag.NewFlagSet("hash", flag.ContinueOnError)
 		hashCmd.SetOutput(stderr)
 
-		var aStr string
+		var aStr, inputFile string
 		hashCmd.StringVar(&aStr, "a", "", "secret integer a (decimal by default; or 0x... hex)")
+		hashCmd.StringVar(&inputFile, "input", "", "path to JSON file containing secrets (alternative to flags)")
 		if err := hashCmd.Parse(args[1:]); err != nil {
 			return 2
+		}
+
+		if inputFile != "" {
+			m, err := loadInputFile(inputFile)
+			if err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 2
+			}
+			if v, ok := m["a"]; ok {
+				aStr = v
+			}
 		}
 
 		if aStr == "" {
@@ -92,13 +123,34 @@ func run(args []string, stdout, stderr io.Writer) int {
 		decryptCmd := flag.NewFlagSet("decrypt", flag.ContinueOnError)
 		decryptCmd.SetOutput(stderr)
 
-		var g1b, g2b, r1, shared string
+		var g1b, g2b, r1, shared, inputFile string
 		decryptCmd.StringVar(&g1b, "g1b", "", "G1 compressed hex (entry fields[1].fields[0].bytes)")
 		decryptCmd.StringVar(&g2b, "g2b", "", "optional G2 compressed hex (entry fields[1].fields[1].fields[0].bytes); omit/empty for constructor==1 branch")
 		decryptCmd.StringVar(&r1, "r1", "", "G1 compressed hex (entry fields[0].bytes)")
 		decryptCmd.StringVar(&shared, "shared", "", "G2 compressed hex (current shared)")
+		decryptCmd.StringVar(&inputFile, "input", "", "path to JSON file containing secrets (alternative to flags)")
 		if err := decryptCmd.Parse(args[1:]); err != nil {
 			return 2
+		}
+
+		if inputFile != "" {
+			m, err := loadInputFile(inputFile)
+			if err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 2
+			}
+			if v, ok := m["g1b"]; ok {
+				g1b = v
+			}
+			if v, ok := m["g2b"]; ok {
+				g2b = v
+			}
+			if v, ok := m["r1"]; ok {
+				r1 = v
+			}
+			if v, ok := m["shared"]; ok {
+				shared = v
+			}
 		}
 
 		if g1b == "" || r1 == "" || shared == "" {
@@ -120,7 +172,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		proveCmd := flag.NewFlagSet("prove", flag.ContinueOnError)
 		proveCmd.SetOutput(stderr)
 
-		var aStr, rStr, v, w0, w1, outDir, setupDir string
+		var aStr, rStr, v, w0, w1, outDir, setupDir, inputFile string
 		var noVerify bool
 		proveCmd.StringVar(&aStr, "a", "", "secret integer a (decimal by default; or 0x... hex)")
 		proveCmd.StringVar(&rStr, "r", "", "secret integer r (decimal by default; or 0x... hex; can be 0)")
@@ -130,8 +182,32 @@ func run(args []string, stdout, stderr io.Writer) int {
 		proveCmd.StringVar(&outDir, "out", "out", "output directory for vk.json / proof.json / public.json")
 		proveCmd.StringVar(&setupDir, "setup", "", "directory containing setup files (ccs.bin, pk.bin, vk.bin); if empty, compiles circuit fresh")
 		proveCmd.BoolVar(&noVerify, "no-verify", false, "skip verification after proving (only valid with -setup)")
+		proveCmd.StringVar(&inputFile, "input", "", "path to JSON file containing secrets (alternative to flags)")
 		if err := proveCmd.Parse(args[1:]); err != nil {
 			return 2
+		}
+
+		if inputFile != "" {
+			m, err := loadInputFile(inputFile)
+			if err != nil {
+				fmt.Fprintln(stderr, "error:", err)
+				return 2
+			}
+			if val, ok := m["a"]; ok {
+				aStr = val
+			}
+			if val, ok := m["r"]; ok {
+				rStr = val
+			}
+			if val, ok := m["v"]; ok {
+				v = val
+			}
+			if val, ok := m["w0"]; ok {
+				w0 = val
+			}
+			if val, ok := m["w1"]; ok {
+				w1 = val
+			}
 		}
 
 		missing := false
