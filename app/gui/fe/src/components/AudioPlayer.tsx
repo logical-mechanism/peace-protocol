@@ -85,6 +85,10 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
   const prevBarsRef = useRef(new Float32Array(BAR_COUNT));
   const fftReRef = useRef(new Float32Array(FFT_SIZE));
   const fftImRef = useRef(new Float32Array(FFT_SIZE));
+  // Smooth time interpolation — audio.currentTime updates ~4Hz on WebKitGTK,
+  // we interpolate between updates for fluid visualization
+  const vizTimeRef = useRef(0);
+  const lastDrawTimeRef = useRef(0);
 
   // --- Load audio element + decode PCM for visualization ---
 
@@ -101,6 +105,8 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     setDuration(0);
     /* eslint-enable react-hooks/set-state-in-effect */
     isPlayingRef.current = false;
+    vizTimeRef.current = 0;
+    lastDrawTimeRef.current = 0;
     prevBarsRef.current.fill(0);
     bufferRef.current = null;
 
@@ -118,7 +124,12 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
 
     const onLoadedMetadata = () => { if (!cancelled) setDuration(audio.duration); };
     const onCanPlay = () => { if (!cancelled) setIsReady(true); };
-    const onTimeUpdate = () => { if (!cancelled) setCurrentTime(audio.currentTime); };
+    const onTimeUpdate = () => {
+      if (cancelled) return;
+      setCurrentTime(audio.currentTime);
+      // Re-sync visualization time to prevent drift
+      vizTimeRef.current = audio.currentTime;
+    };
     const onEnded = () => {
       if (cancelled) return;
       isPlayingRef.current = false;
@@ -172,9 +183,16 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     const gap = 2;
     const barWidth = (width - gap * (BAR_COUNT - 1)) / BAR_COUNT;
 
+    // Advance interpolated time smoothly between audio.currentTime updates
+    const now = performance.now();
+    if (lastDrawTimeRef.current > 0 && isPlayingRef.current) {
+      vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000;
+    }
+    lastDrawTimeRef.current = now;
+
     if (buffer && audio && isPlayingRef.current) {
       const channel = buffer.getChannelData(0);
-      const startSample = Math.floor(audio.currentTime * buffer.sampleRate);
+      const startSample = Math.floor(vizTimeRef.current * buffer.sampleRate);
 
       const re = fftReRef.current;
       const im = fftImRef.current;
@@ -274,6 +292,8 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     const audio = audioRef.current;
     if (!audio || !isReady) return;
     audio.play().then(() => {
+      vizTimeRef.current = audio.currentTime;
+      lastDrawTimeRef.current = performance.now();
       isPlayingRef.current = true;
       setIsPlaying(true);
     }).catch(err => {
@@ -295,6 +315,8 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     if (!audio) return;
     audio.pause();
     audio.currentTime = 0;
+    vizTimeRef.current = 0;
+    lastDrawTimeRef.current = 0;
     isPlayingRef.current = false;
     setIsPlaying(false);
     setCurrentTime(0);
@@ -304,12 +326,14 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     const audio = audioRef.current;
     if (!audio || !isReady) return;
     audio.currentTime = Math.max(0, audio.currentTime - 10);
+    vizTimeRef.current = audio.currentTime;
   }, [isReady]);
 
   const handleSkipForward = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !isReady) return;
     audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
+    vizTimeRef.current = audio.currentTime;
   }, [isReady]);
 
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -318,6 +342,7 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     const rect = seekBarRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     audio.currentTime = ratio * duration;
+    vizTimeRef.current = audio.currentTime;
   }, [duration, isReady]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
