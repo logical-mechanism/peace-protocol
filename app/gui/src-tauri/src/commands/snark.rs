@@ -1,3 +1,4 @@
+use crate::process::manager::NodeManager;
 use serde::Serialize;
 use tauri::Manager;
 use tauri_plugin_shell::process::CommandEvent;
@@ -49,9 +50,15 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
         .map_err(|e| format!("Failed to create snark sidecar: {e}"))?;
     let command = command.args(args);
 
-    let (mut rx, _child) = command
+    let (mut rx, child) = command
         .spawn()
         .map_err(|e| format!("Failed to spawn snark: {e}"))?;
+
+    // Register the PID with NodeManager so the process is killed on app shutdown.
+    let pid = child.pid();
+    let manager = app.state::<NodeManager>();
+    manager.set_snark_pid(pid);
+    drop(child); // Process continues running; PID is tracked for cleanup.
 
     let mut stdout_lines = Vec::new();
     let mut stderr_lines = Vec::new();
@@ -71,9 +78,11 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
                 }
             }
             CommandEvent::Error(err) => {
+                manager.clear_snark_pid();
                 return Err(format!("snark process error: {err}"));
             }
             CommandEvent::Terminated(payload) => {
+                manager.clear_snark_pid();
                 if payload.code != Some(0) {
                     let stderr = stderr_lines.join("\n");
                     return Err(format!(
@@ -87,6 +96,7 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
         }
     }
 
+    manager.clear_snark_pid();
     Ok(stdout_lines.join("\n"))
 }
 
