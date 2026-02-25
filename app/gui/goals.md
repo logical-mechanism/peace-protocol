@@ -504,7 +504,7 @@ Each item has:
   - **How**: Audit all async operations and ensure each has: a loading indicator (spinner or skeleton), a disabled state on the trigger button, and an error state with retry. Create a shared `useAsyncAction()` hook that wraps this pattern.
   - **Why**: Some operations show spinners, others show nothing during loading. Inconsistent feedback confuses users about whether their action registered.
 
-- [ ] **Actionable error messages everywhere**
+- [x] **Actionable error messages everywhere**
   - **How**: Replace generic error messages ("Something went wrong", "Failed to fetch") with specific ones that include: what failed, why it might have failed, and what to do next. Create an `errorMessages.ts` map from error codes to user-friendly strings.
   - **Why**: Generic errors leave users stuck. Actionable messages ("Failed to connect to Kupo — is the node running?") guide users to resolution.
 
