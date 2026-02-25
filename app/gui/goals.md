@@ -356,7 +356,7 @@ Each item has:
 
 > Key files: `build.sh`, `run.sh`, `lint.sh`, `test.sh`, `package.json`
 
-- [ ] **Backend hot-reload during development**
+- [x] **Backend hot-reload during development**
   - **How**: Add a `dev:be:watch` script using `tsx watch` or `nodemon` with `tsc --watch`. In `dev:all`, run the watcher alongside Vite. Alternative: use `concurrently` to run `tsc --watch` in the background.
   - **Why**: Currently every backend TS change requires a manual `cd be && npm run build`. This is the #1 DX friction point.
 

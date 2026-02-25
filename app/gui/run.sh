@@ -21,5 +21,10 @@ fi
 echo "Installing dependencies and building backend..."
 npm run install:all
 
-echo "Building development version..."
+echo "Starting backend TypeScript watcher..."
+npm --prefix be run watch &
+TSC_PID=$!
+trap "kill $TSC_PID 2>/dev/null; wait $TSC_PID 2>/dev/null" EXIT
+
+echo "Starting development version..."
 npx tauri dev
