@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
+import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam } from '../middleware/validate.js';
 import { STUB_BIDS } from '../stubs/index.js';
 import {
   getAllBids,
@@ -45,7 +46,7 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/bids/:tokenName
  * Get a specific bid by token name
  */
-router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Response) => {
+router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
 
@@ -78,7 +79,7 @@ router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Respons
  * GET /api/bids/user/:pkh
  * Get bids placed by a specific user (by payment key hash)
  */
-router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
+router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, res: Response) => {
   try {
     const { pkh } = req.params;
 
@@ -110,7 +111,7 @@ router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
  * GET /api/bids/encryption/:encryptionToken
  * Get all bids for a specific encryption
  */
-router.get('/encryption/:encryptionToken', async (req: Request<{encryptionToken: string}>, res: Response) => {
+router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (req: Request<{encryptionToken: string}>, res: Response) => {
   try {
     const { encryptionToken } = req.params;
 

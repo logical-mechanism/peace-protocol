@@ -106,16 +106,18 @@ describe('GET /api/bids/:tokenName', () => {
   it('returns 404 when not found', async () => {
     (getBidByToken as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-    const res = await request(app).get('/api/bids/missing');
+    const res = await request(app).get('/api/bids/aabb');
     expect(res.status).toBe(404);
   });
 });
 
 describe('GET /api/bids/user/:pkh', () => {
+  const validPkh = 'bb'.repeat(28); // 56 hex chars
+
   it('returns user bids', async () => {
     (getBidsByUser as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
-    const res = await request(app).get('/api/bids/user/aabb');
+    const res = await request(app).get(`/api/bids/user/${validPkh}`);
     expect(res.status).toBe(200);
     expect(res.body.meta.total).toBe(0);
   });
@@ -124,10 +126,10 @@ describe('GET /api/bids/user/:pkh', () => {
 describe('GET /api/bids/encryption/:encryptionToken', () => {
   it('returns bids for encryption', async () => {
     (getBidsByEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { tokenName: 'b1', encryptionToken: 'enc1' },
+      { tokenName: 'b1', encryptionToken: 'aabb' },
     ]);
 
-    const res = await request(app).get('/api/bids/encryption/enc1');
+    const res = await request(app).get('/api/bids/encryption/aabb');
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });

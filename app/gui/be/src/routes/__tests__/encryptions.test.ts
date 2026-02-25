@@ -92,7 +92,7 @@ describe('GET /api/encryptions/:tokenName', () => {
   it('returns 404 when not found', async () => {
     (getEncryptionByToken as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-    const res = await request(app).get('/api/encryptions/missing');
+    const res = await request(app).get('/api/encryptions/aabb');
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
@@ -108,12 +108,14 @@ describe('GET /api/encryptions/:tokenName', () => {
 });
 
 describe('GET /api/encryptions/user/:pkh', () => {
+  const validPkh = 'aa'.repeat(28); // 56 hex chars
+
   it('returns user encryptions', async () => {
     (getEncryptionsByUser as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { tokenName: 'e1', sellerPkh: 'aabb' },
+      { tokenName: 'e1', sellerPkh: validPkh },
     ]);
 
-    const res = await request(app).get('/api/encryptions/user/aabb');
+    const res = await request(app).get(`/api/encryptions/user/${validPkh}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -123,7 +125,7 @@ describe('GET /api/encryptions/user/:pkh', () => {
   it('returns 500 on service error', async () => {
     (getEncryptionsByUser as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fail'));
 
-    const res = await request(app).get('/api/encryptions/user/aabb');
+    const res = await request(app).get(`/api/encryptions/user/${validPkh}`);
 
     expect(res.status).toBe(500);
   });
@@ -168,7 +170,7 @@ describe('GET /api/encryptions/:tokenName/levels', () => {
       { r1: 'aa', r2_g1: 'bb' },
     ]);
 
-    const res = await request(app).get('/api/encryptions/tok1/levels');
+    const res = await request(app).get('/api/encryptions/ab01/levels');
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -178,7 +180,7 @@ describe('GET /api/encryptions/:tokenName/levels', () => {
   it('returns 500 on service error', async () => {
     (getEncryptionLevels as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fail'));
 
-    const res = await request(app).get('/api/encryptions/tok1/levels');
+    const res = await request(app).get('/api/encryptions/ab01/levels');
 
     expect(res.status).toBe(500);
   });

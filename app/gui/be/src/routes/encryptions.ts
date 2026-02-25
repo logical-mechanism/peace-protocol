@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
+import { validateTokenNameParam, validatePkhParam } from '../middleware/validate.js';
 import { STUB_ENCRYPTIONS } from '../stubs/index.js';
 import {
   getAllEncryptions,
@@ -46,7 +47,7 @@ router.get('/', async (req: Request, res: Response) => {
  * Get all encryption levels for recursive decryption (queries full tx history).
  * Must be registered BEFORE /:tokenName to avoid being caught by it.
  */
-router.get('/:tokenName/levels', async (req: Request<{tokenName: string}>, res: Response) => {
+router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
 
@@ -77,7 +78,7 @@ router.get('/:tokenName/levels', async (req: Request<{tokenName: string}>, res: 
  * GET /api/encryptions/:tokenName
  * Get a specific encryption by token name
  */
-router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Response) => {
+router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
 
@@ -110,7 +111,7 @@ router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Respons
  * GET /api/encryptions/user/:pkh
  * Get encryptions owned by a specific user (by payment key hash)
  */
-router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
+router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, res: Response) => {
   try {
     const { pkh } = req.params;
 

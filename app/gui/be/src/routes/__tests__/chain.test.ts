@@ -91,7 +91,7 @@ describe('GET /api/chain/confirmations/:txHash', () => {
     const res = await request(app).get('/api/chain/confirmations/abc');
 
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('INVALID_TX_HASH');
+    expect(res.body.error.code).toBe('INVALID_PARAM');
   });
 
   it('returns 400 for invalid tx hash (too long)', async () => {

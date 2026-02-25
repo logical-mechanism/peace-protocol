@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getKoiosClient } from '../services/koios.js';
 import { logger } from '../services/logger.js';
+import { validateTxHashParam } from '../middleware/validate.js';
 
 const router = Router();
 
@@ -13,16 +14,9 @@ const router = Router();
  *
  * Returns { confirmations: 0 } if the tx is not yet in a block.
  */
-router.get('/confirmations/:txHash', async (req, res) => {
+router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
   try {
-    const { txHash } = req.params;
-
-    if (!txHash || txHash.length !== 64) {
-      return res.status(400).json({
-        error: { code: 'INVALID_TX_HASH', message: 'Transaction hash must be 64 hex characters' },
-      });
-    }
-
+    const txHash = req.params.txHash as string;
     const koios = getKoiosClient();
 
     const [txInfo, tip] = await Promise.all([
