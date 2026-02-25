@@ -500,7 +500,7 @@ Each item has:
   - **How**: Ensure all modals use `max-h-[calc(100vh-4rem)]` on the modal body with `overflow-y-auto`. The submit button should always be visible (place it outside the scrollable area).
   - **Why**: On the default 1280x800 window, tall modals (CreateListingModal, DecryptModal) can overflow. The submit button becomes unreachable.
 
-- [ ] **Loading state consistency**
+- [x] **Loading state consistency**
   - **How**: Audit all async operations and ensure each has: a loading indicator (spinner or skeleton), a disabled state on the trigger button, and an error state with retry. Create a shared `useAsyncAction()` hook that wraps this pattern.
   - **Why**: Some operations show spinners, others show nothing during loading. Inconsistent feedback confuses users about whether their action registered.
 
