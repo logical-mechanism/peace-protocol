@@ -120,3 +120,31 @@ describe('GET /api/chain/confirmations/:txHash', () => {
     expect(res.body.data.confirmations).toBe(0);
   });
 });
+
+describe('GET /api/chain/tip', () => {
+  it('returns the current network tip', async () => {
+    mockKoiosClient.getTip.mockResolvedValue({
+      block_no: 43200000,
+      epoch_no: 500,
+      block_time: 1700000000,
+    });
+
+    const res = await request(app).get('/api/chain/tip');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      block_no: 43200000,
+      epoch_no: 500,
+      block_time: 1700000000,
+    });
+  });
+
+  it('returns 503 when Koios is unreachable', async () => {
+    mockKoiosClient.getTip.mockRejectedValue(new Error('network error'));
+
+    const res = await request(app).get('/api/chain/tip');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('TIP_UNAVAILABLE');
+  });
+});

@@ -41,4 +41,29 @@ router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
   }
 });
 
+/**
+ * GET /tip
+ *
+ * Returns the current network tip from Koios.
+ * Used by NodeSync to show "Block X / Y" during sync.
+ */
+router.get('/tip', async (_req, res) => {
+  try {
+    const koios = getKoiosClient();
+    const tip = await koios.getTip();
+    return res.json({
+      data: {
+        block_no: tip.block_no,
+        epoch_no: tip.epoch_no,
+        block_time: tip.block_time,
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to get chain tip', { error: String(error) });
+    return res.status(503).json({
+      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to fetch chain tip' },
+    });
+  }
+});
+
 export default router;
