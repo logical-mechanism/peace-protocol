@@ -462,23 +462,23 @@ Each item has:
 
 > Key files: all component files, `fe/src/index.css`
 
-- [ ] **Add ARIA labels to interactive elements**
+- [x] **Add ARIA labels to interactive elements**
   - **How**: Audit all `<button>`, `<input>`, `<select>` elements. Add `aria-label` to icon-only buttons (expand, collapse, delete, copy). Add `aria-describedby` to form fields with help text. Mark tab buttons with `role="tab"` and `aria-selected`.
   - **Why**: Screen readers can't describe icon-only buttons. ARIA labels make the app usable for visually impaired users.
 
-- [ ] **Mark toast notifications as ARIA live regions**
+- [x] **Mark toast notifications as ARIA live regions**
   - **How**: Add `role="alert"` and `aria-live="polite"` to the toast container in `Toast.tsx`. Error toasts should use `aria-live="assertive"`.
   - **Why**: Screen readers skip toast notifications unless marked as live regions. Users miss success/error feedback.
 
-- [ ] **Full keyboard navigation for marketplace filters**
+- [x] **Full keyboard navigation for marketplace filters**
   - **How**: Add `tabIndex` to filter buttons and sort dropdown. Ensure logical tab order: search input -> status filters -> category filters -> sort -> view mode -> first card. Add `onKeyDown` handlers for Enter/Space activation.
   - **Why**: Keyboard-only users (accessibility or power users) can't navigate the filter bar without mouse clicks.
 
-- [ ] **Color contrast audit and fixes**
+- [x] **Color contrast audit and fixes**
   - **How**: Run automated contrast check on all CSS variable color combinations. Key concern: `--text-muted` (#666) on `--bg-secondary` (#141414) may fail WCAG AA. Lighten muted text to at least #888 or darken backgrounds.
   - **Why**: Low contrast text is hard to read for users with visual impairments or in bright environments.
 
-- [ ] **Focus visible indicators**
+- [x] **Focus visible indicators**
   - **How**: Add `:focus-visible` styles to all interactive elements. Use a visible outline (e.g., `outline: 2px solid var(--accent)`) that only appears on keyboard focus, not mouse click.
   - **Why**: Keyboard users need to see which element is focused. Default browser outlines are often hidden by `outline: none` styles.
 
