@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useWalletContext } from './contexts/WalletContext'
 import { useNode } from './contexts/NodeContext'
 import Dashboard from './pages/Dashboard'
@@ -11,6 +11,7 @@ import Settings from './pages/Settings'
 function App() {
   const { walletState, refreshBalance } = useWalletContext()
   const { stage: nodeStage, tipSlot } = useNode()
+  const location = useLocation()
   const prevTipRef = useRef<number | null>(null)
 
   // Refresh wallet balance when chain tip advances (new block every ~20s)
@@ -33,6 +34,7 @@ function App() {
   }
 
   return (
+    <div key={location.pathname} className="page-transition">
     <Routes>
       <Route
         path="/wallet-setup"
@@ -101,6 +103,7 @@ function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </div>
   )
 }
 

@@ -406,7 +406,7 @@ Each item has:
   - **How**: Create validation middleware for common patterns: `validatePkh` (28-byte hex), `validateTokenName` (hex string), `validateTxHash` (64-char hex), `validateStatus` (enum). Apply to all route params.
   - **Why**: No input validation exists. Garbage params pass through to Kupo/Koios calls, causing confusing downstream errors.
 
-- [ ] **Structured logging**
+- [x] **Structured logging**
   - **How**: Replace `console.log/warn/error` with a structured logger (e.g., `pino`). Add request IDs, timestamps, duration, and context to every log entry. Add request/response logging middleware.
   - **Why**: Current logging is unstructured `console.*` calls. Can't trace requests, can't measure performance, can't filter by severity.
 
@@ -436,7 +436,7 @@ Each item has:
   - **How**: Give `cardano-node` 45 seconds for graceful shutdown (it needs to flush ledger state). Give Express, Ogmios, Kupo 10 seconds each. Currently all share a 30-second budget.
   - **Why**: Cardano-node often gets SIGKILL'd because it can't flush in time. This causes longer startup next time as it replays the ledger.
 
-- [ ] **Key zeroization on error paths**
+- [x] **Key zeroization on error paths**
   - **How**: In `wallet.rs`, use the `zeroize` crate. Wrap key material in `Zeroizing<[u8; 32]>`. This automatically zeros memory on drop, including error paths.
   - **Why**: If argon2 hashing or AES encryption fails, the partially-derived key sits in memory until garbage collected. Zeroization prevents key material leaking.
 
@@ -444,7 +444,7 @@ Each item has:
   - **How**: Allow tracking multiple SNARK PIDs using a `Vec<u32>` behind `Arc<Mutex<>>` instead of a single `Option<u32>`. Add all spawned PIDs. On cleanup, kill all tracked PIDs.
   - **Why**: If a user starts a second SNARK proof before the first finishes, the first PID is overwritten and never cleaned up on shutdown.
 
-- [ ] **Temp file permissions for SNARK secrets**
+- [x] **Temp file permissions for SNARK secrets**
   - **How**: After creating the `NamedTempFile` for SNARK input secrets, explicitly set permissions to `0600` using `std::fs::set_permissions`. Prevents other users on the system from reading secret material.
   - **Why**: Default temp file permissions may be world-readable depending on umask. SNARK secrets should be owner-only.
 
@@ -508,7 +508,7 @@ Each item has:
   - **How**: Replace generic error messages ("Something went wrong", "Failed to fetch") with specific ones that include: what failed, why it might have failed, and what to do next. Create an `errorMessages.ts` map from error codes to user-friendly strings.
   - **Why**: Generic errors leave users stuck. Actionable messages ("Failed to connect to Kupo — is the node running?") guide users to resolution.
 
-- [ ] **Smooth page transitions**
+- [x] **Smooth page transitions**
   - **How**: Add CSS transitions or use `framer-motion` for route changes (wallet setup -> unlock -> sync -> dashboard). A simple fade or slide transition makes navigation feel polished.
   - **Why**: Instant page swaps feel jarring. Subtle transitions make the app feel more professional and responsive.
 
