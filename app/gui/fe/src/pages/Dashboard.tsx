@@ -932,7 +932,7 @@ export default function Dashboard() {
           {nodeStage === 'synced' ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-              Node Synced
+              Node Ready
             </span>
           ) : nodeStage === 'syncing' ? (
             <button
@@ -993,6 +993,22 @@ export default function Dashboard() {
               Prover {Math.round(wasmProgress)}%
             </button>
           ) : null}
+          {/* Iagon Connection Indicator */}
+          {iagonConnected ? (
+            <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+              Iagon Ready
+            </span>
+          ) : (
+            <button
+              onClick={() => navigate('/settings')}
+              className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all cursor-pointer"
+              title="Iagon not connected - click to configure"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></span>
+              Iagon Offline
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-4">
           {/* Create Listing Button */}
