@@ -372,7 +372,7 @@ Each item has:
   - **How**: Add to root `package.json`: `"test": "bash test.sh"`, `"lint": "bash lint.sh"`, `"type-check": "npm --prefix fe run type-check && npm --prefix be run lint"`, `"clean": "rm -rf fe/node_modules be/node_modules be/dist src-tauri/target"`.
   - **Why**: Contributors shouldn't need to know about shell scripts. `npm test` and `npm run lint` are universal conventions.
 
-- [ ] **Add ESLint to backend**
+- [x] **Add ESLint to backend**
   - **How**: Install `eslint` and `@typescript-eslint/*` in `be/`. Create `be/eslint.config.js` with recommended rules. Add `"lint:eslint": "eslint src/"` to `be/package.json`. Update `lint.sh` to run it.
   - **Why**: Backend currently only has `tsc --noEmit` (type checking). No style enforcement, no unused-variable warnings, no import ordering.
 
