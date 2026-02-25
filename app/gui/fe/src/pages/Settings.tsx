@@ -5,7 +5,7 @@
  * and process logs viewer.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
@@ -15,6 +15,10 @@ import { copyToClipboard } from '../utils/clipboard'
 import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../services/iagonAuth'
 import { verifyApiKey, deleteFile as iagonDeleteFile } from '../services/iagonApi'
 import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../services/listingDraftStorage'
+import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../services/transactionHistory'
+import { extractPaymentKeyHash } from '../services/transactionBuilder'
+import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
+import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -51,8 +55,10 @@ export default function Settings() {
   const [mnemonicPassword, setMnemonicPassword] = useState('')
   const [mnemonicError, setMnemonicError] = useState('')
   const [mnemonicLoading, setMnemonicLoading] = useState(false)
+  const [mnemonicCopied, setMnemonicCopied] = useState(false)
   const [networkSwitching, setNetworkSwitching] = useState(false)
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
+  const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
   const [addressCopied, setAddressCopied] = useState(false)
   const location = useLocation()
   const [activeSection, setActiveSection] = useState<string>(
@@ -69,10 +75,32 @@ export default function Settings() {
   const [orphanedDrafts, setOrphanedDrafts] = useState<ListingDraft[]>([])
   const [orphanCleanupLoading, setOrphanCleanupLoading] = useState<string | null>(null)
 
+  // Image cache management
+  const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus | null>(null)
+  const [cacheDeleting, setCacheDeleting] = useState<string | null>(null)
+  const [cacheClearingAll, setCacheClearingAll] = useState(false)
+
+  // Transaction history cleanup
+  const [txHistoryCount, setTxHistoryCount] = useState(0)
+
+  // Derived user PKH for transaction history operations
+  const userPkh = useMemo(() => {
+    if (!address) return undefined
+    try { return extractPaymentKeyHash(address) } catch { return undefined }
+  }, [address])
+
   // Process logs
   const [selectedProcess, setSelectedProcess] = useState<string>('cardano-node')
   const [processLogs, setProcessLogs] = useState<ProcessLog | null>(null)
   const [logsLoading, setLogsLoading] = useState(false)
+
+  // Developer debug mode
+  const [debugMode, setDebugMode] = useState(() => localStorage.getItem('veiled_debug_mode') === 'true')
+  const [appConfig, setAppConfig] = useState<Record<string, unknown> | null>(null)
+  const [localStorageKeys, setLocalStorageKeys] = useState<string[]>([])
+
+  // Settings search
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Load network, disk usage, and Iagon status on mount
   useEffect(() => {
@@ -86,6 +114,34 @@ export default function Settings() {
     if (activeSection !== 'datalayer') return
     getOrphanedDrafts().then(setOrphanedDrafts).catch(() => {})
   }, [activeSection])
+
+  // Load image cache status and transaction history count when storage section is active
+  useEffect(() => {
+    if (activeSection === 'storage') {
+      listCachedImages().then(setImageCacheStatus).catch(console.error)
+      if (userPkh) {
+        setTxHistoryCount(getTransactions(userPkh).length)
+      }
+    }
+  }, [activeSection, userPkh])
+
+  // Load debug info when debug mode is active on logs tab
+  useEffect(() => {
+    if (debugMode && activeSection === 'logs') {
+      invoke<Record<string, unknown>>('get_app_config').then(setAppConfig).catch(console.error)
+      const keys: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key) keys.push(key)
+      }
+      setLocalStorageKeys(keys.sort())
+    }
+  }, [debugMode, activeSection])
+
+  const handleToggleDebug = useCallback((enabled: boolean) => {
+    setDebugMode(enabled)
+    localStorage.setItem('veiled_debug_mode', String(enabled))
+  }, [])
 
   const handleDeleteOrphan = useCallback(async (draft: ListingDraft) => {
     if (!draft.iagonFileId) return
@@ -120,6 +176,35 @@ export default function Settings() {
     }
     setOrphanedDrafts([])
   }, [orphanedDrafts])
+
+  const handleDeleteCachedImage = useCallback(async (tokenName: string) => {
+    setCacheDeleting(tokenName)
+    try {
+      await deleteCachedImage(tokenName)
+      setImageCacheStatus(prev =>
+        prev ? { ...prev, cached: prev.cached.filter(t => t !== tokenName) } : prev
+      )
+    } catch (err) {
+      console.error('Failed to delete cached image:', err)
+    } finally {
+      setCacheDeleting(null)
+    }
+  }, [])
+
+  const handleClearAllCache = useCallback(async () => {
+    if (!imageCacheStatus || !confirm('Clear all cached images? They will be re-downloaded when needed.')) return
+    setCacheClearingAll(true)
+    try {
+      for (const tokenName of imageCacheStatus.cached) {
+        await deleteCachedImage(tokenName)
+      }
+      setImageCacheStatus(prev => prev ? { ...prev, cached: [] } : prev)
+    } catch (err) {
+      console.error('Failed to clear image cache:', err)
+    } finally {
+      setCacheClearingAll(false)
+    }
+  }, [imageCacheStatus])
 
   const handleNetworkSwitch = useCallback(async (newNetwork: string) => {
     if (newNetwork === currentNetwork) return
@@ -161,7 +246,21 @@ export default function Settings() {
     setMnemonicWords([])
     setMnemonicPassword('')
     setMnemonicError('')
+    setMnemonicCopied(false)
+    navigator.clipboard.writeText('').catch(() => {})
   }, [])
+
+  const handleCopyMnemonic = useCallback(async () => {
+    const success = await copyToClipboard(mnemonicWords.join(' '))
+    if (success) {
+      setMnemonicCopied(true)
+      setTimeout(() => setMnemonicCopied(false), 2000)
+      // Auto-clear clipboard after 30 seconds for security
+      setTimeout(() => {
+        navigator.clipboard.writeText('').catch(() => {})
+      }, 30000)
+    }
+  }, [mnemonicWords])
 
   const handleCopyAddress = useCallback(async () => {
     if (!address) return
@@ -242,6 +341,33 @@ export default function Settings() {
     { id: 'storage', label: 'Storage' },
     { id: 'logs', label: 'Logs' },
   ]
+
+  const searchableSections = useMemo(() => [
+    { tab: 'node', title: 'Node Infrastructure', keywords: ['node', 'sync', 'status', 'tip', 'slot', 'height', 'infrastructure'] },
+    { tab: 'node', title: 'Processes', keywords: ['process', 'pid', 'restart', 'ogmios', 'kupo', 'express', 'cardano', 'mithril'] },
+    { tab: 'wallet', title: 'Wallet Info', keywords: ['wallet', 'address', 'balance', 'ada'] },
+    { tab: 'wallet', title: 'Recovery Phrase', keywords: ['recovery', 'phrase', 'mnemonic', 'seed', 'backup'] },
+    { tab: 'wallet', title: 'Auto-Lock', keywords: ['auto', 'lock', 'timeout', 'inactivity', 'security'] },
+    { tab: 'wallet', title: 'Notification Duration', keywords: ['toast', 'notification', 'duration', 'dismiss', 'alert'] },
+    { tab: 'wallet', title: 'Lock Wallet', keywords: ['lock', 'wallet', 'password'] },
+    { tab: 'network', title: 'Network Selection', keywords: ['network', 'preprod', 'mainnet', 'switch', 'restart'] },
+    { tab: 'datalayer', title: 'Iagon Decentralized Storage', keywords: ['iagon', 'storage', 'decentralized', 'api', 'key', 'upload', 'download', 'file', 'connect'] },
+    { tab: 'datalayer', title: 'Orphaned Files', keywords: ['orphan', 'draft', 'cleanup', 'iagon', 'abandoned'] },
+    { tab: 'storage', title: 'Disk Usage', keywords: ['disk', 'storage', 'space', 'chain', 'data', 'snark', 'size'] },
+    { tab: 'storage', title: 'Image Cache', keywords: ['image', 'cache', 'clear', 'cached', 'thumbnail'] },
+    { tab: 'storage', title: 'Transaction History', keywords: ['transaction', 'history', 'clear', 'cleanup', 'failed'] },
+    { tab: 'logs', title: 'Process Logs', keywords: ['log', 'logs', 'process', 'stdout', 'stderr'] },
+    { tab: 'logs', title: 'Developer Mode', keywords: ['debug', 'developer', 'config', 'localstorage', 'advanced'] },
+  ], [])
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return null
+    const q = searchQuery.toLowerCase()
+    return searchableSections.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      s.keywords.some(k => k.includes(q))
+    )
+  }, [searchQuery, searchableSections])
 
   const handleConnectIagon = useCallback(async () => {
     if (!wallet || !address) return
@@ -327,6 +453,14 @@ export default function Settings() {
           </button>
           <h1 className="text-lg font-semibold">Settings</h1>
         </div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search settings..."
+          className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] w-48"
+          aria-label="Search settings"
+        />
       </nav>
 
       <main className="max-w-4xl mx-auto px-6 py-8">
@@ -349,8 +483,33 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Search Results */}
+        {searchResults && (
+          <div className="mb-8 space-y-2">
+            <p className="text-sm text-[var(--text-muted)] mb-3">
+              {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+            </p>
+            {searchResults.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">No matching settings found.</p>
+            ) : (
+              searchResults.map(s => (
+                <button
+                  key={`${s.tab}-${s.title}`}
+                  onClick={() => { setActiveSection(s.tab); setSearchQuery('') }}
+                  className="block w-full text-left px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                >
+                  <span className="text-sm font-medium">{s.title}</span>
+                  <span className="text-xs text-[var(--text-muted)] ml-2">
+                    in {sections.find(sec => sec.id === s.tab)?.label}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
         {/* Node Status Section */}
-        {activeSection === 'node' && (
+        {!searchResults && activeSection === 'node' && (
           <div className="space-y-6">
             {/* Overall Status */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
@@ -455,7 +614,7 @@ export default function Settings() {
         )}
 
         {/* Wallet Section */}
-        {activeSection === 'wallet' && (
+        {!searchResults && activeSection === 'wallet' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-4">Wallet Info</h2>
@@ -527,12 +686,20 @@ export default function Settings() {
                       </div>
                     ))}
                   </div>
-                  <button
-                    onClick={handleHideMnemonic}
-                    className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
-                  >
-                    Hide Recovery Phrase
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCopyMnemonic}
+                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    >
+                      {mnemonicCopied ? 'Copied!' : 'Copy to Clipboard'}
+                    </button>
+                    <button
+                      onClick={handleHideMnemonic}
+                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    >
+                      Hide Recovery Phrase
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -560,6 +727,27 @@ export default function Settings() {
               </select>
             </div>
 
+            {/* Notification Duration */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <h2 className="text-lg font-medium mb-2">Notification Duration</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                How long toast notifications stay visible before auto-dismissing.
+              </p>
+              <select
+                value={toastDuration}
+                onChange={(e) => {
+                  const ms = Number(e.target.value)
+                  setToastDuration(ms)
+                  setToastDurationMs(ms)
+                }}
+                className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+              >
+                {TOAST_DURATION_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Lock Wallet */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-2">Lock Wallet</h2>
@@ -577,7 +765,7 @@ export default function Settings() {
         )}
 
         {/* Network Section */}
-        {activeSection === 'network' && (
+        {!searchResults && activeSection === 'network' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-2">Network Selection</h2>
@@ -616,7 +804,7 @@ export default function Settings() {
         )}
 
         {/* Storage Section */}
-        {activeSection === 'datalayer' && (
+        {!searchResults && activeSection === 'datalayer' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-2">Iagon Decentralized Storage</h2>
@@ -759,25 +947,29 @@ export default function Settings() {
             )}
 
             {/* Orphaned Files Cleanup */}
-            {orphanedDrafts.length > 0 && (
-              <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-sm font-medium">Orphaned Files</h3>
-                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                      Files uploaded to Iagon whose listing transactions failed or were abandoned.
-                    </p>
-                  </div>
-                  {orphanedDrafts.length > 1 && (
-                    <button
-                      onClick={handleDeleteAllOrphans}
-                      className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer"
-                    >
-                      Delete All
-                    </button>
-                  )}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-medium">Orphaned Files</h3>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    Files uploaded to Iagon whose listing transactions failed or were abandoned.
+                  </p>
                 </div>
+                {orphanedDrafts.length > 1 && (
+                  <button
+                    onClick={handleDeleteAllOrphans}
+                    className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer"
+                  >
+                    Delete All
+                  </button>
+                )}
+              </div>
 
+              {orphanedDrafts.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)] text-center py-4">
+                  No orphaned drafts found.
+                </p>
+              ) : (
                 <div className="space-y-2">
                   {orphanedDrafts.map((draft) => (
                     <div
@@ -806,8 +998,8 @@ export default function Settings() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Info card */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
@@ -846,7 +1038,7 @@ export default function Settings() {
           </div>
         )}
 
-        {activeSection === 'storage' && (
+        {!searchResults && activeSection === 'storage' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-4">Disk Usage</h2>
@@ -890,11 +1082,118 @@ export default function Settings() {
                 <p className="text-[var(--text-muted)]">Loading...</p>
               )}
             </div>
+
+            {/* Image Cache */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-medium">Image Cache</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => listCachedImages().then(setImageCacheStatus).catch(console.error)}
+                    className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    aria-label="Refresh image cache status"
+                  >
+                    Refresh
+                  </button>
+                  {imageCacheStatus && imageCacheStatus.cached.length > 0 && (
+                    <button
+                      onClick={handleClearAllCache}
+                      disabled={cacheClearingAll}
+                      className="px-3 py-1.5 text-sm text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {cacheClearingAll ? 'Clearing...' : 'Clear All'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {imageCacheStatus ? (
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
+                      <span className="text-sm text-[var(--text-muted)]">Cached</span>
+                      <p className="text-lg font-medium">{imageCacheStatus.cached.length} image{imageCacheStatus.cached.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
+                      <span className="text-sm text-[var(--text-muted)]">Banned</span>
+                      <p className="text-lg font-medium">{imageCacheStatus.banned.length} image{imageCacheStatus.banned.length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+
+                  {imageCacheStatus.cached.length > 0 ? (
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {imageCacheStatus.cached.map(tokenName => (
+                        <div key={tokenName} className="flex items-center justify-between py-1.5 px-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+                          <code className="text-xs font-mono text-[var(--text-secondary)] truncate mr-3">
+                            {tokenName.length > 24 ? `${tokenName.slice(0, 12)}...${tokenName.slice(-12)}` : tokenName}
+                          </code>
+                          <button
+                            onClick={() => handleDeleteCachedImage(tokenName)}
+                            disabled={cacheDeleting === tokenName}
+                            className="px-2 py-1 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                            aria-label={`Delete cached image ${tokenName}`}
+                          >
+                            {cacheDeleting === tokenName ? '...' : 'Delete'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)] text-center py-2">No cached images.</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[var(--text-muted)]">Loading...</p>
+              )}
+            </div>
+
+            {/* Transaction History */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <h2 className="text-lg font-medium mb-2">Transaction History</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                {txHistoryCount} transaction{txHistoryCount !== 1 ? 's' : ''} stored locally.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    if (!userPkh || !confirm('Clear all transaction history?')) return
+                    clearHistory(userPkh)
+                    setTxHistoryCount(0)
+                  }}
+                  disabled={!userPkh || txHistoryCount === 0}
+                  className="px-4 py-2 text-sm text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear All
+                </button>
+                <button
+                  onClick={() => {
+                    if (!userPkh) return
+                    const removed = clearOlderThan(userPkh, 30)
+                    setTxHistoryCount(prev => prev - removed)
+                  }}
+                  disabled={!userPkh || txHistoryCount === 0}
+                  className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear Older Than 30 Days
+                </button>
+                <button
+                  onClick={() => {
+                    if (!userPkh) return
+                    const removed = clearFailed(userPkh)
+                    setTxHistoryCount(prev => prev - removed)
+                  }}
+                  disabled={!userPkh || txHistoryCount === 0}
+                  className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear Failed Only
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Logs Section */}
-        {activeSection === 'logs' && (
+        {!searchResults && activeSection === 'logs' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <div className="flex items-center justify-between mb-4">
@@ -946,6 +1245,82 @@ export default function Settings() {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* Developer Mode */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-medium">Developer Mode</h2>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Show detailed runtime information for debugging.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleToggleDebug(!debugMode)}
+                  className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer ${
+                    debugMode ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+                  }`}
+                  role="switch"
+                  aria-checked={debugMode}
+                  aria-label="Toggle developer mode"
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                    debugMode ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {debugMode && (
+                <div className="space-y-4 mt-4 pt-4 border-t border-[var(--border-subtle)]">
+                  {/* App Config */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">App Configuration</h3>
+                    <pre className="text-xs font-mono bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-3 max-h-48 overflow-auto text-[var(--text-secondary)]">
+                      {appConfig ? JSON.stringify(appConfig, null, 2) : 'Loading...'}
+                    </pre>
+                  </div>
+
+                  {/* Process PIDs */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Process PIDs</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {processes.map(proc => (
+                        <div key={proc.name} className="p-2 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+                          <span className="text-xs text-[var(--text-muted)]">{proc.name}</span>
+                          <p className="text-sm font-mono">{proc.pid || 'N/A'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* localStorage Keys */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">LocalStorage Keys ({localStorageKeys.length})</h3>
+                    <div className="max-h-48 overflow-y-auto bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-3">
+                      {localStorageKeys.length > 0 ? (
+                        localStorageKeys.map(key => (
+                          <div key={key} className="text-xs font-mono text-[var(--text-secondary)] py-0.5">
+                            {key}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-[var(--text-muted)]">No keys found</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    >
+                      Force Refresh
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

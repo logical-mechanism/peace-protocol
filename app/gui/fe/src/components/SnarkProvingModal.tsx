@@ -175,7 +175,7 @@ export default function SnarkProvingModal({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden">
+      <div className="relative w-full max-w-md max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useWalletContext } from './contexts/WalletContext'
 import { useNode } from './contexts/NodeContext'
 import Dashboard from './pages/Dashboard'
@@ -7,19 +7,23 @@ import WalletSetup from './pages/WalletSetup'
 import WalletUnlock from './pages/WalletUnlock'
 import NodeSync from './pages/NodeSync'
 import Settings from './pages/Settings'
+import SessionWarningBanner from './components/SessionWarningBanner'
 
 function App() {
   const { walletState, refreshBalance } = useWalletContext()
   const { stage: nodeStage, tipSlot } = useNode()
+  const location = useLocation()
   const prevTipRef = useRef<number | null>(null)
 
   // Refresh wallet balance when chain tip advances (new block every ~20s)
+  // Only after node is synced — Kupo isn't ready during earlier stages
   useEffect(() => {
+    if (nodeStage !== 'synced') return
     if (tipSlot !== null && tipSlot !== prevTipRef.current) {
       prevTipRef.current = tipSlot
       refreshBalance()
     }
-  }, [tipSlot, refreshBalance])
+  }, [nodeStage, tipSlot, refreshBalance])
 
   if (walletState === 'loading') {
     return (
@@ -33,6 +37,9 @@ function App() {
   }
 
   return (
+    <>
+    <SessionWarningBanner />
+    <div key={location.pathname} className="page-transition">
     <Routes>
       <Route
         path="/wallet-setup"
@@ -101,6 +108,8 @@ function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </div>
+    </>
   )
 }
 

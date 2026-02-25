@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 interface EmptyStateProps {
   icon?: ReactNode;
+  illustration?: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
@@ -10,6 +11,7 @@ interface EmptyStateProps {
 
 export default function EmptyState({
   icon,
+  illustration,
   title,
   description,
   action,
@@ -19,11 +21,15 @@ export default function EmptyState({
     <div
       className={`bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-12 text-center ${className}`}
     >
-      {icon && (
+      {illustration ? (
+        <div className="flex justify-center mb-6">
+          {illustration}
+        </div>
+      ) : icon ? (
         <div className="flex justify-center mb-4 text-[var(--text-muted)]">
           {icon}
         </div>
-      )}
+      ) : null}
       <p className="text-[var(--text-primary)] font-medium">{title}</p>
       {description && (
         <p className="text-sm text-[var(--text-muted)] mt-2">{description}</p>

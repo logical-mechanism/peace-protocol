@@ -113,6 +113,8 @@ pub fn run() {
             commands::node::stop_node,
             commands::node::start_mithril_bootstrap,
             commands::node::get_process_logs,
+            // Chain commands (Koios direct)
+            commands::chain::get_network_tip,
             // Config commands (Phase 2)
             commands::config::get_network,
             commands::config::set_network,
@@ -173,6 +175,7 @@ pub fn run() {
             commands::media::read_library_content,
             commands::media::delete_library_item,
             commands::media::export_library_content,
+            commands::media::export_text_file,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { LibraryItem } from '../services/libraryService';
+import { truncateHex } from '../utils/truncate';
 import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -11,10 +12,6 @@ interface LibraryCardProps {
   compact?: boolean;
 }
 
-const truncateToken = (token: string) => {
-  if (!token) return '';
-  return `${token.slice(0, 8)}...${token.slice(-4)}`;
-};
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -30,11 +27,6 @@ const getCategoryLabel = (category: string): string => {
   return category.charAt(0).toUpperCase() + category.slice(1);
 };
 
-const truncateSeller = (seller: string) => {
-  if (!seller) return '';
-  if (seller.length <= 16) return seller;
-  return `${seller.slice(0, 8)}...${seller.slice(-4)}`;
-};
 
 function CategoryIcon({ category, size = 'md' }: { category: string; size?: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
@@ -101,7 +93,7 @@ export default function LibraryCard({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="text-xs font-mono text-[var(--text-muted)]">
-                    {truncateToken(item.tokenName)}
+                    {truncateHex(item.tokenName, 8, 4)}
                   </span>
                   <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
                   {item.contentMissing && (
@@ -124,7 +116,7 @@ export default function LibraryCard({
               <div className="text-right">
                 {item.seller && (
                   <p className="text-xs font-mono text-[var(--text-muted)]">
-                    {truncateSeller(item.seller)}
+                    {truncateHex(item.seller, 8, 4)}
                   </p>
                 )}
                 <p className="text-xs text-[var(--text-muted)]">
@@ -144,8 +136,9 @@ export default function LibraryCard({
                   onClick={() => onDelete(item)}
                   className="p-1.5 text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-muted)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
                   title="Delete from library"
+                  aria-label="Delete from library"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -166,13 +159,13 @@ export default function LibraryCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs font-mono text-[var(--text-muted)] truncate">
-                {truncateToken(item.tokenName)}
+                {truncateHex(item.tokenName, 8, 4)}
               </span>
               <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
               {item.contentMissing && (
@@ -212,7 +205,7 @@ export default function LibraryCard({
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
             <span className="text-xs text-[var(--text-muted)]">Seller</span>
             <span className="text-xs font-mono text-[var(--text-secondary)]">
-              {truncateSeller(item.seller)}
+              {truncateHex(item.seller, 8, 4)}
             </span>
           </div>
         )}

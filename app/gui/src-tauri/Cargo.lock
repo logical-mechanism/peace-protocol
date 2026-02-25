@@ -4487,6 +4487,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tempfile",
  "tokio",
+ "zeroize",
  "zstd",
 ]
 

@@ -80,6 +80,35 @@ export function clearHistory(walletPkh: string): void {
 }
 
 /**
+ * Clear transactions older than a given number of days.
+ * Returns the number of records removed.
+ */
+export function clearOlderThan(walletPkh: string, days: number): number {
+  const records = getTransactions(walletPkh);
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const filtered = records.filter(r => r.timestamp >= cutoff);
+  const removed = records.length - filtered.length;
+  if (removed > 0) {
+    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(filtered));
+  }
+  return removed;
+}
+
+/**
+ * Clear only failed transactions.
+ * Returns the number of records removed.
+ */
+export function clearFailed(walletPkh: string): number {
+  const records = getTransactions(walletPkh);
+  const filtered = records.filter(r => r.status !== 'failed');
+  const removed = records.length - filtered.length;
+  if (removed > 0) {
+    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(filtered));
+  }
+  return removed;
+}
+
+/**
  * Reconcile local history with on-chain records and persist changes.
  *
  * - On-chain records not in local storage are added (so they persist after UTxO removal)
@@ -141,7 +170,7 @@ export async function resolvePendingTxs(walletPkh: string): Promise<TransactionR
     try {
       // Check if Kupo has indexed any output from this transaction
       const res = await fetch(
-        `http://localhost:1442/matches/*@${rec.txHash}`
+        `http://127.0.0.1:1442/matches/*@${rec.txHash}`
       );
       if (res.ok) {
         const matches = await res.json();
@@ -179,4 +208,33 @@ export function getTypeLabel(type: TransactionType): string {
     case 'cancel-pending': return 'Cancel Pending';
     case 'complete-sale': return 'Complete Sale';
   }
+}
+
+/**
+ * Escape a value for CSV: wrap in double quotes if it contains commas,
+ * double quotes, or newlines. Internal double quotes are doubled.
+ */
+function csvEscape(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Convert transaction records to CSV string.
+ * Columns: Date, Type, Status, Tx Hash, Token Name, Description
+ */
+export function toCSV(records: TransactionRecord[]): string {
+  const header = 'Date,Type,Status,Tx Hash,Token Name,Description';
+  const rows = records.map(r => {
+    const date = new Date(r.timestamp).toISOString();
+    const type = getTypeLabel(r.type);
+    const status = r.status;
+    const hash = r.txHash;
+    const token = r.tokenName ?? '';
+    const desc = csvEscape(r.description ?? '');
+    return `${date},${type},${status},${hash},${token},${desc}`;
+  });
+  return [header, ...rows].join('\n');
 }

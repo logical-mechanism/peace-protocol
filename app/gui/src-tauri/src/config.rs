@@ -230,6 +230,14 @@ impl AppConfig {
         vars
     }
 
+    /// Get the Koios REST API base URL for the current network
+    pub fn koios_base_url(&self) -> &str {
+        match self.network {
+            Network::Preprod => "https://preprod.koios.rest/api/v1",
+            Network::Mainnet => "https://api.koios.rest/api/v1",
+        }
+    }
+
     /// Get the mithril aggregator URL for the current network
     pub fn mithril_aggregator_url(&self) -> &str {
         match self.network {

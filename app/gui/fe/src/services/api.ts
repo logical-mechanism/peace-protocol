@@ -306,14 +306,39 @@ export const chainApi = {
     const response = await apiFetch<ApiResponse<{ confirmations: number }>>(`/api/chain/confirmations/${txHash}`);
     return response.data;
   },
+
+  /**
+   * Get the current network tip (latest block) from Koios via backend.
+   * Returns null if the backend is not yet running or Koios is unreachable.
+   */
+  async getTip(): Promise<{ block_no: number; epoch_no: number; block_time: number } | null> {
+    try {
+      const response = await apiFetch<ApiResponse<{ block_no: number; epoch_no: number; block_time: number }>>('/api/chain/tip');
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
 };
 
 // Health check
-export async function checkHealth(): Promise<{
-  status: string;
+export interface DependencyHealth {
+  reachable: boolean;
+  latencyMs: number;
+  lastSuccess: string | null;
+  error?: string;
+}
+
+export interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  uptimeSeconds: number;
+  kupo: DependencyHealth;
+  koios: DependencyHealth;
   network: string;
   useStubs: boolean;
   timestamp: string;
-}> {
+}
+
+export async function checkHealth(): Promise<HealthStatus> {
   return apiFetch('/health');
 }

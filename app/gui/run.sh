@@ -3,6 +3,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+source ./check-prereqs.sh
+check_prerequisites
+
 # If a previous run left WebKit helper processes behind, kill them.
 # (Workaround for WebKitNetworkProcess sticking around / getting wedged)
 pkill -u "$USER" -f 'WebKitNetworkProcess' 2>/dev/null || true
@@ -21,5 +24,10 @@ fi
 echo "Installing dependencies and building backend..."
 npm run install:all
 
-echo "Building development version..."
+echo "Starting backend TypeScript watcher..."
+npm --prefix be run watch &
+TSC_PID=$!
+trap "kill $TSC_PID 2>/dev/null; wait $TSC_PID 2>/dev/null" EXIT
+
+echo "Starting development version..."
 npx tauri dev

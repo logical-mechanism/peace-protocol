@@ -18,7 +18,7 @@
   /* Text - high contrast for readability */
   --text-primary: #fafafa;
   --text-secondary: #a1a1a1;
-  --text-muted: #666666;
+  --text-muted: #8a8a8a;
 
   /* Accent - single accent color, used sparingly */
   --accent: #6366f1;
@@ -37,7 +37,7 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 
-  /* Spacing */
+  /* Spacing (4px baseline) */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -46,6 +46,13 @@
   --space-8: 2rem;
   --space-12: 3rem;
   --space-16: 4rem;
+
+  /* Semantic spacing aliases */
+  --space-xs: var(--space-1);  /* 4px  - tight gaps, inline spacing */
+  --space-sm: var(--space-2);  /* 8px  - compact padding, small gaps */
+  --space-md: var(--space-4);  /* 16px - standard padding, section gaps */
+  --space-lg: var(--space-6);  /* 24px - card padding, group spacing */
+  --space-xl: var(--space-8);  /* 32px - section separation */
 
   /* Border Radius */
   --radius-sm: 4px;
@@ -81,6 +88,16 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+/* Focus visible indicators for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Line clamp utilities for text truncation */
@@ -148,6 +165,11 @@ select option {
   cursor: pointer;
 }
 
+.winamp-slider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .winamp-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 10px;
@@ -155,4 +177,43 @@ select option {
   background: var(--winamp-bg-light);
   border: 1px solid var(--winamp-border-light);
   cursor: pointer;
+}
+
+/* Page transition animation (GPU-accelerated: opacity + transform) */
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: page-fade-in 200ms ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* PDF search highlights — text layer is transparent overlay on canvas */
+.textLayer .pdf-search-highlight {
+  background-color: rgba(255, 196, 0, 0.35);
+  border-radius: 2px;
+  color: transparent;
+}
+
+.textLayer .pdf-search-highlight.current {
+  background-color: rgba(255, 140, 0, 0.6);
+  color: transparent;
 }

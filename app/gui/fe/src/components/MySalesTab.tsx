@@ -1,15 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import SalesListingCard from './SalesListingCard';
 import BidsModal from './BidsModal';
-import LoadingSpinner from './LoadingSpinner';
-import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
+import { SkeletonGrid } from './SkeletonCard';
+import EmptyState, { PackageIcon } from './EmptyState';
+import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
-
-type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids';
-type StatusFilter = 'all' | 'active' | 'pending' | 'completed';
+import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
 
 interface MySalesTabProps {
   userPkh?: string;
@@ -19,9 +17,12 @@ interface MySalesTabProps {
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   onCreateListing?: () => void;
   onBidsViewed?: (encryptionTokenName: string) => void;
+  refreshSignal?: number;
+  filters: MySalesFilters;
+  dispatch: React.Dispatch<MySalesAction>;
 }
 
-export default function MySalesTab({
+function MySalesTab({
   userPkh,
   onRemoveListing,
   onAcceptBid,
@@ -29,16 +30,18 @@ export default function MySalesTab({
   onCompleteSale,
   onCreateListing,
   onBidsViewed,
+  refreshSignal,
+  filters,
+  dispatch,
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Destructure filter state from Dashboard-level reducer
+  const { viewMode, sortBy, statusFilter, searchQuery } = filters;
 
   // Modal state
   const [selectedListing, setSelectedListing] = useState<EncryptionDisplay | null>(null);
@@ -84,6 +87,16 @@ export default function MySalesTab({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchData();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get bid count for a listing
   const getBidCount = useCallback(
@@ -198,14 +211,7 @@ export default function MySalesTab({
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading your listings...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonGrid />;
   }
 
   if (error) {
@@ -230,7 +236,7 @@ export default function MySalesTab({
   if (encryptions.length === 0) {
     return (
       <EmptyState
-        icon={<InboxIcon />}
+        illustration={<NoSalesIllustration />}
         title="No listings yet"
         description="Create your first encryption listing to start selling on the marketplace"
         action={
@@ -256,6 +262,7 @@ export default function MySalesTab({
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -268,7 +275,8 @@ export default function MySalesTab({
             type="text"
             placeholder="Search by token or description..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
+            aria-label="Search sales"
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
         </div>
@@ -278,7 +286,8 @@ export default function MySalesTab({
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MySalesFilters['statusFilter'] })}
+            aria-label="Filter by status"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="all">All Status</option>
@@ -290,7 +299,8 @@ export default function MySalesTab({
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MySalesFilters['sortBy'] })}
+            aria-label="Sort listings"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="newest">Newest First</option>
@@ -301,17 +311,19 @@ export default function MySalesTab({
           </select>
 
           {/* View Toggle */}
-          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
               title="Grid view"
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -321,15 +333,17 @@ export default function MySalesTab({
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
               title="List view"
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -345,8 +359,9 @@ export default function MySalesTab({
             onClick={fetchData}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
             title="Refresh listings"
+            aria-label="Refresh listings"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -368,14 +383,14 @@ export default function MySalesTab({
       {filteredAndSorted.length === 0 ? (
         searchQuery || statusFilter !== 'all' ? (
           <EmptyState
-            icon={<SearchIcon />}
+            illustration={<NoResultsIllustration />}
             title="No matching listings"
             description="Try adjusting your search or filters"
             action={
               <button
                 onClick={() => {
-                  setSearchQuery('');
-                  setStatusFilter('all');
+                  dispatch({ type: 'SET_SEARCH', payload: '' });
+                  dispatch({ type: 'SET_STATUS', payload: 'all' });
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >
@@ -385,13 +400,13 @@ export default function MySalesTab({
           />
         ) : (
           <EmptyState
-            icon={<PackageIcon />}
+            illustration={<NoSalesIllustration />}
             title="No listings found"
             description="Your listings will appear here"
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAndSorted.map((encryption) => (
             <SalesListingCard
               key={encryption.tokenName}
@@ -437,3 +452,5 @@ export default function MySalesTab({
     </div>
   );
 }
+
+export default memo(MySalesTab);

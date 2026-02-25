@@ -1,4 +1,6 @@
 import { getNetworkConfig } from '../config/index.js';
+import { fetchWithRetry } from './fetchWithRetry.js';
+import { CircuitBreaker } from './circuitBreaker.js';
 
 interface KoiosUtxo {
   tx_hash: string;
@@ -47,36 +49,44 @@ interface TxInfo {
 class KoiosClient {
   private baseUrl: string;
   private authToken: string;
+  private circuitBreaker: CircuitBreaker;
 
   constructor() {
     const { koiosUrl, koiosToken } = getNetworkConfig();
     this.baseUrl = koiosUrl;
     this.authToken = koiosToken;
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'koios',
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+    });
   }
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (this.authToken) {
-      headers['Authorization'] = `Bearer ${this.authToken}`;
-    }
+    return this.circuitBreaker.execute(async () => {
+      const url = `${this.baseUrl}${endpoint}`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...(options?.headers as Record<string, string>),
-      },
+      const response = await fetchWithRetry(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...(options?.headers as Record<string, string>),
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        throw new Error(`Koios API error: ${response.status} ${response.statusText} - ${body}`);
+      }
+
+      return response.json();
     });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`Koios API error: ${response.status} ${response.statusText} - ${body}`);
-    }
-
-    return response.json();
   }
 
   /**
@@ -135,6 +145,36 @@ class KoiosClient {
 
     // Koios returns metadata as an object { "674": {...} }, convert to array format
     return Object.entries(rawMetadata).map(([key, json]) => ({ key, json }));
+  }
+
+  /**
+   * Get transaction metadata for multiple tx hashes (batch).
+   * Returns a Map of txHash → metadata entries array.
+   */
+  async getTxMetadataBatch(txHashes: string[]): Promise<Map<string, Array<{ key: string; json: unknown }>>> {
+    if (txHashes.length === 0) return new Map();
+
+    const results = await this.request<Array<{ tx_hash: string; metadata: Record<string, unknown> | null }>>(
+      '/tx_metadata',
+      {
+        method: 'POST',
+        body: JSON.stringify({ _tx_hashes: txHashes }),
+      }
+    );
+
+    const metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
+
+    for (const item of results) {
+      const rawMetadata = item.metadata;
+      if (!rawMetadata || typeof rawMetadata !== 'object') {
+        metadataMap.set(item.tx_hash, []);
+        continue;
+      }
+      const entries = Object.entries(rawMetadata).map(([key, json]) => ({ key, json }));
+      metadataMap.set(item.tx_hash, entries);
+    }
+
+    return metadataMap;
   }
 
   /**

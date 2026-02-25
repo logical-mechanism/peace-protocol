@@ -1,8 +1,15 @@
 import { getNetworkConfig } from '../config/index.js';
+import { apiCache } from './cache.js';
 import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
+import { logger } from './logger.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
-import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel } from '../types/index.js';
+import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel, ResponseWarnings } from '../types/index.js';
+
+export interface ServiceResult<T> {
+  data: T;
+  warnings: ResponseWarnings;
+}
 
 export interface ParsedCip20 {
   description?: string;
@@ -59,25 +66,15 @@ export function parseCip20Fields(msg: string[], fullJson?: Record<string, unknow
   };
 }
 
-/**
- * Fetch and parse CIP-20 metadata (key 674) from the creation tx.
- * Supports both old flat-array format and new structured format.
- */
-async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
-  try {
-    const koios = getKoiosClient();
-    const metadata = await koios.getTxMetadata(txHash);
-    const cip20 = metadata.find(m => m.key === '674');
-    if (!cip20?.json || typeof cip20.json !== 'object') return {};
+/** Extract CIP-20 fields from pre-fetched metadata entries. */
+export function extractCip20FromMetadata(entries: Array<{ key: string; json: unknown }>): ParsedCip20 {
+  const cip20 = entries.find(m => m.key === '674');
+  if (!cip20?.json || typeof cip20.json !== 'object') return {};
 
-    const json = cip20.json as Record<string, unknown>;
-    const msgArray = Array.isArray(json.msg) ? (json.msg as string[]) : [];
+  const json = cip20.json as Record<string, unknown>;
+  const msgArray = Array.isArray(json.msg) ? (json.msg as string[]) : [];
 
-    return parseCip20Fields(msgArray, json);
-  } catch (err) {
-    console.warn(`Failed to fetch CIP-20 metadata for ${txHash}:`, err);
-    return {};
-  }
+  return parseCip20Fields(msgArray, json);
 }
 
 function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20: ParsedCip20): EncryptionDisplay {
@@ -115,49 +112,93 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
   };
 }
 
-/** Fetch all encryption UTxOs from Kupo and enrich with CIP-20 metadata. */
-export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
-  const { contracts } = getNetworkConfig();
-  const kupo = getKupoClient();
+const CACHE_KEY_ALL_ENCRYPTIONS = 'all_encryptions';
 
-  const utxos = await kupo.getAddressUtxos(contracts.encryptionAddress);
-  const encryptions: EncryptionDisplay[] = [];
-
-  for (const utxo of utxos) {
-    if (!utxo.inline_datum?.value) continue;
-
-    try {
-      const datum = parseEncryptionDatum(utxo.inline_datum.value);
-      const cip20 = await fetchCip20Metadata(utxo.tx_hash);
-      encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
-    } catch (err) {
-      console.warn(`Failed to parse encryption datum at ${utxo.tx_hash}#${utxo.tx_index}:`, err);
-    }
+/** Fetch all encryption UTxOs from Kupo and enrich with CIP-20 metadata (batch). */
+export async function getAllEncryptions(skipCache = false): Promise<ServiceResult<EncryptionDisplay[]>> {
+  if (!skipCache) {
+    const cached = apiCache.get<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
+    if (cached) return { data: cached, warnings: {} };
   }
 
-  return encryptions;
+  try {
+    const { contracts } = getNetworkConfig();
+    const kupo = getKupoClient();
+    const koios = getKoiosClient();
+
+    const utxos = await kupo.getAddressUtxos(contracts.encryptionAddress);
+
+    // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
+    const parsed: Array<{ utxo: KoiosUtxo; datum: EncryptionDatum }> = [];
+    let skippedDatums = 0;
+    for (const utxo of utxos) {
+      if (!utxo.inline_datum?.value) continue;
+      try {
+        const datum = parseEncryptionDatum(utxo.inline_datum.value);
+        parsed.push({ utxo, datum });
+      } catch (err) {
+        skippedDatums++;
+        logger.warn('Failed to parse encryption datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
+      }
+    }
+
+    // Phase 2: Batch fetch all CIP-20 metadata in a single request
+    const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+    let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
+    try {
+      metadataMap = await koios.getTxMetadataBatch(txHashes);
+    } catch (err) {
+      logger.warn('Failed to batch fetch CIP-20 metadata', { error: String(err) });
+    }
+
+    // Phase 3: Assemble results
+    const encryptions: EncryptionDisplay[] = [];
+    for (const { utxo, datum } of parsed) {
+      const cip20 = extractCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+      encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
+    }
+
+    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
+    const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
+    return { data: encryptions, warnings };
+  } catch (err) {
+    // If fetching fails (Kupo down, Koios circuit open), return stale cached data
+    const stale = apiCache.getStale<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
+    if (stale) {
+      logger.warn('Returning stale cache for encryptions', { error: String(err) });
+      return { data: stale, warnings: {} };
+    }
+    throw err;
+  }
 }
 
 /** Find a single encryption by its token name, or null if not found. */
-export async function getEncryptionByToken(tokenName: string): Promise<EncryptionDisplay | null> {
-  const encryptions = await getAllEncryptions();
-  return encryptions.find(e => e.tokenName === tokenName) || null;
+export async function getEncryptionByToken(tokenName: string): Promise<ServiceResult<EncryptionDisplay | null>> {
+  const result = await getAllEncryptions();
+  return {
+    data: result.data.find(e => e.tokenName === tokenName) || null,
+    warnings: result.warnings,
+  };
 }
 
 /** Filter encryptions by seller payment key hash (case-insensitive substring match). */
-export async function getEncryptionsByUser(pkh: string): Promise<EncryptionDisplay[]> {
-  const encryptions = await getAllEncryptions();
-  return encryptions.filter(e =>
-    e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())
-  );
+export async function getEncryptionsByUser(pkh: string): Promise<ServiceResult<EncryptionDisplay[]>> {
+  const result = await getAllEncryptions();
+  return {
+    data: result.data.filter(e => e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())),
+    warnings: result.warnings,
+  };
 }
 
 /** Filter encryptions by display status (active, pending, or completed). */
 export async function getEncryptionsByStatus(
   status: 'active' | 'pending' | 'completed'
-): Promise<EncryptionDisplay[]> {
-  const encryptions = await getAllEncryptions();
-  return encryptions.filter(e => e.status === status);
+): Promise<ServiceResult<EncryptionDisplay[]>> {
+  const result = await getAllEncryptions();
+  return {
+    data: result.data.filter(e => e.status === status),
+    warnings: result.warnings,
+  };
 }
 
 /**
@@ -219,7 +260,7 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
           r2_g1: halfLevel.r2_g1b,
         });
       } catch (err) {
-        console.warn(`Failed to parse half_level from tx ${tx.tx_hash}:`, err);
+        logger.warn('Failed to parse half_level', { txHash: tx.tx_hash, error: String(err) });
       }
     }
 
@@ -243,7 +284,7 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
         }
       }
     } catch (err) {
-      console.warn(`Failed to parse full_level from tx ${tx.tx_hash}:`, err);
+      logger.warn('Failed to parse full_level', { txHash: tx.tx_hash, error: String(err) });
     }
   }
 

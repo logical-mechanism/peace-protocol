@@ -13,6 +13,7 @@ pub async fn start_express(
     app_config: &AppConfig,
     be_dir: &PathBuf,
 ) -> Result<(), String> {
+    manager.ensure_port_available(3001)?;
     let env_vars = app_config.express_env_vars();
     manager
         .start_command(
@@ -23,4 +24,13 @@ pub async fn start_express(
             env_vars,
         )
         .await
+}
+
+/// Health check: GET http://127.0.0.1:3001/health
+/// Returns true if Express responds with a 200 status.
+pub async fn health_check() -> bool {
+    match reqwest::get("http://127.0.0.1:3001/health").await {
+        Ok(resp) => resp.status().is_success(),
+        Err(_) => false,
+    }
 }

@@ -506,6 +506,38 @@ pub async fn export_library_content(
     }
 }
 
+/// Export arbitrary text content to a user-chosen file via native save dialog.
+/// Returns the saved file path, or None if the user cancelled.
+#[tauri::command]
+pub async fn export_text_file(
+    app: tauri::AppHandle,
+    content: String,
+    suggested_filename: String,
+) -> Result<Option<String>, String> {
+    if content.is_empty() {
+        return Err("Content is empty".to_string());
+    }
+
+    use tauri_plugin_dialog::DialogExt;
+    let dest = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested_filename)
+        .blocking_save_file();
+
+    match dest {
+        Some(path) => {
+            let dest_path = path
+                .as_path()
+                .ok_or_else(|| "Invalid save path".to_string())?;
+            std::fs::write(dest_path, content.as_bytes())
+                .map_err(|e| format!("Failed to save file: {e}"))?;
+            Ok(Some(dest_path.to_string_lossy().to_string()))
+        }
+        None => Ok(None), // User cancelled
+    }
+}
+
 /// Check if a content (non-metadata) file exists in the token directory.
 fn has_content_file(token_dir: &Path, token_name: &str) -> bool {
     find_content_file(token_dir, token_name).is_some()

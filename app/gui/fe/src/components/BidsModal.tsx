@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
+import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
 import EmptyState from './EmptyState';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface BidsModalProps {
   isOpen: boolean;
@@ -18,33 +19,10 @@ export default function BidsModal({
   bids,
   onAcceptBid,
 }: BidsModalProps) {
-  // Handle escape key to close
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('bids', isOpen, onClose);
 
   if (!isOpen) return null;
-
-  const truncateAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 12)}...${addr.slice(-8)}`;
-  };
-
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 12)}...${token.slice(-6)}`;
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -78,7 +56,8 @@ export default function BidsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="bids-modal-title"
@@ -99,7 +78,7 @@ export default function BidsModal({
               Bids for Listing
             </h2>
             <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5">
-              {truncateToken(encryption.tokenName)}
+              {truncateHex(encryption.tokenName, 12, 6)}
             </p>
           </div>
           <button
@@ -160,8 +139,7 @@ export default function BidsModal({
                         bid={bid}
                         canAccept={canAcceptBids}
                         onAccept={onAcceptBid}
-                        truncateAddress={truncateAddress}
-                        formatDate={formatDate}
+                                                formatDate={formatDate}
                         formatLovelace={formatLovelace}
                       />
                     ))}
@@ -181,8 +159,7 @@ export default function BidsModal({
                         key={bid.tokenName}
                         bid={bid}
                         canAccept={false}
-                        truncateAddress={truncateAddress}
-                        formatDate={formatDate}
+                                                formatDate={formatDate}
                         formatLovelace={formatLovelace}
                       />
                     ))}
@@ -222,7 +199,6 @@ interface BidCardProps {
   bid: BidDisplay;
   canAccept: boolean;
   onAccept?: (bid: BidDisplay) => void;
-  truncateAddress: (addr: string) => string;
   formatDate: (date: string) => string;
   formatLovelace: (amount: number) => string;
 }
@@ -231,7 +207,6 @@ function BidCard({
   bid,
   canAccept,
   onAccept,
-  truncateAddress,
   formatDate,
   formatLovelace,
 }: BidCardProps) {
@@ -242,7 +217,7 @@ function BidCard({
           {/* Bidder Address */}
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-mono text-[var(--text-secondary)]">
-              {truncateAddress(bid.bidder)}
+              {truncateHex(bid.bidder, 12, 8)}
             </span>
             <BidStatusBadge status={bid.status} />
           </div>

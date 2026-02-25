@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { truncateHex } from '../utils/truncate';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface DescriptionModalProps {
   isOpen: boolean;
@@ -13,31 +14,13 @@ export default function DescriptionModal({
   description,
   tokenName,
 }: DescriptionModalProps) {
-  // Handle escape key to close
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('description', isOpen, onClose);
 
   if (!isOpen) return null;
 
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 12)}...${token.slice(-6)}`;
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -54,7 +37,7 @@ export default function DescriptionModal({
             </h2>
             {tokenName && (
               <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5">
-                {truncateToken(tokenName)}
+                {truncateHex(tokenName ?? '', 12, 6)}
               </p>
             )}
           </div>

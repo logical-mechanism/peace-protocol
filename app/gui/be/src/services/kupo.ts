@@ -12,6 +12,7 @@
 import { config, getNetworkConfig } from '../config/index.js';
 import type { KoiosUtxo } from './koios.js';
 import { decodePlutusData, slotToUnixTime } from './cbor.js';
+import { fetchWithRetry } from './fetchWithRetry.js';
 
 /** Kupo /matches response item (with ?resolve_hashes) */
 export interface KupoMatch {
@@ -107,7 +108,7 @@ class KupoClient {
 
   private async request<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     if (!response.ok) {
       const body = await response.text().catch(() => '');
       throw new Error(`Kupo API error: ${response.status} ${response.statusText} - ${body}`);

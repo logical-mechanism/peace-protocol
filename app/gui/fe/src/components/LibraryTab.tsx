@@ -1,38 +1,28 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
 import { FILE_CATEGORIES } from '../config/categories';
 import LibraryCard from './LibraryCard';
 import LibraryContentModal from './LibraryContentModal';
 import ConfirmModal from './ConfirmModal';
 import { deleteLibraryItem } from '../services/libraryService';
-import LoadingSpinner from './LoadingSpinner';
-import EmptyState, { PackageIcon, SearchIcon } from './EmptyState';
+import { SkeletonGrid } from './SkeletonCard';
+import EmptyState, { PackageIcon } from './EmptyState';
+import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
+import type { LibraryFilters, LibraryAction } from '../hooks/useTabFilterState';
 
-type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc';
-type CategoryFilter = string; // 'all' or a category id
-
-function BookIcon({ className = 'w-12 h-12' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-      />
-    </svg>
-  );
+interface LibraryTabProps {
+  refreshSignal?: number;
+  filters: LibraryFilters;
+  dispatch: React.Dispatch<LibraryAction>;
 }
 
-export default function LibraryTab() {
+function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Destructure filter state from Dashboard-level reducer
+  const { viewMode, sortBy, categoryFilter, searchQuery } = filters;
 
   // Modal state
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
@@ -58,6 +48,16 @@ export default function LibraryTab() {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  // Re-fetch when Dashboard signals a refresh (e.g. after decryption)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchItems();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter and sort items
   const filteredAndSorted = useMemo(() => {
@@ -139,14 +139,7 @@ export default function LibraryTab() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading your library...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonGrid />;
   }
 
   if (error) {
@@ -170,7 +163,7 @@ export default function LibraryTab() {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<BookIcon />}
+        illustration={<LibraryEmptyIllustration />}
         title="Your library is empty"
         description="Decrypted content will appear here after successful purchases"
       />
@@ -188,6 +181,7 @@ export default function LibraryTab() {
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -200,7 +194,8 @@ export default function LibraryTab() {
             type="text"
             placeholder="Search by token, description, or seller..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
+            aria-label="Search library"
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
         </div>
@@ -210,7 +205,8 @@ export default function LibraryTab() {
           {/* Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
+            aria-label="Filter by category"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="all">All Categories</option>
@@ -224,7 +220,8 @@ export default function LibraryTab() {
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as LibraryFilters['sortBy'] })}
+            aria-label="Sort items"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="newest">Newest First</option>
@@ -234,17 +231,19 @@ export default function LibraryTab() {
           </select>
 
           {/* View Toggle */}
-          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
               title="Grid view"
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -254,15 +253,17 @@ export default function LibraryTab() {
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
               title="List view"
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -278,8 +279,9 @@ export default function LibraryTab() {
             onClick={fetchItems}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
             title="Refresh library"
+            aria-label="Refresh library"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -301,14 +303,14 @@ export default function LibraryTab() {
       {filteredAndSorted.length === 0 ? (
         searchQuery || categoryFilter !== 'all' ? (
           <EmptyState
-            icon={<SearchIcon />}
+            illustration={<NoResultsIllustration />}
             title="No matching items"
             description="Try adjusting your search or filters"
             action={
               <button
                 onClick={() => {
-                  setSearchQuery('');
-                  setCategoryFilter('all');
+                  dispatch({ type: 'SET_SEARCH', payload: '' });
+                  dispatch({ type: 'SET_CATEGORY', payload: 'all' });
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >
@@ -318,13 +320,13 @@ export default function LibraryTab() {
           />
         ) : (
           <EmptyState
-            icon={<PackageIcon />}
+            illustration={<LibraryEmptyIllustration />}
             title="No items found"
             description="Your library items will appear here"
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAndSorted.map((item) => (
             <LibraryCard
               key={item.tokenName}
@@ -370,3 +372,5 @@ export default function LibraryTab() {
     </div>
   );
 }
+
+export default memo(LibraryTab);

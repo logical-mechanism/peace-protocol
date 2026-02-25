@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import LoadingSpinner from './LoadingSpinner';
 import type { EncryptionDisplay } from '../services/api';
+import { truncateHex } from '../utils/truncate';
+import LoadingSpinner from './LoadingSpinner';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -57,21 +59,8 @@ export default function PlaceBidModal({
     }
   }, [isOpen, encryption?.suggestedPrice]);
 
-  // Handle escape key to close (separate effect to avoid resetting form)
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSubmitting) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, isSubmitting, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('place-bid', isOpen, onClose, isSubmitting);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -146,21 +135,12 @@ export default function PlaceBidModal({
     }
   };
 
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 8)}...${token.slice(-4)}`;
-  };
-
-  const truncateAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 10)}...${addr.slice(-6)}`;
-  };
-
   if (!isOpen || !encryption) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="place-bid-title"
@@ -211,13 +191,13 @@ export default function PlaceBidModal({
                 <div className="flex justify-between">
                   <span className="text-xs text-[var(--text-muted)]">Token</span>
                   <span className="text-xs font-mono text-[var(--text-secondary)]">
-                    {truncateToken(encryption.tokenName)}
+                    {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-[var(--text-muted)]">Seller</span>
                   <span className="text-xs font-mono text-[var(--text-secondary)]">
-                    {truncateAddress(encryption.seller)}
+                    {truncateHex(encryption.seller, 10, 6)}
                   </span>
                 </div>
                 {encryption.suggestedPrice !== undefined && (

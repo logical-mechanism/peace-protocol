@@ -1,4 +1,8 @@
 // API Response types
+export interface ResponseWarnings {
+  skippedDatums?: number;
+}
+
 export interface ApiResponse<T> {
   data: T;
   meta?: {
@@ -6,6 +10,7 @@ export interface ApiResponse<T> {
     page?: number;
     limit?: number;
   };
+  warnings?: ResponseWarnings;
 }
 
 export interface ApiError {

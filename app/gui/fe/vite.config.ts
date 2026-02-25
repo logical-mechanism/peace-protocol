@@ -66,5 +66,20 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
+    alias: {
+      '@tauri-apps/api/core': path.resolve(__dirname, 'src/test/__mocks__/tauri.ts'),
+      '@tauri-apps/api/event': path.resolve(__dirname, 'src/test/__mocks__/tauri.ts'),
+    },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary'],
+      include: ['src/services/**', 'src/hooks/**', 'src/contexts/**', 'src/config/**', 'src/utils/**'],
+      thresholds: {
+        lines: 40,
+        functions: 40,
+        branches: 35,
+        statements: 40,
+      },
+    },
   },
 })

@@ -108,8 +108,20 @@ pub async fn start_kupo(
     let patterns_json = serde_json::to_string(&patterns).unwrap_or_default();
     let _ = std::fs::write(&patterns_file, patterns_json);
 
+    manager.ensure_port_available(app_config.kupo_port)?;
+
     let args = build_kupo_args(app_config, app_data_dir, &patterns);
     manager.start("kupo", "kupo", args).await
+}
+
+/// Health check: GET http://127.0.0.1:{port}/health
+/// Returns true if Kupo responds (any 200-range status).
+pub async fn health_check(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{}/health", port);
+    match reqwest::get(&url).await {
+        Ok(resp) => resp.status().is_success(),
+        Err(_) => false,
+    }
 }
 
 /// Query Kupo sync progress from its /health endpoint.

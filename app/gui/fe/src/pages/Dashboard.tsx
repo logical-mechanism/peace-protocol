@@ -1,14 +1,16 @@
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
 import { copyToClipboard } from '../utils/clipboard'
-import MarketplaceTab from '../components/MarketplaceTab'
-import MySalesTab from '../components/MySalesTab'
-import MyPurchasesTab from '../components/MyPurchasesTab'
-import HistoryTab from '../components/HistoryTab'
-import LibraryTab from '../components/LibraryTab'
+import { truncateHex } from '../utils/truncate'
+const MarketplaceTab = lazy(() => import('../components/MarketplaceTab'))
+const MySalesTab = lazy(() => import('../components/MySalesTab'))
+const MyPurchasesTab = lazy(() => import('../components/MyPurchasesTab'))
+const HistoryTab = lazy(() => import('../components/HistoryTab'))
+const LibraryTab = lazy(() => import('../components/LibraryTab'))
+import { SkeletonGrid } from '../components/SkeletonCard'
 import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
@@ -30,6 +32,15 @@ import { getAcceptBidSecrets } from '../services/acceptBidStorage'
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage'
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
+import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
+import { useDataRefresh } from '../hooks/useDataRefresh'
+import {
+  marketplaceReducer, MARKETPLACE_INITIAL,
+  mySalesReducer, MY_SALES_INITIAL,
+  myPurchasesReducer, MY_PURCHASES_INITIAL,
+  historyReducer, HISTORY_INITIAL,
+  libraryReducer, LIBRARY_INITIAL,
+} from '../hooks/useTabFilterState'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'
@@ -58,17 +69,28 @@ export default function Dashboard() {
   const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
-  const [activeTab, setActiveTab] = useState<TabId>('marketplace')
+  const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
+  const setActiveTab = useCallback((tab: TabId) => {
+    setActiveTabRaw(tab)
+    setLastActiveTab(tab)
+  }, [])
+  // Tab filter state (persisted across tab switches via useReducer at Dashboard level)
+  const [marketplaceFilters, marketplaceDispatch] = useReducer(marketplaceReducer, MARKETPLACE_INITIAL)
+  const [mySalesFilters, mySalesDispatch] = useReducer(mySalesReducer, MY_SALES_INITIAL)
+  const [myPurchasesFilters, myPurchasesDispatch] = useReducer(myPurchasesReducer, MY_PURCHASES_INITIAL)
+  const [historyFilters, historyDispatch] = useReducer(historyReducer, HISTORY_INITIAL)
+  const [libraryFilters, libraryDispatch] = useReducer(libraryReducer, LIBRARY_INITIAL)
+
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
+  const [acceptedBidCount, setAcceptedBidCount] = useState(0)
   const [showCreateListing, setShowCreateListing] = useState(false)
   const [showPlaceBid, setShowPlaceBid] = useState(false)
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const { refreshSignal, historySignal, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
   const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
-  const [historyKey, setHistoryKey] = useState(0)
   // Accept bid flow state
   const [showSnarkModal, setShowSnarkModal] = useState(false)
   const [snarkInputs, setSnarkInputs] = useState<SnarkProofInputs | null>(null)
@@ -174,7 +196,7 @@ export default function Dashboard() {
     } else {
       setTxHistory([])
     }
-  }, [userPkh, historyKey])
+  }, [userPkh, historySignal])
 
   // Eagerly refresh balance when Dashboard mounts and node is synced.
   // Covers the gap between wallet unlock (lovelace=null) and the first
@@ -187,19 +209,12 @@ export default function Dashboard() {
     }
   }, [nodeStage, refreshBalance])
 
-  // Record a transaction and schedule auto-refresh with escalating retries.
-  // Txs can sit in the mempool for over a minute, so a single 20s check isn't enough.
+  // Record a transaction in local history (escalating retries are handled
+  // by triggerTransactionRefresh at each call site).
   const recordTransaction = useCallback((record: TransactionRecord) => {
     if (!userPkh) return
     addTransaction(userPkh, record)
     setTxHistory(getTransactions(userPkh))
-    // Retry at 20s, 45s, 90s, and 180s to handle mempool delays
-    for (const delay of [20_000, 45_000, 90_000, 180_000]) {
-      setTimeout(() => {
-        setRefreshKey(prev => prev + 1)
-        setHistoryKey(prev => prev + 1)
-      }, delay)
-    }
   }, [userPkh])
 
   const handleDraftRecovery = useCallback(async (action: 'resume' | 'discard') => {
@@ -239,7 +254,7 @@ export default function Dashboard() {
         })
       }
       setRecoverableDraft(null)
-      setRefreshKey(prev => prev + 1)
+      triggerTransactionRefresh()
       setActiveTab('history')
     } catch (error) {
       toast.error(
@@ -247,7 +262,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error'
       )
     }
-  }, [recoverableDraft, wallet, toast, recordTransaction])
+  }, [recoverableDraft, wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   // Retry a listing from History tab (failed tx with a draft)
   const handleRetryListing = useCallback(async (draftId: string) => {
@@ -282,25 +297,19 @@ export default function Dashboard() {
           draftId,
         })
       }
-      setRefreshKey(prev => prev + 1)
-      setHistoryKey(prev => prev + 1)
+      triggerTransactionRefresh()
     } catch (error) {
       toast.error(
         'Retry Failed',
         error instanceof Error ? error.message : 'Unknown error'
       )
     }
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, triggerTransactionRefresh])
 
   const pendingTxCount = useMemo(
     () => txHistory.filter(tx => tx.status === 'pending').length,
     [txHistory]
   )
-
-  const truncateAddress = (addr: string) => {
-    if (!addr) return ''
-    return `${addr.slice(0, 12)}...${addr.slice(-8)}`
-  }
 
   const formatAda = (lovelaceAmount: string | undefined) => {
     if (!lovelaceAmount) return '...'
@@ -318,6 +327,7 @@ export default function Dashboard() {
   }, [address])
 
   const handleDisconnect = useCallback(() => {
+    clearLastActiveTab()
     disconnect()
   }, [disconnect])
 
@@ -376,9 +386,9 @@ export default function Dashboard() {
     }
 
     // Refresh and switch to History tab to show pending tx
-    setRefreshKey(prev => prev + 1)
+    triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -427,7 +437,7 @@ export default function Dashboard() {
             })
           }
 
-          setRefreshKey(prev => prev + 1)
+          triggerTransactionRefresh()
           setActiveTab('history')
         } catch (error) {
           console.error('Failed to remove listing:', error)
@@ -438,7 +448,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
@@ -525,7 +535,7 @@ export default function Dashboard() {
       }
 
       // Refresh and switch to history
-      setRefreshKey(prev => prev + 1)
+      triggerTransactionRefresh()
       setActiveTab('history')
 
       toast.warning(
@@ -549,7 +559,7 @@ export default function Dashboard() {
       setSnarkInputs(null)
       setShowSnarkModal(false)
     }
-  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction])
+  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -591,7 +601,7 @@ export default function Dashboard() {
             })
           }
 
-          setRefreshKey(prev => prev + 1)
+          triggerTransactionRefresh()
           setActiveTab('history')
         } catch (error) {
           console.error('Failed to cancel pending listing:', error)
@@ -602,7 +612,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleCompleteSale = useCallback(async (encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -663,7 +673,7 @@ export default function Dashboard() {
         })
       }
 
-      setRefreshKey(prev => prev + 1)
+      triggerTransactionRefresh()
       setActiveTab('history')
     } catch (error) {
       console.error('Failed to complete sale:', error)
@@ -672,7 +682,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error occurred'
       )
     }
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleCancelBid = useCallback((bid: BidDisplay) => {
     if (!wallet) {
@@ -725,7 +735,7 @@ export default function Dashboard() {
             })
           }
 
-          setRefreshKey(prev => prev + 1)
+          triggerTransactionRefresh()
           setActiveTab('history')
         } catch (error) {
           console.error('Failed to cancel bid:', error)
@@ -736,7 +746,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleDecrypt = useCallback(async (bid: BidDisplay) => {
     // Find the encryption associated with this bid
@@ -830,9 +840,9 @@ export default function Dashboard() {
     }
 
     // Refresh and switch to History tab to show pending tx
-    setRefreshKey(prev => prev + 1)
+    triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, address, toast, recordTransaction])
+  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   // Fetch user stats
   useEffect(() => {
@@ -855,64 +865,87 @@ export default function Dashboard() {
         )
         setMyBidsCount(userBids.length)
 
+        // Count accepted bids where user can decrypt
+        const accepted = bids.filter(
+          b => b.bidderPkh === userPkh && b.status === 'accepted'
+        )
+        setAcceptedBidCount(accepted.length)
+
         // Best-effort cleanup of stale secrets after confirmed ownership changes
         cleanupStaleSecrets(userPkh, encryptions).catch(() => {})
       } catch (error) {
         console.error('Failed to fetch stats:', error)
         setMyListingsCount(0)
         setMyBidsCount(0)
+        setAcceptedBidCount(0)
       }
     }
 
     fetchStats()
-  }, [userPkh, refreshKey])
+  }, [userPkh, refreshSignal])
+
+  const handleOpenCreateListing = useCallback(() => setShowCreateListing(true), [])
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'marketplace':
         return (
           <MarketplaceTab
-            key={refreshKey}
+            refreshSignal={refreshSignal}
             userPkh={userPkh}
             onPlaceBid={handlePlaceBid}
+            filters={marketplaceFilters}
+            dispatch={marketplaceDispatch}
           />
         )
       case 'my-sales':
         return (
           <MySalesTab
-            key={refreshKey}
+            refreshSignal={refreshSignal}
             userPkh={userPkh}
             onRemoveListing={handleRemoveListing}
             onAcceptBid={handleAcceptBid}
             onCancelPending={handleCancelPending}
             onCompleteSale={handleCompleteSale}
-            onCreateListing={() => setShowCreateListing(true)}
+            onCreateListing={handleOpenCreateListing}
             onBidsViewed={bidNotifications.markListingSeen}
+            filters={mySalesFilters}
+            dispatch={mySalesDispatch}
           />
         )
       case 'my-purchases':
         return (
           <MyPurchasesTab
-            key={refreshKey}
+            refreshSignal={refreshSignal}
             userPkh={userPkh}
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
             onDecryptEncryption={handleDecryptEncryption}
+            filters={myPurchasesFilters}
+            dispatch={myPurchasesDispatch}
           />
         )
       case 'history':
         return (
           <HistoryTab
-            key={historyKey}
+            historySignal={historySignal}
             userPkh={userPkh}
             transactions={txHistory}
-            onClearHistory={() => setHistoryKey(prev => prev + 1)}
+            onClearHistory={triggerHistoryRefresh}
             onHistoryUpdated={setTxHistory}
             onRetryListing={handleRetryListing}
+            filters={historyFilters}
+            dispatch={historyDispatch}
           />
         )
       case 'library':
-        return <LibraryTab />
+        return (
+          <LibraryTab
+            refreshSignal={refreshSignal}
+            filters={libraryFilters}
+            dispatch={libraryDispatch}
+          />
+        )
       default:
         return null
     }
@@ -1033,7 +1066,7 @@ export default function Dashboard() {
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
             title={address || 'Loading...'}
           >
-            <span>{address ? truncateAddress(address) : '...'}</span>
+            <span>{address ? truncateHex(address, 12, 8) : '...'}</span>
             <svg
               className="w-4 h-4"
               fill="none"
@@ -1080,36 +1113,51 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Draft Recovery Banner */}
-        {recoverableDraft && (
-          <div className="mb-6 p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                Unfinished Listing Found
-              </h3>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                A file listing for "{recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
-                The file is still on Iagon — you can resume without re-uploading.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-              <button
-                onClick={() => handleDraftRecovery('discard')}
-                className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
-              >
-                Discard
-              </button>
-              <button
-                onClick={() => handleDraftRecovery('resume')}
-                className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
-              >
-                Resume Listing
-              </button>
+      {/* Draft Recovery Banner — sticky below nav, persists across scrolling/tab switches */}
+      {recoverableDraft && (
+        <div className="sticky top-16 z-40 animate-[slideDown_300ms_ease-out]">
+          <div className="max-w-7xl mx-auto px-6 pt-3">
+            <div className="p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                  Unfinished Listing Found
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  A file listing for "{recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
+                  The file is still on Iagon — you can resume without re-uploading.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                <button
+                  onClick={() => handleDraftRecovery('discard')}
+                  className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={() => handleDraftRecovery('resume')}
+                  className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+                >
+                  Resume Listing
+                </button>
+                <button
+                  onClick={() => setRecoverableDraft(null)}
+                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  title="Dismiss"
+                  aria-label="Dismiss draft recovery banner"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
@@ -1148,10 +1196,12 @@ export default function Dashboard() {
 
         {/* Tabs */}
         <div className="border-b border-[var(--border-subtle)] mb-6">
-          <div className="flex gap-6">
+          <div className="flex gap-6" role="tablist">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
@@ -1161,12 +1211,17 @@ export default function Dashboard() {
               >
                 {tab.label}
                 {tab.id === 'my-sales' && bidNotifications.unseenBidCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse">
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse" aria-label={`${bidNotifications.unseenBidCount} new bids`}>
                     {bidNotifications.unseenBidCount}
                   </span>
                 )}
+                {tab.id === 'my-purchases' && acceptedBidCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--success)] text-white rounded-full" aria-label={`${acceptedBidCount} accepted bids ready to decrypt`}>
+                    {acceptedBidCount}
+                  </span>
+                )}
                 {tab.id === 'history' && pendingTxCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full">
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full" aria-label={`${pendingTxCount} pending transactions`}>
                     {pendingTxCount}
                   </span>
                 )}
@@ -1176,7 +1231,9 @@ export default function Dashboard() {
         </div>
 
         {/* Tab Content */}
-        {renderTabContent()}
+        <Suspense fallback={<SkeletonGrid />}>
+          {renderTabContent()}
+        </Suspense>
       </main>
 
       {/* Scroll to Top Button */}

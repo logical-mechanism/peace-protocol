@@ -1,42 +1,46 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
+import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
-import LoadingSpinner from './LoadingSpinner';
-import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
-
-type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'amount-high' | 'amount-low';
-type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected' | 'cancelled';
+import { SkeletonGrid } from './SkeletonCard';
+import EmptyState, { PackageIcon } from './EmptyState';
+import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
+import type { MyPurchasesFilters, MyPurchasesAction } from '../hooks/useTabFilterState';
 
 interface MyPurchasesTabProps {
   userPkh?: string;
   onCancelBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
   onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
+  refreshSignal?: number;
+  filters: MyPurchasesFilters;
+  dispatch: React.Dispatch<MyPurchasesAction>;
 }
 
-export default function MyPurchasesTab({
+function MyPurchasesTab({
   userPkh,
   onCancelBid,
   onDecrypt,
   onDecryptEncryption,
+  refreshSignal,
+  filters,
+  dispatch,
 }: MyPurchasesTabProps) {
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
   const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
+
+  // Destructure filter state from Dashboard-level reducer
+  const { viewMode, sortBy, statusFilter, searchQuery } = filters;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -95,6 +99,16 @@ export default function MyPurchasesTab({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchData();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get encryption for a bid
   const getEncryption = useCallback(
@@ -179,14 +193,7 @@ export default function MyPurchasesTab({
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading your bids...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonGrid />;
   }
 
   if (error) {
@@ -211,7 +218,7 @@ export default function MyPurchasesTab({
   if (bids.length === 0 && purchasedEncryptions.length === 0) {
     return (
       <EmptyState
-        icon={<InboxIcon />}
+        illustration={<NoPurchasesIllustration />}
         title="No purchases yet"
         description="Bids you place and encryptions you purchase will appear here"
         action={
@@ -231,11 +238,6 @@ export default function MyPurchasesTab({
     );
   }
 
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 12)}...${token.slice(-8)}`;
-  };
-
   return (
     <div>
       {/* Purchased Encryptions Section */}
@@ -244,11 +246,11 @@ export default function MyPurchasesTab({
           <h3 className="text-lg font-medium text-[var(--text-primary)] mb-4">
             Purchased Encryptions
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {purchasedEncryptions.map((enc) => (
               <div
                 key={enc.tokenName}
-                className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] transition-all duration-150"
+                className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150"
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
@@ -256,7 +258,7 @@ export default function MyPurchasesTab({
                     Purchased
                   </span>
                   <span className="text-xs text-[var(--text-muted)] font-mono">
-                    {truncateToken(enc.tokenName)}
+                    {truncateHex(enc.tokenName, 12, 8)}
                   </span>
                 </div>
 
@@ -327,7 +329,7 @@ export default function MyPurchasesTab({
             type="text"
             placeholder="Search by token or description..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
         </div>
@@ -337,7 +339,7 @@ export default function MyPurchasesTab({
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MyPurchasesFilters['statusFilter'] })}
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="all">All Status</option>
@@ -350,7 +352,7 @@ export default function MyPurchasesTab({
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MyPurchasesFilters['sortBy'] })}
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="newest">Newest First</option>
@@ -362,7 +364,7 @@ export default function MyPurchasesTab({
           {/* View Toggle */}
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -380,7 +382,7 @@ export default function MyPurchasesTab({
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -427,14 +429,14 @@ export default function MyPurchasesTab({
       {filteredAndSorted.length === 0 ? (
         searchQuery || statusFilter !== 'all' ? (
           <EmptyState
-            icon={<SearchIcon />}
+            illustration={<NoResultsIllustration />}
             title="No matching bids"
             description="Try adjusting your search or filters"
             action={
               <button
                 onClick={() => {
-                  setSearchQuery('');
-                  setStatusFilter('all');
+                  dispatch({ type: 'SET_SEARCH', payload: '' });
+                  dispatch({ type: 'SET_STATUS', payload: 'all' });
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >
@@ -444,13 +446,13 @@ export default function MyPurchasesTab({
           />
         ) : (
           <EmptyState
-            icon={<PackageIcon />}
+            illustration={<NoPurchasesIllustration />}
             title="No bids found"
             description="Your bids will appear here"
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAndSorted.map((bid) => (
             <MyPurchaseBidCard
               key={bid.tokenName}
@@ -486,3 +488,5 @@ export default function MyPurchasesTab({
     </div>
   );
 }
+
+export default memo(MyPurchasesTab);

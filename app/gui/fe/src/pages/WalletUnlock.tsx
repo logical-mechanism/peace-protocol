@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWalletContext } from '../contexts/WalletContext'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { parseUnlockError } from '../utils/walletErrors'
+import type { UnlockErrorInfo } from '../utils/walletErrors'
 
 export default function WalletUnlock() {
   const { unlockWallet, deleteWallet } = useWalletContext()
@@ -9,7 +11,7 @@ export default function WalletUnlock() {
 
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<UnlockErrorInfo | null>(null)
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -21,7 +23,7 @@ export default function WalletUnlock() {
       await unlockWallet(password)
       navigate('/dashboard')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to unlock wallet')
+      setError(parseUnlockError(e))
       setPassword('')
     } finally {
       setIsUnlocking(false)
@@ -107,7 +109,29 @@ export default function WalletUnlock() {
                 border: '1px solid var(--error)',
               }}
             >
-              {error}
+              <div className="font-medium">{error.title}</div>
+              <div
+                className="mt-1 text-xs"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {error.suggestion}
+              </div>
+              {error.raw !== error.title && error.raw !== error.suggestion && (
+                <details className="mt-2">
+                  <summary
+                    className="text-xs cursor-pointer"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Details
+                  </summary>
+                  <code
+                    className="block mt-1 text-xs font-mono break-all"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {error.raw}
+                  </code>
+                </details>
+              )}
             </div>
           )}
 

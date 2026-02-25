@@ -71,6 +71,16 @@ enum LaunchInfo {
     },
 }
 
+/// Per-process graceful shutdown timeout.
+/// cardano-node needs extra time to flush its in-memory ledger to disk.
+fn default_shutdown_timeout(name: &str) -> u64 {
+    match name {
+        "cardano-node" => 45,
+        "mithril-client" => 30,
+        _ => 10, // express, ogmios, kupo
+    }
+}
+
 /// A single managed child process with its metadata
 struct ManagedProcess {
     child: Option<CommandChild>,
@@ -81,6 +91,8 @@ struct ManagedProcess {
     launch_info: Option<LaunchInfo>,
     /// Set to true by stop() to prevent auto-restart after intentional shutdown
     user_stopped: bool,
+    /// Maximum seconds to wait for graceful shutdown before SIGKILL
+    shutdown_timeout_secs: u64,
 }
 
 impl ManagedProcess {
@@ -107,8 +119,9 @@ pub struct NodeManager {
     processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
     app_handle: tauri::AppHandle,
     pid_file: std::path::PathBuf,
-    /// PID of the currently-running SNARK sidecar (if any), for cleanup on shutdown.
-    snark_pid: std::sync::Mutex<Option<u32>>,
+    /// PIDs of currently-running SNARK sidecars, for cleanup on shutdown.
+    /// Uses Vec to handle concurrent SNARK operations without losing PIDs.
+    snark_pids: std::sync::Mutex<Vec<u32>>,
 }
 
 impl NodeManager {
@@ -123,12 +136,20 @@ impl NodeManager {
             processes: Arc::new(Mutex::new(HashMap::new())),
             app_handle,
             pid_file,
-            snark_pid: std::sync::Mutex::new(None),
+            snark_pids: std::sync::Mutex::new(Vec::new()),
         };
 
         // Kill any orphaned processes from a previous crashed session
         mgr.kill_orphans_from_pid_file();
         mgr.kill_orphans_on_ports();
+
+        // Start background liveness monitor
+        Self::spawn_liveness_monitor(
+            mgr.processes.clone(),
+            mgr.app_handle.clone(),
+            mgr.pid_file.clone(),
+        );
+
         mgr
     }
 
@@ -253,6 +274,55 @@ impl NodeManager {
         }
     }
 
+    /// Check that a TCP port is available before spawning a process.
+    ///
+    /// If the port is occupied by a PID from our `managed_pids.json` (orphan from a
+    /// previous session), kill it and wait for exit. If occupied by an unknown PID,
+    /// return a clear error message so the user can resolve the conflict.
+    pub fn ensure_port_available(&self, port: u16) -> Result<(), String> {
+        let output = std::process::Command::new("fuser")
+            .args([&format!("{}/tcp", port)])
+            .output();
+
+        let pids: Vec<u32> = match output {
+            Ok(out) => {
+                let pids_str = String::from_utf8_lossy(&out.stdout);
+                pids_str
+                    .split_whitespace()
+                    .filter_map(|t| t.parse().ok())
+                    .collect()
+            }
+            Err(_) => return Ok(()), // fuser not available; skip check
+        };
+
+        if pids.is_empty() {
+            return Ok(());
+        }
+
+        // Load known PIDs from the previous session's pid file
+        let known_pids: Vec<u32> = std::fs::read_to_string(&self.pid_file)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default();
+
+        for &pid in &pids {
+            if known_pids.contains(&pid) {
+                // Orphan from previous session — kill it
+                eprintln!("[NodeManager] Port {port} occupied by orphan pid={pid}, killing");
+                send_signal(pid, libc::SIGTERM);
+            } else {
+                return Err(format!(
+                    "Port {port} is already in use by another process (pid {pid}). \
+                     Stop the conflicting process and try again."
+                ));
+            }
+        }
+
+        // Wait for orphans to exit (up to 10s)
+        Self::wait_for_pids_to_exit(&pids, 10);
+        Ok(())
+    }
+
     /// Start a process by spawning the sidecar binary.
     /// If the process is already running, stops it gracefully first.
     pub async fn start(
@@ -295,6 +365,7 @@ impl NodeManager {
                             args: args.clone(),
                         }),
                         user_stopped: false,
+                        shutdown_timeout_secs: default_shutdown_timeout(name),
                     },
                 );
             }
@@ -719,6 +790,7 @@ impl NodeManager {
                         log_buffer: Vec::new(),
                         launch_info: Some(launch),
                         user_stopped: false,
+                        shutdown_timeout_secs: default_shutdown_timeout(name),
                     },
                 );
             }
@@ -879,18 +951,19 @@ impl NodeManager {
     }
 
     /// Stop a process gracefully.
-    /// Sends SIGTERM first, waits up to 30 seconds for exit, then falls back to SIGKILL.
+    /// Sends SIGTERM first, waits for the per-process timeout, then falls back to SIGKILL.
     /// Sets user_stopped to prevent auto-restart.
     pub async fn stop(&self, name: &str) -> Result<(), String> {
-        let (child, pid) = {
+        let (child, pid, timeout_secs) = {
             let mut procs = self.processes.lock().await;
             if let Some(proc) = procs.get_mut(name) {
                 proc.user_stopped = true;
                 let child = proc.child.take();
                 let pid = proc.info.pid.take();
+                let timeout = proc.shutdown_timeout_secs;
                 proc.info.status = ProcessStatus::Stopped;
                 Self::save_pids_sync(&self.pid_file, &procs);
-                (child, pid)
+                (child, pid, timeout)
             } else {
                 return Ok(());
             }
@@ -902,9 +975,10 @@ impl NodeManager {
             // Send SIGTERM for graceful shutdown
             send_signal(pid, libc::SIGTERM);
 
-            // Wait up to 30 seconds for the process to exit gracefully
+            // Wait for per-process timeout (500ms per iteration)
+            let iterations = timeout_secs * 2;
             let mut exited = false;
-            for _ in 0..60 {
+            for _ in 0..iterations {
                 if !send_signal(pid, 0) {
                     exited = true;
                     break;
@@ -915,8 +989,8 @@ impl NodeManager {
             // Fall back to SIGKILL if graceful shutdown timed out
             if !exited {
                 eprintln!(
-                    "Process '{}' (pid {}) did not exit after SIGTERM, sending SIGKILL",
-                    name, pid
+                    "Process '{}' (pid {}) did not exit after {}s SIGTERM, sending SIGKILL",
+                    name, pid, timeout_secs
                 );
                 if let Some(child) = child {
                     let _ = child.kill();
@@ -986,9 +1060,9 @@ impl NodeManager {
             }
         }
 
-        // Include SNARK prover PID if running
-        if let Ok(guard) = self.snark_pid.lock() {
-            if let Some(pid) = *guard {
+        // Include SNARK prover PIDs if running
+        if let Ok(guard) = self.snark_pids.lock() {
+            for &pid in guard.iter() {
                 if !all_pids.contains(&pid) {
                     all_pids.push(pid);
                 }
@@ -1047,9 +1121,9 @@ impl NodeManager {
             }
         }
 
-        // Include SNARK prover PID if running
-        if let Ok(guard) = self.snark_pid.lock() {
-            if let Some(pid) = *guard {
+        // Include SNARK prover PIDs if running
+        if let Ok(guard) = self.snark_pids.lock() {
+            for &pid in guard.iter() {
                 if !all_pids.contains(&pid) {
                     all_pids.push(pid);
                 }
@@ -1066,16 +1140,24 @@ impl NodeManager {
 
     /// Register a SNARK sidecar PID for cleanup on shutdown.
     pub fn set_snark_pid(&self, pid: u32) {
-        if let Ok(mut guard) = self.snark_pid.lock() {
-            *guard = Some(pid);
+        if let Ok(mut guard) = self.snark_pids.lock() {
+            if !guard.contains(&pid) {
+                guard.push(pid);
+            }
         }
         self.append_pid_to_file(pid);
     }
 
-    /// Clear the SNARK PID after the process exits normally.
-    pub fn clear_snark_pid(&self) {
-        let old_pid = self.snark_pid.lock().ok().and_then(|mut g| g.take());
-        if let Some(pid) = old_pid {
+    /// Remove a specific SNARK PID after the process exits normally.
+    pub fn clear_snark_pid(&self, pid: u32) {
+        let removed = if let Ok(mut guard) = self.snark_pids.lock() {
+            let before = guard.len();
+            guard.retain(|&p| p != pid);
+            guard.len() < before
+        } else {
+            false
+        };
+        if removed {
             self.remove_pid_from_file(pid);
         }
     }
@@ -1122,5 +1204,289 @@ impl NodeManager {
                 log_line,
             },
         );
+    }
+
+    /// Spawn a background task that checks process liveness every 30 seconds.
+    ///
+    /// If a process's PID is no longer running (and wasn't intentionally stopped),
+    /// its status is set to Error and a `process-status` event is emitted so the
+    /// frontend shows the failure. Does not auto-restart — the UI shows the error
+    /// state and the user can choose to restart.
+    fn spawn_liveness_monitor(
+        processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
+        app_handle: tauri::AppHandle,
+        pid_file: std::path::PathBuf,
+    ) {
+        tauri::async_runtime::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+            loop {
+                interval.tick().await;
+
+                let mut procs = processes.lock().await;
+                let mut changed = false;
+
+                for (name, proc) in procs.iter_mut() {
+                    // Skip processes that were intentionally stopped or are already in
+                    // a terminal state (Stopped / Error).
+                    if proc.user_stopped {
+                        continue;
+                    }
+                    let is_active = matches!(
+                        proc.info.status,
+                        ProcessStatus::Starting
+                            | ProcessStatus::Running
+                            | ProcessStatus::Syncing { .. }
+                            | ProcessStatus::Ready
+                    );
+                    if !is_active {
+                        continue;
+                    }
+
+                    // Check if the PID is still alive
+                    if let Some(pid) = proc.info.pid {
+                        if !send_signal(pid, 0) {
+                            eprintln!(
+                                "[Liveness] Process '{}' (pid {}) is no longer running",
+                                name, pid
+                            );
+                            proc.info.status = ProcessStatus::Error {
+                                message: "Process exited unexpectedly".to_string(),
+                            };
+                            proc.info.pid = None;
+                            changed = true;
+
+                            let _ = app_handle.emit(
+                                "process-status",
+                                ProcessEvent {
+                                    name: name.clone(),
+                                    status: proc.info.status.clone(),
+                                    log_line: None,
+                                },
+                            );
+                        }
+                    }
+                }
+
+                if changed {
+                    Self::save_pids_sync(&pid_file, &procs);
+                }
+            }
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restart_policy_default_values() {
+        let policy = RestartPolicy::default();
+        assert_eq!(policy.max_retries, 5);
+        assert_eq!(policy.initial_delay_ms, 1000);
+        assert!((policy.backoff_multiplier - 2.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn process_status_stopped_serializes_correctly() {
+        let json = serde_json::to_string(&ProcessStatus::Stopped).unwrap();
+        assert_eq!(json, r#"{"type":"Stopped"}"#);
+    }
+
+    #[test]
+    fn process_status_running_serializes_correctly() {
+        let json = serde_json::to_string(&ProcessStatus::Running).unwrap();
+        assert_eq!(json, r#"{"type":"Running"}"#);
+    }
+
+    #[test]
+    fn process_status_syncing_serializes_with_progress() {
+        let status = ProcessStatus::Syncing { progress: 0.75 };
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, r#"{"type":"Syncing","progress":0.75}"#);
+    }
+
+    #[test]
+    fn process_status_error_serializes_with_message() {
+        let status = ProcessStatus::Error {
+            message: "connection refused".to_string(),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, r#"{"type":"Error","message":"connection refused"}"#);
+    }
+
+    #[test]
+    fn process_status_roundtrip_deserialization() {
+        let statuses = vec![
+            ProcessStatus::Stopped,
+            ProcessStatus::Starting,
+            ProcessStatus::Running,
+            ProcessStatus::Syncing { progress: 0.5 },
+            ProcessStatus::Ready,
+            ProcessStatus::Error {
+                message: "test".to_string(),
+            },
+        ];
+
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            let deserialized: ProcessStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, status);
+        }
+    }
+
+    #[test]
+    fn process_info_serialization() {
+        let info = ProcessInfo {
+            name: "cardano-node".to_string(),
+            status: ProcessStatus::Running,
+            pid: Some(12345),
+            restart_count: 2,
+            last_error: Some("previous crash".to_string()),
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed["name"], "cardano-node");
+        assert_eq!(parsed["status"]["type"], "Running");
+        assert_eq!(parsed["pid"], 12345);
+        assert_eq!(parsed["restart_count"], 2);
+        assert_eq!(parsed["last_error"], "previous crash");
+    }
+
+    #[test]
+    fn process_info_null_optional_fields() {
+        let info = ProcessInfo {
+            name: "test".to_string(),
+            status: ProcessStatus::Stopped,
+            pid: None,
+            restart_count: 0,
+            last_error: None,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert!(parsed["pid"].is_null());
+        assert!(parsed["last_error"].is_null());
+    }
+
+    #[test]
+    fn send_signal_own_process_exists() {
+        let pid = std::process::id();
+        // Signal 0 checks if process exists without sending any signal
+        assert!(send_signal(pid, 0));
+    }
+
+    #[test]
+    fn send_signal_nonexistent_process() {
+        // PID 999999999 is extremely unlikely to exist
+        assert!(!send_signal(999_999_999, 0));
+    }
+
+    #[test]
+    fn append_log_adds_entries() {
+        let mut proc = ManagedProcess {
+            child: None,
+            info: ProcessInfo {
+                name: "test".to_string(),
+                status: ProcessStatus::Stopped,
+                pid: None,
+                restart_count: 0,
+                last_error: None,
+            },
+            restart_policy: RestartPolicy::default(),
+            log_buffer: Vec::new(),
+            launch_info: None,
+            user_stopped: false,
+            shutdown_timeout_secs: 10,
+        };
+
+        proc.append_log("line 1".to_string());
+        proc.append_log("line 2".to_string());
+
+        assert_eq!(proc.log_buffer.len(), 2);
+        assert_eq!(proc.log_buffer[0], "line 1");
+        assert_eq!(proc.log_buffer[1], "line 2");
+    }
+
+    #[test]
+    fn append_log_evicts_oldest_at_capacity() {
+        let mut proc = ManagedProcess {
+            child: None,
+            info: ProcessInfo {
+                name: "test".to_string(),
+                status: ProcessStatus::Stopped,
+                pid: None,
+                restart_count: 0,
+                last_error: None,
+            },
+            restart_policy: RestartPolicy::default(),
+            log_buffer: Vec::new(),
+            launch_info: None,
+            user_stopped: false,
+            shutdown_timeout_secs: 10,
+        };
+
+        // Fill to LOG_BUFFER_SIZE + 1
+        for i in 0..=LOG_BUFFER_SIZE {
+            proc.append_log(format!("line {}", i));
+        }
+
+        assert_eq!(proc.log_buffer.len(), LOG_BUFFER_SIZE);
+        // First entry should be "line 1" (line 0 was evicted)
+        assert_eq!(proc.log_buffer[0], "line 1");
+        assert_eq!(
+            proc.log_buffer[LOG_BUFFER_SIZE - 1],
+            format!("line {}", LOG_BUFFER_SIZE)
+        );
+    }
+
+    #[test]
+    fn log_buffer_size_constant() {
+        assert_eq!(LOG_BUFFER_SIZE, 500);
+    }
+
+    #[test]
+    fn snark_pids_vec_tracks_multiple() {
+        let pids: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+        // Add two PIDs
+        pids.lock().unwrap().push(100);
+        pids.lock().unwrap().push(200);
+        assert_eq!(*pids.lock().unwrap(), vec![100, 200]);
+
+        // Remove first PID, second remains
+        pids.lock().unwrap().retain(|&p| p != 100);
+        assert_eq!(*pids.lock().unwrap(), vec![200]);
+
+        // Remove second PID
+        pids.lock().unwrap().retain(|&p| p != 200);
+        assert!(pids.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn snark_pids_dedup_on_insert() {
+        let pids: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+        let mut guard = pids.lock().unwrap();
+        let pid = 100u32;
+        if !guard.contains(&pid) {
+            guard.push(pid);
+        }
+        if !guard.contains(&pid) {
+            guard.push(pid);
+        }
+        assert_eq!(guard.len(), 1);
+    }
+
+    #[test]
+    fn default_shutdown_timeout_per_process() {
+        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        assert_eq!(default_shutdown_timeout("mithril-client"), 30);
+        assert_eq!(default_shutdown_timeout("ogmios"), 10);
+        assert_eq!(default_shutdown_timeout("kupo"), 10);
+        assert_eq!(default_shutdown_timeout("express"), 10);
     }
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { EncryptionDisplay } from '../services/api';
+import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
@@ -32,11 +33,6 @@ export default function SalesListingCard({
   initialBanned = false,
 }: SalesListingCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 8)}...${token.slice(-4)}`;
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -125,7 +121,7 @@ export default function SalesListingCard({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="text-xs font-mono text-[var(--text-muted)]">
-                    {truncateToken(encryption.tokenName)}
+                    {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
                   <EncryptionStatusBadge status={encryption.status} />
                   <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
@@ -217,13 +213,13 @@ export default function SalesListingCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs font-mono text-[var(--text-muted)] truncate">
-                {truncateToken(encryption.tokenName)}
+                {truncateHex(encryption.tokenName, 8, 4)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />
               <span

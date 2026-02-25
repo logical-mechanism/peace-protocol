@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
+import { useModalStack } from '../hooks/useModalStack';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 
@@ -61,21 +62,8 @@ export default function CreateListingModal({
     }
   }, [isOpen]);
 
-  // Handle escape key to close (separate effect to avoid resetting form)
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSubmitting) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, isSubmitting, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('create-listing', isOpen, onClose, isSubmitting);
 
   const isFileMode = formData.category !== 'text';
   const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
@@ -210,7 +198,8 @@ export default function CreateListingModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-listing-title"

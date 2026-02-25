@@ -1,5 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
+import { logger } from '../services/logger.js';
+import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam } from '../middleware/validate.js';
 import { STUB_BIDS } from '../stubs/index.js';
 import {
   getAllBids,
@@ -16,7 +18,7 @@ const router = Router();
  * GET /api/bids
  * List all bids
  */
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     if (config.useStubs) {
       const response: ApiResponse<BidDisplay[]> = {
@@ -26,13 +28,15 @@ router.get('/', async (_req: Request, res: Response) => {
       return res.json(response);
     }
 
-    const bids = await getAllBids();
+    const skipCache = req.query.refresh === 'true';
+    const result = await getAllBids(skipCache);
     return res.json({
-      data: bids,
-      meta: { total: bids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    console.error('Error fetching bids:', error);
+    logger.error('Error fetching bids', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids' },
     });
@@ -43,7 +47,7 @@ router.get('/', async (_req: Request, res: Response) => {
  * GET /api/bids/:tokenName
  * Get a specific bid by token name
  */
-router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Response) => {
+router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
 
@@ -57,15 +61,18 @@ router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Respons
       return res.json({ data: bid });
     }
 
-    const bid = await getBidByToken(tokenName);
-    if (!bid) {
+    const result = await getBidByToken(tokenName);
+    if (!result.data) {
       return res.status(404).json({
         error: { code: 'NOT_FOUND', message: 'Bid not found' },
       });
     }
-    return res.json({ data: bid });
+    return res.json({
+      data: result.data,
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+    });
   } catch (error) {
-    console.error('Error fetching bid:', error);
+    logger.error('Error fetching bid', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bid' },
     });
@@ -76,7 +83,7 @@ router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Respons
  * GET /api/bids/user/:pkh
  * Get bids placed by a specific user (by payment key hash)
  */
-router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
+router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, res: Response) => {
   try {
     const { pkh } = req.params;
 
@@ -91,13 +98,14 @@ router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
       return res.json(response);
     }
 
-    const userBids = await getBidsByUser(pkh);
+    const result = await getBidsByUser(pkh);
     return res.json({
-      data: userBids,
-      meta: { total: userBids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    console.error('Error fetching user bids:', error);
+    logger.error('Error fetching user bids', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user bids' },
     });
@@ -108,7 +116,7 @@ router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
  * GET /api/bids/encryption/:encryptionToken
  * Get all bids for a specific encryption
  */
-router.get('/encryption/:encryptionToken', async (req: Request<{encryptionToken: string}>, res: Response) => {
+router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (req: Request<{encryptionToken: string}>, res: Response) => {
   try {
     const { encryptionToken } = req.params;
 
@@ -123,13 +131,14 @@ router.get('/encryption/:encryptionToken', async (req: Request<{encryptionToken:
       return res.json(response);
     }
 
-    const encryptionBids = await getBidsByEncryption(encryptionToken);
+    const result = await getBidsByEncryption(encryptionToken);
     return res.json({
-      data: encryptionBids,
-      meta: { total: encryptionBids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    console.error('Error fetching encryption bids:', error);
+    logger.error('Error fetching encryption bids', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption bids' },
     });
@@ -162,15 +171,16 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       return res.json(response);
     }
 
-    const filteredBids = await getBidsByStatus(
+    const result = await getBidsByStatus(
       status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
     );
     return res.json({
-      data: filteredBids,
-      meta: { total: filteredBids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    console.error('Error fetching bids by status:', error);
+    logger.error('Error fetching bids by status', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids by status' },
     });

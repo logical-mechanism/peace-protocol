@@ -1,0 +1,90 @@
+import { getNetworkConfig } from '../config/index.js';
+
+const startTime = Date.now();
+
+let lastKupoSuccess: string | null = null;
+let lastKoiosSuccess: string | null = null;
+
+export interface DependencyHealth {
+  reachable: boolean;
+  latencyMs: number;
+  lastSuccess: string | null;
+  error?: string;
+}
+
+export interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  uptimeSeconds: number;
+  kupo: DependencyHealth;
+  koios: DependencyHealth;
+  network: string;
+  useStubs: boolean;
+  timestamp: string;
+}
+
+async function checkDependency(
+  url: string,
+  timeoutMs = 5000,
+): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+  const start = performance.now();
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    const latencyMs = Math.round(performance.now() - start);
+    if (response.ok) {
+      return { ok: true, latencyMs };
+    }
+    return { ok: false, latencyMs, error: `HTTP ${response.status}` };
+  } catch (err) {
+    const latencyMs = Math.round(performance.now() - start);
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, latencyMs, error: message };
+  }
+}
+
+export async function getHealthStatus(network: string, useStubs: boolean): Promise<HealthStatus> {
+  const { kupoUrl, koiosUrl } = getNetworkConfig();
+
+  const [kupoResult, koiosResult] = await Promise.all([
+    checkDependency(`${kupoUrl}/health`),
+    checkDependency(`${koiosUrl}/tip`),
+  ]);
+
+  if (kupoResult.ok) lastKupoSuccess = new Date().toISOString();
+  if (koiosResult.ok) lastKoiosSuccess = new Date().toISOString();
+
+  const kupo: DependencyHealth = {
+    reachable: kupoResult.ok,
+    latencyMs: kupoResult.latencyMs,
+    lastSuccess: lastKupoSuccess,
+    ...(kupoResult.error && { error: kupoResult.error }),
+  };
+
+  const koios: DependencyHealth = {
+    reachable: koiosResult.ok,
+    latencyMs: koiosResult.latencyMs,
+    lastSuccess: lastKoiosSuccess,
+    ...(koiosResult.error && { error: koiosResult.error }),
+  };
+
+  let status: HealthStatus['status'];
+  if (kupo.reachable && koios.reachable) {
+    status = 'healthy';
+  } else if (kupo.reachable || koios.reachable) {
+    status = 'degraded';
+  } else {
+    status = 'unhealthy';
+  }
+
+  return {
+    status,
+    uptimeSeconds: Math.floor((Date.now() - startTime) / 1000),
+    kupo,
+    koios,
+    network,
+    useStubs,
+    timestamp: new Date().toISOString(),
+  };
+}
