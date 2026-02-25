@@ -195,6 +195,17 @@ select option {
   animation: page-fade-in 200ms ease-out;
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* PDF search highlights — text layer is transparent overlay on canvas */
 .textLayer .pdf-search-highlight {
   background-color: rgba(255, 196, 0, 0.35);

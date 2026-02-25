@@ -188,7 +188,7 @@ Each item has:
   - **How**: Create a `ModalProvider` context that tracks open modals in a stack. Enforce only one modal at a time (or allow stacking with proper z-index management). Prevent duplicate opens.
   - **Why**: If two modals trigger simultaneously (e.g., bid notification toast + user opens create listing), behavior is undefined. A modal stack prevents conflicts.
 
-- [ ] **Better draft recovery UX**
+- [x] **Better draft recovery UX**
   - **How**: Instead of immediately showing a blocking modal on Dashboard mount, show a non-intrusive notification bar at the top: "You have a listing draft from a previous session. [Resume] [Discard]". Let users dismiss and come back to it.
   - **Why**: Current draft recovery modal blocks the entire Dashboard until dismissed. Users who just want to check the marketplace must deal with the modal first.
 

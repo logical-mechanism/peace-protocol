@@ -1113,36 +1113,51 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Draft Recovery Banner */}
-        {recoverableDraft && (
-          <div className="mb-6 p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                Unfinished Listing Found
-              </h3>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                A file listing for "{recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
-                The file is still on Iagon — you can resume without re-uploading.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-              <button
-                onClick={() => handleDraftRecovery('discard')}
-                className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
-              >
-                Discard
-              </button>
-              <button
-                onClick={() => handleDraftRecovery('resume')}
-                className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
-              >
-                Resume Listing
-              </button>
+      {/* Draft Recovery Banner — sticky below nav, persists across scrolling/tab switches */}
+      {recoverableDraft && (
+        <div className="sticky top-16 z-40 animate-[slideDown_300ms_ease-out]">
+          <div className="max-w-7xl mx-auto px-6 pt-3">
+            <div className="p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                  Unfinished Listing Found
+                </h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  A file listing for "{recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
+                  The file is still on Iagon — you can resume without re-uploading.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                <button
+                  onClick={() => handleDraftRecovery('discard')}
+                  className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={() => handleDraftRecovery('resume')}
+                  className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+                >
+                  Resume Listing
+                </button>
+                <button
+                  onClick={() => setRecoverableDraft(null)}
+                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  title="Dismiss"
+                  aria-label="Dismiss draft recovery banner"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-6 mb-8">
