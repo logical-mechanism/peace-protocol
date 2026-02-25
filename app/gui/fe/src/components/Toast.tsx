@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
+import { getToastDurationMs } from '../services/toastSettings';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -227,28 +228,30 @@ export function useToast() {
 
   const success = useCallback(
     (title: string, message?: string, duration?: number) => {
-      return addToast('success', title, message, duration);
+      return addToast('success', title, message, duration ?? getToastDurationMs());
     },
     [addToast]
   );
 
   const error = useCallback(
     (title: string, message?: string, duration?: number) => {
-      return addToast('error', title, message, duration ?? 8000);
+      const base = getToastDurationMs();
+      return addToast('error', title, message, duration ?? (base === 0 ? 0 : Math.max(base, 8000)));
     },
     [addToast]
   );
 
   const warning = useCallback(
     (title: string, message?: string, duration?: number) => {
-      return addToast('warning', title, message, duration ?? 6000);
+      const base = getToastDurationMs();
+      return addToast('warning', title, message, duration ?? (base === 0 ? 0 : Math.max(base, 6000)));
     },
     [addToast]
   );
 
   const info = useCallback(
     (title: string, message?: string, duration?: number) => {
-      return addToast('info', title, message, duration);
+      return addToast('info', title, message, duration ?? getToastDurationMs());
     },
     [addToast]
   );
@@ -258,10 +261,11 @@ export function useToast() {
    */
   const transactionSuccess = useCallback(
     (title: string, txHash: string, message?: string) => {
+      const base = getToastDurationMs();
       const action: ToastAction | undefined = isValidTxHash(txHash)
         ? { label: 'View on CardanoScan', href: getTransactionUrl(txHash) }
         : undefined;
-      return addToast('success', title, message || `Transaction: ${txHash.slice(0, 16)}...`, 8000, action);
+      return addToast('success', title, message || `Transaction: ${txHash.slice(0, 16)}...`, base === 0 ? 0 : Math.max(base, 8000), action);
     },
     [addToast]
   );

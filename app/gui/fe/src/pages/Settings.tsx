@@ -18,6 +18,7 @@ import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../ser
 import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../services/transactionHistory'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
+import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -56,6 +57,7 @@ export default function Settings() {
   const [mnemonicLoading, setMnemonicLoading] = useState(false)
   const [networkSwitching, setNetworkSwitching] = useState(false)
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
+  const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
   const [addressCopied, setAddressCopied] = useState(false)
   const location = useLocation()
   const [activeSection, setActiveSection] = useState<string>(
@@ -613,6 +615,27 @@ export default function Settings() {
                 <option value={30}>30 minutes</option>
                 <option value={60}>1 hour</option>
                 <option value={0}>Never</option>
+              </select>
+            </div>
+
+            {/* Notification Duration */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <h2 className="text-lg font-medium mb-2">Notification Duration</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                How long toast notifications stay visible before auto-dismissing.
+              </p>
+              <select
+                value={toastDuration}
+                onChange={(e) => {
+                  const ms = Number(e.target.value)
+                  setToastDuration(ms)
+                  setToastDurationMs(ms)
+                }}
+                className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+              >
+                {TOAST_DURATION_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
 
