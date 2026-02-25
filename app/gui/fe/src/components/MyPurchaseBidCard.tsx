@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
+import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -20,16 +21,6 @@ export default function MyPurchaseBidCard({
   compact = false,
 }: MyPurchaseBidCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 8)}...${token.slice(-4)}`;
-  };
-
-  const truncateAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 12)}...${addr.slice(-8)}`;
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -102,7 +93,7 @@ export default function MyPurchaseBidCard({
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                 <span className="text-xs font-mono text-[var(--text-muted)]">
-                  Bid on {truncateToken(bid.encryptionToken)}
+                  Bid on {truncateHex(bid.encryptionToken, 8, 4)}
                 </span>
                 <BidStatusBadge status={bid.status} />
               </div>
@@ -132,7 +123,7 @@ export default function MyPurchaseBidCard({
               </span>
               {encryption && (
                 <p className="text-xs text-[var(--text-muted)]">
-                  Seller: {truncateAddress(encryption.seller)}
+                  Seller: {truncateHex(encryption.seller, 12, 8)}
                 </p>
               )}
             </div>
@@ -179,7 +170,7 @@ export default function MyPurchaseBidCard({
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-xs text-[var(--text-muted)]">Bid on</span>
             <span className="text-xs font-mono text-[var(--text-secondary)] truncate">
-              {truncateToken(bid.encryptionToken)}
+              {truncateHex(bid.encryptionToken, 8, 4)}
             </span>
             <BidStatusBadge status={bid.status} />
           </div>
@@ -250,7 +241,7 @@ export default function MyPurchaseBidCard({
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs text-[var(--text-muted)]">Seller</span>
           <span className="text-sm font-mono text-[var(--text-secondary)]">
-            {truncateAddress(encryption.seller)}
+            {truncateHex(encryption.seller, 12, 8)}
           </span>
         </div>
       )}

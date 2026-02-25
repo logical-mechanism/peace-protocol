@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import LoadingSpinner from './LoadingSpinner';
 import type { EncryptionDisplay } from '../services/api';
+import { truncateHex } from '../utils/truncate';
+import LoadingSpinner from './LoadingSpinner';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -146,16 +147,6 @@ export default function PlaceBidModal({
     }
   };
 
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 8)}...${token.slice(-4)}`;
-  };
-
-  const truncateAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 10)}...${addr.slice(-6)}`;
-  };
-
   if (!isOpen || !encryption) return null;
 
   return (
@@ -211,13 +202,13 @@ export default function PlaceBidModal({
                 <div className="flex justify-between">
                   <span className="text-xs text-[var(--text-muted)]">Token</span>
                   <span className="text-xs font-mono text-[var(--text-secondary)]">
-                    {truncateToken(encryption.tokenName)}
+                    {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-[var(--text-muted)]">Seller</span>
                   <span className="text-xs font-mono text-[var(--text-secondary)]">
-                    {truncateAddress(encryption.seller)}
+                    {truncateHex(encryption.seller, 10, 6)}
                   </span>
                 </div>
                 {encryption.suggestedPrice !== undefined && (

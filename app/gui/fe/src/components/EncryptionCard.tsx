@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { EncryptionDisplay } from '../services/api';
+import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
@@ -28,16 +29,6 @@ export default function EncryptionCard({
   initialBanned = false,
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-
-  const truncateAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 10)}...${addr.slice(-6)}`;
-  };
-
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 8)}...${token.slice(-4)}`;
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -70,7 +61,7 @@ export default function EncryptionCard({
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-mono text-[var(--text-muted)]">
-              {truncateToken(encryption.tokenName)}
+              {truncateHex(encryption.tokenName, 8, 4)}
             </span>
             <div className="flex items-center gap-2">
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
@@ -126,7 +117,7 @@ export default function EncryptionCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs font-mono text-[var(--text-muted)] truncate">
-                {truncateToken(encryption.tokenName)}
+                {truncateHex(encryption.tokenName, 8, 4)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
@@ -175,7 +166,7 @@ export default function EncryptionCard({
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs text-[var(--text-muted)]">Seller</span>
           <span className="text-xs font-mono text-[var(--text-secondary)]">
-            {truncateAddress(encryption.seller)}
+            {truncateHex(encryption.seller, 10, 6)}
           </span>
         </div>
 

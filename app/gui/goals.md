@@ -516,7 +516,7 @@ Each item has:
   - **How**: `useBidNotifications` already computes new bid count. Extend this to show a badge on the MySales tab. Similarly, show a badge on MyPurchases when a bid is accepted. Display counts in small circles on the tab buttons.
   - **Why**: Users need visual indicators that something requires their attention in a specific tab. Without badges, they must check each tab manually.
 
-- [ ] **Truncate long token names and addresses consistently**
+- [x] **Truncate long token names and addresses consistently**
   - **How**: Create a `<TruncatedText>` component that shows the first N and last M characters with "..." in between. Add a "Copy full value" button on hover/click. Use consistently across all cards and modals.
   - **Why**: Token names and addresses are long hex strings that overflow card layouts. Inconsistent truncation looks messy.
 

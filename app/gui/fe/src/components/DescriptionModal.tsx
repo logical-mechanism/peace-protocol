@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { truncateHex } from '../utils/truncate';
 
 interface DescriptionModalProps {
   isOpen: boolean;
@@ -31,11 +32,6 @@ export default function DescriptionModal({
 
   if (!isOpen) return null;
 
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 12)}...${token.slice(-6)}`;
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
@@ -54,7 +50,7 @@ export default function DescriptionModal({
             </h2>
             {tokenName && (
               <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5">
-                {truncateToken(tokenName)}
+                {truncateHex(tokenName ?? '', 12, 6)}
               </p>
             )}
           </div>

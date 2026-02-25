@@ -5,6 +5,7 @@ import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage';
 import { copyToClipboard } from '../utils/clipboard';
+import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
 
 interface DecryptModalProps {
@@ -125,11 +126,6 @@ export default function DecryptModal({
     onClose();
   }, [onClose]);
 
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 12)}...${token.slice(-8)}`;
-  };
-
   const formatAda = (lovelace: number): string => {
     const ada = lovelace / 1_000_000;
     return ada.toLocaleString(undefined, {
@@ -162,7 +158,7 @@ export default function DecryptModal({
             </h2>
             {(bid || encryption) && (
               <p className="text-sm text-[var(--text-muted)] mt-1">
-                Token: {truncateToken(bid ? bid.encryptionToken : encryption!.tokenName)}
+                Token: {truncateHex(bid ? bid.encryptionToken : encryption!.tokenName, 12, 8)}
               </p>
             )}
           </div>

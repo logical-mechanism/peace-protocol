@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { LibraryItem } from '../services/libraryService';
 import { readLibraryContent, deleteLibraryItem, exportLibraryContent } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
+import { truncateHex } from '../utils/truncate';
 import ConfirmModal from './ConfirmModal';
 import LoadingSpinner from './LoadingSpinner';
 import Badge from './Badge';
@@ -20,10 +21,6 @@ interface LibraryContentModalProps {
 
 type ModalState = 'loading' | 'loaded' | 'error';
 
-const truncateToken = (token: string) => {
-  if (!token) return '';
-  return `${token.slice(0, 12)}...${token.slice(-6)}`;
-};
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return '';
@@ -42,11 +39,6 @@ const getCategoryLabel = (category: string): string => {
   return category.charAt(0).toUpperCase() + category.slice(1);
 };
 
-const truncateSeller = (seller: string) => {
-  if (!seller) return '';
-  if (seller.length <= 20) return seller;
-  return `${seller.slice(0, 10)}...${seller.slice(-6)}`;
-};
 
 /** Map file extensions to human-readable labels. */
 const FILE_TYPE_LABELS: Record<string, string> = {
@@ -290,7 +282,7 @@ export default function LibraryContentModal({
                 Library
               </h2>
               <p className="text-sm text-[var(--text-muted)] mt-1">
-                {truncateToken(item.tokenName)}
+                {truncateHex(item.tokenName, 12, 6)}
               </p>
             </div>
             <button
@@ -326,7 +318,7 @@ export default function LibraryContentModal({
                   <div>
                     <p className="text-xs text-[var(--text-muted)]">Seller</p>
                     <p className="text-sm font-mono text-[var(--text-secondary)]">
-                      {truncateSeller(item.seller)}
+                      {truncateHex(item.seller, 10, 6)}
                     </p>
                   </div>
                 )}

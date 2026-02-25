@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { LibraryItem } from '../services/libraryService';
+import { truncateHex } from '../utils/truncate';
 import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -11,10 +12,6 @@ interface LibraryCardProps {
   compact?: boolean;
 }
 
-const truncateToken = (token: string) => {
-  if (!token) return '';
-  return `${token.slice(0, 8)}...${token.slice(-4)}`;
-};
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -30,11 +27,6 @@ const getCategoryLabel = (category: string): string => {
   return category.charAt(0).toUpperCase() + category.slice(1);
 };
 
-const truncateSeller = (seller: string) => {
-  if (!seller) return '';
-  if (seller.length <= 16) return seller;
-  return `${seller.slice(0, 8)}...${seller.slice(-4)}`;
-};
 
 function CategoryIcon({ category, size = 'md' }: { category: string; size?: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
@@ -101,7 +93,7 @@ export default function LibraryCard({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="text-xs font-mono text-[var(--text-muted)]">
-                    {truncateToken(item.tokenName)}
+                    {truncateHex(item.tokenName, 8, 4)}
                   </span>
                   <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
                   {item.contentMissing && (
@@ -124,7 +116,7 @@ export default function LibraryCard({
               <div className="text-right">
                 {item.seller && (
                   <p className="text-xs font-mono text-[var(--text-muted)]">
-                    {truncateSeller(item.seller)}
+                    {truncateHex(item.seller, 8, 4)}
                   </p>
                 )}
                 <p className="text-xs text-[var(--text-muted)]">
@@ -173,7 +165,7 @@ export default function LibraryCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs font-mono text-[var(--text-muted)] truncate">
-                {truncateToken(item.tokenName)}
+                {truncateHex(item.tokenName, 8, 4)}
               </span>
               <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
               {item.contentMissing && (
@@ -213,7 +205,7 @@ export default function LibraryCard({
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
             <span className="text-xs text-[var(--text-muted)]">Seller</span>
             <span className="text-xs font-mono text-[var(--text-secondary)]">
-              {truncateSeller(item.seller)}
+              {truncateHex(item.seller, 8, 4)}
             </span>
           </div>
         )}

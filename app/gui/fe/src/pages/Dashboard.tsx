@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
 import { copyToClipboard } from '../utils/clipboard'
+import { truncateHex } from '../utils/truncate'
 import MarketplaceTab from '../components/MarketplaceTab'
 import MySalesTab from '../components/MySalesTab'
 import MyPurchasesTab from '../components/MyPurchasesTab'
@@ -296,11 +297,6 @@ export default function Dashboard() {
     () => txHistory.filter(tx => tx.status === 'pending').length,
     [txHistory]
   )
-
-  const truncateAddress = (addr: string) => {
-    if (!addr) return ''
-    return `${addr.slice(0, 12)}...${addr.slice(-8)}`
-  }
 
   const formatAda = (lovelaceAmount: string | undefined) => {
     if (!lovelaceAmount) return '...'
@@ -1033,7 +1029,7 @@ export default function Dashboard() {
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
             title={address || 'Loading...'}
           >
-            <span>{address ? truncateAddress(address) : '...'}</span>
+            <span>{address ? truncateHex(address, 12, 8) : '...'}</span>
             <svg
               className="w-4 h-4"
               fill="none"

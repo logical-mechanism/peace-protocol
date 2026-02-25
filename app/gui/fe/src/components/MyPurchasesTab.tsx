@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
+import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -231,11 +232,6 @@ export default function MyPurchasesTab({
     );
   }
 
-  const truncateToken = (token: string) => {
-    if (!token) return '';
-    return `${token.slice(0, 12)}...${token.slice(-8)}`;
-  };
-
   return (
     <div>
       {/* Purchased Encryptions Section */}
@@ -256,7 +252,7 @@ export default function MyPurchasesTab({
                     Purchased
                   </span>
                   <span className="text-xs text-[var(--text-muted)] font-mono">
-                    {truncateToken(enc.tokenName)}
+                    {truncateHex(enc.tokenName, 12, 8)}
                   </span>
                 </div>
 
