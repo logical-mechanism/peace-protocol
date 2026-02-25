@@ -380,7 +380,7 @@ Each item has:
   - **How**: Create `.github/workflows/ci.yml` with jobs: lint (fe + be + Rust), test (fe + be), type-check. Run on push to main and PR branches. Skip Tauri build in CI (requires sidecar binaries).
   - **Why**: Without CI, broken tests and lint failures are only caught manually. Automated checks enforce quality on every PR.
 
-- [ ] **Add prerequisite check to run.sh**
+- [x] **Add prerequisite check to run.sh**
   - **How**: Before running `tauri dev`, check that sidecar binaries exist in `src-tauri/binaries/`, Node.js version meets requirements, and Rust toolchain is installed. Print clear error messages if anything is missing.
   - **Why**: New contributors cloning the repo hit cryptic errors when sidecar binaries are missing. A pre-flight check saves debugging time.
 

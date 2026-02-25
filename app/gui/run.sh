@@ -3,6 +3,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+source ./check-prereqs.sh
+check_prerequisites
+
 # If a previous run left WebKit helper processes behind, kill them.
 # (Workaround for WebKitNetworkProcess sticking around / getting wedged)
 pkill -u "$USER" -f 'WebKitNetworkProcess' 2>/dev/null || true
