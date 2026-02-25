@@ -520,7 +520,7 @@ Each item has:
   - **How**: Create a `<TruncatedText>` component that shows the first N and last M characters with "..." in between. Add a "Copy full value" button on hover/click. Use consistently across all cards and modals.
   - **Why**: Token names and addresses are long hex strings that overflow card layouts. Inconsistent truncation looks messy.
 
-- [ ] **Better empty states with illustrations**
+- [x] **Better empty states with illustrations**
   - **How**: Enhance the `EmptyState` component with small SVG illustrations for each context: no listings (marketplace icon), no bids (handshake icon), no purchases (shopping bag), no history (clock), empty library (books). Use the existing icon components as a starting point.
   - **Why**: Empty states are the first thing new users see. A friendly illustration with a call-to-action ("Create your first listing") guides them to the next step.
 

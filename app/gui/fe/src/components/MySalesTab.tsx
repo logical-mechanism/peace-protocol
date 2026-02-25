@@ -4,7 +4,8 @@ import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import SalesListingCard from './SalesListingCard';
 import BidsModal from './BidsModal';
 import LoadingSpinner from './LoadingSpinner';
-import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
+import EmptyState, { PackageIcon } from './EmptyState';
+import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
 
 type ViewMode = 'grid' | 'list';
@@ -230,7 +231,7 @@ export default function MySalesTab({
   if (encryptions.length === 0) {
     return (
       <EmptyState
-        icon={<InboxIcon />}
+        illustration={<NoSalesIllustration />}
         title="No listings yet"
         description="Create your first encryption listing to start selling on the marketplace"
         action={
@@ -377,7 +378,7 @@ export default function MySalesTab({
       {filteredAndSorted.length === 0 ? (
         searchQuery || statusFilter !== 'all' ? (
           <EmptyState
-            icon={<SearchIcon />}
+            illustration={<NoResultsIllustration />}
             title="No matching listings"
             description="Try adjusting your search or filters"
             action={
@@ -394,7 +395,7 @@ export default function MySalesTab({
           />
         ) : (
           <EmptyState
-            icon={<PackageIcon />}
+            illustration={<NoSalesIllustration />}
             title="No listings found"
             description="Your listings will appear here"
           />

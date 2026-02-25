@@ -6,24 +6,12 @@ import LibraryContentModal from './LibraryContentModal';
 import ConfirmModal from './ConfirmModal';
 import { deleteLibraryItem } from '../services/libraryService';
 import LoadingSpinner from './LoadingSpinner';
-import EmptyState, { PackageIcon, SearchIcon } from './EmptyState';
+import EmptyState, { PackageIcon } from './EmptyState';
+import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc';
 type CategoryFilter = string; // 'all' or a category id
-
-function BookIcon({ className = 'w-12 h-12' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-      />
-    </svg>
-  );
-}
 
 export default function LibraryTab() {
   const [items, setItems] = useState<LibraryItem[]>([]);
@@ -170,7 +158,7 @@ export default function LibraryTab() {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<BookIcon />}
+        illustration={<LibraryEmptyIllustration />}
         title="Your library is empty"
         description="Decrypted content will appear here after successful purchases"
       />
@@ -310,7 +298,7 @@ export default function LibraryTab() {
       {filteredAndSorted.length === 0 ? (
         searchQuery || categoryFilter !== 'all' ? (
           <EmptyState
-            icon={<SearchIcon />}
+            illustration={<NoResultsIllustration />}
             title="No matching items"
             description="Try adjusting your search or filters"
             action={
@@ -327,7 +315,7 @@ export default function LibraryTab() {
           />
         ) : (
           <EmptyState
-            icon={<PackageIcon />}
+            illustration={<LibraryEmptyIllustration />}
             title="No items found"
             description="Your library items will appear here"
           />

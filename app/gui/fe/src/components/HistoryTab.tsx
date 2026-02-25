@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
 import TransactionLink from './TransactionLink';
-import EmptyState, { InboxIcon } from './EmptyState';
+import EmptyState from './EmptyState';
+import { HistoryEmptyIllustration } from './EmptyStateIllustrations';
 import LoadingSpinner from './LoadingSpinner';
 import type { TransactionRecord } from '../services/transactionHistory';
 import {
@@ -133,7 +134,7 @@ export default function HistoryTab({
   if (allRecords.length === 0) {
     return (
       <EmptyState
-        icon={<InboxIcon />}
+        illustration={<HistoryEmptyIllustration />}
         title="No transaction history"
         description="Transactions you submit through the dApp will appear here"
       />

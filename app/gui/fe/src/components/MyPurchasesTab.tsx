@@ -7,7 +7,8 @@ import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import LoadingSpinner from './LoadingSpinner';
-import EmptyState, { PackageIcon, SearchIcon, InboxIcon } from './EmptyState';
+import EmptyState, { PackageIcon } from './EmptyState';
+import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'amount-high' | 'amount-low';
@@ -212,7 +213,7 @@ export default function MyPurchasesTab({
   if (bids.length === 0 && purchasedEncryptions.length === 0) {
     return (
       <EmptyState
-        icon={<InboxIcon />}
+        illustration={<NoPurchasesIllustration />}
         title="No purchases yet"
         description="Bids you place and encryptions you purchase will appear here"
         action={
@@ -423,7 +424,7 @@ export default function MyPurchasesTab({
       {filteredAndSorted.length === 0 ? (
         searchQuery || statusFilter !== 'all' ? (
           <EmptyState
-            icon={<SearchIcon />}
+            illustration={<NoResultsIllustration />}
             title="No matching bids"
             description="Try adjusting your search or filters"
             action={
@@ -440,7 +441,7 @@ export default function MyPurchasesTab({
           />
         ) : (
           <EmptyState
-            icon={<PackageIcon />}
+            illustration={<NoPurchasesIllustration />}
             title="No bids found"
             description="Your bids will appear here"
           />

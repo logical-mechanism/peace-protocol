@@ -3,7 +3,8 @@ import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
 import LoadingSpinner from './LoadingSpinner';
-import EmptyState, { PackageIcon, SearchIcon } from './EmptyState';
+import EmptyState, { PackageIcon } from './EmptyState';
+import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
 import { FILE_CATEGORIES } from '../config/categories';
 
@@ -284,7 +285,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
       {filteredAndSorted.length === 0 ? (
         searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' ? (
           <EmptyState
-            icon={<SearchIcon />}
+            illustration={<NoResultsIllustration />}
             title="No matching listings"
             description="Try adjusting your search or filters"
             action={
@@ -302,7 +303,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
           />
         ) : (
           <EmptyState
-            icon={<PackageIcon />}
+            illustration={<MarketplaceEmptyIllustration />}
             title="No listings available"
             description="Listings will appear here once sellers create encryptions"
           />
