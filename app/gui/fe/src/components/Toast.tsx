@@ -119,6 +119,7 @@ function Toast({ toast, onClose }: ToastProps) {
     <div
       className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg animate-in slide-in-from-right-full duration-300`}
       role="alert"
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
       <div className={`flex-shrink-0 ${colors.icon}`}>{getIcon()}</div>
       <div className="flex-1 min-w-0">
@@ -165,6 +166,7 @@ function Toast({ toast, onClose }: ToastProps) {
       <button
         onClick={() => onClose(toast.id)}
         className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+        aria-label="Dismiss notification"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -188,7 +190,7 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full" aria-live="polite" role="status">
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} onClose={onClose} />
       ))}
