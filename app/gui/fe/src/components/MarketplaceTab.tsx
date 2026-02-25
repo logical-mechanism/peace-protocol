@@ -77,13 +77,14 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
       result = result.filter((e) => (e.category || 'text') === categoryFilter);
     }
 
-    // Search filter (by token name or seller address)
+    // Search filter (by token name, seller address, or description)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
         (e) =>
           e.tokenName.toLowerCase().includes(query) ||
-          e.seller.toLowerCase().includes(query)
+          e.seller.toLowerCase().includes(query) ||
+          (e.description && e.description.toLowerCase().includes(query))
       );
     }
 
@@ -165,7 +166,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
           </svg>
           <input
             type="text"
-            placeholder="Search by token or seller..."
+            placeholder="Search by token, seller, or description..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search listings"
