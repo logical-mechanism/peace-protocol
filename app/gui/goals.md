@@ -300,7 +300,7 @@ Each item has:
   - **How**: Map specific error strings from Tauri `unlock_wallet` to user-friendly messages: "Incorrect password" (argon2 mismatch), "Wallet file corrupted" (JSON parse error), "Wallet file not found" (missing file). Show recovery steps for each.
   - **Why**: Current unlock failure shows a generic error. Users don't know if they typed the wrong password or if something is broken.
 
-- [ ] **Password strength requirements display**
+- [x] **Password strength requirements display**
   - **How**: In `WalletSetup`, show specific requirements below the password field: minimum length, uppercase, number, special char (or just entropy-based). `usePasswordStrength` hook already exists — expose its criteria as a checklist.
   - **Why**: Users see a strength bar but don't know what makes a password "strong" in this context.
 
