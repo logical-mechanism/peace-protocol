@@ -27,6 +27,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let app_data_dir = app
                 .path()
@@ -167,10 +168,11 @@ pub fn run() {
             commands::media::delete_cached_image,
             // Content commands (for future data layer)
             commands::media::save_content,
-            // Library commands (browse/read/delete decrypted content)
+            // Library commands (browse/read/delete/export decrypted content)
             commands::media::list_library_items,
             commands::media::read_library_content,
             commands::media::delete_library_item,
+            commands::media::export_library_content,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

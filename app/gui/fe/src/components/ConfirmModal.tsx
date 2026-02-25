@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+import { truncateDescription } from './descriptionUtils';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -7,6 +8,7 @@ interface ConfirmModalProps {
   onConfirm: () => void;
   title: string;
   message: string;
+  description?: string;
   confirmLabel?: string;
   confirmVariant?: 'danger' | 'default';
   loading?: boolean;
@@ -18,6 +20,7 @@ export default function ConfirmModal({
   onConfirm,
   title,
   message,
+  description,
   confirmLabel = 'Confirm',
   confirmVariant = 'danger',
   loading = false,
@@ -74,6 +77,11 @@ export default function ConfirmModal({
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
             {message}
           </p>
+          {description && (
+            <p className="mt-3 text-xs text-[var(--text-tertiary)] leading-relaxed italic">
+              {truncateDescription(description)}
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 px-6 pb-6">

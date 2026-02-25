@@ -79,6 +79,7 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum, cip20: ParsedBidCip2
   };
 }
 
+/** Fetch all bid UTxOs from Kupo and enrich with CIP-20 metadata. */
 export async function getAllBids(): Promise<BidDisplay[]> {
   const { contracts } = getNetworkConfig();
   const kupo = getKupoClient();
@@ -101,11 +102,13 @@ export async function getAllBids(): Promise<BidDisplay[]> {
   return bids;
 }
 
+/** Find a single bid by its token name, or null if not found. */
 export async function getBidByToken(tokenName: string): Promise<BidDisplay | null> {
   const bids = await getAllBids();
   return bids.find(b => b.tokenName === tokenName) || null;
 }
 
+/** Filter bids by bidder payment key hash (case-insensitive substring match). */
 export async function getBidsByUser(pkh: string): Promise<BidDisplay[]> {
   const bids = await getAllBids();
   return bids.filter(b =>
@@ -113,11 +116,13 @@ export async function getBidsByUser(pkh: string): Promise<BidDisplay[]> {
   );
 }
 
+/** Filter bids by the encryption token they target. */
 export async function getBidsByEncryption(encryptionToken: string): Promise<BidDisplay[]> {
   const bids = await getAllBids();
   return bids.filter(b => b.encryptionToken === encryptionToken);
 }
 
+/** Filter bids by display status (pending, accepted, rejected, or cancelled). */
 export async function getBidsByStatus(
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
 ): Promise<BidDisplay[]> {

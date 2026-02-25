@@ -107,3 +107,52 @@ select option {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
 }
+
+/* Winamp-style audio player */
+:root {
+  --winamp-bg: #1e1e2e;
+  --winamp-bg-dark: #12121c;
+  --winamp-bg-light: #2a2a3c;
+  --winamp-border-light: #3a3a4c;
+  --winamp-border-dark: #0a0a14;
+  --winamp-led: #22c55e;
+  --winamp-led-dim: rgba(34, 197, 94, 0.3);
+}
+
+.winamp-bevel {
+  box-shadow:
+    inset 1px 1px 0 var(--winamp-border-light),
+    inset -1px -1px 0 var(--winamp-border-dark);
+}
+
+.winamp-groove {
+  box-shadow:
+    inset 1px 1px 0 var(--winamp-border-dark),
+    inset -1px -1px 0 var(--winamp-border-light);
+}
+
+.winamp-led-text {
+  font-family: var(--font-mono);
+  color: var(--winamp-led);
+  text-shadow: 0 0 8px var(--winamp-led-dim), 0 0 2px var(--winamp-led);
+  letter-spacing: 0.1em;
+}
+
+.winamp-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--winamp-bg-dark);
+  box-shadow: inset 1px 1px 0 var(--winamp-border-dark);
+  outline: none;
+  cursor: pointer;
+}
+
+.winamp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 14px;
+  background: var(--winamp-bg-light);
+  border: 1px solid var(--winamp-border-light);
+  cursor: pointer;
+}

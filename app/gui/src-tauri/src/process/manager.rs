@@ -107,6 +107,8 @@ pub struct NodeManager {
     processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
     app_handle: tauri::AppHandle,
     pid_file: std::path::PathBuf,
+    /// PID of the currently-running SNARK sidecar (if any), for cleanup on shutdown.
+    snark_pid: std::sync::Mutex<Option<u32>>,
 }
 
 impl NodeManager {
@@ -121,6 +123,7 @@ impl NodeManager {
             processes: Arc::new(Mutex::new(HashMap::new())),
             app_handle,
             pid_file,
+            snark_pid: std::sync::Mutex::new(None),
         };
 
         // Kill any orphaned processes from a previous crashed session
@@ -983,6 +986,15 @@ impl NodeManager {
             }
         }
 
+        // Include SNARK prover PID if running
+        if let Ok(guard) = self.snark_pid.lock() {
+            if let Some(pid) = *guard {
+                if !all_pids.contains(&pid) {
+                    all_pids.push(pid);
+                }
+            }
+        }
+
         if all_pids.is_empty() {
             let _ = std::fs::remove_file(&self.pid_file);
             return;
@@ -1035,12 +1047,69 @@ impl NodeManager {
             }
         }
 
+        // Include SNARK prover PID if running
+        if let Ok(guard) = self.snark_pid.lock() {
+            if let Some(pid) = *guard {
+                if !all_pids.contains(&pid) {
+                    all_pids.push(pid);
+                }
+            }
+        }
+
         for pid in &all_pids {
             eprintln!("[NodeManager] Exit (fallback): SIGTERM pid={pid}");
             send_signal(*pid, libc::SIGTERM);
         }
 
         let _ = std::fs::remove_file(&self.pid_file);
+    }
+
+    /// Register a SNARK sidecar PID for cleanup on shutdown.
+    pub fn set_snark_pid(&self, pid: u32) {
+        if let Ok(mut guard) = self.snark_pid.lock() {
+            *guard = Some(pid);
+        }
+        self.append_pid_to_file(pid);
+    }
+
+    /// Clear the SNARK PID after the process exits normally.
+    pub fn clear_snark_pid(&self) {
+        let old_pid = self.snark_pid.lock().ok().and_then(|mut g| g.take());
+        if let Some(pid) = old_pid {
+            self.remove_pid_from_file(pid);
+        }
+    }
+
+    fn append_pid_to_file(&self, pid: u32) {
+        let mut pids: Vec<u32> = std::fs::read_to_string(&self.pid_file)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default();
+        if !pids.contains(&pid) {
+            pids.push(pid);
+            if let Ok(json) = serde_json::to_string(&pids) {
+                let tmp = self.pid_file.with_extension("tmp");
+                if std::fs::write(&tmp, &json).is_ok() {
+                    let _ = std::fs::rename(&tmp, &self.pid_file);
+                }
+            }
+        }
+    }
+
+    fn remove_pid_from_file(&self, pid: u32) {
+        let mut pids: Vec<u32> = std::fs::read_to_string(&self.pid_file)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default();
+        pids.retain(|&p| p != pid);
+        if pids.is_empty() {
+            let _ = std::fs::remove_file(&self.pid_file);
+        } else if let Ok(json) = serde_json::to_string(&pids) {
+            let tmp = self.pid_file.with_extension("tmp");
+            if std::fs::write(&tmp, &json).is_ok() {
+                let _ = std::fs::rename(&tmp, &self.pid_file);
+            }
+        }
     }
 
     /// Emit a process status event to the frontend

@@ -33,7 +33,7 @@ router.get('/confirmations/:txHash', async (req, res) => {
       return res.json({ data: { confirmations: 0 } });
     }
 
-    const blockHeight = (txInfo as Record<string, unknown>).block_height;
+    const blockHeight = txInfo.block_height;
     if (typeof blockHeight !== 'number') {
       return res.json({ data: { confirmations: 0 } });
     }

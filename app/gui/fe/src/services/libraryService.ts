@@ -7,6 +7,7 @@ export interface LibraryItem {
   suggestedPrice?: number;
   storageLayer?: string;
   imageLink?: string;
+  fileExtension?: string;
   seller?: string;
   createdAt?: string;
   decryptedAt: string;
@@ -30,4 +31,14 @@ export async function deleteLibraryItem(
   category: string
 ): Promise<void> {
   return invoke<void>('delete_library_item', { tokenName, category });
+}
+
+export async function exportLibraryContent(
+  tokenName: string,
+  category: string,
+  suggestedFilename: string,
+): Promise<string | null> {
+  return invoke<string | null>('export_library_content', {
+    tokenName, category, suggestedFilename,
+  });
 }

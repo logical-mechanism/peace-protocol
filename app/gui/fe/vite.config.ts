@@ -50,7 +50,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['@sidan-lab/sidan-csl-rs-browser'],
+    exclude: ['@sidan-lab/sidan-csl-rs-browser', '@ffmpeg/ffmpeg', '@ffmpeg/core', '@ffmpeg/util'],
     esbuildOptions: {
       target: 'esnext',
     },

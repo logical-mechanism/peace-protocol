@@ -107,12 +107,18 @@ function buildPayloadFromDraftFields(
   iagonFileId: string,
   fileKeyHex: string,
   fileNonceHex: string,
-  fileDigestHex: string
+  fileDigestHex: string,
+  fileExtension?: string,
 ): Uint8Array {
   const locator = new TextEncoder().encode(iagonFileId);
   const secret = encodeFileSecret(hexToBytes(fileKeyHex), hexToBytes(fileNonceHex));
   const digest = hexToBytes(fileDigestHex);
-  return buildPayload({ locator, secret, digest });
+  let extra: Map<number, Uint8Array> | undefined;
+  if (fileExtension) {
+    extra = new Map();
+    extra.set(3, new TextEncoder().encode(fileExtension));
+  }
+  return buildPayload({ locator, secret, digest, extra });
 }
 
 /**
@@ -128,19 +134,13 @@ async function verifyIagonUpload(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const files = await iagonListFiles(apiKey);
-      console.log(
-        `[verifyIagonUpload] Attempt ${attempt}/${maxAttempts} for _id "${fileId}":`,
-        JSON.stringify(files, null, 2)
-      );
       if (files.some((f) => f._id === fileId)) {
-        console.log(`[verifyIagonUpload] File verified on attempt ${attempt}`);
         return true;
       }
     } catch (err) {
       console.warn(`[verifyIagonUpload] List attempt ${attempt} failed:`, err);
     }
     if (attempt < maxAttempts) {
-      console.log(`[verifyIagonUpload] Waiting ${delayMs}ms before retry...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -248,7 +248,14 @@ async function buildPayloadForIagon(file: File, tokenName: string): Promise<Uint
   const locator = new TextEncoder().encode(fileInfo._id);
   const secret = encodeFileSecret(key, nonce);
 
-  return buildPayload({ locator, secret, digest });
+  // Store original file extension as field 3 (filetype) so decryptors know the format
+  let extra: Map<number, Uint8Array> | undefined;
+  if (ext) {
+    extra = new Map();
+    extra.set(3, new TextEncoder().encode(ext));
+  }
+
+  return buildPayload({ locator, secret, digest, extra });
 }
 
 /** Create a MeshTxBuilder wired to local Kupo + Ogmios. */
@@ -354,11 +361,16 @@ export async function createListing(
         formData.file!.size,
       );
 
+      // Extract original file extension for payload field 3 (filetype)
+      const ext = formData.file!.name.includes('.')
+        ? formData.file!.name.slice(formData.file!.name.lastIndexOf('.'))
+        : '';
+
       // Encrypt file
       const fileBytes = new Uint8Array(await formData.file!.arrayBuffer());
       const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
 
-      // Save encryption keys to draft before upload
+      // Save encryption keys + file extension to draft before upload
       const fileKeyHex = bytesToHex(key);
       const fileNonceHex = bytesToHex(nonce);
       const fileDigestHex = bytesToHex(digest);
@@ -366,6 +378,7 @@ export async function createListing(
         fileKey: fileKeyHex,
         fileNonce: fileNonceHex,
         fileDigest: fileDigestHex,
+        fileExtension: ext || undefined,
       });
 
       // Upload to Iagon
@@ -374,15 +387,10 @@ export async function createListing(
       if (!apiKey) {
         throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
       }
-
-      const ext = formData.file!.name.includes('.')
-        ? formData.file!.name.slice(formData.file!.name.lastIndexOf('.'))
-        : '';
       // Use draft ID for filename since token name isn't known yet
       const iagonFilename = `${draftId}${ext}.enc`;
 
       const fileInfo = await iagonUpload(apiKey, encryptedBlob, iagonFilename);
-      console.log('[createListing] Iagon upload response:', JSON.stringify(fileInfo, null, 2));
 
       await updateListingDraft(draftId, {
         status: 'uploaded',
@@ -409,7 +417,7 @@ export async function createListing(
       // Capture draft fields for payload builder
       const savedFileId = fileInfo._id;
       payloadBuilder = () =>
-        buildPayloadFromDraftFields(savedFileId, fileKeyHex, fileNonceHex, fileDigestHex);
+        buildPayloadFromDraftFields(savedFileId, fileKeyHex, fileNonceHex, fileDigestHex, ext);
     }
 
     // ── Step 2: Fetch config & wallet info ──────────────────────────
@@ -634,6 +642,7 @@ export async function retryListingFromDraft(
       draft.fileKey,
       draft.fileNonce,
       draft.fileDigest,
+      draft.fileExtension,
     );
 
     // Fetch config & wallet info
@@ -1819,7 +1828,6 @@ export async function completeReEncryption(
   encryption: EncryptionDisplay,
   bid: BidDisplay
 ): Promise<TransactionResult> {
-  console.log('[completeReEncryption] bid received:', JSON.stringify({ tokenName: bid.tokenName, futurePrice: bid.futurePrice, amount: bid.amount }));
   try {
     if (USE_STUBS) {
       console.warn('[STUB] completeReEncryption');
@@ -2013,8 +2021,6 @@ export async function completeReEncryption(
         'Please wait a minute and try again.'
       );
     }
-
-    console.log('[completeReEncryption] metadata price will be:', bid.futurePrice ?? bid.amount / 1_000_000, '(futurePrice:', bid.futurePrice, ', amount:', bid.amount, ')');
 
     const txBuilder = createTxBuilder();
 

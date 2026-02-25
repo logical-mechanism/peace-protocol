@@ -109,8 +109,8 @@ class KoiosClient {
   /**
    * Get transaction info
    */
-  async getTxInfo(txHash: string): Promise<unknown> {
-    const result = await this.request<unknown[]>('/tx_info', {
+  async getTxInfo(txHash: string): Promise<TxInfo> {
+    const result = await this.request<TxInfo[]>('/tx_info', {
       method: 'POST',
       body: JSON.stringify({ _tx_hashes: [txHash] }),
     });
@@ -183,9 +183,9 @@ class KoiosClient {
   /**
    * Get protocol parameters
    */
-  async getProtocolParams(): Promise<unknown> {
+  async getProtocolParams(): Promise<Record<string, unknown>> {
     // Koios GET /epoch_params returns latest epoch params when no _epoch_no specified
-    const result = await this.request<unknown[]>('/epoch_params');
+    const result = await this.request<Record<string, unknown>[]>('/epoch_params');
     if (result.length === 0) {
       throw new Error('No protocol parameters returned from Koios');
     }

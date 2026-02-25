@@ -421,6 +421,9 @@ struct ListingDraftFile {
     file_nonce: Option<String>,
     #[serde(default)]
     file_digest: Option<String>,
+    // Original file extension (e.g. ".mp3", ".pdf")
+    #[serde(default)]
+    file_extension: Option<String>,
     // Transaction details
     #[serde(default)]
     token_name: Option<String>,
@@ -451,6 +454,7 @@ pub struct ListingDraftResult {
     file_key: Option<String>,
     file_nonce: Option<String>,
     file_digest: Option<String>,
+    file_extension: Option<String>,
     token_name: Option<String>,
     tx_hash: Option<String>,
     last_error: Option<String>,
@@ -497,6 +501,7 @@ pub fn store_listing_draft(
         file_key: None,
         file_nonce: None,
         file_digest: None,
+        file_extension: None,
         token_name: None,
         tx_hash: None,
         last_error: None,
@@ -547,6 +552,9 @@ pub fn update_listing_draft(
     }
     if let Some(v) = updates.get("fileDigest").and_then(|v| v.as_str()) {
         file.file_digest = Some(v.to_string());
+    }
+    if let Some(v) = updates.get("fileExtension").and_then(|v| v.as_str()) {
+        file.file_extension = Some(v.to_string());
     }
     if let Some(v) = updates.get("tokenName").and_then(|v| v.as_str()) {
         file.token_name = Some(v.to_string());
@@ -644,6 +652,7 @@ fn draft_file_to_result(file: ListingDraftFile) -> ListingDraftResult {
         file_key: file.file_key,
         file_nonce: file.file_nonce,
         file_digest: file.file_digest,
+        file_extension: file.file_extension,
         token_name: file.token_name,
         tx_hash: file.tx_hash,
         last_error: file.last_error,
