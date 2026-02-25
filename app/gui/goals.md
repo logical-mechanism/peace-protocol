@@ -512,7 +512,7 @@ Each item has:
   - **How**: Add CSS transitions or use `framer-motion` for route changes (wallet setup -> unlock -> sync -> dashboard). A simple fade or slide transition makes navigation feel polished.
   - **Why**: Instant page swaps feel jarring. Subtle transitions make the app feel more professional and responsive.
 
-- [ ] **Notification badge on Dashboard tabs**
+- [x] **Notification badge on Dashboard tabs**
   - **How**: `useBidNotifications` already computes new bid count. Extend this to show a badge on the MySales tab. Similarly, show a badge on MyPurchases when a bid is accepted. Display counts in small circles on the tab buttons.
   - **Why**: Users need visual indicators that something requires their attention in a specific tab. Without badges, they must check each tab manually.
 

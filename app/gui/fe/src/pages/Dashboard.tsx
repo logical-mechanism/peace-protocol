@@ -62,6 +62,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('marketplace')
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
+  const [acceptedBidCount, setAcceptedBidCount] = useState(0)
   const [showCreateListing, setShowCreateListing] = useState(false)
   const [showPlaceBid, setShowPlaceBid] = useState(false)
   const [showDecrypt, setShowDecrypt] = useState(false)
@@ -851,12 +852,19 @@ export default function Dashboard() {
         )
         setMyBidsCount(userBids.length)
 
+        // Count accepted bids where user can decrypt
+        const accepted = bids.filter(
+          b => b.bidderPkh === userPkh && b.status === 'accepted'
+        )
+        setAcceptedBidCount(accepted.length)
+
         // Best-effort cleanup of stale secrets after confirmed ownership changes
         cleanupStaleSecrets(userPkh, encryptions).catch(() => {})
       } catch (error) {
         console.error('Failed to fetch stats:', error)
         setMyListingsCount(0)
         setMyBidsCount(0)
+        setAcceptedBidCount(0)
       }
     }
 
@@ -1161,6 +1169,11 @@ export default function Dashboard() {
                 {tab.id === 'my-sales' && bidNotifications.unseenBidCount > 0 && (
                   <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse" aria-label={`${bidNotifications.unseenBidCount} new bids`}>
                     {bidNotifications.unseenBidCount}
+                  </span>
+                )}
+                {tab.id === 'my-purchases' && acceptedBidCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--success)] text-white rounded-full" aria-label={`${acceptedBidCount} accepted bids ready to decrypt`}>
+                    {acceptedBidCount}
                   </span>
                 )}
                 {tab.id === 'history' && pendingTxCount > 0 && (
