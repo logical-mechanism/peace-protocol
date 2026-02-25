@@ -330,7 +330,7 @@ Each item has:
   - **How**: Use `renderHook` from `@testing-library/react-hooks`. Mock Tauri and API calls. Verify: setup file checking, decompression progress, prover readiness; bid polling, notification diffing, toast triggering.
   - **Why**: These hooks have complex async logic and polling. Without tests, timing bugs go undetected.
 
-- [ ] **Add component tests for critical modals**
+- [x] **Add component tests for critical modals**
   - **How**: Test `CreateListingModal`, `PlaceBidModal`, `DecryptModal` with `@testing-library/react`. Verify: form validation, submit flow, error display, loading states. Requires Tauri mock and context providers.
   - **Why**: Modals are where users perform financial operations. Rendering bugs or validation gaps here are high-impact.
 
