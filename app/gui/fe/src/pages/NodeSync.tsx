@@ -9,6 +9,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNode, type NodeStage, type ProcessInfo } from '../contexts/NodeContext'
 import { useWalletContext } from '../contexts/WalletContext'
+import { useToast, ToastContainer } from '../components/Toast'
+import { copyToClipboard } from '../utils/clipboard'
+import { formatEta, formatSpeed, getErrorGuidance } from '../utils/nodeSyncHelpers'
+import { chainApi } from '../services/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 function formatTime(seconds: number): string {
@@ -209,12 +213,34 @@ export default function NodeSync() {
     startBootstrap,
   } = useNode()
 
+  const toast = useToast()
+
   const [showConsole, setShowConsole] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [isStarting, setIsStarting] = useState(false)
   const timerRef = useRef<number | null>(null)
   const wasBootstrappingRef = useRef(false)
   const [prevStage, setPrevStage] = useState(stage)
+
+  // Sync ETA tracking: sliding window of progress samples
+  const syncSamplesRef = useRef<{ time: number; progress: number }[]>([])
+  const lastSyncProgressRef = useRef<number>(0)
+  const [syncEta, setSyncEta] = useState<string | null>(null)
+
+  // Network tip from Koios
+  const [networkTip, setNetworkTip] = useState<number | null>(null)
+  const networkTipTimerRef = useRef<number | null>(null)
+
+  // Mithril download speed/ETA tracking
+  const mithrilSamplesRef = useRef<{ time: number; bytes: number }[]>([])
+  const lastMithrilBytesRef = useRef<number>(0)
+  const [mithrilEta, setMithrilEta] = useState<string | null>(null)
+  const [mithrilSpeed, setMithrilSpeed] = useState<string | null>(null)
+
+  // Stuck-at-99% detection
+  const stuckProgressRef = useRef<number>(0)
+  const stuckTimerRef = useRef<number | null>(null)
+  const [showStuckMessage, setShowStuckMessage] = useState(false)
 
   // Render-time state adjustments when stage changes (per React docs)
   if (stage !== prevStage) {
@@ -228,8 +254,23 @@ export default function NodeSync() {
     if (stage === 'starting') {
       setShowConsole(true)
     }
+    // Reset state-based tracking
+    setSyncEta(null)
+    setNetworkTip(null)
+    setMithrilEta(null)
+    setMithrilSpeed(null)
+    setShowStuckMessage(false)
     setPrevStage(stage)
   }
+
+  // Reset refs when stage changes (refs can't be updated during render)
+  useEffect(() => {
+    syncSamplesRef.current = []
+    lastSyncProgressRef.current = 0
+    mithrilSamplesRef.current = []
+    lastMithrilBytesRef.current = 0
+    stuckProgressRef.current = 0
+  }, [stage])
 
   // Elapsed timer when not stopped
   useEffect(() => {
@@ -257,6 +298,119 @@ export default function NodeSync() {
     }
   }, [stage, needsBootstrap, startNode, address])
 
+  // Track sync progress and compute ETA via interval (subscription pattern)
+  useEffect(() => {
+    if (stage !== 'syncing') return
+
+    const interval = window.setInterval(() => {
+      const progress = syncSamplesRef.current
+      const lastProgress = lastSyncProgressRef.current
+      // syncProgress is captured via closure from the outer scope — read the ref instead
+      // We push samples from this interval callback to keep ref writes out of render
+      if (progress.length === 0 || progress[progress.length - 1].progress !== lastProgress) {
+        // No new data yet, skip
+      }
+      if (progress.length >= 2) {
+        const oldest = progress[0]
+        const newest = progress[progress.length - 1]
+        const timeDelta = newest.time - oldest.time
+        const progressDelta = newest.progress - oldest.progress
+        if (timeDelta > 0 && progressDelta > 0) {
+          const rate = progressDelta / timeDelta
+          const remaining = 100 - newest.progress
+          const etaSeconds = remaining / rate
+          setSyncEta(etaSeconds < 86400 ? formatEta(etaSeconds) : 'estimating...')
+        }
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [stage])
+
+  // Add sync progress samples when progress changes (ref-only updates)
+  useEffect(() => {
+    if (stage !== 'syncing') return
+
+    if (syncProgress !== lastSyncProgressRef.current) {
+      lastSyncProgressRef.current = syncProgress
+      const now = Date.now() / 1000
+      syncSamplesRef.current.push({ time: now, progress: syncProgress })
+      if (syncSamplesRef.current.length > 12) {
+        syncSamplesRef.current = syncSamplesRef.current.slice(-12)
+      }
+    }
+  }, [stage, syncProgress])
+
+  // Fetch network tip every 60s during sync/starting stages
+  useEffect(() => {
+    if (stage !== 'syncing' && stage !== 'starting') return
+
+    const fetchTip = async () => {
+      const tip = await chainApi.getTip()
+      if (tip) setNetworkTip(tip.block_no)
+    }
+
+    fetchTip()
+    networkTipTimerRef.current = window.setInterval(fetchTip, 60_000)
+
+    return () => {
+      if (networkTipTimerRef.current) clearInterval(networkTipTimerRef.current)
+    }
+  }, [stage])
+
+  // Track Mithril download speed and ETA
+  useEffect(() => {
+    if (stage !== 'bootstrapping' || !mithrilProgress) return
+
+    const { bytes_downloaded, total_bytes } = mithrilProgress
+    if (bytes_downloaded !== lastMithrilBytesRef.current && bytes_downloaded > 0) {
+      lastMithrilBytesRef.current = bytes_downloaded
+      const now = Date.now() / 1000
+      mithrilSamplesRef.current.push({ time: now, bytes: bytes_downloaded })
+      if (mithrilSamplesRef.current.length > 12) {
+        mithrilSamplesRef.current = mithrilSamplesRef.current.slice(-12)
+      }
+
+      const samples = mithrilSamplesRef.current
+      if (samples.length >= 2) {
+        const oldest = samples[0]
+        const newest = samples[samples.length - 1]
+        const timeDelta = newest.time - oldest.time
+        const bytesDelta = newest.bytes - oldest.bytes
+        if (timeDelta > 0 && bytesDelta > 0) {
+          const speed = bytesDelta / timeDelta
+          setMithrilSpeed(formatSpeed(speed))
+          const remaining = total_bytes - newest.bytes
+          if (remaining > 0) {
+            setMithrilEta(formatEta(remaining / speed))
+          } else {
+            setMithrilEta(null)
+          }
+        }
+      }
+    }
+  }, [stage, mithrilProgress])
+
+  // Detect when sync is stuck at >= 99% for 60+ seconds
+  useEffect(() => {
+    if (!(stage === 'syncing' && syncProgress >= 99 && syncProgress < 99.9)) {
+      if (stuckTimerRef.current) clearTimeout(stuckTimerRef.current)
+      return
+    }
+
+    if (syncProgress !== stuckProgressRef.current) {
+      stuckProgressRef.current = syncProgress
+      if (stuckTimerRef.current) clearTimeout(stuckTimerRef.current)
+      stuckTimerRef.current = window.setTimeout(() => {
+        setShowStuckMessage(true)
+      }, 60_000)
+    }
+
+    return () => {
+      if (stuckTimerRef.current) clearTimeout(stuckTimerRef.current)
+    }
+  }, [stage, syncProgress])
+
   // Navigate to dashboard when synced
   const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99)
 
@@ -282,6 +436,22 @@ export default function NodeSync() {
     // Small delay before restart
     setTimeout(() => handleStart(), 1000)
   }
+
+  const handleCopyLogs = async () => {
+    if (logs.length === 0) {
+      toast.warning('No logs', 'There are no log lines to copy.')
+      return
+    }
+    const success = await copyToClipboard(logs.join('\n'))
+    if (success) {
+      toast.success('Logs copied', 'Console output copied to clipboard.')
+    } else {
+      toast.error('Copy failed', 'Could not copy logs to clipboard.')
+    }
+  }
+
+  // Compute error guidance for error state
+  const errorGuidance = stage === 'error' ? getErrorGuidance(error) : null
 
   // Determine progress for the bar
   let progressPercent = 0
@@ -372,10 +542,25 @@ export default function NodeSync() {
             <StageIndicator stages={STAGES} currentStage={stage} />
           </div>
 
-          {/* Sync status checklist (when syncing) */}
+          {/* Sync status with progress bar, ETA, and checklist */}
           {stage === 'syncing' && (
             <div className="mb-4">
-              <div className="space-y-3 mb-3">
+              <ProgressBar percent={progressPercent} />
+              <div className="flex justify-between mt-2 text-sm text-[var(--text-muted)]">
+                <span>{Math.round(progressPercent * 10) / 10}%</span>
+                {syncEta && <span>{syncEta}</span>}
+              </div>
+
+              {tipHeight && (
+                <div className="mt-2 text-center text-sm text-[var(--text-muted)]">
+                  Block {tipHeight.toLocaleString()}
+                  {networkTip && networkTip > tipHeight && (
+                    <span> / {networkTip.toLocaleString()}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-3 mt-3 mb-3">
                 {[
                   { label: 'Cardano Node', synced: syncProgress >= 99.9, activeText: 'Syncing...' },
                   { label: 'Kupo Indexer', synced: kupoSyncProgress >= 99.9, activeText: 'Indexing...' },
@@ -398,12 +583,23 @@ export default function NodeSync() {
               <div className="text-sm text-[var(--text-muted)]">
                 {statusMessage}
               </div>
+
+              {showStuckMessage && (
+                <div className="mt-3 p-3 bg-[var(--info-muted)] border border-[var(--info)]/20 rounded-[var(--radius-md)] text-xs text-[var(--info)]">
+                  The last few blocks take longer as the node validates recent transactions. This is normal.
+                  {tipHeight && networkTip && networkTip > tipHeight && (
+                    <span className="block mt-1">
+                      {(networkTip - tipHeight).toLocaleString()} blocks remaining.
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {stage === 'starting' && (
             <ServiceChecklist processes={processes} />
           )}
-          {/* Mithril bootstrap progress bar */}
+          {/* Mithril bootstrap progress bar with speed/ETA */}
           {stage === 'bootstrapping' && (
             <div className="mb-4">
               <ProgressBar percent={progressPercent} />
@@ -411,6 +607,11 @@ export default function NodeSync() {
                 <span>{statusMessage}</span>
                 <span>{Math.round(progressPercent)}%</span>
               </div>
+              {(mithrilSpeed || mithrilEta) && (
+                <div className="mt-1 text-center text-xs text-[var(--text-muted)]">
+                  {mithrilSpeed}{mithrilSpeed && mithrilEta && ' \u2014 '}{mithrilEta}
+                </div>
+              )}
             </div>
           )}
           {/* Synced status message */}
@@ -420,16 +621,25 @@ export default function NodeSync() {
             </div>
           )}
 
-          {/* Status Message (when stopped or error) */}
-          {(stage === 'stopped' || stage === 'error') && (
-            <div
-              className={`mb-4 p-4 rounded-[var(--radius-md)] text-sm ${
-                stage === 'error'
-                  ? 'bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/20'
-                  : 'bg-[var(--info-muted)] text-[var(--info)] border border-[var(--info)]/20'
-              }`}
-            >
+          {/* Status Message (when stopped) */}
+          {stage === 'stopped' && (
+            <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--info-muted)] text-[var(--info)] border border-[var(--info)]/20">
               {statusMessage}
+            </div>
+          )}
+
+          {/* Error state with recovery guidance */}
+          {stage === 'error' && (
+            <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/20">
+              <div className="font-medium mb-2">{errorGuidance?.title ?? 'Error'}</div>
+              <div className="text-xs text-[var(--text-secondary)] mb-2">{statusMessage}</div>
+              {errorGuidance && (
+                <ul className="text-xs text-[var(--text-muted)] space-y-1 list-disc list-inside">
+                  {errorGuidance.steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -495,14 +705,29 @@ export default function NodeSync() {
             )}
           </div>
 
-          {/* Console Toggle */}
+          {/* Console Toggle + Copy Logs */}
           <div className="mt-6">
-            <button
-              onClick={() => setShowConsole(!showConsole)}
-              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
-            >
-              {showConsole ? 'Hide' : 'Show'} Console Output ({logs.length} lines)
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowConsole(!showConsole)}
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
+              >
+                {showConsole ? 'Hide' : 'Show'} Console Output ({logs.length} lines)
+              </button>
+              {showConsole && logs.length > 0 && (
+                <button
+                  onClick={handleCopyLogs}
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer flex items-center gap-1"
+                  aria-label="Copy logs to clipboard"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy Logs
+                </button>
+              )}
+            </div>
             {showConsole && (
               <div className="mt-2">
                 <ConsoleLog logs={logs} />
@@ -523,6 +748,7 @@ export default function NodeSync() {
           )}
         </div>
       </div>
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
     </div>
   )
 }

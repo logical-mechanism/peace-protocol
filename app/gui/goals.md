@@ -94,15 +94,15 @@ Each item has:
 
 > Key file: `fe/src/components/ImageViewer.tsx`
 
-- [ ] **Zoom controls (zoom in, zoom out, fit-to-screen)**
+- [x] **Zoom controls (zoom in, zoom out, fit-to-screen)**
   - **How**: Add zoom state (0.25x to 4x range). Render zoom buttons (+/-/reset) in the toolbar. Apply `transform: scale(zoom)` with `transform-origin: center` on the image. Support mouse wheel zoom with Ctrl+scroll.
   - **Why**: PdfViewer already has zoom (0.5x-3x). ImageViewer should match. Large images need zoom to see detail; small images need zoom to fill the view.
 
-- [ ] **Pan/drag when zoomed**
+- [x] **Pan/drag when zoomed**
   - **How**: When zoom > 1x, change cursor to `grab`/`grabbing`. Track mouse drag to update `translate(x, y)` on the image container. Constrain panning to image bounds.
   - **Why**: Without pan, zoomed images are stuck at center. Users need to navigate to specific regions.
 
-- [ ] **Rotate and flip buttons**
+- [x] **Rotate and flip buttons**
   - **How**: Add rotate (90/180/270) and horizontal flip buttons in the toolbar. Apply `transform: rotate(Ndeg) scaleX(-1)` alongside zoom transforms.
   - **Why**: Photos taken at odd orientations need rotation. EXIF orientation isn't always respected.
 
@@ -134,27 +134,27 @@ Each item has:
 
 > Key file: `fe/src/pages/NodeSync.tsx`
 
-- [ ] **Sync speed and ETA display**
+- [x] **Sync speed and ETA display**
   - **How**: Track `syncProgress` over time (sample every 5s) to compute blocks/second rate. Calculate ETA from `(100 - progress) / rate`. Display as "~X min remaining" below the progress bar. Store samples in a ref to avoid state churn.
   - **Why**: The progress percentage alone doesn't tell users how long they'll wait. ETA is the single most requested feature for any sync/download screen.
 
-- [ ] **Show current tip slot/height and network tip during sync**
+- [x] **Show current tip slot/height and network tip during sync**
   - **How**: Display `tipHeight` (already in NodeContext) alongside the known network tip. Show "Block 42,000,000 / 43,200,000" format. The network tip can be fetched from Koios `GET /tip` once on mount.
   - **Why**: Users can see exactly where the node is and how far behind it is. More informative than a percentage that may not be linear.
 
-- [ ] **Better "stuck at 99%" feedback**
+- [x] **Better "stuck at 99%" feedback**
   - **How**: When `syncProgress >= 99` for more than 60 seconds, show a contextual message: "The last few blocks take longer as the node validates recent transactions. This is normal." Also show the actual block gap.
   - **Why**: Users frequently think the sync is frozen at 99%. An explanation prevents them from force-restarting and losing progress.
 
-- [ ] **Detailed error recovery guidance**
+- [x] **Detailed error recovery guidance**
   - **How**: When `stage === 'error'`, analyze the `error` string and show specific recovery steps. Common cases: "Disk full" suggests clearing old snapshots, "Port in use" suggests checking for orphan processes, "Connection refused" suggests firewall check. Add a "View Logs" expansion that auto-opens the console.
   - **Why**: Current error state just shows the raw error message. Users don't know how to fix it.
 
-- [ ] **Copy logs to clipboard button**
+- [x] **Copy logs to clipboard button**
   - **How**: Add a "Copy Logs" button next to the console toggle. Use `copyToClipboard(logs.join('\n'))` (utility already exists in `fe/src/utils/clipboard.ts`).
   - **Why**: When users need to report issues or debug, they need to share logs. Manual selection in the console div is error-prone.
 
-- [ ] **Mithril download speed and ETA**
+- [x] **Mithril download speed and ETA**
   - **How**: `mithrilProgress` already has `bytes_downloaded` and `total_bytes`. Compute download speed from delta bytes / delta time. Show "Downloading at X MB/s — ~Y min remaining".
   - **Why**: Mithril download is the longest first-run operation (10-20 min). Users need to know their download speed and time remaining.
 
