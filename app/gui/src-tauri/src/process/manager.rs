@@ -142,6 +142,14 @@ impl NodeManager {
         // Kill any orphaned processes from a previous crashed session
         mgr.kill_orphans_from_pid_file();
         mgr.kill_orphans_on_ports();
+
+        // Start background liveness monitor
+        Self::spawn_liveness_monitor(
+            mgr.processes.clone(),
+            mgr.app_handle.clone(),
+            mgr.pid_file.clone(),
+        );
+
         mgr
     }
 
@@ -300,9 +308,7 @@ impl NodeManager {
         for &pid in &pids {
             if known_pids.contains(&pid) {
                 // Orphan from previous session — kill it
-                eprintln!(
-                    "[NodeManager] Port {port} occupied by orphan pid={pid}, killing"
-                );
+                eprintln!("[NodeManager] Port {port} occupied by orphan pid={pid}, killing");
                 send_signal(pid, libc::SIGTERM);
             } else {
                 return Err(format!(
@@ -1198,6 +1204,74 @@ impl NodeManager {
                 log_line,
             },
         );
+    }
+
+    /// Spawn a background task that checks process liveness every 30 seconds.
+    ///
+    /// If a process's PID is no longer running (and wasn't intentionally stopped),
+    /// its status is set to Error and a `process-status` event is emitted so the
+    /// frontend shows the failure. Does not auto-restart — the UI shows the error
+    /// state and the user can choose to restart.
+    fn spawn_liveness_monitor(
+        processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
+        app_handle: tauri::AppHandle,
+        pid_file: std::path::PathBuf,
+    ) {
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+            loop {
+                interval.tick().await;
+
+                let mut procs = processes.lock().await;
+                let mut changed = false;
+
+                for (name, proc) in procs.iter_mut() {
+                    // Skip processes that were intentionally stopped or are already in
+                    // a terminal state (Stopped / Error).
+                    if proc.user_stopped {
+                        continue;
+                    }
+                    let is_active = matches!(
+                        proc.info.status,
+                        ProcessStatus::Starting
+                            | ProcessStatus::Running
+                            | ProcessStatus::Syncing { .. }
+                            | ProcessStatus::Ready
+                    );
+                    if !is_active {
+                        continue;
+                    }
+
+                    // Check if the PID is still alive
+                    if let Some(pid) = proc.info.pid {
+                        if !send_signal(pid, 0) {
+                            eprintln!(
+                                "[Liveness] Process '{}' (pid {}) is no longer running",
+                                name, pid
+                            );
+                            proc.info.status = ProcessStatus::Error {
+                                message: "Process exited unexpectedly".to_string(),
+                            };
+                            proc.info.pid = None;
+                            changed = true;
+
+                            let _ = app_handle.emit(
+                                "process-status",
+                                ProcessEvent {
+                                    name: name.clone(),
+                                    status: proc.info.status.clone(),
+                                    log_line: None,
+                                },
+                            );
+                        }
+                    }
+                }
+
+                if changed {
+                    Self::save_pids_sync(&pid_file, &procs);
+                }
+            }
+        });
     }
 }
 

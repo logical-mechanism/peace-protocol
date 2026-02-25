@@ -448,7 +448,7 @@ Each item has:
   - **How**: After creating the `NamedTempFile` for SNARK input secrets, explicitly set permissions to `0600` using `std::fs::set_permissions`. Prevents other users on the system from reading secret material.
   - **Why**: Default temp file permissions may be world-readable depending on umask. SNARK secrets should be owner-only.
 
-- [ ] **Periodic process liveness monitoring**
+- [x] **Periodic process liveness monitoring**
   - **How**: Add a background task (tokio interval) that checks every 30 seconds whether managed processes are still running (check PID exists via `/proc/{pid}` on Linux). If a process has died unexpectedly, attempt restart per the restart policy.
   - **Why**: Currently dead processes are only detected when the frontend queries status. A zombie process could sit unnoticed for hours.
 
