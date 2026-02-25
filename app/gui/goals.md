@@ -218,7 +218,7 @@ Each item has:
   - **How**: Add a star/heart icon on EncryptionCard. Store favorited token names in localStorage (keyed by wallet PKH). Add a "Favorites" filter toggle in the toolbar. Show favorited count as a badge.
   - **Why**: Users browsing the marketplace find interesting listings but aren't ready to bid. Favorites let them save and return later.
 
-- [ ] **Pagination or infinite scroll**
+- [x] **Pagination or infinite scroll**
   - **How**: Implement client-side pagination (data is already fully loaded). Show 12-20 items per page with page controls at the bottom. Or implement infinite scroll with `IntersectionObserver` to load more items as the user scrolls.
   - **Why**: With hundreds of listings, rendering all cards at once causes lag and overwhelming visual density. Pagination improves performance and browsability.
 

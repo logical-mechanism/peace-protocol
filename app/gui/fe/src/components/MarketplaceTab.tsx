@@ -35,6 +35,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
   const [priceMax, setPriceMax] = useState('');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchEncryptions = useCallback(async () => {
     setLoading(true);
@@ -181,6 +182,21 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
     },
     [userPkh]
   );
+
+  // Pagination
+  const ITEMS_PER_PAGE = 20;
+
+  // Reset to page 1 when any filter/sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, categoryFilter, sortBy, priceMin, priceMax, showFavoritesOnly]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / ITEMS_PER_PAGE));
+
+  const paginatedResults = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAndSorted.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredAndSorted, currentPage]);
 
   if (loading) {
     return (
@@ -388,6 +404,9 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
       {/* Results Count */}
       <div className="mb-4 text-sm text-[var(--text-muted)]">
         {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
+        {totalPages > 1 && (
+          <span> &middot; Page {currentPage} of {totalPages}</span>
+        )}
       </div>
 
       {/* Content */}
@@ -422,7 +441,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((encryption) => (
+          {paginatedResults.map((encryption) => (
             <EncryptionCard
               key={encryption.tokenName}
               encryption={encryption}
@@ -439,7 +458,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((encryption) => (
+          {paginatedResults.map((encryption) => (
             <EncryptionCard
               key={encryption.tokenName}
               encryption={encryption}
@@ -454,6 +473,74 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               onToggleFavorite={handleToggleFavorite}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6" role="navigation" aria-label="Pagination">
+          <button
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
+            aria-label="First page"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
+            aria-label="Previous page"
+          >
+            Prev
+          </button>
+
+          {/* Page number buttons (sliding window of up to 5) */}
+          {(() => {
+            const maxVisible = 5;
+            let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            const end = Math.min(totalPages, start + maxVisible - 1);
+            start = Math.max(1, end - maxVisible + 1);
+            const pages: number[] = [];
+            for (let i = start; i <= end; i++) pages.push(i);
+            return pages.map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                  page === currentPage
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+                aria-label={`Page ${page}`}
+                aria-current={page === currentPage ? 'page' : undefined}
+              >
+                {page}
+              </button>
+            ));
+          })()}
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
+            aria-label="Next page"
+          >
+            Next
+          </button>
+          <button
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
+            aria-label="Last page"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
         </div>
       )}
     </div>
