@@ -248,7 +248,7 @@ Each item has:
   - **How**: Add an "Export" button in HistoryTab that serializes the transaction list to CSV format (date, type, amount, tx hash, status) and triggers a file download via Tauri save dialog.
   - **Why**: Users need transaction records for accounting, tax reporting, or dispute resolution.
 
-- [ ] **Better transaction status tracking**
+- [x] **Better transaction status tracking**
   - **How**: Enhance the transaction history list to show real-time status: "Pending (2 confirmations)", "Confirmed (15+ blocks)", "Failed". Poll `GET /api/chain/confirmations/:txHash` for recent transactions and update status in-place.
   - **Why**: Users currently see "pending" with no indication of progress toward confirmation. Real-time confirmation count builds confidence.
 

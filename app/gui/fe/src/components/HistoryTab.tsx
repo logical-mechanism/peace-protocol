@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { encryptionsApi, bidsApi } from '../services/api';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
 import { HistoryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
@@ -11,6 +11,7 @@ import {
   getTransactions,
   reconcileWithOnChain,
   resolvePendingTxs,
+  updateTransactionStatus,
   toCSV,
 } from '../services/transactionHistory';
 import { exportTextFile } from '../services/fileExport';
@@ -50,6 +51,8 @@ export default function HistoryTab({
   const [allRecords, setAllRecords] = useState<TransactionRecord[]>(transactions);
   const [loading, setLoading] = useState(true);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [confirmations, setConfirmations] = useState<Map<string, number>>(new Map());
+  const confirmationsRef = useRef<Map<string, number>>(new Map());
 
   // Reconcile local history with on-chain data and check pending txs
   const refresh = useCallback(async () => {
@@ -121,6 +124,55 @@ export default function HistoryTab({
     }
   }, [transactions, userPkh]);
 
+  // Poll confirmation counts for pending transactions
+  useEffect(() => {
+    const pendingTxs = allRecords.filter(
+      tx => tx.status === 'pending' && !tx.txHash.startsWith('stub_')
+    );
+    if (pendingTxs.length === 0 || !userPkh) return;
+
+    let cancelled = false;
+
+    const fetchConfirmationCounts = async () => {
+      const updated = new Map(confirmationsRef.current);
+      let statusChanged = false;
+
+      for (const tx of pendingTxs) {
+        if (cancelled) break;
+        try {
+          const { confirmations: count } = await chainApi.getConfirmations(tx.txHash);
+          updated.set(tx.txHash, count);
+
+          if (count >= 15) {
+            updateTransactionStatus(userPkh, tx.txHash, 'confirmed');
+            statusChanged = true;
+          }
+        } catch {
+          // Skip on error, will retry next poll
+        }
+      }
+
+      if (!cancelled) {
+        confirmationsRef.current = updated;
+        setConfirmations(new Map(updated));
+
+        if (statusChanged) {
+          const refreshed = getTransactions(userPkh);
+          setAllRecords(refreshed);
+          onHistoryUpdated?.(refreshed);
+        }
+      }
+    };
+
+    fetchConfirmationCounts();
+    const interval = setInterval(fetchConfirmationCounts, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRecords, userPkh]);
+
   const filtered = useMemo(() => {
     let result = allRecords;
 
@@ -163,6 +215,8 @@ export default function HistoryTab({
     if (!confirm('Clear locally recorded transaction history?')) return;
     clearHistory(userPkh);
     setAllRecords([]);
+    confirmationsRef.current = new Map();
+    setConfirmations(new Map());
     onClearHistory?.();
   };
 
@@ -367,7 +421,9 @@ export default function HistoryTab({
                       ? 'bg-[var(--success)]/20 text-[var(--success)]'
                       : 'bg-[var(--error)]/20 text-[var(--error)]'
                   }`}>
-                    {tx.status}
+                    {tx.status === 'pending' && confirmations.has(tx.txHash)
+                      ? `pending (${confirmations.get(tx.txHash)} conf.)`
+                      : tx.status}
                   </span>
                 </div>
                 <div className="text-xs text-[var(--text-muted)]">
@@ -377,6 +433,14 @@ export default function HistoryTab({
                   <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
                     {tx.description}
                   </p>
+                )}
+                {tx.status === 'pending' && confirmations.has(tx.txHash) && (
+                  <div className="mt-2 h-1 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[var(--warning)] rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, ((confirmations.get(tx.txHash) ?? 0) / 15) * 100)}%` }}
+                    />
+                  </div>
                 )}
               </div>
 
