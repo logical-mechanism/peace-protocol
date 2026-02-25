@@ -9,6 +9,15 @@ use tauri_plugin_shell::ShellExt;
 fn write_secrets_file(secrets: serde_json::Value) -> Result<tempfile::NamedTempFile, String> {
     let file = tempfile::NamedTempFile::new()
         .map_err(|e| format!("Failed to create secrets temp file: {e}"))?;
+
+    // Restrict to owner-only before writing secret material
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(file.path(), std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Failed to set temp file permissions: {e}"))?;
+    }
+
     serde_json::to_writer(&file, &secrets)
         .map_err(|e| format!("Failed to write secrets temp file: {e}"))?;
     Ok(file)
@@ -301,4 +310,32 @@ pub async fn snark_prove(
         proof_json,
         public_json,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn secrets_temp_file_has_owner_only_permissions() {
+        let secrets = serde_json::json!({ "a": "test_secret" });
+        let file = write_secrets_file(secrets).unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = file.path().metadata().unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "Temp file should be owner read/write only");
+        }
+    }
+
+    #[test]
+    fn secrets_temp_file_contains_valid_json() {
+        let secrets = serde_json::json!({ "a": "42", "r": "99" });
+        let file = write_secrets_file(secrets).unwrap();
+        let contents = std::fs::read_to_string(file.path()).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&contents).unwrap();
+        assert_eq!(parsed["a"], "42");
+        assert_eq!(parsed["r"], "99");
+    }
 }
