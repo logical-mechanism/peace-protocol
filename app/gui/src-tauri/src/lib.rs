@@ -113,6 +113,8 @@ pub fn run() {
             commands::node::stop_node,
             commands::node::start_mithril_bootstrap,
             commands::node::get_process_logs,
+            // Chain commands (Koios direct)
+            commands::chain::get_network_tip,
             // Config commands (Phase 2)
             commands::config::get_network,
             commands::config::set_network,

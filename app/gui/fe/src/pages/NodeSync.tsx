@@ -12,7 +12,7 @@ import { useWalletContext } from '../contexts/WalletContext'
 import { useToast, ToastContainer } from '../components/Toast'
 import { copyToClipboard } from '../utils/clipboard'
 import { formatEta, formatSpeed, getErrorGuidance } from '../utils/nodeSyncHelpers'
-import { chainApi } from '../services/api'
+import { invoke } from '@tauri-apps/api/core'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 function formatTime(seconds: number): string {
@@ -346,8 +346,12 @@ export default function NodeSync() {
     if (stage !== 'syncing' && stage !== 'starting') return
 
     const fetchTip = async () => {
-      const tip = await chainApi.getTip()
-      if (tip) setNetworkTip(tip.block_no)
+      try {
+        const tip = await invoke<{ block_no: number }>('get_network_tip')
+        if (tip) setNetworkTip(tip.block_no)
+      } catch {
+        // Koios may be unreachable; silently skip
+      }
     }
 
     fetchTip()
