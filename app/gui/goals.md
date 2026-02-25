@@ -488,7 +488,7 @@ Each item has:
 
 > Key files: `fe/src/index.css`, various components
 
-- [ ] **Consistent spacing system**
+- [x] **Consistent spacing system**
   - **How**: Define spacing tokens in CSS variables: `--space-xs: 4px`, `--space-sm: 8px`, `--space-md: 16px`, `--space-lg: 24px`, `--space-xl: 32px`. Replace hardcoded pixel values in component classes with these tokens.
   - **Why**: Inconsistent spacing (sometimes 4px gap, sometimes 8px) makes the UI feel unpolished. A system ensures visual rhythm.
 
