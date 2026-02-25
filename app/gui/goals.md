@@ -42,7 +42,7 @@ Each item has:
 
 > Key files: `fe/src/pages/WalletSetup.tsx`, `fe/src/components/MnemonicInput.tsx`
 
-- [ ] **Guided onboarding tour for new users**
+- [x] **Guided onboarding tour for new users**
   - **How**: Build a lightweight step-by-step overlay (tooltip + highlight box) that walks through: wallet creation → node sync → marketplace browse → first bid. Use a simple state machine stored in localStorage (`onboarding_step`). No library needed — just a `<div>` with absolute positioning and a backdrop cutout.
   - **Why**: First-time users landing on a blank wallet setup screen have zero context about what the app does. A 4-step tour reduces drop-off and builds confidence.
 
@@ -94,7 +94,7 @@ Each item has:
   - **How**: NodeSync already shows download speed. Calculate ETA from `(totalBytes - downloadedBytes) / currentSpeedBytesPerSec`. Display as "~12 min remaining" next to the progress bar. Smooth the estimate with a rolling average over the last 5 samples.
   - **Why**: A 2 GB download with no ETA feels interminable. Users need to know if they can grab coffee or if it's 30 seconds away.
 
-- [ ] **Service health tooltips on NodeSync status cards**
+- [x] **Service health tooltips on NodeSync status cards**
   - **How**: Add info icons (?) next to each service name (Cardano Node, Ogmios, Kupo) with hover tooltips explaining what each does: "Cardano Node: Validates blocks from the Cardano blockchain", "Ogmios: Translates node data into WebSocket protocol", "Kupo: Indexes UTxOs for fast wallet queries."
   - **Why**: Non-technical users see cryptic service names and don't know if a failure is serious or ignorable.
 

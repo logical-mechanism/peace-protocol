@@ -113,9 +113,9 @@ function ConsoleLog({ logs }: { logs: string[] }) {
 }
 
 const SERVICE_ITEMS = [
-  { name: 'cardano-node', label: 'Cardano Node', startingText: 'Replaying ledger...' },
-  { name: 'ogmios', label: 'Ogmios Bridge', startingText: 'Connecting...' },
-  { name: 'kupo', label: 'Kupo Indexer', startingText: 'Starting...' },
+  { name: 'cardano-node', label: 'Cardano Node', startingText: 'Replaying ledger...', description: 'Validates blocks from the Cardano blockchain and maintains a local copy of the ledger.' },
+  { name: 'ogmios', label: 'Ogmios Bridge', startingText: 'Connecting...', description: 'Translates node data into a WebSocket protocol for transaction building and submission.' },
+  { name: 'kupo', label: 'Kupo Indexer', startingText: 'Starting...', description: 'Indexes UTxOs at contract and wallet addresses for fast balance and listing queries.' },
 ]
 
 function getServiceState(name: string, processes: ProcessInfo[]): {
@@ -142,7 +142,7 @@ function getServiceState(name: string, processes: ProcessInfo[]): {
 function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
   return (
     <div className="mb-4 space-y-3">
-      {SERVICE_ITEMS.map(({ name, label }) => {
+      {SERVICE_ITEMS.map(({ name, label, description }) => {
         const state = getServiceState(name, processes)
         return (
           <div key={name} className="flex items-center gap-3">
@@ -172,6 +172,14 @@ function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
                 : 'text-[var(--text-secondary)]'
             }`}>
               {label}
+            </span>
+            <span className="relative group">
+              <span className="w-4 h-4 inline-flex items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-muted)] cursor-help text-[10px] leading-none">
+                ?
+              </span>
+              <span className="absolute left-6 top-1/2 -translate-y-1/2 z-10 hidden group-hover:block bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] px-3 py-2 text-xs text-[var(--text-secondary)] w-52 shadow-lg whitespace-normal">
+                {description}
+              </span>
             </span>
             <span className={`text-xs ml-auto ${
               state.indicator === 'error'
