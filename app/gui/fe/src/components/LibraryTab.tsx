@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
 import { FILE_CATEGORIES } from '../config/categories';
 import LibraryCard from './LibraryCard';
@@ -16,7 +16,7 @@ interface LibraryTabProps {
   dispatch: React.Dispatch<LibraryAction>;
 }
 
-export default function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
+function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -379,3 +379,5 @@ export default function LibraryTab({ refreshSignal, filters, dispatch }: Library
     </div>
   );
 }
+
+export default memo(LibraryTab);

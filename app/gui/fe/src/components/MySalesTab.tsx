@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import SalesListingCard from './SalesListingCard';
@@ -22,7 +22,7 @@ interface MySalesTabProps {
   dispatch: React.Dispatch<MySalesAction>;
 }
 
-export default function MySalesTab({
+function MySalesTab({
   userPkh,
   onRemoveListing,
   onAcceptBid,
@@ -459,3 +459,5 @@ export default function MySalesTab({
     </div>
   );
 }
+
+export default memo(MySalesTab);

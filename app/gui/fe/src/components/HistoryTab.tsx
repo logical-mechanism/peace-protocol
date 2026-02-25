@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
@@ -41,7 +41,7 @@ interface HistoryTabProps {
   dispatch: React.Dispatch<HistoryAction>;
 }
 
-export default function HistoryTab({
+function HistoryTab({
   userPkh,
   transactions,
   onClearHistory,
@@ -496,3 +496,5 @@ function formatTimestamp(ts: number): string {
 
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+
+export default memo(HistoryTab);

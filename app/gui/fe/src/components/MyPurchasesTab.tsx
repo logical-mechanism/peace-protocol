@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
@@ -21,7 +21,7 @@ interface MyPurchasesTabProps {
   dispatch: React.Dispatch<MyPurchasesAction>;
 }
 
-export default function MyPurchasesTab({
+function MyPurchasesTab({
   userPkh,
   onCancelBid,
   onDecrypt,
@@ -495,3 +495,5 @@ export default function MyPurchasesTab({
     </div>
   );
 }
+
+export default memo(MyPurchasesTab);

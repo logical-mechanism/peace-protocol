@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
@@ -18,7 +18,7 @@ interface MarketplaceTabProps {
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
@@ -537,3 +537,5 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, fil
     </div>
   );
 }
+
+export default memo(MarketplaceTab);

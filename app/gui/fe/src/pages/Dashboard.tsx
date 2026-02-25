@@ -883,6 +883,8 @@ export default function Dashboard() {
     fetchStats()
   }, [userPkh, refreshSignal])
 
+  const handleOpenCreateListing = useCallback(() => setShowCreateListing(true), [])
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'marketplace':
@@ -904,7 +906,7 @@ export default function Dashboard() {
             onAcceptBid={handleAcceptBid}
             onCancelPending={handleCancelPending}
             onCompleteSale={handleCompleteSale}
-            onCreateListing={() => setShowCreateListing(true)}
+            onCreateListing={handleOpenCreateListing}
             onBidsViewed={bidNotifications.markListingSeen}
             filters={mySalesFilters}
             dispatch={mySalesDispatch}

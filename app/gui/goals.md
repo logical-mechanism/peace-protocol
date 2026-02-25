@@ -176,7 +176,7 @@ Each item has:
   - **How**: Wrap each tab component in `React.lazy()` + `Suspense` and only render the active tab. Currently all 5 tabs render on mount and fetch data immediately.
   - **Why**: Reduces initial API calls from 5 to 1. Faster initial load. Less memory usage for tabs the user may never visit.
 
-- [ ] **Memoize tab components to prevent re-renders**
+- [x] **Memoize tab components to prevent re-renders**
   - **How**: Wrap `MarketplaceTab`, `MySalesTab`, etc. with `React.memo()`. Memoize callback props passed from Dashboard with `useCallback`. Profile with React DevTools to verify.
   - **Why**: Dashboard has ~80 state variables. Every state change re-renders all tabs. Memoization prevents unnecessary work.
 
