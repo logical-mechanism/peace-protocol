@@ -114,6 +114,16 @@ pub async fn start_kupo(
     manager.start("kupo", "kupo", args).await
 }
 
+/// Health check: GET http://127.0.0.1:{port}/health
+/// Returns true if Kupo responds (any 200-range status).
+pub async fn health_check(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{}/health", port);
+    match reqwest::get(&url).await {
+        Ok(resp) => resp.status().is_success(),
+        Err(_) => false,
+    }
+}
+
 /// Query Kupo sync progress from its /health endpoint.
 /// Returns a value from 0.0 to 1.0 representing how far Kupo has indexed
 /// relative to the node's current tip.

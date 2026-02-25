@@ -282,6 +282,23 @@ pub async fn start_node(
     // 5. Start Kupo scoped to contract addresses + wallet address
     kupo::start_kupo(&manager, &config, &app_data_dir, &wallet_address).await?;
 
+    // 5b. Wait for Kupo health (poll every 5s).
+    // Stop waiting if the kupo process dies.
+    loop {
+        if kupo::health_check(config.kupo_port).await {
+            break;
+        }
+        let status = manager.get_status("kupo").await;
+        let still_running = status
+            .as_ref()
+            .map(|s| matches!(s.status, ProcessStatus::Starting | ProcessStatus::Running))
+            .unwrap_or(false);
+        if !still_running {
+            return Err("kupo exited before becoming healthy".to_string());
+        }
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    }
+
     // 6. Start Express backend with contract config as env vars.
     // In dev: be/ is at src-tauri/../be relative to the source tree.
     // In prod: be/ is bundled as a resource.
@@ -298,6 +315,23 @@ pub async fn start_node(
         });
     if be_dir.join("dist/index.js").exists() {
         express::start_express(&manager, &config, &be_dir).await?;
+
+        // 6b. Wait for Express health (poll every 2s — starts fast).
+        // Stop waiting if the express process dies.
+        loop {
+            if express::health_check().await {
+                break;
+            }
+            let status = manager.get_status("express").await;
+            let still_running = status
+                .as_ref()
+                .map(|s| matches!(s.status, ProcessStatus::Starting | ProcessStatus::Running))
+                .unwrap_or(false);
+            if !still_running {
+                return Err("express exited before becoming healthy".to_string());
+            }
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        }
     } else {
         eprintln!(
             "Express backend not built ({}), skipping",

@@ -25,3 +25,12 @@ pub async fn start_express(
         )
         .await
 }
+
+/// Health check: GET http://127.0.0.1:3001/health
+/// Returns true if Express responds with a 200 status.
+pub async fn health_check() -> bool {
+    match reqwest::get("http://127.0.0.1:3001/health").await {
+        Ok(resp) => resp.status().is_success(),
+        Err(_) => false,
+    }
+}

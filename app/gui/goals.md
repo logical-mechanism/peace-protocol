@@ -368,7 +368,7 @@ Each item has:
   - **How**: Install `husky` and `lint-staged`. Configure to run: ESLint on staged `.ts/.tsx` files, `tsc --noEmit` for type checking, `cargo fmt --check` for Rust files. Add to root `package.json`.
   - **Why**: Catches lint errors and type issues before they're committed. Saves review cycles.
 
-- [ ] **Add root-level npm scripts**
+- [x] **Add root-level npm scripts**
   - **How**: Add to root `package.json`: `"test": "bash test.sh"`, `"lint": "bash lint.sh"`, `"type-check": "npm --prefix fe run type-check && npm --prefix be run lint"`, `"clean": "rm -rf fe/node_modules be/node_modules be/dist src-tauri/target"`.
   - **Why**: Contributors shouldn't need to know about shell scripts. `npm test` and `npm run lint` are universal conventions.
 
@@ -428,7 +428,7 @@ Each item has:
 
 > Key files: `src-tauri/src/process/manager.rs`, `src-tauri/src/crypto/`, `src-tauri/src/commands/`
 
-- [ ] **Process health checks after spawn**
+- [x] **Process health checks after spawn**
   - **How**: After spawning each process, verify it's actually ready: hit Express `/health`, query Ogmios WebSocket, check Kupo HTTP endpoint. Mark process as "Ready" only after health check passes. Retry with timeout if check fails.
   - **Why**: Processes are currently marked "Running" immediately after spawn. They may crash during startup, leaving the app in a partially broken state.
 
