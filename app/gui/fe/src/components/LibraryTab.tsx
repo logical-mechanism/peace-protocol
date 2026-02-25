@@ -5,7 +5,7 @@ import LibraryCard from './LibraryCard';
 import LibraryContentModal from './LibraryContentModal';
 import ConfirmModal from './ConfirmModal';
 import { deleteLibraryItem } from '../services/libraryService';
-import LoadingSpinner from './LoadingSpinner';
+import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import type { LibraryFilters, LibraryAction } from '../hooks/useTabFilterState';
@@ -139,14 +139,7 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading your library...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonGrid />;
   }
 
   if (error) {

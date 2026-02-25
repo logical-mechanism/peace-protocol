@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
-import LoadingSpinner from './LoadingSpinner';
+import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
@@ -197,14 +197,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
   }, [filteredAndSorted, currentPage]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading marketplace...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonGrid />;
   }
 
   if (error) {

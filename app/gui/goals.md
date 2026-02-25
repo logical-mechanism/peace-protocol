@@ -168,7 +168,7 @@ Each item has:
   - **How**: Move each tab's filter state (search query, sort option, status filter, category filter, view mode) into a context or `useReducer` at the Dashboard level. Pass state + dispatch to each tab. Alternatively, use `useSearchParams` from React Router to persist in the URL.
   - **Why**: Switching from Marketplace to MySales and back resets all filters. Users lose their search context and must re-apply filters every time.
 
-- [ ] **Skeleton loaders while tabs fetch data**
+- [x] **Skeleton loaders while tabs fetch data**
   - **How**: Create a `SkeletonCard` component that matches EncryptionCard dimensions. Show a grid of 4-8 skeleton cards while `loading === true` in each tab, instead of a centered spinner.
   - **Why**: Skeleton loaders communicate structure and reduce perceived wait time. A centered spinner feels slower.
 

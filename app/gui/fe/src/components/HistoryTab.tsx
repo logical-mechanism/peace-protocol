@@ -4,6 +4,7 @@ import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
 import { HistoryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import LoadingSpinner from './LoadingSpinner';
+import { SkeletonHistoryList } from './SkeletonCard';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
   getTypeLabel,
@@ -253,14 +254,7 @@ function HistoryTab({
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading transaction history...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonHistoryList />;
   }
 
   if (allRecords.length === 0) {

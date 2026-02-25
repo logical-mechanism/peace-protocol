@@ -3,7 +3,7 @@ import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import SalesListingCard from './SalesListingCard';
 import BidsModal from './BidsModal';
-import LoadingSpinner from './LoadingSpinner';
+import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
@@ -211,14 +211,7 @@ function MySalesTab({
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading your listings...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonGrid />;
   }
 
   if (error) {

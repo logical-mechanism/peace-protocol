@@ -6,7 +6,7 @@ import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
-import LoadingSpinner from './LoadingSpinner';
+import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import type { MyPurchasesFilters, MyPurchasesAction } from '../hooks/useTabFilterState';
@@ -193,14 +193,7 @@ function MyPurchasesTab({
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading your bids...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonGrid />;
   }
 
   if (error) {
