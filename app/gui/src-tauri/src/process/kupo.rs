@@ -108,6 +108,8 @@ pub async fn start_kupo(
     let patterns_json = serde_json::to_string(&patterns).unwrap_or_default();
     let _ = std::fs::write(&patterns_file, patterns_json);
 
+    manager.ensure_port_available(app_config.kupo_port)?;
+
     let args = build_kupo_args(app_config, app_data_dir, &patterns);
     manager.start("kupo", "kupo", args).await
 }

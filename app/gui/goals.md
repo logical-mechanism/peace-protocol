@@ -452,7 +452,7 @@ Each item has:
   - **How**: Add a background task (tokio interval) that checks every 30 seconds whether managed processes are still running (check PID exists via `/proc/{pid}` on Linux). If a process has died unexpectedly, attempt restart per the restart policy.
   - **Why**: Currently dead processes are only detected when the frontend queries status. A zombie process could sit unnoticed for hours.
 
-- [ ] **Graceful handling of port conflicts on startup**
+- [x] **Graceful handling of port conflicts on startup**
   - **How**: Before spawning Ogmios (1337), Kupo (1442), or Express (3001), check if the port is already in use. If so, attempt to kill the occupying process (if it's an orphan from a previous session) or report a clear error.
   - **Why**: Port conflicts cause cryptic "address already in use" errors. Proactive detection gives actionable feedback.
 

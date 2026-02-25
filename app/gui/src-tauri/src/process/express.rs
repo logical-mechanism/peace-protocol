@@ -13,6 +13,7 @@ pub async fn start_express(
     app_config: &AppConfig,
     be_dir: &PathBuf,
 ) -> Result<(), String> {
+    manager.ensure_port_available(3001)?;
     let env_vars = app_config.express_env_vars();
     manager
         .start_command(

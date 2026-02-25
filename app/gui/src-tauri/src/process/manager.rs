@@ -266,6 +266,57 @@ impl NodeManager {
         }
     }
 
+    /// Check that a TCP port is available before spawning a process.
+    ///
+    /// If the port is occupied by a PID from our `managed_pids.json` (orphan from a
+    /// previous session), kill it and wait for exit. If occupied by an unknown PID,
+    /// return a clear error message so the user can resolve the conflict.
+    pub fn ensure_port_available(&self, port: u16) -> Result<(), String> {
+        let output = std::process::Command::new("fuser")
+            .args([&format!("{}/tcp", port)])
+            .output();
+
+        let pids: Vec<u32> = match output {
+            Ok(out) => {
+                let pids_str = String::from_utf8_lossy(&out.stdout);
+                pids_str
+                    .split_whitespace()
+                    .filter_map(|t| t.parse().ok())
+                    .collect()
+            }
+            Err(_) => return Ok(()), // fuser not available; skip check
+        };
+
+        if pids.is_empty() {
+            return Ok(());
+        }
+
+        // Load known PIDs from the previous session's pid file
+        let known_pids: Vec<u32> = std::fs::read_to_string(&self.pid_file)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default();
+
+        for &pid in &pids {
+            if known_pids.contains(&pid) {
+                // Orphan from previous session — kill it
+                eprintln!(
+                    "[NodeManager] Port {port} occupied by orphan pid={pid}, killing"
+                );
+                send_signal(pid, libc::SIGTERM);
+            } else {
+                return Err(format!(
+                    "Port {port} is already in use by another process (pid {pid}). \
+                     Stop the conflicting process and try again."
+                ));
+            }
+        }
+
+        // Wait for orphans to exit (up to 10s)
+        Self::wait_for_pids_to_exit(&pids, 10);
+        Ok(())
+    }
+
     /// Start a process by spawning the sidecar binary.
     /// If the process is already running, stops it gracefully first.
     pub async fn start(
