@@ -206,7 +206,7 @@ Each item has:
   - **How**: Extend the search filter in `MarketplaceTab` (line 80-86) to also match against `e.description`. Currently only searches `tokenName` and `seller`.
   - **Why**: Description is the most meaningful field for finding relevant listings. Users searching for "research paper" should find listings whose description mentions it.
 
-- [ ] **Price range filter**
+- [x] **Price range filter**
   - **How**: Add min/max price inputs (or a range slider) above the listing grid. Filter by `e.suggestedPrice >= min && e.suggestedPrice <= max`. Handle null prices with a "No price set" toggle.
   - **Why**: Buyers often have a budget. Browsing dozens of listings to find ones in their price range is tedious.
 

@@ -30,6 +30,8 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
 
   const fetchEncryptions = useCallback(async () => {
     setLoading(true);
@@ -95,6 +97,18 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
       result = result.filter((e) => (e.category || 'text') === categoryFilter);
     }
 
+    // Filter by price range
+    if (priceMin !== '' || priceMax !== '') {
+      const min = priceMin !== '' ? Number(priceMin) : -Infinity;
+      const max = priceMax !== '' ? Number(priceMax) : Infinity;
+      if (!isNaN(min) && !isNaN(max)) {
+        result = result.filter((e) => {
+          const price = e.suggestedPrice ?? 0;
+          return price >= min && price <= max;
+        });
+      }
+    }
+
     // Search filter (by token name, seller address, or description)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -126,7 +140,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
     }
 
     return result;
-  }, [encryptions, statusFilter, categoryFilter, searchQuery, sortBy, getBidCount]);
+  }, [encryptions, statusFilter, categoryFilter, priceMin, priceMax, searchQuery, sortBy, getBidCount]);
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
@@ -222,6 +236,29 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
             ))}
           </select>
 
+          {/* Price Range */}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min="0"
+              placeholder="Min"
+              value={priceMin}
+              onChange={(e) => setPriceMin(e.target.value)}
+              aria-label="Minimum price in ADA"
+              className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-xs text-[var(--text-muted)]">-</span>
+            <input
+              type="number"
+              min="0"
+              placeholder="Max"
+              value={priceMax}
+              onChange={(e) => setPriceMax(e.target.value)}
+              aria-label="Maximum price in ADA"
+              className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+
           {/* Sort */}
           <select
             value={sortBy}
@@ -306,7 +343,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
 
       {/* Content */}
       {filteredAndSorted.length === 0 ? (
-        searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' ? (
+        searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || priceMin !== '' || priceMax !== '' ? (
           <EmptyState
             illustration={<NoResultsIllustration />}
             title="No matching listings"
@@ -317,6 +354,8 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
                   setSearchQuery('');
                   setStatusFilter('all');
                   setCategoryFilter('all');
+                  setPriceMin('');
+                  setPriceMax('');
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >
