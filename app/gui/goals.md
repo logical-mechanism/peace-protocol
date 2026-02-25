@@ -334,7 +334,7 @@ Each item has:
   - **How**: Test `CreateListingModal`, `PlaceBidModal`, `DecryptModal` with `@testing-library/react`. Verify: form validation, submit flow, error display, loading states. Requires Tauri mock and context providers.
   - **Why**: Modals are where users perform financial operations. Rendering bugs or validation gaps here are high-impact.
 
-- [ ] **Set up coverage thresholds**
+- [x] **Set up coverage thresholds**
   - **How**: Add `coverage` config to `fe/vite.config.ts` and `be/vitest.config.ts`: `{ thresholds: { lines: 50, branches: 40, functions: 50 } }`. Start low and ratchet up. Add `npm run test:coverage` to CI.
   - **Why**: Without thresholds, coverage only goes down. Enforcing a minimum prevents regression.
 
