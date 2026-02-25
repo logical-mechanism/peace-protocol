@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Su
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
+import { useModal } from '../contexts/ModalContext'
 import { copyToClipboard } from '../utils/clipboard'
 import { truncateHex } from '../utils/truncate'
 const MarketplaceTab = lazy(() => import('../components/MarketplaceTab'))
@@ -68,6 +69,7 @@ export default function Dashboard() {
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
   const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
   const navigate = useNavigate()
+  const { hasOpenModal } = useModal()
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
   const setActiveTab = useCallback((tab: TabId) => {
@@ -153,6 +155,31 @@ export default function Dashboard() {
     setLastRefreshTime(Date.now())
     setRelativeTime('just now')
   }, [refreshSignal])
+
+  // Keyboard shortcuts: Ctrl+1-5 for tabs, Ctrl+R for refresh
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (hasOpenModal) return
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (!e.ctrlKey && !e.metaKey) return
+
+      const tabIds: TabId[] = ['marketplace', 'my-sales', 'my-purchases', 'history', 'library']
+      const digit = parseInt(e.key, 10)
+
+      if (digit >= 1 && digit <= 5) {
+        e.preventDefault()
+        setActiveTab(tabIds[digit - 1])
+        const btn = document.getElementById(`tab-${tabIds[digit - 1]}`)
+        btn?.focus()
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault()
+        handleRefresh()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [hasOpenModal, setActiveTab, handleRefresh])
 
   // Check Iagon connection status; silently auto-connect if not yet connected
   useEffect(() => {
@@ -1250,7 +1277,7 @@ export default function Dashboard() {
         <div className="border-b border-[var(--border-subtle)] mb-6">
           <div className="flex items-center justify-between">
           <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
-            {TABS.map((tab) => (
+            {TABS.map((tab, index) => (
               <button
                 key={tab.id}
                 id={`tab-${tab.id}`}
@@ -1259,6 +1286,7 @@ export default function Dashboard() {
                 aria-controls={`tabpanel-${tab.id}`}
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
+                title={`${tab.label} (Ctrl+${index + 1})`}
                 className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
