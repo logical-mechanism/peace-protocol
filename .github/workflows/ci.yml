@@ -120,6 +120,7 @@ jobs:
           done
       - run: npm --prefix fe run lint
       - run: npm --prefix be run lint
+      - run: cd be && npx eslint src/
       - run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
       - run: npm --prefix fe run test

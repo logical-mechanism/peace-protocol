@@ -376,7 +376,7 @@ Each item has:
   - **How**: Install `eslint` and `@typescript-eslint/*` in `be/`. Create `be/eslint.config.js` with recommended rules. Add `"lint:eslint": "eslint src/"` to `be/package.json`. Update `lint.sh` to run it.
   - **Why**: Backend currently only has `tsc --noEmit` (type checking). No style enforcement, no unused-variable warnings, no import ordering.
 
-- [ ] **Add CI pipeline (GitHub Actions)**
+- [x] **Add CI pipeline (GitHub Actions)**
   - **How**: Create `.github/workflows/ci.yml` with jobs: lint (fe + be + Rust), test (fe + be), type-check. Run on push to main and PR branches. Skip Tauri build in CI (requires sidecar binaries).
   - **Why**: Without CI, broken tests and lint failures are only caught manually. Automated checks enforce quality on every PR.
 

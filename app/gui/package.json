@@ -19,7 +19,7 @@
     "clean": "rm -rf node_modules fe/node_modules be/node_modules be/dist src-tauri/target"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0",
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "concurrently": "^9.0.0"
   }
 }
