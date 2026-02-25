@@ -76,7 +76,7 @@ Each item has:
   - **How**: After writing `wallet.json`, call `std::os::unix::fs::PermissionsExt::set_mode(0o600)` to restrict read/write to the file owner only. Same for the `secrets/` directory.
   - **Why**: Default file permissions (644) let other users on the system read the encrypted wallet file. While AES-256-GCM is strong, defense in depth matters.
 
-- [ ] **Minimum password length enforcement**
+- [x] **Minimum password length enforcement**
   - **How**: In `create_wallet` and the frontend WalletSetup, reject passwords shorter than 12 characters. Show error inline before submission.
   - **Why**: Empty or short passwords bypass the entire Argon2id protection. A minimum length is the simplest security improvement.
 

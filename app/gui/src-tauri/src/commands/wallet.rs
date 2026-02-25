@@ -28,6 +28,10 @@ pub fn create_wallet(
         ));
     }
 
+    if password.len() < 12 {
+        return Err("Password must be at least 12 characters".to_string());
+    }
+
     let encrypted = encrypt_mnemonic(&mnemonic, &password)?;
     let json = serde_json::to_string_pretty(&encrypted)
         .map_err(|e| format!("Failed to serialize: {e}"))?;

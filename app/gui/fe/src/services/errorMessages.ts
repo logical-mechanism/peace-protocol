@@ -78,6 +78,16 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
+  // Password policy (defense-in-depth, frontend already enforces)
+  {
+    test: (e) => /password must be at least/i.test(e),
+    result: {
+      title: 'Password Too Short',
+      message: 'The password must be at least 12 characters long.',
+      action: 'Choose a longer password that meets all the requirements shown.',
+      recoverable: true,
+    },
+  },
   // Wallet / signing
   {
     test: (e) => /sign|wallet.*lock|mnemonic|decrypt.*wallet/i.test(e),

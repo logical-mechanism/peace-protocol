@@ -75,6 +75,12 @@ describe('getFriendlyError', () => {
     });
   });
 
+  describe('password policy errors', () => {
+    it('matches password too short', () => {
+      expectTitle('Password must be at least 12 characters', 'Password Too Short');
+    });
+  });
+
   describe('wallet errors', () => {
     it('matches incorrect password', () => {
       expectTitle('Incorrect password', 'Incorrect Password');
