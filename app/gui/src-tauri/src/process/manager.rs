@@ -1124,3 +1124,175 @@ impl NodeManager {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restart_policy_default_values() {
+        let policy = RestartPolicy::default();
+        assert_eq!(policy.max_retries, 5);
+        assert_eq!(policy.initial_delay_ms, 1000);
+        assert!((policy.backoff_multiplier - 2.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn process_status_stopped_serializes_correctly() {
+        let json = serde_json::to_string(&ProcessStatus::Stopped).unwrap();
+        assert_eq!(json, r#"{"type":"Stopped"}"#);
+    }
+
+    #[test]
+    fn process_status_running_serializes_correctly() {
+        let json = serde_json::to_string(&ProcessStatus::Running).unwrap();
+        assert_eq!(json, r#"{"type":"Running"}"#);
+    }
+
+    #[test]
+    fn process_status_syncing_serializes_with_progress() {
+        let status = ProcessStatus::Syncing { progress: 0.75 };
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, r#"{"type":"Syncing","progress":0.75}"#);
+    }
+
+    #[test]
+    fn process_status_error_serializes_with_message() {
+        let status = ProcessStatus::Error {
+            message: "connection refused".to_string(),
+        };
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, r#"{"type":"Error","message":"connection refused"}"#);
+    }
+
+    #[test]
+    fn process_status_roundtrip_deserialization() {
+        let statuses = vec![
+            ProcessStatus::Stopped,
+            ProcessStatus::Starting,
+            ProcessStatus::Running,
+            ProcessStatus::Syncing { progress: 0.5 },
+            ProcessStatus::Ready,
+            ProcessStatus::Error {
+                message: "test".to_string(),
+            },
+        ];
+
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            let deserialized: ProcessStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, status);
+        }
+    }
+
+    #[test]
+    fn process_info_serialization() {
+        let info = ProcessInfo {
+            name: "cardano-node".to_string(),
+            status: ProcessStatus::Running,
+            pid: Some(12345),
+            restart_count: 2,
+            last_error: Some("previous crash".to_string()),
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed["name"], "cardano-node");
+        assert_eq!(parsed["status"]["type"], "Running");
+        assert_eq!(parsed["pid"], 12345);
+        assert_eq!(parsed["restart_count"], 2);
+        assert_eq!(parsed["last_error"], "previous crash");
+    }
+
+    #[test]
+    fn process_info_null_optional_fields() {
+        let info = ProcessInfo {
+            name: "test".to_string(),
+            status: ProcessStatus::Stopped,
+            pid: None,
+            restart_count: 0,
+            last_error: None,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert!(parsed["pid"].is_null());
+        assert!(parsed["last_error"].is_null());
+    }
+
+    #[test]
+    fn send_signal_own_process_exists() {
+        let pid = std::process::id();
+        // Signal 0 checks if process exists without sending any signal
+        assert!(send_signal(pid, 0));
+    }
+
+    #[test]
+    fn send_signal_nonexistent_process() {
+        // PID 999999999 is extremely unlikely to exist
+        assert!(!send_signal(999_999_999, 0));
+    }
+
+    #[test]
+    fn append_log_adds_entries() {
+        let mut proc = ManagedProcess {
+            child: None,
+            info: ProcessInfo {
+                name: "test".to_string(),
+                status: ProcessStatus::Stopped,
+                pid: None,
+                restart_count: 0,
+                last_error: None,
+            },
+            restart_policy: RestartPolicy::default(),
+            log_buffer: Vec::new(),
+            launch_info: None,
+            user_stopped: false,
+        };
+
+        proc.append_log("line 1".to_string());
+        proc.append_log("line 2".to_string());
+
+        assert_eq!(proc.log_buffer.len(), 2);
+        assert_eq!(proc.log_buffer[0], "line 1");
+        assert_eq!(proc.log_buffer[1], "line 2");
+    }
+
+    #[test]
+    fn append_log_evicts_oldest_at_capacity() {
+        let mut proc = ManagedProcess {
+            child: None,
+            info: ProcessInfo {
+                name: "test".to_string(),
+                status: ProcessStatus::Stopped,
+                pid: None,
+                restart_count: 0,
+                last_error: None,
+            },
+            restart_policy: RestartPolicy::default(),
+            log_buffer: Vec::new(),
+            launch_info: None,
+            user_stopped: false,
+        };
+
+        // Fill to LOG_BUFFER_SIZE + 1
+        for i in 0..=LOG_BUFFER_SIZE {
+            proc.append_log(format!("line {}", i));
+        }
+
+        assert_eq!(proc.log_buffer.len(), LOG_BUFFER_SIZE);
+        // First entry should be "line 1" (line 0 was evicted)
+        assert_eq!(proc.log_buffer[0], "line 1");
+        assert_eq!(
+            proc.log_buffer[LOG_BUFFER_SIZE - 1],
+            format!("line {}", LOG_BUFFER_SIZE)
+        );
+    }
+
+    #[test]
+    fn log_buffer_size_constant() {
+        assert_eq!(LOG_BUFFER_SIZE, 500);
+    }
+}

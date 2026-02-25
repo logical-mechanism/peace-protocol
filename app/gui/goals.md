@@ -342,7 +342,7 @@ Each item has:
   - **How**: Create integration tests that run `createListing()`, `placeBid()`, etc. with mocked providers (Kupo, Ogmios). Verify the assembled transaction structure, datum contents, and metadata.
   - **Why**: `transactionBuilder.ts` is 2168 lines of critical business logic. End-to-end tx building tests catch serialization and datum encoding bugs.
 
-- [ ] **Add Rust unit tests**
+- [x] **Add Rust unit tests**
   - **How**: Add `#[cfg(test)] mod tests {}` blocks in `wallet.rs`, `secrets.rs`, `manager.rs`. Test: wallet encryption/decryption round-trip, secrets store/retrieve, PID file read/write, process status transitions.
   - **Why**: Zero Rust tests exist. Crypto code and process management are foundational — bugs here are catastrophic.
 
