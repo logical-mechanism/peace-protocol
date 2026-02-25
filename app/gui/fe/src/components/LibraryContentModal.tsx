@@ -414,7 +414,7 @@ export default function LibraryContentModal({
                   <p className="text-sm text-[var(--text-muted)]">Loading audio player...</p>
                 </div>
               }>
-                <AudioPlayer data={rawContent} fileExtension={item.fileExtension || '.mp3'} />
+                <AudioPlayer data={rawContent} fileExtension={item.fileExtension || '.mp3'} onExport={handleExport} />
               </Suspense>
             )}
 

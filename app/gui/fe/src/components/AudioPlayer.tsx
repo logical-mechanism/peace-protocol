@@ -1,9 +1,38 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import LoadingSpinner from './LoadingSpinner';
+
+interface AudioMetadata {
+  title?: string;
+  artist?: string;
+  album?: string;
+  trackNumber?: number;
+  year?: number;
+  picture?: { data: Uint8Array; format: string } | null;
+}
+
+function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: string } }) {
+  const url = useMemo(() => {
+    const blob = new Blob([picture.data], { type: picture.format });
+    return URL.createObjectURL(blob);
+  }, [picture]);
+
+  useEffect(() => {
+    return () => URL.revokeObjectURL(url);
+  }, [url]);
+
+  return (
+    <img
+      src={url}
+      alt="Album art"
+      className="w-10 h-10 rounded-[2px] object-cover flex-shrink-0"
+    />
+  );
+}
 
 interface AudioPlayerProps {
   data: Uint8Array;
   fileExtension: string;
+  onExport?: () => void;
 }
 
 function getMimeType(ext: string): string {
@@ -24,6 +53,17 @@ function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function getConversionHint(ext: string): string | null {
+  const hints: Record<string, string> = {
+    '.flac': 'Try converting to MP3: ffmpeg -i file.flac -q:a 2 output.mp3',
+    '.aac': 'Try converting to MP3: ffmpeg -i file.aac -c:a libmp3lame output.mp3',
+    '.opus': 'Try converting to OGG: ffmpeg -i file.opus -c:a libvorbis output.ogg',
+    '.m4a': 'Try converting to MP3: ffmpeg -i file.m4a -c:a libmp3lame output.mp3',
+    '.wav': 'WAV is usually supported. The file may be corrupted or use an uncommon codec.',
+  };
+  return hints[ext.toLowerCase()] ?? null;
 }
 
 /** Minimal in-place radix-2 Cooley-Tukey FFT. n must be a power of 2. */
@@ -65,14 +105,34 @@ const FFT_SIZE = 1024;
 const SMOOTHING = 0.8;
 const TARGET_FPS = 24;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
+const WAVEFORM_BUCKETS = 200;
 
-export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
+/** Downsample audio channel to peak values per bucket for waveform overview. */
+function computeWaveformSummary(channel: Float32Array, buckets: number): Float32Array {
+  const samplesPerBucket = Math.floor(channel.length / buckets);
+  if (samplesPerBucket < 1) return new Float32Array(0);
+  const summary = new Float32Array(buckets);
+  for (let i = 0; i < buckets; i++) {
+    let max = 0;
+    const start = i * samplesPerBucket;
+    for (let j = 0; j < samplesPerBucket; j++) {
+      const abs = Math.abs(channel[start + j] || 0);
+      if (abs > max) max = abs;
+    }
+    summary[i] = max;
+  }
+  return summary;
+}
+
+export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.75);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLooping, setIsLooping] = useState(false);
+  const [metadata, setMetadata] = useState<AudioMetadata | null>(null);
 
   // Native <audio> element for playback — no Web Audio API in the output path
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -82,7 +142,10 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
   const rafRef = useRef<number>(0);
   const seekBarRef = useRef<HTMLDivElement | null>(null);
   const isPlayingRef = useRef(false);
+  const isSeekingRef = useRef(false);
   const prevBarsRef = useRef(new Float32Array(BAR_COUNT));
+  const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const waveformDataRef = useRef<Float32Array | null>(null);
   const fftReRef = useRef(new Float32Array(FFT_SIZE));
   const fftImRef = useRef(new Float32Array(FFT_SIZE));
   // Smooth time interpolation — audio.currentTime updates ~4Hz on WebKitGTK,
@@ -97,18 +160,18 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    /* eslint-disable react-hooks/set-state-in-effect */
     setIsReady(false);
     setError(null);
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    /* eslint-enable react-hooks/set-state-in-effect */
+    setMetadata(null);
     isPlayingRef.current = false;
     vizTimeRef.current = 0;
     lastDrawTimeRef.current = 0;
     prevBarsRef.current.fill(0);
     bufferRef.current = null;
+    waveformDataRef.current = null;
 
     // Blob URL for native <audio> playback — GStreamer handles output directly,
     // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
@@ -116,11 +179,34 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     const url = URL.createObjectURL(blob);
     audio.src = url;
 
-    // Decode in parallel for FFT visualization (doesn't affect playback)
+    // Decode in parallel for FFT visualization + waveform overview (doesn't affect playback)
     const offlineCtx = new OfflineAudioContext(2, 1, 44100);
     offlineCtx.decodeAudioData(data.slice().buffer)
-      .then(buffer => { if (!cancelled) bufferRef.current = buffer; })
+      .then(buffer => {
+        if (cancelled) return;
+        bufferRef.current = buffer;
+        waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
+      })
       .catch(() => {}); // Visualization degrades gracefully if decode fails
+
+    // Parse ID3/Vorbis metadata (best-effort, doesn't affect playback)
+    import('music-metadata').then(({ parseBuffer }) => {
+      parseBuffer(new Uint8Array(data), { mimeType: getMimeType(fileExtension) })
+        .then(result => {
+          if (cancelled) return;
+          const { common } = result;
+          const pic = common.picture?.[0];
+          setMetadata({
+            title: common.title,
+            artist: common.artist,
+            album: common.album,
+            trackNumber: common.track?.no ?? undefined,
+            year: common.year,
+            picture: pic ? { data: new Uint8Array(pic.data), format: pic.format } : null,
+          });
+        })
+        .catch(() => {});
+    }).catch(() => {});
 
     const onLoadedMetadata = () => { if (!cancelled) setDuration(audio.duration); };
     const onCanPlay = () => { if (!cancelled) setIsReady(true); };
@@ -166,6 +252,34 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
       cancelAnimationFrame(rafRef.current);
     };
   }, [data, fileExtension]);
+
+  // --- Waveform overview drawing ---
+
+  const drawWaveform = useCallback((progressRatio: number) => {
+    const canvas = waveformCanvasRef.current;
+    const waveform = waveformDataRef.current;
+    if (!canvas || !waveform || waveform.length === 0) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { width, height } = canvas;
+    ctx.clearRect(0, 0, width, height);
+
+    const barW = width / waveform.length;
+    const mid = height / 2;
+
+    for (let i = 0; i < waveform.length; i++) {
+      const h = waveform[i] * mid * 0.9;
+      const x = i * barW;
+      const isPlayed = (i / waveform.length) <= progressRatio;
+
+      ctx.fillStyle = isPlayed
+        ? 'rgba(99, 102, 241, 0.6)'
+        : 'rgba(99, 102, 241, 0.15)';
+
+      ctx.fillRect(x, mid - h, barW - 0.5, h * 2);
+    }
+  }, []);
 
   // --- Visualization: FFT computed from decoded AudioBuffer ---
 
@@ -265,7 +379,12 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
         }
       }
     }
-  }, []);
+
+    // Update waveform progress overlay
+    if (waveformDataRef.current && duration > 0) {
+      drawWaveform(vizTimeRef.current / duration);
+    }
+  }, [duration, drawWaveform]);
 
   // Animation loop — throttled to TARGET_FPS to reduce CPU pressure on WebKitGTK
   useEffect(() => {
@@ -285,6 +404,54 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
       cancelAnimationFrame(rafRef.current);
     };
   }, [drawFrame]);
+
+  // --- Sync loop property ---
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.loop = isLooping;
+  }, [isLooping]);
+
+  // --- Keyboard shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          if (isPlaying) handlePause();
+          else handlePlay();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          handleSkipBack();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleSkipForward();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setVolume(v => {
+            const next = Math.min(1, v + 0.05);
+            if (audioRef.current) audioRef.current.volume = next;
+            return next;
+          });
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          setVolume(v => {
+            const next = Math.max(0, v - 0.05);
+            if (audioRef.current) audioRef.current.volume = next;
+            return next;
+          });
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward]);
 
   // --- Transport handlers ---
 
@@ -336,13 +503,34 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     vizTimeRef.current = audio.currentTime;
   }, [isReady]);
 
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
     if (!audio || !seekBarRef.current || !duration || !isReady) return;
-    const rect = seekBarRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * duration;
-    vizTimeRef.current = audio.currentTime;
+    isSeekingRef.current = true;
+
+    const seekTo = (clientX: number) => {
+      const rect = seekBarRef.current!.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      audio.currentTime = ratio * duration;
+      vizTimeRef.current = audio.currentTime;
+      setCurrentTime(audio.currentTime);
+    };
+
+    seekTo(e.clientX);
+
+    const handleMouseMove = (moveE: MouseEvent) => {
+      if (!isSeekingRef.current) return;
+      seekTo(moveE.clientX);
+    };
+
+    const handleMouseUp = () => {
+      isSeekingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }, [duration, isReady]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -351,16 +539,43 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
     if (audioRef.current) audioRef.current.volume = v;
   }, []);
 
+  const handleToggleLoop = useCallback(() => {
+    setIsLooping(prev => {
+      const next = !prev;
+      if (audioRef.current) audioRef.current.loop = next;
+      return next;
+    });
+  }, []);
+
   // --- Render ---
 
   if (error) {
+    const mime = getMimeType(fileExtension);
+    const ext = (fileExtension || '.mp3').toUpperCase().slice(1);
+    const conversionHint = getConversionHint(fileExtension);
+
     return (
       <div className="bg-[var(--winamp-bg)] border border-[var(--winamp-border-dark)] rounded-[var(--radius-sm)] overflow-hidden shadow-lg">
-        <div className="p-6 text-center space-y-2">
+        <div className="p-6 text-center space-y-3">
+          <svg className="w-8 h-8 mx-auto mb-2 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
           <p className="text-sm text-[var(--error)]">{error}</p>
           <p className="text-xs text-[var(--text-muted)]">
-            Use Save As to play with an external application.
+            Detected format: <span className="font-mono">{ext}</span> ({mime})
           </p>
+          {conversionHint && (
+            <p className="text-xs text-[var(--text-secondary)] font-mono">{conversionHint}</p>
+          )}
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="mt-2 px-4 py-2 text-sm bg-[var(--winamp-bg-light)] winamp-bevel rounded-[2px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:brightness-125 transition-all duration-75 cursor-pointer"
+            >
+              Save As to open with an external player
+            </button>
+          )}
         </div>
       </div>
     );
@@ -395,13 +610,48 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
         </span>
       </div>
 
-      {/* Visualization Canvas */}
+      {/* Metadata Display */}
+      {metadata && (metadata.title || metadata.artist || metadata.album) && (
+        <div className="flex items-center gap-3 px-3 pt-2">
+          {metadata.picture && (
+            <MetadataAlbumArt picture={metadata.picture} />
+          )}
+          <div className="flex-1 min-w-0">
+            {metadata.title && (
+              <p className="text-xs font-medium text-[var(--text-primary)] truncate">
+                {metadata.title}
+              </p>
+            )}
+            {metadata.artist && (
+              <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                {metadata.artist}
+              </p>
+            )}
+            {(metadata.album || metadata.year) && (
+              <p className="text-[10px] text-[var(--text-muted)] truncate">
+                {[metadata.album, metadata.year].filter(Boolean).join(' \u2014 ')}
+                {metadata.trackNumber ? ` (Track ${metadata.trackNumber})` : ''}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Visualization Canvas (waveform behind, FFT on top) */}
       <div className="winamp-groove mx-2 mt-2 relative">
+        <canvas
+          ref={waveformCanvasRef}
+          width={480}
+          height={120}
+          className="w-full block bg-[var(--winamp-bg-dark)] absolute inset-0"
+          style={{ imageRendering: 'pixelated' }}
+          aria-hidden="true"
+        />
         <canvas
           ref={canvasRef}
           width={480}
           height={120}
-          className="w-full block bg-[var(--winamp-bg-dark)]"
+          className="w-full block relative"
           style={{ imageRendering: 'pixelated' }}
           aria-hidden="true"
         />
@@ -434,7 +684,7 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
         <div
           ref={seekBarRef}
           className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] cursor-pointer relative overflow-hidden"
-          onClick={handleSeek}
+          onMouseDown={handleSeekMouseDown}
         >
           <div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
@@ -484,6 +734,18 @@ export default function AudioPlayer({ data, fileExtension }: AudioPlayerProps) {
           <button onClick={handleSkipForward} className={transportBtn} title="Forward 10s" aria-label="Skip forward 10 seconds">
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z" />
+            </svg>
+          </button>
+
+          {/* Loop Toggle */}
+          <button
+            onClick={handleToggleLoop}
+            className={`${transportBtn} ml-1 ${isLooping ? '!text-[var(--accent)]' : ''}`}
+            title={isLooping ? 'Repeat: On' : 'Repeat: Off'}
+            aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
             </svg>
           </button>
         </div>

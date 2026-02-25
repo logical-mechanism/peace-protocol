@@ -21,27 +21,27 @@ Each item has:
 
 > Key file: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] **Keyboard shortcuts for transport controls**
+- [x] **Keyboard shortcuts for transport controls**
   - **How**: Add a `useEffect` keydown listener — Space for play/pause, Left/Right arrows for skip -/+ 10s, Up/Down for volume. Only active when AudioPlayer is mounted (not globally).
   - **Why**: Standard media player behavior. Users expect keyboard control without reaching for the mouse.
 
-- [ ] **Drag-to-seek on the progress bar**
+- [x] **Drag-to-seek on the progress bar**
   - **How**: Add `onMouseDown` + `onMouseMove` + `onMouseUp` handlers to the seek bar div. Track a `isSeeking` ref to update position on drag. Currently only `onClick` is supported (`handleSeek`).
   - **Why**: Click-only seeking is imprecise. Drag seeking lets users scrub through audio fluidly.
 
-- [ ] **Repeat / loop toggle**
+- [x] **Repeat / loop toggle**
   - **How**: Add a `loop` state toggle button next to transport controls. Set `audioRef.current.loop = true` when enabled. Persist preference in component state (or localStorage for stickiness).
   - **Why**: Users reviewing purchased audio content often want to loop a track. No loop means the audio stops and they must manually replay.
 
-- [ ] **Waveform overview display**
+- [x] **Waveform overview display**
   - **How**: Pre-compute a waveform summary from the decoded `AudioBuffer` (already available in `bufferRef`). Draw a static waveform on a second canvas layer behind the FFT bars. Highlight the played portion with accent color.
   - **Why**: Gives users a visual map of the entire track — they can see quiet/loud sections and seek to points of interest. Standard in modern audio players.
 
-- [ ] **Better error state with format-specific guidance**
+- [x] **Better error state with format-specific guidance**
   - **How**: Expand the error display in AudioPlayer to show the detected MIME type, suggest specific conversion tools (e.g., "Try converting FLAC to MP3 with ffmpeg"), and offer a one-click "Open with system player" via Tauri shell open.
   - **Why**: Current error says "format not supported" but doesn't help the user fix it. Actionable error messages reduce frustration.
 
-- [ ] **Audio metadata display (ID3 tags)**
+- [x] **Audio metadata display (ID3 tags)**
   - **How**: Add a dependency like `music-metadata` (browser build) to parse ID3/Vorbis tags from the `Uint8Array`. Display artist, album, track number, and embedded album art above the visualization canvas.
   - **Why**: Purchased audio content often has metadata. Showing it makes the player feel professional and helps users identify what they're listening to.
 
@@ -85,7 +85,7 @@ Each item has:
   - **How**: Create validation middleware for common patterns: `validatePkh` (28-byte hex), `validateTokenName` (hex string), `validateTxHash` (64-char hex), `validateStatus` (enum). Apply to all route params.
   - **Why**: No input validation exists. Garbage params pass through to Kupo/Koios calls, causing confusing downstream errors.
 
-- [ ] **Enhanced health check endpoint**
+- [x] **Enhanced health check endpoint**
   - **How**: Expand `GET /health` to test Kupo and Koios connectivity. Return `{ status, kupo: { reachable, latency }, koios: { reachable, latency }, uptime, lastSuccessfulRefresh }`.
   - **Why**: Current health check returns "ok" even when Kupo/Koios are down. A real health check helps diagnose issues.
 
