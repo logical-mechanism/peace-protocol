@@ -296,7 +296,7 @@ Each item has:
   - **How**: Add a "Copy" button next to the mnemonic display in Settings reveal section. Use `copyToClipboard()` utility. Show a toast "Copied to clipboard" with a warning "Clear your clipboard after storing securely". Auto-clear clipboard after 30 seconds via `setTimeout`.
   - **Why**: Currently users must manually select all 24 words and copy. Error-prone and frustrating.
 
-- [ ] **Better wallet unlock error messages**
+- [x] **Better wallet unlock error messages**
   - **How**: Map specific error strings from Tauri `unlock_wallet` to user-friendly messages: "Incorrect password" (argon2 mismatch), "Wallet file corrupted" (JSON parse error), "Wallet file not found" (missing file). Show recovery steps for each.
   - **Why**: Current unlock failure shows a generic error. Users don't know if they typed the wrong password or if something is broken.
 
