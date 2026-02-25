@@ -209,3 +209,32 @@ export function getTypeLabel(type: TransactionType): string {
     case 'complete-sale': return 'Complete Sale';
   }
 }
+
+/**
+ * Escape a value for CSV: wrap in double quotes if it contains commas,
+ * double quotes, or newlines. Internal double quotes are doubled.
+ */
+function csvEscape(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Convert transaction records to CSV string.
+ * Columns: Date, Type, Status, Tx Hash, Token Name, Description
+ */
+export function toCSV(records: TransactionRecord[]): string {
+  const header = 'Date,Type,Status,Tx Hash,Token Name,Description';
+  const rows = records.map(r => {
+    const date = new Date(r.timestamp).toISOString();
+    const type = getTypeLabel(r.type);
+    const status = r.status;
+    const hash = r.txHash;
+    const token = r.tokenName ?? '';
+    const desc = csvEscape(r.description ?? '');
+    return `${date},${type},${status},${hash},${token},${desc}`;
+  });
+  return [header, ...rows].join('\n');
+}

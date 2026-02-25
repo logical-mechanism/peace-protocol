@@ -244,7 +244,7 @@ Each item has:
   - **How**: Add filter buttons for tx type (listing, bid, accept, cancel) and a search input for tx hash in `HistoryTab`. Add date range filtering.
   - **Why**: As transaction history grows, finding a specific transaction becomes difficult. Filtering reduces the haystack.
 
-- [ ] **Export transaction history as CSV**
+- [x] **Export transaction history as CSV**
   - **How**: Add an "Export" button in HistoryTab that serializes the transaction list to CSV format (date, type, amount, tx hash, status) and triggers a file download via Tauri save dialog.
   - **Why**: Users need transaction records for accounting, tax reporting, or dispute resolution.
 

@@ -173,6 +173,7 @@ pub fn run() {
             commands::media::read_library_content,
             commands::media::delete_library_item,
             commands::media::export_library_content,
+            commands::media::export_text_file,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

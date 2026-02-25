@@ -10,6 +10,7 @@ import {
   reconcileWithOnChain,
   resolvePendingTxs,
   getTypeLabel,
+  toCSV,
   type TransactionRecord,
 } from '../transactionHistory';
 
@@ -276,5 +277,81 @@ describe('transactionHistory', () => {
     expect(getTypeLabel('accept-bid')).toBe('Accept Bid');
     expect(getTypeLabel('cancel-pending')).toBe('Cancel Pending');
     expect(getTypeLabel('complete-sale')).toBe('Complete Sale');
+  });
+
+  describe('toCSV', () => {
+    it('returns header-only for empty records', () => {
+      const csv = toCSV([]);
+      expect(csv).toBe('Date,Type,Status,Tx Hash,Token Name,Description');
+    });
+
+    it('generates valid CSV rows', () => {
+      const records = [
+        makeRecord({
+          txHash: 'a'.repeat(64),
+          type: 'create-listing',
+          status: 'confirmed',
+          timestamp: 1700000000000,
+          tokenName: 'abc123',
+          description: 'Test listing',
+        }),
+      ];
+      const csv = toCSV(records);
+      const lines = csv.split('\n');
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toBe('Date,Type,Status,Tx Hash,Token Name,Description');
+      expect(lines[1]).toContain('Create Listing');
+      expect(lines[1]).toContain('confirmed');
+      expect(lines[1]).toContain('abc123');
+      expect(lines[1]).toContain('Test listing');
+    });
+
+    it('handles missing optional fields', () => {
+      const records = [makeRecord({ tokenName: undefined, description: undefined })];
+      const csv = toCSV(records);
+      const lines = csv.split('\n');
+      expect(lines).toHaveLength(2);
+      // tokenName and description should be empty strings
+      const fields = lines[1].split(',');
+      expect(fields[4]).toBe(''); // Token Name
+      expect(fields[5]).toBe(''); // Description
+    });
+
+    it('escapes descriptions containing commas', () => {
+      const records = [makeRecord({ description: 'Bid 1,000 ADA' })];
+      const csv = toCSV(records);
+      expect(csv).toContain('"Bid 1,000 ADA"');
+    });
+
+    it('escapes descriptions containing double quotes', () => {
+      const records = [makeRecord({ description: 'A "test" listing' })];
+      const csv = toCSV(records);
+      expect(csv).toContain('"A ""test"" listing"');
+    });
+
+    it('escapes descriptions containing newlines', () => {
+      const records = [makeRecord({ description: 'Line one\nLine two' })];
+      const csv = toCSV(records);
+      expect(csv).toContain('"Line one\nLine two"');
+    });
+
+    it('generates multiple rows in order', () => {
+      const records = [
+        makeRecord({ type: 'create-listing', timestamp: 1700000000000 }),
+        makeRecord({ type: 'place-bid', timestamp: 1700000001000 }),
+      ];
+      const csv = toCSV(records);
+      const lines = csv.split('\n');
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toContain('Create Listing');
+      expect(lines[2]).toContain('Place Bid');
+    });
+
+    it('uses ISO date format', () => {
+      const records = [makeRecord({ timestamp: 1700000000000 })];
+      const csv = toCSV(records);
+      // 1700000000000 = 2023-11-14T22:13:20.000Z
+      expect(csv).toContain('2023-11-14T22:13:20.000Z');
+    });
   });
 });

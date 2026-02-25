@@ -11,7 +11,9 @@ import {
   getTransactions,
   reconcileWithOnChain,
   resolvePendingTxs,
+  toCSV,
 } from '../services/transactionHistory';
+import { exportTextFile } from '../services/fileExport';
 
 const ALL_TX_TYPES: TransactionType[] = [
   'create-listing', 'remove-listing', 'place-bid', 'cancel-bid',
@@ -47,6 +49,7 @@ export default function HistoryTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [allRecords, setAllRecords] = useState<TransactionRecord[]>(transactions);
   const [loading, setLoading] = useState(true);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // Reconcile local history with on-chain data and check pending txs
   const refresh = useCallback(async () => {
@@ -163,6 +166,23 @@ export default function HistoryTab({
     onClearHistory?.();
   };
 
+  const handleExportCsv = async () => {
+    if (filtered.length === 0) return;
+    try {
+      const csv = toCSV(filtered);
+      const filename = `veiled-tx-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      const result = await exportTextFile(csv, filename);
+      if (result) {
+        setExportMessage(`Exported to ${result}`);
+        setTimeout(() => setExportMessage(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      setExportMessage('Export failed');
+      setTimeout(() => setExportMessage(null), 3000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -274,6 +294,22 @@ export default function HistoryTab({
             </svg>
           </button>
           <button
+            onClick={handleExportCsv}
+            disabled={filtered.length === 0}
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Export as CSV"
+            aria-label="Export as CSV"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </button>
+          <button
             onClick={handleClear}
             className="px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
           >
@@ -281,6 +317,13 @@ export default function HistoryTab({
           </button>
         </div>
       </div>
+
+      {/* Export feedback */}
+      {exportMessage && (
+        <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          {exportMessage}
+        </div>
+      )}
 
       {/* Transaction list or filtered empty state */}
       {filtered.length === 0 ? (
