@@ -326,7 +326,7 @@ Each item has:
   - **How**: Use `@testing-library/react` `renderHook` to test context state transitions. Mock Tauri invoke for wallet operations and node status polling. Verify lifecycle: loading -> no_wallet -> locked -> unlocked.
   - **Why**: Contexts orchestrate all app state. Testing transitions catches regressions in authentication and sync flows.
 
-- [ ] **Test hooks (useSnarkProver, useBidNotifications)**
+- [x] **Test hooks (useSnarkProver, useBidNotifications)**
   - **How**: Use `renderHook` from `@testing-library/react-hooks`. Mock Tauri and API calls. Verify: setup file checking, decompression progress, prover readiness; bid polling, notification diffing, toast triggering.
   - **Why**: These hooks have complex async logic and polling. Without tests, timing bugs go undetected.
 
