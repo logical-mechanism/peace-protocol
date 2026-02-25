@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
@@ -19,6 +19,7 @@ interface MyPurchasesTabProps {
   onCancelBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
   onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
+  refreshSignal?: number;
 }
 
 export default function MyPurchasesTab({
@@ -26,6 +27,7 @@ export default function MyPurchasesTab({
   onCancelBid,
   onDecrypt,
   onDecryptEncryption,
+  refreshSignal,
 }: MyPurchasesTabProps) {
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
@@ -97,6 +99,16 @@ export default function MyPurchasesTab({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchData();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get encryption for a bid
   const getEncryption = useCallback(

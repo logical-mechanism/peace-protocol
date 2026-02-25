@@ -180,7 +180,7 @@ Each item has:
   - **How**: Wrap `MarketplaceTab`, `MySalesTab`, etc. with `React.memo()`. Memoize callback props passed from Dashboard with `useCallback`. Profile with React DevTools to verify.
   - **Why**: Dashboard has ~80 state variables. Every state change re-renders all tabs. Memoization prevents unnecessary work.
 
-- [ ] **Unified data refresh orchestration**
+- [x] **Unified data refresh orchestration**
   - **How**: Create a `useDataRefresh()` hook that manages a single refresh trigger, debounced polling interval, and manual refresh button. Replace the current mix of `refreshKey`, `historyKey`, escalating `setTimeout`s, and `setInterval`s.
   - **Why**: Current refresh logic is scattered across multiple mechanisms. A single orchestrator is easier to reason about and debug.
 

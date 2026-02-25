@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
@@ -17,9 +17,10 @@ type CategoryFilter = 'all' | string;
 interface MarketplaceTabProps {
   userPkh?: string;
   onPlaceBid?: (encryption: EncryptionDisplay) => void;
+  refreshSignal?: number;
 }
 
-export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabProps) {
+export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
@@ -70,6 +71,16 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
   useEffect(() => {
     fetchEncryptions();
   }, [fetchEncryptions]);
+
+  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchEncryptions();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load favorites from localStorage when user changes
   useEffect(() => {

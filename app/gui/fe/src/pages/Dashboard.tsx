@@ -32,6 +32,7 @@ import { saveDecryptedContent, saveContentMetadata } from '../services/contentSt
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
+import { useDataRefresh } from '../hooks/useDataRefresh'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'
@@ -73,9 +74,8 @@ export default function Dashboard() {
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
   const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
-  const [historyKey, setHistoryKey] = useState(0)
   // Accept bid flow state
   const [showSnarkModal, setShowSnarkModal] = useState(false)
   const [snarkInputs, setSnarkInputs] = useState<SnarkProofInputs | null>(null)
@@ -181,7 +181,7 @@ export default function Dashboard() {
     } else {
       setTxHistory([])
     }
-  }, [userPkh, historyKey])
+  }, [userPkh, historySignal])
 
   // Eagerly refresh balance when Dashboard mounts and node is synced.
   // Covers the gap between wallet unlock (lovelace=null) and the first
@@ -194,19 +194,12 @@ export default function Dashboard() {
     }
   }, [nodeStage, refreshBalance])
 
-  // Record a transaction and schedule auto-refresh with escalating retries.
-  // Txs can sit in the mempool for over a minute, so a single 20s check isn't enough.
+  // Record a transaction in local history (escalating retries are handled
+  // by triggerTransactionRefresh at each call site).
   const recordTransaction = useCallback((record: TransactionRecord) => {
     if (!userPkh) return
     addTransaction(userPkh, record)
     setTxHistory(getTransactions(userPkh))
-    // Retry at 20s, 45s, 90s, and 180s to handle mempool delays
-    for (const delay of [20_000, 45_000, 90_000, 180_000]) {
-      setTimeout(() => {
-        setRefreshKey(prev => prev + 1)
-        setHistoryKey(prev => prev + 1)
-      }, delay)
-    }
   }, [userPkh])
 
   const handleDraftRecovery = useCallback(async (action: 'resume' | 'discard') => {
@@ -246,7 +239,7 @@ export default function Dashboard() {
         })
       }
       setRecoverableDraft(null)
-      setRefreshKey(prev => prev + 1)
+      triggerTransactionRefresh()
       setActiveTab('history')
     } catch (error) {
       toast.error(
@@ -289,8 +282,7 @@ export default function Dashboard() {
           draftId,
         })
       }
-      setRefreshKey(prev => prev + 1)
-      setHistoryKey(prev => prev + 1)
+      triggerTransactionRefresh()
     } catch (error) {
       toast.error(
         'Retry Failed',
@@ -379,7 +371,7 @@ export default function Dashboard() {
     }
 
     // Refresh and switch to History tab to show pending tx
-    setRefreshKey(prev => prev + 1)
+    triggerTransactionRefresh()
     setActiveTab('history')
   }, [wallet, toast, recordTransaction, setActiveTab])
 
@@ -430,7 +422,7 @@ export default function Dashboard() {
             })
           }
 
-          setRefreshKey(prev => prev + 1)
+          triggerTransactionRefresh()
           setActiveTab('history')
         } catch (error) {
           console.error('Failed to remove listing:', error)
@@ -528,7 +520,7 @@ export default function Dashboard() {
       }
 
       // Refresh and switch to history
-      setRefreshKey(prev => prev + 1)
+      triggerTransactionRefresh()
       setActiveTab('history')
 
       toast.warning(
@@ -594,7 +586,7 @@ export default function Dashboard() {
             })
           }
 
-          setRefreshKey(prev => prev + 1)
+          triggerTransactionRefresh()
           setActiveTab('history')
         } catch (error) {
           console.error('Failed to cancel pending listing:', error)
@@ -666,7 +658,7 @@ export default function Dashboard() {
         })
       }
 
-      setRefreshKey(prev => prev + 1)
+      triggerTransactionRefresh()
       setActiveTab('history')
     } catch (error) {
       console.error('Failed to complete sale:', error)
@@ -728,7 +720,7 @@ export default function Dashboard() {
             })
           }
 
-          setRefreshKey(prev => prev + 1)
+          triggerTransactionRefresh()
           setActiveTab('history')
         } catch (error) {
           console.error('Failed to cancel bid:', error)
@@ -833,7 +825,7 @@ export default function Dashboard() {
     }
 
     // Refresh and switch to History tab to show pending tx
-    setRefreshKey(prev => prev + 1)
+    triggerTransactionRefresh()
     setActiveTab('history')
   }, [wallet, address, toast, recordTransaction, setActiveTab])
 
@@ -875,14 +867,14 @@ export default function Dashboard() {
     }
 
     fetchStats()
-  }, [userPkh, refreshKey])
+  }, [userPkh, refreshSignal])
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'marketplace':
         return (
           <MarketplaceTab
-            key={refreshKey}
+            refreshSignal={refreshSignal}
             userPkh={userPkh}
             onPlaceBid={handlePlaceBid}
           />
@@ -890,7 +882,7 @@ export default function Dashboard() {
       case 'my-sales':
         return (
           <MySalesTab
-            key={refreshKey}
+            refreshSignal={refreshSignal}
             userPkh={userPkh}
             onRemoveListing={handleRemoveListing}
             onAcceptBid={handleAcceptBid}
@@ -903,7 +895,7 @@ export default function Dashboard() {
       case 'my-purchases':
         return (
           <MyPurchasesTab
-            key={refreshKey}
+            refreshSignal={refreshSignal}
             userPkh={userPkh}
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
@@ -913,16 +905,16 @@ export default function Dashboard() {
       case 'history':
         return (
           <HistoryTab
-            key={historyKey}
+            historySignal={historySignal}
             userPkh={userPkh}
             transactions={txHistory}
-            onClearHistory={() => setHistoryKey(prev => prev + 1)}
+            onClearHistory={triggerHistoryRefresh}
             onHistoryUpdated={setTxHistory}
             onRetryListing={handleRetryListing}
           />
         )
       case 'library':
-        return <LibraryTab />
+        return <LibraryTab refreshSignal={refreshSignal} />
       default:
         return null
     }

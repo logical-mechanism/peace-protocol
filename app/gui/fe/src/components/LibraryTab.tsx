@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
 import { FILE_CATEGORIES } from '../config/categories';
 import LibraryCard from './LibraryCard';
@@ -13,7 +13,11 @@ type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc';
 type CategoryFilter = string; // 'all' or a category id
 
-export default function LibraryTab() {
+interface LibraryTabProps {
+  refreshSignal?: number;
+}
+
+export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +50,16 @@ export default function LibraryTab() {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  // Re-fetch when Dashboard signals a refresh (e.g. after decryption)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchItems();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter and sort items
   const filteredAndSorted = useMemo(() => {

@@ -35,6 +35,7 @@ interface HistoryTabProps {
   onClearHistory?: () => void;
   onHistoryUpdated?: (records: TransactionRecord[]) => void;
   onRetryListing?: (draftId: string) => void;
+  historySignal?: number;
 }
 
 export default function HistoryTab({
@@ -43,6 +44,7 @@ export default function HistoryTab({
   onClearHistory,
   onHistoryUpdated,
   onRetryListing,
+  historySignal,
 }: HistoryTabProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'failed'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>('all');
@@ -116,6 +118,16 @@ export default function HistoryTab({
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Re-fetch when Dashboard signals a history refresh
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    refresh();
+  }, [historySignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Also update if parent passes new transactions (e.g. after recording a new tx)
   useEffect(() => {

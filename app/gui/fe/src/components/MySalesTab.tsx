@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import SalesListingCard from './SalesListingCard';
@@ -20,6 +20,7 @@ interface MySalesTabProps {
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   onCreateListing?: () => void;
   onBidsViewed?: (encryptionTokenName: string) => void;
+  refreshSignal?: number;
 }
 
 export default function MySalesTab({
@@ -30,6 +31,7 @@ export default function MySalesTab({
   onCompleteSale,
   onCreateListing,
   onBidsViewed,
+  refreshSignal,
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
@@ -85,6 +87,16 @@ export default function MySalesTab({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchData();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get bid count for a listing
   const getBidCount = useCallback(
