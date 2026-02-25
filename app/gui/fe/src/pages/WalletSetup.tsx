@@ -184,6 +184,20 @@ export default function WalletSetup() {
     }
   }, [])
 
+  // Bulk paste via button (reads clipboard directly)
+  const handleBulkPaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      const words = text.trim().split(/\s+/).filter((w) => w.length > 0)
+      if (words.length >= 2) {
+        const padded = Array(24).fill('').map((_, i) => (words[i] || '').toLowerCase())
+        setImportWords(padded)
+      }
+    } catch {
+      // Clipboard access denied — user can still paste manually into any field
+    }
+  }, [])
+
   const handleSubmit = useCallback(async () => {
     const words = mode === 'create' ? mnemonic : importWords
     if (words.length !== 24 || words.some((w) => !w.trim())) {
@@ -531,10 +545,24 @@ export default function WalletSetup() {
               border: '1px solid var(--border-subtle)',
             }}
           >
-            <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Enter your 24-word recovery phrase. Start typing each word and
-              select from the suggestions. You can also paste all 24 words at once.
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Enter your 24-word recovery phrase. Start typing each word and
+                select from the suggestions.
+              </p>
+              <button
+                type="button"
+                onClick={handleBulkPaste}
+                className="ml-4 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap cursor-pointer"
+                style={{
+                  color: 'var(--accent)',
+                  border: '1px solid var(--accent)',
+                  background: 'transparent',
+                }}
+              >
+                Paste all 24 words
+              </button>
+            </div>
 
             <div className="grid grid-cols-4 gap-2 mb-4" onPaste={handleImportPaste}>
               {importWords.map((word, i) => (
