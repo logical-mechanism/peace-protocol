@@ -4,7 +4,8 @@ import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
 import { parseBidDatum } from './parsers.js';
-import type { BidDisplay, BidDatum } from '../types/index.js';
+import type { BidDisplay, BidDatum, ResponseWarnings } from '../types/index.js';
+import type { ServiceResult } from './encryptions.js';
 
 export interface ParsedBidCip20 {
   futurePrice?: number;
@@ -72,10 +73,10 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum, cip20: ParsedBidCip2
 const CACHE_KEY_ALL_BIDS = 'all_bids';
 
 /** Fetch all bid UTxOs from Kupo and enrich with CIP-20 metadata (batch). */
-export async function getAllBids(skipCache = false): Promise<BidDisplay[]> {
+export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDisplay[]>> {
   if (!skipCache) {
     const cached = apiCache.get<BidDisplay[]>(CACHE_KEY_ALL_BIDS);
-    if (cached) return cached;
+    if (cached) return { data: cached, warnings: {} };
   }
 
   try {
@@ -87,12 +88,14 @@ export async function getAllBids(skipCache = false): Promise<BidDisplay[]> {
 
     // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
     const parsed: Array<{ utxo: KoiosUtxo; datum: BidDatum }> = [];
+    let skippedDatums = 0;
     for (const utxo of utxos) {
       if (!utxo.inline_datum?.value) continue;
       try {
         const datum = parseBidDatum(utxo.inline_datum.value);
         parsed.push({ utxo, datum });
       } catch (err) {
+        skippedDatums++;
         logger.warn('Failed to parse bid datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
       }
     }
@@ -114,42 +117,53 @@ export async function getAllBids(skipCache = false): Promise<BidDisplay[]> {
     }
 
     apiCache.set(CACHE_KEY_ALL_BIDS, bids);
-    return bids;
+    const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
+    return { data: bids, warnings };
   } catch (err) {
     // If fetching fails (Kupo down, Koios circuit open), return stale cached data
     const stale = apiCache.getStale<BidDisplay[]>(CACHE_KEY_ALL_BIDS);
     if (stale) {
       logger.warn('Returning stale cache for bids', { error: String(err) });
-      return stale;
+      return { data: stale, warnings: {} };
     }
     throw err;
   }
 }
 
 /** Find a single bid by its token name, or null if not found. */
-export async function getBidByToken(tokenName: string): Promise<BidDisplay | null> {
-  const bids = await getAllBids();
-  return bids.find(b => b.tokenName === tokenName) || null;
+export async function getBidByToken(tokenName: string): Promise<ServiceResult<BidDisplay | null>> {
+  const result = await getAllBids();
+  return {
+    data: result.data.find(b => b.tokenName === tokenName) || null,
+    warnings: result.warnings,
+  };
 }
 
 /** Filter bids by bidder payment key hash (case-insensitive substring match). */
-export async function getBidsByUser(pkh: string): Promise<BidDisplay[]> {
-  const bids = await getAllBids();
-  return bids.filter(b =>
-    b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())
-  );
+export async function getBidsByUser(pkh: string): Promise<ServiceResult<BidDisplay[]>> {
+  const result = await getAllBids();
+  return {
+    data: result.data.filter(b => b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())),
+    warnings: result.warnings,
+  };
 }
 
 /** Filter bids by the encryption token they target. */
-export async function getBidsByEncryption(encryptionToken: string): Promise<BidDisplay[]> {
-  const bids = await getAllBids();
-  return bids.filter(b => b.encryptionToken === encryptionToken);
+export async function getBidsByEncryption(encryptionToken: string): Promise<ServiceResult<BidDisplay[]>> {
+  const result = await getAllBids();
+  return {
+    data: result.data.filter(b => b.encryptionToken === encryptionToken),
+    warnings: result.warnings,
+  };
 }
 
 /** Filter bids by display status (pending, accepted, rejected, or cancelled). */
 export async function getBidsByStatus(
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
-): Promise<BidDisplay[]> {
-  const bids = await getAllBids();
-  return bids.filter(b => b.status === status);
+): Promise<ServiceResult<BidDisplay[]>> {
+  const result = await getAllBids();
+  return {
+    data: result.data.filter(b => b.status === status),
+    warnings: result.warnings,
+  };
 }

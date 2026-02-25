@@ -67,7 +67,10 @@ beforeEach(() => {
 
 describe('GET /api/bids', () => {
   it('returns bid list with meta', async () => {
-    (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue([{ tokenName: 'b1' }]);
+    (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'b1' }],
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/bids');
 
@@ -92,11 +95,38 @@ describe('GET /api/bids', () => {
     expect(res.body.data[0].tokenName).toBe('stub_bid1');
     expect(getAllBids).not.toHaveBeenCalled();
   });
+
+  it('includes warnings when datums are skipped', async () => {
+    (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'b1' }],
+      warnings: { skippedDatums: 2 },
+    });
+
+    const res = await request(app).get('/api/bids');
+
+    expect(res.status).toBe(200);
+    expect(res.body.warnings).toEqual({ skippedDatums: 2 });
+  });
+
+  it('omits warnings when no datums are skipped', async () => {
+    (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'b1' }],
+      warnings: {},
+    });
+
+    const res = await request(app).get('/api/bids');
+
+    expect(res.status).toBe(200);
+    expect(res.body.warnings).toBeUndefined();
+  });
 });
 
 describe('GET /api/bids/:tokenName', () => {
   it('returns bid when found', async () => {
-    (getBidByToken as ReturnType<typeof vi.fn>).mockResolvedValue({ tokenName: 'b1' });
+    (getBidByToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { tokenName: 'b1' },
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/bids/b1');
     expect(res.status).toBe(200);
@@ -104,7 +134,10 @@ describe('GET /api/bids/:tokenName', () => {
   });
 
   it('returns 404 when not found', async () => {
-    (getBidByToken as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (getBidByToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/bids/aabb');
     expect(res.status).toBe(404);
@@ -115,7 +148,10 @@ describe('GET /api/bids/user/:pkh', () => {
   const validPkh = 'bb'.repeat(28); // 56 hex chars
 
   it('returns user bids', async () => {
-    (getBidsByUser as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getBidsByUser as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      warnings: {},
+    });
 
     const res = await request(app).get(`/api/bids/user/${validPkh}`);
     expect(res.status).toBe(200);
@@ -125,9 +161,10 @@ describe('GET /api/bids/user/:pkh', () => {
 
 describe('GET /api/bids/encryption/:encryptionToken', () => {
   it('returns bids for encryption', async () => {
-    (getBidsByEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { tokenName: 'b1', encryptionToken: 'aabb' },
-    ]);
+    (getBidsByEncryption as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'b1', encryptionToken: 'aabb' }],
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/bids/encryption/aabb');
     expect(res.status).toBe(200);
@@ -137,7 +174,10 @@ describe('GET /api/bids/encryption/:encryptionToken', () => {
 
 describe('GET /api/bids/status/:status', () => {
   it('returns filtered bids for valid status', async () => {
-    (getBidsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getBidsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/bids/status/pending');
     expect(res.status).toBe(200);
@@ -150,7 +190,10 @@ describe('GET /api/bids/status/:status', () => {
   });
 
   it('accepts all valid bid statuses', async () => {
-    (getBidsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getBidsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      warnings: {},
+    });
 
     for (const status of ['pending', 'accepted', 'rejected', 'cancelled']) {
       const res = await request(app).get(`/api/bids/status/${status}`);

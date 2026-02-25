@@ -29,10 +29,11 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const skipCache = req.query.refresh === 'true';
-    const bids = await getAllBids(skipCache);
+    const result = await getAllBids(skipCache);
     return res.json({
-      data: bids,
-      meta: { total: bids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
     logger.error('Error fetching bids', { error: String(error) });
@@ -60,13 +61,16 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       return res.json({ data: bid });
     }
 
-    const bid = await getBidByToken(tokenName);
-    if (!bid) {
+    const result = await getBidByToken(tokenName);
+    if (!result.data) {
       return res.status(404).json({
         error: { code: 'NOT_FOUND', message: 'Bid not found' },
       });
     }
-    return res.json({ data: bid });
+    return res.json({
+      data: result.data,
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+    });
   } catch (error) {
     logger.error('Error fetching bid', { error: String(error) });
     return res.status(500).json({
@@ -94,10 +98,11 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       return res.json(response);
     }
 
-    const userBids = await getBidsByUser(pkh);
+    const result = await getBidsByUser(pkh);
     return res.json({
-      data: userBids,
-      meta: { total: userBids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
     logger.error('Error fetching user bids', { error: String(error) });
@@ -126,10 +131,11 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
       return res.json(response);
     }
 
-    const encryptionBids = await getBidsByEncryption(encryptionToken);
+    const result = await getBidsByEncryption(encryptionToken);
     return res.json({
-      data: encryptionBids,
-      meta: { total: encryptionBids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
     logger.error('Error fetching encryption bids', { error: String(error) });
@@ -165,12 +171,13 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       return res.json(response);
     }
 
-    const filteredBids = await getBidsByStatus(
+    const result = await getBidsByStatus(
       status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
     );
     return res.json({
-      data: filteredBids,
-      meta: { total: filteredBids.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
     logger.error('Error fetching bids by status', { error: String(error) });

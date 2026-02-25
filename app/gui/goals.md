@@ -89,11 +89,11 @@ Each item has:
   - **How**: Expand `GET /health` to test Kupo and Koios connectivity. Return `{ status, kupo: { reachable, latency }, koios: { reachable, latency }, uptime, lastSuccessfulRefresh }`.
   - **Why**: Current health check returns "ok" even when Kupo/Koios are down. A real health check helps diagnose issues.
 
-- [ ] **Circuit breaker for external dependencies**
+- [x] **Circuit breaker for external dependencies**
   - **How**: Implement a simple circuit breaker pattern for Koios calls. After N consecutive failures, "open" the circuit and return cached/stale data for a cooldown period before retrying.
   - **Why**: If Koios goes down, every request fails and times out. A circuit breaker returns fast (stale) responses instead of hanging.
 
-- [ ] **Datum parsing failure metrics**
+- [x] **Datum parsing failure metrics**
   - **How**: Count skipped datums per request and include the count in the API response: `{ encryptions: [...], warnings: { skippedDatums: 3 } }`. Frontend can display "3 listings had parsing errors".
   - **Why**: Datum parsing failures are silently skipped. Frontend shows incomplete data with no indication that listings are missing.
 

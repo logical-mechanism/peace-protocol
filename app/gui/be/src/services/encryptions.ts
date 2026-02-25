@@ -4,7 +4,12 @@ import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
-import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel } from '../types/index.js';
+import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel, ResponseWarnings } from '../types/index.js';
+
+export interface ServiceResult<T> {
+  data: T;
+  warnings: ResponseWarnings;
+}
 
 export interface ParsedCip20 {
   description?: string;
@@ -110,10 +115,10 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
 const CACHE_KEY_ALL_ENCRYPTIONS = 'all_encryptions';
 
 /** Fetch all encryption UTxOs from Kupo and enrich with CIP-20 metadata (batch). */
-export async function getAllEncryptions(skipCache = false): Promise<EncryptionDisplay[]> {
+export async function getAllEncryptions(skipCache = false): Promise<ServiceResult<EncryptionDisplay[]>> {
   if (!skipCache) {
     const cached = apiCache.get<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
-    if (cached) return cached;
+    if (cached) return { data: cached, warnings: {} };
   }
 
   try {
@@ -125,12 +130,14 @@ export async function getAllEncryptions(skipCache = false): Promise<EncryptionDi
 
     // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
     const parsed: Array<{ utxo: KoiosUtxo; datum: EncryptionDatum }> = [];
+    let skippedDatums = 0;
     for (const utxo of utxos) {
       if (!utxo.inline_datum?.value) continue;
       try {
         const datum = parseEncryptionDatum(utxo.inline_datum.value);
         parsed.push({ utxo, datum });
       } catch (err) {
+        skippedDatums++;
         logger.warn('Failed to parse encryption datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
       }
     }
@@ -152,38 +159,46 @@ export async function getAllEncryptions(skipCache = false): Promise<EncryptionDi
     }
 
     apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
-    return encryptions;
+    const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
+    return { data: encryptions, warnings };
   } catch (err) {
     // If fetching fails (Kupo down, Koios circuit open), return stale cached data
     const stale = apiCache.getStale<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
     if (stale) {
       logger.warn('Returning stale cache for encryptions', { error: String(err) });
-      return stale;
+      return { data: stale, warnings: {} };
     }
     throw err;
   }
 }
 
 /** Find a single encryption by its token name, or null if not found. */
-export async function getEncryptionByToken(tokenName: string): Promise<EncryptionDisplay | null> {
-  const encryptions = await getAllEncryptions();
-  return encryptions.find(e => e.tokenName === tokenName) || null;
+export async function getEncryptionByToken(tokenName: string): Promise<ServiceResult<EncryptionDisplay | null>> {
+  const result = await getAllEncryptions();
+  return {
+    data: result.data.find(e => e.tokenName === tokenName) || null,
+    warnings: result.warnings,
+  };
 }
 
 /** Filter encryptions by seller payment key hash (case-insensitive substring match). */
-export async function getEncryptionsByUser(pkh: string): Promise<EncryptionDisplay[]> {
-  const encryptions = await getAllEncryptions();
-  return encryptions.filter(e =>
-    e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())
-  );
+export async function getEncryptionsByUser(pkh: string): Promise<ServiceResult<EncryptionDisplay[]>> {
+  const result = await getAllEncryptions();
+  return {
+    data: result.data.filter(e => e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())),
+    warnings: result.warnings,
+  };
 }
 
 /** Filter encryptions by display status (active, pending, or completed). */
 export async function getEncryptionsByStatus(
   status: 'active' | 'pending' | 'completed'
-): Promise<EncryptionDisplay[]> {
-  const encryptions = await getAllEncryptions();
-  return encryptions.filter(e => e.status === status);
+): Promise<ServiceResult<EncryptionDisplay[]>> {
+  const result = await getAllEncryptions();
+  return {
+    data: result.data.filter(e => e.status === status),
+    warnings: result.warnings,
+  };
 }
 
 /**

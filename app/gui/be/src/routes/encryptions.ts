@@ -29,10 +29,11 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const skipCache = req.query.refresh === 'true';
-    const encryptions = await getAllEncryptions(skipCache);
+    const result = await getAllEncryptions(skipCache);
     return res.json({
-      data: encryptions,
-      meta: { total: encryptions.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
     logger.error('Error fetching encryptions', { error: String(error) });
@@ -92,13 +93,16 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       return res.json({ data: encryption });
     }
 
-    const encryption = await getEncryptionByToken(tokenName);
-    if (!encryption) {
+    const result = await getEncryptionByToken(tokenName);
+    if (!result.data) {
       return res.status(404).json({
         error: { code: 'NOT_FOUND', message: 'Encryption not found' },
       });
     }
-    return res.json({ data: encryption });
+    return res.json({
+      data: result.data,
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+    });
   } catch (error) {
     logger.error('Error fetching encryption', { error: String(error) });
     return res.status(500).json({
@@ -126,10 +130,11 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       return res.json(response);
     }
 
-    const userEncryptions = await getEncryptionsByUser(pkh);
+    const result = await getEncryptionsByUser(pkh);
     return res.json({
-      data: userEncryptions,
-      meta: { total: userEncryptions.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
     logger.error('Error fetching user encryptions', { error: String(error) });
@@ -164,12 +169,13 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       return res.json(response);
     }
 
-    const filteredEncryptions = await getEncryptionsByStatus(
+    const result = await getEncryptionsByStatus(
       status as 'active' | 'pending' | 'completed'
     );
     return res.json({
-      data: filteredEncryptions,
-      meta: { total: filteredEncryptions.length },
+      data: result.data,
+      meta: { total: result.data.length },
+      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
     logger.error('Error fetching encryptions by status', { error: String(error) });

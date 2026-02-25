@@ -46,10 +46,10 @@ beforeEach(() => {
 
 describe('GET /api/encryptions', () => {
   it('returns encryption list with meta', async () => {
-    (getAllEncryptions as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { tokenName: 'enc1' },
-      { tokenName: 'enc2' },
-    ]);
+    (getAllEncryptions as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'enc1' }, { tokenName: 'enc2' }],
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/encryptions');
 
@@ -77,11 +77,39 @@ describe('GET /api/encryptions', () => {
     expect(res.body.data[0].tokenName).toBe('stub_enc1');
     expect(getAllEncryptions).not.toHaveBeenCalled();
   });
+
+  it('includes warnings when datums are skipped', async () => {
+    (getAllEncryptions as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'enc1' }],
+      warnings: { skippedDatums: 3 },
+    });
+
+    const res = await request(app).get('/api/encryptions');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.warnings).toEqual({ skippedDatums: 3 });
+  });
+
+  it('omits warnings when no datums are skipped', async () => {
+    (getAllEncryptions as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'enc1' }],
+      warnings: {},
+    });
+
+    const res = await request(app).get('/api/encryptions');
+
+    expect(res.status).toBe(200);
+    expect(res.body.warnings).toBeUndefined();
+  });
 });
 
 describe('GET /api/encryptions/:tokenName', () => {
   it('returns encryption when found', async () => {
-    (getEncryptionByToken as ReturnType<typeof vi.fn>).mockResolvedValue({ tokenName: 'abc' });
+    (getEncryptionByToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { tokenName: 'abc' },
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/encryptions/abc');
 
@@ -90,7 +118,10 @@ describe('GET /api/encryptions/:tokenName', () => {
   });
 
   it('returns 404 when not found', async () => {
-    (getEncryptionByToken as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (getEncryptionByToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/encryptions/aabb');
 
@@ -111,9 +142,10 @@ describe('GET /api/encryptions/user/:pkh', () => {
   const validPkh = 'aa'.repeat(28); // 56 hex chars
 
   it('returns user encryptions', async () => {
-    (getEncryptionsByUser as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { tokenName: 'e1', sellerPkh: validPkh },
-    ]);
+    (getEncryptionsByUser as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'e1', sellerPkh: validPkh }],
+      warnings: {},
+    });
 
     const res = await request(app).get(`/api/encryptions/user/${validPkh}`);
 
@@ -133,7 +165,10 @@ describe('GET /api/encryptions/user/:pkh', () => {
 
 describe('GET /api/encryptions/status/:status', () => {
   it('returns filtered encryptions for valid status', async () => {
-    (getEncryptionsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getEncryptionsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/encryptions/status/active');
 
@@ -150,14 +185,20 @@ describe('GET /api/encryptions/status/:status', () => {
   });
 
   it('accepts pending status', async () => {
-    (getEncryptionsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getEncryptionsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/encryptions/status/pending');
     expect(res.status).toBe(200);
   });
 
   it('accepts completed status', async () => {
-    (getEncryptionsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (getEncryptionsByStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      warnings: {},
+    });
 
     const res = await request(app).get('/api/encryptions/status/completed');
     expect(res.status).toBe(200);
