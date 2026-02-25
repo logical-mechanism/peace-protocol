@@ -98,7 +98,7 @@ Each item has:
   - **How**: Add info icons (?) next to each service name (Cardano Node, Ogmios, Kupo) with hover tooltips explaining what each does: "Cardano Node: Validates blocks from the Cardano blockchain", "Ogmios: Translates node data into WebSocket protocol", "Kupo: Indexes UTxOs for fast wallet queries."
   - **Why**: Non-technical users see cryptic service names and don't know if a failure is serious or ignorable.
 
-- [ ] **Process health checks for Ogmios and Kupo**
+- [x] **Process health checks for Ogmios and Kupo**
   - **How**: Ogmios has a `GET /health` endpoint; Kupo has `GET /health`. In `src-tauri/src/process/ogmios.rs` and `kupo.rs`, add health check functions similar to `express.rs`. Poll every 10s after process starts. Emit health status as Tauri events.
   - **Why**: Currently only Express has a health check. If Ogmios or Kupo crash silently, the app shows confusing errors instead of "Ogmios is down, restarting..."
 

@@ -94,6 +94,8 @@ struct ManagedProcess {
     user_stopped: bool,
     /// Maximum seconds to wait for graceful shutdown before SIGKILL
     shutdown_timeout_secs: u64,
+    /// Consecutive HTTP health check failures (for services with health endpoints)
+    health_check_failures: u32,
 }
 
 impl ManagedProcess {
@@ -131,8 +133,11 @@ pub struct NodeManager {
     snark_pids: std::sync::Mutex<Vec<u32>>,
 }
 
+/// Maximum consecutive HTTP health check failures before marking a process as Error.
+const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 3;
+
 impl NodeManager {
-    pub fn new(app_handle: tauri::AppHandle) -> Self {
+    pub fn new(app_handle: tauri::AppHandle, ogmios_port: u16, kupo_port: u16) -> Self {
         let pid_file = app_handle
             .path()
             .app_data_dir()
@@ -150,11 +155,13 @@ impl NodeManager {
         mgr.kill_orphans_from_pid_file();
         mgr.kill_orphans_on_ports();
 
-        // Start background liveness monitor
+        // Start background liveness monitor with HTTP health checks
         Self::spawn_liveness_monitor(
             mgr.processes.clone(),
             mgr.app_handle.clone(),
             mgr.pid_file.clone(),
+            ogmios_port,
+            kupo_port,
         );
 
         mgr
@@ -373,6 +380,7 @@ impl NodeManager {
                         }),
                         user_stopped: false,
                         shutdown_timeout_secs: default_shutdown_timeout(name),
+                        health_check_failures: 0,
                     },
                 );
             }
@@ -799,6 +807,7 @@ impl NodeManager {
                         launch_info: Some(launch),
                         user_stopped: false,
                         shutdown_timeout_secs: default_shutdown_timeout(name),
+                        health_check_failures: 0,
                     },
                 );
             }
@@ -1214,28 +1223,71 @@ impl NodeManager {
         );
     }
 
-    /// Spawn a background task that checks process liveness every 30 seconds.
+    /// Spawn a background task that checks process liveness every 10 seconds.
     ///
-    /// If a process's PID is no longer running (and wasn't intentionally stopped),
-    /// its status is set to Error and a `process-status` event is emitted so the
-    /// frontend shows the failure. Does not auto-restart — the UI shows the error
-    /// state and the user can choose to restart.
+    /// Two checks per process:
+    /// 1. PID liveness — is the process still running?
+    /// 2. HTTP health — for ogmios/kupo, is the health endpoint responding?
+    ///
+    /// If either check fails, the process status is set to Error and a
+    /// `process-status` event is emitted so the frontend shows the failure.
     fn spawn_liveness_monitor(
         processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
         app_handle: tauri::AppHandle,
         pid_file: std::path::PathBuf,
+        ogmios_port: u16,
+        kupo_port: u16,
     ) {
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_default();
+
         tauri::async_runtime::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
             loop {
                 interval.tick().await;
 
+                // Collect names that need HTTP health checks (while holding the lock briefly)
+                let health_targets: Vec<(String, u16)> = {
+                    let procs = processes.lock().await;
+                    procs
+                        .iter()
+                        .filter(|(_, proc)| {
+                            !proc.user_stopped
+                                && matches!(
+                                    proc.info.status,
+                                    ProcessStatus::Running
+                                        | ProcessStatus::Syncing { .. }
+                                        | ProcessStatus::Ready
+                                )
+                        })
+                        .filter_map(|(name, _)| {
+                            match name.as_str() {
+                                "ogmios" => Some((name.clone(), ogmios_port)),
+                                "kupo" => Some((name.clone(), kupo_port)),
+                                _ => None,
+                            }
+                        })
+                        .collect()
+                };
+
+                // Run HTTP health checks outside the lock to avoid holding it during I/O
+                let mut health_results: HashMap<String, bool> = HashMap::new();
+                for (name, port) in &health_targets {
+                    let url = format!("http://127.0.0.1:{}/health", port);
+                    let healthy = match http_client.get(&url).send().await {
+                        Ok(resp) => resp.status().is_success(),
+                        Err(_) => false,
+                    };
+                    health_results.insert(name.clone(), healthy);
+                }
+
+                // Re-acquire lock and apply all check results
                 let mut procs = processes.lock().await;
                 let mut changed = false;
 
                 for (name, proc) in procs.iter_mut() {
-                    // Skip processes that were intentionally stopped or are already in
-                    // a terminal state (Stopped / Error).
                     if proc.user_stopped {
                         continue;
                     }
@@ -1250,7 +1302,7 @@ impl NodeManager {
                         continue;
                     }
 
-                    // Check if the PID is still alive
+                    // Check 1: PID liveness
                     if let Some(pid) = proc.info.pid {
                         if !send_signal(pid, 0) {
                             eprintln!(
@@ -1261,6 +1313,7 @@ impl NodeManager {
                                 message: "Process exited unexpectedly".to_string(),
                             };
                             proc.info.pid = None;
+                            proc.health_check_failures = 0;
                             changed = true;
 
                             let _ = app_handle.emit(
@@ -1271,6 +1324,41 @@ impl NodeManager {
                                     log_line: None,
                                 },
                             );
+                            continue;
+                        }
+                    }
+
+                    // Check 2: HTTP health (ogmios / kupo only)
+                    if let Some(&healthy) = health_results.get(name.as_str()) {
+                        if healthy {
+                            proc.health_check_failures = 0;
+                        } else {
+                            proc.health_check_failures += 1;
+                            if proc.health_check_failures >= HEALTH_CHECK_FAILURE_THRESHOLD {
+                                eprintln!(
+                                    "[Liveness] {} unresponsive after {} consecutive health check failures",
+                                    name, proc.health_check_failures
+                                );
+                                proc.info.status = ProcessStatus::Error {
+                                    message: format!(
+                                        "{} is not responding to health checks",
+                                        name
+                                    ),
+                                };
+                                changed = true;
+
+                                let _ = app_handle.emit(
+                                    "process-status",
+                                    ProcessEvent {
+                                        name: name.clone(),
+                                        status: proc.info.status.clone(),
+                                        log_line: Some(format!(
+                                            "{} unresponsive after {} health check failures",
+                                            name, proc.health_check_failures
+                                        )),
+                                    },
+                                );
+                            }
                         }
                     }
                 }
@@ -1310,6 +1398,14 @@ mod tests {
     fn jitter_preserves_zero_delay() {
         let result = apply_jitter(0.0);
         assert!((result - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn health_check_failure_threshold_is_reasonable() {
+        // Threshold should be > 1 (avoid false positives from a single failed check)
+        // and not too high (detect real outages within ~30s at 10s intervals)
+        assert!(HEALTH_CHECK_FAILURE_THRESHOLD > 1);
+        assert!(HEALTH_CHECK_FAILURE_THRESHOLD <= 5);
     }
 
     #[test]
@@ -1426,6 +1522,7 @@ mod tests {
             launch_info: None,
             user_stopped: false,
             shutdown_timeout_secs: 10,
+            health_check_failures: 0,
         };
 
         proc.append_log("line 1".to_string());
@@ -1452,6 +1549,7 @@ mod tests {
             launch_info: None,
             user_stopped: false,
             shutdown_timeout_secs: 10,
+            health_check_failures: 0,
         };
 
         // Fill to LOG_BUFFER_SIZE + 1

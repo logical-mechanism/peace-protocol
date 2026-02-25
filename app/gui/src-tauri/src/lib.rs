@@ -44,15 +44,19 @@ pub fn run() {
                 .resource_dir()
                 .unwrap_or_else(|_| app_data_dir.clone());
             let app_config = AppConfig::load(&resource_dir);
+            let ogmios_port = app_config.ogmios_port;
+            let kupo_port = app_config.kupo_port;
             app.manage(app_config);
 
-            // Node manager (Phase 2)
-            let node_manager = NodeManager::new(app.handle().clone());
+            // Node manager (Phase 2) — pass service ports for periodic health checks
+            let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
             app.manage(node_manager);
 
             // Secret storage directory (filesystem-backed, survives WebView resets)
             let secrets_dir = app_data_dir.join("secrets");
             std::fs::create_dir_all(&secrets_dir).expect("Failed to create secrets directory");
+            crypto::wallet::set_owner_only_dir(&secrets_dir)
+                .expect("Failed to set secrets directory permissions");
             app.manage(SecretsDir(secrets_dir));
 
             // Secrets encryption key (derived from mnemonic on wallet unlock)
@@ -62,12 +66,16 @@ pub fn run() {
             let media_images_dir = app_data_dir.join("media").join("images");
             std::fs::create_dir_all(&media_images_dir)
                 .expect("Failed to create media/images directory");
+            crypto::wallet::set_owner_only_dir(&media_images_dir)
+                .expect("Failed to set media directory permissions");
             app.manage(MediaDir(media_images_dir));
 
             // Content directory (for purchased/decrypted files, organized by category)
             let content_dir = app_data_dir.join("media").join("content");
             commands::media::ensure_content_dirs(&content_dir)
                 .expect("Failed to create content directories");
+            crypto::wallet::set_owner_only_dir(&content_dir)
+                .expect("Failed to set content directory permissions");
             app.manage(ContentDir(content_dir));
 
             Ok(())
