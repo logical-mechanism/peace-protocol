@@ -5,6 +5,8 @@ import {
   updateTransactionStatus,
   getPendingCount,
   clearHistory,
+  clearOlderThan,
+  clearFailed,
   reconcileWithOnChain,
   resolvePendingTxs,
   getTypeLabel,
@@ -109,6 +111,54 @@ describe('transactionHistory', () => {
     clearHistory(WALLET);
 
     expect(getTransactions(WALLET)).toEqual([]);
+  });
+
+  // --- clearOlderThan ---
+
+  it('clearOlderThan removes records older than N days and returns count', () => {
+    const thirtyOneDaysAgo = Date.now() - 31 * 24 * 60 * 60 * 1000;
+    const recent = Date.now() - 1000;
+    addTransaction(WALLET, makeRecord({ txHash: '1'.repeat(64), timestamp: thirtyOneDaysAgo }));
+    addTransaction(WALLET, makeRecord({ txHash: '2'.repeat(64), timestamp: recent }));
+
+    const removed = clearOlderThan(WALLET, 30);
+    expect(removed).toBe(1);
+
+    const remaining = getTransactions(WALLET);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].txHash).toBe('2'.repeat(64));
+  });
+
+  it('clearOlderThan returns 0 when nothing is old enough', () => {
+    addTransaction(WALLET, makeRecord({ txHash: '1'.repeat(64), timestamp: Date.now() }));
+
+    const removed = clearOlderThan(WALLET, 30);
+    expect(removed).toBe(0);
+    expect(getTransactions(WALLET)).toHaveLength(1);
+  });
+
+  // --- clearFailed ---
+
+  it('clearFailed removes only failed records and returns count', () => {
+    addTransaction(WALLET, makeRecord({ txHash: '1'.repeat(64), status: 'failed' }));
+    addTransaction(WALLET, makeRecord({ txHash: '2'.repeat(64), status: 'confirmed' }));
+    addTransaction(WALLET, makeRecord({ txHash: '3'.repeat(64), status: 'pending' }));
+
+    const removed = clearFailed(WALLET);
+    expect(removed).toBe(1);
+
+    const remaining = getTransactions(WALLET);
+    expect(remaining).toHaveLength(2);
+    expect(remaining.every(r => r.status !== 'failed')).toBe(true);
+  });
+
+  it('clearFailed returns 0 when no failed records exist', () => {
+    addTransaction(WALLET, makeRecord({ txHash: '1'.repeat(64), status: 'confirmed' }));
+    addTransaction(WALLET, makeRecord({ txHash: '2'.repeat(64), status: 'pending' }));
+
+    const removed = clearFailed(WALLET);
+    expect(removed).toBe(0);
+    expect(getTransactions(WALLET)).toHaveLength(2);
   });
 
   // --- reconcileWithOnChain ---

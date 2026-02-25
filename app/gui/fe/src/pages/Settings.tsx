@@ -5,7 +5,7 @@
  * and process logs viewer.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
@@ -15,6 +15,8 @@ import { copyToClipboard } from '../utils/clipboard'
 import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../services/iagonAuth'
 import { verifyApiKey, deleteFile as iagonDeleteFile } from '../services/iagonApi'
 import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../services/listingDraftStorage'
+import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../services/transactionHistory'
+import { extractPaymentKeyHash } from '../services/transactionBuilder'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -69,6 +71,15 @@ export default function Settings() {
   const [orphanedDrafts, setOrphanedDrafts] = useState<ListingDraft[]>([])
   const [orphanCleanupLoading, setOrphanCleanupLoading] = useState<string | null>(null)
 
+  // Transaction history cleanup
+  const [txHistoryCount, setTxHistoryCount] = useState(0)
+
+  // Derived user PKH for transaction history operations
+  const userPkh = useMemo(() => {
+    if (!address) return undefined
+    try { return extractPaymentKeyHash(address) } catch { return undefined }
+  }, [address])
+
   // Process logs
   const [selectedProcess, setSelectedProcess] = useState<string>('cardano-node')
   const [processLogs, setProcessLogs] = useState<ProcessLog | null>(null)
@@ -86,6 +97,13 @@ export default function Settings() {
     if (activeSection !== 'datalayer') return
     getOrphanedDrafts().then(setOrphanedDrafts).catch(() => {})
   }, [activeSection])
+
+  // Load transaction history count when storage section is active
+  useEffect(() => {
+    if (activeSection === 'storage' && userPkh) {
+      setTxHistoryCount(getTransactions(userPkh).length)
+    }
+  }, [activeSection, userPkh])
 
   const handleDeleteOrphan = useCallback(async (draft: ListingDraft) => {
     if (!draft.iagonFileId) return
@@ -893,6 +911,49 @@ export default function Settings() {
               ) : (
                 <p className="text-[var(--text-muted)]">Loading...</p>
               )}
+            </div>
+
+            {/* Transaction History */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <h2 className="text-lg font-medium mb-2">Transaction History</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                {txHistoryCount} transaction{txHistoryCount !== 1 ? 's' : ''} stored locally.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    if (!userPkh || !confirm('Clear all transaction history?')) return
+                    clearHistory(userPkh)
+                    setTxHistoryCount(0)
+                  }}
+                  disabled={!userPkh || txHistoryCount === 0}
+                  className="px-4 py-2 text-sm text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear All
+                </button>
+                <button
+                  onClick={() => {
+                    if (!userPkh) return
+                    const removed = clearOlderThan(userPkh, 30)
+                    setTxHistoryCount(prev => prev - removed)
+                  }}
+                  disabled={!userPkh || txHistoryCount === 0}
+                  className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear Older Than 30 Days
+                </button>
+                <button
+                  onClick={() => {
+                    if (!userPkh) return
+                    const removed = clearFailed(userPkh)
+                    setTxHistoryCount(prev => prev - removed)
+                  }}
+                  disabled={!userPkh || txHistoryCount === 0}
+                  className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear Failed Only
+                </button>
+              </div>
             </div>
           </div>
         )}

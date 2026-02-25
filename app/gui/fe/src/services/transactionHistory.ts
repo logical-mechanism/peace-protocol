@@ -80,6 +80,35 @@ export function clearHistory(walletPkh: string): void {
 }
 
 /**
+ * Clear transactions older than a given number of days.
+ * Returns the number of records removed.
+ */
+export function clearOlderThan(walletPkh: string, days: number): number {
+  const records = getTransactions(walletPkh);
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const filtered = records.filter(r => r.timestamp >= cutoff);
+  const removed = records.length - filtered.length;
+  if (removed > 0) {
+    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(filtered));
+  }
+  return removed;
+}
+
+/**
+ * Clear only failed transactions.
+ * Returns the number of records removed.
+ */
+export function clearFailed(walletPkh: string): number {
+  const records = getTransactions(walletPkh);
+  const filtered = records.filter(r => r.status !== 'failed');
+  const removed = records.length - filtered.length;
+  if (removed > 0) {
+    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(filtered));
+  }
+  return removed;
+}
+
+/**
  * Reconcile local history with on-chain records and persist changes.
  *
  * - On-chain records not in local storage are added (so they persist after UTxO removal)

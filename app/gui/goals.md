@@ -262,7 +262,7 @@ Each item has:
   - **How**: Add a "Cache" section in Settings showing: total cache size, number of cached images, list of cached image URLs with delete buttons, "Clear All Cache" button. Use existing Tauri commands: `list_cached_images`, `delete_cached_image`.
   - **Why**: Users have no visibility into what's cached or how much disk space it uses. Cache can grow indefinitely.
 
-- [ ] **Transaction history cleanup**
+- [x] **Transaction history cleanup**
   - **How**: Add a "Clear History" section with options: "Clear all", "Clear older than 30 days", "Clear only failed transactions". Operate on localStorage via `transactionHistory` service.
   - **Why**: Transaction history grows indefinitely. Users need housekeeping tools.
 
