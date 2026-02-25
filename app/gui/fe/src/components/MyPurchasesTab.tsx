@@ -244,7 +244,7 @@ export default function MyPurchasesTab({
             {purchasedEncryptions.map((enc) => (
               <div
                 key={enc.tokenName}
-                className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] transition-all duration-150"
+                className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150"
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">

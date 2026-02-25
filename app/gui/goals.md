@@ -524,7 +524,7 @@ Each item has:
   - **How**: Enhance the `EmptyState` component with small SVG illustrations for each context: no listings (marketplace icon), no bids (handshake icon), no purchases (shopping bag), no history (clock), empty library (books). Use the existing icon components as a starting point.
   - **Why**: Empty states are the first thing new users see. A friendly illustration with a call-to-action ("Create your first listing") guides them to the next step.
 
-- [ ] **Subtle hover effects on cards**
+- [x] **Subtle hover effects on cards**
   - **How**: Add `hover:translate-y-[-2px] hover:shadow-lg` to EncryptionCard, SalesListingCard, LibraryCard. Add a border color transition on hover: `hover:border-[var(--accent)]/30`.
   - **Why**: Cards currently have minimal hover feedback. Subtle elevation and glow effects communicate clickability and add polish.
 
