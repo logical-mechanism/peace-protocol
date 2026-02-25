@@ -28,6 +28,7 @@ tempfile = "3"
 libc = "0.2"
 base64 = "0.22"
 zeroize = "1"
+bip39 = { version = "2", default-features = false }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

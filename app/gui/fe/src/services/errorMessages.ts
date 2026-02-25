@@ -78,6 +78,16 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
+  // Mnemonic checksum validation
+  {
+    test: (e) => /checksum.*failed|invalid.*mnemonic/i.test(e),
+    result: {
+      title: 'Invalid Recovery Phrase',
+      message: 'The recovery phrase has an invalid checksum. One or more words may be incorrect.',
+      action: 'Double-check each word against your written backup and try again.',
+      recoverable: true,
+    },
+  },
   // Password policy (defense-in-depth, frontend already enforces)
   {
     test: (e) => /password must be at least/i.test(e),

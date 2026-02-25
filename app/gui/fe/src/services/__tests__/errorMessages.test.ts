@@ -75,6 +75,19 @@ describe('getFriendlyError', () => {
     });
   });
 
+  describe('mnemonic checksum errors', () => {
+    it('matches checksum verification failed', () => {
+      expectTitle(
+        'Invalid mnemonic: checksum verification failed. Please double-check your recovery phrase for typos.',
+        'Invalid Recovery Phrase',
+      );
+    });
+
+    it('matches invalid mnemonic', () => {
+      expectTitle('Invalid mnemonic: bad word at index 3', 'Invalid Recovery Phrase');
+    });
+  });
+
   describe('password policy errors', () => {
     it('matches password too short', () => {
       expectTitle('Password must be at least 12 characters', 'Password Too Short');

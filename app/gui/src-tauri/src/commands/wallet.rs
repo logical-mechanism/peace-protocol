@@ -28,6 +28,11 @@ pub fn create_wallet(
         ));
     }
 
+    // Validate BIP39 checksum (catches typos in imported mnemonics)
+    bip39::Mnemonic::parse_in_normalized(bip39::Language::English, &mnemonic).map_err(|_| {
+        "Invalid mnemonic: checksum verification failed. Please double-check your recovery phrase for typos.".to_string()
+    })?;
+
     if password.len() < 12 {
         return Err("Password must be at least 12 characters".to_string());
     }
