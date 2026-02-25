@@ -34,6 +34,7 @@ import { saveDecryptedContent, saveContentMetadata } from '../services/contentSt
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
+import { listLibraryItems } from '../services/libraryService'
 import { useDataRefresh } from '../hooks/useDataRefresh'
 import {
   marketplaceReducer, MARKETPLACE_INITIAL,
@@ -107,6 +108,7 @@ export default function Dashboard() {
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
   const [acceptedBidCount, setAcceptedBidCount] = useState(0)
+  const [libraryCount, setLibraryCount] = useState<number | null>(null)
   const [showCreateListing, setShowCreateListing] = useState(false)
   const [showPlaceBid, setShowPlaceBid] = useState(false)
   const [showDecrypt, setShowDecrypt] = useState(false)
@@ -958,6 +960,14 @@ export default function Dashboard() {
         setMyBidsCount(0)
         setAcceptedBidCount(0)
       }
+
+      // Fetch library count (Tauri command, independent of API)
+      try {
+        const items = await listLibraryItems()
+        setLibraryCount(items.length)
+      } catch {
+        setLibraryCount(0)
+      }
     }
 
     fetchStats()
@@ -1239,7 +1249,7 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <button
             onClick={() => setActiveTab('my-sales')}
             className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
@@ -1269,6 +1279,32 @@ export default function Dashboard() {
             <h2 className="text-lg font-medium mb-2">My Bids</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
               {myBidsCount === null ? '...' : `${myBidsCount} pending`}
+            </p>
+          </button>
+          <button
+            onClick={() => setActiveTab('library')}
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+              activeTab === 'library'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+            }`}
+          >
+            <h2 className="text-lg font-medium mb-2">Library</h2>
+            <p className="text-2xl font-semibold text-[var(--accent)]">
+              {libraryCount === null ? '...' : `${libraryCount} ${libraryCount === 1 ? 'item' : 'items'}`}
+            </p>
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+              activeTab === 'history'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+            }`}
+          >
+            <h2 className="text-lg font-medium mb-2">Transactions</h2>
+            <p className="text-2xl font-semibold text-[var(--accent)]">
+              {pendingTxCount > 0 ? `${pendingTxCount} pending` : 'None pending'}
             </p>
           </button>
         </div>
