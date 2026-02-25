@@ -1,5 +1,5 @@
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
-import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
@@ -74,6 +74,27 @@ export default function Dashboard() {
     setActiveTabRaw(tab)
     setLastActiveTab(tab)
   }, [])
+  const tabListRef = useRef<HTMLDivElement>(null)
+  const handleTabKeyDown = useCallback((e: ReactKeyboardEvent) => {
+    const tabIds = TABS.map(t => t.id)
+    const currentIndex = tabIds.indexOf(activeTab)
+    let nextIndex: number | null = null
+    if (e.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabIds.length
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabIds.length) % tabIds.length
+    } else if (e.key === 'Home') {
+      nextIndex = 0
+    } else if (e.key === 'End') {
+      nextIndex = tabIds.length - 1
+    }
+    if (nextIndex !== null) {
+      e.preventDefault()
+      setActiveTab(tabIds[nextIndex])
+      const nextButton = tabListRef.current?.querySelector(`#tab-${tabIds[nextIndex]}`) as HTMLElement
+      nextButton?.focus()
+    }
+  }, [activeTab, setActiveTab])
   // Tab filter state (persisted across tab switches via useReducer at Dashboard level)
   const [marketplaceFilters, marketplaceDispatch] = useReducer(marketplaceReducer, MARKETPLACE_INITIAL)
   const [mySalesFilters, mySalesDispatch] = useReducer(mySalesReducer, MY_SALES_INITIAL)
@@ -1196,12 +1217,15 @@ export default function Dashboard() {
 
         {/* Tabs */}
         <div className="border-b border-[var(--border-subtle)] mb-6">
-          <div className="flex gap-6" role="tablist">
+          <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                id={`tab-${tab.id}`}
                 role="tab"
                 aria-selected={activeTab === tab.id}
+                aria-controls={`tabpanel-${tab.id}`}
+                tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
@@ -1231,9 +1255,16 @@ export default function Dashboard() {
         </div>
 
         {/* Tab Content */}
-        <Suspense fallback={<SkeletonGrid />}>
-          {renderTabContent()}
-        </Suspense>
+        <div
+          id={`tabpanel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${activeTab}`}
+          tabIndex={0}
+        >
+          <Suspense fallback={<SkeletonGrid />}>
+            {renderTabContent()}
+          </Suspense>
+        </div>
       </main>
 
       {/* Scroll to Top Button */}
