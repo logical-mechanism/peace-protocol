@@ -270,7 +270,7 @@ Each item has:
   - **How**: Add a search input at the top of Settings that filters visible settings across all tabs. Match against setting labels and descriptions.
   - **Why**: Settings page has 6+ sections. Users looking for "auto-lock" or "Iagon" shouldn't have to scan every section.
 
-- [ ] **Developer / debug mode toggle**
+- [x] **Developer / debug mode toggle**
   - **How**: Add a hidden debug section (activated by a toggle in an "Advanced" section). Show: verbose logs toggle, process PIDs, config.json contents, localStorage viewer, force-refresh button.
   - **Why**: Power users and developers troubleshooting issues need detailed runtime info without reading Tauri logs.
 
