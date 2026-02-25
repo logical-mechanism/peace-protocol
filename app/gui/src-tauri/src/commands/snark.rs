@@ -87,11 +87,11 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
                 }
             }
             CommandEvent::Error(err) => {
-                manager.clear_snark_pid();
+                manager.clear_snark_pid(pid);
                 return Err(format!("snark process error: {err}"));
             }
             CommandEvent::Terminated(payload) => {
-                manager.clear_snark_pid();
+                manager.clear_snark_pid(pid);
                 if payload.code != Some(0) {
                     let stderr = stderr_lines.join("\n");
                     return Err(format!(
@@ -105,7 +105,7 @@ async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, 
         }
     }
 
-    manager.clear_snark_pid();
+    manager.clear_snark_pid(pid);
     Ok(stdout_lines.join("\n"))
 }
 

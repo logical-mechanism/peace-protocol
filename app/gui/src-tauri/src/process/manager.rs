@@ -107,8 +107,9 @@ pub struct NodeManager {
     processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
     app_handle: tauri::AppHandle,
     pid_file: std::path::PathBuf,
-    /// PID of the currently-running SNARK sidecar (if any), for cleanup on shutdown.
-    snark_pid: std::sync::Mutex<Option<u32>>,
+    /// PIDs of currently-running SNARK sidecars, for cleanup on shutdown.
+    /// Uses Vec to handle concurrent SNARK operations without losing PIDs.
+    snark_pids: std::sync::Mutex<Vec<u32>>,
 }
 
 impl NodeManager {
@@ -123,7 +124,7 @@ impl NodeManager {
             processes: Arc::new(Mutex::new(HashMap::new())),
             app_handle,
             pid_file,
-            snark_pid: std::sync::Mutex::new(None),
+            snark_pids: std::sync::Mutex::new(Vec::new()),
         };
 
         // Kill any orphaned processes from a previous crashed session
@@ -986,9 +987,9 @@ impl NodeManager {
             }
         }
 
-        // Include SNARK prover PID if running
-        if let Ok(guard) = self.snark_pid.lock() {
-            if let Some(pid) = *guard {
+        // Include SNARK prover PIDs if running
+        if let Ok(guard) = self.snark_pids.lock() {
+            for &pid in guard.iter() {
                 if !all_pids.contains(&pid) {
                     all_pids.push(pid);
                 }
@@ -1047,9 +1048,9 @@ impl NodeManager {
             }
         }
 
-        // Include SNARK prover PID if running
-        if let Ok(guard) = self.snark_pid.lock() {
-            if let Some(pid) = *guard {
+        // Include SNARK prover PIDs if running
+        if let Ok(guard) = self.snark_pids.lock() {
+            for &pid in guard.iter() {
                 if !all_pids.contains(&pid) {
                     all_pids.push(pid);
                 }
@@ -1066,16 +1067,24 @@ impl NodeManager {
 
     /// Register a SNARK sidecar PID for cleanup on shutdown.
     pub fn set_snark_pid(&self, pid: u32) {
-        if let Ok(mut guard) = self.snark_pid.lock() {
-            *guard = Some(pid);
+        if let Ok(mut guard) = self.snark_pids.lock() {
+            if !guard.contains(&pid) {
+                guard.push(pid);
+            }
         }
         self.append_pid_to_file(pid);
     }
 
-    /// Clear the SNARK PID after the process exits normally.
-    pub fn clear_snark_pid(&self) {
-        let old_pid = self.snark_pid.lock().ok().and_then(|mut g| g.take());
-        if let Some(pid) = old_pid {
+    /// Remove a specific SNARK PID after the process exits normally.
+    pub fn clear_snark_pid(&self, pid: u32) {
+        let removed = if let Ok(mut guard) = self.snark_pids.lock() {
+            let before = guard.len();
+            guard.retain(|&p| p != pid);
+            guard.len() < before
+        } else {
+            false
+        };
+        if removed {
             self.remove_pid_from_file(pid);
         }
     }
@@ -1294,5 +1303,38 @@ mod tests {
     #[test]
     fn log_buffer_size_constant() {
         assert_eq!(LOG_BUFFER_SIZE, 500);
+    }
+
+    #[test]
+    fn snark_pids_vec_tracks_multiple() {
+        let pids: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+        // Add two PIDs
+        pids.lock().unwrap().push(100);
+        pids.lock().unwrap().push(200);
+        assert_eq!(*pids.lock().unwrap(), vec![100, 200]);
+
+        // Remove first PID, second remains
+        pids.lock().unwrap().retain(|&p| p != 100);
+        assert_eq!(*pids.lock().unwrap(), vec![200]);
+
+        // Remove second PID
+        pids.lock().unwrap().retain(|&p| p != 200);
+        assert!(pids.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn snark_pids_dedup_on_insert() {
+        let pids: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+        let mut guard = pids.lock().unwrap();
+        let pid = 100u32;
+        if !guard.contains(&pid) {
+            guard.push(pid);
+        }
+        if !guard.contains(&pid) {
+            guard.push(pid);
+        }
+        assert_eq!(guard.len(), 1);
     }
 }
