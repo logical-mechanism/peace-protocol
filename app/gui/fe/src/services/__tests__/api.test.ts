@@ -223,12 +223,23 @@ describe('chainApi', () => {
 describe('checkHealth', () => {
   it('calls /health and returns response directly', async () => {
     mockFetch.mockResolvedValue(
-      okResponse({ status: 'ok', network: 'preprod', useStubs: false, timestamp: '2025-01-01' })
+      okResponse({
+        status: 'healthy',
+        uptimeSeconds: 42,
+        kupo: { reachable: true, latencyMs: 10, lastSuccess: '2025-01-01T00:00:00.000Z' },
+        koios: { reachable: true, latencyMs: 20, lastSuccess: '2025-01-01T00:00:00.000Z' },
+        network: 'preprod',
+        useStubs: false,
+        timestamp: '2025-01-01',
+      })
     );
     const { checkHealth } = await loadApi();
 
     const result = await checkHealth();
-    expect(result.status).toBe('ok');
+    expect(result.status).toBe('healthy');
+    expect(result.uptimeSeconds).toBe(42);
+    expect(result.kupo.reachable).toBe(true);
+    expect(result.koios.reachable).toBe(true);
   });
 });
 

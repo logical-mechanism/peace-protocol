@@ -9,7 +9,11 @@ vi.mock('../../config/index.js', () => ({
     nodeEnv: 'test',
     cors: { origins: ['*'] },
   },
-  getNetworkConfig: vi.fn(),
+  getNetworkConfig: vi.fn(() => ({
+    kupoUrl: 'http://127.0.0.1:1442',
+    koiosUrl: 'https://preprod.koios.rest/api/v1',
+    koiosToken: '',
+  })),
 }));
 
 vi.mock('../../stubs/index.js', () => ({
@@ -46,17 +50,64 @@ vi.mock('../../services/koios.js', () => ({
   })),
 }));
 
+vi.mock('../../services/health.js', () => ({
+  getHealthStatus: vi.fn(),
+}));
+
+import { getHealthStatus } from '../../services/health.js';
+
 const app = createApp();
 
 describe('GET /health', () => {
-  it('returns health status', async () => {
+  it('returns health status from service', async () => {
+    (getHealthStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: 'healthy',
+      uptimeSeconds: 42,
+      kupo: { reachable: true, latencyMs: 10, lastSuccess: '2025-01-01T00:00:00.000Z' },
+      koios: { reachable: true, latencyMs: 20, lastSuccess: '2025-01-01T00:00:00.000Z' },
+      network: 'preprod',
+      useStubs: false,
+      timestamp: '2025-01-01T00:00:00.000Z',
+    });
+
     const res = await request(app).get('/health');
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('ok');
+    expect(res.body.status).toBe('healthy');
     expect(res.body.network).toBe('preprod');
     expect(res.body.useStubs).toBe(false);
+    expect(res.body.uptimeSeconds).toBe(42);
+    expect(res.body.kupo.reachable).toBe(true);
+    expect(res.body.koios.reachable).toBe(true);
     expect(res.body.timestamp).toBeDefined();
+  });
+
+  it('returns degraded status', async () => {
+    (getHealthStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: 'degraded',
+      uptimeSeconds: 10,
+      kupo: { reachable: false, latencyMs: 0, lastSuccess: null, error: 'ECONNREFUSED' },
+      koios: { reachable: true, latencyMs: 15, lastSuccess: '2025-01-01T00:00:00.000Z' },
+      network: 'preprod',
+      useStubs: false,
+      timestamp: '2025-01-01T00:00:00.000Z',
+    });
+
+    const res = await request(app).get('/health');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('degraded');
+    expect(res.body.kupo.reachable).toBe(false);
+    expect(res.body.koios.reachable).toBe(true);
+  });
+
+  it('returns 200 even when health service throws', async () => {
+    (getHealthStatus as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('crash'));
+
+    const res = await request(app).get('/health');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('unhealthy');
   });
 });
 

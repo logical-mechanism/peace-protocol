@@ -3,6 +3,7 @@ import cors from 'cors';
 import { config } from './config/index.js';
 import { logger } from './services/logger.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { getHealthStatus } from './services/health.js';
 import routes from './routes/index.js';
 
 export function createApp() {
@@ -22,14 +23,22 @@ export function createApp() {
     })
   );
 
-  // Health check endpoint
-  app.get('/health', (_req: Request, res: Response) => {
-    res.json({
-      status: 'ok',
-      network: config.network,
-      useStubs: config.useStubs,
-      timestamp: new Date().toISOString(),
-    });
+  // Health check endpoint — always returns 200 (Rust health_check expects 2xx)
+  app.get('/health', async (_req: Request, res: Response) => {
+    try {
+      const health = await getHealthStatus(config.network, config.useStubs);
+      res.json(health);
+    } catch {
+      res.json({
+        status: 'unhealthy',
+        uptimeSeconds: 0,
+        kupo: { reachable: false, latencyMs: 0, lastSuccess: null },
+        koios: { reachable: false, latencyMs: 0, lastSuccess: null },
+        network: config.network,
+        useStubs: config.useStubs,
+        timestamp: new Date().toISOString(),
+      });
+    }
   });
 
   // API routes

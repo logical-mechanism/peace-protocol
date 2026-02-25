@@ -322,11 +322,23 @@ export const chainApi = {
 };
 
 // Health check
-export async function checkHealth(): Promise<{
-  status: string;
+export interface DependencyHealth {
+  reachable: boolean;
+  latencyMs: number;
+  lastSuccess: string | null;
+  error?: string;
+}
+
+export interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  uptimeSeconds: number;
+  kupo: DependencyHealth;
+  koios: DependencyHealth;
   network: string;
   useStubs: boolean;
   timestamp: string;
-}> {
+}
+
+export async function checkHealth(): Promise<HealthStatus> {
   return apiFetch('/health');
 }
