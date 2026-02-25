@@ -360,7 +360,7 @@ Each item has:
   - **How**: Add a `dev:be:watch` script using `tsx watch` or `nodemon` with `tsc --watch`. In `dev:all`, run the watcher alongside Vite. Alternative: use `concurrently` to run `tsc --watch` in the background.
   - **Why**: Currently every backend TS change requires a manual `cd be && npm run build`. This is the #1 DX friction point.
 
-- [ ] **Remove `--debug` flag from production build**
+- [x] **Remove `--debug` flag from production build**
   - **How**: Change `build.sh` line 10 from `npx tauri build --debug` to `npx tauri build`. Add a separate `build-debug.sh` for debug builds.
   - **Why**: `--debug` produces an unoptimized binary with debug symbols. Production builds should be optimized.
 
@@ -398,7 +398,7 @@ Each item has:
   - **How**: Koios supports batch transaction queries. Replace the serial per-UTxO `fetchCip20Metadata()` loop in `encryptions.ts` with a single batch request for all tx hashes. Use `POST /api/v1/tx_metadata` with multiple hashes.
   - **Why**: N+1 query problem. With 50 listings, the current code makes 50 sequential HTTP requests. A batch call reduces this to 1.
 
-- [ ] **Retry with exponential backoff for Kupo/Koios**
+- [x] **Retry with exponential backoff for Kupo/Koios**
   - **How**: Create a `fetchWithRetry(url, maxRetries=3, baseDelay=1000)` wrapper. On failure, retry with 1s, 2s, 4s delays. Use for all Kupo and Koios HTTP calls.
   - **Why**: Transient network errors (Kupo restart, Koios rate limit) cause immediate request failures. Retry logic handles brief outages transparently.
 
@@ -440,7 +440,7 @@ Each item has:
   - **How**: In `wallet.rs`, use the `zeroize` crate. Wrap key material in `Zeroizing<[u8; 32]>`. This automatically zeros memory on drop, including error paths.
   - **Why**: If argon2 hashing or AES encryption fails, the partially-derived key sits in memory until garbage collected. Zeroization prevents key material leaking.
 
-- [ ] **SNARK PID race condition fix**
+- [x] **SNARK PID race condition fix**
   - **How**: Allow tracking multiple SNARK PIDs using a `Vec<u32>` behind `Arc<Mutex<>>` instead of a single `Option<u32>`. Add all spawned PIDs. On cleanup, kill all tracked PIDs.
   - **Why**: If a user starts a second SNARK proof before the first finishes, the first PID is overwritten and never cleaned up on shutdown.
 

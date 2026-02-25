@@ -1,4 +1,5 @@
 import { getNetworkConfig } from '../config/index.js';
+import { fetchWithRetry } from './fetchWithRetry.js';
 
 interface KoiosUtxo {
   tx_hash: string;
@@ -63,7 +64,7 @@ class KoiosClient {
       headers['Authorization'] = `Bearer ${this.authToken}`;
     }
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       ...options,
       headers: {
         ...headers,
