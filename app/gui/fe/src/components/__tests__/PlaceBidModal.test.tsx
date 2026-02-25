@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import PlaceBidModal from '../PlaceBidModal';
+import { ModalProvider } from '../../contexts/ModalContext';
 import type { EncryptionDisplay } from '../../services/api';
 
 const mockOnClose = vi.fn();
@@ -26,13 +27,15 @@ beforeEach(() => {
 
 function renderModal(overrides: Partial<Parameters<typeof PlaceBidModal>[0]> = {}) {
   return render(
-    <PlaceBidModal
-      isOpen={true}
-      onClose={mockOnClose}
-      onSubmit={mockOnSubmit}
-      encryption={baseEncryption}
-      {...overrides}
-    />
+    <ModalProvider>
+      <PlaceBidModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        encryption={baseEncryption}
+        {...overrides}
+      />
+    </ModalProvider>
   );
 }
 
@@ -160,22 +163,26 @@ describe('PlaceBidModal', () => {
 
   it('resets form when reopened', () => {
     const { rerender } = render(
-      <PlaceBidModal
-        isOpen={false}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-        encryption={baseEncryption}
-      />
+      <ModalProvider>
+        <PlaceBidModal
+          isOpen={false}
+          onClose={mockOnClose}
+          onSubmit={mockOnSubmit}
+          encryption={baseEncryption}
+        />
+      </ModalProvider>
     );
 
     // Open the modal
     rerender(
-      <PlaceBidModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-        encryption={baseEncryption}
-      />
+      <ModalProvider>
+        <PlaceBidModal
+          isOpen={true}
+          onClose={mockOnClose}
+          onSubmit={mockOnSubmit}
+          encryption={baseEncryption}
+        />
+      </ModalProvider>
     );
 
     const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;

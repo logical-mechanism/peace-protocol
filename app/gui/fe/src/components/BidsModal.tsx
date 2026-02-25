@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
 import EmptyState from './EmptyState';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface BidsModalProps {
   isOpen: boolean;
@@ -19,21 +19,8 @@ export default function BidsModal({
   bids,
   onAcceptBid,
 }: BidsModalProps) {
-  // Handle escape key to close
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('bids', isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -69,7 +56,8 @@ export default function BidsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="bids-modal-title"

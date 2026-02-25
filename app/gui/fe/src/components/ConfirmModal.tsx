@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { truncateDescription } from './descriptionUtils';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -25,24 +25,8 @@ export default function ConfirmModal({
   confirmVariant = 'danger',
   loading = false,
 }: ConfirmModalProps) {
-  // Escape key + body scroll lock
-  useEffect(() => {
-    if (!isOpen) return;
-
-    document.body.style.overflow = 'hidden';
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loading) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, loading, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('confirm', isOpen, onClose, loading);
 
   if (!isOpen) return null;
 
@@ -53,7 +37,8 @@ export default function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-modal-title"

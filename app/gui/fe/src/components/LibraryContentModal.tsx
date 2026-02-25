@@ -3,6 +3,7 @@ import type { LibraryItem } from '../services/libraryService';
 import { readLibraryContent, deleteLibraryItem, exportLibraryContent } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
+import { useModalStack } from '../hooks/useModalStack';
 import ConfirmModal from './ConfirmModal';
 import LoadingSpinner from './LoadingSpinner';
 import Badge from './Badge';
@@ -194,23 +195,8 @@ export default function LibraryContentModal({
     return () => { cancelled = true; };
   }, [isOpen, item]);
 
-  // Effect 2: Escape key handler + body scroll lock
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !deleting && !confirmingDelete) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, deleting, confirmingDelete, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
 
   const handleCopy = useCallback(async () => {
     if (!textContent) return;
@@ -266,7 +252,7 @@ export default function LibraryContentModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
         {/* Backdrop */}
         <div
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"

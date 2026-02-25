@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -58,21 +59,8 @@ export default function PlaceBidModal({
     }
   }, [isOpen, encryption?.suggestedPrice]);
 
-  // Handle escape key to close (separate effect to avoid resetting form)
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSubmitting) {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, isSubmitting, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('place-bid', isOpen, onClose, isSubmitting);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -151,7 +139,8 @@ export default function PlaceBidModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="place-bid-title"

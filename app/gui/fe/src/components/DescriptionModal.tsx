@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { truncateHex } from '../utils/truncate';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface DescriptionModalProps {
   isOpen: boolean;
@@ -14,26 +14,13 @@ export default function DescriptionModal({
   description,
   tokenName,
 }: DescriptionModalProps) {
-  // Handle escape key to close
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+  // Stack-aware Escape key + body scroll lock
+  const { zIndex } = useModalStack('description', isOpen, onClose);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"

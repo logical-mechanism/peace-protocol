@@ -184,7 +184,7 @@ Each item has:
   - **How**: Create a `useDataRefresh()` hook that manages a single refresh trigger, debounced polling interval, and manual refresh button. Replace the current mix of `refreshKey`, `historyKey`, escalating `setTimeout`s, and `setInterval`s.
   - **Why**: Current refresh logic is scattered across multiple mechanisms. A single orchestrator is easier to reason about and debug.
 
-- [ ] **Modal stacking management**
+- [x] **Modal stacking management**
   - **How**: Create a `ModalProvider` context that tracks open modals in a stack. Enforce only one modal at a time (or allow stacking with proper z-index management). Prevent duplicate opens.
   - **Why**: If two modals trigger simultaneously (e.g., bid notification toast + user opens create listing), behavior is undefined. A modal stack prevents conflicts.
 

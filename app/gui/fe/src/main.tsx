@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { WalletProvider } from './contexts/WalletContext'
 import { NodeProvider } from './contexts/NodeContext'
 import { WasmProvider } from './contexts/WasmContext'
+import { ModalProvider } from './contexts/ModalContext'
 import './index.css'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')!).render(
         <NodeProvider>
           <WasmProvider>
             <BrowserRouter>
-              <App />
+              <ModalProvider>
+                <App />
+              </ModalProvider>
             </BrowserRouter>
           </WasmProvider>
         </NodeProvider>
