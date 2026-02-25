@@ -322,7 +322,7 @@ Each item has:
   - **How**: Create `be/src/routes/__tests__/` with tests for each route group. Use `supertest` to make HTTP requests against the Express app. Mock `kupo.ts` and `koios.ts` to return known responses.
   - **Why**: Zero backend routes are tested. Any refactor could break API contracts silently.
 
-- [ ] **Test React contexts (WalletContext, NodeContext, WasmContext)**
+- [x] **Test React contexts (WalletContext, NodeContext, WasmContext)**
   - **How**: Use `@testing-library/react` `renderHook` to test context state transitions. Mock Tauri invoke for wallet operations and node status polling. Verify lifecycle: loading -> no_wallet -> locked -> unlocked.
   - **Why**: Contexts orchestrate all app state. Testing transitions catches regressions in authentication and sync flows.
 
