@@ -214,7 +214,7 @@ Each item has:
   - **How**: Add a `'most-bids'` sort option. This requires fetching bids alongside encryptions (already done in `fetchEncryptions`) and computing bid count per encryption token. Sort descending by count.
   - **Why**: Popular listings (with many bids) signal market interest and help buyers discover high-demand content.
 
-- [ ] **Favorites / bookmarks**
+- [x] **Favorites / bookmarks**
   - **How**: Add a star/heart icon on EncryptionCard. Store favorited token names in localStorage (keyed by wallet PKH). Add a "Favorites" filter toggle in the toolbar. Show favorited count as a badge.
   - **Why**: Users browsing the marketplace find interesting listings but aren't ready to bid. Favorites let them save and return later.
 
@@ -288,7 +288,7 @@ Each item has:
 
 > Key files: `fe/src/contexts/WalletContext.tsx`, `fe/src/services/autolock.ts`, `fe/src/pages/Settings.tsx`
 
-- [ ] **Session timeout warning countdown**
+- [x] **Session timeout warning countdown**
   - **How**: When auto-lock timer is within 60 seconds of expiring, show a sticky toast: "Session expires in X seconds. [Extend]". Clicking "Extend" resets the inactivity timer. Use `autolock.ts` timer value.
   - **Why**: Auto-lock happens silently. Users in the middle of reviewing a listing lose their context. A warning gives them a chance to extend.
 

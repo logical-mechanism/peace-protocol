@@ -7,6 +7,7 @@ import EmptyState, { PackageIcon } from './EmptyState';
 import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
 import { FILE_CATEGORIES } from '../config/categories';
+import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids';
@@ -32,6 +33,8 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
   const [searchQuery, setSearchQuery] = useState('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const fetchEncryptions = useCallback(async () => {
     setLoading(true);
@@ -67,6 +70,30 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
     fetchEncryptions();
   }, [fetchEncryptions]);
 
+  // Load favorites from localStorage when user changes
+  useEffect(() => {
+    if (userPkh) {
+      setFavorites(getFavorites(userPkh));
+    }
+  }, [userPkh]);
+
+  const handleToggleFavorite = useCallback(
+    (tokenName: string) => {
+      if (!userPkh) return;
+      const isNowFavorite = toggleFavorite(userPkh, tokenName);
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (isNowFavorite) {
+          next.add(tokenName);
+        } else {
+          next.delete(tokenName);
+        }
+        return next;
+      });
+    },
+    [userPkh]
+  );
+
   // Pre-compute pending bid counts per encryption token
   const bidCountMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -95,6 +122,11 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
     // Filter by category
     if (categoryFilter !== 'all') {
       result = result.filter((e) => (e.category || 'text') === categoryFilter);
+    }
+
+    // Filter by favorites
+    if (showFavoritesOnly) {
+      result = result.filter((e) => favorites.has(e.tokenName));
     }
 
     // Filter by price range
@@ -140,7 +172,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
     }
 
     return result;
-  }, [encryptions, statusFilter, categoryFilter, priceMin, priceMax, searchQuery, sortBy, getBidCount]);
+  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, searchQuery, sortBy, getBidCount]);
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
@@ -273,6 +305,23 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
             <option value="most-bids">Most Bids</option>
           </select>
 
+          {/* Favorites Toggle */}
+          <button
+            onClick={() => setShowFavoritesOnly((prev) => !prev)}
+            className={`px-3 py-2 border rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+              showFavoritesOnly
+                ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                : 'bg-[var(--bg-secondary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+            }`}
+            title={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
+            aria-label={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
+            aria-pressed={showFavoritesOnly}
+          >
+            <svg className="w-4 h-4" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </button>
+
           {/* View Toggle */}
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
@@ -343,7 +392,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
 
       {/* Content */}
       {filteredAndSorted.length === 0 ? (
-        searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || priceMin !== '' || priceMax !== '' ? (
+        searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || priceMin !== '' || priceMax !== '' || showFavoritesOnly ? (
           <EmptyState
             illustration={<NoResultsIllustration />}
             title="No matching listings"
@@ -356,6 +405,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
                   setCategoryFilter('all');
                   setPriceMin('');
                   setPriceMax('');
+                  setShowFavoritesOnly(false);
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >
@@ -382,6 +432,8 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
               initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
               bidCount={getBidCount(encryption.tokenName)}
+              isFavorite={favorites.has(encryption.tokenName)}
+              onToggleFavorite={handleToggleFavorite}
             />
           ))}
         </div>
@@ -398,6 +450,8 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
               initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
               bidCount={getBidCount(encryption.tokenName)}
+              isFavorite={favorites.has(encryption.tokenName)}
+              onToggleFavorite={handleToggleFavorite}
             />
           ))}
         </div>
