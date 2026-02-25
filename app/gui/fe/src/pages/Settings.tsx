@@ -19,6 +19,7 @@ import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../s
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
+import { getLogLineClass } from '../utils/logClassification'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -93,6 +94,14 @@ export default function Settings() {
   const [selectedProcess, setSelectedProcess] = useState<string>('cardano-node')
   const [processLogs, setProcessLogs] = useState<ProcessLog | null>(null)
   const [logsLoading, setLogsLoading] = useState(false)
+  const [logSearchQuery, setLogSearchQuery] = useState('')
+
+  const filteredLogLines = useMemo(() => {
+    if (!processLogs?.lines.length) return []
+    if (!logSearchQuery.trim()) return processLogs.lines
+    const query = logSearchQuery.toLowerCase()
+    return processLogs.lines.filter(line => line.toLowerCase().includes(query))
+  }, [processLogs, logSearchQuery])
 
   // Developer debug mode
   const [debugMode, setDebugMode] = useState(() => localStorage.getItem('veiled_debug_mode') === 'true')
@@ -1212,7 +1221,7 @@ export default function Settings() {
                 {['cardano-node', 'ogmios', 'kupo', 'express', 'mithril-client'].map((name) => (
                   <button
                     key={name}
-                    onClick={() => setSelectedProcess(name)}
+                    onClick={() => { setSelectedProcess(name); setLogSearchQuery('') }}
                     className={`px-3 py-1.5 text-xs font-mono rounded-[var(--radius-md)] transition-colors cursor-pointer ${
                       selectedProcess === name
                         ? 'bg-[var(--accent)] text-white'
@@ -1224,24 +1233,36 @@ export default function Settings() {
                 ))}
               </div>
 
+              {/* Log Search */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={logSearchQuery}
+                  onChange={(e) => setLogSearchQuery(e.target.value)}
+                  placeholder="Search logs..."
+                  className="w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+                />
+                {logSearchQuery && (
+                  <div className="mt-1 text-xs text-[var(--text-muted)]">
+                    {filteredLogLines.length} of {processLogs?.lines.length ?? 0} lines match
+                  </div>
+                )}
+              </div>
+
               {/* Log Output */}
               <div className="bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-4 font-mono text-xs max-h-96 overflow-y-auto">
-                {processLogs?.lines.length ? (
-                  processLogs.lines.map((line, i) => (
+                {filteredLogLines.length ? (
+                  filteredLogLines.map((line, i) => (
                     <div
                       key={i}
-                      className={`py-0.5 break-all ${
-                        line.startsWith('[stderr]')
-                          ? 'text-[var(--warning)]'
-                          : 'text-[var(--text-secondary)]'
-                      }`}
+                      className={`py-0.5 break-all ${getLogLineClass(line)}`}
                     >
                       {line}
                     </div>
                   ))
                 ) : (
                   <p className="text-[var(--text-muted)]">
-                    {logsLoading ? 'Loading logs...' : 'No logs available'}
+                    {logsLoading ? 'Loading logs...' : logSearchQuery ? 'No matching lines' : 'No logs available'}
                   </p>
                 )}
               </div>

@@ -106,7 +106,7 @@ Each item has:
   - **How**: In `manager.rs`, add random jitter (±20%) to the exponential backoff delay. Use `rand::thread_rng().gen_range(0.8..1.2)` as a multiplier on the delay. This prevents all processes from retrying simultaneously.
   - **Why**: If the system is under load, synchronized restarts (all at exactly 2s, then 4s, then 8s) create thundering herd pressure that makes recovery harder.
 
-- [ ] **Process log search and filtering**
+- [x] **Process log search and filtering**
   - **How**: In the Settings page process logs viewer, add a text input that filters log lines by substring match. Use `lines.filter(line => line.toLowerCase().includes(query))`. Add log level coloring (ERROR=red, WARN=yellow).
   - **Why**: Scrolling through 500 raw log lines to find an error is painful. A search box instantly surfaces relevant entries.
 
