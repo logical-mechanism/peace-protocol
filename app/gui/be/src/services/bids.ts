@@ -1,4 +1,5 @@
 import { getNetworkConfig } from '../config/index.js';
+import { apiCache } from './cache.js';
 import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
@@ -68,8 +69,14 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum, cip20: ParsedBidCip2
   };
 }
 
+const CACHE_KEY_ALL_BIDS = 'all_bids';
+
 /** Fetch all bid UTxOs from Kupo and enrich with CIP-20 metadata (batch). */
-export async function getAllBids(): Promise<BidDisplay[]> {
+export async function getAllBids(skipCache = false): Promise<BidDisplay[]> {
+  if (!skipCache) {
+    const cached = apiCache.get<BidDisplay[]>(CACHE_KEY_ALL_BIDS);
+    if (cached) return cached;
+  }
   const { contracts } = getNetworkConfig();
   const kupo = getKupoClient();
   const koios = getKoiosClient();
@@ -104,6 +111,7 @@ export async function getAllBids(): Promise<BidDisplay[]> {
     bids.push(utxoToBidDisplay(utxo, datum, cip20));
   }
 
+  apiCache.set(CACHE_KEY_ALL_BIDS, bids);
   return bids;
 }
 

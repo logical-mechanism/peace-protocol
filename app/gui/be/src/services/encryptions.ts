@@ -1,4 +1,5 @@
 import { getNetworkConfig } from '../config/index.js';
+import { apiCache } from './cache.js';
 import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
@@ -106,8 +107,14 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
   };
 }
 
+const CACHE_KEY_ALL_ENCRYPTIONS = 'all_encryptions';
+
 /** Fetch all encryption UTxOs from Kupo and enrich with CIP-20 metadata (batch). */
-export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
+export async function getAllEncryptions(skipCache = false): Promise<EncryptionDisplay[]> {
+  if (!skipCache) {
+    const cached = apiCache.get<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
+    if (cached) return cached;
+  }
   const { contracts } = getNetworkConfig();
   const kupo = getKupoClient();
   const koios = getKoiosClient();
@@ -142,6 +149,7 @@ export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
     encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
   }
 
+  apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
   return encryptions;
 }
 

@@ -390,7 +390,7 @@ Each item has:
 
 > Key files: `be/src/services/`, `be/src/routes/`, `be/src/index.ts`
 
-- [ ] **Response caching with TTL**
+- [x] **Response caching with TTL**
   - **How**: Add a simple in-memory cache (Map with TTL) for `getAllEncryptions()` and `getAllBids()`. Cache for 10-30 seconds. Invalidate on manual refresh. Consider `node-cache` or a simple custom implementation.
   - **Why**: Every API request re-fetches all UTxOs from Kupo and metadata from Koios. With 100 UTxOs, that's 100+ HTTP calls per request. Caching reduces load by 95%+ for repeated requests.
 

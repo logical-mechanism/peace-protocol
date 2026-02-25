@@ -17,7 +17,7 @@ const router = Router();
  * GET /api/bids
  * List all bids
  */
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     if (config.useStubs) {
       const response: ApiResponse<BidDisplay[]> = {
@@ -27,7 +27,8 @@ router.get('/', async (_req: Request, res: Response) => {
       return res.json(response);
     }
 
-    const bids = await getAllBids();
+    const skipCache = req.query.refresh === 'true';
+    const bids = await getAllBids(skipCache);
     return res.json({
       data: bids,
       meta: { total: bids.length },

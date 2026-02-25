@@ -17,7 +17,7 @@ const router = Router();
  * GET /api/encryptions
  * List all encryptions
  */
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     if (config.useStubs) {
       const response: ApiResponse<EncryptionDisplay[]> = {
@@ -27,7 +27,8 @@ router.get('/', async (_req: Request, res: Response) => {
       return res.json(response);
     }
 
-    const encryptions = await getAllEncryptions();
+    const skipCache = req.query.refresh === 'true';
+    const encryptions = await getAllEncryptions(skipCache);
     return res.json({
       data: encryptions,
       meta: { total: encryptions.length },
