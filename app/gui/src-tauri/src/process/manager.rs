@@ -1217,7 +1217,7 @@ impl NodeManager {
         app_handle: tauri::AppHandle,
         pid_file: std::path::PathBuf,
     ) {
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
             loop {
                 interval.tick().await;
