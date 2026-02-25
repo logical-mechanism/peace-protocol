@@ -15,6 +15,7 @@ import {
   toCSV,
 } from '../services/transactionHistory';
 import { exportTextFile } from '../services/fileExport';
+import type { HistoryFilters, HistoryAction } from '../hooks/useTabFilterState';
 
 const ALL_TX_TYPES: TransactionType[] = [
   'create-listing', 'remove-listing', 'place-bid', 'cancel-bid',
@@ -36,6 +37,8 @@ interface HistoryTabProps {
   onHistoryUpdated?: (records: TransactionRecord[]) => void;
   onRetryListing?: (draftId: string) => void;
   historySignal?: number;
+  filters: HistoryFilters;
+  dispatch: React.Dispatch<HistoryAction>;
 }
 
 export default function HistoryTab({
@@ -45,11 +48,11 @@ export default function HistoryTab({
   onHistoryUpdated,
   onRetryListing,
   historySignal,
+  filters,
+  dispatch,
 }: HistoryTabProps) {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'failed'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>('all');
-  const [dateRange, setDateRange] = useState<DateRange>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  // Destructure filter state from Dashboard-level reducer
+  const { statusFilter, typeFilter, dateRange, searchQuery } = filters;
   const [allRecords, setAllRecords] = useState<TransactionRecord[]>(transactions);
   const [loading, setLoading] = useState(true);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -294,7 +297,7 @@ export default function HistoryTab({
             type="text"
             placeholder="Search by tx hash, description, or token..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search transaction history"
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
@@ -305,7 +308,7 @@ export default function HistoryTab({
           {/* Status filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as HistoryFilters['statusFilter'] })}
             aria-label="Filter by status"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -318,7 +321,7 @@ export default function HistoryTab({
           {/* Type filter */}
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+            onChange={(e) => dispatch({ type: 'SET_TYPE', payload: e.target.value as HistoryFilters['typeFilter'] })}
             aria-label="Filter by type"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -331,7 +334,7 @@ export default function HistoryTab({
           {/* Date range filter */}
           <select
             value={dateRange}
-            onChange={(e) => setDateRange(e.target.value as DateRange)}
+            onChange={(e) => dispatch({ type: 'SET_DATE_RANGE', payload: e.target.value as HistoryFilters['dateRange'] })}
             aria-label="Filter by date range"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >

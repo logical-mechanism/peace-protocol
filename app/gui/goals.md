@@ -164,7 +164,7 @@ Each item has:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, tab components in `fe/src/components/`
 
-- [ ] **Persist tab filter/sort/search state across tab switches**
+- [x] **Persist tab filter/sort/search state across tab switches**
   - **How**: Move each tab's filter state (search query, sort option, status filter, category filter, view mode) into a context or `useReducer` at the Dashboard level. Pass state + dispatch to each tab. Alternatively, use `useSearchParams` from React Router to persist in the URL.
   - **Why**: Switching from Marketplace to MySales and back resets all filters. Users lose their search context and must re-apply filters every time.
 

@@ -7,10 +7,7 @@ import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
-
-type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids';
-type StatusFilter = 'all' | 'active' | 'pending' | 'completed';
+import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
 
 interface MySalesTabProps {
   userPkh?: string;
@@ -21,6 +18,8 @@ interface MySalesTabProps {
   onCreateListing?: () => void;
   onBidsViewed?: (encryptionTokenName: string) => void;
   refreshSignal?: number;
+  filters: MySalesFilters;
+  dispatch: React.Dispatch<MySalesAction>;
 }
 
 export default function MySalesTab({
@@ -32,16 +31,17 @@ export default function MySalesTab({
   onCreateListing,
   onBidsViewed,
   refreshSignal,
+  filters,
+  dispatch,
 }: MySalesTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Destructure filter state from Dashboard-level reducer
+  const { viewMode, sortBy, statusFilter, searchQuery } = filters;
 
   // Modal state
   const [selectedListing, setSelectedListing] = useState<EncryptionDisplay | null>(null);
@@ -282,7 +282,7 @@ export default function MySalesTab({
             type="text"
             placeholder="Search by token or description..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search sales"
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
@@ -293,7 +293,7 @@ export default function MySalesTab({
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MySalesFilters['statusFilter'] })}
             aria-label="Filter by status"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -306,7 +306,7 @@ export default function MySalesTab({
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MySalesFilters['sortBy'] })}
             aria-label="Sort listings"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -320,7 +320,7 @@ export default function MySalesTab({
           {/* View Toggle */}
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -340,7 +340,7 @@ export default function MySalesTab({
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -396,8 +396,8 @@ export default function MySalesTab({
             action={
               <button
                 onClick={() => {
-                  setSearchQuery('');
-                  setStatusFilter('all');
+                  dispatch({ type: 'SET_SEARCH', payload: '' });
+                  dispatch({ type: 'SET_STATUS', payload: 'all' });
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >

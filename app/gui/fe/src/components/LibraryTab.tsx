@@ -8,23 +8,21 @@ import { deleteLibraryItem } from '../services/libraryService';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
-
-type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc';
-type CategoryFilter = string; // 'all' or a category id
+import type { LibraryFilters, LibraryAction } from '../hooks/useTabFilterState';
 
 interface LibraryTabProps {
   refreshSignal?: number;
+  filters: LibraryFilters;
+  dispatch: React.Dispatch<LibraryAction>;
 }
 
-export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
+export default function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Destructure filter state from Dashboard-level reducer
+  const { viewMode, sortBy, categoryFilter, searchQuery } = filters;
 
   // Modal state
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
@@ -203,7 +201,7 @@ export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
             type="text"
             placeholder="Search by token, description, or seller..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search library"
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
@@ -214,7 +212,7 @@ export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
           {/* Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
             aria-label="Filter by category"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -229,7 +227,7 @@ export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as LibraryFilters['sortBy'] })}
             aria-label="Sort items"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -242,7 +240,7 @@ export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
           {/* View Toggle */}
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -262,7 +260,7 @@ export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -318,8 +316,8 @@ export default function LibraryTab({ refreshSignal }: LibraryTabProps) {
             action={
               <button
                 onClick={() => {
-                  setSearchQuery('');
-                  setCategoryFilter('all');
+                  dispatch({ type: 'SET_SEARCH', payload: '' });
+                  dispatch({ type: 'SET_CATEGORY', payload: 'all' });
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >

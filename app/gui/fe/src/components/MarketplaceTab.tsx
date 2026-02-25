@@ -8,35 +8,27 @@ import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStat
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
 import { FILE_CATEGORIES } from '../config/categories';
 import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
-
-type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids';
-type StatusFilter = 'all' | 'active' | 'pending';
-type CategoryFilter = 'all' | string;
+import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 
 interface MarketplaceTabProps {
   userPkh?: string;
   onPlaceBid?: (encryption: EncryptionDisplay) => void;
   refreshSignal?: number;
+  filters: MarketplaceFilters;
+  dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: MarketplaceTabProps) {
+export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [priceMin, setPriceMin] = useState('');
-  const [priceMax, setPriceMax] = useState('');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+
+  // Destructure filter state from Dashboard-level reducer
+  const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
 
   const fetchEncryptions = useCallback(async () => {
     setLoading(true);
@@ -197,11 +189,6 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
   // Pagination
   const ITEMS_PER_PAGE = 20;
 
-  // Reset to page 1 when any filter/sort changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, statusFilter, categoryFilter, sortBy, priceMin, priceMax, showFavoritesOnly]);
-
   const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / ITEMS_PER_PAGE));
 
   const paginatedResults = useMemo(() => {
@@ -262,7 +249,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
             type="text"
             placeholder="Search by token, seller, or description..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search listings"
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
@@ -273,7 +260,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MarketplaceFilters['statusFilter'] })}
             aria-label="Filter by status"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -285,7 +272,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
           {/* Category Filter */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+            onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
             aria-label="Filter by category"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -302,7 +289,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
               min="0"
               placeholder="Min"
               value={priceMin}
-              onChange={(e) => setPriceMin(e.target.value)}
+              onChange={(e) => dispatch({ type: 'SET_PRICE_MIN', payload: e.target.value })}
               aria-label="Minimum price in ADA"
               className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
@@ -312,7 +299,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
               min="0"
               placeholder="Max"
               value={priceMax}
-              onChange={(e) => setPriceMax(e.target.value)}
+              onChange={(e) => dispatch({ type: 'SET_PRICE_MAX', payload: e.target.value })}
               aria-label="Maximum price in ADA"
               className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
@@ -321,7 +308,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MarketplaceFilters['sortBy'] })}
             aria-label="Sort listings"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
@@ -334,7 +321,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
 
           {/* Favorites Toggle */}
           <button
-            onClick={() => setShowFavoritesOnly((prev) => !prev)}
+            onClick={() => dispatch({ type: 'SET_FAVORITES_ONLY', payload: !showFavoritesOnly })}
             className={`px-3 py-2 border rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
               showFavoritesOnly
                 ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
@@ -352,7 +339,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
           {/* View Toggle */}
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -372,7 +359,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -429,14 +416,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
             description="Try adjusting your search or filters"
             action={
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setStatusFilter('all');
-                  setCategoryFilter('all');
-                  setPriceMin('');
-                  setPriceMax('');
-                  setShowFavoritesOnly(false);
-                }}
+                onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >
                 Clear Filters
@@ -491,7 +471,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-6" role="navigation" aria-label="Pagination">
           <button
-            onClick={() => setCurrentPage(1)}
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: 1 })}
             disabled={currentPage === 1}
             className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
             aria-label="First page"
@@ -501,7 +481,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
             </svg>
           </button>
           <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: Math.max(1, currentPage - 1) })}
             disabled={currentPage === 1}
             className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
             aria-label="Previous page"
@@ -520,7 +500,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
             return pages.map((page) => (
               <button
                 key={page}
-                onClick={() => setCurrentPage(page)}
+                onClick={() => dispatch({ type: 'SET_PAGE', payload: page })}
                 className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
                   page === currentPage
                     ? 'bg-[var(--accent)] text-white'
@@ -535,7 +515,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
           })()}
 
           <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: Math.min(totalPages, currentPage + 1) })}
             disabled={currentPage === totalPages}
             className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
             aria-label="Next page"
@@ -543,7 +523,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal }: M
             Next
           </button>
           <button
-            onClick={() => setCurrentPage(totalPages)}
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: totalPages })}
             disabled={currentPage === totalPages}
             className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
             aria-label="Last page"

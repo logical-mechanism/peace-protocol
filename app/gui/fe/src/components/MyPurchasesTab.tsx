@@ -9,10 +9,7 @@ import { truncateDescription } from './descriptionUtils';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
-
-type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'amount-high' | 'amount-low';
-type StatusFilter = 'all' | 'pending' | 'accepted' | 'rejected' | 'cancelled';
+import type { MyPurchasesFilters, MyPurchasesAction } from '../hooks/useTabFilterState';
 
 interface MyPurchasesTabProps {
   userPkh?: string;
@@ -20,6 +17,8 @@ interface MyPurchasesTabProps {
   onDecrypt?: (bid: BidDisplay) => void;
   onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
   refreshSignal?: number;
+  filters: MyPurchasesFilters;
+  dispatch: React.Dispatch<MyPurchasesAction>;
 }
 
 export default function MyPurchasesTab({
@@ -28,19 +27,20 @@ export default function MyPurchasesTab({
   onDecrypt,
   onDecryptEncryption,
   refreshSignal,
+  filters,
+  dispatch,
 }: MyPurchasesTabProps) {
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
   const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
+
+  // Destructure filter state from Dashboard-level reducer
+  const { viewMode, sortBy, statusFilter, searchQuery } = filters;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -336,7 +336,7 @@ export default function MyPurchasesTab({
             type="text"
             placeholder="Search by token or description..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
           />
         </div>
@@ -346,7 +346,7 @@ export default function MyPurchasesTab({
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MyPurchasesFilters['statusFilter'] })}
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="all">All Status</option>
@@ -359,7 +359,7 @@ export default function MyPurchasesTab({
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MyPurchasesFilters['sortBy'] })}
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="newest">Newest First</option>
@@ -371,7 +371,7 @@ export default function MyPurchasesTab({
           {/* View Toggle */}
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -389,7 +389,7 @@ export default function MyPurchasesTab({
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
@@ -442,8 +442,8 @@ export default function MyPurchasesTab({
             action={
               <button
                 onClick={() => {
-                  setSearchQuery('');
-                  setStatusFilter('all');
+                  dispatch({ type: 'SET_SEARCH', payload: '' });
+                  dispatch({ type: 'SET_STATUS', payload: 'all' });
                 }}
                 className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
               >

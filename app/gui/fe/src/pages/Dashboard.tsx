@@ -1,5 +1,5 @@
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
@@ -33,6 +33,13 @@ import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
 import { useDataRefresh } from '../hooks/useDataRefresh'
+import {
+  marketplaceReducer, MARKETPLACE_INITIAL,
+  mySalesReducer, MY_SALES_INITIAL,
+  myPurchasesReducer, MY_PURCHASES_INITIAL,
+  historyReducer, HISTORY_INITIAL,
+  libraryReducer, LIBRARY_INITIAL,
+} from '../hooks/useTabFilterState'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'
@@ -66,6 +73,13 @@ export default function Dashboard() {
     setActiveTabRaw(tab)
     setLastActiveTab(tab)
   }, [])
+  // Tab filter state (persisted across tab switches via useReducer at Dashboard level)
+  const [marketplaceFilters, marketplaceDispatch] = useReducer(marketplaceReducer, MARKETPLACE_INITIAL)
+  const [mySalesFilters, mySalesDispatch] = useReducer(mySalesReducer, MY_SALES_INITIAL)
+  const [myPurchasesFilters, myPurchasesDispatch] = useReducer(myPurchasesReducer, MY_PURCHASES_INITIAL)
+  const [historyFilters, historyDispatch] = useReducer(historyReducer, HISTORY_INITIAL)
+  const [libraryFilters, libraryDispatch] = useReducer(libraryReducer, LIBRARY_INITIAL)
+
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
   const [acceptedBidCount, setAcceptedBidCount] = useState(0)
@@ -74,7 +88,7 @@ export default function Dashboard() {
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
-  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
+  const { refreshSignal, historySignal, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
   const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
   // Accept bid flow state
   const [showSnarkModal, setShowSnarkModal] = useState(false)
@@ -247,7 +261,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error'
       )
     }
-  }, [recoverableDraft, wallet, toast, recordTransaction, setActiveTab])
+  }, [recoverableDraft, wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   // Retry a listing from History tab (failed tx with a draft)
   const handleRetryListing = useCallback(async (draftId: string) => {
@@ -289,7 +303,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error'
       )
     }
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, triggerTransactionRefresh])
 
   const pendingTxCount = useMemo(
     () => txHistory.filter(tx => tx.status === 'pending').length,
@@ -373,7 +387,7 @@ export default function Dashboard() {
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction, setActiveTab])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -433,7 +447,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction, setActiveTab])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
@@ -544,7 +558,7 @@ export default function Dashboard() {
       setSnarkInputs(null)
       setShowSnarkModal(false)
     }
-  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab])
+  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -597,7 +611,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction, setActiveTab])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleCompleteSale = useCallback(async (encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -667,7 +681,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error occurred'
       )
     }
-  }, [wallet, toast, recordTransaction, setActiveTab])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleCancelBid = useCallback((bid: BidDisplay) => {
     if (!wallet) {
@@ -731,7 +745,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction, setActiveTab])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleDecrypt = useCallback(async (bid: BidDisplay) => {
     // Find the encryption associated with this bid
@@ -827,7 +841,7 @@ export default function Dashboard() {
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, address, toast, recordTransaction, setActiveTab])
+  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   // Fetch user stats
   useEffect(() => {
@@ -877,6 +891,8 @@ export default function Dashboard() {
             refreshSignal={refreshSignal}
             userPkh={userPkh}
             onPlaceBid={handlePlaceBid}
+            filters={marketplaceFilters}
+            dispatch={marketplaceDispatch}
           />
         )
       case 'my-sales':
@@ -890,6 +906,8 @@ export default function Dashboard() {
             onCompleteSale={handleCompleteSale}
             onCreateListing={() => setShowCreateListing(true)}
             onBidsViewed={bidNotifications.markListingSeen}
+            filters={mySalesFilters}
+            dispatch={mySalesDispatch}
           />
         )
       case 'my-purchases':
@@ -900,6 +918,8 @@ export default function Dashboard() {
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
             onDecryptEncryption={handleDecryptEncryption}
+            filters={myPurchasesFilters}
+            dispatch={myPurchasesDispatch}
           />
         )
       case 'history':
@@ -911,10 +931,18 @@ export default function Dashboard() {
             onClearHistory={triggerHistoryRefresh}
             onHistoryUpdated={setTxHistory}
             onRetryListing={handleRetryListing}
+            filters={historyFilters}
+            dispatch={historyDispatch}
           />
         )
       case 'library':
-        return <LibraryTab refreshSignal={refreshSignal} />
+        return (
+          <LibraryTab
+            refreshSignal={refreshSignal}
+            filters={libraryFilters}
+            dispatch={libraryDispatch}
+          />
+        )
       default:
         return null
     }
