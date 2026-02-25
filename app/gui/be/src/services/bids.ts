@@ -1,6 +1,7 @@
 import { getNetworkConfig } from '../config/index.js';
 import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
+import { logger } from './logger.js';
 import { parseBidDatum } from './parsers.js';
 import type { BidDisplay, BidDatum } from '../types/index.js';
 
@@ -41,7 +42,7 @@ async function fetchBidCip20Metadata(txHash: string): Promise<ParsedBidCip20> {
 
     return parseBidCip20Fields(json.msg);
   } catch (err) {
-    console.warn(`Failed to fetch CIP-20 metadata for bid ${txHash}:`, err);
+    logger.warn('Failed to fetch bid CIP-20 metadata', { txHash, error: String(err) });
     return {};
   }
 }
@@ -95,7 +96,7 @@ export async function getAllBids(): Promise<BidDisplay[]> {
       const cip20 = await fetchBidCip20Metadata(utxo.tx_hash);
       bids.push(utxoToBidDisplay(utxo, datum, cip20));
     } catch (err) {
-      console.warn(`Failed to parse bid datum at ${utxo.tx_hash}#${utxo.tx_index}:`, err);
+      logger.warn('Failed to parse bid datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
     }
   }
 

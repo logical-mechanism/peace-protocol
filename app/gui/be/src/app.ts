@@ -1,6 +1,8 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import { config } from './config/index.js';
+import { logger } from './services/logger.js';
+import { requestLogger } from './middleware/requestLogger.js';
 import routes from './routes/index.js';
 
 export function createApp() {
@@ -8,6 +10,7 @@ export function createApp() {
 
   // Middleware
   app.use(express.json({ limit: '1mb' }));
+  app.use(requestLogger);
 
   // CORS configuration
   app.use(
@@ -44,7 +47,7 @@ export function createApp() {
 
   // Error handler
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('Unhandled error:', err);
+    logger.error('Unhandled error', { error: err.message, stack: err.stack });
     res.status(500).json({
       error: {
         code: 'INTERNAL_ERROR',

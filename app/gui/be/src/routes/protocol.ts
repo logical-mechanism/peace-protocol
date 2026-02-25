@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { config, getNetworkConfig } from '../config/index.js';
+import { logger } from '../services/logger.js';
 import { STUB_PROTOCOL_CONFIG } from '../stubs/index.js';
 import { getKupoClient } from '../services/kupo.js';
 import { getKoiosClient } from '../services/koios.js';
@@ -53,7 +54,7 @@ router.get('/config', async (_req: Request, res: Response) => {
 
     return res.json({ data: protocolConfig });
   } catch (error) {
-    console.error('Error fetching protocol config:', error);
+    logger.error('Error fetching protocol config', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol config' },
     });
@@ -89,7 +90,7 @@ router.get('/reference', async (_req: Request, res: Response) => {
 
     return res.json({ data: references });
   } catch (error) {
-    console.error('Error fetching reference data:', error);
+    logger.error('Error fetching reference data', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch reference data' },
     });
@@ -131,7 +132,7 @@ router.get('/scripts', async (_req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching scripts:', error);
+    logger.error('Error fetching scripts', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch scripts' },
     });
@@ -164,7 +165,7 @@ router.get('/params', async (_req: Request, res: Response) => {
     const params = await koios.getProtocolParams();
     return res.json({ data: params });
   } catch (error) {
-    console.error('Error fetching protocol params:', error);
+    logger.error('Error fetching protocol params', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol params' },
     });

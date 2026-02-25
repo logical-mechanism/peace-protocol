@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
+import { logger } from '../services/logger.js';
 import { STUB_BIDS } from '../stubs/index.js';
 import {
   getAllBids,
@@ -32,7 +33,7 @@ router.get('/', async (_req: Request, res: Response) => {
       meta: { total: bids.length },
     });
   } catch (error) {
-    console.error('Error fetching bids:', error);
+    logger.error('Error fetching bids', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids' },
     });
@@ -65,7 +66,7 @@ router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Respons
     }
     return res.json({ data: bid });
   } catch (error) {
-    console.error('Error fetching bid:', error);
+    logger.error('Error fetching bid', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bid' },
     });
@@ -97,7 +98,7 @@ router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
       meta: { total: userBids.length },
     });
   } catch (error) {
-    console.error('Error fetching user bids:', error);
+    logger.error('Error fetching user bids', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user bids' },
     });
@@ -129,7 +130,7 @@ router.get('/encryption/:encryptionToken', async (req: Request<{encryptionToken:
       meta: { total: encryptionBids.length },
     });
   } catch (error) {
-    console.error('Error fetching encryption bids:', error);
+    logger.error('Error fetching encryption bids', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption bids' },
     });
@@ -170,7 +171,7 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       meta: { total: filteredBids.length },
     });
   } catch (error) {
-    console.error('Error fetching bids by status:', error);
+    logger.error('Error fetching bids by status', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids by status' },
     });

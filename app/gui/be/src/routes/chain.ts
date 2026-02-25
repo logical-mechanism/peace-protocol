@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getKoiosClient } from '../services/koios.js';
+import { logger } from '../services/logger.js';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get('/confirmations/:txHash', async (req, res) => {
     const confirmations = Math.max(0, tip.block_no - blockHeight);
     return res.json({ data: { confirmations } });
   } catch (error) {
-    console.error('Failed to get confirmations:', error);
+    logger.error('Failed to get confirmations', { error: String(error) });
     return res.json({ data: { confirmations: 0 } });
   }
 });

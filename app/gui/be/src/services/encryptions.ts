@@ -1,6 +1,7 @@
 import { getNetworkConfig } from '../config/index.js';
 import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
+import { logger } from './logger.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
 import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel } from '../types/index.js';
 
@@ -75,7 +76,7 @@ async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
 
     return parseCip20Fields(msgArray, json);
   } catch (err) {
-    console.warn(`Failed to fetch CIP-20 metadata for ${txHash}:`, err);
+    logger.warn('Failed to fetch CIP-20 metadata', { txHash, error: String(err) });
     return {};
   }
 }
@@ -131,7 +132,7 @@ export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
       const cip20 = await fetchCip20Metadata(utxo.tx_hash);
       encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     } catch (err) {
-      console.warn(`Failed to parse encryption datum at ${utxo.tx_hash}#${utxo.tx_index}:`, err);
+      logger.warn('Failed to parse encryption datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
     }
   }
 
@@ -219,7 +220,7 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
           r2_g1: halfLevel.r2_g1b,
         });
       } catch (err) {
-        console.warn(`Failed to parse half_level from tx ${tx.tx_hash}:`, err);
+        logger.warn('Failed to parse half_level', { txHash: tx.tx_hash, error: String(err) });
       }
     }
 
@@ -243,7 +244,7 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
         }
       }
     } catch (err) {
-      console.warn(`Failed to parse full_level from tx ${tx.tx_hash}:`, err);
+      logger.warn('Failed to parse full_level', { txHash: tx.tx_hash, error: String(err) });
     }
   }
 

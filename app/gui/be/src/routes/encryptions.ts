@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
+import { logger } from '../services/logger.js';
 import { STUB_ENCRYPTIONS } from '../stubs/index.js';
 import {
   getAllEncryptions,
@@ -32,7 +33,7 @@ router.get('/', async (_req: Request, res: Response) => {
       meta: { total: encryptions.length },
     });
   } catch (error) {
-    console.error('Error fetching encryptions:', error);
+    logger.error('Error fetching encryptions', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions' },
     });
@@ -64,7 +65,7 @@ router.get('/:tokenName/levels', async (req: Request<{tokenName: string}>, res: 
     };
     return res.json(response);
   } catch (error) {
-    console.error('Error fetching encryption levels:', error);
+    logger.error('Error fetching encryption levels', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels' },
     });
@@ -97,7 +98,7 @@ router.get('/:tokenName', async (req: Request<{tokenName: string}>, res: Respons
     }
     return res.json({ data: encryption });
   } catch (error) {
-    console.error('Error fetching encryption:', error);
+    logger.error('Error fetching encryption', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption' },
     });
@@ -129,7 +130,7 @@ router.get('/user/:pkh', async (req: Request<{pkh: string}>, res: Response) => {
       meta: { total: userEncryptions.length },
     });
   } catch (error) {
-    console.error('Error fetching user encryptions:', error);
+    logger.error('Error fetching user encryptions', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user encryptions' },
     });
@@ -169,7 +170,7 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       meta: { total: filteredEncryptions.length },
     });
   } catch (error) {
-    console.error('Error fetching encryptions by status:', error);
+    logger.error('Error fetching encryptions by status', { error: String(error) });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions by status' },
     });
