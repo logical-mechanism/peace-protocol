@@ -496,7 +496,7 @@ Each item has:
   - **How**: Update MarketplaceTab and LibraryTab grids to use responsive breakpoints: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`. Currently fixed column counts cause layout issues at the 1280x800 default window size.
   - **Why**: Cards may be too small or too large depending on window size. Responsive breakpoints adapt to available space.
 
-- [ ] **Modal max-height with scrollable body**
+- [x] **Modal max-height with scrollable body**
   - **How**: Ensure all modals use `max-h-[calc(100vh-4rem)]` on the modal body with `overflow-y-auto`. The submit button should always be visible (place it outside the scrollable area).
   - **Why**: On the default 1280x800 window, tall modals (CreateListingModal, DecryptModal) can overflow. The submit button becomes unreachable.
 

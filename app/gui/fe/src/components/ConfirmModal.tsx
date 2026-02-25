@@ -66,8 +66,8 @@ export default function ConfirmModal({
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl">
-        <div className="p-6">
+      <div className="relative z-10 w-full max-w-md max-h-[85vh] mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-6">
           <h2
             id="confirm-modal-title"
             className="text-lg font-semibold text-[var(--text-primary)] mb-2"
