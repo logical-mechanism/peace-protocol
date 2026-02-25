@@ -192,7 +192,7 @@ Each item has:
   - **How**: Instead of immediately showing a blocking modal on Dashboard mount, show a non-intrusive notification bar at the top: "You have a listing draft from a previous session. [Resume] [Discard]". Let users dismiss and come back to it.
   - **Why**: Current draft recovery modal blocks the entire Dashboard until dismissed. Users who just want to check the marketplace must deal with the modal first.
 
-- [ ] **Remember last active tab**
+- [x] **Remember last active tab**
   - **How**: Store `activeTab` in localStorage. On Dashboard mount, read and restore it. Clear on wallet lock.
   - **Why**: Users returning to the Dashboard should land on their most recently used tab, not always Marketplace.
 
@@ -364,7 +364,7 @@ Each item has:
   - **How**: Change `build.sh` line 10 from `npx tauri build --debug` to `npx tauri build`. Add a separate `build-debug.sh` for debug builds.
   - **Why**: `--debug` produces an unoptimized binary with debug symbols. Production builds should be optimized.
 
-- [ ] **Add pre-commit hooks**
+- [x] **Add pre-commit hooks**
   - **How**: Install `husky` and `lint-staged`. Configure to run: ESLint on staged `.ts/.tsx` files, `tsc --noEmit` for type checking, `cargo fmt --check` for Rust files. Add to root `package.json`.
   - **Why**: Catches lint errors and type issues before they're committed. Saves review cycles.
 

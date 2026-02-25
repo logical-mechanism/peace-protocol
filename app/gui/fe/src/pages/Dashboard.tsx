@@ -31,6 +31,7 @@ import { getAcceptBidSecrets } from '../services/acceptBidStorage'
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage'
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
+import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
 import type { TransactionRecord } from '../services/transactionHistory'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'
@@ -59,7 +60,11 @@ export default function Dashboard() {
   const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
-  const [activeTab, setActiveTab] = useState<TabId>('marketplace')
+  const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
+  const setActiveTab = useCallback((tab: TabId) => {
+    setActiveTabRaw(tab)
+    setLastActiveTab(tab)
+  }, [])
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
   const [acceptedBidCount, setAcceptedBidCount] = useState(0)
@@ -249,7 +254,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error'
       )
     }
-  }, [recoverableDraft, wallet, toast, recordTransaction])
+  }, [recoverableDraft, wallet, toast, recordTransaction, setActiveTab])
 
   // Retry a listing from History tab (failed tx with a draft)
   const handleRetryListing = useCallback(async (draftId: string) => {
@@ -315,6 +320,7 @@ export default function Dashboard() {
   }, [address])
 
   const handleDisconnect = useCallback(() => {
+    clearLastActiveTab()
     disconnect()
   }, [disconnect])
 
@@ -375,7 +381,7 @@ export default function Dashboard() {
     // Refresh and switch to History tab to show pending tx
     setRefreshKey(prev => prev + 1)
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -435,7 +441,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab])
 
   const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
@@ -546,7 +552,7 @@ export default function Dashboard() {
       setSnarkInputs(null)
       setShowSnarkModal(false)
     }
-  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction])
+  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -599,7 +605,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab])
 
   const handleCompleteSale = useCallback(async (encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -669,7 +675,7 @@ export default function Dashboard() {
         error instanceof Error ? error.message : 'Unknown error occurred'
       )
     }
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab])
 
   const handleCancelBid = useCallback((bid: BidDisplay) => {
     if (!wallet) {
@@ -733,7 +739,7 @@ export default function Dashboard() {
         }
       },
     })
-  }, [wallet, toast, recordTransaction])
+  }, [wallet, toast, recordTransaction, setActiveTab])
 
   const handleDecrypt = useCallback(async (bid: BidDisplay) => {
     // Find the encryption associated with this bid
@@ -829,7 +835,7 @@ export default function Dashboard() {
     // Refresh and switch to History tab to show pending tx
     setRefreshKey(prev => prev + 1)
     setActiveTab('history')
-  }, [wallet, address, toast, recordTransaction])
+  }, [wallet, address, toast, recordTransaction, setActiveTab])
 
   // Fetch user stats
   useEffect(() => {
