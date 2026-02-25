@@ -16,12 +16,14 @@ function App() {
   const prevTipRef = useRef<number | null>(null)
 
   // Refresh wallet balance when chain tip advances (new block every ~20s)
+  // Only after node is synced — Kupo isn't ready during earlier stages
   useEffect(() => {
+    if (nodeStage !== 'synced') return
     if (tipSlot !== null && tipSlot !== prevTipRef.current) {
       prevTipRef.current = tipSlot
       refreshBalance()
     }
-  }, [tipSlot, refreshBalance])
+  }, [nodeStage, tipSlot, refreshBalance])
 
   if (walletState === 'loading') {
     return (

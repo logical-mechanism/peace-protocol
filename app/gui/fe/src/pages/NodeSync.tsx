@@ -546,21 +546,17 @@ export default function NodeSync() {
             <StageIndicator stages={STAGES} currentStage={stage} />
           </div>
 
-          {/* Sync status with progress bar, ETA, and checklist */}
+          {/* Sync status with block info and checklist */}
           {stage === 'syncing' && (
             <div className="mb-4">
-              <ProgressBar percent={progressPercent} />
-              <div className="flex justify-between mt-2 text-sm text-[var(--text-muted)]">
-                <span>{Math.round(progressPercent * 10) / 10}%</span>
-                {syncEta && <span>{syncEta}</span>}
-              </div>
-
-              {tipHeight && (
-                <div className="mt-2 text-center text-sm text-[var(--text-muted)]">
-                  Block {tipHeight.toLocaleString()}
-                  {networkTip && networkTip > tipHeight && (
-                    <span> / {networkTip.toLocaleString()}</span>
-                  )}
+              {tipHeight != null && tipHeight > 0 && networkTip && networkTip > 0 ? (
+                <div className="text-center text-sm text-[var(--text-muted)]">
+                  Block {tipHeight.toLocaleString()} / {networkTip.toLocaleString()}
+                  {syncEta && <span className="ml-2">— {syncEta}</span>}
+                </div>
+              ) : (
+                <div className="text-center text-sm text-[var(--text-muted)]">
+                  {statusMessage}
                 </div>
               )}
 
