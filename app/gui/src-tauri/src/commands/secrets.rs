@@ -1,6 +1,7 @@
 use crate::crypto::secrets::{
     decrypt_secret, encrypt_secret, secure_delete, EncryptedSecret, SecretsKey,
 };
+use crate::crypto::wallet::set_owner_only_file;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use zeroize::Zeroizing;
@@ -26,6 +27,7 @@ fn encrypt_and_write(key: &[u8; 32], path: &std::path::Path, data: &[u8]) -> Res
     let json = serde_json::to_string_pretty(&encrypted)
         .map_err(|e| format!("Failed to serialize encrypted secret: {e}"))?;
     std::fs::write(path, json).map_err(|e| format!("Failed to write secret: {e}"))?;
+    set_owner_only_file(path)?;
     Ok(())
 }
 

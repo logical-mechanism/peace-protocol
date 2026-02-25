@@ -94,14 +94,14 @@ pub fn run() {
 
                 let app_handle = window.app_handle().clone();
 
-                // Hide the window immediately so the user sees instant feedback.
-                let _ = window.hide();
+                // Show a shutdown overlay in the frontend instead of hiding.
+                let _ = window.emit("app-shutting-down", ());
 
                 // Run the blocking shutdown on a dedicated thread so the
                 // Tauri event loop stays responsive.
                 std::thread::spawn(move || {
                     let manager = app_handle.state::<NodeManager>();
-                    manager.kill_all_sync();
+                    manager.kill_all_sync(&app_handle);
                     app_handle.exit(0);
                 });
             }

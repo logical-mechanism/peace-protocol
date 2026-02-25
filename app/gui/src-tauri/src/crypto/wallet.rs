@@ -97,6 +97,32 @@ pub fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<Stri
     String::from_utf8(plaintext).map_err(|_| "Decrypted data is not valid UTF-8".to_string())
 }
 
+/// Set restrictive file permissions on Unix systems (owner read/write only).
+/// No-op on Windows.
+pub fn set_owner_only_file(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Failed to set file permissions: {e}"))?;
+    }
+    let _ = path;
+    Ok(())
+}
+
+/// Set restrictive directory permissions on Unix systems (owner rwx only).
+/// No-op on Windows.
+pub fn set_owner_only_dir(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| format!("Failed to set directory permissions: {e}"))?;
+    }
+    let _ = path;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,5 +155,33 @@ mod tests {
         let hex = to_hex(&data);
         assert_eq!(hex, "deadbeef");
         assert_eq!(from_hex(&hex).unwrap(), data);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn set_owner_only_file_restricts_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("test.json");
+        std::fs::write(&file_path, "secret").unwrap();
+
+        set_owner_only_file(&file_path).unwrap();
+
+        let mode = std::fs::metadata(&file_path).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn set_owner_only_dir_restricts_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("secrets");
+        std::fs::create_dir(&sub).unwrap();
+
+        set_owner_only_dir(&sub).unwrap();
+
+        let mode = std::fs::metadata(&sub).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
     }
 }

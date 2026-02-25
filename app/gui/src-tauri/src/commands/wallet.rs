@@ -1,5 +1,5 @@
 use crate::crypto::secrets::{derive_secrets_key, SecretsKey};
-use crate::crypto::wallet::{decrypt_mnemonic, encrypt_mnemonic, EncryptedWallet};
+use crate::crypto::wallet::{decrypt_mnemonic, encrypt_mnemonic, set_owner_only_file, EncryptedWallet};
 
 /// Application state for wallet management.
 pub struct WalletState {
@@ -43,6 +43,9 @@ pub fn create_wallet(
 
     std::fs::write(&state.wallet_path, json)
         .map_err(|e| format!("Failed to write wallet file: {e}"))?;
+
+    // Restrict wallet file to owner-only read/write (0o600 on Unix)
+    set_owner_only_file(&state.wallet_path)?;
 
     Ok(())
 }

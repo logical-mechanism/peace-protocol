@@ -72,7 +72,7 @@ Each item has:
   - **How**: In `wallet.rs`, after splitting the mnemonic into words, validate the BIP39 checksum (last word encodes checksum bits). The `bip39` Rust crate handles this. Reject invalid mnemonics with a clear error.
   - **Why**: Currently any 24 words are accepted. A typo in the mnemonic creates a valid-looking but wrong wallet with no warning.
 
-- [ ] **Wallet file permissions hardening (Linux/macOS)**
+- [x] **Wallet file permissions hardening (Linux/macOS)**
   - **How**: After writing `wallet.json`, call `std::os::unix::fs::PermissionsExt::set_mode(0o600)` to restrict read/write to the file owner only. Same for the `secrets/` directory.
   - **Why**: Default file permissions (644) let other users on the system read the encrypted wallet file. While AES-256-GCM is strong, defense in depth matters.
 
