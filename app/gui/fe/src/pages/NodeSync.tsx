@@ -215,6 +215,29 @@ export default function NodeSync() {
 
   const toast = useToast()
 
+  // Disk space check for first-run bootstrap
+  const [diskSpaceWarning, setDiskSpaceWarning] = useState<string | null>(null)
+  useEffect(() => {
+    if (!needsBootstrap || stage !== 'stopped') return
+    const checkSpace = async () => {
+      try {
+        const result = await invoke<{ available_bytes: number }>('get_available_disk_space')
+        const availableGb = result.available_bytes / (1024 ** 3)
+        const requiredGb = network === 'mainnet' ? 100 : 5
+        if (availableGb < requiredGb) {
+          setDiskSpaceWarning(
+            `Low disk space: ${availableGb.toFixed(1)} GB available, ~${requiredGb} GB needed for ${network}. The sync may fail if disk space runs out.`
+          )
+        } else {
+          setDiskSpaceWarning(null)
+        }
+      } catch {
+        // Silently skip — not critical
+      }
+    }
+    checkSpace()
+  }, [needsBootstrap, stage, network])
+
   const [showConsole, setShowConsole] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [isStarting, setIsStarting] = useState(false)
@@ -625,6 +648,13 @@ export default function NodeSync() {
           {stage === 'stopped' && (
             <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--info-muted)] text-[var(--info)] border border-[var(--info)]/20">
               {statusMessage}
+            </div>
+          )}
+
+          {/* Disk space warning */}
+          {diskSpaceWarning && stage === 'stopped' && (
+            <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20">
+              {diskSpaceWarning}
             </div>
           )}
 
