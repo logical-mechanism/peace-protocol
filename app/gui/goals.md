@@ -106,7 +106,7 @@ Each item has:
   - **How**: Add rotate (90/180/270) and horizontal flip buttons in the toolbar. Apply `transform: rotate(Ndeg) scaleX(-1)` alongside zoom transforms.
   - **Why**: Photos taken at odd orientations need rotation. EXIF orientation isn't always respected.
 
-- [ ] **Download/Save As button in toolbar**
+- [x] **Download/Save As button in toolbar**
   - **How**: Add a download button that triggers `export_library_content` Tauri command or creates a download link from the blob URL. Place it next to the fullscreen toggle.
   - **Why**: Users should be able to save decrypted images to their filesystem without navigating to the Library tab's export flow.
 
