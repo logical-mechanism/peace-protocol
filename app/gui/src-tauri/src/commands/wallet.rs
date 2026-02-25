@@ -1,5 +1,7 @@
 use crate::crypto::secrets::{derive_secrets_key, SecretsKey};
-use crate::crypto::wallet::{decrypt_mnemonic, encrypt_mnemonic, set_owner_only_file, EncryptedWallet};
+use crate::crypto::wallet::{
+    decrypt_mnemonic, encrypt_mnemonic, set_owner_only_file, EncryptedWallet,
+};
 
 /// Application state for wallet management.
 pub struct WalletState {

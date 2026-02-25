@@ -1274,12 +1274,10 @@ impl NodeManager {
                                         | ProcessStatus::Ready
                                 )
                         })
-                        .filter_map(|(name, _)| {
-                            match name.as_str() {
-                                "ogmios" => Some((name.clone(), ogmios_port)),
-                                "kupo" => Some((name.clone(), kupo_port)),
-                                _ => None,
-                            }
+                        .filter_map(|(name, _)| match name.as_str() {
+                            "ogmios" => Some((name.clone(), ogmios_port)),
+                            "kupo" => Some((name.clone(), kupo_port)),
+                            _ => None,
                         })
                         .collect()
                 };
@@ -1352,10 +1350,7 @@ impl NodeManager {
                                     name, proc.health_check_failures
                                 );
                                 proc.info.status = ProcessStatus::Error {
-                                    message: format!(
-                                        "{} is not responding to health checks",
-                                        name
-                                    ),
+                                    message: format!("{} is not responding to health checks", name),
                                 };
                                 changed = true;
 

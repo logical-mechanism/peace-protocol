@@ -48,7 +48,7 @@ export default function OnboardingOverlay() {
   const visible = useMemo(() => {
     if (state.completed || !step) return false
     return location.pathname === step.route
-  }, [state.completed, state.step, step, location.pathname])
+  }, [state.completed, step, location.pathname])
 
   const handleNext = useCallback(() => {
     const newState = advanceOnboardingStep()
