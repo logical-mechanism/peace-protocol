@@ -7,6 +7,7 @@ import WalletSetup from './pages/WalletSetup'
 import WalletUnlock from './pages/WalletUnlock'
 import NodeSync from './pages/NodeSync'
 import Settings from './pages/Settings'
+import SessionWarningBanner from './components/SessionWarningBanner'
 
 function App() {
   const { walletState, refreshBalance } = useWalletContext()
@@ -34,6 +35,8 @@ function App() {
   }
 
   return (
+    <>
+    <SessionWarningBanner />
     <div key={location.pathname} className="page-transition">
     <Routes>
       <Route
@@ -104,6 +107,7 @@ function App() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </div>
+    </>
   )
 }
 

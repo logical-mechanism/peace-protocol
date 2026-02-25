@@ -28,6 +28,8 @@ export interface WalletContextValue {
   deleteWallet: () => Promise<void>
   disconnect: () => void
   refreshBalance: () => Promise<void>
+  sessionWarningSeconds: number | null
+  extendSession: () => void
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null)
@@ -90,12 +92,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [initializeWallet]
   )
 
+  const [sessionWarningSeconds, setSessionWarningSeconds] = useState<number | null>(null)
+  const warningIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const lockFn = useCallback(async () => {
     await invoke('lock_wallet')
     setMeshWallet(null)
     setAddress(null)
     setLovelace(null)
     setPaymentKeyHex(null)
+    setSessionWarningSeconds(null)
     setWalletState('locked')
   }, [])
 
@@ -108,26 +114,73 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setWalletState('no_wallet')
   }, [])
 
-  // --- Auto-lock on inactivity ---
+  // --- Auto-lock on inactivity with warning countdown ---
   const lastActivityRef = useRef(0)
 
-  // Reset activity timestamp on user interaction
+  const clearWarningInterval = useCallback(() => {
+    if (warningIntervalRef.current) {
+      clearInterval(warningIntervalRef.current)
+      warningIntervalRef.current = null
+    }
+  }, [])
+
+  const extendSession = useCallback(() => {
+    lastActivityRef.current = Date.now()
+    setSessionWarningSeconds(null)
+    clearWarningInterval()
+  }, [clearWarningInterval])
+
   useEffect(() => {
     if (walletState !== 'unlocked') return
 
     lastActivityRef.current = Date.now()
+
     const resetActivity = () => {
       lastActivityRef.current = Date.now()
+      // Clear warning on any user interaction
+      if (warningIntervalRef.current) {
+        clearWarningInterval()
+        setSessionWarningSeconds(null)
+      }
     }
+
+    const startWarningCountdown = (remainingMs: number) => {
+      if (warningIntervalRef.current) return // Already running
+      setSessionWarningSeconds(Math.ceil(remainingMs / 1000))
+
+      warningIntervalRef.current = setInterval(() => {
+        const minutes = getAutolockMinutes()
+        if (minutes === 0) {
+          // User disabled auto-lock while warning was active
+          clearWarningInterval()
+          setSessionWarningSeconds(null)
+          return
+        }
+        const elapsed = Date.now() - lastActivityRef.current
+        const remaining = minutes * 60_000 - elapsed
+        if (remaining <= 0) {
+          clearWarningInterval()
+          setSessionWarningSeconds(null)
+          lockFn()
+        } else {
+          setSessionWarningSeconds(Math.ceil(remaining / 1000))
+        }
+      }, 1000)
+    }
+
     document.addEventListener('mousedown', resetActivity)
     document.addEventListener('keydown', resetActivity)
 
+    // Coarse check every 30s — activates fine-grained countdown when close to timeout
     const interval = setInterval(() => {
       const minutes = getAutolockMinutes()
       if (minutes === 0) return // 0 = never auto-lock
       const elapsed = Date.now() - lastActivityRef.current
-      if (elapsed >= minutes * 60_000) {
+      const remaining = minutes * 60_000 - elapsed
+      if (remaining <= 0) {
         lockFn()
+      } else if (remaining <= 90_000 && !warningIntervalRef.current) {
+        startWarningCountdown(remaining)
       }
     }, AUTOLOCK_CHECK_INTERVAL)
 
@@ -135,8 +188,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('mousedown', resetActivity)
       document.removeEventListener('keydown', resetActivity)
       clearInterval(interval)
+      clearWarningInterval()
+      setSessionWarningSeconds(null)
     }
-  }, [walletState, lockFn])
+  }, [walletState, lockFn, clearWarningInterval])
 
   const refreshBalanceFn = useCallback(async () => {
     if (!meshWallet) return
@@ -164,6 +219,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     deleteWallet: deleteWalletFn,
     disconnect: disconnectFn,
     refreshBalance: refreshBalanceFn,
+    sessionWarningSeconds,
+    extendSession,
   }
 
   return (
