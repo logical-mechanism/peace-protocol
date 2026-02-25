@@ -51,27 +51,27 @@ Each item has:
 
 > Key file: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] **Playback speed control (0.5x — 2x)**
+- [x] **Playback speed control (0.5x — 2x)**
   - **How**: Add a speed selector dropdown/button group near the fullscreen toggle. Set `videoRef.current.playbackRate` on change. Options: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x.
   - **Why**: Standard video player feature. Users reviewing educational or long-form content need speed control.
 
-- [ ] **Progress feedback during FFmpeg remux**
+- [x] **Progress feedback during FFmpeg remux**
   - **How**: FFmpeg.wasm supports a `progress` callback via `ffmpeg.on('progress', ...)`. Use it to show a percentage bar and ETA instead of the current static "Converting for playback..." spinner.
   - **Why**: Remuxing can take 10+ seconds for large files. Users need to know it's progressing and approximately how long it will take.
 
-- [ ] **Keyboard shortcuts**
+- [x] **Keyboard shortcuts**
   - **How**: Add keydown listener — Space for play/pause, Left/Right for skip 5s, F for fullscreen toggle, M for mute. Scope to when VideoPlayer is mounted.
   - **Why**: Standard video player UX. Users expect keyboard-driven control.
 
-- [ ] **Better error state with fallback guidance**
+- [x] **Better error state with fallback guidance**
   - **How**: When remux fails, show the detected file extension and MIME type in the error. Offer a "Save As" button inline (not just as a suggestion) that triggers the export flow directly.
   - **Why**: Current error tells users the format is unsupported but requires them to figure out how to export. A direct action button reduces friction.
 
-- [ ] **Picture-in-Picture support**
+- [x] **Picture-in-Picture support**
   - **How**: Check `document.pictureInPictureEnabled` and if supported, add a PiP button that calls `videoRef.current.requestPictureInPicture()`. WebKitGTK may not support this — degrade gracefully by hiding the button.
   - **Why**: PiP lets users watch video while browsing the marketplace. Nice-to-have for multitasking.
 
-- [ ] **Volume control and mute toggle**
+- [x] **Volume control and mute toggle**
   - **How**: The native `<video controls>` provides some of this, but add an explicit mute button and volume slider in the custom toolbar for consistency with AudioPlayer's design language.
   - **Why**: Custom toolbar controls provide a consistent UX across audio and video players.
 

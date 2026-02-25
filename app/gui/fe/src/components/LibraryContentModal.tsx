@@ -430,6 +430,7 @@ export default function LibraryContentModal({
                   data={rawContent}
                   mimeType={videoExtensionToMimeType(item.fileExtension)}
                   fileExtension={item.fileExtension || '.mp4'}
+                  onExport={handleExport}
                 />
               </Suspense>
             )}
