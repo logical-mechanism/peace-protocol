@@ -80,7 +80,7 @@ Each item has:
   - **How**: In `create_wallet` and the frontend WalletSetup, reject passwords shorter than 12 characters. Show error inline before submission.
   - **Why**: Empty or short passwords bypass the entire Argon2id protection. A minimum length is the simplest security improvement.
 
-- [ ] **Session timeout warning before auto-lock**
+- [x] **Session timeout warning before auto-lock**
   - **How**: The `SessionWarningBanner` component exists but could show remaining time (countdown). 60 seconds before auto-lock, show a subtle banner: "Session will lock in 60s — move mouse to stay active." Activity resets the timer.
   - **Why**: Users lose work mid-transaction when the auto-lock fires without warning. A countdown lets them extend.
 
