@@ -394,7 +394,7 @@ Each item has:
   - **How**: Add a simple in-memory cache (Map with TTL) for `getAllEncryptions()` and `getAllBids()`. Cache for 10-30 seconds. Invalidate on manual refresh. Consider `node-cache` or a simple custom implementation.
   - **Why**: Every API request re-fetches all UTxOs from Kupo and metadata from Koios. With 100 UTxOs, that's 100+ HTTP calls per request. Caching reduces load by 95%+ for repeated requests.
 
-- [ ] **Batch CIP-20 metadata fetches**
+- [x] **Batch CIP-20 metadata fetches**
   - **How**: Koios supports batch transaction queries. Replace the serial per-UTxO `fetchCip20Metadata()` loop in `encryptions.ts` with a single batch request for all tx hashes. Use `POST /api/v1/tx_metadata` with multiple hashes.
   - **Why**: N+1 query problem. With 50 listings, the current code makes 50 sequential HTTP requests. A batch call reduces this to 1.
 
@@ -432,7 +432,7 @@ Each item has:
   - **How**: After spawning each process, verify it's actually ready: hit Express `/health`, query Ogmios WebSocket, check Kupo HTTP endpoint. Mark process as "Ready" only after health check passes. Retry with timeout if check fails.
   - **Why**: Processes are currently marked "Running" immediately after spawn. They may crash during startup, leaving the app in a partially broken state.
 
-- [ ] **Per-process shutdown timeouts**
+- [x] **Per-process shutdown timeouts**
   - **How**: Give `cardano-node` 45 seconds for graceful shutdown (it needs to flush ledger state). Give Express, Ogmios, Kupo 10 seconds each. Currently all share a 30-second budget.
   - **Why**: Cardano-node often gets SIGKILL'd because it can't flush in time. This causes longer startup next time as it replays the ledger.
 

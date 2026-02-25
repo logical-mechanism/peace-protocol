@@ -71,6 +71,16 @@ enum LaunchInfo {
     },
 }
 
+/// Per-process graceful shutdown timeout.
+/// cardano-node needs extra time to flush its in-memory ledger to disk.
+fn default_shutdown_timeout(name: &str) -> u64 {
+    match name {
+        "cardano-node" => 45,
+        "mithril-client" => 30,
+        _ => 10, // express, ogmios, kupo
+    }
+}
+
 /// A single managed child process with its metadata
 struct ManagedProcess {
     child: Option<CommandChild>,
@@ -81,6 +91,8 @@ struct ManagedProcess {
     launch_info: Option<LaunchInfo>,
     /// Set to true by stop() to prevent auto-restart after intentional shutdown
     user_stopped: bool,
+    /// Maximum seconds to wait for graceful shutdown before SIGKILL
+    shutdown_timeout_secs: u64,
 }
 
 impl ManagedProcess {
@@ -296,6 +308,7 @@ impl NodeManager {
                             args: args.clone(),
                         }),
                         user_stopped: false,
+                        shutdown_timeout_secs: default_shutdown_timeout(name),
                     },
                 );
             }
@@ -720,6 +733,7 @@ impl NodeManager {
                         log_buffer: Vec::new(),
                         launch_info: Some(launch),
                         user_stopped: false,
+                        shutdown_timeout_secs: default_shutdown_timeout(name),
                     },
                 );
             }
@@ -880,18 +894,19 @@ impl NodeManager {
     }
 
     /// Stop a process gracefully.
-    /// Sends SIGTERM first, waits up to 30 seconds for exit, then falls back to SIGKILL.
+    /// Sends SIGTERM first, waits for the per-process timeout, then falls back to SIGKILL.
     /// Sets user_stopped to prevent auto-restart.
     pub async fn stop(&self, name: &str) -> Result<(), String> {
-        let (child, pid) = {
+        let (child, pid, timeout_secs) = {
             let mut procs = self.processes.lock().await;
             if let Some(proc) = procs.get_mut(name) {
                 proc.user_stopped = true;
                 let child = proc.child.take();
                 let pid = proc.info.pid.take();
+                let timeout = proc.shutdown_timeout_secs;
                 proc.info.status = ProcessStatus::Stopped;
                 Self::save_pids_sync(&self.pid_file, &procs);
-                (child, pid)
+                (child, pid, timeout)
             } else {
                 return Ok(());
             }
@@ -903,9 +918,10 @@ impl NodeManager {
             // Send SIGTERM for graceful shutdown
             send_signal(pid, libc::SIGTERM);
 
-            // Wait up to 30 seconds for the process to exit gracefully
+            // Wait for per-process timeout (500ms per iteration)
+            let iterations = timeout_secs * 2;
             let mut exited = false;
-            for _ in 0..60 {
+            for _ in 0..iterations {
                 if !send_signal(pid, 0) {
                     exited = true;
                     break;
@@ -916,8 +932,8 @@ impl NodeManager {
             // Fall back to SIGKILL if graceful shutdown timed out
             if !exited {
                 eprintln!(
-                    "Process '{}' (pid {}) did not exit after SIGTERM, sending SIGKILL",
-                    name, pid
+                    "Process '{}' (pid {}) did not exit after {}s SIGTERM, sending SIGKILL",
+                    name, pid, timeout_secs
                 );
                 if let Some(child) = child {
                     let _ = child.kill();
@@ -1259,6 +1275,7 @@ mod tests {
             log_buffer: Vec::new(),
             launch_info: None,
             user_stopped: false,
+            shutdown_timeout_secs: 10,
         };
 
         proc.append_log("line 1".to_string());
@@ -1284,6 +1301,7 @@ mod tests {
             log_buffer: Vec::new(),
             launch_info: None,
             user_stopped: false,
+            shutdown_timeout_secs: 10,
         };
 
         // Fill to LOG_BUFFER_SIZE + 1
@@ -1336,5 +1354,14 @@ mod tests {
             guard.push(pid);
         }
         assert_eq!(guard.len(), 1);
+    }
+
+    #[test]
+    fn default_shutdown_timeout_per_process() {
+        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        assert_eq!(default_shutdown_timeout("mithril-client"), 30);
+        assert_eq!(default_shutdown_timeout("ogmios"), 10);
+        assert_eq!(default_shutdown_timeout("kupo"), 10);
+        assert_eq!(default_shutdown_timeout("express"), 10);
     }
 }
