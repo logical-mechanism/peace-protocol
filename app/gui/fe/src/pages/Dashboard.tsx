@@ -110,7 +110,10 @@ export default function Dashboard() {
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
-  const { refreshSignal, historySignal, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
+  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [relativeTime, setRelativeTime] = useState('just now')
   const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
   // Accept bid flow state
   const [showSnarkModal, setShowSnarkModal] = useState(false)
@@ -122,6 +125,34 @@ export default function Dashboard() {
   const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
   const toast = useToast()
   const [iagonConnected, setIagonConnected] = useState(false)
+
+  // Refresh handler for manual data refresh
+  const handleRefresh = useCallback(() => {
+    if (isRefreshing) return
+    setIsRefreshing(true)
+    triggerRefresh()
+    setLastRefreshTime(Date.now())
+    setRelativeTime('just now')
+    setTimeout(() => setIsRefreshing(false), 2000)
+  }, [isRefreshing, triggerRefresh])
+
+  // Update relative time display every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const seconds = Math.floor((Date.now() - lastRefreshTime) / 1000)
+      if (seconds < 10) setRelativeTime('just now')
+      else if (seconds < 60) setRelativeTime(`${seconds}s ago`)
+      else if (seconds < 3600) setRelativeTime(`${Math.floor(seconds / 60)}m ago`)
+      else setRelativeTime(`${Math.floor(seconds / 3600)}h ago`)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [lastRefreshTime])
+
+  // Reset timestamp when data refreshes externally (e.g. after tx submission)
+  useEffect(() => {
+    setLastRefreshTime(Date.now())
+    setRelativeTime('just now')
+  }, [refreshSignal])
 
   // Check Iagon connection status; silently auto-connect if not yet connected
   useEffect(() => {
@@ -1217,6 +1248,7 @@ export default function Dashboard() {
 
         {/* Tabs */}
         <div className="border-b border-[var(--border-subtle)] mb-6">
+          <div className="flex items-center justify-between">
           <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
             {TABS.map((tab) => (
               <button
@@ -1251,6 +1283,34 @@ export default function Dashboard() {
                 )}
               </button>
             ))}
+          </div>
+          {/* Refresh button + timestamp */}
+          <div className="flex items-center gap-3 pb-3">
+            <span className="text-xs text-[var(--text-muted)]">
+              Updated {relativeTime}
+            </span>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh data (Ctrl+R)"
+              aria-label="Refresh data"
+            >
+              <svg
+                className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          </div>
           </div>
         </div>
 
