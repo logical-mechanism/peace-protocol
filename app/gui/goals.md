@@ -310,7 +310,7 @@ Each item has:
 
 > Key files: `fe/src/test/setup.ts`, `test.sh`, various `__tests__/` directories
 
-- [ ] **Add Tauri invoke mock to test setup**
+- [x] **Add Tauri invoke mock to test setup**
   - **How**: Create a `__mocks__/@tauri-apps/api.ts` file (or add to `fe/src/test/setup.ts`) that mocks `invoke()`, `listen()`, and `emit()`. Return sensible defaults. This unblocks all component and service tests that call Tauri commands.
   - **Why**: Most untested services (`imageCache`, `libraryService`, `iagonApi`, `secretStorage`, `listingDraftStorage`) can't be tested because they call Tauri `invoke()` which isn't available in the test environment.
 
