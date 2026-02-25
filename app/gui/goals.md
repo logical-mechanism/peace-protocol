@@ -222,7 +222,7 @@ Each item has:
   - **How**: Implement client-side pagination (data is already fully loaded). Show 12-20 items per page with page controls at the bottom. Or implement infinite scroll with `IntersectionObserver` to load more items as the user scrolls.
   - **Why**: With hundreds of listings, rendering all cards at once causes lag and overwhelming visual density. Pagination improves performance and browsability.
 
-- [ ] **Filtered empty state with clear-filters button**
+- [x] **Filtered empty state with clear-filters button**
   - **How**: When filters reduce results to 0, show a specific EmptyState: "No listings match your filters. [Clear Filters]" with a button that resets all filters. Currently shows a generic empty state or nothing.
   - **Why**: Users don't realize their filters are too restrictive. A clear-filters button provides a one-click escape.
 
