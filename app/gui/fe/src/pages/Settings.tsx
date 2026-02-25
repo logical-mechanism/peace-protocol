@@ -759,25 +759,29 @@ export default function Settings() {
             )}
 
             {/* Orphaned Files Cleanup */}
-            {orphanedDrafts.length > 0 && (
-              <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-sm font-medium">Orphaned Files</h3>
-                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                      Files uploaded to Iagon whose listing transactions failed or were abandoned.
-                    </p>
-                  </div>
-                  {orphanedDrafts.length > 1 && (
-                    <button
-                      onClick={handleDeleteAllOrphans}
-                      className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer"
-                    >
-                      Delete All
-                    </button>
-                  )}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-medium">Orphaned Files</h3>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    Files uploaded to Iagon whose listing transactions failed or were abandoned.
+                  </p>
                 </div>
+                {orphanedDrafts.length > 1 && (
+                  <button
+                    onClick={handleDeleteAllOrphans}
+                    className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer"
+                  >
+                    Delete All
+                  </button>
+                )}
+              </div>
 
+              {orphanedDrafts.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)] text-center py-4">
+                  No orphaned drafts found.
+                </p>
+              ) : (
                 <div className="space-y-2">
                   {orphanedDrafts.map((draft) => (
                     <div
@@ -806,8 +810,8 @@ export default function Settings() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Info card */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">

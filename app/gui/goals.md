@@ -271,14 +271,14 @@ Each item has:
   - **Why**: Settings page has 6+ sections. Users looking for "auto-lock" or "Iagon" shouldn't have to scan every section.
 
 - [ ] **Developer / debug mode toggle**
-  - **How**: Add a hidden debug section (activated by clicking the version number 5 times, or a toggle in an "Advanced" section). Show: verbose logs toggle, process PIDs, config.json contents, localStorage viewer, force-refresh button.
+  - **How**: Add a hidden debug section (activated by a toggle in an "Advanced" section). Show: verbose logs toggle, process PIDs, config.json contents, localStorage viewer, force-refresh button.
   - **Why**: Power users and developers troubleshooting issues need detailed runtime info without reading Tauri logs.
 
 - [ ] **Toast notification duration setting**
   - **How**: Add a setting for toast auto-dismiss duration (3s, 5s, 8s, never). Store in localStorage. Read from `useToast()` hook default.
   - **Why**: Some users want toasts to stay longer (accessibility), others want them faster. Configurable duration respects user preference.
 
-- [ ] **Show orphan drafts section always**
+- [x] **Show orphan drafts section always**
   - **How**: In the Data Layer section, always show the "Orphaned Listing Drafts" area even when there are none. Display "No orphaned drafts found" when the list is empty.
   - **Why**: Users don't know this cleanup feature exists until they have orphaned drafts. Making it always visible builds awareness.
 
