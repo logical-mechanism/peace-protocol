@@ -338,7 +338,7 @@ Each item has:
   - **How**: Add `coverage` config to `fe/vite.config.ts` and `be/vitest.config.ts`: `{ thresholds: { lines: 50, branches: 40, functions: 50 } }`. Start low and ratchet up. Add `npm run test:coverage` to CI.
   - **Why**: Without thresholds, coverage only goes down. Enforcing a minimum prevents regression.
 
-- [ ] **Add integration tests for tx building**
+- [x] **Add integration tests for tx building**
   - **How**: Create integration tests that run `createListing()`, `placeBid()`, etc. with mocked providers (Kupo, Ogmios). Verify the assembled transaction structure, datum contents, and metadata.
   - **Why**: `transactionBuilder.ts` is 2168 lines of critical business logic. End-to-end tx building tests catch serialization and datum encoding bugs.
 
