@@ -210,7 +210,7 @@ Each item has:
   - **How**: Add min/max price inputs (or a range slider) above the listing grid. Filter by `e.suggestedPrice >= min && e.suggestedPrice <= max`. Handle null prices with a "No price set" toggle.
   - **Why**: Buyers often have a budget. Browsing dozens of listings to find ones in their price range is tedious.
 
-- [ ] **Sort by popularity (bid count)**
+- [x] **Sort by popularity (bid count)**
   - **How**: Add a `'most-bids'` sort option. This requires fetching bids alongside encryptions (already done in `fetchEncryptions`) and computing bid count per encryption token. Sort descending by count.
   - **Why**: Popular listings (with many bids) signal market interest and help buyers discover high-demand content.
 
@@ -226,7 +226,7 @@ Each item has:
   - **How**: When filters reduce results to 0, show a specific EmptyState: "No listings match your filters. [Clear Filters]" with a button that resets all filters. Currently shows a generic empty state or nothing.
   - **Why**: Users don't realize their filters are too restrictive. A clear-filters button provides a one-click escape.
 
-- [ ] **Listing card bid count badge**
+- [x] **Listing card bid count badge**
   - **How**: Fetch bid counts per encryption token (already available from `bidsApi.getAll()`) and pass to EncryptionCard. Display a small badge: "3 bids" on each card.
   - **Why**: Helps buyers gauge competition and interest level at a glance.
 

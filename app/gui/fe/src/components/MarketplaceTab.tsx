@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
-import type { EncryptionDisplay } from '../services/api';
+import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState, { PackageIcon } from './EmptyState';
@@ -9,7 +9,7 @@ import { listCachedImages, type ImageCacheStatus } from '../services/imageCache'
 import { FILE_CATEGORIES } from '../config/categories';
 
 type ViewMode = 'grid' | 'list';
-type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low';
+type SortOption = 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids';
 type StatusFilter = 'all' | 'active' | 'pending';
 type CategoryFilter = 'all' | string;
 
@@ -20,6 +20,7 @@ interface MarketplaceTabProps {
 
 export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
+  const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
         bidsApi.getAll(),
       ]);
       setEncryptions(data);
+      setAllBids(allBids);
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch(() => {});
@@ -62,6 +64,22 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
   useEffect(() => {
     fetchEncryptions();
   }, [fetchEncryptions]);
+
+  // Pre-compute pending bid counts per encryption token
+  const bidCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of allBids) {
+      if (b.status === 'pending') {
+        map.set(b.encryptionToken, (map.get(b.encryptionToken) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [allBids]);
+
+  const getBidCount = useCallback(
+    (tokenName: string): number => bidCountMap.get(tokenName) ?? 0,
+    [bidCountMap]
+  );
 
   // Filter and sort encryptions
   const filteredAndSorted = useMemo(() => {
@@ -102,10 +120,13 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
       case 'price-low':
         result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
         break;
+      case 'most-bids':
+        result.sort((a, b) => getBidCount(b.tokenName) - getBidCount(a.tokenName));
+        break;
     }
 
     return result;
-  }, [encryptions, statusFilter, categoryFilter, searchQuery, sortBy]);
+  }, [encryptions, statusFilter, categoryFilter, searchQuery, sortBy, getBidCount]);
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
@@ -212,6 +233,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
             <option value="oldest">Oldest First</option>
             <option value="price-high">Price: High to Low</option>
             <option value="price-low">Price: Low to High</option>
+            <option value="most-bids">Most Bids</option>
           </select>
 
           {/* View Toggle */}
@@ -320,6 +342,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
               initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
               initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+              bidCount={getBidCount(encryption.tokenName)}
             />
           ))}
         </div>
@@ -335,6 +358,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
               compact
               initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
               initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+              bidCount={getBidCount(encryption.tokenName)}
             />
           ))}
         </div>

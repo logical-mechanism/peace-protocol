@@ -17,6 +17,7 @@ interface EncryptionCardProps {
   compact?: boolean;
   initialCached?: boolean;
   initialBanned?: boolean;
+  bidCount?: number;
 }
 
 export default function EncryptionCard({
@@ -27,6 +28,7 @@ export default function EncryptionCard({
   compact = false,
   initialCached = false,
   initialBanned = false,
+  bidCount = 0,
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
 
@@ -68,6 +70,11 @@ export default function EncryptionCard({
                 {getCategoryLabel(encryption.category)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />
+              {bidCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium">
+                  {bidCount}
+                </span>
+              )}
             </div>
           </div>
           {encryption.description && (
@@ -123,6 +130,11 @@ export default function EncryptionCard({
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
                 {getCategoryLabel(encryption.category)}
               </span>
+              {bidCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium">
+                  {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
+                </span>
+              )}
             </div>
             <p className="text-xs text-[var(--text-muted)]">
               Listed {formatDate(encryption.createdAt)}
