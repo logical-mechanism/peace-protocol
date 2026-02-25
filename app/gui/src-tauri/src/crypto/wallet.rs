@@ -3,6 +3,7 @@ use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 /// Encrypted wallet file format, serialized to JSON on disk.
 #[derive(Serialize, Deserialize)]
@@ -20,12 +21,14 @@ pub struct EncryptedWallet {
 /// Derive a 32-byte AES key from password + salt using Argon2id.
 ///
 /// Parameters: m=65536 (64 MiB), t=3 iterations, p=4 parallelism.
-fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], String> {
+/// Returns `Zeroizing<[u8; 32]>` — key material is automatically zeroed on drop,
+/// including on error paths and panics.
+fn derive_key(password: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, String> {
     let params = Params::new(65536, 3, 4, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut key = [0u8; 32];
+    let mut key = Zeroizing::new([0u8; 32]);
     argon2
-        .hash_password_into(password.as_bytes(), salt, &mut key)
+        .hash_password_into(password.as_bytes(), salt, &mut *key)
         .map_err(|e| format!("Key derivation failed: {e}"))?;
     Ok(key)
 }
@@ -55,7 +58,7 @@ pub fn encrypt_mnemonic(mnemonic: &str, password: &str) -> Result<EncryptedWalle
     rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
 
     let key = derive_key(password, &salt)?;
-    let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| format!("Cipher init: {e}"))?;
+    let cipher = Aes256Gcm::new_from_slice(&*key).map_err(|e| format!("Cipher init: {e}"))?;
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher
@@ -84,7 +87,7 @@ pub fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<Stri
     }
 
     let key = derive_key(password, &salt)?;
-    let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| format!("Cipher init: {e}"))?;
+    let cipher = Aes256Gcm::new_from_slice(&*key).map_err(|e| format!("Cipher init: {e}"))?;
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let plaintext = cipher

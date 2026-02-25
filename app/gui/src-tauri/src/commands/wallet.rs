@@ -72,21 +72,19 @@ pub fn unlock_wallet(
 }
 
 /// Lock the wallet by clearing the secrets key from memory.
+/// Zeroizing::drop automatically zeros the key bytes when the Option is set to None.
 #[tauri::command]
 pub fn lock_wallet(secrets_key_state: tauri::State<'_, SecretsKey>) -> Result<(), String> {
-    // Zero and clear the secrets encryption key
     let mut guard = secrets_key_state
         .0
         .lock()
         .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
-    if let Some(ref mut key) = *guard {
-        key.fill(0);
-    }
     *guard = None;
     Ok(())
 }
 
 /// Delete the wallet file and clear in-memory secrets key.
+/// Zeroizing::drop automatically zeros the key bytes when the Option is set to None.
 #[tauri::command]
 pub fn delete_wallet(
     state: tauri::State<'_, WalletState>,
@@ -97,14 +95,10 @@ pub fn delete_wallet(
             .map_err(|e| format!("Failed to delete wallet file: {e}"))?;
     }
 
-    // Zero and clear the secrets encryption key
     let mut guard = secrets_key_state
         .0
         .lock()
         .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
-    if let Some(ref mut key) = *guard {
-        key.fill(0);
-    }
     *guard = None;
     Ok(())
 }

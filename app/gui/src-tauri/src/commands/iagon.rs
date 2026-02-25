@@ -1,5 +1,6 @@
 use crate::crypto::secrets::{secure_delete, SecretsKey};
 use std::path::Path;
+use zeroize::Zeroizing;
 
 use super::secrets::SecretsDir;
 
@@ -11,13 +12,13 @@ const IAGON_BASE: &str = "https://gw.iagon.com/api/v2";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-fn get_secrets_key(key_state: &SecretsKey) -> Result<[u8; 32], String> {
+fn get_secrets_key(key_state: &SecretsKey) -> Result<Zeroizing<[u8; 32]>, String> {
     let guard = key_state
         .0
         .lock()
         .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
-    match *guard {
-        Some(key) => Ok(key),
+    match guard.as_ref() {
+        Some(key) => Ok(key.clone()),
         None => Err("Wallet is locked — unlock to access secrets".to_string()),
     }
 }

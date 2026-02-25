@@ -5,10 +5,12 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::sync::Mutex;
+use zeroize::Zeroizing;
 
 /// In-memory secrets encryption key, derived from mnemonic on wallet unlock.
-/// Cleared on wallet lock.
-pub struct SecretsKey(pub Mutex<Option<[u8; 32]>>);
+/// Cleared on wallet lock. Uses `Zeroizing` to automatically zero key material
+/// on drop, including on error paths and panics.
+pub struct SecretsKey(pub Mutex<Option<Zeroizing<[u8; 32]>>>);
 
 /// Encrypted secret file format (JSON-serialized to disk).
 #[derive(Serialize, Deserialize)]
@@ -29,12 +31,13 @@ const SECRETS_KEY_SALT: &[u8; 16] = b"PEACE_SECRETS_V1";
 ///
 /// Uses Argon2id with light parameters (4 MiB, 1 iteration) since the
 /// mnemonic already has 256 bits of entropy.
-pub fn derive_secrets_key(mnemonic: &str) -> Result<[u8; 32], String> {
+/// Returns `Zeroizing<[u8; 32]>` — key material is automatically zeroed on drop.
+pub fn derive_secrets_key(mnemonic: &str) -> Result<Zeroizing<[u8; 32]>, String> {
     let params = Params::new(4096, 1, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut key = [0u8; 32];
+    let mut key = Zeroizing::new([0u8; 32]);
     argon2
-        .hash_password_into(mnemonic.as_bytes(), SECRETS_KEY_SALT, &mut key)
+        .hash_password_into(mnemonic.as_bytes(), SECRETS_KEY_SALT, &mut *key)
         .map_err(|e| format!("Secrets key derivation failed: {e}"))?;
     Ok(key)
 }

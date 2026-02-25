@@ -3,19 +3,20 @@ use crate::crypto::secrets::{
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use zeroize::Zeroizing;
 
 /// Managed state holding the base directory for secret storage.
 pub struct SecretsDir(pub PathBuf);
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-fn get_secrets_key(key_state: &SecretsKey) -> Result<[u8; 32], String> {
+fn get_secrets_key(key_state: &SecretsKey) -> Result<Zeroizing<[u8; 32]>, String> {
     let guard = key_state
         .0
         .lock()
         .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
-    match *guard {
-        Some(key) => Ok(key),
+    match guard.as_ref() {
+        Some(key) => Ok(key.clone()),
         None => Err("Wallet is locked — unlock to access secrets".to_string()),
     }
 }
