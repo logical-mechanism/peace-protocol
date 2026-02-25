@@ -12,6 +12,76 @@ type Mode = 'choose' | 'create' | 'import'
 type CreateStep = 'generate' | 'verify' | 'password'
 type ImportStep = 'enter' | 'password'
 
+interface StepInfo {
+  label: string
+}
+
+function StepIndicator({ steps, currentIndex }: { steps: StepInfo[]; currentIndex: number }) {
+  return (
+    <div className="flex items-center justify-center mb-8">
+      {steps.map((step, i) => {
+        const isComplete = i < currentIndex
+        const isActive = i === currentIndex
+        return (
+          <div key={i} className="flex items-center">
+            {/* Circle */}
+            <div className="flex flex-col items-center">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors"
+                style={{
+                  background: isComplete
+                    ? 'var(--success)'
+                    : isActive
+                      ? 'var(--accent)'
+                      : 'var(--bg-secondary)',
+                  color: isComplete || isActive ? '#fff' : 'var(--text-muted)',
+                  border: isComplete || isActive ? 'none' : '1px solid var(--border-subtle)',
+                }}
+              >
+                {isComplete ? (
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M3 7l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  i + 1
+                )}
+              </div>
+              <span
+                className="text-xs mt-1.5 whitespace-nowrap"
+                style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-muted)' }}
+              >
+                {step.label}
+              </span>
+            </div>
+            {/* Connector line */}
+            {i < steps.length - 1 && (
+              <div
+                className="h-0.5 mx-3 mb-5"
+                style={{
+                  width: '3rem',
+                  background: i < currentIndex ? 'var(--success)' : 'var(--border-subtle)',
+                  transition: 'background 0.2s ease',
+                }}
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+const CREATE_STEPS: StepInfo[] = [
+  { label: 'Backup' },
+  { label: 'Verify' },
+  { label: 'Password' },
+]
+
+const IMPORT_STEPS: StepInfo[] = [
+  { label: 'Recovery Phrase' },
+  { label: 'Password' },
+]
+
 export default function WalletSetup() {
   const { createWallet } = useWalletContext()
   const navigate = useNavigate()
@@ -235,7 +305,7 @@ export default function WalletSetup() {
       >
         <div className="w-full max-w-2xl">
           {/* Header */}
-          <div className="flex items-center mb-8">
+          <div className="flex items-center mb-4">
             <button
               onClick={() => {
                 if (createStep === 'generate') {
@@ -265,11 +335,13 @@ export default function WalletSetup() {
                   ? 'Verify Phrase'
                   : 'Set Password'}
             </h2>
-            <div className="ml-auto text-sm" style={{ color: 'var(--text-muted)' }}>
-              Step {createStep === 'generate' ? 1 : createStep === 'verify' ? 2 : 3}{' '}
-              of 3
-            </div>
           </div>
+
+          {/* Step Progress */}
+          <StepIndicator
+            steps={CREATE_STEPS}
+            currentIndex={createStep === 'generate' ? 0 : createStep === 'verify' ? 1 : 2}
+          />
 
           {/* Step: Generate */}
           {createStep === 'generate' && (
@@ -418,7 +490,7 @@ export default function WalletSetup() {
     >
       <div className="w-full max-w-2xl">
         {/* Header */}
-        <div className="flex items-center mb-8">
+        <div className="flex items-center mb-4">
           <button
             onClick={() => {
               if (importStep === 'enter') {
@@ -442,10 +514,13 @@ export default function WalletSetup() {
           >
             {importStep === 'enter' ? 'Enter Recovery Phrase' : 'Set Password'}
           </h2>
-          <div className="ml-auto text-sm" style={{ color: 'var(--text-muted)' }}>
-            Step {importStep === 'enter' ? 1 : 2} of 2
-          </div>
         </div>
+
+        {/* Step Progress */}
+        <StepIndicator
+          steps={IMPORT_STEPS}
+          currentIndex={importStep === 'enter' ? 0 : 1}
+        />
 
         {/* Step: Enter mnemonic */}
         {importStep === 'enter' && (
