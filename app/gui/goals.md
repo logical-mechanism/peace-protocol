@@ -116,15 +116,15 @@ Each item has:
 
 > Key file: `fe/src/components/PdfViewer.tsx`
 
-- [ ] **Page number jump input**
+- [x] **Page number jump input**
   - **How**: Replace or supplement the "Page X of Y" display with an editable input field. On Enter or blur, navigate to the specified page. Validate bounds (1 to totalPages).
   - **Why**: For long PDFs, clicking Next/Previous dozens of times is tedious. Direct page entry is essential.
 
-- [ ] **Download/Save As button**
+- [x] **Download/Save As button**
   - **How**: Add a download button in the PdfViewer toolbar that triggers `export_library_content` or creates a blob download link.
   - **Why**: Same rationale as ImageViewer — users want to save PDFs without extra steps.
 
-- [ ] **Text search within PDF**
+- [x] **Text search within PDF**
   - **How**: Use `react-pdf`'s text layer to extract page text, then implement Ctrl+F style search that highlights matches and navigates between them. This is complex but high-value.
   - **Why**: Searching within a purchased PDF document is a fundamental capability. Without it, users must export and open in an external reader.
 

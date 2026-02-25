@@ -194,3 +194,15 @@ select option {
 .page-transition {
   animation: page-fade-in 200ms ease-out;
 }
+
+/* PDF search highlights — text layer is transparent overlay on canvas */
+.textLayer .pdf-search-highlight {
+  background-color: rgba(255, 196, 0, 0.35);
+  border-radius: 2px;
+  color: transparent;
+}
+
+.textLayer .pdf-search-highlight.current {
+  background-color: rgba(255, 140, 0, 0.6);
+  color: transparent;
+}

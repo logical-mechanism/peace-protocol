@@ -1,8 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import LoadingSpinner from './LoadingSpinner';
+import { findMatchesInPdf, highlightText } from '../services/pdfSearch';
+import type { SearchMatch } from '../services/pdfSearch';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -15,14 +18,26 @@ const ZOOM_MAX = 3.0;
 
 interface PdfViewerProps {
   data: Uint8Array;
+  onExport?: () => void;
 }
 
-export default function PdfViewer({ data }: PdfViewerProps) {
+export default function PdfViewer({ data, onExport }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInputValue, setPageInputValue] = useState('1');
   const [scale, setScale] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const pageInputRef = useRef<HTMLInputElement>(null);
+
+  // Search state
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchMatch[]>([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Create a Blob URL inside useEffect so each mount (including React
   // StrictMode remounts) gets a fresh URL that won't be prematurely revoked.
@@ -31,15 +46,14 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   useEffect(() => {
     const blob = new Blob([new Uint8Array(data)], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
-    /* eslint-disable react-hooks/set-state-in-effect */
     setBlobUrl(url);
-    /* eslint-enable react-hooks/set-state-in-effect */
     return () => URL.revokeObjectURL(url);
   }, [data]);
 
-  const onDocumentLoadSuccess = useCallback(({ numPages: total }: { numPages: number }) => {
-    setNumPages(total);
+  const onDocumentLoadSuccess = useCallback((doc: PDFDocumentProxy) => {
+    setNumPages(doc.numPages);
     setCurrentPage(1);
+    pdfDocRef.current = doc;
   }, []);
 
   const onDocumentLoadError = useCallback((err: Error) => {
@@ -50,19 +64,111 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   const zoomOut = useCallback(() => setScale(s => Math.max(ZOOM_MIN, s - ZOOM_STEP)), []);
   const zoomReset = useCallback(() => setScale(1.0), []);
 
-  // Escape key closes fullscreen (not the parent modal)
+  // Sync page input when currentPage changes externally (prev/next buttons)
   useEffect(() => {
-    if (!isFullscreen) return;
+    setPageInputValue(String(currentPage));
+  }, [currentPage]);
+
+  const commitPageJump = useCallback(() => {
+    const parsed = parseInt(pageInputValue, 10);
+    if (isNaN(parsed) || parsed < 1 || parsed > numPages) {
+      setPageInputValue(String(currentPage));
+      return;
+    }
+    setCurrentPage(parsed);
+  }, [pageInputValue, numPages, currentPage]);
+
+  // --- Search logic ---
+
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setCurrentMatchIndex(0);
+  }, []);
+
+  const performSearch = useCallback(async () => {
+    const doc = pdfDocRef.current;
+    if (!doc || !searchQuery.trim()) {
+      setSearchResults([]);
+      setCurrentMatchIndex(0);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const matches = await findMatchesInPdf(doc, searchQuery.trim());
+      setSearchResults(matches);
+      setCurrentMatchIndex(0);
+      if (matches.length > 0) {
+        setCurrentPage(matches[0].pageNumber);
+      }
+    } finally {
+      setIsSearching(false);
+    }
+  }, [searchQuery]);
+
+  const goToNextMatch = useCallback(() => {
+    if (searchResults.length === 0) return;
+    const next = (currentMatchIndex + 1) % searchResults.length;
+    setCurrentMatchIndex(next);
+    setCurrentPage(searchResults[next].pageNumber);
+  }, [currentMatchIndex, searchResults]);
+
+  const goToPrevMatch = useCallback(() => {
+    if (searchResults.length === 0) return;
+    const prev = (currentMatchIndex - 1 + searchResults.length) % searchResults.length;
+    setCurrentMatchIndex(prev);
+    setCurrentPage(searchResults[prev].pageNumber);
+  }, [currentMatchIndex, searchResults]);
+
+  // Pre-filter matches for the current page to avoid filtering in the renderer
+  const currentPageMatches = useMemo(
+    () => searchResults.filter(m => m.pageNumber === currentPage),
+    [searchResults, currentPage],
+  );
+
+  const customTextRenderer = useCallback(
+    (textItem: { pageIndex: number; pageNumber: number; itemIndex: number; str: string }) => {
+      const itemMatches = currentPageMatches.filter(m => m.itemIndex === textItem.itemIndex);
+      if (itemMatches.length === 0) return textItem.str;
+      return highlightText(textItem.str, itemMatches, currentMatchIndex, searchResults);
+    },
+    [currentPageMatches, currentMatchIndex, searchResults],
+  );
+
+  // Auto-focus search input when opened
+  useEffect(() => {
+    if (isSearchOpen) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+  }, [isSearchOpen]);
+
+  // Keyboard shortcuts: Ctrl+F to open search, Escape to close search then fullscreen
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
         e.stopPropagation();
-        setIsFullscreen(false);
+        setIsSearchOpen(true);
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (isSearchOpen) {
+          e.stopPropagation();
+          closeSearch();
+          return;
+        }
+        if (isFullscreen) {
+          e.stopPropagation();
+          setIsFullscreen(false);
+          return;
+        }
       }
     };
-    // Use capture phase so we intercept before the modal's escape handler
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [isFullscreen]);
+  }, [isSearchOpen, isFullscreen, closeSearch]);
 
   if (error) {
     return (
@@ -90,9 +196,26 @@ export default function PdfViewer({ data }: PdfViewerProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <span className="text-sm text-[var(--text-secondary)] min-w-[80px] text-center">
-              {currentPage} / {numPages}
-            </span>
+            <div className="flex items-center gap-1 text-sm text-[var(--text-secondary)]">
+              <input
+                ref={pageInputRef}
+                type="text"
+                inputMode="numeric"
+                value={pageInputValue}
+                onChange={(e) => setPageInputValue(e.target.value)}
+                onBlur={commitPageJump}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitPageJump();
+                    pageInputRef.current?.blur();
+                  }
+                }}
+                className="w-12 text-center text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none focus:border-[var(--accent)]"
+                aria-label="Page number"
+              />
+              <span>/ {numPages}</span>
+            </div>
             <button
               onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
               disabled={currentPage >= numPages}
@@ -142,6 +265,36 @@ export default function PdfViewer({ data }: PdfViewerProps) {
           </svg>
         </button>
 
+        {/* Search toggle */}
+        <div className="w-px h-5 bg-[var(--border-subtle)]" />
+        <button
+          onClick={() => isSearchOpen ? closeSearch() : setIsSearchOpen(true)}
+          className={`${btnClass} ${isSearchOpen ? 'text-[var(--accent)]' : ''}`}
+          title="Find in PDF (Ctrl+F)"
+          aria-label="Find in PDF"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
+
+        {/* Save As button */}
+        {onExport && (
+          <>
+            <div className="w-px h-5 bg-[var(--border-subtle)]" />
+            <button
+              onClick={onExport}
+              className={btnClass}
+              title="Save As"
+              aria-label="Save PDF to file"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+          </>
+        )}
+
         {/* Expand / Collapse button */}
         <div className="w-px h-5 bg-[var(--border-subtle)]" />
         <button
@@ -165,6 +318,69 @@ export default function PdfViewer({ data }: PdfViewerProps) {
       </div>
     </div>
   );
+
+  const searchBar = isSearchOpen ? (
+    <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-card)] border-b border-[var(--border-subtle)]">
+      <input
+        ref={searchInputRef}
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (searchResults.length === 0 || isSearching) {
+              performSearch();
+            } else if (e.shiftKey) {
+              goToPrevMatch();
+            } else {
+              goToNextMatch();
+            }
+          }
+        }}
+        placeholder="Find in PDF..."
+        className="flex-1 min-w-0 px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-muted)]"
+        aria-label="Search text in PDF"
+      />
+      <button
+        onClick={goToPrevMatch}
+        disabled={searchResults.length === 0}
+        className={btnClass}
+        title="Previous match (Shift+Enter)"
+        aria-label="Previous match"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        </svg>
+      </button>
+      <button
+        onClick={goToNextMatch}
+        disabled={searchResults.length === 0}
+        className={btnClass}
+        title="Next match (Enter)"
+        aria-label="Next match"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <span className="text-xs text-[var(--text-muted)] whitespace-nowrap min-w-[70px] text-center">
+        {isSearching ? 'Searching...' : searchResults.length > 0
+          ? `${currentMatchIndex + 1} of ${searchResults.length}`
+          : searchQuery.trim() ? 'No matches' : ''}
+      </span>
+      <button
+        onClick={closeSearch}
+        className={btnClass}
+        title="Close search (Escape)"
+        aria-label="Close search"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  ) : null;
 
   const pdfLoading = (
     <div className="py-12 text-center">
@@ -190,6 +406,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
         }
         renderTextLayer={true}
         renderAnnotationLayer={true}
+        customTextRenderer={isSearchOpen && searchResults.length > 0 ? customTextRenderer : undefined}
       />
     </Document>
   ) : pdfLoading;
@@ -209,6 +426,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
           <div className="flex-shrink-0 px-6 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-card)]">
             {toolbar}
           </div>
+          {searchBar}
 
           {/* PDF content area */}
           <div className="flex-1 overflow-auto flex justify-center bg-[var(--bg-secondary)]">
@@ -223,6 +441,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   return (
     <div className="space-y-3">
       {toolbar}
+      {searchBar}
       <div className="flex justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
         {pdfContent}
       </div>

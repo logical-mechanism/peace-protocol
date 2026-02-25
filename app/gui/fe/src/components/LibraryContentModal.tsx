@@ -404,7 +404,7 @@ export default function LibraryContentModal({
                   <p className="text-sm text-[var(--text-muted)]">Loading PDF viewer...</p>
                 </div>
               }>
-                <PdfViewer data={rawContent} />
+                <PdfViewer data={rawContent} onExport={handleExport} />
               </Suspense>
             )}
 
@@ -416,7 +416,7 @@ export default function LibraryContentModal({
                   <p className="text-sm text-[var(--text-muted)]">Loading image viewer...</p>
                 </div>
               }>
-                <ImageViewer data={rawContent} mimeType={extensionToMimeType(item.fileExtension)} />
+                <ImageViewer data={rawContent} mimeType={extensionToMimeType(item.fileExtension)} onExport={handleExport} />
               </Suspense>
             )}
 
