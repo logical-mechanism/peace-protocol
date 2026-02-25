@@ -106,7 +106,9 @@ pub struct AvailableDiskSpace {
 
 /// Get available disk space on the partition where app data is stored
 #[tauri::command]
-pub fn get_available_disk_space(app_handle: tauri::AppHandle) -> Result<AvailableDiskSpace, String> {
+pub fn get_available_disk_space(
+    app_handle: tauri::AppHandle,
+) -> Result<AvailableDiskSpace, String> {
     let app_data_dir = app_handle
         .path()
         .app_data_dir()

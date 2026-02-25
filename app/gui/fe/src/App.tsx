@@ -8,6 +8,7 @@ import WalletUnlock from './pages/WalletUnlock'
 import NodeSync from './pages/NodeSync'
 import Settings from './pages/Settings'
 import SessionWarningBanner from './components/SessionWarningBanner'
+import OnboardingOverlay from './components/OnboardingOverlay'
 
 function App() {
   const { walletState, refreshBalance } = useWalletContext()
@@ -39,6 +40,7 @@ function App() {
   return (
     <>
     <SessionWarningBanner />
+    <OnboardingOverlay />
     <div key={location.pathname} className="page-transition">
     <Routes>
       <Route
