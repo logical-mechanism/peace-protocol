@@ -82,13 +82,44 @@ describe('TtlCache', () => {
     expect(cache.get('key')).toBe('new');
   });
 
-  it('expired entries are cleaned up on get', () => {
+  it('expired entries remain in store for stale fallback', () => {
     const cache = new TtlCache(100);
     cache.set('key', 'value');
     expect(cache.size).toBe(1);
 
     vi.advanceTimersByTime(200);
-    cache.get('key'); // triggers cleanup
-    expect(cache.size).toBe(0);
+    cache.get('key'); // expired but not deleted
+    expect(cache.size).toBe(1); // still in store for getStale()
+    expect(cache.get('key')).toBeUndefined();
+    expect(cache.getStale('key')).toBe('value');
+  });
+
+  describe('getStale', () => {
+    it('returns value even after TTL expires', () => {
+      const cache = new TtlCache(100);
+      cache.set('key', 'value');
+
+      vi.advanceTimersByTime(500);
+      expect(cache.get('key')).toBeUndefined();
+      expect(cache.getStale('key')).toBe('value');
+    });
+
+    it('returns undefined for missing keys', () => {
+      const cache = new TtlCache(1000);
+      expect(cache.getStale('missing')).toBeUndefined();
+    });
+
+    it('returns value within TTL (same as get)', () => {
+      const cache = new TtlCache(10_000);
+      cache.set('key', 'fresh');
+      expect(cache.getStale('key')).toBe('fresh');
+    });
+
+    it('returns undefined after invalidate', () => {
+      const cache = new TtlCache(100);
+      cache.set('key', 'value');
+      cache.invalidate('key');
+      expect(cache.getStale('key')).toBeUndefined();
+    });
   });
 });

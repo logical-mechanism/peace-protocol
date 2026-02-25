@@ -115,42 +115,53 @@ export async function getAllEncryptions(skipCache = false): Promise<EncryptionDi
     const cached = apiCache.get<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
     if (cached) return cached;
   }
-  const { contracts } = getNetworkConfig();
-  const kupo = getKupoClient();
-  const koios = getKoiosClient();
 
-  const utxos = await kupo.getAddressUtxos(contracts.encryptionAddress);
-
-  // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
-  const parsed: Array<{ utxo: KoiosUtxo; datum: EncryptionDatum }> = [];
-  for (const utxo of utxos) {
-    if (!utxo.inline_datum?.value) continue;
-    try {
-      const datum = parseEncryptionDatum(utxo.inline_datum.value);
-      parsed.push({ utxo, datum });
-    } catch (err) {
-      logger.warn('Failed to parse encryption datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
-    }
-  }
-
-  // Phase 2: Batch fetch all CIP-20 metadata in a single request
-  const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
-  let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
   try {
-    metadataMap = await koios.getTxMetadataBatch(txHashes);
+    const { contracts } = getNetworkConfig();
+    const kupo = getKupoClient();
+    const koios = getKoiosClient();
+
+    const utxos = await kupo.getAddressUtxos(contracts.encryptionAddress);
+
+    // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
+    const parsed: Array<{ utxo: KoiosUtxo; datum: EncryptionDatum }> = [];
+    for (const utxo of utxos) {
+      if (!utxo.inline_datum?.value) continue;
+      try {
+        const datum = parseEncryptionDatum(utxo.inline_datum.value);
+        parsed.push({ utxo, datum });
+      } catch (err) {
+        logger.warn('Failed to parse encryption datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
+      }
+    }
+
+    // Phase 2: Batch fetch all CIP-20 metadata in a single request
+    const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+    let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
+    try {
+      metadataMap = await koios.getTxMetadataBatch(txHashes);
+    } catch (err) {
+      logger.warn('Failed to batch fetch CIP-20 metadata', { error: String(err) });
+    }
+
+    // Phase 3: Assemble results
+    const encryptions: EncryptionDisplay[] = [];
+    for (const { utxo, datum } of parsed) {
+      const cip20 = extractCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+      encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
+    }
+
+    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
+    return encryptions;
   } catch (err) {
-    logger.warn('Failed to batch fetch CIP-20 metadata', { error: String(err) });
+    // If fetching fails (Kupo down, Koios circuit open), return stale cached data
+    const stale = apiCache.getStale<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
+    if (stale) {
+      logger.warn('Returning stale cache for encryptions', { error: String(err) });
+      return stale;
+    }
+    throw err;
   }
-
-  // Phase 3: Assemble results
-  const encryptions: EncryptionDisplay[] = [];
-  for (const { utxo, datum } of parsed) {
-    const cip20 = extractCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
-    encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
-  }
-
-  apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
-  return encryptions;
 }
 
 /** Find a single encryption by its token name, or null if not found. */

@@ -77,42 +77,53 @@ export async function getAllBids(skipCache = false): Promise<BidDisplay[]> {
     const cached = apiCache.get<BidDisplay[]>(CACHE_KEY_ALL_BIDS);
     if (cached) return cached;
   }
-  const { contracts } = getNetworkConfig();
-  const kupo = getKupoClient();
-  const koios = getKoiosClient();
 
-  const utxos = await kupo.getAddressUtxos(contracts.biddingAddress);
-
-  // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
-  const parsed: Array<{ utxo: KoiosUtxo; datum: BidDatum }> = [];
-  for (const utxo of utxos) {
-    if (!utxo.inline_datum?.value) continue;
-    try {
-      const datum = parseBidDatum(utxo.inline_datum.value);
-      parsed.push({ utxo, datum });
-    } catch (err) {
-      logger.warn('Failed to parse bid datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
-    }
-  }
-
-  // Phase 2: Batch fetch all CIP-20 metadata in a single request
-  const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
-  let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
   try {
-    metadataMap = await koios.getTxMetadataBatch(txHashes);
+    const { contracts } = getNetworkConfig();
+    const kupo = getKupoClient();
+    const koios = getKoiosClient();
+
+    const utxos = await kupo.getAddressUtxos(contracts.biddingAddress);
+
+    // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
+    const parsed: Array<{ utxo: KoiosUtxo; datum: BidDatum }> = [];
+    for (const utxo of utxos) {
+      if (!utxo.inline_datum?.value) continue;
+      try {
+        const datum = parseBidDatum(utxo.inline_datum.value);
+        parsed.push({ utxo, datum });
+      } catch (err) {
+        logger.warn('Failed to parse bid datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
+      }
+    }
+
+    // Phase 2: Batch fetch all CIP-20 metadata in a single request
+    const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+    let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
+    try {
+      metadataMap = await koios.getTxMetadataBatch(txHashes);
+    } catch (err) {
+      logger.warn('Failed to batch fetch bid CIP-20 metadata', { error: String(err) });
+    }
+
+    // Phase 3: Assemble results
+    const bids: BidDisplay[] = [];
+    for (const { utxo, datum } of parsed) {
+      const cip20 = extractBidCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+      bids.push(utxoToBidDisplay(utxo, datum, cip20));
+    }
+
+    apiCache.set(CACHE_KEY_ALL_BIDS, bids);
+    return bids;
   } catch (err) {
-    logger.warn('Failed to batch fetch bid CIP-20 metadata', { error: String(err) });
+    // If fetching fails (Kupo down, Koios circuit open), return stale cached data
+    const stale = apiCache.getStale<BidDisplay[]>(CACHE_KEY_ALL_BIDS);
+    if (stale) {
+      logger.warn('Returning stale cache for bids', { error: String(err) });
+      return stale;
+    }
+    throw err;
   }
-
-  // Phase 3: Assemble results
-  const bids: BidDisplay[] = [];
-  for (const { utxo, datum } of parsed) {
-    const cip20 = extractBidCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
-    bids.push(utxoToBidDisplay(utxo, datum, cip20));
-  }
-
-  apiCache.set(CACHE_KEY_ALL_BIDS, bids);
-  return bids;
 }
 
 /** Find a single bid by its token name, or null if not found. */

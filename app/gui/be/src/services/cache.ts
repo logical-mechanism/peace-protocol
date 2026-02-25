@@ -15,9 +15,17 @@ export class TtlCache {
     const entry = this.store.get(key);
     if (!entry) return undefined;
     if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
+      // Don't delete — keep for getStale() fallback.
+      // Entry is cleaned up on set(), invalidate(), or clear().
       return undefined;
     }
+    return entry.value as T;
+  }
+
+  /** Return cached value even if TTL has expired (for stale fallback). */
+  getStale<T>(key: string): T | undefined {
+    const entry = this.store.get(key);
+    if (!entry) return undefined;
     return entry.value as T;
   }
 
