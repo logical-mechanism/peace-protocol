@@ -202,7 +202,7 @@ Each item has:
 
 > Key files: `fe/src/components/MarketplaceTab.tsx`, `fe/src/components/EncryptionCard.tsx`
 
-- [ ] **Search by description content**
+- [x] **Search by description content**
   - **How**: Extend the search filter in `MarketplaceTab` (line 80-86) to also match against `e.description`. Currently only searches `tokenName` and `seller`.
   - **Why**: Description is the most meaningful field for finding relevant listings. Users searching for "research paper" should find listings whose description mentions it.
 
@@ -236,7 +236,7 @@ Each item has:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/components/ConfirmModal.tsx`, `fe/src/services/transactionHistory.ts`
 
-- [ ] **Confirmation dialogs for all destructive actions**
+- [x] **Confirmation dialogs for all destructive actions**
   - **How**: Use `ConfirmModal` (already exists) before: removing a listing, canceling a bid, canceling a pending listing, deleting a library item. Currently some actions fire immediately on button click.
   - **Why**: Accidental clicks on "Remove Listing" or "Cancel Bid" cause irreversible on-chain transactions. A confirmation step prevents costly mistakes.
 
