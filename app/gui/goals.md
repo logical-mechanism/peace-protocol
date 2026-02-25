@@ -492,7 +492,7 @@ Each item has:
   - **How**: Define spacing tokens in CSS variables: `--space-xs: 4px`, `--space-sm: 8px`, `--space-md: 16px`, `--space-lg: 24px`, `--space-xl: 32px`. Replace hardcoded pixel values in component classes with these tokens.
   - **Why**: Inconsistent spacing (sometimes 4px gap, sometimes 8px) makes the UI feel unpolished. A system ensures visual rhythm.
 
-- [ ] **Responsive card grid breakpoints**
+- [x] **Responsive card grid breakpoints**
   - **How**: Update MarketplaceTab and LibraryTab grids to use responsive breakpoints: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`. Currently fixed column counts cause layout issues at the 1280x800 default window size.
   - **Why**: Cards may be too small or too large depending on window size. Responsive breakpoints adapt to available space.
 
