@@ -17,6 +17,7 @@ import { verifyApiKey, deleteFile as iagonDeleteFile } from '../services/iagonAp
 import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../services/transactionHistory'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
+import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -71,6 +72,11 @@ export default function Settings() {
   const [orphanedDrafts, setOrphanedDrafts] = useState<ListingDraft[]>([])
   const [orphanCleanupLoading, setOrphanCleanupLoading] = useState<string | null>(null)
 
+  // Image cache management
+  const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus | null>(null)
+  const [cacheDeleting, setCacheDeleting] = useState<string | null>(null)
+  const [cacheClearingAll, setCacheClearingAll] = useState(false)
+
   // Transaction history cleanup
   const [txHistoryCount, setTxHistoryCount] = useState(0)
 
@@ -98,10 +104,13 @@ export default function Settings() {
     getOrphanedDrafts().then(setOrphanedDrafts).catch(() => {})
   }, [activeSection])
 
-  // Load transaction history count when storage section is active
+  // Load image cache status and transaction history count when storage section is active
   useEffect(() => {
-    if (activeSection === 'storage' && userPkh) {
-      setTxHistoryCount(getTransactions(userPkh).length)
+    if (activeSection === 'storage') {
+      listCachedImages().then(setImageCacheStatus).catch(console.error)
+      if (userPkh) {
+        setTxHistoryCount(getTransactions(userPkh).length)
+      }
     }
   }, [activeSection, userPkh])
 
@@ -138,6 +147,35 @@ export default function Settings() {
     }
     setOrphanedDrafts([])
   }, [orphanedDrafts])
+
+  const handleDeleteCachedImage = useCallback(async (tokenName: string) => {
+    setCacheDeleting(tokenName)
+    try {
+      await deleteCachedImage(tokenName)
+      setImageCacheStatus(prev =>
+        prev ? { ...prev, cached: prev.cached.filter(t => t !== tokenName) } : prev
+      )
+    } catch (err) {
+      console.error('Failed to delete cached image:', err)
+    } finally {
+      setCacheDeleting(null)
+    }
+  }, [])
+
+  const handleClearAllCache = useCallback(async () => {
+    if (!imageCacheStatus || !confirm('Clear all cached images? They will be re-downloaded when needed.')) return
+    setCacheClearingAll(true)
+    try {
+      for (const tokenName of imageCacheStatus.cached) {
+        await deleteCachedImage(tokenName)
+      }
+      setImageCacheStatus(prev => prev ? { ...prev, cached: [] } : prev)
+    } catch (err) {
+      console.error('Failed to clear image cache:', err)
+    } finally {
+      setCacheClearingAll(false)
+    }
+  }, [imageCacheStatus])
 
   const handleNetworkSwitch = useCallback(async (newNetwork: string) => {
     if (newNetwork === currentNetwork) return
@@ -907,6 +945,70 @@ export default function Settings() {
                   >
                     Refresh
                   </button>
+                </div>
+              ) : (
+                <p className="text-[var(--text-muted)]">Loading...</p>
+              )}
+            </div>
+
+            {/* Image Cache */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-medium">Image Cache</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => listCachedImages().then(setImageCacheStatus).catch(console.error)}
+                    className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    aria-label="Refresh image cache status"
+                  >
+                    Refresh
+                  </button>
+                  {imageCacheStatus && imageCacheStatus.cached.length > 0 && (
+                    <button
+                      onClick={handleClearAllCache}
+                      disabled={cacheClearingAll}
+                      className="px-3 py-1.5 text-sm text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {cacheClearingAll ? 'Clearing...' : 'Clear All'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {imageCacheStatus ? (
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
+                      <span className="text-sm text-[var(--text-muted)]">Cached</span>
+                      <p className="text-lg font-medium">{imageCacheStatus.cached.length} image{imageCacheStatus.cached.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
+                      <span className="text-sm text-[var(--text-muted)]">Banned</span>
+                      <p className="text-lg font-medium">{imageCacheStatus.banned.length} image{imageCacheStatus.banned.length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+
+                  {imageCacheStatus.cached.length > 0 ? (
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {imageCacheStatus.cached.map(tokenName => (
+                        <div key={tokenName} className="flex items-center justify-between py-1.5 px-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+                          <code className="text-xs font-mono text-[var(--text-secondary)] truncate mr-3">
+                            {tokenName.length > 24 ? `${tokenName.slice(0, 12)}...${tokenName.slice(-12)}` : tokenName}
+                          </code>
+                          <button
+                            onClick={() => handleDeleteCachedImage(tokenName)}
+                            disabled={cacheDeleting === tokenName}
+                            className="px-2 py-1 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                            aria-label={`Delete cached image ${tokenName}`}
+                          >
+                            {cacheDeleting === tokenName ? '...' : 'Delete'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)] text-center py-2">No cached images.</p>
+                  )}
                 </div>
               ) : (
                 <p className="text-[var(--text-muted)]">Loading...</p>

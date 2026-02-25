@@ -258,7 +258,7 @@ Each item has:
 
 > Key file: `fe/src/pages/Settings.tsx`
 
-- [ ] **Image cache management UI**
+- [x] **Image cache management UI**
   - **How**: Add a "Cache" section in Settings showing: total cache size, number of cached images, list of cached image URLs with delete buttons, "Clear All Cache" button. Use existing Tauri commands: `list_cached_images`, `delete_cached_image`.
   - **Why**: Users have no visibility into what's cached or how much disk space it uses. Cache can grow indefinitely.
 
