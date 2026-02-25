@@ -55,6 +55,7 @@ export default function Settings() {
   const [mnemonicPassword, setMnemonicPassword] = useState('')
   const [mnemonicError, setMnemonicError] = useState('')
   const [mnemonicLoading, setMnemonicLoading] = useState(false)
+  const [mnemonicCopied, setMnemonicCopied] = useState(false)
   const [networkSwitching, setNetworkSwitching] = useState(false)
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
@@ -245,7 +246,21 @@ export default function Settings() {
     setMnemonicWords([])
     setMnemonicPassword('')
     setMnemonicError('')
+    setMnemonicCopied(false)
+    navigator.clipboard.writeText('').catch(() => {})
   }, [])
+
+  const handleCopyMnemonic = useCallback(async () => {
+    const success = await copyToClipboard(mnemonicWords.join(' '))
+    if (success) {
+      setMnemonicCopied(true)
+      setTimeout(() => setMnemonicCopied(false), 2000)
+      // Auto-clear clipboard after 30 seconds for security
+      setTimeout(() => {
+        navigator.clipboard.writeText('').catch(() => {})
+      }, 30000)
+    }
+  }, [mnemonicWords])
 
   const handleCopyAddress = useCallback(async () => {
     if (!address) return
@@ -671,12 +686,20 @@ export default function Settings() {
                       </div>
                     ))}
                   </div>
-                  <button
-                    onClick={handleHideMnemonic}
-                    className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
-                  >
-                    Hide Recovery Phrase
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCopyMnemonic}
+                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    >
+                      {mnemonicCopied ? 'Copied!' : 'Copy to Clipboard'}
+                    </button>
+                    <button
+                      onClick={handleHideMnemonic}
+                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    >
+                      Hide Recovery Phrase
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

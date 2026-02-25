@@ -240,7 +240,7 @@ Each item has:
   - **How**: Use `ConfirmModal` (already exists) before: removing a listing, canceling a bid, canceling a pending listing, deleting a library item. Currently some actions fire immediately on button click.
   - **Why**: Accidental clicks on "Remove Listing" or "Cancel Bid" cause irreversible on-chain transactions. A confirmation step prevents costly mistakes.
 
-- [ ] **Transaction history filtering and search**
+- [x] **Transaction history filtering and search**
   - **How**: Add filter buttons for tx type (listing, bid, accept, cancel) and a search input for tx hash in `HistoryTab`. Add date range filtering.
   - **Why**: As transaction history grows, finding a specific transaction becomes difficult. Filtering reduces the haystack.
 
@@ -292,7 +292,7 @@ Each item has:
   - **How**: When auto-lock timer is within 60 seconds of expiring, show a sticky toast: "Session expires in X seconds. [Extend]". Clicking "Extend" resets the inactivity timer. Use `autolock.ts` timer value.
   - **Why**: Auto-lock happens silently. Users in the middle of reviewing a listing lose their context. A warning gives them a chance to extend.
 
-- [ ] **Copy mnemonic to clipboard button**
+- [x] **Copy mnemonic to clipboard button**
   - **How**: Add a "Copy" button next to the mnemonic display in Settings reveal section. Use `copyToClipboard()` utility. Show a toast "Copied to clipboard" with a warning "Clear your clipboard after storing securely". Auto-clear clipboard after 30 seconds via `setTimeout`.
   - **Why**: Currently users must manually select all 24 words and copy. Error-prone and frustrating.
 
