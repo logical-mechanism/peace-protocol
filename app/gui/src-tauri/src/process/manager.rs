@@ -1,3 +1,4 @@
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -103,6 +104,12 @@ impl ManagedProcess {
             self.log_buffer.remove(0);
         }
     }
+}
+
+/// Apply ±20% random jitter to a delay to prevent thundering herd on restart.
+fn apply_jitter(delay_ms: f64) -> f64 {
+    let jitter = rand::thread_rng().gen_range(0.8..=1.2);
+    delay_ms * jitter
 }
 
 /// Send a signal to a process using libc::kill directly.
@@ -527,11 +534,12 @@ impl NodeManager {
                                 } else if proc.info.restart_count < proc.restart_policy.max_retries
                                 {
                                     proc.info.restart_count += 1;
-                                    let delay = proc.restart_policy.initial_delay_ms as f64
+                                    let base_delay = proc.restart_policy.initial_delay_ms as f64
                                         * proc
                                             .restart_policy
                                             .backoff_multiplier
                                             .powi((proc.info.restart_count - 1) as i32);
+                                    let delay = apply_jitter(base_delay);
                                     proc.info.status = ProcessStatus::Error {
                                         message: format!(
                                             "{} (restarting in {:.0}s, attempt {}/{})",
@@ -1285,6 +1293,23 @@ mod tests {
         assert_eq!(policy.max_retries, 5);
         assert_eq!(policy.initial_delay_ms, 1000);
         assert!((policy.backoff_multiplier - 2.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn jitter_stays_within_bounds() {
+        for _ in 0..1000 {
+            let result = apply_jitter(1000.0);
+            assert!(
+                result >= 800.0 && result <= 1200.0,
+                "jitter produced {result}, expected 800..=1200"
+            );
+        }
+    }
+
+    #[test]
+    fn jitter_preserves_zero_delay() {
+        let result = apply_jitter(0.0);
+        assert!((result - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]

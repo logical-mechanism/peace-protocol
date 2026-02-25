@@ -102,7 +102,7 @@ Each item has:
   - **How**: Ogmios has a `GET /health` endpoint; Kupo has `GET /health`. In `src-tauri/src/process/ogmios.rs` and `kupo.rs`, add health check functions similar to `express.rs`. Poll every 10s after process starts. Emit health status as Tauri events.
   - **Why**: Currently only Express has a health check. If Ogmios or Kupo crash silently, the app shows confusing errors instead of "Ogmios is down, restarting..."
 
-- [ ] **Restart-with-jitter for process backoff**
+- [x] **Restart-with-jitter for process backoff**
   - **How**: In `manager.rs`, add random jitter (±20%) to the exponential backoff delay. Use `rand::thread_rng().gen_range(0.8..1.2)` as a multiplier on the delay. This prevents all processes from retrying simultaneously.
   - **Why**: If the system is under load, synchronized restarts (all at exactly 2s, then 4s, then 8s) create thundering herd pressure that makes recovery harder.
 
