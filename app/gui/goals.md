@@ -120,27 +120,27 @@ Each item has:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/App.tsx`
 
-- [ ] **Proper tab accessibility with ARIA roles**
+- [x] **Proper tab accessibility with ARIA roles**
   - **How**: Wrap the tab bar in `<nav role="tablist">`. Each tab button gets `role="tab"`, `aria-selected`, `aria-controls`. Tab panels get `role="tabpanel"`, `aria-labelledby`. Support arrow keys for tab navigation (Left/Right to switch tabs).
   - **Why**: Screen readers can't identify the current tab or navigate between them. This is a WCAG 2.1 AA requirement for tab patterns.
 
-- [ ] **Persist active tab across page navigations**
+- [x] **Persist active tab across page navigations**
   - **How**: Store the active tab index in localStorage (keyed by wallet PKH). When Dashboard mounts, restore the last active tab. Already partially done for filters via `useTabFilterState` — extend to the tab index itself.
   - **Why**: Navigating to Settings and back resets the user to the Marketplace tab, losing their place.
 
-- [ ] **Global refresh button with last-updated timestamp**
+- [x] **Global refresh button with last-updated timestamp**
   - **How**: Add a small refresh icon button in the Dashboard header that calls `fetchEncryptions()` / `fetchBids()` on the active tab. Show "Last updated: 30s ago" next to it, updated every second via `setInterval`. Disable during loading.
   - **Why**: Users have no way to manually refresh data. They must switch tabs or navigate away and back.
 
-- [ ] **Badge count on tabs for pending items**
+- [x] **Badge count on tabs for pending items**
   - **How**: On the My Sales tab, show a badge with the count of listings that have new unviewed bids (using `useBidNotifications`). On My Purchases, show count of pending bids. Use the existing `Badge` component. Animate the badge on count change.
   - **Why**: Users shouldn't have to click into each tab to discover if anything needs their attention.
 
-- [ ] **Quick-stat cards above tabs**
+- [x] **Quick-stat cards above tabs**
   - **How**: Add a row of 3-4 small stat cards between the balance display and tab bar: "Active Listings: 5", "Pending Bids: 3", "Library Items: 12", "Total Earned: 500 ADA". Fetch counts from the same data the tabs use.
   - **Why**: An at-a-glance summary lets users understand their marketplace position without clicking into each tab.
 
-- [ ] **Keyboard shortcut for tab switching**
+- [x] **Keyboard shortcut for tab switching**
   - **How**: Add a global `useEffect` keydown listener on Dashboard. `Ctrl+1` through `Ctrl+5` switches to tabs 1-5. `Ctrl+R` triggers refresh. Show shortcuts in a tooltip on the tab bar.
   - **Why**: Power users want to navigate without the mouse. Tab switching is the most common action on the dashboard.
 
