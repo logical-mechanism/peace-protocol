@@ -139,6 +139,36 @@ class KoiosClient {
   }
 
   /**
+   * Get transaction metadata for multiple tx hashes (batch).
+   * Returns a Map of txHash → metadata entries array.
+   */
+  async getTxMetadataBatch(txHashes: string[]): Promise<Map<string, Array<{ key: string; json: unknown }>>> {
+    if (txHashes.length === 0) return new Map();
+
+    const results = await this.request<Array<{ tx_hash: string; metadata: Record<string, unknown> | null }>>(
+      '/tx_metadata',
+      {
+        method: 'POST',
+        body: JSON.stringify({ _tx_hashes: txHashes }),
+      }
+    );
+
+    const metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
+
+    for (const item of results) {
+      const rawMetadata = item.metadata;
+      if (!rawMetadata || typeof rawMetadata !== 'object') {
+        metadataMap.set(item.tx_hash, []);
+        continue;
+      }
+      const entries = Object.entries(rawMetadata).map(([key, json]) => ({ key, json }));
+      metadataMap.set(item.tx_hash, entries);
+    }
+
+    return metadataMap;
+  }
+
+  /**
    * Get all transaction hashes for an asset (with full history).
    * Used for building decryption levels across re-encryption hops.
    */

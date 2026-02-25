@@ -509,3 +509,61 @@ describe('parseCip20Fields — edge cases', () => {
     expect(result.futurePrice).toBeUndefined();
   });
 });
+
+// --- Batch metadata extraction helpers ---
+import { extractCip20FromMetadata } from '../encryptions.js';
+import { extractBidCip20FromMetadata } from '../bids.js';
+
+describe('extractCip20FromMetadata', () => {
+  it('extracts CIP-20 fields from metadata entries (new structured format)', () => {
+    const entries = [
+      { key: '674', json: { msg: ['A cool item'], p: '10.5', s: 'on-chain', i: ['https://img.png'], c: 'text' } },
+    ];
+    const result = extractCip20FromMetadata(entries);
+    expect(result.description).toBe('A cool item');
+    expect(result.suggestedPrice).toBe(10.5);
+    expect(result.storageLayer).toBe('on-chain');
+    expect(result.imageLink).toBe('https://img.png');
+    expect(result.category).toBe('text');
+  });
+
+  it('extracts CIP-20 fields from metadata entries (old flat format)', () => {
+    const entries = [
+      { key: '674', json: { msg: ['A cool item', '10.5', 'on-chain'] } },
+    ];
+    const result = extractCip20FromMetadata(entries);
+    expect(result.description).toBe('A cool item');
+    expect(result.suggestedPrice).toBe(10.5);
+  });
+
+  it('returns empty when no 674 key', () => {
+    const entries = [{ key: '0', json: { msg: ['test'] } }];
+    expect(extractCip20FromMetadata(entries)).toEqual({});
+  });
+
+  it('returns empty for empty entries', () => {
+    expect(extractCip20FromMetadata([])).toEqual({});
+  });
+
+  it('returns empty when 674 json is null', () => {
+    const entries = [{ key: '674', json: null }];
+    expect(extractCip20FromMetadata(entries)).toEqual({});
+  });
+});
+
+describe('extractBidCip20FromMetadata', () => {
+  it('extracts future price from bid metadata', () => {
+    const entries = [{ key: '674', json: { msg: ['10.5'] } }];
+    const result = extractBidCip20FromMetadata(entries);
+    expect(result.futurePrice).toBe(10.5);
+  });
+
+  it('returns empty when no 674 key', () => {
+    expect(extractBidCip20FromMetadata([])).toEqual({});
+  });
+
+  it('returns empty when msg array is empty', () => {
+    const entries = [{ key: '674', json: { msg: [] } }];
+    expect(extractBidCip20FromMetadata(entries)).toEqual({});
+  });
+});

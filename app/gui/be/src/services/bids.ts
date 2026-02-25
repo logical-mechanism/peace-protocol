@@ -24,27 +24,15 @@ export function parseBidCip20Fields(msg: string[]): ParsedBidCip20 {
   };
 }
 
-/**
- * Fetch and parse CIP-20 metadata (key 674) from the bid tx.
- * Format: { msg: [futurePrice] }
- * The bid only carries the bidder's desired re-listing price.
- * Description and storageLayer come from the seller's encryption UTxO.
- */
-async function fetchBidCip20Metadata(txHash: string): Promise<ParsedBidCip20> {
-  try {
-    const koios = getKoiosClient();
-    const metadata = await koios.getTxMetadata(txHash);
-    const cip20 = metadata.find(m => m.key === '674');
-    if (!cip20?.json || typeof cip20.json !== 'object') return {};
+/** Extract bid CIP-20 fields from pre-fetched metadata entries. */
+export function extractBidCip20FromMetadata(entries: Array<{ key: string; json: unknown }>): ParsedBidCip20 {
+  const cip20 = entries.find(m => m.key === '674');
+  if (!cip20?.json || typeof cip20.json !== 'object') return {};
 
-    const json = cip20.json as { msg?: string[] };
-    if (!Array.isArray(json.msg) || json.msg.length < 1) return {};
+  const json = cip20.json as { msg?: string[] };
+  if (!Array.isArray(json.msg) || json.msg.length < 1) return {};
 
-    return parseBidCip20Fields(json.msg);
-  } catch (err) {
-    logger.warn('Failed to fetch bid CIP-20 metadata', { txHash, error: String(err) });
-    return {};
-  }
+  return parseBidCip20Fields(json.msg);
 }
 
 function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum, cip20: ParsedBidCip20): BidDisplay {
@@ -80,24 +68,40 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum, cip20: ParsedBidCip2
   };
 }
 
-/** Fetch all bid UTxOs from Kupo and enrich with CIP-20 metadata. */
+/** Fetch all bid UTxOs from Kupo and enrich with CIP-20 metadata (batch). */
 export async function getAllBids(): Promise<BidDisplay[]> {
   const { contracts } = getNetworkConfig();
   const kupo = getKupoClient();
+  const koios = getKoiosClient();
 
   const utxos = await kupo.getAddressUtxos(contracts.biddingAddress);
-  const bids: BidDisplay[] = [];
 
+  // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
+  const parsed: Array<{ utxo: KoiosUtxo; datum: BidDatum }> = [];
   for (const utxo of utxos) {
     if (!utxo.inline_datum?.value) continue;
-
     try {
       const datum = parseBidDatum(utxo.inline_datum.value);
-      const cip20 = await fetchBidCip20Metadata(utxo.tx_hash);
-      bids.push(utxoToBidDisplay(utxo, datum, cip20));
+      parsed.push({ utxo, datum });
     } catch (err) {
       logger.warn('Failed to parse bid datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
     }
+  }
+
+  // Phase 2: Batch fetch all CIP-20 metadata in a single request
+  const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+  let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
+  try {
+    metadataMap = await koios.getTxMetadataBatch(txHashes);
+  } catch (err) {
+    logger.warn('Failed to batch fetch bid CIP-20 metadata', { error: String(err) });
+  }
+
+  // Phase 3: Assemble results
+  const bids: BidDisplay[] = [];
+  for (const { utxo, datum } of parsed) {
+    const cip20 = extractBidCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+    bids.push(utxoToBidDisplay(utxo, datum, cip20));
   }
 
   return bids;

@@ -60,25 +60,15 @@ export function parseCip20Fields(msg: string[], fullJson?: Record<string, unknow
   };
 }
 
-/**
- * Fetch and parse CIP-20 metadata (key 674) from the creation tx.
- * Supports both old flat-array format and new structured format.
- */
-async function fetchCip20Metadata(txHash: string): Promise<ParsedCip20> {
-  try {
-    const koios = getKoiosClient();
-    const metadata = await koios.getTxMetadata(txHash);
-    const cip20 = metadata.find(m => m.key === '674');
-    if (!cip20?.json || typeof cip20.json !== 'object') return {};
+/** Extract CIP-20 fields from pre-fetched metadata entries. */
+export function extractCip20FromMetadata(entries: Array<{ key: string; json: unknown }>): ParsedCip20 {
+  const cip20 = entries.find(m => m.key === '674');
+  if (!cip20?.json || typeof cip20.json !== 'object') return {};
 
-    const json = cip20.json as Record<string, unknown>;
-    const msgArray = Array.isArray(json.msg) ? (json.msg as string[]) : [];
+  const json = cip20.json as Record<string, unknown>;
+  const msgArray = Array.isArray(json.msg) ? (json.msg as string[]) : [];
 
-    return parseCip20Fields(msgArray, json);
-  } catch (err) {
-    logger.warn('Failed to fetch CIP-20 metadata', { txHash, error: String(err) });
-    return {};
-  }
+  return parseCip20Fields(msgArray, json);
 }
 
 function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20: ParsedCip20): EncryptionDisplay {
@@ -116,24 +106,40 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
   };
 }
 
-/** Fetch all encryption UTxOs from Kupo and enrich with CIP-20 metadata. */
+/** Fetch all encryption UTxOs from Kupo and enrich with CIP-20 metadata (batch). */
 export async function getAllEncryptions(): Promise<EncryptionDisplay[]> {
   const { contracts } = getNetworkConfig();
   const kupo = getKupoClient();
+  const koios = getKoiosClient();
 
   const utxos = await kupo.getAddressUtxos(contracts.encryptionAddress);
-  const encryptions: EncryptionDisplay[] = [];
 
+  // Phase 1: Parse datums, collecting tx hashes for batch metadata fetch
+  const parsed: Array<{ utxo: KoiosUtxo; datum: EncryptionDatum }> = [];
   for (const utxo of utxos) {
     if (!utxo.inline_datum?.value) continue;
-
     try {
       const datum = parseEncryptionDatum(utxo.inline_datum.value);
-      const cip20 = await fetchCip20Metadata(utxo.tx_hash);
-      encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
+      parsed.push({ utxo, datum });
     } catch (err) {
       logger.warn('Failed to parse encryption datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
     }
+  }
+
+  // Phase 2: Batch fetch all CIP-20 metadata in a single request
+  const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+  let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
+  try {
+    metadataMap = await koios.getTxMetadataBatch(txHashes);
+  } catch (err) {
+    logger.warn('Failed to batch fetch CIP-20 metadata', { error: String(err) });
+  }
+
+  // Phase 3: Assemble results
+  const encryptions: EncryptionDisplay[] = [];
+  for (const { utxo, datum } of parsed) {
+    const cip20 = extractCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+    encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
   }
 
   return encryptions;
