@@ -318,7 +318,7 @@ Each item has:
   - **How**: Add test files for: `secretCleanup.ts` (secret deletion timing), `contentStorage.ts` (file save logic), `kupoAdapter.ts` (UTxO fetching), `api.ts` (REST client), `listingDraftStorage.ts` (draft lifecycle). Mock Tauri invoke and HTTP fetch.
   - **Why**: These services handle money-adjacent operations (secrets, transactions, encrypted content). Bugs here cause data loss or failed transactions.
 
-- [ ] **Test all backend route handlers**
+- [x] **Test all backend route handlers**
   - **How**: Create `be/src/routes/__tests__/` with tests for each route group. Use `supertest` to make HTTP requests against the Express app. Mock `kupo.ts` and `koios.ts` to return known responses.
   - **Why**: Zero backend routes are tested. Any refactor could break API contracts silently.
 
