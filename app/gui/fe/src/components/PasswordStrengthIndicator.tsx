@@ -89,6 +89,11 @@ export default function PasswordStrengthIndicator({ strength, password }: Props)
         <div className="text-xs mt-1" style={{ color: config.color }}>
           {config.label}
         </div>
+        {strength.level === 'fair' && strength.allMet && (
+          <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Use 12+ characters for a strong password
+          </div>
+        )}
       </div>
     </div>
   )
