@@ -170,7 +170,7 @@ export async function resolvePendingTxs(walletPkh: string): Promise<TransactionR
     try {
       // Check if Kupo has indexed any output from this transaction
       const res = await fetch(
-        `http://localhost:1442/matches/*@${rec.txHash}`
+        `http://127.0.0.1:1442/matches/*@${rec.txHash}`
       );
       if (res.ok) {
         const matches = await res.json();

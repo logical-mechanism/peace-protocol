@@ -56,7 +56,7 @@ interface KupoScript {
 export class KupoAdapter implements IFetcher {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://localhost:1442') {
+  constructor(baseUrl: string = 'http://127.0.0.1:1442') {
     this.baseUrl = baseUrl;
   }
 
