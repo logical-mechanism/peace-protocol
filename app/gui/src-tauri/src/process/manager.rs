@@ -1050,7 +1050,7 @@ impl NodeManager {
     /// Sends SIGTERM first and waits up to 30 seconds for processes to exit
     /// cleanly (cardano-node needs this to flush its ledger state to disk).
     /// Only falls back to SIGKILL for processes that don't exit in time.
-    pub fn kill_all_sync(&self) {
+    pub fn kill_all_sync(&self, app_handle: &tauri::AppHandle) {
         let mut all_pids: Vec<u32> = Vec::new();
 
         // Collect PIDs from the pid file
@@ -1099,13 +1099,25 @@ impl NodeManager {
 
         // Step 2: Wait up to 30 seconds for all to exit gracefully.
         // cardano-node needs time to flush its in-memory ledger to disk.
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let start_time = std::time::Instant::now();
+        let deadline = start_time + std::time::Duration::from_secs(30);
         loop {
             let still_alive: Vec<u32> = all_pids
                 .iter()
                 .copied()
                 .filter(|pid| send_signal(*pid, 0))
                 .collect();
+
+            // Emit progress to the frontend shutdown overlay
+            let elapsed = start_time.elapsed().as_secs();
+            let _ = app_handle.emit(
+                "shutdown-progress",
+                serde_json::json!({
+                    "elapsed_secs": elapsed,
+                    "timeout_secs": 30u64,
+                    "remaining_processes": still_alive.len(),
+                }),
+            );
 
             if still_alive.is_empty() {
                 eprintln!("[NodeManager] Exit: all processes exited cleanly");

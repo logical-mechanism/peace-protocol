@@ -11,7 +11,7 @@ use crypto::secrets::SecretsKey;
 use process::manager::NodeManager;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Global flag to prevent duplicate shutdown attempts.
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);

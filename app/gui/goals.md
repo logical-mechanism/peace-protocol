@@ -68,7 +68,7 @@ Each item has:
 
 > Key files: `fe/src/pages/WalletUnlock.tsx`, `src-tauri/src/crypto/wallet.rs`, `src-tauri/src/commands/wallet.rs`
 
-- [ ] **BIP39 checksum validation on mnemonic import**
+- [x] **BIP39 checksum validation on mnemonic import**
   - **How**: In `wallet.rs`, after splitting the mnemonic into words, validate the BIP39 checksum (last word encodes checksum bits). The `bip39` Rust crate handles this. Reject invalid mnemonics with a clear error.
   - **Why**: Currently any 24 words are accepted. A typo in the mnemonic creates a valid-looking but wrong wallet with no warning.
 
@@ -110,7 +110,7 @@ Each item has:
   - **How**: In the Settings page process logs viewer, add a text input that filters log lines by substring match. Use `lines.filter(line => line.toLowerCase().includes(query))`. Add log level coloring (ERROR=red, WARN=yellow).
   - **Why**: Scrolling through 500 raw log lines to find an error is painful. A search box instantly surfaces relevant entries.
 
-- [ ] **Graceful shutdown with timeout enforcement**
+- [x] **Graceful shutdown with timeout enforcement**
   - **How**: In `lib.rs`, after sending SIGTERM to all processes, start a 15-second countdown. If any process hasn't exited by then, SIGKILL it. Show a "Shutting down..." overlay in the frontend during this period so users know the app is closing, not frozen.
   - **Why**: The current shutdown can hang if a process ignores SIGTERM. Users force-quit the app, leaving orphan processes.
 

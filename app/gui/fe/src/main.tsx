@@ -8,10 +8,12 @@ import { ModalProvider } from './contexts/ModalContext'
 import './index.css'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
+import ShutdownOverlay from './components/ShutdownOverlay'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
+      <ShutdownOverlay />
       <WalletProvider>
         <NodeProvider>
           <WasmProvider>
