@@ -26,7 +26,14 @@ function formatBytes(bytes: number): string {
 
 function ProgressBar({ percent }: { percent: number }) {
   return (
-    <div className="w-full h-6 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] overflow-hidden">
+    <div
+      className="w-full h-6 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] overflow-hidden"
+      role="progressbar"
+      aria-valuenow={Math.round(percent)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Sync progress"
+    >
       <div
         className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
         style={{ width: `${Math.min(percent, 100)}%` }}

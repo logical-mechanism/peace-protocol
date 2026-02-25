@@ -84,8 +84,9 @@ export default function PdfViewer({ data }: PdfViewerProps) {
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage <= 1}
               className={btnClass}
+              aria-label="Previous page"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -96,8 +97,9 @@ export default function PdfViewer({ data }: PdfViewerProps) {
               onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
               disabled={currentPage >= numPages}
               className={btnClass}
+              aria-label="Next page"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -114,8 +116,9 @@ export default function PdfViewer({ data }: PdfViewerProps) {
           disabled={scale <= ZOOM_MIN}
           className={btnClass}
           title="Zoom out"
+          aria-label="Zoom out"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
           </svg>
         </button>
@@ -123,6 +126,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
           onClick={zoomReset}
           className={`${btnClass} min-w-[52px] text-center`}
           title="Reset zoom"
+          aria-label="Reset zoom"
         >
           {Math.round(scale * 100)}%
         </button>
@@ -131,8 +135,9 @@ export default function PdfViewer({ data }: PdfViewerProps) {
           disabled={scale >= ZOOM_MAX}
           className={btnClass}
           title="Zoom in"
+          aria-label="Zoom in"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>
@@ -143,6 +148,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
           onClick={() => setIsFullscreen(fs => !fs)}
           className={btnClass}
           title={isFullscreen ? 'Exit fullscreen' : 'Expand'}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
           {isFullscreen ? (
             // Collapse icon (arrows inward)

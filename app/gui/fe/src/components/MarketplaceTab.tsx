@@ -178,6 +178,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            aria-label="Filter by status"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="all">All Status</option>
@@ -189,6 +190,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+            aria-label="Filter by category"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="all">All Categories</option>
@@ -201,6 +203,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
+            aria-label="Sort listings"
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
           >
             <option value="newest">Newest First</option>
@@ -210,7 +213,7 @@ export default function MarketplaceTab({ userPkh, onPlaceBid }: MarketplaceTabPr
           </select>
 
           {/* View Toggle */}
-          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
               onClick={() => setViewMode('grid')}
               className={`px-3 py-2 transition-all duration-150 cursor-pointer ${

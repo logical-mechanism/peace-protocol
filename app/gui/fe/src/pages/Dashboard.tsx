@@ -1148,10 +1148,12 @@ export default function Dashboard() {
 
         {/* Tabs */}
         <div className="border-b border-[var(--border-subtle)] mb-6">
-          <div className="flex gap-6">
+          <div className="flex gap-6" role="tablist">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
@@ -1161,12 +1163,12 @@ export default function Dashboard() {
               >
                 {tab.label}
                 {tab.id === 'my-sales' && bidNotifications.unseenBidCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse">
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse" aria-label={`${bidNotifications.unseenBidCount} new bids`}>
                     {bidNotifications.unseenBidCount}
                   </span>
                 )}
                 {tab.id === 'history' && pendingTxCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full">
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full" aria-label={`${pendingTxCount} pending transactions`}>
                     {pendingTxCount}
                   </span>
                 )}

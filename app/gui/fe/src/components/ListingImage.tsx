@@ -201,12 +201,14 @@ export default function ListingImage({
             onClick={handleBan}
             className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-[var(--error)] transition-all duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
             title="Ban this image"
+            aria-label="Ban this image"
           >
             <svg
               className="w-3 h-3 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
