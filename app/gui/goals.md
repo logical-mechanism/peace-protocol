@@ -172,7 +172,7 @@ Each item has:
   - **How**: Create a `SkeletonCard` component that matches EncryptionCard dimensions. Show a grid of 4-8 skeleton cards while `loading === true` in each tab, instead of a centered spinner.
   - **Why**: Skeleton loaders communicate structure and reduce perceived wait time. A centered spinner feels slower.
 
-- [ ] **Lazy-load inactive tabs**
+- [x] **Lazy-load inactive tabs**
   - **How**: Wrap each tab component in `React.lazy()` + `Suspense` and only render the active tab. Currently all 5 tabs render on mount and fetch data immediately.
   - **Why**: Reduces initial API calls from 5 to 1. Faster initial load. Less memory usage for tabs the user may never visit.
 

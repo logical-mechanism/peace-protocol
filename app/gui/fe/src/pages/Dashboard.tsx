@@ -1,15 +1,16 @@
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
-import { useState, useCallback, useEffect, useMemo, useRef, useReducer } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
 import { copyToClipboard } from '../utils/clipboard'
 import { truncateHex } from '../utils/truncate'
-import MarketplaceTab from '../components/MarketplaceTab'
-import MySalesTab from '../components/MySalesTab'
-import MyPurchasesTab from '../components/MyPurchasesTab'
-import HistoryTab from '../components/HistoryTab'
-import LibraryTab from '../components/LibraryTab'
+const MarketplaceTab = lazy(() => import('../components/MarketplaceTab'))
+const MySalesTab = lazy(() => import('../components/MySalesTab'))
+const MyPurchasesTab = lazy(() => import('../components/MyPurchasesTab'))
+const HistoryTab = lazy(() => import('../components/HistoryTab'))
+const LibraryTab = lazy(() => import('../components/LibraryTab'))
+import { SkeletonGrid } from '../components/SkeletonCard'
 import ScrollToTop from '../components/ScrollToTop'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
@@ -1215,7 +1216,9 @@ export default function Dashboard() {
         </div>
 
         {/* Tab Content */}
-        {renderTabContent()}
+        <Suspense fallback={<SkeletonGrid />}>
+          {renderTabContent()}
+        </Suspense>
       </main>
 
       {/* Scroll to Top Button */}
