@@ -46,19 +46,19 @@ Each item has:
   - **How**: Build a lightweight step-by-step overlay (tooltip + highlight box) that walks through: wallet creation → node sync → marketplace browse → first bid. Use a simple state machine stored in localStorage (`onboarding_step`). No library needed — just a `<div>` with absolute positioning and a backdrop cutout.
   - **Why**: First-time users landing on a blank wallet setup screen have zero context about what the app does. A 4-step tour reduces drop-off and builds confidence.
 
-- [ ] **Step progress indicator on wallet creation**
+- [x] **Step progress indicator on wallet creation**
   - **How**: Add a horizontal stepper bar (circles connected by lines) above the form in WalletSetup. Steps: "Create Password" → "Backup Mnemonic" → "Verify" → "Done". Highlight current step with accent color. Pure CSS + state tracking on the existing `step` state.
   - **Why**: Users currently see forms appear and disappear with no sense of how many steps remain. A progress indicator sets expectations.
 
-- [ ] **Password requirements checklist during wallet creation**
+- [x] **Password requirements checklist during wallet creation**
   - **How**: Below the password field, render a live checklist: length ≥ 12, uppercase, lowercase, number, special char. Each requirement shows a green check or gray dash as user types. Reuse logic from `usePasswordStrength` hook.
   - **Why**: The PasswordStrengthIndicator shows a bar but doesn't explain what's missing. Users guess at requirements until they pass.
 
-- [ ] **Bulk paste for mnemonic import**
+- [x] **Bulk paste for mnemonic import**
   - **How**: Add a "Paste all 24 words" button above the MnemonicInput grid. On click, read clipboard, split by whitespace, and populate all 24 fields. The existing `onChange` per-word handler stays for manual entry.
   - **Why**: Typing 24 words one-by-one is tedious. Most users have their mnemonic in a password manager and want to paste once.
 
-- [ ] **Disk space check before first sync**
+- [x] **Disk space check before first sync**
   - **How**: Before starting Mithril bootstrap in NodeSync, call `get_disk_usage` and check available space (needs a new Rust command `get_available_disk_space` using `fs2::available_space`). Warn if < 10 GB free. Show estimated space needed (~5 GB for preprod, ~100 GB for mainnet).
   - **Why**: Users who start a multi-hour sync only to run out of disk space have a terrible experience. A 2-second check prevents it.
 
@@ -67,10 +67,6 @@ Each item has:
 ## 2. Wallet & Authentication
 
 > Key files: `fe/src/pages/WalletUnlock.tsx`, `src-tauri/src/crypto/wallet.rs`, `src-tauri/src/commands/wallet.rs`
-
-- [ ] **Unlock attempt rate limiting**
-  - **How**: Track failed unlock attempts in Rust state (`AtomicU32`). After 5 consecutive failures, enforce a 30-second cooldown before accepting another attempt. Show a countdown timer in the UI. Reset on successful unlock.
-  - **Why**: Without rate limiting, the wallet is vulnerable to automated brute-force attacks on the password.
 
 - [ ] **BIP39 checksum validation on mnemonic import**
   - **How**: In `wallet.rs`, after splitting the mnemonic into words, validate the BIP39 checksum (last word encodes checksum bits). The `bip39` Rust crate handles this. Reject invalid mnemonics with a clear error.
@@ -94,7 +90,7 @@ Each item has:
 
 > Key files: `fe/src/pages/NodeSync.tsx`, `src-tauri/src/process/`
 
-- [ ] **Estimated time remaining for Mithril download**
+- [x] **Estimated time remaining for Mithril download**
   - **How**: NodeSync already shows download speed. Calculate ETA from `(totalBytes - downloadedBytes) / currentSpeedBytesPerSec`. Display as "~12 min remaining" next to the progress bar. Smooth the estimate with a rolling average over the last 5 samples.
   - **Why**: A 2 GB download with no ETA feels interminable. Users need to know if they can grab coffee or if it's 30 seconds away.
 
@@ -637,10 +633,6 @@ Each item has:
 - [ ] **Prettier configuration**
   - **How**: Add `.prettierrc` with consistent settings (singleQuote, trailingComma, printWidth: 100). Add `format` scripts to fe/ and be/ package.json. Run on CI.
   - **Why**: No auto-formatter means code style varies by contributor. Prettier eliminates style debates and ensures consistency.
-
-- [ ] **Pre-commit hooks with lint-staged**
-  - **How**: Add `husky` and `lint-staged` to the root package.json. On commit, run: ESLint on staged `.ts/.tsx` files, Prettier on all staged files, `cargo fmt --check` on staged `.rs` files.
-  - **Why**: Without pre-commit hooks, lint errors slip into PRs. Catching them before commit saves CI time and review effort.
 
 - [ ] **VS Code workspace configuration**
   - **How**: Create `.vscode/settings.json` with: format-on-save enabled, ESLint auto-fix, Tailwind CSS IntelliSense paths, Rust Analyzer settings, recommended extensions list in `.vscode/extensions.json`.
