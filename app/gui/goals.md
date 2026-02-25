@@ -346,7 +346,7 @@ Each item has:
   - **How**: Add `#[cfg(test)] mod tests {}` blocks in `wallet.rs`, `secrets.rs`, `manager.rs`. Test: wallet encryption/decryption round-trip, secrets store/retrieve, PID file read/write, process status transitions.
   - **Why**: Zero Rust tests exist. Crypto code and process management are foundational — bugs here are catastrophic.
 
-- [ ] **Add test for backend CIP-20 metadata parsing edge cases**
+- [x] **Add test for backend CIP-20 metadata parsing edge cases**
   - **How**: Extend `parsers.test.ts` to test: malformed CIP-20 JSON, missing `msg` key, strings exceeding 64 bytes, empty metadata, both old-format (flat array) and new-format (structured) parsing paths.
   - **Why**: CIP-20 parsing handles two formats with silent fallback. Edge cases could show wrong descriptions to users.
 

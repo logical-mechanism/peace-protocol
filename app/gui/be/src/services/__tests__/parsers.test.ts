@@ -408,3 +408,104 @@ describe('parseBidCip20Fields', () => {
     expect(result.futurePrice).toBeUndefined();
   });
 });
+
+describe('parseCip20Fields — edge cases', () => {
+  it('UTF-8 multi-byte characters across chunk boundaries join correctly', () => {
+    // "ñ" is 2 bytes in UTF-8. Splitting mid-character would corrupt, but
+    // CIP-20 chunks at string boundaries so join should produce valid text.
+    const fullJson = { msg: ['Hello, ', 'señor! ', '🎉'], p: '10', s: '', i: [], c: '' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBe('Hello, señor! 🎉');
+  });
+
+  it('empty price string in new format → suggestedPrice: undefined', () => {
+    const fullJson = { msg: ['desc'], p: '', s: '', i: [], c: '' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.suggestedPrice).toBeUndefined();
+  });
+
+  it('price "0.0" in new format → suggestedPrice: 0', () => {
+    const fullJson = { msg: ['desc'], p: '0.0', s: '', i: [], c: '' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.suggestedPrice).toBe(0);
+  });
+
+  it('negative price parses as a number', () => {
+    const fullJson = { msg: ['desc'], p: '-5', s: '', i: [], c: '' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.suggestedPrice).toBe(-5);
+  });
+
+  it('extra unknown keys in fullJson are ignored gracefully', () => {
+    const fullJson = { msg: ['desc'], p: '10', s: 'on-chain', i: [], c: 'text', unknownKey: 42, foo: 'bar' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBe('desc');
+    expect(result.suggestedPrice).toBe(10);
+    expect(result.category).toBe('text');
+  });
+
+  it('msg not an array in new format → empty description', () => {
+    const fullJson = { msg: 'not-an-array', p: '10', s: '', i: [], c: '' };
+    const result = parseCip20Fields([], fullJson as Record<string, unknown>);
+    expect(result.description).toBeUndefined();
+  });
+
+  it('NaN price in old format → suggestedPrice: undefined', () => {
+    const result = parseCip20Fields(['desc', 'not-a-number', 'on-chain']);
+    expect(result.description).toBe('desc');
+    expect(result.suggestedPrice).toBeUndefined();
+    expect(result.storageLayer).toBe('on-chain');
+  });
+
+  it('empty msg array in new format → description: undefined', () => {
+    const fullJson = { msg: [], p: '5', s: 'iagon', i: [], c: 'document' };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.description).toBeUndefined();
+    expect(result.suggestedPrice).toBe(5);
+  });
+
+  it('empty msg array in old format → all fields undefined', () => {
+    const result = parseCip20Fields([]);
+    expect(result.description).toBeUndefined();
+    expect(result.suggestedPrice).toBeUndefined();
+    expect(result.storageLayer).toBeUndefined();
+    expect(result.imageLink).toBeUndefined();
+    expect(result.category).toBeUndefined();
+  });
+
+  it('image link chunks join correctly in new format', () => {
+    const fullJson = {
+      msg: ['desc'],
+      p: '10',
+      s: 'on-chain',
+      i: ['https://example.com/images/', 'very-long-filename-here.png'],
+      c: 'image',
+    };
+    const result = parseCip20Fields([], fullJson);
+    expect(result.imageLink).toBe('https://example.com/images/very-long-filename-here.png');
+  });
+
+  it('old format with only description → other fields undefined', () => {
+    const result = parseCip20Fields(['Just a description']);
+    expect(result.description).toBe('Just a description');
+    expect(result.suggestedPrice).toBeUndefined();
+    expect(result.storageLayer).toBeUndefined();
+    expect(result.imageLink).toBeUndefined();
+    expect(result.category).toBeUndefined();
+  });
+
+  it('parseBidCip20Fields with NaN price → undefined', () => {
+    const result = parseBidCip20Fields(['not-a-number']);
+    expect(result.futurePrice).toBeUndefined();
+  });
+
+  it('parseBidCip20Fields with negative price parses correctly', () => {
+    const result = parseBidCip20Fields(['-5']);
+    expect(result.futurePrice).toBe(-5);
+  });
+
+  it('parseBidCip20Fields with empty string → undefined', () => {
+    const result = parseBidCip20Fields(['']);
+    expect(result.futurePrice).toBeUndefined();
+  });
+});
