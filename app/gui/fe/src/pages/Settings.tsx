@@ -98,6 +98,9 @@ export default function Settings() {
   const [appConfig, setAppConfig] = useState<Record<string, unknown> | null>(null)
   const [localStorageKeys, setLocalStorageKeys] = useState<string[]>([])
 
+  // Settings search
+  const [searchQuery, setSearchQuery] = useState('')
+
   // Load network, disk usage, and Iagon status on mount
   useEffect(() => {
     invoke<string>('get_network').then(setCurrentNetwork).catch(console.error)
@@ -324,6 +327,33 @@ export default function Settings() {
     { id: 'logs', label: 'Logs' },
   ]
 
+  const searchableSections = useMemo(() => [
+    { tab: 'node', title: 'Node Infrastructure', keywords: ['node', 'sync', 'status', 'tip', 'slot', 'height', 'infrastructure'] },
+    { tab: 'node', title: 'Processes', keywords: ['process', 'pid', 'restart', 'ogmios', 'kupo', 'express', 'cardano', 'mithril'] },
+    { tab: 'wallet', title: 'Wallet Info', keywords: ['wallet', 'address', 'balance', 'ada'] },
+    { tab: 'wallet', title: 'Recovery Phrase', keywords: ['recovery', 'phrase', 'mnemonic', 'seed', 'backup'] },
+    { tab: 'wallet', title: 'Auto-Lock', keywords: ['auto', 'lock', 'timeout', 'inactivity', 'security'] },
+    { tab: 'wallet', title: 'Notification Duration', keywords: ['toast', 'notification', 'duration', 'dismiss', 'alert'] },
+    { tab: 'wallet', title: 'Lock Wallet', keywords: ['lock', 'wallet', 'password'] },
+    { tab: 'network', title: 'Network Selection', keywords: ['network', 'preprod', 'mainnet', 'switch', 'restart'] },
+    { tab: 'datalayer', title: 'Iagon Decentralized Storage', keywords: ['iagon', 'storage', 'decentralized', 'api', 'key', 'upload', 'download', 'file', 'connect'] },
+    { tab: 'datalayer', title: 'Orphaned Files', keywords: ['orphan', 'draft', 'cleanup', 'iagon', 'abandoned'] },
+    { tab: 'storage', title: 'Disk Usage', keywords: ['disk', 'storage', 'space', 'chain', 'data', 'snark', 'size'] },
+    { tab: 'storage', title: 'Image Cache', keywords: ['image', 'cache', 'clear', 'cached', 'thumbnail'] },
+    { tab: 'storage', title: 'Transaction History', keywords: ['transaction', 'history', 'clear', 'cleanup', 'failed'] },
+    { tab: 'logs', title: 'Process Logs', keywords: ['log', 'logs', 'process', 'stdout', 'stderr'] },
+    { tab: 'logs', title: 'Developer Mode', keywords: ['debug', 'developer', 'config', 'localstorage', 'advanced'] },
+  ], [])
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return null
+    const q = searchQuery.toLowerCase()
+    return searchableSections.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      s.keywords.some(k => k.includes(q))
+    )
+  }, [searchQuery, searchableSections])
+
   const handleConnectIagon = useCallback(async () => {
     if (!wallet || !address) return
     setIagonLoading(true)
@@ -408,6 +438,14 @@ export default function Settings() {
           </button>
           <h1 className="text-lg font-semibold">Settings</h1>
         </div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search settings..."
+          className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] w-48"
+          aria-label="Search settings"
+        />
       </nav>
 
       <main className="max-w-4xl mx-auto px-6 py-8">
@@ -430,8 +468,33 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Search Results */}
+        {searchResults && (
+          <div className="mb-8 space-y-2">
+            <p className="text-sm text-[var(--text-muted)] mb-3">
+              {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+            </p>
+            {searchResults.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">No matching settings found.</p>
+            ) : (
+              searchResults.map(s => (
+                <button
+                  key={`${s.tab}-${s.title}`}
+                  onClick={() => { setActiveSection(s.tab); setSearchQuery('') }}
+                  className="block w-full text-left px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                >
+                  <span className="text-sm font-medium">{s.title}</span>
+                  <span className="text-xs text-[var(--text-muted)] ml-2">
+                    in {sections.find(sec => sec.id === s.tab)?.label}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
         {/* Node Status Section */}
-        {activeSection === 'node' && (
+        {!searchResults && activeSection === 'node' && (
           <div className="space-y-6">
             {/* Overall Status */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
@@ -536,7 +599,7 @@ export default function Settings() {
         )}
 
         {/* Wallet Section */}
-        {activeSection === 'wallet' && (
+        {!searchResults && activeSection === 'wallet' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-4">Wallet Info</h2>
@@ -679,7 +742,7 @@ export default function Settings() {
         )}
 
         {/* Network Section */}
-        {activeSection === 'network' && (
+        {!searchResults && activeSection === 'network' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-2">Network Selection</h2>
@@ -718,7 +781,7 @@ export default function Settings() {
         )}
 
         {/* Storage Section */}
-        {activeSection === 'datalayer' && (
+        {!searchResults && activeSection === 'datalayer' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-2">Iagon Decentralized Storage</h2>
@@ -952,7 +1015,7 @@ export default function Settings() {
           </div>
         )}
 
-        {activeSection === 'storage' && (
+        {!searchResults && activeSection === 'storage' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <h2 className="text-lg font-medium mb-4">Disk Usage</h2>
@@ -1107,7 +1170,7 @@ export default function Settings() {
         )}
 
         {/* Logs Section */}
-        {activeSection === 'logs' && (
+        {!searchResults && activeSection === 'logs' && (
           <div className="space-y-6">
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <div className="flex items-center justify-between mb-4">

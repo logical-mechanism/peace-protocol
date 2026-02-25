@@ -266,7 +266,7 @@ Each item has:
   - **How**: Add a "Clear History" section with options: "Clear all", "Clear older than 30 days", "Clear only failed transactions". Operate on localStorage via `transactionHistory` service.
   - **Why**: Transaction history grows indefinitely. Users need housekeeping tools.
 
-- [ ] **Settings search / filter**
+- [x] **Settings search / filter**
   - **How**: Add a search input at the top of Settings that filters visible settings across all tabs. Match against setting labels and descriptions.
   - **Why**: Settings page has 6+ sections. Users looking for "auto-lock" or "Iagon" shouldn't have to scan every section.
 
