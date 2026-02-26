@@ -32,8 +32,8 @@ export default function ConfirmModal({
 
   const confirmClass =
     confirmVariant === 'danger'
-      ? 'bg-[var(--error)] hover:bg-[var(--error)]/80 text-white'
-      : 'bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-white';
+      ? 'bg-[var(--error)] hover:bg-[var(--error)]/80 text-white btn-base'
+      : 'btn-base btn-primary';
 
   return (
     <div
@@ -73,14 +73,14 @@ export default function ConfirmModal({
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className={`px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${confirmClass}`}
+            className={`px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center gap-2 ${confirmClass}`}
           >
             {loading && <LoadingSpinner size="sm" />}
             {confirmLabel}

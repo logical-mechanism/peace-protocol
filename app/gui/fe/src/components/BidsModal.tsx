@@ -84,7 +84,7 @@ export default function BidsModal({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -184,7 +184,7 @@ export default function BidsModal({
           )}
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+            className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Close
           </button>
@@ -237,7 +237,7 @@ function BidCard({
         {canAccept && bid.status === 'pending' && onAccept && (
           <button
             onClick={() => onAccept(bid)}
-            className="px-4 py-2 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer flex-shrink-0"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex-shrink-0 btn-base btn-success"
           >
             Accept Bid
           </button>
