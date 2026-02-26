@@ -358,7 +358,7 @@ Each item has:
   - **How**: Replace the current flat layout with a sidebar on the left listing sections: Node, Wallet, Storage, Iagon, Cache, Logs. Clicking a section scrolls to (or shows) that section. Active section highlighted.
   - **Why**: The Settings page is long and disorganized. A sidebar gives structure and lets users jump directly to what they need.
 
-- [ ] **Disk usage visualization**
+- [x] **Disk usage visualization**
   - **How**: Replace the text-only disk usage display with a horizontal stacked bar chart showing chain data, SNARK data, wallet, library, and cache sizes. Color-code each segment. Show percentages on hover.
   - **Why**: Numbers like "Chain: 4.2 GB, SNARK: 650 MB" are harder to grasp than a visual proportional bar.
 

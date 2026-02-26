@@ -1085,40 +1085,69 @@ export default function Settings() {
               <h2 className="text-lg font-medium mb-4">Disk Usage</h2>
 
               {diskUsage ? (
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-sm text-[var(--text-muted)]">Data Directory</span>
-                    <code className="block text-sm font-mono mt-1 bg-[var(--bg-secondary)] px-3 py-2 rounded-[var(--radius-md)] break-all">
-                      {diskUsage.data_dir}
-                    </code>
-                  </div>
+                (() => {
+                  const otherBytes = Math.max(0, diskUsage.total_bytes - diskUsage.chain_data_bytes - diskUsage.snark_data_bytes - diskUsage.wallet_bytes)
+                  const segments = [
+                    { label: 'Chain Data', bytes: diskUsage.chain_data_bytes, color: 'var(--accent)' },
+                    { label: 'SNARK Setup', bytes: diskUsage.snark_data_bytes, color: 'var(--warning)' },
+                    { label: 'Wallet', bytes: diskUsage.wallet_bytes, color: 'var(--success)' },
+                    ...(otherBytes > 0 ? [{ label: 'Other', bytes: otherBytes, color: 'var(--text-muted)' }] : []),
+                  ]
+                  const total = diskUsage.total_bytes || 1
+                  return (
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-sm text-[var(--text-muted)]">Data Directory</span>
+                        <code className="block text-sm font-mono mt-1 bg-[var(--bg-secondary)] px-3 py-2 rounded-[var(--radius-md)] break-all">
+                          {diskUsage.data_dir}
+                        </code>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
-                      <span className="text-sm text-[var(--text-muted)]">Chain Data</span>
-                      <p className="text-xl font-medium mt-1">{formatBytes(diskUsage.chain_data_bytes)}</p>
-                    </div>
-                    <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
-                      <span className="text-sm text-[var(--text-muted)]">SNARK Setup</span>
-                      <p className="text-xl font-medium mt-1">{formatBytes(diskUsage.snark_data_bytes)}</p>
-                    </div>
-                    <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
-                      <span className="text-sm text-[var(--text-muted)]">Wallet</span>
-                      <p className="text-xl font-medium mt-1">{formatBytes(diskUsage.wallet_bytes)}</p>
-                    </div>
-                    <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
-                      <span className="text-sm text-[var(--text-muted)]">Total</span>
-                      <p className="text-xl font-medium mt-1">{formatBytes(diskUsage.total_bytes)}</p>
-                    </div>
-                  </div>
+                      {/* Stacked bar chart */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-[var(--text-muted)]">Usage Breakdown</span>
+                          <span className="text-sm font-medium">{formatBytes(diskUsage.total_bytes)}</span>
+                        </div>
+                        <div className="h-6 rounded-full overflow-hidden flex bg-[var(--bg-secondary)]">
+                          {segments.map((seg) => {
+                            const pct = (seg.bytes / total) * 100
+                            if (pct < 0.5) return null
+                            return (
+                              <div
+                                key={seg.label}
+                                className="h-full transition-all duration-300"
+                                style={{ width: `${pct}%`, backgroundColor: seg.color }}
+                                title={`${seg.label}: ${formatBytes(seg.bytes)} (${pct.toFixed(1)}%)`}
+                              />
+                            )
+                          })}
+                        </div>
+                      </div>
 
-                  <button
-                    onClick={() => invoke<DiskUsage>('get_disk_usage').then(setDiskUsage).catch(console.error)}
-                    className="mt-2 px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
-                  >
-                    Refresh
-                  </button>
-                </div>
+                      {/* Legend */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {segments.map((seg) => (
+                          <div key={seg.label} className="flex items-center gap-2">
+                            <span
+                              className="w-3 h-3 rounded-sm shrink-0"
+                              style={{ backgroundColor: seg.color }}
+                            />
+                            <span className="text-sm text-[var(--text-muted)]">{seg.label}</span>
+                            <span className="text-sm font-medium ml-auto">{formatBytes(seg.bytes)}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => invoke<DiskUsage>('get_disk_usage').then(setDiskUsage).catch(console.error)}
+                        className="mt-2 px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                  )
+                })()
               ) : (
                 <p className="text-[var(--text-muted)]">Loading...</p>
               )}
