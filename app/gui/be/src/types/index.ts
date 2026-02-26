@@ -3,6 +3,13 @@ export interface ResponseWarnings {
   skippedDatums?: number;
 }
 
+export interface PaginationMeta {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
 export interface ApiResponse<T> {
   data: T;
   meta?: {
@@ -10,6 +17,7 @@ export interface ApiResponse<T> {
     page?: number;
     limit?: number;
   };
+  pagination?: PaginationMeta;
   warnings?: ResponseWarnings;
 }
 

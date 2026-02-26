@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
 import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam } from '../middleware/validate.js';
+import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_BIDS } from '../stubs/index.js';
 import {
   getAllBids,
@@ -20,19 +21,20 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
-      const response: ApiResponse<BidDisplay[]> = {
-        data: STUB_BIDS,
-        meta: { total: STUB_BIDS.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(STUB_BIDS, paginationParams);
+      return res.json({ data, meta: { total: STUB_BIDS.length }, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
     const result = await getAllBids(skipCache);
+    const { data, pagination } = paginate(result.data, paginationParams);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
@@ -87,21 +89,22 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
   try {
     const { pkh } = req.params;
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const userBids = STUB_BIDS.filter(b =>
         b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())
       );
-      const response: ApiResponse<BidDisplay[]> = {
-        data: userBids,
-        meta: { total: userBids.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(userBids, paginationParams);
+      return res.json({ data, meta: { total: userBids.length }, pagination });
     }
 
     const result = await getBidsByUser(pkh);
+    const { data, pagination } = paginate(result.data, paginationParams);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
@@ -120,21 +123,22 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
   try {
     const { encryptionToken } = req.params;
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const encryptionBids = STUB_BIDS.filter(
         b => b.encryptionToken === encryptionToken
       );
-      const response: ApiResponse<BidDisplay[]> = {
-        data: encryptionBids,
-        meta: { total: encryptionBids.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(encryptionBids, paginationParams);
+      return res.json({ data, meta: { total: encryptionBids.length }, pagination });
     }
 
     const result = await getBidsByEncryption(encryptionToken);
+    const { data, pagination } = paginate(result.data, paginationParams);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
@@ -163,21 +167,22 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       });
     }
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const filteredBids = STUB_BIDS.filter(b => b.status === status);
-      const response: ApiResponse<BidDisplay[]> = {
-        data: filteredBids,
-        meta: { total: filteredBids.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(filteredBids, paginationParams);
+      return res.json({ data, meta: { total: filteredBids.length }, pagination });
     }
 
     const result = await getBidsByStatus(
       status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
     );
+    const { data, pagination } = paginate(result.data, paginationParams);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {

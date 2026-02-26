@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
 import { validateTokenNameParam, validatePkhParam } from '../middleware/validate.js';
+import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_ENCRYPTIONS } from '../stubs/index.js';
 import {
   getAllEncryptions,
@@ -20,19 +21,20 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
-      const response: ApiResponse<EncryptionDisplay[]> = {
-        data: STUB_ENCRYPTIONS,
-        meta: { total: STUB_ENCRYPTIONS.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(STUB_ENCRYPTIONS, paginationParams);
+      return res.json({ data, meta: { total: STUB_ENCRYPTIONS.length }, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
     const result = await getAllEncryptions(skipCache);
+    const { data, pagination } = paginate(result.data, paginationParams);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
@@ -119,21 +121,22 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
   try {
     const { pkh } = req.params;
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const userEncryptions = STUB_ENCRYPTIONS.filter(e =>
         e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())
       );
-      const response: ApiResponse<EncryptionDisplay[]> = {
-        data: userEncryptions,
-        meta: { total: userEncryptions.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(userEncryptions, paginationParams);
+      return res.json({ data, meta: { total: userEncryptions.length }, pagination });
     }
 
     const result = await getEncryptionsByUser(pkh);
+    const { data, pagination } = paginate(result.data, paginationParams);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
@@ -158,23 +161,24 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       });
     }
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const filteredEncryptions = STUB_ENCRYPTIONS.filter(
         e => e.status === status
       );
-      const response: ApiResponse<EncryptionDisplay[]> = {
-        data: filteredEncryptions,
-        meta: { total: filteredEncryptions.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(filteredEncryptions, paginationParams);
+      return res.json({ data, meta: { total: filteredEncryptions.length }, pagination });
     }
 
     const result = await getEncryptionsByStatus(
       status as 'active' | 'pending' | 'completed'
     );
+    const { data, pagination } = paginate(result.data, paginationParams);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
