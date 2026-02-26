@@ -1228,9 +1228,21 @@ export default function Dashboard() {
           </button>
 
           {/* ADA Balance */}
-          <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
-            {formatAda(lovelace)} ADA
-          </div>
+          {lovelace ? (
+            <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
+              {formatAda(lovelace)} ADA
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
+              title="Waiting for Kupo to start. Your funds are safe."
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Balance unavailable
+            </div>
+          )}
 
           {/* Address with copy button */}
           <button
