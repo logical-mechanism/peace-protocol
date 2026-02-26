@@ -536,11 +536,11 @@ Each item has:
   - **How**: Add `?limit=20&offset=0` query params to `GET /api/encryptions`, `GET /api/bids`, and their sub-routes. Default to limit=50. Return `{ data: [...], pagination: { total, limit, offset, hasMore } }`.
   - **Why**: As the marketplace grows, returning all results in one response becomes slow and wasteful. Pagination lets the frontend load incrementally.
 
-- [ ] **Response caching headers**
+- [x] **Response caching headers**
   - **How**: Add `Cache-Control: max-age=10, stale-while-revalidate=30` headers to encryption and bid list endpoints. Reference/script endpoints should use longer TTLs (max-age=300) since they rarely change.
   - **Why**: Without caching headers, the frontend's HTTP layer can't avoid redundant requests. Proper headers enable browser-level caching.
 
-- [ ] **Health check returns proper HTTP status codes**
+- [x] **Health check returns proper HTTP status codes**
   - **How**: In `be/src/index.ts`, the health endpoint should return `200` when healthy and `503 Service Unavailable` when unhealthy. Currently it always returns 200. Change the catch block to `res.status(503).json(...)`.
   - **Why**: Load balancers and monitoring tools rely on HTTP status codes. A 200 for an unhealthy service is misleading.
 
@@ -578,7 +578,7 @@ Each item has:
   - **How**: Define a JSON schema for `resources/config.json` (contract addresses, policy IDs, ports). Validate on app startup. If validation fails, show a user-friendly error: "Configuration file is corrupted. Please reinstall."
   - **Why**: A malformed config.json causes cryptic runtime errors. Early validation catches the problem at startup with a clear message.
 
-- [ ] **Auto-updater integration**
+- [s] **Auto-updater integration**
   - **How**: Add `tauri-plugin-updater` to Cargo.toml. Configure an update endpoint (GitHub Releases or a custom server). On app launch, check for updates. If available, show a non-intrusive banner: "Version X.Y.Z available — Update now?"
   - **Why**: Without auto-updates, users must manually download and reinstall new versions. Most will run outdated software with known bugs.
 

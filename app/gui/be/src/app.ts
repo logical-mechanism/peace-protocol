@@ -43,6 +43,25 @@ export function createApp() {
     }
   });
 
+  // Readiness probe — returns 503 when unhealthy, 200 for healthy/degraded
+  app.get('/health/ready', async (_req: Request, res: Response) => {
+    try {
+      const health = await getHealthStatus(config.network, config.useStubs);
+      const statusCode = health.status === 'unhealthy' ? 503 : 200;
+      res.status(statusCode).json(health);
+    } catch {
+      res.status(503).json({
+        status: 'unhealthy',
+        uptimeSeconds: 0,
+        kupo: { reachable: false, latencyMs: 0, lastSuccess: null },
+        koios: { reachable: false, latencyMs: 0, lastSuccess: null },
+        network: config.network,
+        useStubs: config.useStubs,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
   // API routes
   app.use('/api', routes);
 

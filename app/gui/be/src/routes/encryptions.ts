@@ -11,7 +11,7 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../services/encryptions.js';
-import type { ApiResponse, EncryptionDisplay, EncryptionLevel } from '../types/index.js';
+import type { ApiResponse, EncryptionLevel } from '../types/index.js';
 
 const router = Router();
 

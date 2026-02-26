@@ -11,7 +11,6 @@ import {
   getBidsByEncryption,
   getBidsByStatus,
 } from '../services/bids.js';
-import type { ApiResponse, BidDisplay } from '../types/index.js';
 
 const router = Router();
 
