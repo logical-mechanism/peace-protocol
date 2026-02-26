@@ -261,48 +261,67 @@ function MySalesTab({
     [onCancelPending]
   );
 
+  const screenReaderMessage = loading
+    ? 'Loading your listings…'
+    : error
+    ? 'Error loading your listings'
+    : `${encryptions.length} ${encryptions.length === 1 ? 'listing' : 'listings'} loaded`;
+
   if (loading) {
-    return <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState
-        icon={<PackageIcon />}
-        title="Failed to load your listings"
-        description={error}
-        action={
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Try Again
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          icon={<PackageIcon />}
+          title="Failed to load your listings"
+          description={error}
+          action={
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Try Again
+            </button>
+          }
+        />
+      </>
     );
   }
 
   // If user has no listings at all
   if (encryptions.length === 0) {
     return (
-      <EmptyState
-        illustration={<NoSalesIllustration />}
-        title="No listings yet"
-        description="Create your first encryption listing to start selling on the marketplace"
-        action={
-          <button
-            onClick={onCreateListing}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Create Listing
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          illustration={<NoSalesIllustration />}
+          title="No listings yet"
+          description="Create your first encryption listing to start selling on the marketplace"
+          action={
+            <button
+              onClick={onCreateListing}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Create Listing
+            </button>
+          }
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Earnings Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -463,7 +482,7 @@ function MySalesTab({
       </div>
 
       {/* Results Count */}
-      <div className="mb-4 text-sm text-[var(--text-muted)]">
+      <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'}
         {statusFilter !== 'all' && ` (${statusFilter})`}
       </div>
@@ -541,6 +560,7 @@ function MySalesTab({
         />
       )}
     </div>
+    </>
   );
 }
 

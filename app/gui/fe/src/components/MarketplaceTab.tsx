@@ -254,29 +254,45 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     return () => observer.disconnect();
   }, [hasMore, currentPage, dispatch]);
 
+  const screenReaderMessage = loading
+    ? 'Loading marketplace listings…'
+    : error
+    ? 'Error loading marketplace listings'
+    : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'} loaded`;
+
   if (loading) {
-    return <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState
-        icon={<PackageIcon />}
-        title="Failed to load listings"
-        description={error}
-        action={
-          <button
-            onClick={fetchEncryptions}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Try Again
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          icon={<PackageIcon />}
+          title="Failed to load listings"
+          description={error}
+          action={
+            <button
+              onClick={fetchEncryptions}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Try Again
+            </button>
+          }
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -438,7 +454,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
       </div>
 
       {/* Results Count + Clear Filters */}
-      <div className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
+      <div role="status" className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
         <span>
           {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
         </span>
@@ -542,6 +558,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
         </div>
       )}
     </div>
+    </>
   );
 }
 

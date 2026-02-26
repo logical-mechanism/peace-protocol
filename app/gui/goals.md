@@ -358,7 +358,7 @@ Each item has:
   - **How**: In MarketplaceTab, MySalesTab, LibraryTab — while `isLoading` is true, set `disabled` and `aria-disabled="true"` on search input, sort dropdown, and filter controls. Add `opacity-50 pointer-events-none` for visual indication.
   - **Why**: Interacting with filters before data loads can dispatch actions on empty arrays, causing flash-of-empty-state before real data appears.
 
-- [ ] **Announce dynamic content changes to screen readers**
+- [x] **Announce dynamic content changes to screen readers**
   - **How**: Ensure the toast container, bid notification badge, loading/error states, and pagination info all live within `aria-live` regions. Add `role="status"` to the pagination summary ("Showing 1-20 of 150"). Add `role="alert"` to error messages.
   - **Why**: Screen reader users miss dynamically updated content (new toasts, bid count changes, loading completions) unless announced via ARIA live regions.
 

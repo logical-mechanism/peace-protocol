@@ -248,48 +248,67 @@ function MyPurchasesTab({
     [onDecrypt]
   );
 
+  const screenReaderMessage = loading
+    ? 'Loading your purchases…'
+    : error
+    ? 'Error loading your purchases'
+    : `${bids.length} ${bids.length === 1 ? 'bid' : 'bids'} loaded`;
+
   if (loading) {
-    return <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState
-        icon={<PackageIcon />}
-        title="Failed to load your bids"
-        description={error}
-        action={
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Try Again
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          icon={<PackageIcon />}
+          title="Failed to load your bids"
+          description={error}
+          action={
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Try Again
+            </button>
+          }
+        />
+      </>
     );
   }
 
   // If user has no bids and no purchased encryptions
   if (bids.length === 0 && purchasedEncryptions.length === 0) {
     return (
-      <EmptyState
-        illustration={<NoPurchasesIllustration />}
-        title="No purchases yet"
-        description="Bids you place and encryptions you purchase will appear here"
-        action={
-          <button
-            onClick={() => onSwitchTab?.('marketplace')}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Browse Marketplace
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          illustration={<NoPurchasesIllustration />}
+          title="No purchases yet"
+          description="Bids you place and encryptions you purchase will appear here"
+          action={
+            <button
+              onClick={() => onSwitchTab?.('marketplace')}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Browse Marketplace
+            </button>
+          }
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Purchased Encryptions Section */}
       {purchasedEncryptions.length > 0 && (
@@ -500,7 +519,7 @@ function MyPurchasesTab({
       </div>
 
       {/* Results Count */}
-      <div className="mb-4 text-sm text-[var(--text-muted)]">
+      <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'bid' : 'bids'}
         {statusFilter !== 'all' && ` (${statusFilter})`}
       </div>
@@ -572,6 +591,7 @@ function MyPurchasesTab({
         tokenName={descModalToken}
       />
     </div>
+    </>
   );
 }
 

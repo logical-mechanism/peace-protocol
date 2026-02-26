@@ -318,13 +318,23 @@ function HistoryTab({
     </div>
   ) : null;
 
+  const screenReaderMessage = loading
+    ? 'Loading transaction history…'
+    : `${allRecords.length} ${allRecords.length === 1 ? 'transaction' : 'transactions'} loaded`;
+
   if (loading) {
-    return <SkeletonHistoryList />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonHistoryList />
+      </>
+    );
   }
 
   if (allRecords.length === 0) {
     return (
       <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         {staleBanner}
         <EmptyState
           illustration={<HistoryEmptyIllustration />}
@@ -336,6 +346,8 @@ function HistoryTab({
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Toolbar */}
       <div className="flex flex-col gap-4 mb-6">
@@ -483,6 +495,7 @@ function HistoryTab({
         />
       )}
     </div>
+    </>
   );
 }
 

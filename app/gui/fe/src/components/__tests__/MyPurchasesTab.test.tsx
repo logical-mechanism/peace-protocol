@@ -190,7 +190,7 @@ describe('MyPurchasesTab — bid secrets error feedback', () => {
 
     await waitFor(() => {
       // Should show the bids section with at least one bid card
-      expect(screen.getByText(/1 bid/)).toBeInTheDocument();
+      expect(screen.getByText(/^1 bid$/)).toBeInTheDocument();
     });
   });
 });
