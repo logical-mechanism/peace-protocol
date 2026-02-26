@@ -212,8 +212,8 @@ class KoiosClient {
   /**
    * Get current tip (latest block)
    */
-  async getTip(): Promise<{ block_no: number; block_time: number; epoch_no: number }> {
-    const result = await this.request<Array<{ block_no: number; block_time: number; epoch_no: number }>>('/tip');
+  async getTip(): Promise<{ block_no: number; block_time: number; epoch_no: number; abs_slot: number }> {
+    const result = await this.request<Array<{ block_no: number; block_time: number; epoch_no: number; abs_slot: number }>>('/tip');
     if (result.length === 0) {
       throw new Error('No tip data returned from Koios');
     }

@@ -127,11 +127,12 @@ describe('GET /api/chain/confirmations/:txHash', () => {
 });
 
 describe('GET /api/chain/tip', () => {
-  it('returns the current network tip', async () => {
+  it('returns the current network tip with abs_slot', async () => {
     mockKoiosClient.getTip.mockResolvedValue({
       block_no: 43200000,
       epoch_no: 500,
       block_time: 1700000000,
+      abs_slot: 86400000,
     });
 
     const res = await request(app).get('/api/chain/tip');
@@ -141,6 +142,7 @@ describe('GET /api/chain/tip', () => {
       block_no: 43200000,
       epoch_no: 500,
       block_time: 1700000000,
+      abs_slot: 86400000,
     });
   });
 

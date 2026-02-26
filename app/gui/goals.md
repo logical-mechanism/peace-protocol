@@ -444,7 +444,7 @@ Each item has:
   - **How**: In `be/src/services/health.ts`, add the circuit breaker's current state (CLOSED/OPEN/HALF_OPEN) and failure count to the health response for both Kupo and Koios: `{ kupo: { reachable, latencyMs, circuitBreaker: 'CLOSED' } }`.
   - **Why**: Operators need to know if the circuit breaker is open (degraded mode) vs just slow (healthy but latent). Current health check doesn't expose this.
 
-- [ ] **Chain tip response includes slot number**
+- [x] **Chain tip response includes slot number**
   - **How**: In `be/src/routes/chain.ts`, the `GET /tip` endpoint returns `block_no`, `epoch_no`, `block_time` but not `abs_slot`. Add `slot_no` from the Koios `/tip` response (which returns it). Frontend needs this for sync calculation.
   - **Why**: Frontend calculates sync percentage using slot numbers. Without the tip slot in the API response, it makes a separate Tauri invoke for the same data.
 

@@ -60,6 +60,7 @@ router.get('/tip', async (_req, res) => {
         block_no: tip.block_no,
         epoch_no: tip.epoch_no,
         block_time: tip.block_time,
+        abs_slot: tip.abs_slot,
       },
     });
   } catch (error) {
