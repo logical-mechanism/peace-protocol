@@ -351,7 +351,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         {onExport ? (
           <button
             onClick={onExport}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:brightness-110 transition-all duration-150 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -391,7 +391,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
   // --- Control bar ---
 
-  const btnClass = "px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer";
+  const btnClass = "px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon";
   const divider = <div className="w-px h-5 bg-[var(--border-subtle)] flex-shrink-0" />;
 
   const controlBar = (

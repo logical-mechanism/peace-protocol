@@ -1190,7 +1190,7 @@ export default function Dashboard() {
           {/* Create Listing Button */}
           <button
             onClick={() => setShowCreateListing(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1206,7 +1206,7 @@ export default function Dashboard() {
           {/* Address with copy button */}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-tertiary"
             title={address || 'Loading...'}
           >
             <span>{address ? truncateHex(address, 12, 8) : '...'}</span>
@@ -1237,7 +1237,7 @@ export default function Dashboard() {
           {/* Settings */}
           <button
             onClick={() => navigate('/settings')}
-            className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
             title="Settings"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1249,7 +1249,7 @@ export default function Dashboard() {
           {/* Disconnect button */}
           <button
             onClick={handleDisconnect}
-            className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Disconnect
           </button>
@@ -1273,19 +1273,19 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
                 <button
                   onClick={() => handleDraftRecovery('discard')}
-                  className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+                  className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
                   Discard
                 </button>
                 <button
                   onClick={() => handleDraftRecovery('resume')}
-                  className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                 >
                   Resume Listing
                 </button>
                 <button
                   onClick={() => setRecoverableDraft(null)}
-                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  className="p-1 btn-base btn-icon"
                   title="Dismiss"
                   aria-label="Dismiss draft recovery banner"
                 >
