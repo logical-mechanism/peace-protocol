@@ -53,12 +53,14 @@ export default function CreateListingModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [creationStep, setCreationStep] = useState<ListingCreationStep | null>(null);
+  const [displayPrice, setDisplayPrice] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
     if (isOpen) {
       setFormData(INITIAL_FORM_DATA);
+      setDisplayPrice('');
       setErrors({});
       setSubmitError(null);
       setCreationStep(null);
@@ -170,6 +172,34 @@ export default function CreateListingModal({
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatPrice = (raw: string): string => {
+    if (!raw || raw.endsWith('.')) return raw;
+    const num = parseFloat(raw);
+    if (isNaN(num)) return raw;
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 6,
+    }).format(num);
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/,/g, '');
+    setFormData((prev) => ({ ...prev, suggestedPrice: raw }));
+    setDisplayPrice(e.target.value);
+    if (errors.suggestedPrice) {
+      setErrors((prev) => ({ ...prev, suggestedPrice: undefined }));
+    }
+    setSubmitError(null);
+  };
+
+  const handlePriceFocus = () => {
+    setDisplayPrice(formData.suggestedPrice);
+  };
+
+  const handlePriceBlur = () => {
+    setDisplayPrice(formatPrice(formData.suggestedPrice));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -486,8 +516,10 @@ export default function CreateListingModal({
                     type="text"
                     id="suggestedPrice"
                     name="suggestedPrice"
-                    value={formData.suggestedPrice}
-                    onChange={handleInputChange}
+                    value={displayPrice}
+                    onChange={handlePriceChange}
+                    onFocus={handlePriceFocus}
+                    onBlur={handlePriceBlur}
                     disabled={isSubmitting}
                     placeholder="0.00"
                     className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${

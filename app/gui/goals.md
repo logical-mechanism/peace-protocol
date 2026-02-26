@@ -284,7 +284,7 @@ Each item has:
   - **How**: When the image URL field loses focus, attempt to load the image in a small preview thumbnail (64x64) below the input. Show a green check if loaded, red X if failed. Use `new Image()` to test loading.
   - **Why**: Users paste image URLs but can't verify they're valid until the listing appears in the marketplace. A preview catches bad URLs early.
 
-- [ ] **Price input formatting**
+- [x] **Price input formatting**
   - **How**: Format the price input with a trailing "ADA" label and thousands separators. Use `Intl.NumberFormat` on blur to format the displayed value. Store the raw number in state for submission.
   - **Why**: "1500" is less readable than "1,500 ADA". Visual formatting reduces input errors and improves comprehension.
 
@@ -298,15 +298,15 @@ Each item has:
 
 > Key file: `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] **Suggested minimum bid display**
+- [x] **Suggested minimum bid display**
   - **How**: Show the listing's `suggestedPrice` above the bid amount input: "Seller's suggested price: 50 ADA". If the user enters less, show a gentle hint: "Your bid is below the suggested price."
   - **Why**: Buyers have no pricing context. Showing the seller's expectation helps them bid competitively.
 
-- [ ] **Bid count on the listing**
+- [x] **Bid count on the listing**
   - **How**: Display "X other bids on this listing" in the modal header. Fetch from the already-loaded `allBids` data filtered by encryption token.
   - **Why**: Knowing that 5 others have bid creates urgency. Knowing nobody has bid suggests the listing might be overpriced.
 
-- [ ] **Wallet balance display with "max bid" button**
+- [x] **Wallet balance display with "max bid" button**
   - **How**: Show current wallet balance below the bid input: "Balance: 1,234 ADA". Add a "Max" button that fills the input with `balance - 5 ADA` (reserve for fees). Disable submit if bid exceeds balance.
   - **Why**: Users must mentally track their balance. Showing it inline prevents "insufficient funds" errors after a slow tx build.
 
