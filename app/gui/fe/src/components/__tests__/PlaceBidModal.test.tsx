@@ -275,4 +275,16 @@ describe('PlaceBidModal', () => {
     expect(await screen.findByText('Bid exceeds your wallet balance')).toBeInTheDocument();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
+
+  // --- Balance parsing safety ---
+
+  it('hides balance when balanceLovelace is empty string (NaN safety)', () => {
+    renderModal({ balanceLovelace: '' });
+    expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
+  });
+
+  it('hides balance when balanceLovelace is non-numeric (NaN safety)', () => {
+    renderModal({ balanceLovelace: 'abc' });
+    expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
+  });
 });

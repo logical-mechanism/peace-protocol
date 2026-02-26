@@ -238,11 +238,11 @@ Each item has:
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] **Min bid explanation in plain language**
+- [x] **Min bid explanation in plain language**
   - **How**: In `PlaceBidModal.tsx` (lines 99-105), the minimum 2 ADA message mentions "UTxO minimum" which is technical jargon. Replace with: "Minimum bid is 2 ADA (required by the Cardano network to hold bid data on-chain)." Add a small "Why?" link/tooltip that explains UTxO minimums briefly.
   - **Why**: Non-technical users don't understand why they can't bid 0.5 ADA. A clear explanation prevents confusion and support requests.
 
-- [ ] **Balance parsing safety check**
+- [x] **Balance parsing safety check**
   - **How**: In `PlaceBidModal.tsx` (lines 85-87), `balanceLovelace` is parsed with `parseInt()` without validating the input. Add: `const parsed = parseInt(balanceLovelace ?? '0', 10); const balanceAda = isNaN(parsed) ? undefined : parsed / 1_000_000;`. When `undefined`, show "Balance: loading..." instead of "0 ADA".
   - **Why**: If Kupo is slow to respond, `balanceLovelace` could be `undefined` or empty string, causing NaN display.
 
@@ -252,7 +252,7 @@ Each item has:
 
 > Key files: `fe/src/components/PdfViewer.tsx`, `fe/src/components/ImageViewer.tsx`, `fe/src/components/AudioPlayer.tsx`, `fe/src/components/VideoPlayer.tsx`
 
-- [ ] **PDF page jump invalid input feedback**
+- [x] **PDF page jump invalid input feedback**
   - **How**: In `PdfViewer.tsx` (lines 131-138), entering an invalid page number silently resets to the current page. Show a brief red border flash (200ms) on the page number input and set `aria-invalid="true"` temporarily when the entered page is out of range.
   - **Why**: Users typing page "200" in a 50-page PDF see the input reset with no explanation. A visual cue indicates the page doesn't exist.
 
@@ -274,11 +274,11 @@ Each item has:
 
 > Key files: `fe/src/pages/Settings.tsx`
 
-- [ ] **Express log level configurable from Settings**
+- [s] **Express log level configurable from Settings**
   - **How**: Add a "Log Level" dropdown (debug/info/warn/error) in the Node section of Settings. Store in `AppConfig` via a new Tauri command `set_log_level`. Pass as `LOG_LEVEL` env var in `config.rs` `express_env_vars()` (currently not set). Restart Express after change.
   - **Why**: When users report issues, support needs debug logs. Currently there's no way to enable debug logging without code changes.
 
-- [ ] **Settings export/import for backup**
+- [s] **Settings export/import for backup**
   - **How**: Add "Export Settings" button that serializes all localStorage keys (autolock, theme, toast duration, filter prefs) and Tauri config into a JSON file via `export_text_file`. Add "Import Settings" that reads and applies. Exclude sensitive data (secrets, wallet, mnemonic).
   - **Why**: Users reinstalling the app or setting up a second machine want to restore their preferences without reconfiguring everything.
 

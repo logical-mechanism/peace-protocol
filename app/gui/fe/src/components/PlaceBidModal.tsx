@@ -36,7 +36,7 @@ const INITIAL_FORM_DATA: PlaceBidFormData = {
   futurePrice: '',
 };
 
-// Minimum bid in ADA (to cover UTxO minimum)
+// Minimum bid in ADA (Cardano requires each UTxO to hold at least ~2 ADA)
 const MIN_BID_ADA = 2;
 
 // ADA reserved for transaction fees when using Max button
@@ -94,9 +94,10 @@ export default function PlaceBidModal({
     parsedBid > 0 &&
     parsedBid < encryption.suggestedPrice;
 
-  // Derived: wallet balance in ADA
+  // Derived: wallet balance in ADA (with NaN safety for slow Kupo responses)
+  const parsedLovelace = parseInt(balanceLovelace ?? '0', 10);
   const balanceAda =
-    balanceLovelace !== undefined ? parseInt(balanceLovelace, 10) / 1_000_000 : undefined;
+    balanceLovelace !== undefined && !isNaN(parsedLovelace) ? parsedLovelace / 1_000_000 : undefined;
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -109,7 +110,7 @@ export default function PlaceBidModal({
       if (isNaN(amount) || amount <= 0) {
         newErrors.bidAmount = 'Bid amount must be a positive number';
       } else if (amount < MIN_BID_ADA) {
-        newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA (to cover UTxO minimum)`;
+        newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA (required by the Cardano network to hold bid data on-chain)`;
       } else if (amount > 1000000000) {
         newErrors.bidAmount = 'Bid amount is too high';
       } else if (balanceAda !== undefined && amount > balanceAda) {
@@ -365,8 +366,14 @@ export default function PlaceBidModal({
               )}
               <div className="mt-1 space-y-1">
                 <p className="text-xs text-[var(--text-muted)]">
-                  Minimum bid: {MIN_BID_ADA} ADA. Your bid will be locked until the seller accepts or
-                  you cancel.
+                  Minimum bid: {MIN_BID_ADA} ADA.{' '}
+                  <span
+                    title="The Cardano network requires each piece of on-chain data (UTxO) to hold a minimum amount of ADA. Your bid is stored on-chain, so it must meet this minimum."
+                    className="underline decoration-dotted cursor-help"
+                  >
+                    Why?
+                  </span>{' '}
+                  Your bid will be locked until the seller accepts or you cancel.
                 </p>
                 {balanceAda !== undefined && (
                   <div className="flex items-center gap-2">
