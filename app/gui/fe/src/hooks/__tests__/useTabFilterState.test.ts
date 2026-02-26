@@ -81,6 +81,36 @@ describe('marketplaceReducer', () => {
     expect(next.showFavoritesOnly).toBe(false)
   })
 
+  it('HYDRATE merges partial state and resets page', () => {
+    const next = marketplaceReducer(MARKETPLACE_INITIAL, {
+      type: 'HYDRATE',
+      payload: { searchQuery: 'hello', sortBy: 'price-high', viewMode: 'list', currentPage: 5 },
+    })
+    expect(next.searchQuery).toBe('hello')
+    expect(next.sortBy).toBe('price-high')
+    expect(next.viewMode).toBe('list')
+    expect(next.currentPage).toBe(1) // always reset
+  })
+
+  it('HYDRATE with empty payload returns initial state', () => {
+    const state = { ...MARKETPLACE_INITIAL, searchQuery: 'old', currentPage: 3 }
+    const next = marketplaceReducer(state, { type: 'HYDRATE', payload: {} })
+    expect(next.searchQuery).toBe('')
+    expect(next.sortBy).toBe('newest')
+    expect(next.currentPage).toBe(1)
+  })
+
+  it('HYDRATE fills missing fields from initial state', () => {
+    const next = marketplaceReducer(MARKETPLACE_INITIAL, {
+      type: 'HYDRATE',
+      payload: { categoryFilter: 'audio' },
+    })
+    expect(next.categoryFilter).toBe('audio')
+    expect(next.searchQuery).toBe('') // default
+    expect(next.sortBy).toBe('newest') // default
+    expect(next.viewMode).toBe('grid') // default
+  })
+
   it('returns same state for unknown action', () => {
     const state = { ...MARKETPLACE_INITIAL }
     // @ts-expect-error testing unknown action

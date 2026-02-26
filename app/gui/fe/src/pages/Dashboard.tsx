@@ -34,6 +34,7 @@ import { saveDecryptedContent, saveContentMetadata } from '../services/contentSt
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
+import { getPersistedFilters, persistFilters } from '../services/filterStorage'
 import { listLibraryItems } from '../services/libraryService'
 import { useDataRefresh } from '../hooks/useDataRefresh'
 import {
@@ -238,6 +239,28 @@ export default function Dashboard() {
       return undefined
     }
   }, [address])
+
+  // Hydrate marketplace filters from localStorage once PKH is known
+  const hydratedRef = useRef(false)
+  useEffect(() => {
+    if (!userPkh || hydratedRef.current) return
+    hydratedRef.current = true
+    const saved = getPersistedFilters(userPkh)
+    if (saved) {
+      marketplaceDispatch({ type: 'HYDRATE', payload: saved })
+    }
+  }, [userPkh])
+
+  // Debounced persistence of marketplace filters to localStorage
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => {
+    if (!userPkh || !hydratedRef.current) return
+    clearTimeout(persistTimeoutRef.current)
+    persistTimeoutRef.current = setTimeout(() => {
+      persistFilters(userPkh, marketplaceFilters)
+    }, 300)
+    return () => clearTimeout(persistTimeoutRef.current)
+  }, [userPkh, marketplaceFilters])
 
   // Bid notification system — watches tipSlot for new bids on seller's listings
   const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
