@@ -15,6 +15,8 @@ import type { ApiResponse, EncryptionDisplay, EncryptionLevel } from '../types/i
 
 const router = Router();
 
+const CACHE_DATA = 'max-age=10, stale-while-revalidate=30';
+
 /**
  * GET /api/encryptions
  * List all encryptions
@@ -25,12 +27,14 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (config.useStubs) {
       const { data, pagination } = paginate(STUB_ENCRYPTIONS, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: STUB_ENCRYPTIONS.length }, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
     const result = await getAllEncryptions(skipCache);
     const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
       meta: { total: result.data.length },
@@ -60,6 +64,7 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
         data: [],
         meta: { total: 0 },
       };
+      res.set('Cache-Control', CACHE_DATA);
       return res.json(response);
     }
 
@@ -68,6 +73,7 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
       data: levels,
       meta: { total: levels.length },
     };
+    res.set('Cache-Control', CACHE_DATA);
     return res.json(response);
   } catch (error) {
     logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
@@ -92,6 +98,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
           error: { code: 'NOT_FOUND', message: 'Encryption not found' },
         });
       }
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data: encryption });
     }
 
@@ -101,6 +108,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
         error: { code: 'NOT_FOUND', message: 'Encryption not found' },
       });
     }
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data: result.data,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
@@ -128,11 +136,13 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
         e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())
       );
       const { data, pagination } = paginate(userEncryptions, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: userEncryptions.length }, pagination });
     }
 
     const result = await getEncryptionsByUser(pkh);
     const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
       meta: { total: result.data.length },
@@ -168,6 +178,7 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
         e => e.status === status
       );
       const { data, pagination } = paginate(filteredEncryptions, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: filteredEncryptions.length }, pagination });
     }
 
@@ -175,6 +186,7 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       status as 'active' | 'pending' | 'completed'
     );
     const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
       meta: { total: result.data.length },

@@ -15,6 +15,8 @@ import type { ApiResponse, BidDisplay } from '../types/index.js';
 
 const router = Router();
 
+const CACHE_DATA = 'max-age=10, stale-while-revalidate=30';
+
 /**
  * GET /api/bids
  * List all bids
@@ -25,12 +27,14 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (config.useStubs) {
       const { data, pagination } = paginate(STUB_BIDS, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: STUB_BIDS.length }, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
     const result = await getAllBids(skipCache);
     const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
       meta: { total: result.data.length },
@@ -60,6 +64,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
           error: { code: 'NOT_FOUND', message: 'Bid not found' },
         });
       }
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data: bid });
     }
 
@@ -69,6 +74,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
         error: { code: 'NOT_FOUND', message: 'Bid not found' },
       });
     }
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data: result.data,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
@@ -96,11 +102,13 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
         b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())
       );
       const { data, pagination } = paginate(userBids, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: userBids.length }, pagination });
     }
 
     const result = await getBidsByUser(pkh);
     const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
       meta: { total: result.data.length },
@@ -130,11 +138,13 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
         b => b.encryptionToken === encryptionToken
       );
       const { data, pagination } = paginate(encryptionBids, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: encryptionBids.length }, pagination });
     }
 
     const result = await getBidsByEncryption(encryptionToken);
     const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
       meta: { total: result.data.length },
@@ -172,6 +182,7 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
     if (config.useStubs) {
       const filteredBids = STUB_BIDS.filter(b => b.status === status);
       const { data, pagination } = paginate(filteredBids, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: filteredBids.length }, pagination });
     }
 
@@ -179,6 +190,7 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
     );
     const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
       meta: { total: result.data.length },

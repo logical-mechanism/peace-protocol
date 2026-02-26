@@ -34,6 +34,7 @@ router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
     }
 
     const confirmations = Math.max(0, tip.block_no - blockHeight);
+    res.set('Cache-Control', 'no-cache');
     return res.json({ data: { confirmations, blockHeight } });
   } catch (error) {
     logger.error('Failed to get confirmations', { error: String(error) });
@@ -51,6 +52,7 @@ router.get('/tip', async (_req, res) => {
   try {
     const koios = getKoiosClient();
     const tip = await koios.getTip();
+    res.set('Cache-Control', 'max-age=5');
     return res.json({
       data: {
         block_no: tip.block_no,
