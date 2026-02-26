@@ -40,6 +40,7 @@ import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../servi
 import { getPersistedFilters, persistFilters } from '../services/filterStorage'
 import { listLibraryItems } from '../services/libraryService'
 import { useDataRefresh } from '../hooks/useDataRefresh'
+import { useWalletHealth } from '../hooks/useWalletHealth'
 import {
   marketplaceReducer, MARKETPLACE_INITIAL,
   mySalesReducer, MY_SALES_INITIAL,
@@ -75,6 +76,7 @@ export default function Dashboard() {
   const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
   const navigate = useNavigate()
   const { hasOpenModal } = useModal()
+  const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
   const setActiveTab = useCallback((tab: TabId) => {
@@ -1193,6 +1195,24 @@ export default function Dashboard() {
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></span>
               Iagon Offline
             </button>
+          )}
+          {/* Collateral Indicator */}
+          {nodeStage === 'synced' && !walletHealth.isChecking && (
+            walletHealth.hasCollateral ? (
+              <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                Collateral Set
+              </span>
+            ) : (
+              <button
+                onClick={() => navigate('/settings', { state: { section: 'wallet' } })}
+                className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-full hover:bg-[var(--warning)]/20 transition-all cursor-pointer"
+                title="No collateral UTxO found — click to set up in Settings"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
+                No Collateral
+              </button>
+            )
           )}
         </div>
         <div className="flex items-center gap-4">

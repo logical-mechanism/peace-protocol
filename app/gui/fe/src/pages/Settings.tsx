@@ -25,6 +25,9 @@ import { getTheme, setTheme, applyTheme, type Theme } from '../services/themeSto
 import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
 import ConfirmModal from '../components/ConfirmModal'
+import { useToast, ToastContainer } from '../components/Toast'
+import { useWalletHealth } from '../hooks/useWalletHealth'
+import { createCollateral, defragWallet, previewDefrag, type DefragPreview } from '../services/walletManagement'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -41,7 +44,7 @@ interface ProcessLog {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { walletState, lock, wallet } = useWalletContext()
+  const { walletState, lock, wallet, refreshBalance } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
   const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes } = useNode()
@@ -86,6 +89,14 @@ export default function Settings() {
 
   // Transaction history cleanup
   const [txHistoryCount, setTxHistoryCount] = useState(0)
+
+  // Wallet management (collateral / defrag)
+  const toast = useToast()
+  const walletHealth = useWalletHealth(wallet, tipSlot, stage)
+  const [collateralLoading, setCollateralLoading] = useState(false)
+  const [defragLoading, setDefragLoading] = useState(false)
+  const [defragPreview, setDefragPreview] = useState<DefragPreview | null>(null)
+  const [defragPreviewLoading, setDefragPreviewLoading] = useState(false)
 
   // Derived user PKH for transaction history operations
   const userPkh = useMemo(() => {
@@ -382,6 +393,7 @@ export default function Settings() {
     { tab: 'node', title: 'Node Infrastructure', keywords: ['node', 'sync', 'status', 'tip', 'slot', 'height', 'infrastructure'] },
     { tab: 'node', title: 'Processes', keywords: ['process', 'pid', 'restart', 'ogmios', 'kupo', 'express', 'cardano', 'mithril'] },
     { tab: 'wallet', title: 'Wallet Info', keywords: ['wallet', 'address', 'balance', 'ada'] },
+    { tab: 'wallet', title: 'Wallet Management', keywords: ['wallet', 'collateral', 'defrag', 'optimize', 'utxo', 'fragment', 'consolidate'] },
     { tab: 'wallet', title: 'Recovery Phrase', keywords: ['recovery', 'phrase', 'mnemonic', 'seed', 'backup'] },
     { tab: 'wallet', title: 'Theme', keywords: ['theme', 'dark', 'light', 'mode', 'appearance', 'color'] },
     { tab: 'wallet', title: 'Auto-Lock', keywords: ['auto', 'lock', 'timeout', 'inactivity', 'security'] },
@@ -407,6 +419,59 @@ export default function Settings() {
       s.keywords.some(k => k.includes(q))
     )
   }, [searchQuery, searchableSections])
+
+  // Load defrag preview when wallet section is active
+  useEffect(() => {
+    if (activeSection !== 'wallet' || stage !== 'synced' || !wallet) return
+    let cancelled = false
+    setDefragPreviewLoading(true)
+    previewDefrag(wallet)
+      .then((preview) => { if (!cancelled) setDefragPreview(preview) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setDefragPreviewLoading(false) })
+    return () => { cancelled = true }
+  }, [activeSection, stage, wallet])
+
+  const handleCreateCollateral = useCallback(async () => {
+    if (!wallet) return
+    setCollateralLoading(true)
+    try {
+      const result = await createCollateral(wallet)
+      if (result.success && result.txHash) {
+        toast.transactionSuccess('Collateral Created', result.txHash)
+        walletHealth.recheck()
+        refreshBalance()
+      } else if (result.success && result.error) {
+        toast.info('Collateral Ready', result.error)
+      } else {
+        toast.error('Collateral Failed', result.error || 'Unknown error')
+      }
+    } catch (err) {
+      toast.error('Collateral Failed', err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setCollateralLoading(false)
+    }
+  }, [wallet, toast, walletHealth, refreshBalance])
+
+  const handleDefragWallet = useCallback(async () => {
+    if (!wallet) return
+    setDefragLoading(true)
+    try {
+      const result = await defragWallet(wallet)
+      if (result.success && result.txHash) {
+        const title = result.error ? 'Wallet Partially Optimized' : 'Wallet Optimized'
+        toast.transactionSuccess(title, result.txHash, result.error)
+        walletHealth.recheck()
+        refreshBalance()
+      } else {
+        toast.error('Optimization Failed', result.error || 'Unknown error')
+      }
+    } catch (err) {
+      toast.error('Optimization Failed', err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setDefragLoading(false)
+    }
+  }, [wallet, toast, walletHealth, refreshBalance])
 
   const handleConnectIagon = useCallback(async () => {
     if (!wallet || !address) return
@@ -689,6 +754,106 @@ export default function Settings() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Wallet Management */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <h2 className="text-lg font-medium mb-2">Wallet Management</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                Manage your wallet's UTxO set for optimal transaction building.
+              </p>
+
+              {walletHealth.isChecking ? (
+                <p className="text-sm text-[var(--text-muted)]">Analyzing wallet...</p>
+              ) : stage !== 'synced' ? (
+                <p className="text-sm text-[var(--text-muted)]">Node must be synced to analyze wallet health.</p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Status Grid */}
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+                    <div>
+                      <span className="text-sm text-[var(--text-muted)]">Collateral</span>
+                      <p className={`text-sm font-medium flex items-center gap-2 ${walletHealth.hasCollateral ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`}>
+                        <span className={`w-2 h-2 rounded-full ${walletHealth.hasCollateral ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`} />
+                        {walletHealth.hasCollateral ? 'Set (5 ADA)' : 'Not Set'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-[var(--text-muted)]">UTxO Count</span>
+                      <p className="text-sm font-medium">{walletHealth.utxoCount}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-[var(--text-muted)]">Pure ADA UTxOs</span>
+                      <p className="text-sm font-medium">{walletHealth.pureAdaCount}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-[var(--text-muted)]">Token-bearing UTxOs</span>
+                      <p className="text-sm font-medium">{walletHealth.tokenUtxoCount}</p>
+                    </div>
+                  </div>
+
+                  {/* Fragmentation Warning */}
+                  {walletHealth.isFragmented && (
+                    <div className="flex items-start gap-3 p-3 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-md)]">
+                      <svg className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-medium text-[var(--warning)]">Wallet needs optimization</p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                          Your wallet has {walletHealth.utxoCount} UTxO{walletHealth.utxoCount !== 1 ? 's' : ''}.
+                          {!walletHealth.hasCollateral && ' No collateral UTxO found.'}
+                          {walletHealth.utxoCount > 10 && ' Consolidating will improve transaction efficiency.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Defrag Preview */}
+                  {defragPreview && !defragPreviewLoading && walletHealth.utxoCount > 1 && (
+                    <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+                      <p className="text-xs text-[var(--text-muted)] mb-1">Optimization preview:</p>
+                      <p className="text-sm">
+                        {defragPreview.inputCount} UTxO{defragPreview.inputCount !== 1 ? 's' : ''} &rarr; {defragPreview.resultingUtxoCount} UTxO{defragPreview.resultingUtxoCount !== 1 ? 's' : ''}
+                        {defragPreview.tokenOutputs.length > 0 && (
+                          <span className="text-[var(--text-muted)]">
+                            {' '}({defragPreview.tokenOutputs.reduce((sum, t) => sum + t.assets.length, 0)} token{defragPreview.tokenOutputs.reduce((sum, t) => sum + t.assets.length, 0) !== 1 ? 's' : ''} consolidated)
+                          </span>
+                        )}
+                      </p>
+                      {defragPreview.capped && (
+                        <p className="text-xs text-[var(--warning)] mt-1">
+                          Limited to first 200 UTxOs. Run again to continue.
+                        </p>
+                      )}
+                      {!defragPreview.isFeasible && defragPreview.infeasibleReason && (
+                        <p className="text-xs text-[var(--error)] mt-1">{defragPreview.infeasibleReason}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    {!walletHealth.hasCollateral && (
+                      <button
+                        onClick={handleCreateCollateral}
+                        disabled={collateralLoading || defragLoading}
+                        className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                      >
+                        {collateralLoading ? 'Creating...' : 'Set Collateral (5 ADA)'}
+                      </button>
+                    )}
+                    <button
+                      onClick={handleDefragWallet}
+                      disabled={defragLoading || collateralLoading || walletHealth.utxoCount <= 1 || (defragPreview !== null && !defragPreview.isFeasible)}
+                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+                      title={defragPreview && !defragPreview.isFeasible ? defragPreview.infeasibleReason : undefined}
+                    >
+                      {defragLoading ? 'Optimizing...' : 'Optimize Wallet'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Recovery Phrase */}
@@ -1547,6 +1712,7 @@ export default function Settings() {
         confirmVariant="default"
         loading={networkSwitching}
       />
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )
 }

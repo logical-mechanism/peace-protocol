@@ -48,6 +48,26 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
+  // No collateral set — must be before generic collateral/balance matches
+  {
+    test: (e) => /no collateral set|no collateral utxo/i.test(e),
+    result: {
+      title: 'No Collateral',
+      message: 'Your wallet needs a dedicated 5 ADA collateral UTxO for smart contract transactions.',
+      action: 'Go to Settings > Wallet and click "Set Collateral".',
+      recoverable: true,
+    },
+  },
+  // Insufficient funds for collateral creation
+  {
+    test: (e) => /insufficient funds.*collateral|need at least.*6\.5.*ada/i.test(e),
+    result: {
+      title: 'Insufficient Funds for Collateral',
+      message: 'Your wallet does not have enough ADA to create a collateral UTxO.',
+      action: 'Send at least 10 ADA to your wallet address.',
+      recoverable: true,
+    },
+  },
   // Insufficient collateral — must be before generic "insufficient" balance match
   {
     test: (e) => /insufficient.*collateral|collateral.*insufficient/i.test(e),
