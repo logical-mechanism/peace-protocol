@@ -72,14 +72,21 @@ enum LaunchInfo {
     },
 }
 
-/// Per-process graceful shutdown timeout.
+/// Per-process graceful shutdown timeout (seconds).
 /// cardano-node needs extra time to flush its in-memory ledger to disk.
+///
+/// Overridable via environment variables for users with slow storage:
+///   SHUTDOWN_TIMEOUT_CARDANO, SHUTDOWN_TIMEOUT_MITHRIL, SHUTDOWN_TIMEOUT_DEFAULT
 fn default_shutdown_timeout(name: &str) -> u64 {
-    match name {
-        "cardano-node" => 45,
-        "mithril-client" => 30,
-        _ => 10, // express, ogmios, kupo
-    }
+    let (env_key, fallback) = match name {
+        "cardano-node" => ("SHUTDOWN_TIMEOUT_CARDANO", 45),
+        "mithril-client" => ("SHUTDOWN_TIMEOUT_MITHRIL", 30),
+        _ => ("SHUTDOWN_TIMEOUT_DEFAULT", 10),
+    };
+    std::env::var(env_key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(fallback)
 }
 
 /// A single managed child process with its metadata
@@ -1679,10 +1686,35 @@ mod tests {
 
     #[test]
     fn default_shutdown_timeout_per_process() {
+        // Clean env to ensure defaults (in case another test set them)
+        std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
+        std::env::remove_var("SHUTDOWN_TIMEOUT_MITHRIL");
+        std::env::remove_var("SHUTDOWN_TIMEOUT_DEFAULT");
+
         assert_eq!(default_shutdown_timeout("cardano-node"), 45);
         assert_eq!(default_shutdown_timeout("mithril-client"), 30);
         assert_eq!(default_shutdown_timeout("ogmios"), 10);
         assert_eq!(default_shutdown_timeout("kupo"), 10);
         assert_eq!(default_shutdown_timeout("express"), 10);
+    }
+
+    #[test]
+    fn shutdown_timeout_env_override() {
+        std::env::set_var("SHUTDOWN_TIMEOUT_CARDANO", "90");
+        assert_eq!(default_shutdown_timeout("cardano-node"), 90);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
+
+        std::env::set_var("SHUTDOWN_TIMEOUT_MITHRIL", "60");
+        assert_eq!(default_shutdown_timeout("mithril-client"), 60);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_MITHRIL");
+
+        std::env::set_var("SHUTDOWN_TIMEOUT_DEFAULT", "20");
+        assert_eq!(default_shutdown_timeout("ogmios"), 20);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_DEFAULT");
+
+        // Invalid value falls back to default
+        std::env::set_var("SHUTDOWN_TIMEOUT_CARDANO", "not_a_number");
+        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
     }
 }
