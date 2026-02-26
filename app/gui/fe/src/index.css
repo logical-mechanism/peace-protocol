@@ -118,6 +118,83 @@ body {
   overflow: hidden;
 }
 
+/* Shared button interactive states */
+.btn-base {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-base:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-base:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary: solid accent background */
+.btn-primary {
+  background-color: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+/* Secondary: accent text with accent border */
+.btn-secondary {
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--accent-muted);
+}
+
+/* Tertiary: neutral border, subtle hover */
+.btn-tertiary {
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-tertiary:hover:not(:disabled) {
+  background-color: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+/* Destructive: error text with error border */
+.btn-destructive {
+  color: var(--error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-destructive:hover:not(:disabled) {
+  background-color: var(--error-muted);
+}
+
+/* Success: solid success background */
+.btn-success {
+  background-color: var(--success);
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Icon: minimal chrome, muted text, hover bg */
+.btn-icon {
+  color: var(--text-muted);
+}
+
+.btn-icon:hover:not(:disabled) {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
 /* Force dark color scheme for form controls (WebKit in Tauri ignores CSS color on <select>) */
 select, input, textarea {
   color-scheme: dark;
