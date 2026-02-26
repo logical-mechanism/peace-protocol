@@ -500,12 +500,14 @@ export default function CreateListingModal({
                   disabled={isSubmitting}
                   rows={4}
                   placeholder="Enter the secret data you want to sell..."
+                  aria-invalid={!!errors.secretMessage}
+                  aria-describedby={errors.secretMessage ? 'secretMessage-error' : undefined}
                   className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 resize-none disabled:opacity-50 ${
                     errors.secretMessage ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
                 />
                 {errors.secretMessage && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.secretMessage}</p>
+                  <p id="secretMessage-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.secretMessage}</p>
                 )}
                 <p className={`mt-1 text-xs ${
                   formData.secretMessage.length > 280
@@ -585,7 +587,7 @@ export default function CreateListingModal({
                   </label>
                 )}
                 {errors.file && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.file}</p>
+                  <p id="file-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.file}</p>
                 )}
               </div>
             )}
@@ -647,12 +649,14 @@ export default function CreateListingModal({
                 disabled={isSubmitting}
                 rows={2}
                 placeholder="Brief description of what you're selling (visible to buyers)"
+                aria-invalid={!!errors.description}
+                aria-describedby={errors.description ? 'description-error' : undefined}
                 className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 resize-none disabled:opacity-50 ${
                   errors.description ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                 }`}
               />
               {errors.description && (
-                <p className="mt-1 text-xs text-[var(--error)]">{errors.description}</p>
+                <p id="description-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.description}</p>
               )}
               <p className={`mt-1 text-xs ${
                 formData.description.length > 500
@@ -686,6 +690,8 @@ export default function CreateListingModal({
                     onBlur={handlePriceBlur}
                     disabled={isSubmitting}
                     placeholder="0.00"
+                    aria-invalid={!!errors.suggestedPrice}
+                    aria-describedby={errors.suggestedPrice ? 'suggestedPrice-error' : undefined}
                     className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
                       errors.suggestedPrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                     }`}
@@ -695,7 +701,7 @@ export default function CreateListingModal({
                   </span>
                 </div>
                 {errors.suggestedPrice && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>
+                  <p id="suggestedPrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>
                 )}
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Optional. Buyers can bid any amount.
@@ -719,12 +725,14 @@ export default function CreateListingModal({
                   onBlur={handleImageLinkBlur}
                   disabled={isSubmitting}
                   placeholder="https://example.com/preview.png"
+                  aria-invalid={!!errors.imageLink}
+                  aria-describedby={errors.imageLink ? 'imageLink-error' : undefined}
                   className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
                     errors.imageLink ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
                 />
                 {errors.imageLink && (
-                  <p className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>
+                  <p id="imageLink-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>
                 )}
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Optional. Public preview image URL.

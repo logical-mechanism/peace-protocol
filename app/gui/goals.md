@@ -462,7 +462,7 @@ Each item has:
   - **How**: Add a visually hidden link as the first focusable element on every page: `<a href="#main-content" class="sr-only focus:not-sr-only">Skip to content</a>`. Add `id="main-content"` to the main content area.
   - **Why**: Keyboard users must Tab through the entire nav bar to reach content. A skip link is a standard accessibility pattern.
 
-- [ ] **Form input `aria-invalid` on errors**
+- [x] **Form input `aria-invalid` on errors**
   - **How**: When a form field has a validation error, add `aria-invalid="true"` and `aria-describedby="fieldname-error"` to the input. The error message element gets `id="fieldname-error"`.
   - **Why**: Screen readers don't announce form errors unless they're programmatically associated with the input field.
 

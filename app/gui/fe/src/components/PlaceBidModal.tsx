@@ -309,6 +309,8 @@ export default function PlaceBidModal({
                   onChange={handleInputChange}
                   disabled={isSubmitting}
                   placeholder="0.00"
+                  aria-invalid={!!errors.bidAmount}
+                  aria-describedby={errors.bidAmount ? 'bidAmount-error' : undefined}
                   className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
                     errors.bidAmount ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
@@ -318,7 +320,7 @@ export default function PlaceBidModal({
                 </span>
               </div>
               {errors.bidAmount && (
-                <p className="mt-1 text-xs text-[var(--error)]">{errors.bidAmount}</p>
+                <p id="bidAmount-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.bidAmount}</p>
               )}
               {!errors.bidAmount && isBelowSuggested && (
                 <p className="mt-1 text-xs text-[var(--warning)]">
@@ -436,6 +438,8 @@ export default function PlaceBidModal({
                       onChange={handleInputChange}
                       disabled={isSubmitting}
                       placeholder="0.00"
+                      aria-invalid={!!errors.futurePrice}
+                      aria-describedby={errors.futurePrice ? 'futurePrice-error' : undefined}
                       className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
                         errors.futurePrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                       }`}
@@ -445,7 +449,7 @@ export default function PlaceBidModal({
                     </span>
                   </div>
                   {errors.futurePrice && (
-                    <p className="mt-1 text-xs text-[var(--error)]">{errors.futurePrice}</p>
+                    <p id="futurePrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.futurePrice}</p>
                   )}
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
                     The suggested price for the next listing after you win. Defaults to the current price.

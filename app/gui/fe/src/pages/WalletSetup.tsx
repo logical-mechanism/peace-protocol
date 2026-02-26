@@ -718,6 +718,8 @@ function PasswordForm({
               if (e.key === 'Enter' && passwordValid) onSubmit()
             }}
             className="w-full px-4 py-2 rounded-lg text-sm"
+            aria-invalid={!!(confirmPassword && password !== confirmPassword)}
+            aria-describedby={error ? 'setup-password-error' : undefined}
             style={{
               background: 'var(--bg-secondary)',
               color: 'var(--text-primary)',
@@ -736,6 +738,8 @@ function PasswordForm({
 
       {error && (
         <div
+          id="setup-password-error"
+          role="alert"
           className="mb-4 p-3 rounded-lg text-sm"
           style={{
             background: 'var(--error-muted)',

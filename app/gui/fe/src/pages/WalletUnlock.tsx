@@ -88,6 +88,8 @@ export default function WalletUnlock() {
                 autoComplete="current-password"
                 autoFocus
                 disabled={isUnlocking}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'password-error' : undefined}
               />
               <button
                 type="button"
@@ -101,6 +103,8 @@ export default function WalletUnlock() {
 
           {error && (
             <div
+              id="password-error"
+              role="alert"
               className="mb-4 p-3 rounded-lg text-sm"
               style={{
                 background: 'var(--error-muted)',
