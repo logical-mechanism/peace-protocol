@@ -154,6 +154,13 @@ class KupoClient {
     return matches.map((m) => this.matchToKoiosUtxo(m));
   }
 
+  getCircuitBreakerState() {
+    return {
+      state: this.circuitBreaker.currentState,
+      failureCount: this.circuitBreaker.consecutiveFailures,
+    };
+  }
+
   private matchToKoiosUtxo(match: KupoMatch): KoiosUtxo {
     return matchToKoiosUtxo(match, this.network);
   }

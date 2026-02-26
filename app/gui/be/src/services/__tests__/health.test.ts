@@ -9,6 +9,21 @@ vi.mock('../../config/index.js', () => ({
   }),
 }));
 
+const mockKupoCBState = { state: 'CLOSED', failureCount: 0 };
+const mockKoiosCBState = { state: 'CLOSED', failureCount: 0 };
+
+vi.mock('../kupo.js', () => ({
+  getKupoClient: () => ({
+    getCircuitBreakerState: () => mockKupoCBState,
+  }),
+}));
+
+vi.mock('../koios.js', () => ({
+  getKoiosClient: () => ({
+    getCircuitBreakerState: () => mockKoiosCBState,
+  }),
+}));
+
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
@@ -92,5 +107,25 @@ describe('getHealthStatus', () => {
 
     expect(health.kupo.lastSuccess).toBeDefined();
     expect(health.koios.lastSuccess).toBeDefined();
+  });
+
+  it('includes circuit breaker state for both dependencies', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    mockKupoCBState.state = 'OPEN';
+    mockKupoCBState.failureCount = 5;
+    mockKoiosCBState.state = 'HALF_OPEN';
+    mockKoiosCBState.failureCount = 3;
+
+    const { getHealthStatus } = await import('../health.js');
+    const health = await getHealthStatus('preprod', false);
+
+    expect(health.kupo.circuitBreaker).toEqual({ state: 'OPEN', failureCount: 5 });
+    expect(health.koios.circuitBreaker).toEqual({ state: 'HALF_OPEN', failureCount: 3 });
+
+    // Reset for other tests
+    mockKupoCBState.state = 'CLOSED';
+    mockKupoCBState.failureCount = 0;
+    mockKoiosCBState.state = 'CLOSED';
+    mockKoiosCBState.failureCount = 0;
   });
 });

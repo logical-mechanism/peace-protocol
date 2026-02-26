@@ -231,6 +231,13 @@ class KoiosClient {
     }
     return result[0];
   }
+
+  getCircuitBreakerState() {
+    return {
+      state: this.circuitBreaker.currentState,
+      failureCount: this.circuitBreaker.consecutiveFailures,
+    };
+  }
 }
 
 // Singleton instance

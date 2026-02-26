@@ -440,7 +440,7 @@ Each item has:
   - **How**: In `be/src/routes/encryptions.ts`, the `GET /encryptions/:tokenName/levels` endpoint returns all levels without pagination. Apply the existing `paginate()` middleware with a generous default (limit=100). Return `{ data, pagination }` wrapper.
   - **Why**: A token with many re-encryption hops could return an unbounded array, causing slow responses and high memory usage.
 
-- [ ] **Health check includes circuit breaker state**
+- [x] **Health check includes circuit breaker state**
   - **How**: In `be/src/services/health.ts`, add the circuit breaker's current state (CLOSED/OPEN/HALF_OPEN) and failure count to the health response for both Kupo and Koios: `{ kupo: { reachable, latencyMs, circuitBreaker: 'CLOSED' } }`.
   - **Why**: Operators need to know if the circuit breaker is open (degraded mode) vs just slow (healthy but latent). Current health check doesn't expose this.
 
