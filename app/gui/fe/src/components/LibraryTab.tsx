@@ -33,6 +33,12 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
   const [deleteTarget, setDeleteTarget] = useState<LibraryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Bulk select mode
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
   const fetchItems = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -163,6 +169,50 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
     setContentModalOpen(false);
     setSelectedItem(null);
   }, []);
+
+  // Bulk select handlers
+  const handleToggleSelect = useCallback((tokenName: string) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(tokenName)) {
+        next.delete(tokenName);
+      } else {
+        next.add(tokenName);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedItems(new Set(filteredAndSorted.map(i => i.tokenName)));
+  }, [filteredAndSorted]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedItems(new Set());
+  }, []);
+
+  const handleExitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedItems(new Set());
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    setBulkDeleting(true);
+    try {
+      const toDelete = items.filter(i => selectedItems.has(i.tokenName));
+      for (const item of toDelete) {
+        await deleteLibraryItem(item.tokenName, item.category);
+      }
+      setItems(prev => prev.filter(i => !selectedItems.has(i.tokenName)));
+      setSelectedItems(new Set());
+      setSelectMode(false);
+      setShowBulkDeleteConfirm(false);
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [selectedItems, items]);
 
   if (loading) {
     return <SkeletonGrid />;
@@ -352,6 +402,18 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
               />
             </svg>
           </button>
+
+          {/* Select Mode Toggle */}
+          <button
+            onClick={() => selectMode ? handleExitSelectMode() : setSelectMode(true)}
+            className={`px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+              selectMode
+                ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                : 'bg-[var(--bg-secondary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {selectMode ? 'Cancel' : 'Select'}
+          </button>
         </div>
       </div>
 
@@ -395,6 +457,9 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
               item={item}
               onView={handleView}
               onDelete={handleDeleteFromCard}
+              selectMode={selectMode}
+              selected={selectedItems.has(item.tokenName)}
+              onToggleSelect={handleToggleSelect}
             />
           ))}
         </div>
@@ -407,6 +472,9 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
               onView={handleView}
               onDelete={handleDeleteFromCard}
               compact
+              selectMode={selectMode}
+              selected={selectedItems.has(item.tokenName)}
+              onToggleSelect={handleToggleSelect}
             />
           ))}
         </div>
@@ -420,6 +488,33 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
         onDelete={handleDeleteFromModal}
       />
 
+      {/* Floating Bulk Action Bar */}
+      {selectMode && selectedItems.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-full shadow-lg">
+          <span className="text-sm text-[var(--text-secondary)]">
+            {selectedItems.size} {selectedItems.size === 1 ? 'item' : 'items'} selected
+          </span>
+          <button
+            onClick={handleSelectAll}
+            className="text-sm text-[var(--accent)] hover:underline cursor-pointer"
+          >
+            Select All
+          </button>
+          <button
+            onClick={handleDeselectAll}
+            className="text-sm text-[var(--text-muted)] hover:underline cursor-pointer"
+          >
+            Deselect All
+          </button>
+          <button
+            onClick={() => setShowBulkDeleteConfirm(true)}
+            className="px-4 py-2 text-sm font-medium bg-[var(--error)] text-white rounded-[var(--radius-md)] hover:opacity-80 transition-all duration-150 cursor-pointer"
+          >
+            Delete {selectedItems.size}
+          </button>
+        </div>
+      )}
+
       {/* Delete Confirmation (from card delete button) */}
       <ConfirmModal
         isOpen={deleteTarget !== null}
@@ -430,6 +525,18 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
         confirmLabel="Delete"
         confirmVariant="danger"
         loading={deleting}
+      />
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title={`Delete ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'}`}
+        message={`This will permanently remove ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'} from your local library. You can re-download them by decrypting again.`}
+        confirmLabel={`Delete ${selectedItems.size}`}
+        confirmVariant="danger"
+        loading={bulkDeleting}
       />
     </div>
   );

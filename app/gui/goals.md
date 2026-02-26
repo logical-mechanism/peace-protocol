@@ -250,7 +250,7 @@ Each item has:
   - **How**: Add sort options to LibraryTab: "Name", "Date Added", "Size", "Type". The metadata JSON already includes `savedAt` timestamp and `category`. Size needs to be added (see above).
   - **Why**: Users with large libraries need to organize and find items. Sorting by size helps identify large files for cleanup.
 
-- [ ] **Bulk delete with confirmation**
+- [x] **Bulk delete with confirmation**
   - **How**: Add select mode (checkbox on each LibraryCard). Show floating action bar: "5 selected — Delete All". Confirm via ConfirmModal with: "Delete 5 items? This removes files from your local library. You can re-download them by decrypting again."
   - **Why**: Cleaning up a library with many items one by one is tedious. Bulk delete with a safety confirmation speeds this up.
 
