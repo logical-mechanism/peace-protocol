@@ -458,7 +458,7 @@ Each item has:
   - **How**: Add `aria-live="polite"` to toast container, bid notification badge, sync progress display, and loading states. Add `aria-live="assertive"` for error messages.
   - **Why**: Screen readers don't announce dynamically updated content unless it's in an `aria-live` region. Users miss critical status changes.
 
-- [ ] **Skip-to-content link**
+- [x] **Skip-to-content link**
   - **How**: Add a visually hidden link as the first focusable element on every page: `<a href="#main-content" class="sr-only focus:not-sr-only">Skip to content</a>`. Add `id="main-content"` to the main content area.
   - **Why**: Keyboard users must Tab through the entire nav bar to reach content. A skip link is a standard accessibility pattern.
 

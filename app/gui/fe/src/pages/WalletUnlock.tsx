@@ -36,7 +36,8 @@ export default function WalletUnlock() {
   }, [deleteWallet, navigate])
 
   return (
-    <div
+    <main
+      id="main-content"
       className="min-h-screen flex items-center justify-center p-8"
       style={{ background: 'var(--bg-primary)' }}
     >
@@ -219,6 +220,6 @@ export default function WalletUnlock() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   )
 }

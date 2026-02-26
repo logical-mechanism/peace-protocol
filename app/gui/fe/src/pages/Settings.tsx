@@ -524,7 +524,7 @@ export default function Settings() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 max-w-4xl px-8 py-8">
+        <main id="main-content" className="flex-1 max-w-4xl px-8 py-8">
 
         {/* Search Results */}
         {searchResults && (

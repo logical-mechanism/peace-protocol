@@ -535,7 +535,8 @@ export default function NodeSync() {
   }
 
   return (
-    <div
+    <main
+      id="main-content"
       className="min-h-screen flex items-center justify-center p-6"
       style={{ background: 'var(--bg-primary)' }}
     >
@@ -781,6 +782,6 @@ export default function NodeSync() {
         </div>
       </div>
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
-    </div>
+    </main>
   )
 }

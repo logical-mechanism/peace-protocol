@@ -498,7 +498,8 @@ export default function WalletSetup() {
 
   // Import wallet flow
   return (
-    <div
+    <main
+      id="main-content"
       className="min-h-screen flex items-center justify-center p-8"
       style={{ background: 'var(--bg-primary)' }}
     >
@@ -625,7 +626,7 @@ export default function WalletSetup() {
           />
         )}
       </div>
-    </div>
+    </main>
   )
 }
 
