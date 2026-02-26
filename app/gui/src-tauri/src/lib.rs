@@ -20,14 +20,10 @@ static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Workaround for WebKitGTK crashes on newer kernels (6.17+) and older GPUs
+    // Workaround for WebKitGTK DMA-BUF crashes on newer kernels (6.17+)
     #[cfg(target_os = "linux")]
     {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        // Force X11 backend on Wayland to avoid WebKitGTK focus/rendering bugs
-        if std::env::var("XDG_SESSION_TYPE").unwrap_or_default() == "wayland" {
-            std::env::set_var("GDK_BACKEND", "x11");
-        }
     }
 
     tauri::Builder::default()

@@ -218,13 +218,13 @@ export default function SalesListingCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0">
                 {truncateHex(encryption.tokenName, 8, 4)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />
               <span
-                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border ${
+                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
                   isUnknownStorageLayer(encryption.storageLayer)
                     ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
