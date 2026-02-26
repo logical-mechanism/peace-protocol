@@ -54,9 +54,9 @@ router.get('/config', async (_req: Request, res: Response) => {
 
     return res.json({ data: protocolConfig });
   } catch (error) {
-    logger.error('Error fetching protocol config', { error: String(error) });
+    logger.error('Error fetching protocol config', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol config' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol config', requestId: _req.requestId },
     });
   }
 });
@@ -90,9 +90,9 @@ router.get('/reference', async (_req: Request, res: Response) => {
 
     return res.json({ data: references });
   } catch (error) {
-    logger.error('Error fetching reference data', { error: String(error) });
+    logger.error('Error fetching reference data', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch reference data' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch reference data', requestId: _req.requestId },
     });
   }
 });
@@ -132,9 +132,9 @@ router.get('/scripts', async (_req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    logger.error('Error fetching scripts', { error: String(error) });
+    logger.error('Error fetching scripts', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch scripts' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch scripts', requestId: _req.requestId },
     });
   }
 });
@@ -165,9 +165,9 @@ router.get('/params', async (_req: Request, res: Response) => {
     const params = await koios.getProtocolParams();
     return res.json({ data: params });
   } catch (error) {
-    logger.error('Error fetching protocol params', { error: String(error) });
+    logger.error('Error fetching protocol params', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol params' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol params', requestId: _req.requestId },
     });
   }
 });

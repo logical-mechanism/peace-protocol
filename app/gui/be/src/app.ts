@@ -50,17 +50,19 @@ export function createApp() {
       error: {
         code: 'NOT_FOUND',
         message: 'Endpoint not found',
+        requestId: _req.requestId,
       },
     });
   });
 
   // Error handler
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    logger.error('Unhandled error', { error: err.message, stack: err.stack });
+    logger.error('Unhandled error', { error: err.message, stack: err.stack, requestId: _req.requestId });
     res.status(500).json({
       error: {
         code: 'INTERNAL_ERROR',
         message: config.nodeEnv === 'development' ? err.message : 'Internal server error',
+        requestId: _req.requestId,
       },
     });
   });

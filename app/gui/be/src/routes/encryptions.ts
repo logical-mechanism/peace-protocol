@@ -36,9 +36,9 @@ router.get('/', async (req: Request, res: Response) => {
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching encryptions', { error: String(error) });
+    logger.error('Error fetching encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions', requestId: req.requestId },
     });
   }
 });
@@ -68,9 +68,9 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
     };
     return res.json(response);
   } catch (error) {
-    logger.error('Error fetching encryption levels', { error: String(error) });
+    logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels', requestId: req.requestId },
     });
   }
 });
@@ -104,9 +104,9 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching encryption', { error: String(error) });
+    logger.error('Error fetching encryption', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption', requestId: req.requestId },
     });
   }
 });
@@ -137,9 +137,9 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching user encryptions', { error: String(error) });
+    logger.error('Error fetching user encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user encryptions' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user encryptions', requestId: req.requestId },
     });
   }
 });
@@ -154,7 +154,7 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
 
     if (!['active', 'pending', 'completed'].includes(status)) {
       return res.status(400).json({
-        error: { code: 'INVALID_STATUS', message: 'Status must be active, pending, or completed' },
+        error: { code: 'INVALID_STATUS', message: 'Status must be active, pending, or completed', requestId: req.requestId },
       });
     }
 
@@ -178,9 +178,9 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching encryptions by status', { error: String(error) });
+    logger.error('Error fetching encryptions by status', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions by status' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions by status', requestId: req.requestId },
     });
   }
 });

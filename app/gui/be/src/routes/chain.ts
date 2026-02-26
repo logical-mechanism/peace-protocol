@@ -59,9 +59,9 @@ router.get('/tip', async (_req, res) => {
       },
     });
   } catch (error) {
-    logger.error('Failed to get chain tip', { error: String(error) });
+    logger.error('Failed to get chain tip', { error: String(error), requestId: _req.requestId });
     return res.status(503).json({
-      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to fetch chain tip' },
+      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to fetch chain tip', requestId: _req.requestId },
     });
   }
 });
