@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
 import { FILE_CATEGORIES } from '../config/categories';
+import { formatBytes } from '../utils/formatBytes';
 import LibraryCard from './LibraryCard';
 import LibraryContentModal from './LibraryContentModal';
 import ConfirmModal from './ConfirmModal';
@@ -118,6 +119,19 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
     return result;
   }, [items, categoryFilter, searchQuery, sortBy]);
 
+  // Compute storage stats from all items (not filtered)
+  const libraryStats = useMemo(() => {
+    const totalSize = items.reduce((sum, item) => sum + (item.fileSize ?? 0), 0);
+    const byCategory: Record<string, { count: number; size: number }> = {};
+    for (const item of items) {
+      const cat = item.category || 'other';
+      if (!byCategory[cat]) byCategory[cat] = { count: 0, size: 0 };
+      byCategory[cat].count++;
+      byCategory[cat].size += item.fileSize ?? 0;
+    }
+    return { totalCount: items.length, totalSize, byCategory };
+  }, [items]);
+
   const handleView = useCallback((item: LibraryItem) => {
     setSelectedItem(item);
     setContentModalOpen(true);
@@ -184,6 +198,38 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
 
   return (
     <div>
+      {/* Storage Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Total Items</p>
+          <p className="text-xl font-semibold text-[var(--text-primary)]">
+            {libraryStats.totalCount}
+          </p>
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Total Size</p>
+          <p className="text-xl font-semibold text-[var(--accent)]">
+            {formatBytes(libraryStats.totalSize)}
+          </p>
+        </div>
+        {Object.entries(libraryStats.byCategory)
+          .sort(([, a], [, b]) => b.size - a.size)
+          .slice(0, 2)
+          .map(([cat, stats]) => (
+            <div key={cat} className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+              <p className="text-xs text-[var(--text-muted)] mb-1">
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </p>
+              <p className="text-xl font-semibold text-[var(--text-primary)]">
+                {stats.count}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                {formatBytes(stats.size)}
+              </p>
+            </div>
+          ))}
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {/* Search */}
