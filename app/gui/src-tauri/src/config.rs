@@ -153,8 +153,11 @@ impl AppConfig {
     /// In dev: reads from src-tauri/resources/config.json
     /// In prod: reads from the bundled resource directory
     ///
+    /// Returns `(config, used_defaults)`. `used_defaults` is true when config.json
+    /// was not found at either path and the app is running with default values.
+    ///
     /// Edit `src-tauri/resources/config.json` to set contract addresses before building.
-    pub fn load(_resource_dir: &Path) -> Self {
+    pub fn load(_resource_dir: &Path) -> (Self, bool) {
         // Try the resource dir that Tauri resolved (works in prod builds)
         for path in [
             _resource_dir.join("resources/config.json"),
@@ -164,14 +167,18 @@ impl AppConfig {
             if path.exists() {
                 if let Ok(contents) = std::fs::read_to_string(&path) {
                     match serde_json::from_str(&contents) {
-                        Ok(config) => return config,
+                        Ok(config) => return (config, false),
                         Err(e) => eprintln!("Failed to parse {}: {e}", path.display()),
                     }
                 }
             }
         }
 
-        Self::default()
+        eprintln!(
+            "Warning: config.json not found at either path, using defaults. \
+             Contract addresses will be incorrect."
+        );
+        (Self::default(), true)
     }
 
     /// Save config to a specific file path.

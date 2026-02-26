@@ -50,7 +50,7 @@ pub fn run() {
                 .path()
                 .resource_dir()
                 .unwrap_or_else(|_| app_data_dir.clone());
-            let app_config = AppConfig::load(&resource_dir);
+            let (app_config, config_used_defaults) = AppConfig::load(&resource_dir);
             if let Err(msg) = app_config.validate() {
                 eprintln!("Config validation failed: {msg}");
                 use tauri_plugin_dialog::DialogExt;
@@ -111,6 +111,14 @@ pub fn run() {
             crypto::wallet::set_owner_only_dir(&content_dir)
                 .expect("Failed to set content directory permissions");
             app.manage(ContentDir(content_dir));
+
+            // Warn frontend if config fell back to defaults
+            if config_used_defaults {
+                let _ = app.emit(
+                    "config-warning",
+                    "Config file not found — using default values. Contract addresses may be incorrect.",
+                );
+            }
 
             Ok(())
         })

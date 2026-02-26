@@ -474,7 +474,7 @@ Each item has:
   - **How**: In `iagon.rs` (lines 56-71), replace the generic string errors from `map_iagon_error()` with structured JSON: `{ "code": "AUTH_FAILED" | "TIMEOUT" | "UPLOAD_FAILED" | "SERVER_ERROR", "message": "..." }`. Frontend can then parse the code for specific handling (e.g., re-auth on AUTH_FAILED).
   - **Why**: Frontend can't distinguish a timeout from an auth failure from a server error. All Iagon errors look the same to the user.
 
-- [ ] **Config load failure warning log**
+- [x] **Config load failure warning log**
   - **How**: In `config.rs` (lines 157-174), `AppConfig::load()` silently falls back to `Default::default()` when both config paths fail. Add `eprintln!("Warning: config.json not found at either path, using defaults")` and emit a Tauri event `config-warning` so the frontend can show a banner.
   - **Why**: A missing or corrupted config file causes the app to run with default (likely wrong) contract addresses. Users see confusing errors instead of "config file missing."
 
