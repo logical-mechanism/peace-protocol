@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
+import BidTimeline from './BidTimeline';
+import type { PurchaseStage } from './BidTimeline';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 
@@ -11,6 +13,8 @@ interface MyPurchaseBidCardProps {
   onCancel?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
   compact?: boolean;
+  purchaseStage?: PurchaseStage;
+  decryptFailed?: boolean;
 }
 
 export default function MyPurchaseBidCard({
@@ -19,6 +23,8 @@ export default function MyPurchaseBidCard({
   onCancel,
   onDecrypt,
   compact = false,
+  purchaseStage,
+  decryptFailed = false,
 }: MyPurchaseBidCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
 
@@ -46,6 +52,7 @@ export default function MyPurchaseBidCard({
 
   // Get status message for non-pending states
   const getStatusMessage = () => {
+    if (decryptFailed && isAccepted) return 'Decryption failed. Click Retry to try again.';
     if (isAccepted) return 'Your bid was accepted! You can now decrypt the message.';
     if (isRejected) return 'Your bid was not accepted.';
     if (isCancelled) return 'This bid was cancelled.';
@@ -113,6 +120,13 @@ export default function MyPurchaseBidCard({
             </div>
           </div>
 
+          {/* Timeline (compact) */}
+          {purchaseStage && (
+            <div className="flex-shrink-0 w-40 hidden lg:block">
+              <BidTimeline stage={purchaseStage} bidStatus={bid.status} compact />
+            </div>
+          )}
+
           {/* Middle: Amount & Seller */}
           <div className="flex items-center gap-6 flex-shrink-0">
             <div className="text-right">
@@ -141,9 +155,13 @@ export default function MyPurchaseBidCard({
               {isAccepted && (
                 <button
                   onClick={() => onDecrypt?.(bid)}
-                  className="px-3 py-1.5 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer"
+                  className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                    decryptFailed
+                      ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
+                      : 'bg-[var(--success)] hover:bg-[var(--success)]/90'
+                  }`}
                 >
-                  Decrypt
+                  {decryptFailed ? 'Retry' : 'Decrypt'}
                 </button>
               )}
             </div>
@@ -179,6 +197,13 @@ export default function MyPurchaseBidCard({
           </p>
         </div>
       </div>
+
+      {/* Bid Status Timeline */}
+      {purchaseStage && (
+        <div className="mb-4 px-2">
+          <BidTimeline stage={purchaseStage} bidStatus={bid.status} />
+        </div>
+      )}
 
       {/* Encryption Description (if available) */}
       {encryption?.description && (
@@ -259,14 +284,18 @@ export default function MyPurchaseBidCard({
       {/* Status Message */}
       {statusMessage && (
         <div className={`mt-4 p-3 rounded-[var(--radius-md)] ${
-          isAccepted
+          decryptFailed && isAccepted
+            ? 'bg-[var(--warning-muted)]'
+            : isAccepted
             ? 'bg-[var(--success-muted)]'
             : isRejected
             ? 'bg-[var(--error-muted)]'
             : 'bg-[var(--bg-secondary)]'
         }`}>
           <p className={`text-xs font-medium ${
-            isAccepted
+            decryptFailed && isAccepted
+              ? 'text-[var(--warning)]'
+              : isAccepted
               ? 'text-[var(--success)]'
               : isRejected
               ? 'text-[var(--error)]'
@@ -290,17 +319,30 @@ export default function MyPurchaseBidCard({
         {isAccepted && (
           <button
             onClick={() => onDecrypt?.(bid)}
-            className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+            className={`w-full px-4 py-2.5 text-sm font-medium text-white rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer flex items-center justify-center gap-2 ${
+              decryptFailed
+                ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
+                : 'bg-[var(--success)] hover:bg-[var(--success)]/90'
+            }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-              />
+              {decryptFailed ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                />
+              )}
             </svg>
-            Decrypt Message
+            {decryptFailed ? 'Retry Decrypt' : 'Decrypt Message'}
           </button>
         )}
       </div>

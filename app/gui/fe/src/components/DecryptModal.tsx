@@ -14,6 +14,7 @@ interface DecryptModalProps {
   bid: BidDisplay | null;
   encryption: EncryptionDisplay | null;
   isIagonConnected?: boolean;
+  onDecryptResult?: (result: { success: boolean; encryptionToken: string }) => void;
 }
 
 type DecryptState = 'idle' | 'decrypting' | 'success' | 'error';
@@ -24,6 +25,7 @@ export default function DecryptModal({
   bid,
   encryption,
   isIagonConnected = false,
+  onDecryptResult,
 }: DecryptModalProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletContext();
@@ -97,15 +99,24 @@ export default function DecryptModal({
         setState('success');
         setDecryptedMessage(result.message);
         setIsStub(result.isStub || false);
+        if (encryption) {
+          onDecryptResult?.({ success: true, encryptionToken: encryption.tokenName });
+        }
       } else {
         setState('error');
         setError(result.error || 'Unknown error occurred');
+        if (encryption) {
+          onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
+        }
       }
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'Failed to decrypt');
+      if (encryption) {
+        onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
+      }
     }
-  }, [wallet, bid, encryption]);
+  }, [wallet, bid, encryption, onDecryptResult]);
 
   const handleCopy = useCallback(async () => {
     if (!decryptedMessage) return;

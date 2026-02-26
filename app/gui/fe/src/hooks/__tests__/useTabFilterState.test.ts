@@ -151,6 +151,15 @@ describe('myPurchasesReducer', () => {
     const next = myPurchasesReducer(MY_PURCHASES_INITIAL, { type: 'SET_STATUS', payload: 'accepted' })
     expect(next.statusFilter).toBe('accepted')
   })
+
+  it('SET_STATUS accepts "complete" value', () => {
+    const next = myPurchasesReducer(MY_PURCHASES_INITIAL, { type: 'SET_STATUS', payload: 'complete' })
+    expect(next.statusFilter).toBe('complete')
+  })
+
+  it('initial statusFilter is "all"', () => {
+    expect(MY_PURCHASES_INITIAL.statusFilter).toBe('all')
+  })
 })
 
 describe('historyReducer', () => {

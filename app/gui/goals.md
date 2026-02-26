@@ -202,15 +202,15 @@ Each item has:
 
 > Key file: `fe/src/components/MyPurchasesTab.tsx`, `fe/src/components/MyPurchaseBidCard.tsx`
 
-- [ ] **Bid status timeline**
+- [x] **Bid status timeline**
   - **How**: On each MyPurchaseBidCard, add a small horizontal timeline: "Bid Placed → Accepted → Decrypting → Complete". Highlight the current stage. Gray out future stages. Derive state from bid status + accept-bid secrets existence + library item existence.
   - **Why**: The purchase flow has multiple steps. Users don't know where they are in the process or what to do next.
 
-- [ ] **"Retry decrypt" button for failed decryptions**
+- [x] **"Retry decrypt" button for failed decryptions**
   - **How**: If a decryption fails (SNARK error, download failure), show a "Retry" button on the bid card instead of just an error message. The retry should re-enter the decrypt flow from the last successful step.
   - **Why**: Decryption failures are currently dead ends. Users must refresh and start over with no guidance.
 
-- [ ] **Filter purchases by status**
+- [x] **Filter purchases by status**
   - **How**: Add status filter chips: "All | Pending | Accepted | Complete". Map each bid's status from on-chain + local state. Reuse the filter reducer pattern from MarketplaceTab.
   - **Why**: Users with many purchases need to quickly find their pending or completed items without scrolling.
 

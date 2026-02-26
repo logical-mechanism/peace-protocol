@@ -88,7 +88,7 @@ export function mySalesReducer(state: MySalesFilters, action: MySalesAction): My
 export interface MyPurchasesFilters {
   searchQuery: string
   sortBy: 'newest' | 'oldest' | 'amount-high' | 'amount-low'
-  statusFilter: 'all' | 'pending' | 'accepted' | 'rejected' | 'cancelled'
+  statusFilter: 'all' | 'pending' | 'accepted' | 'complete'
   viewMode: ViewMode
 }
 
