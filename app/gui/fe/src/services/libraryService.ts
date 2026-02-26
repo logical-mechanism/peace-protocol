@@ -42,6 +42,13 @@ export async function readSubtitleFile(
   return data ? new Uint8Array(data) : null;
 }
 
+export async function openWithSystem(
+  tokenName: string,
+  category: string
+): Promise<void> {
+  return invoke<void>('open_with_system', { tokenName, category });
+}
+
 export async function exportLibraryContent(
   tokenName: string,
   category: string,

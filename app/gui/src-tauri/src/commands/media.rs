@@ -602,3 +602,30 @@ fn find_content_file(token_dir: &Path, token_name: &str) -> Option<PathBuf> {
     }
     None
 }
+
+/// Open a library content file with the OS default application.
+#[tauri::command]
+pub async fn open_with_system(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    let path_str = content_path.to_string_lossy().to_string();
+
+    use tauri_plugin_shell::ShellExt;
+    app.shell()
+        .open(&path_str, None)
+        .map_err(|e| format!("Failed to open with system player: {e}"))
+}

@@ -344,7 +344,7 @@ Each item has:
   - **How**: If a `.vtt` or `.srt` file is present alongside the video in the library, load it as a `<track>` element on the `<video>`. Add a CC toggle button in the toolbar.
   - **Why**: Accessibility feature. Some video content includes subtitles, and the player should display them.
 
-- [ ] **Unified "Open with system player" button**
+- [x] **Unified "Open with system player" button**
   - **How**: Add an "Open externally" button on all media viewer modals. Use Tauri's `shell.open()` to open the file with the OS default application. Requires writing a temp file or using the library path.
   - **Why**: The built-in viewers handle common formats, but edge cases (exotic codecs, DRM) work better in dedicated apps like VLC.
 
