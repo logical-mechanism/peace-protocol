@@ -494,7 +494,7 @@ Each item has:
   - **How**: In `config.rs` (lines 62-125), `to_env_vars()` adds all config values as env vars including empty strings. Add `if !value.is_empty()` guard before each push. Express currently handles empty values with `||` fallbacks, but passing empty strings can cause subtle bugs.
   - **Why**: Empty env vars override Express defaults (which expect the var to be unset, not empty). `PORT="" || 3001` works, but `process.env.KUPO_URL || 'http://...'` would fail with empty string since `""` is falsy.
 
-- [ ] **Periodic temp file cleanup during long-running sessions**
+- [x] **Periodic temp file cleanup during long-running sessions**
   - **How**: In `lib.rs`, add a `tokio::spawn` task that runs every hour and scans the app temp directory for files older than 1 hour. Securely delete (overwrite + remove) any orphaned SNARK input files. Currently cleanup only happens on startup.
   - **Why**: If a SNARK proving attempt fails mid-way, the temp file with secret material persists until the next app restart — which could be days.
 

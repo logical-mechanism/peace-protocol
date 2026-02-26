@@ -272,17 +272,25 @@ mod tests {
         assert_eq!(meta.version, 1);
         assert!(needs);
 
-        // Save v2 meta
+        // Save v2 meta → still needs migration (v2 < v3)
         let salt = generate_kdf_salt();
-        let meta = KdfMeta {
+        let meta_v2 = KdfMeta {
             version: 2,
             salt: to_hex(&salt),
         };
-        save_kdf_meta(&dir, &meta).unwrap();
-
-        // Load back → no migration
+        save_kdf_meta(&dir, &meta_v2).unwrap();
         let (loaded, needs) = load_kdf_meta(&dir).unwrap();
         assert_eq!(loaded.version, 2);
+        assert!(needs); // v2 < CURRENT_KDF_VERSION (3)
+
+        // Save v3 meta → no migration needed
+        let meta_v3 = KdfMeta {
+            version: 3,
+            salt: to_hex(&salt),
+        };
+        save_kdf_meta(&dir, &meta_v3).unwrap();
+        let (loaded, needs) = load_kdf_meta(&dir).unwrap();
+        assert_eq!(loaded.version, 3);
         assert!(!needs);
         assert_eq!(loaded.salt, to_hex(&salt));
 
