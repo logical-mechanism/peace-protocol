@@ -424,7 +424,7 @@ Each item has:
 
 > Key files: `fe/src/index.css`, various components
 
-- [ ] **Modal entrance/exit animations**
+- [x] **Modal entrance/exit animations**
   - **How**: Add CSS keyframes for modal enter (fade-in + scale from 0.95 to 1.0) and exit (fade-out + scale to 0.95). Use React's `onAnimationEnd` to delay unmounting until exit animation completes. Backdrop fades in/out separately.
   - **Why**: Modals appearing and disappearing instantly feels jarring. A 200ms animation smooths the transition.
 

@@ -7,6 +7,7 @@ import { saveDecryptedContent, saveContentMetadata } from '../services/contentSt
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
+import { useModalStack } from '../hooks/useModalStack';
 
 interface DecryptModalProps {
   isOpen: boolean;
@@ -36,6 +37,9 @@ export default function DecryptModal({
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [savedPath, setSavedPath] = useState<string | null>(null);
+
+  // Stack-aware Escape key + body scroll lock + animation
+  const { zIndex, shouldRender, animationState } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
 
   // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
@@ -146,18 +150,18 @@ export default function DecryptModal({
     });
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={state !== 'decrypting' ? handleClose : undefined}
       />
 
       {/* Modal */}
-      <div className="relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
           <div>

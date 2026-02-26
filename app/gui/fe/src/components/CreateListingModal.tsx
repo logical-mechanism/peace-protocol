@@ -128,7 +128,7 @@ export default function CreateListingModal({
   }, [isOpen, showDraftPrompt, isSubmitting, formData]);
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('create-listing', isOpen, onClose, isSubmitting);
+  const { zIndex, shouldRender, animationState } = useModalStack('create-listing', isOpen, onClose, isSubmitting);
 
   const isFileMode = formData.category !== 'text';
   const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
@@ -358,7 +358,7 @@ export default function CreateListingModal({
     }
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <div
@@ -370,13 +370,13 @@ export default function CreateListingModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={isSubmitting ? undefined : onClose}
         aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
+      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
