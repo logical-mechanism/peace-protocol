@@ -202,7 +202,7 @@ Each item has:
 
 > Key files: `fe/src/components/LibraryTab.tsx`, `fe/src/components/LibraryCard.tsx`, `fe/src/components/LibraryContentModal.tsx`
 
-- [ ] **Library content type icon on cards**
+- [x] **Library content type icon on cards**
   - **How**: On each LibraryCard, show a small icon indicating the content type: PDF icon, image icon, audio waveform, video play, text document. Derive from `category` field in metadata or from `getViewMode()` result in `LibraryContentModal.tsx`.
   - **Why**: In compact/list view mode, all library items look identical. Type icons help users find content without opening each item.
 
