@@ -114,7 +114,7 @@ export default function SnarkSetupModal({
             {status !== 'decompressing' && status !== 'checking' && (
               <button
                 onClick={onClose}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                className="p-1 btn-base btn-icon"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -167,7 +167,7 @@ export default function SnarkSetupModal({
           {status === 'complete' && (
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-colors"
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
               Continue
             </button>
@@ -177,13 +177,13 @@ export default function SnarkSetupModal({
             <>
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                className="px-4 py-2 text-sm btn-base btn-icon"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRetry}
-                className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-colors"
+                className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
                 Retry
               </button>

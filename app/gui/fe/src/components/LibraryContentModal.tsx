@@ -329,7 +329,7 @@ export default function LibraryContentModal({
                 <button
                   onClick={handlePrev}
                   disabled={!canGoPrev}
-                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
                   title="Previous item (←)"
                   aria-label="Previous item"
                 >
@@ -360,7 +360,7 @@ export default function LibraryContentModal({
                 <button
                   onClick={handleNext}
                   disabled={!canGoNext}
-                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
                   title="Next item (→)"
                   aria-label="Next item"
                 >
@@ -371,7 +371,7 @@ export default function LibraryContentModal({
               )}
               <button
                 onClick={onClose}
-                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+                className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
