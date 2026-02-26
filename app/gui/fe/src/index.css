@@ -9,6 +9,7 @@
   --bg-card: #1a1a1a;
   --bg-card-hover: #222222;
   --bg-elevated: #242424;
+  --bg-tertiary: #2a2a2a;
 
   /* Borders - barely visible, adds definition */
   --border-subtle: #2a2a2a;
@@ -204,6 +205,27 @@ select option {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Skeleton shimmer — sweeps a translucent highlight left-to-right */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
 /* PDF search highlights — text layer is transparent overlay on canvas */

@@ -414,7 +414,7 @@ Each item has:
   - **How**: Replace the default `outline: 2px solid var(--accent)` with a subtle glow: `box-shadow: 0 0 0 3px var(--accent-muted)`. This looks softer and more integrated with the dark theme.
   - **Why**: The hard outline focus indicator looks harsh on a dark background. A glow is more visually appealing while still being accessible.
 
-- [ ] **Loading skeleton shimmer animation**
+- [x] **Loading skeleton shimmer animation**
   - **How**: Add a shimmer gradient animation to SkeletonCard: a light band sweeping left-to-right across the gray surface. Use `background: linear-gradient(-90deg, transparent, rgba(255,255,255,0.05), transparent)` animated with `@keyframes shimmer`.
   - **Why**: Static gray rectangles don't communicate "loading." A shimmer animation is the universal signal for placeholder content.
 
