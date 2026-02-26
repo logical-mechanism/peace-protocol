@@ -1092,7 +1092,7 @@ export default function Settings() {
                 {orphanedDrafts.length > 1 && (
                   <button
                     onClick={handleDeleteAllOrphans}
-                    className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-destructive"
                   >
                     Delete All
                   </button>
@@ -1125,7 +1125,7 @@ export default function Settings() {
                       <button
                         onClick={() => handleDeleteOrphan(draft)}
                         disabled={orphanCleanupLoading === draft.id}
-                        className="px-3 py-1.5 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-destructive"
                       >
                         {orphanCleanupLoading === draft.id ? 'Deleting...' : 'Delete'}
                       </button>
@@ -1234,7 +1234,7 @@ export default function Settings() {
 
                       <button
                         onClick={() => invoke<DiskUsage>('get_disk_usage').then(setDiskUsage).catch(console.error)}
-                        className="mt-2 px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                        className="mt-2 px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                       >
                         Refresh
                       </button>
@@ -1253,7 +1253,7 @@ export default function Settings() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => listCachedImages().then(setImageCacheStatus).catch(console.error)}
-                    className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                     aria-label="Refresh image cache status"
                   >
                     Refresh
@@ -1262,7 +1262,7 @@ export default function Settings() {
                     <button
                       onClick={handleClearAllCache}
                       disabled={cacheClearingAll}
-                      className="px-3 py-1.5 text-sm text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                     >
                       {cacheClearingAll ? 'Clearing...' : 'Clear All'}
                     </button>
@@ -1293,7 +1293,7 @@ export default function Settings() {
                           <button
                             onClick={() => handleDeleteCachedImage(tokenName)}
                             disabled={cacheDeleting === tokenName}
-                            className="px-2 py-1 text-xs text-[var(--error)] border border-[var(--error)]/30 rounded hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                            className="px-2 py-1 text-xs rounded shrink-0 btn-base btn-destructive"
                             aria-label={`Delete cached image ${tokenName}`}
                           >
                             {cacheDeleting === tokenName ? '...' : 'Delete'}
@@ -1324,7 +1324,7 @@ export default function Settings() {
                     setTxHistoryCount(0)
                   }}
                   disabled={!userPkh || txHistoryCount === 0}
-                  className="px-4 py-2 text-sm text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                 >
                   Clear All
                 </button>
@@ -1335,7 +1335,7 @@ export default function Settings() {
                     setTxHistoryCount(prev => prev - removed)
                   }}
                   disabled={!userPkh || txHistoryCount === 0}
-                  className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
                   Clear Older Than 30 Days
                 </button>
@@ -1346,7 +1346,7 @@ export default function Settings() {
                     setTxHistoryCount(prev => prev - removed)
                   }}
                   disabled={!userPkh || txHistoryCount === 0}
-                  className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
                   Clear Failed Only
                 </button>
@@ -1364,7 +1364,7 @@ export default function Settings() {
                 <button
                   onClick={() => handleFetchLogs(selectedProcess)}
                   disabled={logsLoading}
-                  className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
                   {logsLoading ? 'Loading...' : 'Refresh'}
                 </button>
@@ -1489,7 +1489,7 @@ export default function Settings() {
                   <div className="flex gap-3">
                     <button
                       onClick={() => window.location.reload()}
-                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       Force Refresh
                     </button>
