@@ -5,12 +5,12 @@ description: Regenerate app/gui/goals.md with a fresh comprehensive analysis of 
 
 # Update GUI Goals
 
-Delete `goals.md` and regenerate it from scratch with a comprehensive analysis of every possible improvement across the Veiled Desktop App. Do not carry over completed items from the previous round — this is a fresh audit.
+Delete `goals.md` and regenerate it from scratch with a comprehensive analysis of every possible improvement across the Veiled Desktop App. Do not carry over completed items or skipped items from the previous round — this is a fresh audit.
 
 ## Process
 
 1. **Read CLAUDE.md** to understand the current architecture, conventions, and gotchas
-2. **Read the current goals.md** (if it exists) to understand what was previously identified — but do NOT preserve it. The output is a clean slate.
+2. **Read the current goals.md** (if it exists) to understand what was previously identified — but do NOT preserve it. The output is a clean slate. Note any items marked `[s]` (skipped) — these were intentionally declined and must NOT be re-suggested in the new goals.
 3. **Launch three parallel Explore subagents** (all "very thorough") to audit the codebase:
 
    **Agent 1 — Frontend UI/UX:**
@@ -115,7 +115,8 @@ Organize items into these approximate sections (merge or split as the findings d
 ## Rules
 
 - Delete the existing goals.md before writing — this is always a fresh analysis
-- Do NOT carry over checked items from the previous goals.md
+- Do NOT carry over checked items (`[x]`) from the previous goals.md
+- Do NOT carry over skipped items (`[s]`) from the previous goals.md — these were intentionally declined and must not reappear
 - Do NOT add items that are already implemented in the codebase — verify by reading the actual code
 - Match the terse, reference-style tone of CLAUDE.md
 - Aim for 80-130 items total — be comprehensive but not padded
