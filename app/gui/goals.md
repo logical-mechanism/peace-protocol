@@ -612,7 +612,7 @@ Each item has:
   - **How**: After adding component and route tests, raise thresholds from 40%/50% to 60%/65% in vitest configs. Add coverage enforcement in CI (fail the job if below threshold).
   - **Why**: Current thresholds are low (40% FE, 50% BE). Higher thresholds prevent coverage regression as the codebase grows.
 
-- [ ] **End-to-end test for listing + bid flow**
+- [x] **End-to-end test for listing + bid flow**
   - **How**: Write a test that exercises: create listing → listing appears in marketplace → place bid → bid appears in seller's view. Use mocked Tauri IPC and API responses. Run with Vitest in a jsdom environment.
   - **Why**: The full listing-to-bid flow spans multiple components and services. A single e2e test catches integration bugs that unit tests miss.
 
