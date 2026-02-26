@@ -273,7 +273,7 @@ Each item has:
   - **Why**: Click-to-browse is the only upload method. Drag-and-drop is the expected interaction for file uploads in desktop apps.
 
 - [ ] **File size warning before upload**
-  - **How**: After file selection, check `file.size` against limits (e.g., 100 MB for Iagon free tier). Show warning: "This file is 150 MB. Large files take longer to upload and cost more to store." Allow proceeding but with informed consent.
+  - **How**: After file selection, check `file.size` against limits (e.g., 100 MB for Iagon free tier). Show warning: "This file is 150 MB. Large files take longer to upload and cost more to store." Allow proceeding but with informed consent. Max file size needs to be a parameter to be set.
   - **Why**: Users might accidentally select a multi-GB file. Showing size and implications prevents surprise upload failures.
 
 - [ ] **Description character counter**
@@ -316,7 +316,7 @@ Each item has:
 
 > Key files: `fe/src/components/PdfViewer.tsx`, `fe/src/components/ImageViewer.tsx`, `fe/src/components/AudioPlayer.tsx`, `fe/src/components/VideoPlayer.tsx`
 
-- [ ] **PDF: Text search match counter**
+- [x] **PDF: Text search match counter**
   - **How**: In PdfViewer, show "Match 3 of 12" next to the search input when a search is active. Track `currentMatchIndex` and `totalMatches` in state. Update on next/prev navigation.
   - **Why**: Users searching a long PDF don't know how many results exist or where they are in the list.
 
@@ -324,11 +324,11 @@ Each item has:
   - **How**: Render a narrow sidebar (width ~80px) on the left of the PDF viewer showing miniature page thumbnails. Click a thumbnail to jump to that page. Lazy-render thumbnails as they scroll into view.
   - **Why**: Navigating a 50+ page document by typing page numbers is slow. Thumbnails give a visual overview and quick navigation.
 
-- [ ] **Image: Zoom level indicator**
+- [x] **Image: Zoom level indicator**
   - **How**: Overlay a small pill showing the current zoom percentage: "150%". Update on zoom in/out. Fade after 1.5s of inactivity.
   - **Why**: Users zooming in/out have no reference for the current magnification level.
 
-- [ ] **Image: Fit-to-screen and actual-size toggles**
+- [x] **Image: Fit-to-screen and actual-size toggles**
   - **How**: Add two buttons in the image toolbar: "Fit" (scales image to container) and "1:1" (actual pixel size). "Fit" sets `object-fit: contain` on the image. "1:1" sets width/height to natural dimensions with scrollable overflow.
   - **Why**: Large images either overflow or get scaled down. Users need to switch between overview and detail views.
 
@@ -336,7 +336,7 @@ Each item has:
   - **How**: Add a speed button (e.g., "1x") next to the transport controls. Click to cycle through: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x. Set `audioRef.current.playbackRate` on change.
   - **Why**: Standard media player feature. Useful for spoken word content, podcasts, or audio review.
 
-- [ ] **Video: Playback speed control**
+- [x] **Video: Playback speed control**
   - **How**: Same approach as audio — add a speed selector near the video controls. Set `videoRef.current.playbackRate`. Show the current speed on the button.
   - **Why**: Standard feature for video players. Essential for educational content and long-form video review.
 
