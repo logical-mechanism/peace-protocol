@@ -20,6 +20,7 @@ import { setLastActiveTab } from '../services/tabStorage'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
+import { apiCache } from '../services/apiCache'
 import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, playNotificationSound } from '../services/notificationSound'
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, type Theme } from '../services/themeStorage'
@@ -87,9 +88,13 @@ export default function Settings() {
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus | null>(null)
   const [cacheDeleting, setCacheDeleting] = useState<string | null>(null)
   const [cacheClearingAll, setCacheClearingAll] = useState(false)
+  const [cacheConfirmClearAll, setCacheConfirmClearAll] = useState(false)
 
   // Transaction history cleanup
   const [txHistoryCount, setTxHistoryCount] = useState(0)
+
+  // API response cache
+  const [apiCacheSize, setApiCacheSize] = useState(0)
 
   // Wallet management (collateral / defrag)
   const toast = useToast()
@@ -140,10 +145,11 @@ export default function Settings() {
     getOrphanedDrafts().then(setOrphanedDrafts).catch(() => {})
   }, [activeSection])
 
-  // Load image cache status and transaction history count when storage section is active
+  // Load image cache status, API cache size, and transaction history count when storage section is active
   useEffect(() => {
     if (activeSection === 'storage') {
       listCachedImages().then(setImageCacheStatus).catch(console.error)
+      setApiCacheSize(apiCache.size)
       if (userPkh) {
         setTxHistoryCount(getTransactions(userPkh).length)
       }
@@ -206,9 +212,8 @@ export default function Settings() {
     setCacheDeleting(tokenName)
     try {
       await deleteCachedImage(tokenName)
-      setImageCacheStatus(prev =>
-        prev ? { ...prev, cached: prev.cached.filter(t => t !== tokenName) } : prev
-      )
+      const updated = await listCachedImages()
+      setImageCacheStatus(updated)
     } catch (err) {
       console.error('Failed to delete cached image:', err)
     } finally {
@@ -217,13 +222,14 @@ export default function Settings() {
   }, [])
 
   const handleClearAllCache = useCallback(async () => {
-    if (!imageCacheStatus || !confirm('Clear all cached images? They will be re-downloaded when needed.')) return
+    if (!imageCacheStatus) return
+    setCacheConfirmClearAll(false)
     setCacheClearingAll(true)
     try {
       for (const tokenName of imageCacheStatus.cached) {
         await deleteCachedImage(tokenName)
       }
-      setImageCacheStatus(prev => prev ? { ...prev, cached: [] } : prev)
+      setImageCacheStatus(prev => prev ? { ...prev, cached: [], total_bytes: 0 } : prev)
     } catch (err) {
       console.error('Failed to clear image cache:', err)
     } finally {
@@ -408,6 +414,7 @@ export default function Settings() {
     { tab: 'datalayer', title: 'Orphaned Files', keywords: ['orphan', 'draft', 'cleanup', 'iagon', 'abandoned'] },
     { tab: 'storage', title: 'Disk Usage', keywords: ['disk', 'storage', 'space', 'chain', 'data', 'snark', 'size'] },
     { tab: 'storage', title: 'Image Cache', keywords: ['image', 'cache', 'clear', 'cached', 'thumbnail'] },
+    { tab: 'storage', title: 'API Response Cache', keywords: ['api', 'cache', 'response', 'clear', 'memory'] },
     { tab: 'storage', title: 'Transaction History', keywords: ['transaction', 'history', 'clear', 'cleanup', 'failed'] },
     { tab: 'logs', title: 'Process Logs', keywords: ['log', 'logs', 'process', 'stdout', 'stderr'] },
     { tab: 'logs', title: 'Developer Mode', keywords: ['debug', 'developer', 'config', 'localstorage', 'advanced'] },
@@ -1483,7 +1490,7 @@ export default function Settings() {
                   </button>
                   {imageCacheStatus && imageCacheStatus.cached.length > 0 && (
                     <button
-                      onClick={handleClearAllCache}
+                      onClick={() => setCacheConfirmClearAll(true)}
                       disabled={cacheClearingAll}
                       className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                     >
@@ -1499,6 +1506,9 @@ export default function Settings() {
                     <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
                       <span className="text-sm text-[var(--text-muted)]">Cached</span>
                       <p className="text-lg font-medium">{imageCacheStatus.cached.length} image{imageCacheStatus.cached.length !== 1 ? 's' : ''}</p>
+                      {imageCacheStatus.total_bytes > 0 && (
+                        <p className="text-sm text-[var(--text-muted)]">{formatBytes(imageCacheStatus.total_bytes)}</p>
+                      )}
                     </div>
                     <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
                       <span className="text-sm text-[var(--text-muted)]">Banned</span>
@@ -1531,6 +1541,26 @@ export default function Settings() {
               ) : (
                 <p className="text-[var(--text-muted)]">Loading...</p>
               )}
+            </div>
+
+            {/* API Response Cache */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-medium">API Response Cache</h2>
+                <button
+                  onClick={() => {
+                    apiCache.clear()
+                    setApiCacheSize(0)
+                  }}
+                  disabled={apiCacheSize === 0}
+                  className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
+                >
+                  Clear
+                </button>
+              </div>
+              <p className="text-sm text-[var(--text-muted)]">
+                {apiCacheSize} cached response{apiCacheSize !== 1 ? 's' : ''} (in-memory, auto-expires after 15s).
+              </p>
             </div>
 
             {/* Transaction History */}
@@ -1760,6 +1790,18 @@ export default function Settings() {
         confirmLabel="Optimize Wallet"
         confirmVariant="default"
         loading={defragLoading}
+      />
+
+      {/* Image Cache Clear Confirmation */}
+      <ConfirmModal
+        isOpen={cacheConfirmClearAll}
+        onClose={() => setCacheConfirmClearAll(false)}
+        onConfirm={handleClearAllCache}
+        title="Clear Image Cache"
+        message={`Delete all ${imageCacheStatus?.cached.length ?? 0} cached image${(imageCacheStatus?.cached.length ?? 0) !== 1 ? 's' : ''}${imageCacheStatus?.total_bytes ? ` (${formatBytes(imageCacheStatus.total_bytes)})` : ''}? They will be re-downloaded when needed.`}
+        confirmLabel="Clear Cache"
+        confirmVariant="danger"
+        loading={cacheClearingAll}
       />
 
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />

@@ -282,7 +282,7 @@ Each item has:
   - **How**: Add "Export Settings" button that serializes all localStorage keys (autolock, theme, toast duration, filter prefs) and Tauri config into a JSON file via `export_text_file`. Add "Import Settings" that reads and applies. Exclude sensitive data (secrets, wallet, mnemonic).
   - **Why**: Users reinstalling the app or setting up a second machine want to restore their preferences without reconfiguring everything.
 
-- [ ] **Cache clear with size display**
+- [x] **Cache clear with size display**
   - **How**: In the Storage section, show individual cache sizes: "Image cache: 45 MB", "API cache: 2 KB". Add "Clear" buttons next to each. For image cache, call `delete_cached_image` for each item. Show a confirmation with the space to be freed.
   - **Why**: Users see total disk usage but can't clear individual caches. Some may want to free image cache space while keeping chain data.
 

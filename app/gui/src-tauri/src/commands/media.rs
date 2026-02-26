@@ -33,6 +33,7 @@ pub struct ImageResult {
 pub struct ImageCacheStatus {
     pub cached: Vec<String>,
     pub banned: Vec<String>,
+    pub total_bytes: u64,
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -198,6 +199,7 @@ pub fn get_cached_image(
 pub fn list_cached_images(state: tauri::State<'_, MediaDir>) -> Result<ImageCacheStatus, String> {
     let mut cached = Vec::new();
     let mut banned = Vec::new();
+    let mut total_bytes: u64 = 0;
 
     let entries =
         std::fs::read_dir(&state.0).map_err(|e| format!("Failed to read media directory: {e}"))?;
@@ -207,13 +209,20 @@ pub fn list_cached_images(state: tauri::State<'_, MediaDir>) -> Result<ImageCach
         let name_str = name.to_string_lossy();
 
         if let Some(token) = name_str.strip_suffix(".img") {
+            if let Ok(meta) = entry.metadata() {
+                total_bytes += meta.len();
+            }
             cached.push(token.to_string());
         } else if let Some(token) = name_str.strip_suffix(".banned") {
             banned.push(token.to_string());
         }
     }
 
-    Ok(ImageCacheStatus { cached, banned })
+    Ok(ImageCacheStatus {
+        cached,
+        banned,
+        total_bytes,
+    })
 }
 
 #[tauri::command]
