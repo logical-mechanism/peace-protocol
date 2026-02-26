@@ -281,25 +281,50 @@ export default function Dashboard() {
   const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
 
   // Fire toast when new bids arrive mid-session (not on initial load).
+  // Groups multiple bid arrivals within a 5-second window into a single notification.
   // toast is excluded from deps: its methods are stable useCallbacks but the
   // object reference is recreated each render (no useMemo in useToast).
   const isInitialBidCheck = useRef(true)
+  const lastNotifiedCountRef = useRef(0)
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (!bidNotifications.isReady) return
     if (isInitialBidCheck.current) {
       isInitialBidCheck.current = false
+      lastNotifiedCountRef.current = bidNotifications.unseenBidCount
       return
     }
-    if (bidNotifications.unseenBidCount > 0) {
+
+    const newCount = bidNotifications.unseenBidCount
+
+    // Count dropped (user viewed My Sales) or unchanged — sync ref, skip notification
+    if (newCount <= lastNotifiedCountRef.current) {
+      lastNotifiedCountRef.current = newCount
+      return
+    }
+
+    // Debounce: clear any pending timer and wait 5s for more bids to arrive
+    if (notificationTimerRef.current) {
+      clearTimeout(notificationTimerRef.current)
+    }
+
+    notificationTimerRef.current = setTimeout(() => {
+      const delta = newCount - lastNotifiedCountRef.current
+      lastNotifiedCountRef.current = newCount
+      if (delta <= 0) return
+
+      const label = delta === 1 ? 'bid' : 'bids'
       toast.info(
         'New Bids Received',
-        `You have ${bidNotifications.unseenBidCount} new ${bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'} on your listings`,
+        `You have ${delta} new ${label} on your listings`,
         8000
       )
       playNotificationSound()
-      const count = bidNotifications.unseenBidCount
-      const label = count === 1 ? 'bid' : 'bids'
-      sendDesktopNotification('New Bids Received', `You have ${count} new ${label} on your listings`)
+      sendDesktopNotification('New Bids Received', `You have ${delta} new ${label} on your listings`)
+    }, 5000)
+
+    return () => {
+      if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bidNotifications.unseenBidCount, bidNotifications.isReady])

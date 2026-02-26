@@ -296,7 +296,7 @@ Each item has:
   - **How**: When a transaction fails, add a "Retry" button to the error toast. The retry button re-invokes the same transaction builder function with the same parameters. Store the failed tx params in a `lastFailedTx` ref. Toast becomes sticky (no auto-dismiss) on tx failure.
   - **Why**: Transaction failures currently require users to navigate back to the modal and re-enter everything. A retry button reduces friction.
 
-- [ ] **Notification grouping for multiple simultaneous events**
+- [x] **Notification grouping for multiple simultaneous events**
   - **How**: When multiple bids arrive within 5 seconds, group them into a single notification: "3 new bids on your listings" instead of 3 separate toasts. In `useBidNotifications`, buffer incoming notifications with a 5s debounce window before dispatching to the toast system.
   - **Why**: During active marketplace periods, a burst of bid notifications can stack 5+ toasts that obscure the UI.
 
