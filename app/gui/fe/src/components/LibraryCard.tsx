@@ -5,6 +5,7 @@ import { formatBytes } from '../utils/formatBytes';
 import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
+import { getContentType } from '../utils/contentType';
 
 interface LibraryCardProps {
   item: LibraryItem;
@@ -31,21 +32,6 @@ const getCategoryLabel = (category: string): string => {
   return category.charAt(0).toUpperCase() + category.slice(1);
 };
 
-
-export function getContentType(category: string, fileExtension?: string): string {
-  if (category === 'text' || !category) return 'text';
-
-  const ext = fileExtension?.toLowerCase();
-  if (ext) {
-    if (['.mp3', '.wav', '.flac', '.ogg', '.aac', '.m4a', '.opus'].includes(ext)) return 'audio';
-    if (['.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v'].includes(ext)) return 'video';
-    if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'].includes(ext)) return 'image';
-    if (ext === '.pdf') return 'pdf';
-    if (ext === '.csv' || ext === '.txt') return 'text';
-  }
-
-  return category || 'other';
-}
 
 function CategoryIcon({ category, fileExtension, size = 'md' }: { category: string; fileExtension?: string; size?: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';

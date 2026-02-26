@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getContentType } from '../LibraryCard';
+import { getContentType } from '../../utils/contentType';
 
 describe('getContentType', () => {
   it('returns text for text category', () => {
