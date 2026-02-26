@@ -12,7 +12,6 @@ vi.mock('../../utils/clipboard', () => ({
   copyToClipboard: vi.fn().mockResolvedValue(true),
 }))
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { copyToClipboard } = await import('../../utils/clipboard')
 
 vi.mock('../../services/toastSettings', () => ({

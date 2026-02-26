@@ -484,7 +484,7 @@ Each item has:
   - **How**: Create an error message mapping in `fe/src/services/errorMessages.ts` that translates raw errors into user-friendly guidance. Examples: "Failed to fetch" → "Can't reach the backend. Check that your node is running." "Insufficient funds" → "Your wallet doesn't have enough ADA. You need at least X ADA for this action."
   - **Why**: Raw error messages like "Network error" or "CBOR decode failed" mean nothing to users. Actionable messages tell them what to do.
 
-- [ ] **"Copy error" button on error displays**
+- [x] **"Copy error" button on error displays**
   - **How**: Add a small "Copy" icon button next to error messages in modals and toasts. Copies the full error text (including stack trace if available) to clipboard for bug reports.
   - **Why**: When users report bugs, they need to share the exact error. Selecting and copying error text from toasts is awkward.
 
@@ -492,11 +492,11 @@ Each item has:
   - **How**: When `fetchEncryptions()` or `fetchBids()` fails, show an error state with a "Retry" button instead of just an error message. The retry button calls the same fetch function.
   - **Why**: Transient network errors currently leave users staring at an error with no recourse except refreshing the page.
 
-- [ ] **Offline detection banner**
+- [x] **Offline detection banner**
   - **How**: Listen to `window.addEventListener('offline', ...)` and show a sticky banner: "You're offline. Some features are unavailable." Dismiss when `online` event fires. Also check Kupo/backend reachability periodically.
   - **Why**: When Kupo or the backend is unreachable, individual errors appear throughout the app. A single banner explains the root cause.
 
-- [ ] **Transaction failure diagnosis**
+- [x] **Transaction failure diagnosis**
   - **How**: When a tx submission fails, parse the Ogmios error response and categorize: "Insufficient collateral", "Script execution failed", "UTxO already spent" (contention), "Fee too low". Show category-specific guidance.
   - **Why**: Transaction failures show raw Ogmios errors that are incomprehensible. Categorized errors with remediation help users recover.
 
