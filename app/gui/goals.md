@@ -470,7 +470,7 @@ Each item has:
   - **How**: In `snark.rs` (lines 66-75), before spawning the SNARK sidecar, verify the setup directory exists and contains `pk.bin` and `ccs.bin`: `if !setup_dir.join("pk.bin").exists() { return Err("SNARK setup files not found. Run setup first.".into()); }`.
   - **Why**: Running the prover without setup files produces a cryptic sidecar error instead of a user-friendly message.
 
-- [ ] **Iagon typed error codes instead of string errors**
+- [x] **Iagon typed error codes instead of string errors**
   - **How**: In `iagon.rs` (lines 56-71), replace the generic string errors from `map_iagon_error()` with structured JSON: `{ "code": "AUTH_FAILED" | "TIMEOUT" | "UPLOAD_FAILED" | "SERVER_ERROR", "message": "..." }`. Frontend can then parse the code for specific handling (e.g., re-auth on AUTH_FAILED).
   - **Why**: Frontend can't distinguish a timeout from an auth failure from a server error. All Iagon errors look the same to the user.
 
