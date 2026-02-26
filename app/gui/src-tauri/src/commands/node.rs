@@ -2,7 +2,12 @@ use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
 use crate::process::{cardano, express, kupo, mithril, ogmios};
 use serde::Serialize;
+use std::path::PathBuf;
 use tauri::Manager;
+
+/// Cached app data directory path, resolved once at startup.
+/// Avoids calling `app.path().app_data_dir()` on every `get_node_status` poll.
+pub struct AppDataDir(pub PathBuf);
 
 /// Overall node infrastructure state returned to the frontend
 #[derive(Clone, Serialize, PartialEq)]
@@ -32,17 +37,15 @@ pub struct NodeStatus {
 #[tauri::command]
 pub async fn get_node_status(
     manager: tauri::State<'_, NodeManager>,
+    app_data_dir: tauri::State<'_, AppDataDir>,
     app_handle: tauri::AppHandle,
 ) -> Result<NodeStatus, String> {
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+    let app_data_dir = &app_data_dir.0;
 
     let config = app_handle.state::<AppConfig>();
     let processes = manager.get_all_status().await;
 
-    let needs_bootstrap_check = mithril::needs_bootstrap(&config, &app_data_dir);
+    let needs_bootstrap_check = mithril::needs_bootstrap(&config, app_data_dir);
 
     // Determine overall state from individual process statuses
     let mithril_status = manager.get_status("mithril-client").await;
@@ -214,28 +217,26 @@ pub async fn get_process_status(
 #[tauri::command]
 pub async fn start_node(
     manager: tauri::State<'_, NodeManager>,
+    app_data_dir: tauri::State<'_, AppDataDir>,
     app_handle: tauri::AppHandle,
     wallet_address: String,
 ) -> Result<(), String> {
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+    let app_data_dir = &app_data_dir.0;
 
     let config = app_handle.state::<AppConfig>();
 
     // Check if Mithril bootstrap is needed
-    if mithril::needs_bootstrap(&config, &app_data_dir) {
+    if mithril::needs_bootstrap(&config, app_data_dir) {
         return Err("Chain data not found. Run start_mithril_bootstrap first.".to_string());
     }
 
     // 1. Start cardano-node
-    cardano::start_cardano_node(&manager, &config, &app_data_dir, &app_handle).await?;
+    cardano::start_cardano_node(&manager, &config, app_data_dir, &app_handle).await?;
 
     // 2. Wait for node socket to appear (poll every 5s, no fixed timeout).
     // After a Mithril bootstrap, ledger replay can take 10+ minutes (preprod)
     // or hours (mainnet). We wait as long as cardano-node is still running.
-    let socket_path = config.node_socket_path(&app_data_dir);
+    let socket_path = config.node_socket_path(app_data_dir);
     loop {
         if socket_path.exists() {
             break;
@@ -260,7 +261,7 @@ pub async fn start_node(
     }
 
     // 3. Start Ogmios
-    ogmios::start_ogmios(&manager, &config, &app_data_dir).await?;
+    ogmios::start_ogmios(&manager, &config, app_data_dir).await?;
 
     // 4. Wait for Ogmios health (poll every 5s, no fixed timeout).
     // Stop waiting if the ogmios process dies.
@@ -280,7 +281,7 @@ pub async fn start_node(
     }
 
     // 5. Start Kupo scoped to contract addresses + wallet address
-    kupo::start_kupo(&manager, &config, &app_data_dir, &wallet_address).await?;
+    kupo::start_kupo(&manager, &config, app_data_dir, &wallet_address).await?;
 
     // 5b. Wait for Kupo health (poll every 5s).
     // Stop waiting if the kupo process dies.
@@ -356,15 +357,11 @@ pub async fn stop_node(manager: tauri::State<'_, NodeManager>) -> Result<(), Str
 #[tauri::command]
 pub async fn start_mithril_bootstrap(
     manager: tauri::State<'_, NodeManager>,
+    app_data_dir: tauri::State<'_, AppDataDir>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
-
     let config = app_handle.state::<AppConfig>();
-    mithril::start_mithril_bootstrap(&manager, &config, &app_data_dir).await
+    mithril::start_mithril_bootstrap(&manager, &config, &app_data_dir.0).await
 }
 
 /// Get recent log lines for a specific process

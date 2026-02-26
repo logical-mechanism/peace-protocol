@@ -4,6 +4,7 @@ mod crypto;
 mod process;
 
 use commands::media::{ContentDir, MediaDir};
+use commands::node::AppDataDir;
 use commands::secrets::SecretsDir;
 use commands::snark::AppTmpDir;
 use commands::wallet::WalletState;
@@ -36,6 +37,9 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("Failed to resolve app data directory");
+
+            // Cache app_data_dir for hot-path commands (get_node_status polled every 5s)
+            app.manage(AppDataDir(app_data_dir.clone()));
 
             // Wallet state (Phase 1)
             let wallet_path = app_data_dir.join("wallet.json");

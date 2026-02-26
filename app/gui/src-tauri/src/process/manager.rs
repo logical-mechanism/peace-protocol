@@ -1066,11 +1066,7 @@ impl NodeManager {
                     format!(
                         "... [{} earlier line{} dropped] ...",
                         proc.dropped_log_count,
-                        if proc.dropped_log_count == 1 {
-                            ""
-                        } else {
-                            "s"
-                        }
+                        if proc.dropped_log_count == 1 { "" } else { "s" }
                     ),
                 );
             }

@@ -90,15 +90,15 @@ Each item has:
   - **How**: In `manager.rs` (line 120), `send_signal()` uses `libc::kill()` but only returns `false` on failure without logging why. Add `let err = std::io::Error::last_os_error(); log::warn!("Failed to signal PID {}: {}", pid, err);` after a failed kill.
   - **Why**: When a process can't be signaled, the current code gives no clue why (permission denied? process gone?), making debugging difficult.
 
-- [ ] **Log buffer eviction notice in process logs**
+- [x] **Log buffer eviction notice in process logs**
   - **How**: In `manager.rs` (line 103-109), when the 500-line circular buffer evicts old entries, insert a marker line: `"... [N earlier lines dropped] ..."` so users know the log is incomplete. Track `dropped_count` and include it in the next `append_log` call.
   - **Why**: Users debugging issues in Settings log viewer may not realize they're missing the earliest (potentially most relevant) log entries.
 
-- [ ] **Configurable process shutdown timeouts**
+- [x] **Configurable process shutdown timeouts**
   - **How**: In `manager.rs`, the shutdown timeouts (cardano-node 45s, mithril 30s, others 10s) are hardcoded. Add optional environment variable overrides: `SHUTDOWN_TIMEOUT_CARDANO=60`, `SHUTDOWN_TIMEOUT_MITHRIL=45`, etc. Fall back to current defaults if not set.
   - **Why**: Users with slow storage (spinning disks, NFS mounts) may need longer shutdown windows for cardano-node to flush its ledger state.
 
-- [ ] **Cache `app_data_dir()` path at startup instead of per-call**
+- [x] **Cache `app_data_dir()` path at startup instead of per-call**
   - **How**: In `node.rs` (line 33-36), `get_node_status()` calls `app.path().app_data_dir()` on every invocation (polled every 5s). Cache the path in `AppDataDir` state struct at startup (similar to existing `AppTmpDir`), and read from the cached state.
   - **Why**: `app_data_dir()` hits the filesystem each call. While fast, it's unnecessary repeated I/O on a path that never changes at runtime.
 
