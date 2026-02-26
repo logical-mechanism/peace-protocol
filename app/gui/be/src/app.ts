@@ -3,6 +3,7 @@ import cors from 'cors';
 import { config } from './config/index.js';
 import { logger } from './services/logger.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { requestTimeout } from './middleware/timeout.js';
 import { getHealthStatus } from './services/health.js';
 import routes from './routes/index.js';
 
@@ -12,6 +13,7 @@ export function createApp() {
   // Middleware
   app.use(express.json({ limit: '1mb' }));
   app.use(requestLogger);
+  app.use(requestTimeout());
 
   // CORS configuration
   app.use(
