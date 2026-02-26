@@ -1,13 +1,24 @@
 use crate::process::manager::NodeManager;
 use serde::Serialize;
+use std::path::PathBuf;
 use tauri::Manager;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
+/// Managed state holding the app-specific temp directory.
+/// Created at startup, wiped on each launch to clean up crash orphans.
+pub struct AppTmpDir(pub PathBuf);
+
 /// Write a JSON object to a temporary file for passing secrets to the snark sidecar.
 /// Returns the NamedTempFile (must be kept alive until the sidecar reads it).
-fn write_secrets_file(secrets: serde_json::Value) -> Result<tempfile::NamedTempFile, String> {
-    let file = tempfile::NamedTempFile::new()
+/// Files are created in the app-specific temp directory, not the OS temp dir.
+fn write_secrets_file(
+    tmp_dir: &std::path::Path,
+    secrets: serde_json::Value,
+) -> Result<tempfile::NamedTempFile, String> {
+    let file = tempfile::Builder::new()
+        .prefix("veiled-snark-")
+        .tempfile_in(tmp_dir)
         .map_err(|e| format!("Failed to create secrets temp file: {e}"))?;
 
     // Restrict to owner-only before writing secret material
@@ -217,8 +228,12 @@ pub async fn snark_decompress_setup(app: tauri::AppHandle) -> Result<(), String>
 /// Writes secrets to a temp file and passes -input flag to the sidecar.
 /// Returns the hash hex string from stdout.
 #[tauri::command]
-pub async fn snark_gt_to_hash(app: tauri::AppHandle, a: String) -> Result<String, String> {
-    let secrets_file = write_secrets_file(serde_json::json!({ "a": a }))?;
+pub async fn snark_gt_to_hash(
+    app: tauri::AppHandle,
+    tmp_dir_state: tauri::State<'_, AppTmpDir>,
+    a: String,
+) -> Result<String, String> {
+    let secrets_file = write_secrets_file(&tmp_dir_state.0, serde_json::json!({ "a": a }))?;
     let args = vec![
         "hash".to_string(),
         "-input".to_string(),
@@ -235,17 +250,21 @@ pub async fn snark_gt_to_hash(app: tauri::AppHandle, a: String) -> Result<String
 #[tauri::command]
 pub async fn snark_decrypt_to_hash(
     app: tauri::AppHandle,
+    tmp_dir_state: tauri::State<'_, AppTmpDir>,
     g1b: String,
     r1: String,
     shared: String,
     g2b: String,
 ) -> Result<String, String> {
-    let secrets_file = write_secrets_file(serde_json::json!({
-        "g1b": g1b,
-        "r1": r1,
-        "shared": shared,
-        "g2b": g2b,
-    }))?;
+    let secrets_file = write_secrets_file(
+        &tmp_dir_state.0,
+        serde_json::json!({
+            "g1b": g1b,
+            "r1": r1,
+            "shared": shared,
+            "g2b": g2b,
+        }),
+    )?;
     let args = vec![
         "decrypt".to_string(),
         "-input".to_string(),
@@ -264,6 +283,7 @@ pub async fn snark_decrypt_to_hash(
 #[tauri::command]
 pub async fn snark_prove(
     app: tauri::AppHandle,
+    tmp_dir_state: tauri::State<'_, AppTmpDir>,
     a: String,
     r: String,
     v: String,
@@ -272,17 +292,23 @@ pub async fn snark_prove(
 ) -> Result<SnarkProofResult, String> {
     let snark_dir = setup_dir(&app)?;
 
-    // Create a temporary directory for output files
-    let tmp_dir = tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {e}"))?;
+    // Create a temporary directory for output files in the app temp dir
+    let tmp_dir = tempfile::Builder::new()
+        .prefix("veiled-proof-")
+        .tempdir_in(&tmp_dir_state.0)
+        .map_err(|e| format!("Failed to create temp dir: {e}"))?;
     let out_dir = tmp_dir.path().to_string_lossy().to_string();
 
-    let secrets_file = write_secrets_file(serde_json::json!({
-        "a": a,
-        "r": r,
-        "v": v,
-        "w0": w0,
-        "w1": w1,
-    }))?;
+    let secrets_file = write_secrets_file(
+        &tmp_dir_state.0,
+        serde_json::json!({
+            "a": a,
+            "r": r,
+            "v": v,
+            "w0": w0,
+            "w1": w1,
+        }),
+    )?;
 
     let args = vec![
         "prove".to_string(),
@@ -316,10 +342,18 @@ pub async fn snark_prove(
 mod tests {
     use super::*;
 
+    fn test_tmp_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("peace_snark_test_{name}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn secrets_temp_file_has_owner_only_permissions() {
+        let tmp = test_tmp_dir("perms");
         let secrets = serde_json::json!({ "a": "test_secret" });
-        let file = write_secrets_file(secrets).unwrap();
+        let file = write_secrets_file(&tmp, secrets).unwrap();
 
         #[cfg(unix)]
         {
@@ -327,15 +361,44 @@ mod tests {
             let mode = file.path().metadata().unwrap().permissions().mode() & 0o777;
             assert_eq!(mode, 0o600, "Temp file should be owner read/write only");
         }
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]
     fn secrets_temp_file_contains_valid_json() {
+        let tmp = test_tmp_dir("json");
         let secrets = serde_json::json!({ "a": "42", "r": "99" });
-        let file = write_secrets_file(secrets).unwrap();
+        let file = write_secrets_file(&tmp, secrets).unwrap();
         let contents = std::fs::read_to_string(file.path()).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&contents).unwrap();
         assert_eq!(parsed["a"], "42");
         assert_eq!(parsed["r"], "99");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn secrets_temp_file_uses_prefix() {
+        let tmp = test_tmp_dir("prefix");
+        let file = write_secrets_file(&tmp, serde_json::json!({})).unwrap();
+        let name = file
+            .path()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        assert!(
+            name.starts_with("veiled-snark-"),
+            "Temp file should have veiled-snark- prefix, got: {name}"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn secrets_temp_file_created_in_specified_dir() {
+        let tmp = test_tmp_dir("indir");
+        let file = write_secrets_file(&tmp, serde_json::json!({})).unwrap();
+        assert_eq!(file.path().parent().unwrap(), tmp);
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

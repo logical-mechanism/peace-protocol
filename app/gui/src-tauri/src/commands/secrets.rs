@@ -1,3 +1,4 @@
+use crate::crypto::audit::AuditLog;
 use crate::crypto::secrets::{
     decrypt_secret, encrypt_secret, secure_delete, EncryptedSecret, SecretsKey,
 };
@@ -69,6 +70,7 @@ fn seller_dir(base: &Path) -> PathBuf {
 pub fn store_seller_secrets(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     token_name: String,
     a: String,
     r: String,
@@ -86,17 +88,20 @@ pub fn store_seller_secrets(
     };
     let plaintext =
         serde_json::to_string(&file).map_err(|e| format!("Failed to serialize: {e}"))?;
-    encrypt_and_write(
+    let result = encrypt_and_write(
         &key,
         &dir.join(format!("{token_name}.json")),
         plaintext.as_bytes(),
-    )
+    );
+    audit.log("WRITE", &format!("seller/{token_name}.json"));
+    result
 }
 
 #[tauri::command]
 pub fn get_seller_secrets(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     token_name: String,
 ) -> Result<Option<SellerSecretResult>, String> {
     let key = get_secrets_key(&key_state)?;
@@ -104,6 +109,7 @@ pub fn get_seller_secrets(
     if !path.exists() {
         return Ok(None);
     }
+    audit.log("READ", &format!("seller/{token_name}.json"));
     let plaintext = read_and_decrypt(&key, &path)?;
     let plaintext_str = String::from_utf8(plaintext)
         .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
@@ -118,9 +124,11 @@ pub fn get_seller_secrets(
 #[tauri::command]
 pub fn remove_seller_secrets(
     state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
     token_name: String,
 ) -> Result<(), String> {
     let path = seller_dir(&state.0).join(format!("{token_name}.json"));
+    audit.log("DELETE", &format!("seller/{token_name}.json"));
     secure_delete(&path)
 }
 
@@ -133,7 +141,9 @@ pub struct SecretListEntry {
 #[tauri::command]
 pub fn list_seller_secrets(
     state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
 ) -> Result<Vec<SecretListEntry>, String> {
+    audit.log("LIST", "seller/");
     let dir = seller_dir(&state.0);
     if !dir.exists() {
         return Ok(vec![]);
@@ -189,6 +199,7 @@ fn bid_dir(base: &Path) -> PathBuf {
 pub fn store_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     bid_token_name: String,
     encryption_token_name: String,
     b: String,
@@ -205,17 +216,20 @@ pub fn store_bid_secrets(
     };
     let plaintext =
         serde_json::to_string(&file).map_err(|e| format!("Failed to serialize: {e}"))?;
-    encrypt_and_write(
+    let result = encrypt_and_write(
         &key,
         &dir.join(format!("{bid_token_name}.json")),
         plaintext.as_bytes(),
-    )
+    );
+    audit.log("WRITE", &format!("bid/{bid_token_name}.json"));
+    result
 }
 
 #[tauri::command]
 pub fn get_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     bid_token_name: String,
 ) -> Result<Option<BidSecretResult>, String> {
     let key = get_secrets_key(&key_state)?;
@@ -223,6 +237,7 @@ pub fn get_bid_secrets(
     if !path.exists() {
         return Ok(None);
     }
+    audit.log("READ", &format!("bid/{bid_token_name}.json"));
     let plaintext = read_and_decrypt(&key, &path)?;
     let plaintext_str = String::from_utf8(plaintext)
         .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
@@ -238,8 +253,13 @@ pub fn get_bid_secrets(
 pub fn get_bid_secrets_for_encryption(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     encryption_token_name: String,
 ) -> Result<Option<BidSecretResult>, String> {
+    audit.log(
+        "READ",
+        &format!("bid/ (scan for encryption {encryption_token_name})"),
+    );
     let key = get_secrets_key(&key_state)?;
     let dir = bid_dir(&state.0);
     if !dir.exists() {
@@ -272,9 +292,11 @@ pub fn get_bid_secrets_for_encryption(
 #[tauri::command]
 pub fn remove_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
     bid_token_name: String,
 ) -> Result<(), String> {
     let path = bid_dir(&state.0).join(format!("{bid_token_name}.json"));
+    audit.log("DELETE", &format!("bid/{bid_token_name}.json"));
     secure_delete(&path)
 }
 
@@ -316,6 +338,7 @@ fn accept_bid_dir(base: &Path) -> PathBuf {
 pub fn store_accept_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     encryption_token_name: String,
     bid_token_name: String,
     a0: String,
@@ -343,17 +366,20 @@ pub fn store_accept_bid_secrets(
     };
     let plaintext =
         serde_json::to_string(&file).map_err(|e| format!("Failed to serialize: {e}"))?;
-    encrypt_and_write(
+    let result = encrypt_and_write(
         &key,
         &dir.join(format!("{encryption_token_name}.json")),
         plaintext.as_bytes(),
-    )
+    );
+    audit.log("WRITE", &format!("accept-bid/{encryption_token_name}.json"));
+    result
 }
 
 #[tauri::command]
 pub fn get_accept_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     encryption_token_name: String,
 ) -> Result<Option<AcceptBidSecretResult>, String> {
     let key = get_secrets_key(&key_state)?;
@@ -361,6 +387,7 @@ pub fn get_accept_bid_secrets(
     if !path.exists() {
         return Ok(None);
     }
+    audit.log("READ", &format!("accept-bid/{encryption_token_name}.json"));
     let plaintext = read_and_decrypt(&key, &path)?;
     let plaintext_str = String::from_utf8(plaintext)
         .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
@@ -380,17 +407,27 @@ pub fn get_accept_bid_secrets(
 #[tauri::command]
 pub fn remove_accept_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
     encryption_token_name: String,
 ) -> Result<(), String> {
     let path = accept_bid_dir(&state.0).join(format!("{encryption_token_name}.json"));
+    audit.log(
+        "DELETE",
+        &format!("accept-bid/{encryption_token_name}.json"),
+    );
     secure_delete(&path)
 }
 
 #[tauri::command]
 pub fn has_accept_bid_secrets(
     state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
     encryption_token_name: String,
 ) -> Result<bool, String> {
+    audit.log(
+        "READ",
+        &format!("accept-bid/{encryption_token_name}.json (exists check)"),
+    );
     let path = accept_bid_dir(&state.0).join(format!("{encryption_token_name}.json"));
     Ok(path.exists())
 }
@@ -473,6 +510,7 @@ fn listing_draft_dir(base: &Path) -> PathBuf {
 pub fn store_listing_draft(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     id: String,
     status: String,
     category: String,
@@ -512,13 +550,16 @@ pub fn store_listing_draft(
     };
     let plaintext =
         serde_json::to_string(&file).map_err(|e| format!("Failed to serialize: {e}"))?;
-    encrypt_and_write(&key, &dir.join(format!("{id}.json")), plaintext.as_bytes())
+    let result = encrypt_and_write(&key, &dir.join(format!("{id}.json")), plaintext.as_bytes());
+    audit.log("WRITE", &format!("listing-drafts/{id}.json"));
+    result
 }
 
 #[tauri::command]
 pub fn update_listing_draft(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     id: String,
     updates_json: String,
 ) -> Result<(), String> {
@@ -580,13 +621,16 @@ pub fn update_listing_draft(
 
     let new_plaintext =
         serde_json::to_string(&file).map_err(|e| format!("Failed to serialize: {e}"))?;
-    encrypt_and_write(&key, &path, new_plaintext.as_bytes())
+    let result = encrypt_and_write(&key, &path, new_plaintext.as_bytes());
+    audit.log("WRITE", &format!("listing-drafts/{id}.json (update)"));
+    result
 }
 
 #[tauri::command]
 pub fn get_listing_draft(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     id: String,
 ) -> Result<Option<ListingDraftResult>, String> {
     let key = get_secrets_key(&key_state)?;
@@ -594,6 +638,7 @@ pub fn get_listing_draft(
     if !path.exists() {
         return Ok(None);
     }
+    audit.log("READ", &format!("listing-drafts/{id}.json"));
     let plaintext = read_and_decrypt(&key, &path)?;
     let plaintext_str = String::from_utf8(plaintext)
         .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
@@ -606,7 +651,9 @@ pub fn get_listing_draft(
 pub fn list_listing_drafts(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
 ) -> Result<Vec<ListingDraftResult>, String> {
+    audit.log("LIST", "listing-drafts/");
     let key = get_secrets_key(&key_state)?;
     let dir = listing_draft_dir(&state.0);
     if !dir.exists() {
@@ -633,8 +680,13 @@ pub fn list_listing_drafts(
 }
 
 #[tauri::command]
-pub fn remove_listing_draft(state: tauri::State<'_, SecretsDir>, id: String) -> Result<(), String> {
+pub fn remove_listing_draft(
+    state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
+    id: String,
+) -> Result<(), String> {
     let path = listing_draft_dir(&state.0).join(format!("{id}.json"));
+    audit.log("DELETE", &format!("listing-drafts/{id}.json"));
     secure_delete(&path)
 }
 

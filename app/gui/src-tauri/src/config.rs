@@ -246,6 +246,99 @@ impl AppConfig {
         }
     }
 
+    /// Validate semantic correctness of the loaded config.
+    /// Returns Ok(()) if valid, Err(message) describing what is wrong.
+    pub fn validate(&self) -> Result<(), String> {
+        let mut errors: Vec<String> = Vec::new();
+
+        if self.ogmios_port == 0 {
+            errors.push("ogmios_port must be > 0".to_string());
+        }
+        if self.kupo_port == 0 {
+            errors.push("kupo_port must be > 0".to_string());
+        }
+
+        if let Some(ref c) = self.contracts {
+            // Addresses must be non-empty
+            for (name, val) in [
+                ("encryption_address", &c.encryption_address),
+                ("bidding_address", &c.bidding_address),
+                ("reference_address", &c.reference_address),
+            ] {
+                if val.is_empty() {
+                    errors.push(format!("contracts.{name} is empty"));
+                }
+            }
+
+            // Policy IDs: 56 hex chars
+            for (name, val) in [
+                ("encryption_policy_id", &c.encryption_policy_id),
+                ("bidding_policy_id", &c.bidding_policy_id),
+                ("groth_policy_id", &c.groth_policy_id),
+                ("genesis_policy_id", &c.genesis_policy_id),
+            ] {
+                if !val.is_empty() {
+                    if val.len() != 56 {
+                        errors.push(format!(
+                            "contracts.{name} must be 56 hex chars, got {}",
+                            val.len()
+                        ));
+                    }
+                    if !val.chars().all(|ch| ch.is_ascii_hexdigit()) {
+                        errors.push(format!("contracts.{name} contains non-hex characters"));
+                    }
+                }
+            }
+
+            // Token name: 1-64 hex chars
+            if !c.genesis_token_name.is_empty() {
+                let len = c.genesis_token_name.len();
+                if len > 64 {
+                    errors.push(format!(
+                        "contracts.genesis_token_name must be 1-64 hex chars, got {len}"
+                    ));
+                }
+                if !c
+                    .genesis_token_name
+                    .chars()
+                    .all(|ch| ch.is_ascii_hexdigit())
+                {
+                    errors.push(
+                        "contracts.genesis_token_name contains non-hex characters".to_string(),
+                    );
+                }
+            }
+
+            // Tx hashes: 64 hex chars
+            for (name, val) in [
+                ("encryption_ref_tx_hash", &c.encryption_ref_tx_hash),
+                ("bidding_ref_tx_hash", &c.bidding_ref_tx_hash),
+                ("groth_ref_tx_hash", &c.groth_ref_tx_hash),
+            ] {
+                if !val.is_empty() {
+                    if val.len() != 64 {
+                        errors.push(format!(
+                            "contracts.{name} must be 64 hex chars, got {}",
+                            val.len()
+                        ));
+                    }
+                    if !val.chars().all(|ch| ch.is_ascii_hexdigit()) {
+                        errors.push(format!("contracts.{name} contains non-hex characters"));
+                    }
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "Config validation failed:\n- {}",
+                errors.join("\n- ")
+            ))
+        }
+    }
+
     /// Get the mithril genesis verification key for the current network.
     /// These keys are published by IOG for each Mithril network.
     pub fn mithril_genesis_vkey(&self) -> &str {
@@ -273,6 +366,107 @@ mod tests {
     fn test_network_display() {
         assert_eq!(Network::Preprod.to_string(), "preprod");
         assert_eq!(Network::Mainnet.to_string(), "mainnet");
+    }
+
+    fn make_valid_contracts() -> ContractConfig {
+        ContractConfig {
+            encryption_address: "addr_test1abc".to_string(),
+            bidding_address: "addr_test1def".to_string(),
+            reference_address: "addr_test1ghi".to_string(),
+            script_reference_address: "addr_test1jkl".to_string(),
+            encryption_policy_id: "a".repeat(56),
+            bidding_policy_id: "b".repeat(56),
+            groth_policy_id: "c".repeat(56),
+            genesis_policy_id: "d".repeat(56),
+            genesis_token_name: "e".repeat(64),
+            encryption_ref_tx_hash: "1".repeat(64),
+            encryption_ref_output_index: 0,
+            bidding_ref_tx_hash: "2".repeat(64),
+            bidding_ref_output_index: 1,
+            groth_ref_tx_hash: "3".repeat(64),
+            groth_ref_output_index: 1,
+        }
+    }
+
+    #[test]
+    fn test_validate_default_config() {
+        assert!(AppConfig::default().validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_with_valid_contracts() {
+        let config = AppConfig {
+            contracts: Some(make_valid_contracts()),
+            ..Default::default()
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_zero_port() {
+        let config = AppConfig {
+            ogmios_port: 0,
+            ..Default::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.contains("ogmios_port must be > 0"));
+    }
+
+    #[test]
+    fn test_validate_bad_policy_id_length() {
+        let mut contracts = make_valid_contracts();
+        contracts.encryption_policy_id = "abc".to_string();
+        let config = AppConfig {
+            contracts: Some(contracts),
+            ..Default::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.contains("encryption_policy_id must be 56 hex chars"));
+    }
+
+    #[test]
+    fn test_validate_non_hex_policy_id() {
+        let mut contracts = make_valid_contracts();
+        contracts.groth_policy_id = "z".repeat(56);
+        let config = AppConfig {
+            contracts: Some(contracts),
+            ..Default::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.contains("groth_policy_id contains non-hex"));
+    }
+
+    #[test]
+    fn test_validate_bad_tx_hash() {
+        let mut contracts = make_valid_contracts();
+        contracts.bidding_ref_tx_hash = "ab".to_string();
+        let config = AppConfig {
+            contracts: Some(contracts),
+            ..Default::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.contains("bidding_ref_tx_hash must be 64 hex chars"));
+    }
+
+    #[test]
+    fn test_validate_empty_address() {
+        let mut contracts = make_valid_contracts();
+        contracts.encryption_address = String::new();
+        let config = AppConfig {
+            contracts: Some(contracts),
+            ..Default::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.contains("encryption_address is empty"));
+    }
+
+    #[test]
+    fn test_validate_no_contracts_ok() {
+        let config = AppConfig {
+            contracts: None,
+            ..Default::default()
+        };
+        assert!(config.validate().is_ok());
     }
 
     #[test]

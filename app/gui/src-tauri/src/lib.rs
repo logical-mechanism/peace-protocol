@@ -5,8 +5,10 @@ mod process;
 
 use commands::media::{ContentDir, MediaDir};
 use commands::secrets::SecretsDir;
+use commands::snark::AppTmpDir;
 use commands::wallet::WalletState;
 use config::AppConfig;
+use crypto::audit::AuditLog;
 use crypto::secrets::SecretsKey;
 use process::manager::NodeManager;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -46,6 +48,17 @@ pub fn run() {
                 .resource_dir()
                 .unwrap_or_else(|_| app_data_dir.clone());
             let app_config = AppConfig::load(&resource_dir);
+            if let Err(msg) = app_config.validate() {
+                eprintln!("Config validation failed: {msg}");
+                use tauri_plugin_dialog::DialogExt;
+                app.dialog()
+                    .message(format!(
+                        "Invalid configuration:\n\n{msg}\n\nPlease reinstall the application."
+                    ))
+                    .title("Veiled: Configuration Error")
+                    .blocking_show();
+                std::process::exit(1);
+            }
             let ogmios_port = app_config.ogmios_port;
             let kupo_port = app_config.kupo_port;
             app.manage(app_config);
@@ -53,6 +66,19 @@ pub fn run() {
             // Node manager (Phase 2) — pass service ports for periodic health checks
             let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
             app.manage(node_manager);
+
+            // App-specific temp directory — wiped on startup to clean crash orphans
+            // (SNARK temp files contain secret cryptographic material)
+            let app_tmp_dir = app_data_dir.join("tmp");
+            if app_tmp_dir.exists() {
+                if let Err(e) = std::fs::remove_dir_all(&app_tmp_dir) {
+                    eprintln!("Warning: failed to clean temp dir: {e}");
+                }
+            }
+            std::fs::create_dir_all(&app_tmp_dir).expect("Failed to create app temp directory");
+            crypto::wallet::set_owner_only_dir(&app_tmp_dir)
+                .expect("Failed to set temp directory permissions");
+            app.manage(AppTmpDir(app_tmp_dir));
 
             // Secret storage directory (filesystem-backed, survives WebView resets)
             let secrets_dir = app_data_dir.join("secrets");
@@ -63,6 +89,9 @@ pub fn run() {
 
             // Secrets encryption key (derived from mnemonic on wallet unlock)
             app.manage(SecretsKey(Mutex::new(None)));
+
+            // Audit log for secrets operations
+            app.manage(AuditLog::new(&app_data_dir));
 
             // Media directory (for cached listing preview images)
             let media_images_dir = app_data_dir.join("media").join("images");

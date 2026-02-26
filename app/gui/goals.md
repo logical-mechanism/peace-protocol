@@ -532,7 +532,7 @@ Each item has:
 
 > Key files: `be/src/routes/`, `be/src/services/`, `be/src/index.ts`
 
-- [ ] **Pagination for listing and bid endpoints**
+- [x] **Pagination for listing and bid endpoints**
   - **How**: Add `?limit=20&offset=0` query params to `GET /api/encryptions`, `GET /api/bids`, and their sub-routes. Default to limit=50. Return `{ data: [...], pagination: { total, limit, offset, hasMore } }`.
   - **Why**: As the marketplace grows, returning all results in one response becomes slow and wasteful. Pagination lets the frontend load incrementally.
 
@@ -544,15 +544,15 @@ Each item has:
   - **How**: In `be/src/index.ts`, the health endpoint should return `200` when healthy and `503 Service Unavailable` when unhealthy. Currently it always returns 200. Change the catch block to `res.status(503).json(...)`.
   - **Why**: Load balancers and monitoring tools rely on HTTP status codes. A 200 for an unhealthy service is misleading.
 
-- [ ] **Request timeout middleware**
+- [x] **Request timeout middleware**
   - **How**: Add a middleware that sets a 30-second timeout on all requests. If a Kupo/Koios call hangs, the middleware returns a 504 Gateway Timeout instead of hanging forever. Use `setTimeout` + `res.destroyed` check.
   - **Why**: If Kupo is down, requests hang until the client's own timeout fires. A server-side timeout gives faster, cleaner failures.
 
-- [ ] **Circuit breaker for Kupo**
+- [x] **Circuit breaker for Kupo**
   - **How**: Apply the existing `CircuitBreaker` class (used for Koios) to Kupo calls. In `be/src/services/kupo.ts`, wrap `fetchWithRetry` calls with circuit breaker logic. Open after 5 failures, close after 30s recovery.
   - **Why**: Kupo has no circuit breaker — if it goes down, every request fails and retries, wasting resources. A circuit breaker fails fast and returns stale cache.
 
-- [ ] **Structured request logging**
+- [x] **Structured request logging**
   - **How**: Add a request logging middleware that logs: method, path, status code, latency, and a request ID (UUID). Use the existing `logger.ts`. Include the request ID in error responses so users can reference it in bug reports.
   - **Why**: Debugging production issues without request logs is guesswork. Structured logs enable filtering and correlation.
 
@@ -566,15 +566,15 @@ Each item has:
 
 > Key files: `src-tauri/src/crypto/`, `src-tauri/src/commands/`, `src-tauri/src/process/`
 
-- [ ] **Stronger secrets key derivation**
+- [x] **Stronger secrets key derivation**
   - **How**: In `secrets.rs`, increase Argon2id params from (4 MiB, 1 iter) to (32 MiB, 2 iter). This is still lighter than wallet encryption (64 MiB, 3 iter) but much harder to brute-force. Profile the time increase and ensure it stays under 1s.
   - **Why**: The current light params mean an attacker with the secrets file could brute-force the key in seconds. Stronger params raise the bar significantly.
 
-- [ ] **Per-user salt for secrets key derivation**
+- [x] **Per-user salt for secrets key derivation**
   - **How**: Replace the fixed `"PEACE_SECRETS_V1"` salt with a random 16-byte salt generated on first wallet creation. Store it alongside the wallet file. Pass it to `derive_secrets_key()`.
   - **Why**: A fixed salt means all users have the same key derivation inputs (except the mnemonic). A random salt makes precomputation attacks impossible.
 
-- [ ] **Config.json schema validation at startup**
+- [x] **Config.json schema validation at startup**
   - **How**: Define a JSON schema for `resources/config.json` (contract addresses, policy IDs, ports). Validate on app startup. If validation fails, show a user-friendly error: "Configuration file is corrupted. Please reinstall."
   - **Why**: A malformed config.json causes cryptic runtime errors. Early validation catches the problem at startup with a clear message.
 
@@ -582,11 +582,11 @@ Each item has:
   - **How**: Add `tauri-plugin-updater` to Cargo.toml. Configure an update endpoint (GitHub Releases or a custom server). On app launch, check for updates. If available, show a non-intrusive banner: "Version X.Y.Z available — Update now?"
   - **Why**: Without auto-updates, users must manually download and reinstall new versions. Most will run outdated software with known bugs.
 
-- [ ] **Secrets directory audit logging**
+- [x] **Secrets directory audit logging**
   - **How**: In `secrets.rs`, log every read/write/delete operation with timestamp and operation type (not the secret content). Write to a `secrets_audit.log` file in the app data directory. Rotate when > 1 MB.
   - **Why**: If secrets are compromised, an audit log helps determine when and how. It also helps debug "my secret disappeared" issues.
 
-- [ ] **Secure temp file cleanup on crash**
+- [x] **Secure temp file cleanup on crash**
   - **How**: On app startup, scan the system temp directory for files matching the SNARK temp file pattern (e.g., `snark_input_*.json`). Delete any orphans from previous crashed sessions.
   - **Why**: SNARK input temp files contain secret cryptographic material. If the app crashes during proving, these files persist on disk.
 
@@ -624,24 +624,22 @@ Each item has:
 
 ## 23. Developer Experience & Tooling
 
+**SKIP THIS IS NOT REQUIRED**
+
 > Key files: build scripts, package.json, configs
 
-- [ ] **Prettier configuration**
+- [s] **Prettier configuration**
   - **How**: Add `.prettierrc` with consistent settings (singleQuote, trailingComma, printWidth: 100). Add `format` scripts to fe/ and be/ package.json. Run on CI.
   - **Why**: No auto-formatter means code style varies by contributor. Prettier eliminates style debates and ensures consistency.
 
 
-- [ ] **Backend hot-reload**
+- [s] **Backend hot-reload**
   - **How**: In `run.sh`, run `tsc --watch` in the background and use `nodemon dist/index.js` instead of plain `node dist/index.js`. This auto-restarts Express when `tsc --watch` emits new compiled files.
   - **Why**: Frontend changes hot-reload via Vite, but backend changes require manual `npm run build` + Tauri restart. This inconsistency wastes developer time.
 
-- [ ] **npm workspaces migration**
+- [s] **npm workspaces migration**
   - **How**: Convert the root `package.json` to use npm workspaces: `"workspaces": ["fe", "be"]`. Update scripts to use `npm -w fe` instead of `npm --prefix fe`. Share common dev dependencies.
   - **Why**: The current `--prefix` approach works but doesn't share dependencies. Workspaces reduce `node_modules` size and simplify dependency management.
-
-- [ ] **Docker development environment**
-  - **How**: Create a `docker-compose.yml` that runs: cardano-node, Ogmios, Kupo (pre-configured for preprod). This lets developers skip sidecar binary setup and test against real chain data without Mithril bootstrap.
-  - **Why**: Sidecar binaries are ~600 MB, gitignored, and platform-specific. A Docker environment provides consistent, shareable infrastructure.
 
 ---
 
