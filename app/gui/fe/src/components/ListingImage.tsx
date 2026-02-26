@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { downloadImage, getCachedImage, banImage, unbanImage } from '../services/imageCache';
 
@@ -85,6 +85,27 @@ export default function ListingImage({
     }
   };
 
+  // Auto-download when scrolled into view (replaces click-to-load)
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (state !== 'default' || !imageLink) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleClick();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, imageLink]);
+
   // Lock icon for no-link state
   if (state === 'no-link') {
     if (size === 'sm') {
@@ -130,11 +151,12 @@ export default function ListingImage({
   // Compact (sm) variant
   if (size === 'sm') {
     return (
-      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 relative group">
+      <div ref={containerRef} className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 relative group">
         {state === 'default' && (
           <img
+            loading="lazy"
             src="/default.png"
-            alt="Click to load preview"
+            alt="Loading preview"
             className="w-full h-full object-cover blur-sm cursor-pointer"
             onClick={handleClick}
           />
@@ -146,6 +168,7 @@ export default function ListingImage({
         )}
         {state === 'loaded' && dataUrl && (
           <img
+            loading="lazy"
             src={dataUrl}
             alt="Listing preview"
             className="w-full h-full object-cover"
@@ -153,6 +176,7 @@ export default function ListingImage({
         )}
         {state === 'banned' && (
           <img
+            loading="lazy"
             src="/banned.png"
             alt="Banned image"
             className="w-full h-full object-cover cursor-pointer"
@@ -166,11 +190,12 @@ export default function ListingImage({
 
   // Grid (md) variant
   return (
-    <div className="w-full h-40 rounded-[var(--radius-md)] overflow-hidden relative group my-4 bg-[var(--bg-secondary)]">
+    <div ref={containerRef} className="w-full h-40 rounded-[var(--radius-md)] overflow-hidden relative group my-4 bg-[var(--bg-secondary)]">
       {state === 'default' && (
         <img
+          loading="lazy"
           src="/default.png"
-          alt="Click to load preview"
+          alt="Loading preview"
           className="w-full h-full object-cover blur-sm cursor-pointer transition-all duration-150 hover:blur-xs"
           onClick={handleClick}
         />
@@ -179,6 +204,7 @@ export default function ListingImage({
       {state === 'loading' && (
         <>
           <img
+            loading="lazy"
             src="/default.png"
             alt="Loading..."
             className="w-full h-full object-cover blur-sm"
@@ -192,6 +218,7 @@ export default function ListingImage({
       {state === 'loaded' && dataUrl && (
         <>
           <img
+            loading="lazy"
             src={dataUrl}
             alt="Listing preview"
             className="w-full h-full object-cover"
@@ -223,6 +250,7 @@ export default function ListingImage({
 
       {state === 'banned' && (
         <img
+          loading="lazy"
           src="/banned.png"
           alt="Banned image"
           className="w-full h-full object-cover cursor-pointer"

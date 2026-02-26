@@ -510,7 +510,7 @@ Each item has:
   - **How**: Use `@tanstack/react-virtual` (lightweight, no dependencies) for History and Library tabs. Render only visible rows plus a small overscan buffer. Keep the card grid layout by virtualizing rows of cards.
   - **Why**: Rendering 200+ DOM nodes for a long history or library causes scroll jank. Virtual scrolling keeps the DOM at ~20 nodes regardless of list length.
 
-- [ ] **Image lazy loading in card grids**
+- [x] **Image lazy loading in card grids**
   - **How**: Add `loading="lazy"` to all `<img>` tags in EncryptionCard, SalesListingCard, and LibraryCard. For listing images loaded via the image cache service, use `IntersectionObserver` to trigger the download only when the card is visible.
   - **Why**: All images fetch immediately even when off-screen. Lazy loading reduces initial bandwidth and speeds up first paint.
 
