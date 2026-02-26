@@ -38,6 +38,13 @@ export default function EncryptionCard({
   searchQuery = '',
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+  const [prevBidCount, setPrevBidCount] = useState(bidCount);
+  const [bidPulseKey, setBidPulseKey] = useState(0);
+
+  if (bidCount > prevBidCount) {
+    setPrevBidCount(bidCount);
+    setBidPulseKey(k => k + 1);
+  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -95,7 +102,10 @@ export default function EncryptionCard({
               </span>
               <EncryptionStatusBadge status={encryption.status} />
               {bidCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium">
+                <span
+                  key={bidPulseKey}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                >
                   {bidCount}
                 </span>
               )}
@@ -171,7 +181,10 @@ export default function EncryptionCard({
                 {getCategoryLabel(encryption.category)}
               </span>
               {bidCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium">
+                <span
+                  key={bidPulseKey}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                >
                   {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
                 </span>
               )}

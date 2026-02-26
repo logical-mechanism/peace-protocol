@@ -34,6 +34,13 @@ export default function SalesListingCard({
   initialBanned = false,
 }: SalesListingCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+  const [prevBidCount, setPrevBidCount] = useState(bidCount);
+  const [bidPulseKey, setBidPulseKey] = useState(0);
+
+  if (bidCount > prevBidCount) {
+    setPrevBidCount(bidCount);
+    setBidPulseKey(k => k + 1);
+  }
 
   // Format price with fallback to 1 ADA if undefined, null, NaN, or invalid
   const formatPrice = (price?: number): string => {
@@ -166,7 +173,10 @@ export default function SalesListingCard({
                     >
                       View Bids
                       {bidCount > 0 && (
-                        <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-white/20 rounded">
+                        <span
+                          key={bidPulseKey}
+                          className={`ml-1.5 px-1.5 py-0.5 text-xs bg-white/20 rounded${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                        >
                           {bidCount}
                         </span>
                       )}
@@ -325,7 +335,10 @@ export default function SalesListingCard({
               >
                 <span>View Bids</span>
                 {bidCount > 0 && (
-                  <span className="px-2 py-0.5 text-xs bg-white/20 rounded-full">
+                  <span
+                    key={bidPulseKey}
+                    className={`px-2 py-0.5 text-xs bg-white/20 rounded-full${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                  >
                     {bidCount}
                   </span>
                 )}

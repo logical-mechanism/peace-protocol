@@ -466,6 +466,17 @@ select option {
   animation: toast-exit 300ms ease-in forwards;
 }
 
+/* Bid count badge pulse — draws attention when bid count increases */
+@keyframes bid-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.bid-pulse {
+  animation: bid-pulse 400ms ease-out;
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,

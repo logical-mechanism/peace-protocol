@@ -328,7 +328,7 @@ Each item has:
 
 > Key files: `fe/src/index.css`, various components
 
-- [ ] **Bid count badge pulse on increment**
+- [x] **Bid count badge pulse on increment**
   - **How**: On EncryptionCard and SalesListingCard, when the bid count increases between renders, apply a CSS `@keyframes pulse { 0% { transform: scale(1) } 50% { transform: scale(1.2) } 100% { transform: scale(1) } }` animation to the bid count badge. Track previous count in a ref to detect changes.
   - **Why**: Updated bid counts are easy to miss in a grid of cards. A brief pulse draws attention to new activity.
 
