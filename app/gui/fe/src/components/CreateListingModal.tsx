@@ -54,6 +54,7 @@ export default function CreateListingModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [creationStep, setCreationStep] = useState<ListingCreationStep | null>(null);
   const [displayPrice, setDisplayPrice] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
@@ -61,6 +62,7 @@ export default function CreateListingModal({
     if (isOpen) {
       setFormData(INITIAL_FORM_DATA);
       setDisplayPrice('');
+      setIsDragging(false);
       setErrors({});
       setSubmitError(null);
       setCreationStep(null);
@@ -166,6 +168,41 @@ export default function CreateListingModal({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isSubmitting && isFileMode && isIagonConnected) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only unset when leaving the drop zone, not when entering a child element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (isSubmitting || !isFileMode || !isIagonConnected) return;
+
+    const file = e.dataTransfer.files[0] || null;
+    if (!file) return;
+
+    const category = detectCategoryFromExtension(file.name);
+    setFormData((prev) => ({ ...prev, file, category }));
+    if (errors.file) {
+      setErrors((prev) => ({ ...prev, file: undefined }));
+    }
+    setSubmitError(null);
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -398,16 +435,23 @@ export default function CreateListingModal({
                   </div>
                 ) : (
                   <label
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                     className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-150 ${
-                      errors.file
-                        ? 'border-[var(--error)] bg-[var(--error)]/5'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
+                      isDragging
+                        ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                        : errors.file
+                          ? 'border-[var(--error)] bg-[var(--error)]/5'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
                     }`}
                   >
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <span className="text-sm text-[var(--text-secondary)]">Click to select any file</span>
+                    <span className="text-sm text-[var(--text-secondary)]">
+                      {isDragging ? 'Drop file here' : 'Click or drag a file here'}
+                    </span>
                     <span className="text-xs text-[var(--text-muted)]">
                       Type will be detected automatically
                     </span>
