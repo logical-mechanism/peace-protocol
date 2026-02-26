@@ -11,6 +11,7 @@ import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import type { LibraryFilters, LibraryAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface LibraryTabProps {
   refreshSignal?: number;
@@ -460,37 +461,16 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
             description="Your library items will appear here"
           />
         )
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((item, index) => (
-            <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
-              <LibraryCard
-                item={item}
-                onView={handleView}
-                onDelete={handleDeleteFromCard}
-                selectMode={selectMode}
-                selected={selectedItems.has(item.tokenName)}
-                onToggleSelect={handleToggleSelect}
-              />
-            </div>
-          ))}
-        </div>
       ) : (
-        <div className="space-y-3">
-          {filteredAndSorted.map((item, index) => (
-            <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
-              <LibraryCard
-                item={item}
-                onView={handleView}
-                onDelete={handleDeleteFromCard}
-                compact
-                selectMode={selectMode}
-                selected={selectedItems.has(item.tokenName)}
-                onToggleSelect={handleToggleSelect}
-              />
-            </div>
-          ))}
-        </div>
+        <VirtualizedLibraryGrid
+          items={filteredAndSorted}
+          viewMode={viewMode}
+          selectMode={selectMode}
+          selectedItems={selectedItems}
+          onView={handleView}
+          onDelete={handleDeleteFromCard}
+          onToggleSelect={handleToggleSelect}
+        />
       )}
 
       {/* Content Modal */}
@@ -554,6 +534,131 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
         confirmVariant="danger"
         loading={bulkDeleting}
       />
+    </div>
+  );
+}
+
+function VirtualizedLibraryGrid({
+  items,
+  viewMode,
+  selectMode,
+  selectedItems,
+  onView,
+  onDelete,
+  onToggleSelect,
+}: {
+  items: LibraryItem[];
+  viewMode: 'grid' | 'list';
+  selectMode: boolean;
+  selectedItems: Set<string>;
+  onView: (item: LibraryItem) => void;
+  onDelete: (item: LibraryItem) => void;
+  onToggleSelect: (tokenName: string) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = useState(3);
+
+  // Responsive column count for grid mode
+  useEffect(() => {
+    if (viewMode !== 'grid') return;
+    const el = parentRef.current;
+    if (!el) return;
+
+    const updateColumns = (width: number) => {
+      if (width >= 1280) setColumns(4);
+      else if (width >= 1024) setColumns(3);
+      else if (width >= 640) setColumns(2);
+      else setColumns(1);
+    };
+
+    updateColumns(el.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      updateColumns(entries[0].contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [viewMode]);
+
+  const rowCount = viewMode === 'grid' ? Math.ceil(items.length / columns) : items.length;
+
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => (viewMode === 'grid' ? 340 : 92),
+    overscan: 3,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="overflow-y-auto"
+      style={{ maxHeight: 'calc(100vh - 380px)' }}
+    >
+      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          if (viewMode === 'grid') {
+            const startIdx = virtualRow.index * columns;
+            const rowItems = items.slice(startIdx, startIdx + columns);
+            return (
+              <div
+                key={virtualRow.index}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                  paddingBottom: '16px',
+                }}
+              >
+                <div
+                  className="grid gap-4"
+                  style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                >
+                  {rowItems.map((item) => (
+                    <LibraryCard
+                      key={item.tokenName}
+                      item={item}
+                      onView={onView}
+                      onDelete={onDelete}
+                      selectMode={selectMode}
+                      selected={selectedItems.has(item.tokenName)}
+                      onToggleSelect={onToggleSelect}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // List mode
+          const item = items[virtualRow.index];
+          return (
+            <div
+              key={item.tokenName}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualRow.size}px`,
+                transform: `translateY(${virtualRow.start}px)`,
+                paddingBottom: '12px',
+              }}
+            >
+              <LibraryCard
+                item={item}
+                onView={onView}
+                onDelete={onDelete}
+                compact
+                selectMode={selectMode}
+                selected={selectedItems.has(item.tokenName)}
+                onToggleSelect={onToggleSelect}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

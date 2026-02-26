@@ -506,7 +506,7 @@ Each item has:
 
 > Key files: `fe/src/components/MarketplaceTab.tsx`, `fe/src/services/api.ts`
 
-- [ ] **Virtual scrolling for long lists**
+- [x] **Virtual scrolling for long lists**
   - **How**: Use `@tanstack/react-virtual` (lightweight, no dependencies) for History and Library tabs. Render only visible rows plus a small overscan buffer. Keep the card grid layout by virtualizing rows of cards.
   - **Why**: Rendering 200+ DOM nodes for a long history or library causes scroll jank. Virtual scrolling keeps the DOM at ~20 nodes regardless of list length.
 
