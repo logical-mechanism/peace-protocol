@@ -40,13 +40,11 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     return () => URL.revokeObjectURL(url);
   }, [data, mimeType]);
 
-  // Show zoom indicator pill when scale changes, auto-hide after 1.5s
-  useEffect(() => {
+  const flashZoomIndicator = useCallback(() => {
     setShowZoomIndicator(true);
     if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
     zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1500);
-    return () => { if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current); };
-  }, [scale]);
+  }, []);
 
   // Escape key closes fullscreen (not the parent modal)
   useEffect(() => {
@@ -62,7 +60,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [isFullscreen]);
 
-  const zoomIn = useCallback(() => { setFitMode(null); setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP)); }, []);
+  const zoomIn = useCallback(() => { setFitMode(null); setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP)); flashZoomIndicator(); }, [flashZoomIndicator]);
   const zoomOut = useCallback(() => {
     setFitMode(null);
     setScale(s => {
@@ -70,12 +68,14 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
       if (next <= 1) setPosition({ x: 0, y: 0 });
       return next;
     });
-  }, []);
+    flashZoomIndicator();
+  }, [flashZoomIndicator]);
   const zoomReset = useCallback(() => {
     setFitMode(null);
     setScale(1.0);
     setPosition({ x: 0, y: 0 });
-  }, []);
+    flashZoomIndicator();
+  }, [flashZoomIndicator]);
 
   const setFitToScreen = useCallback(() => {
     setFitMode('fit');
@@ -97,6 +97,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
     setFitMode(null);
+    flashZoomIndicator();
     if (e.deltaY < 0) {
       setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP));
     } else {
@@ -106,7 +107,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         return next;
       });
     }
-  }, []);
+  }, [flashZoomIndicator]);
 
   // Pan/drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
