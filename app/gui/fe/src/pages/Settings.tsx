@@ -19,6 +19,7 @@ import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../s
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
+import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, playNotificationSound } from '../services/notificationSound'
 import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
 import ConfirmModal from '../components/ConfirmModal'
@@ -56,6 +57,8 @@ export default function Settings() {
   const [networkConfirmTarget, setNetworkConfirmTarget] = useState<string | null>(null)
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
+  const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
+  const [soundVolume, setSoundVolumeState] = useState(() => getSoundVolume())
   const [addressCopied, setAddressCopied] = useState(false)
   const location = useLocation()
   const [activeSection, setActiveSection] = useState<string>(
@@ -378,6 +381,7 @@ export default function Settings() {
     { tab: 'wallet', title: 'Recovery Phrase', keywords: ['recovery', 'phrase', 'mnemonic', 'seed', 'backup'] },
     { tab: 'wallet', title: 'Auto-Lock', keywords: ['auto', 'lock', 'timeout', 'inactivity', 'security'] },
     { tab: 'wallet', title: 'Notification Duration', keywords: ['toast', 'notification', 'duration', 'dismiss', 'alert'] },
+    { tab: 'wallet', title: 'Notification Sound', keywords: ['sound', 'notification', 'audio', 'volume', 'alert', 'ping'] },
     { tab: 'wallet', title: 'Lock Wallet', keywords: ['lock', 'wallet', 'password'] },
     { tab: 'network', title: 'Network Selection', keywords: ['network', 'preprod', 'mainnet', 'switch', 'restart'] },
     { tab: 'datalayer', title: 'Iagon Decentralized Storage', keywords: ['iagon', 'storage', 'decentralized', 'api', 'key', 'upload', 'download', 'file', 'connect'] },
@@ -473,7 +477,7 @@ export default function Settings() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            className="flex items-center gap-2 btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -529,7 +533,7 @@ export default function Settings() {
                 <button
                   key={`${s.tab}-${s.title}`}
                   onClick={() => { setActiveSection(s.tab); setSearchQuery('') }}
-                  className="block w-full text-left px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                  className="block w-full text-left px-4 py-3 bg-[var(--bg-card)] rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
                   <span className="text-sm font-medium">{s.title}</span>
                   <span className="text-xs text-[var(--text-muted)] ml-2">
@@ -665,7 +669,7 @@ export default function Settings() {
                       </code>
                       <button
                         onClick={handleCopyAddress}
-                        className="px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer shrink-0"
+                        className="px-3 py-2 text-sm rounded-[var(--radius-md)] shrink-0 btn-base btn-tertiary"
                       >
                         {addressCopied ? 'Copied' : 'Copy'}
                       </button>
@@ -704,7 +708,7 @@ export default function Settings() {
                   <button
                     onClick={handleRevealMnemonic}
                     disabled={mnemonicLoading || !mnemonicPassword}
-                    className="px-4 py-2 text-sm bg-[var(--warning)] text-black rounded-[var(--radius-md)] hover:bg-[var(--warning)]/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm bg-[var(--warning)] text-black rounded-[var(--radius-md)] hover:bg-[var(--warning)]/90 btn-base"
                   >
                     {mnemonicLoading ? 'Verifying...' : 'Reveal Recovery Phrase'}
                   </button>
@@ -722,13 +726,13 @@ export default function Settings() {
                   <div className="flex gap-3">
                     <button
                       onClick={handleCopyMnemonic}
-                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       {mnemonicCopied ? 'Copied!' : 'Copy to Clipboard'}
                     </button>
                     <button
                       onClick={handleHideMnemonic}
-                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       Hide Recovery Phrase
                     </button>
@@ -789,6 +793,58 @@ export default function Settings() {
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Notification Sound */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-medium">Notification Sound</h2>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Play a sound when new bids arrive or transactions confirm.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !soundEnabled
+                    setSoundEnabledState(next)
+                    setSoundEnabled(next)
+                    if (next) playNotificationSound()
+                  }}
+                  className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                    soundEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+                  }`}
+                  role="switch"
+                  aria-checked={soundEnabled}
+                  aria-label="Toggle notification sound"
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                    soundEnabled ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+              {soundEnabled && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-[var(--text-secondary)]">Volume</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={soundVolume}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setSoundVolumeState(v)
+                      setSoundVolume(v)
+                    }}
+                    onMouseUp={() => playNotificationSound()}
+                    className="flex-1 accent-[var(--accent)]"
+                  />
+                  <span className="text-sm text-[var(--text-muted)] w-8 text-right">
+                    {Math.round(soundVolume * 100)}%
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Lock Wallet */}

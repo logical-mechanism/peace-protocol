@@ -380,7 +380,7 @@ Each item has:
   - **How**: Use the `tauri-plugin-notification` to send system-level desktop notifications when new bids arrive (detected by `useBidNotifications`). Show: "New bid on [listing name]: 50 ADA". Add a toggle in Settings to enable/disable.
   - **Why**: Users who aren't actively looking at the app miss new bids. Desktop notifications ensure they don't miss opportunities.
 
-- [ ] **Notification sound option**
+- [x] **Notification sound option**
   - **How**: Play a short notification sound when a new bid arrives or a transaction confirms. Use the Web Audio API or an `<audio>` element with a bundled sound file. Add a toggle + volume control in Settings.
   - **Why**: Visual-only notifications are easy to miss. A subtle sound (like a coin drop for ADA received) adds a satisfying feedback layer.
 
