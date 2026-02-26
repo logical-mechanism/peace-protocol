@@ -389,7 +389,7 @@ export default function CreateListingModal({
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
-            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -415,14 +415,14 @@ export default function CreateListingModal({
                   <button
                     type="button"
                     onClick={handleResumeDraft}
-                    className="px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
                   >
                     Resume Draft
                   </button>
                   <button
                     type="button"
                     onClick={handleDiscardDraft}
-                    className="px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+                    className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
                   >
                     Start Fresh
                   </button>
@@ -618,7 +618,7 @@ export default function CreateListingModal({
                           onClose();
                           navigate('/settings', { state: { section: 'datalayer' } });
                         }}
-                        className="px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
+                        className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
                       >
                         Go to Settings
                       </button>
@@ -791,14 +791,14 @@ export default function CreateListingModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
               >
                 {isSubmitting ? (
                   <>
