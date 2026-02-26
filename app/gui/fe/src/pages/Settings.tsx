@@ -15,7 +15,8 @@ import { copyToClipboard } from '../utils/clipboard'
 import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../services/iagonAuth'
 import { verifyApiKey, deleteFile as iagonDeleteFile } from '../services/iagonApi'
 import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../services/listingDraftStorage'
-import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../services/transactionHistory'
+import { getTransactions, addTransaction, clearHistory, clearOlderThan, clearFailed } from '../services/transactionHistory'
+import { setLastActiveTab } from '../services/tabStorage'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
@@ -44,7 +45,7 @@ interface ProcessLog {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { walletState, lock, wallet, refreshBalance } = useWalletContext()
+  const { walletState, lock, wallet } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
   const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes } = useNode()
@@ -97,6 +98,7 @@ export default function Settings() {
   const [defragLoading, setDefragLoading] = useState(false)
   const [defragPreview, setDefragPreview] = useState<DefragPreview | null>(null)
   const [defragPreviewLoading, setDefragPreviewLoading] = useState(false)
+  const [walletConfirmAction, setWalletConfirmAction] = useState<'collateral' | 'defrag' | null>(null)
 
   // Derived user PKH for transaction history operations
   const userPkh = useMemo(() => {
@@ -434,13 +436,24 @@ export default function Settings() {
 
   const handleCreateCollateral = useCallback(async () => {
     if (!wallet) return
+    setWalletConfirmAction(null)
     setCollateralLoading(true)
     try {
       const result = await createCollateral(wallet)
       if (result.success && result.txHash) {
         toast.transactionSuccess('Collateral Created', result.txHash)
-        walletHealth.recheck()
-        refreshBalance()
+        if (userPkh) {
+          addTransaction(userPkh, {
+            txHash: result.txHash,
+            type: 'create-collateral',
+            timestamp: Date.now(),
+            status: 'pending',
+            description: 'Set 5 ADA collateral UTxO',
+            amountLovelace: 5_000_000,
+          })
+        }
+        setLastActiveTab('history')
+        navigate('/dashboard')
       } else if (result.success && result.error) {
         toast.info('Collateral Ready', result.error)
       } else {
@@ -451,18 +464,30 @@ export default function Settings() {
     } finally {
       setCollateralLoading(false)
     }
-  }, [wallet, toast, walletHealth, refreshBalance])
+  }, [wallet, toast, userPkh, navigate])
 
   const handleDefragWallet = useCallback(async () => {
     if (!wallet) return
+    setWalletConfirmAction(null)
     setDefragLoading(true)
     try {
       const result = await defragWallet(wallet)
       if (result.success && result.txHash) {
         const title = result.error ? 'Wallet Partially Optimized' : 'Wallet Optimized'
         toast.transactionSuccess(title, result.txHash, result.error)
-        walletHealth.recheck()
-        refreshBalance()
+        if (userPkh) {
+          addTransaction(userPkh, {
+            txHash: result.txHash,
+            type: 'optimize-wallet',
+            timestamp: Date.now(),
+            status: 'pending',
+            description: result.error
+              ? `Optimized wallet (partial — ${result.error})`
+              : 'Consolidated UTxOs for optimal transaction building',
+          })
+        }
+        setLastActiveTab('history')
+        navigate('/dashboard')
       } else {
         toast.error('Optimization Failed', result.error || 'Unknown error')
       }
@@ -471,7 +496,7 @@ export default function Settings() {
     } finally {
       setDefragLoading(false)
     }
-  }, [wallet, toast, walletHealth, refreshBalance])
+  }, [wallet, toast, userPkh, navigate])
 
   const handleConnectIagon = useCallback(async () => {
     if (!wallet || !address) return
@@ -836,7 +861,7 @@ export default function Settings() {
                   <div className="flex gap-3">
                     {!walletHealth.hasCollateral && (
                       <button
-                        onClick={handleCreateCollateral}
+                        onClick={() => setWalletConfirmAction('collateral')}
                         disabled={collateralLoading || defragLoading}
                         className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                       >
@@ -844,7 +869,7 @@ export default function Settings() {
                       </button>
                     )}
                     <button
-                      onClick={handleDefragWallet}
+                      onClick={() => setWalletConfirmAction('defrag')}
                       disabled={defragLoading || collateralLoading || walletHealth.utxoCount <= 1 || (defragPreview !== null && !defragPreview.isFeasible)}
                       className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                       title={defragPreview && !defragPreview.isFeasible ? defragPreview.infeasibleReason : undefined}
@@ -1712,6 +1737,31 @@ export default function Settings() {
         confirmVariant="default"
         loading={networkSwitching}
       />
+
+      {/* Wallet Management Confirmation */}
+      <ConfirmModal
+        isOpen={walletConfirmAction === 'collateral'}
+        onClose={() => setWalletConfirmAction(null)}
+        onConfirm={handleCreateCollateral}
+        title="Set Collateral"
+        message="This will create a dedicated 5 ADA collateral UTxO by sending ADA to yourself. Collateral is required for all Plutus script transactions (listings, bids, etc.)."
+        description="A transaction fee (~0.2 ADA) will be deducted. You need at least 6.5 ADA total in your wallet."
+        confirmLabel="Set Collateral"
+        confirmVariant="default"
+        loading={collateralLoading}
+      />
+      <ConfirmModal
+        isOpen={walletConfirmAction === 'defrag'}
+        onClose={() => setWalletConfirmAction(null)}
+        onConfirm={handleDefragWallet}
+        title="Optimize Wallet"
+        message={`This will consolidate your ${walletHealth.utxoCount} UTxOs into an optimized set for efficient transaction building.${defragPreview ? ` Result: ${defragPreview.resultingUtxoCount} UTxO${defragPreview.resultingUtxoCount !== 1 ? 's' : ''}.` : ''}`}
+        description="All UTxOs will be consumed and new ones created in a single transaction. A transaction fee (~0.2 ADA) will be deducted."
+        confirmLabel="Optimize Wallet"
+        confirmVariant="default"
+        loading={defragLoading}
+      />
+
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )
