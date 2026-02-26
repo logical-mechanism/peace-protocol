@@ -92,7 +92,9 @@ pub fn migrate_secrets(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::secrets::{derive_secrets_key_v1, derive_secrets_key_v2, encrypt_secret};
+    use crate::crypto::secrets::{
+        derive_secrets_key_v1, derive_secrets_key_v2, derive_secrets_key_v3, encrypt_secret,
+    };
     use std::fs;
 
     fn test_dir(name: &str) -> std::path::PathBuf {
@@ -195,6 +197,38 @@ mod tests {
         let audit = AuditLog::new(&dir);
         let count = migrate_secrets(&dir, &old_key, &new_key, &audit).unwrap();
         assert_eq!(count, 3);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migrate_v2_to_v3() {
+        let dir = test_dir("v2_to_v3");
+        let seller_dir = dir.join("seller");
+        fs::create_dir_all(&seller_dir).unwrap();
+
+        let salt = [55u8; 16];
+        let v2_key = derive_secrets_key_v2("test mnemonic v2v3", &salt).unwrap();
+        let v3_key = derive_secrets_key_v3("test mnemonic v2v3", &[77u8; 16]).unwrap();
+
+        // Write a secret encrypted with v2 key
+        let plaintext = b"v2_secret_data";
+        let encrypted = encrypt_secret(&v2_key, plaintext).unwrap();
+        let json = serde_json::to_string_pretty(&encrypted).unwrap();
+        fs::write(seller_dir.join("token_v2.json"), &json).unwrap();
+
+        let audit = AuditLog::new(&dir);
+        let count = migrate_secrets(&dir, &v2_key, &v3_key, &audit).unwrap();
+        assert_eq!(count, 1);
+
+        // Verify v3 key can decrypt
+        let new_json = fs::read_to_string(seller_dir.join("token_v2.json")).unwrap();
+        let new_encrypted: EncryptedSecret = serde_json::from_str(&new_json).unwrap();
+        let decrypted = decrypt_secret(&v3_key, &new_encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+
+        // Verify v2 key can no longer decrypt
+        assert!(decrypt_secret(&v2_key, &new_encrypted).is_err());
 
         let _ = fs::remove_dir_all(&dir);
     }

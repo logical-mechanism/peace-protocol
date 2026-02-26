@@ -462,7 +462,7 @@ Each item has:
   - **How**: In `wallet.rs` (lines 26-34), `m=65536` (64 MiB) Argon2id can fail on low-memory systems. Wrap the KDF call in a retry: if the first attempt fails with memory error, try again with `m=32768` (32 MiB, still secure). Log a warning about reduced security params.
   - **Why**: Users on older hardware or VMs with limited RAM get a cryptic error on wallet creation instead of a graceful fallback.
 
-- [ ] **Secrets KDF v2 strength parity with wallet KDF**
+- [x] **Secrets KDF v2 strength parity with wallet KDF**
   - **How**: In `secrets.rs` (lines 52-59), `derive_secrets_key_v2()` uses `m=32768, t=2, p=1` which is weaker than wallet KDF (`m=65536, t=3, p=4`). Increase to `m=65536, t=3, p=2` (parallelism 2 to keep it faster than wallet which uses 4). Profile to ensure < 500ms on typical hardware.
   - **Why**: Secrets (seller keys, bid keys, Iagon API key) are equally sensitive as the wallet. Weaker KDF means an attacker with the secrets files has an easier brute-force target.
 

@@ -1,8 +1,8 @@
 use crate::crypto::audit::AuditLog;
 use crate::crypto::migration::migrate_secrets;
 use crate::crypto::secrets::{
-    derive_secrets_key_v1, derive_secrets_key_v2, from_hex, generate_kdf_salt, load_kdf_meta,
-    save_kdf_meta, to_hex, KdfMeta, SecretsKey,
+    derive_secrets_key_v1, derive_secrets_key_v2, derive_secrets_key_v3, from_hex,
+    generate_kdf_salt, load_kdf_meta, save_kdf_meta, to_hex, KdfMeta, SecretsKey,
 };
 use crate::crypto::wallet::{
     decrypt_mnemonic, encrypt_mnemonic, set_owner_only_file, EncryptedWallet,
@@ -63,10 +63,10 @@ pub fn create_wallet(
     // Restrict wallet file to owner-only read/write (0o600 on Unix)
     set_owner_only_file(&state.wallet_path)?;
 
-    // Initialize KDF v2 salt for this new wallet
+    // Initialize KDF v3 salt for this new wallet
     let new_salt = generate_kdf_salt();
     let meta = KdfMeta {
-        version: 2,
+        version: 3,
         salt: to_hex(&new_salt),
     };
     save_kdf_meta(&secrets_dir_state.0, &meta)?;
@@ -101,21 +101,32 @@ pub fn unlock_wallet(
     let (kdf_meta, needs_migration) = load_kdf_meta(secrets_dir)?;
 
     let secrets_key = if needs_migration {
-        // Derive old key (v1) for reading existing secrets
-        let old_key = derive_secrets_key_v1(&mnemonic)?;
+        // Derive old key based on the stored KDF version
+        let old_key = match kdf_meta.version {
+            1 => derive_secrets_key_v1(&mnemonic)?,
+            2 => {
+                let salt = from_hex(&kdf_meta.salt)?;
+                derive_secrets_key_v2(&mnemonic, &salt)?
+            }
+            v => return Err(format!("Unknown KDF version {v} in kdf_meta.json")),
+        };
 
-        // Generate new salt and derive new key (v2)
+        // Generate new salt and derive new key (v3)
         let new_salt = generate_kdf_salt();
-        let new_key = derive_secrets_key_v2(&mnemonic, &new_salt)?;
+        let new_key = derive_secrets_key_v3(&mnemonic, &new_salt)?;
 
         // Re-encrypt all secrets
-        audit.log("MIGRATE", "kdf_v1_to_v2_start");
+        let from_ver = kdf_meta.version;
+        audit.log("MIGRATE", &format!("kdf_v{from_ver}_to_v3_start"));
         let count = migrate_secrets(secrets_dir, &old_key, &new_key, &audit)?;
-        audit.log("MIGRATE", &format!("kdf_v1_to_v2_complete ({count} files)"));
+        audit.log(
+            "MIGRATE",
+            &format!("kdf_v{from_ver}_to_v3_complete ({count} files)"),
+        );
 
         // Write KDF metadata
         let meta = KdfMeta {
-            version: 2,
+            version: 3,
             salt: to_hex(&new_salt),
         };
         save_kdf_meta(secrets_dir, &meta)?;
@@ -124,7 +135,7 @@ pub fn unlock_wallet(
     } else {
         // Normal path: derive with stored salt
         let salt = from_hex(&kdf_meta.salt)?;
-        derive_secrets_key_v2(&mnemonic, &salt)?
+        derive_secrets_key_v3(&mnemonic, &salt)?
     };
 
     *secrets_key_state
