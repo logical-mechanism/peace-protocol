@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LibraryItem } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
+import { formatBytes } from '../utils/formatBytes';
 import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -121,6 +122,7 @@ export default function LibraryCard({
                 )}
                 <p className="text-xs text-[var(--text-muted)]">
                   {formatDate(item.decryptedAt)}
+                  {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
                 </p>
               </div>
 
@@ -174,6 +176,7 @@ export default function LibraryCard({
             </div>
             <p className="text-xs text-[var(--text-muted)]">
               Decrypted {formatDate(item.decryptedAt)}
+              {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
             </p>
           </div>
         </div>

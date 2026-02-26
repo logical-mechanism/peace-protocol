@@ -334,6 +334,7 @@ struct ContentMetadataJson {
     seller: Option<String>,
     created_at: Option<String>,
     decrypted_at: String,
+    file_size: Option<u64>,
 }
 
 /// A library item returned to the frontend.
@@ -351,6 +352,7 @@ pub struct LibraryItem {
     pub created_at: Option<String>,
     pub decrypted_at: String,
     pub content_missing: bool,
+    pub file_size: Option<u64>,
 }
 
 /// List all library items by scanning content directories for metadata files.
@@ -400,7 +402,16 @@ pub fn list_library_items(state: tauri::State<'_, ContentDir>) -> Result<Vec<Lib
             };
 
             // Check if the actual content file exists (any non-.json file)
-            let content_missing = !has_content_file(&token_dir, &token_name);
+            let content_file = find_content_file(&token_dir, &token_name);
+            let content_missing = content_file.is_none();
+
+            // Use metadata file_size if present, otherwise read from disk
+            let file_size = meta.file_size.or_else(|| {
+                content_file
+                    .as_ref()
+                    .and_then(|p| std::fs::metadata(p).ok())
+                    .map(|m| m.len())
+            });
 
             items.push(LibraryItem {
                 token_name: meta.token_name,
@@ -414,6 +425,7 @@ pub fn list_library_items(state: tauri::State<'_, ContentDir>) -> Result<Vec<Lib
                 created_at: meta.created_at,
                 decrypted_at: meta.decrypted_at,
                 content_missing,
+                file_size,
             });
         }
     }

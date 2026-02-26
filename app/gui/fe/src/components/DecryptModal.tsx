@@ -91,6 +91,7 @@ export default function DecryptModal({
             seller: encryption!.seller,
             createdAt: encryption!.createdAt,
             decryptedAt: new Date().toISOString(),
+            fileSize: contentBytes.length,
           });
         } catch (err) {
           console.warn('Failed to save decrypted content:', err);

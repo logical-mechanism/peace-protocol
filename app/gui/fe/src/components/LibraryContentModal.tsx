@@ -3,6 +3,7 @@ import type { LibraryItem } from '../services/libraryService';
 import { readLibraryContent, deleteLibraryItem, exportLibraryContent } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
+import { formatBytes } from '../utils/formatBytes';
 import { useModalStack } from '../hooks/useModalStack';
 import ConfirmModal from './ConfirmModal';
 import LoadingSpinner from './LoadingSpinner';
@@ -327,6 +328,14 @@ export default function LibraryContentModal({
                     <p className="text-xs text-[var(--text-muted)]">Storage</p>
                     <p className="text-sm text-[var(--text-secondary)]">
                       {item.storageLayer}
+                    </p>
+                  </div>
+                )}
+                {item.fileSize != null && (
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)]">File Size</p>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {formatBytes(item.fileSize)}
                     </p>
                   </div>
                 )}

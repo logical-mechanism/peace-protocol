@@ -242,7 +242,7 @@ Each item has:
 
 > Key file: `fe/src/components/LibraryTab.tsx`, `fe/src/components/LibraryCard.tsx`, `fe/src/components/LibraryContentModal.tsx`
 
-- [ ] **File size display on library cards**
+- [x] **File size display on library cards**
   - **How**: Include the file size in the metadata JSON written by `contentStorage.ts`. Display it on LibraryCard: "PDF — 2.3 MB". Format with `formatBytes()` utility.
   - **Why**: Users have no sense of how much disk space their library uses or how large individual files are.
 

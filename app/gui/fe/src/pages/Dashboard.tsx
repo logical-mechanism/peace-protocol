@@ -932,6 +932,7 @@ export default function Dashboard() {
           category,
           seller: address,
           decryptedAt: new Date().toISOString(),
+          fileSize: contentBytes.length,
         });
       } catch (err) {
         console.warn('Failed to save listing content to library:', err);

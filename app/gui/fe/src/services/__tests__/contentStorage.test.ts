@@ -158,4 +158,22 @@ describe('saveContentMetadata', () => {
     expect(parsed.fileExtension).toBe('.flac');
     expect(parsed.seller).toBe('addr_test1...');
   });
+
+  it('includes fileSize in serialized metadata when provided', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue('/path');
+
+    const metadata: ContentMetadata = {
+      tokenName: 'tk',
+      category: 'document',
+      decryptedAt: '2025-06-01T12:00:00Z',
+      fileSize: 1048576,
+    };
+
+    await saveContentMetadata(metadata);
+
+    const callArgs = (invoke as ReturnType<typeof vi.fn>).mock.calls[0][1] as { data: number[] };
+    const jsonStr = new TextDecoder().decode(new Uint8Array(callArgs.data));
+    const parsed = JSON.parse(jsonStr);
+    expect(parsed.fileSize).toBe(1048576);
+  });
 });

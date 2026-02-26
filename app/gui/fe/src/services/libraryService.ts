@@ -12,6 +12,7 @@ export interface LibraryItem {
   createdAt?: string;
   decryptedAt: string;
   contentMissing: boolean;
+  fileSize?: number;
 }
 
 export async function listLibraryItems(): Promise<LibraryItem[]> {
