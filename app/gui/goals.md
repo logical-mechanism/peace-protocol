@@ -659,11 +659,11 @@ Each item has:
   - **How**: Run `vitest --coverage` in CI for both FE and BE. Fail the job if coverage drops below thresholds. Optionally post a coverage summary comment on PRs using a GitHub Action.
   - **Why**: Coverage thresholds exist in config but aren't enforced. Without CI enforcement, coverage can silently regress.
 
-- [ ] **Dependency security audit in CI**
+- [s] **Dependency security audit in CI**
   - **How**: Add `npm audit --audit-level=high` and `cargo audit` jobs to the CI pipeline. Run weekly on a schedule. Fail on critical vulnerabilities.
   - **Why**: No security scanning exists. A vulnerable dependency could compromise wallet security without anyone noticing.
 
-- [ ] **Update CONTRIBUTING.md path references**
+- [x] **Update CONTRIBUTING.md path references**
   - **How**: Change all references from `app/ui/` to `app/gui/` in CONTRIBUTING.md. Update the development setup instructions. Add the version bump checklist.
   - **Why**: CONTRIBUTING.md references the old `app/ui/` directory structure. New contributors following these instructions will get confused.
 
