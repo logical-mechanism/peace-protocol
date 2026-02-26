@@ -581,6 +581,7 @@ function VirtualizedLibraryGrid({
 
   const rowCount = viewMode === 'grid' ? Math.ceil(items.length / columns) : items.length;
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
