@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSnarkProver } from '../services/snark'
 import { useModalStack } from '../hooks/useModalStack'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface SnarkSetupModalProps {
   isOpen: boolean
@@ -29,6 +30,8 @@ export default function SnarkSetupModal({
     'snark-download', isOpen, onClose,
     status === 'decompressing' || status === 'checking',
   )
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, isOpen)
 
   // Check setup status on open
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function SnarkSetupModal({
   if (!shouldRender) return null
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}

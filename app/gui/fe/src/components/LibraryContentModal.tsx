@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import type { LibraryItem } from '../services/libraryService';
 import { readLibraryContent, readSubtitleFile, deleteLibraryItem, exportLibraryContent, openWithSystem } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import { formatBytes } from '../utils/formatBytes';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import ConfirmModal from './ConfirmModal';
 import LoadingSpinner from './LoadingSpinner';
 import Badge from './Badge';
@@ -212,6 +213,8 @@ export default function LibraryContentModal({
 
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   const handleCopy = useCallback(async () => {
     if (!textContent) return;
@@ -312,7 +315,7 @@ export default function LibraryContentModal({
 
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+      <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
         {/* Backdrop */}
         <div
           className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}

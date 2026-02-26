@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { truncateDescription } from './descriptionUtils';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -27,6 +29,8 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('confirm', isOpen, onClose, loading);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   if (!shouldRender) return null;
 
@@ -37,6 +41,7 @@ export default function ConfirmModal({
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 flex items-center justify-center"
       style={{ zIndex }}
       role="dialog"

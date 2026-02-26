@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { truncateHex } from '../utils/truncate';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface DescriptionModalProps {
   isOpen: boolean;
@@ -16,11 +18,13 @@ export default function DescriptionModal({
 }: DescriptionModalProps) {
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('description', isOpen, onClose);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
+    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}

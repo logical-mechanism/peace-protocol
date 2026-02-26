@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSnarkProver } from '../services/snark'
 import type { SnarkProofInputs, SnarkProof, ProvingProgress } from '../services/snark'
 import { useModalStack } from '../hooks/useModalStack'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface SnarkProvingModalProps {
   isOpen: boolean
@@ -34,6 +35,8 @@ export default function SnarkProvingModal({
 
   // Stack-aware Escape key + body scroll lock + animation
   const { zIndex, shouldRender, animationState } = useModalStack('snark-proving', isOpen, onClose, !canClose)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, isOpen)
 
   // Start elapsed time counter when proving
   useEffect(() => {
@@ -158,7 +161,7 @@ export default function SnarkProvingModal({
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}

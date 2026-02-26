@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 
 interface PlaceBidFormData {
@@ -70,6 +71,8 @@ export default function PlaceBidModal({
 
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('place-bid', isOpen, onClose, isSubmitting);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   // Derived: check if bid is below suggested price
   const parsedBid = parseFloat(formData.bidAmount);
@@ -162,6 +165,7 @@ export default function PlaceBidModal({
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 flex items-center justify-center"
       style={{ zIndex }}
       role="dialog"

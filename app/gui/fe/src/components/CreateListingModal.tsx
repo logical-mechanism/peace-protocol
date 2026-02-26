@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
 import type { ListingCreationStep } from '../services/transactionBuilder';
@@ -129,6 +130,8 @@ export default function CreateListingModal({
 
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('create-listing', isOpen, onClose, isSubmitting);
+  const focusTrapRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(focusTrapRef, isOpen);
 
   const isFileMode = formData.category !== 'text';
   const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
@@ -362,6 +365,7 @@ export default function CreateListingModal({
 
   return (
     <div
+      ref={focusTrapRef}
       className="fixed inset-0 flex items-center justify-center"
       style={{ zIndex }}
       role="dialog"

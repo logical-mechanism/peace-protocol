@@ -1,8 +1,10 @@
+import { useRef } from 'react';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
 import EmptyState from './EmptyState';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface BidsModalProps {
   isOpen: boolean;
@@ -21,6 +23,8 @@ export default function BidsModal({
 }: BidsModalProps) {
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('bids', isOpen, onClose);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   if (!shouldRender) return null;
 
@@ -56,6 +60,7 @@ export default function BidsModal({
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 flex items-center justify-center"
       style={{ zIndex }}
       role="dialog"

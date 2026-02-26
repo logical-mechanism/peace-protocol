@@ -450,7 +450,7 @@ Each item has:
 
 > Key files: all components, `fe/src/index.css`
 
-- [ ] **Focus trap in modals**
+- [x] **Focus trap in modals**
   - **How**: When a modal opens, trap keyboard focus within it. Tab from the last focusable element should cycle to the first. Escape closes the modal. On close, return focus to the element that opened it. Implement with a `useFocusTrap` hook.
   - **Why**: Without focus trapping, Tab key escapes the modal and interacts with hidden background elements. This is a WCAG 2.1 AA violation.
 

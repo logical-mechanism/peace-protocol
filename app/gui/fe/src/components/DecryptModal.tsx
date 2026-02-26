@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
@@ -8,6 +8,7 @@ import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface DecryptModalProps {
   isOpen: boolean;
@@ -40,6 +41,8 @@ export default function DecryptModal({
 
   // Stack-aware Escape key + body scroll lock + animation
   const { zIndex, shouldRender, animationState } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
@@ -153,7 +156,7 @@ export default function DecryptModal({
   if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
