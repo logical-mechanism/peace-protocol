@@ -88,6 +88,17 @@ describe('transactionHistory', () => {
     expect(records[0].status).toBe('pending');
   });
 
+  it('updateTransactionStatus stores confirmedAtBlock when extra param provided', () => {
+    const hash = 'e'.repeat(64);
+    addTransaction(WALLET, makeRecord({ txHash: hash, status: 'pending' }));
+
+    updateTransactionStatus(WALLET, hash, 'confirmed', { confirmedAtBlock: 12345 });
+
+    const records = getTransactions(WALLET);
+    expect(records[0].status).toBe('confirmed');
+    expect(records[0].confirmedAtBlock).toBe(12345);
+  });
+
   // --- getPendingCount ---
 
   it('getPendingCount counts only pending status', () => {
@@ -280,9 +291,11 @@ describe('transactionHistory', () => {
   });
 
   describe('toCSV', () => {
+    const CSV_HEADER = 'Date,Type,Status,Tx Hash,Token Name,Description,Amount (ADA),Confirmation Block,Counterparty';
+
     it('returns header-only for empty records', () => {
       const csv = toCSV([]);
-      expect(csv).toBe('Date,Type,Status,Tx Hash,Token Name,Description');
+      expect(csv).toBe(CSV_HEADER);
     });
 
     it('generates valid CSV rows', () => {
@@ -299,7 +312,7 @@ describe('transactionHistory', () => {
       const csv = toCSV(records);
       const lines = csv.split('\n');
       expect(lines).toHaveLength(2);
-      expect(lines[0]).toBe('Date,Type,Status,Tx Hash,Token Name,Description');
+      expect(lines[0]).toBe(CSV_HEADER);
       expect(lines[1]).toContain('Create Listing');
       expect(lines[1]).toContain('confirmed');
       expect(lines[1]).toContain('abc123');
@@ -311,10 +324,12 @@ describe('transactionHistory', () => {
       const csv = toCSV(records);
       const lines = csv.split('\n');
       expect(lines).toHaveLength(2);
-      // tokenName and description should be empty strings
       const fields = lines[1].split(',');
       expect(fields[4]).toBe(''); // Token Name
       expect(fields[5]).toBe(''); // Description
+      expect(fields[6]).toBe(''); // Amount (ADA) — no amount
+      expect(fields[7]).toBe(''); // Confirmation Block
+      expect(fields[8]).toBe(''); // Counterparty
     });
 
     it('escapes descriptions containing commas', () => {
@@ -352,6 +367,37 @@ describe('transactionHistory', () => {
       const csv = toCSV(records);
       // 1700000000000 = 2023-11-14T22:13:20.000Z
       expect(csv).toContain('2023-11-14T22:13:20.000Z');
+    });
+
+    it('includes amountLovelace as ADA with 6 decimal places', () => {
+      const records = [makeRecord({ amountLovelace: 50_000_000 })];
+      const csv = toCSV(records);
+      const lines = csv.split('\n');
+      const fields = lines[1].split(',');
+      expect(fields[6]).toBe('50.000000');
+    });
+
+    it('includes confirmedAtBlock and counterparty', () => {
+      const records = [makeRecord({
+        confirmedAtBlock: 98765,
+        counterparty: 'f'.repeat(56),
+      })];
+      const csv = toCSV(records);
+      const lines = csv.split('\n');
+      const fields = lines[1].split(',');
+      expect(fields[7]).toBe('98765');
+      expect(fields[8]).toBe('f'.repeat(56));
+    });
+
+    it('backward compat: old records without new fields produce empty columns', () => {
+      // Simulate a record without the new optional fields
+      const records = [makeRecord()];
+      const csv = toCSV(records);
+      const lines = csv.split('\n');
+      const fields = lines[1].split(',');
+      expect(fields[6]).toBe(''); // no amount
+      expect(fields[7]).toBe(''); // no block
+      expect(fields[8]).toBe(''); // no counterparty
     });
   });
 });

@@ -57,7 +57,7 @@ beforeEach(() => {
 describe('GET /api/chain/confirmations/:txHash', () => {
   const validTxHash = 'a'.repeat(64);
 
-  it('returns confirmation count for confirmed tx', async () => {
+  it('returns confirmation count and blockHeight for confirmed tx', async () => {
     mockKoiosClient.getTxInfo.mockResolvedValue({ block_height: 100 });
     mockKoiosClient.getTip.mockResolvedValue({ block_no: 120 });
 
@@ -65,6 +65,7 @@ describe('GET /api/chain/confirmations/:txHash', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.confirmations).toBe(20);
+    expect(res.body.data.blockHeight).toBe(100);
   });
 
   it('returns 0 confirmations when tx not found', async () => {

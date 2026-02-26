@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
@@ -7,6 +7,8 @@ import { saveDecryptedContent, saveContentMetadata } from '../services/contentSt
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
+import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface DecryptModalProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface DecryptModalProps {
   bid: BidDisplay | null;
   encryption: EncryptionDisplay | null;
   isIagonConnected?: boolean;
+  onDecryptResult?: (result: { success: boolean; encryptionToken: string }) => void;
 }
 
 type DecryptState = 'idle' | 'decrypting' | 'success' | 'error';
@@ -24,6 +27,7 @@ export default function DecryptModal({
   bid,
   encryption,
   isIagonConnected = false,
+  onDecryptResult,
 }: DecryptModalProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletContext();
@@ -34,6 +38,11 @@ export default function DecryptModal({
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [savedPath, setSavedPath] = useState<string | null>(null);
+
+  // Stack-aware Escape key + body scroll lock + animation
+  const { zIndex, shouldRender, animationState } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
@@ -89,6 +98,7 @@ export default function DecryptModal({
             seller: encryption!.seller,
             createdAt: encryption!.createdAt,
             decryptedAt: new Date().toISOString(),
+            fileSize: contentBytes.length,
           });
         } catch (err) {
           console.warn('Failed to save decrypted content:', err);
@@ -97,15 +107,24 @@ export default function DecryptModal({
         setState('success');
         setDecryptedMessage(result.message);
         setIsStub(result.isStub || false);
+        if (encryption) {
+          onDecryptResult?.({ success: true, encryptionToken: encryption.tokenName });
+        }
       } else {
         setState('error');
         setError(result.error || 'Unknown error occurred');
+        if (encryption) {
+          onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
+        }
       }
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'Failed to decrypt');
+      if (encryption) {
+        onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
+      }
     }
-  }, [wallet, bid, encryption]);
+  }, [wallet, bid, encryption, onDecryptResult]);
 
   const handleCopy = useCallback(async () => {
     if (!decryptedMessage) return;
@@ -134,18 +153,18 @@ export default function DecryptModal({
     });
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={state !== 'decrypting' ? handleClose : undefined}
       />
 
       {/* Modal */}
-      <div className="relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
           <div>
@@ -165,9 +184,10 @@ export default function DecryptModal({
           {state !== 'decrypting' && (
             <button
               onClick={handleClose}
-              className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+              aria-label="Close dialog"
+              className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -218,7 +238,7 @@ export default function DecryptModal({
                         onClose();
                         navigate('/settings', { state: { section: 'datalayer' } });
                       }}
-                      className="mt-2 px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
+                      className="mt-2 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
                     >
                       Go to Settings
                     </button>
@@ -351,11 +371,11 @@ export default function DecryptModal({
                   <div className="absolute top-3 right-3">
                     <button
                       onClick={handleCopy}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       {copied ? (
                         <>
-                          <svg className="w-3.5 h-3.5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           Copied!
@@ -472,7 +492,7 @@ export default function DecryptModal({
               </p>
               <button
                 onClick={() => setState('idle')}
-                className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Try Again
               </button>
@@ -486,14 +506,14 @@ export default function DecryptModal({
             <div className="flex gap-3">
               <button
                 onClick={handleClose}
-                className="flex-1 px-4 py-2.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDecrypt}
                 disabled={encryption?.storageLayer === 'iagon' && !isIagonConnected}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -511,7 +531,7 @@ export default function DecryptModal({
           {state === 'success' && (
             <button
               onClick={handleClose}
-              className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer"
+              className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
               Done
             </button>
@@ -521,13 +541,13 @@ export default function DecryptModal({
             <div className="flex gap-3">
               <button
                 onClick={handleClose}
-                className="flex-1 px-4 py-2.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Close
               </button>
               <button
                 onClick={() => setState('idle')}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer"
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
                 Try Again
               </button>

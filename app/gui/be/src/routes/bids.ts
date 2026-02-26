@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
 import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam } from '../middleware/validate.js';
+import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_BIDS } from '../stubs/index.js';
 import {
   getAllBids,
@@ -10,9 +11,10 @@ import {
   getBidsByEncryption,
   getBidsByStatus,
 } from '../services/bids.js';
-import type { ApiResponse, BidDisplay } from '../types/index.js';
 
 const router = Router();
+
+const CACHE_DATA = 'max-age=10, stale-while-revalidate=30';
 
 /**
  * GET /api/bids
@@ -20,25 +22,28 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
-      const response: ApiResponse<BidDisplay[]> = {
-        data: STUB_BIDS,
-        meta: { total: STUB_BIDS.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(STUB_BIDS, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
+      return res.json({ data, meta: { total: STUB_BIDS.length }, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
     const result = await getAllBids(skipCache);
+    const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching bids', { error: String(error) });
+    logger.error('Error fetching bids', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids', requestId: req.requestId },
     });
   }
 });
@@ -58,6 +63,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
           error: { code: 'NOT_FOUND', message: 'Bid not found' },
         });
       }
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data: bid });
     }
 
@@ -67,14 +73,15 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
         error: { code: 'NOT_FOUND', message: 'Bid not found' },
       });
     }
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data: result.data,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching bid', { error: String(error) });
+    logger.error('Error fetching bid', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bid' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bid', requestId: req.requestId },
     });
   }
 });
@@ -87,27 +94,30 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
   try {
     const { pkh } = req.params;
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const userBids = STUB_BIDS.filter(b =>
         b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())
       );
-      const response: ApiResponse<BidDisplay[]> = {
-        data: userBids,
-        meta: { total: userBids.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(userBids, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
+      return res.json({ data, meta: { total: userBids.length }, pagination });
     }
 
     const result = await getBidsByUser(pkh);
+    const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching user bids', { error: String(error) });
+    logger.error('Error fetching user bids', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user bids' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user bids', requestId: req.requestId },
     });
   }
 });
@@ -120,27 +130,30 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
   try {
     const { encryptionToken } = req.params;
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const encryptionBids = STUB_BIDS.filter(
         b => b.encryptionToken === encryptionToken
       );
-      const response: ApiResponse<BidDisplay[]> = {
-        data: encryptionBids,
-        meta: { total: encryptionBids.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(encryptionBids, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
+      return res.json({ data, meta: { total: encryptionBids.length }, pagination });
     }
 
     const result = await getBidsByEncryption(encryptionToken);
+    const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching encryption bids', { error: String(error) });
+    logger.error('Error fetching encryption bids', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption bids' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption bids', requestId: req.requestId },
     });
   }
 });
@@ -158,31 +171,35 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
         error: {
           code: 'INVALID_STATUS',
           message: 'Status must be pending, accepted, rejected, or cancelled',
+          requestId: req.requestId,
         },
       });
     }
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const filteredBids = STUB_BIDS.filter(b => b.status === status);
-      const response: ApiResponse<BidDisplay[]> = {
-        data: filteredBids,
-        meta: { total: filteredBids.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(filteredBids, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
+      return res.json({ data, meta: { total: filteredBids.length }, pagination });
     }
 
     const result = await getBidsByStatus(
       status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
     );
+    const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching bids by status', { error: String(error) });
+    logger.error('Error fetching bids by status', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids by status' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids by status', requestId: req.requestId },
     });
   }
 });

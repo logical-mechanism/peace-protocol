@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
 import { validateTokenNameParam, validatePkhParam } from '../middleware/validate.js';
+import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_ENCRYPTIONS } from '../stubs/index.js';
 import {
   getAllEncryptions,
@@ -10,9 +11,11 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../services/encryptions.js';
-import type { ApiResponse, EncryptionDisplay, EncryptionLevel } from '../types/index.js';
+import type { ApiResponse, EncryptionLevel } from '../types/index.js';
 
 const router = Router();
+
+const CACHE_DATA = 'max-age=10, stale-while-revalidate=30';
 
 /**
  * GET /api/encryptions
@@ -20,25 +23,28 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
-      const response: ApiResponse<EncryptionDisplay[]> = {
-        data: STUB_ENCRYPTIONS,
-        meta: { total: STUB_ENCRYPTIONS.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(STUB_ENCRYPTIONS, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
+      return res.json({ data, meta: { total: STUB_ENCRYPTIONS.length }, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
     const result = await getAllEncryptions(skipCache);
+    const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching encryptions', { error: String(error) });
+    logger.error('Error fetching encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions', requestId: req.requestId },
     });
   }
 });
@@ -58,6 +64,7 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
         data: [],
         meta: { total: 0 },
       };
+      res.set('Cache-Control', CACHE_DATA);
       return res.json(response);
     }
 
@@ -66,11 +73,12 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
       data: levels,
       meta: { total: levels.length },
     };
+    res.set('Cache-Control', CACHE_DATA);
     return res.json(response);
   } catch (error) {
-    logger.error('Error fetching encryption levels', { error: String(error) });
+    logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels', requestId: req.requestId },
     });
   }
 });
@@ -90,6 +98,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
           error: { code: 'NOT_FOUND', message: 'Encryption not found' },
         });
       }
+      res.set('Cache-Control', CACHE_DATA);
       return res.json({ data: encryption });
     }
 
@@ -99,14 +108,15 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
         error: { code: 'NOT_FOUND', message: 'Encryption not found' },
       });
     }
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data: result.data,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching encryption', { error: String(error) });
+    logger.error('Error fetching encryption', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption', requestId: req.requestId },
     });
   }
 });
@@ -119,27 +129,30 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
   try {
     const { pkh } = req.params;
 
+    const paginationParams = parsePagination(req);
+
     if (config.useStubs) {
       const userEncryptions = STUB_ENCRYPTIONS.filter(e =>
         e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())
       );
-      const response: ApiResponse<EncryptionDisplay[]> = {
-        data: userEncryptions,
-        meta: { total: userEncryptions.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(userEncryptions, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
+      return res.json({ data, meta: { total: userEncryptions.length }, pagination });
     }
 
     const result = await getEncryptionsByUser(pkh);
+    const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching user encryptions', { error: String(error) });
+    logger.error('Error fetching user encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user encryptions' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user encryptions', requestId: req.requestId },
     });
   }
 });
@@ -154,33 +167,36 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
 
     if (!['active', 'pending', 'completed'].includes(status)) {
       return res.status(400).json({
-        error: { code: 'INVALID_STATUS', message: 'Status must be active, pending, or completed' },
+        error: { code: 'INVALID_STATUS', message: 'Status must be active, pending, or completed', requestId: req.requestId },
       });
     }
+
+    const paginationParams = parsePagination(req);
 
     if (config.useStubs) {
       const filteredEncryptions = STUB_ENCRYPTIONS.filter(
         e => e.status === status
       );
-      const response: ApiResponse<EncryptionDisplay[]> = {
-        data: filteredEncryptions,
-        meta: { total: filteredEncryptions.length },
-      };
-      return res.json(response);
+      const { data, pagination } = paginate(filteredEncryptions, paginationParams);
+      res.set('Cache-Control', CACHE_DATA);
+      return res.json({ data, meta: { total: filteredEncryptions.length }, pagination });
     }
 
     const result = await getEncryptionsByStatus(
       status as 'active' | 'pending' | 'completed'
     );
+    const { data, pagination } = paginate(result.data, paginationParams);
+    res.set('Cache-Control', CACHE_DATA);
     return res.json({
-      data: result.data,
+      data,
       meta: { total: result.data.length },
+      pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
-    logger.error('Error fetching encryptions by status', { error: String(error) });
+    logger.error('Error fetching encryptions by status', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions by status' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions by status', requestId: req.requestId },
     });
   }
 });

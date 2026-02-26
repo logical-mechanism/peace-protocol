@@ -97,6 +97,46 @@ pub fn get_disk_usage(app_handle: tauri::AppHandle) -> Result<DiskUsage, String>
     })
 }
 
+/// Available disk space info
+#[derive(serde::Serialize)]
+pub struct AvailableDiskSpace {
+    pub available_bytes: u64,
+    pub data_dir: String,
+}
+
+/// Get available disk space on the partition where app data is stored
+#[tauri::command]
+pub fn get_available_disk_space(
+    app_handle: tauri::AppHandle,
+) -> Result<AvailableDiskSpace, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+
+    // Ensure the directory exists so statvfs can query it
+    std::fs::create_dir_all(&app_data_dir)
+        .map_err(|e| format!("Failed to create app data dir: {e}"))?;
+
+    let path_cstr = std::ffi::CString::new(app_data_dir.to_string_lossy().as_bytes())
+        .map_err(|e| format!("Invalid path: {e}"))?;
+
+    let available_bytes = unsafe {
+        let mut stat: libc::statvfs = std::mem::zeroed();
+        if libc::statvfs(path_cstr.as_ptr(), &mut stat) != 0 {
+            return Err("Failed to query disk space".to_string());
+        }
+        // f_bavail = blocks available to unprivileged users
+        // f_frsize = fragment size (actual block size)
+        stat.f_bavail * stat.f_frsize
+    };
+
+    Ok(AvailableDiskSpace {
+        available_bytes,
+        data_dir: app_data_dir.to_string_lossy().into(),
+    })
+}
+
 /// Recursively compute directory size in bytes
 fn dir_size(path: &std::path::Path) -> u64 {
     if !path.exists() {

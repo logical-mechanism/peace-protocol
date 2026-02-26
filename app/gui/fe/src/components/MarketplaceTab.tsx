@@ -8,11 +8,13 @@ import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStat
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
 import { FILE_CATEGORIES } from '../config/categories';
 import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
+import PriceRangeSlider from './PriceRangeSlider';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface MarketplaceTabProps {
   userPkh?: string;
-  onPlaceBid?: (encryption: EncryptionDisplay) => void;
+  onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
@@ -29,6 +31,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const fetchEncryptions = useCallback(async () => {
     setLoading(true);
@@ -114,26 +117,30 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     [bidCountMap]
   );
 
-  // Filter and sort encryptions
-  const filteredAndSorted = useMemo(() => {
+  // Compute price range from all listings for the slider
+  const priceRange = useMemo(() => {
+    let maxPrice = 0;
+    for (const e of encryptions) {
+      if (e.suggestedPrice != null && e.suggestedPrice > maxPrice) {
+        maxPrice = e.suggestedPrice;
+      }
+    }
+    return { min: 0, max: Math.max(maxPrice, 1) };
+  }, [encryptions]);
+
+  // Filter encryptions (separate from sort so sort changes don't re-filter)
+  const filtered = useMemo(() => {
     let result = [...encryptions];
 
-    // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter((e) => e.status === statusFilter);
     }
-
-    // Filter by category
     if (categoryFilter !== 'all') {
       result = result.filter((e) => (e.category || 'text') === categoryFilter);
     }
-
-    // Filter by favorites
     if (showFavoritesOnly) {
       result = result.filter((e) => favorites.has(e.tokenName));
     }
-
-    // Filter by price range
     if (priceMin !== '' || priceMax !== '') {
       const min = priceMin !== '' ? Number(priceMin) : -Infinity;
       const max = priceMax !== '' ? Number(priceMax) : Infinity;
@@ -144,10 +151,8 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         });
       }
     }
-
-    // Search filter (by token name, seller address, or description)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(
         (e) =>
           e.tokenName.toLowerCase().includes(query) ||
@@ -156,7 +161,12 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
       );
     }
 
-    // Sort
+    return result;
+  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch]);
+
+  // Sort filtered results (only reruns when sort order or bid counts change)
+  const filteredAndSorted = useMemo(() => {
+    const result = [...filtered];
     switch (sortBy) {
       case 'newest':
         result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -171,12 +181,11 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
         break;
       case 'most-bids':
-        result.sort((a, b) => getBidCount(b.tokenName) - getBidCount(a.tokenName));
+        result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
         break;
     }
-
     return result;
-  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, searchQuery, sortBy, getBidCount]);
+  }, [filtered, sortBy, bidCountMap]);
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
@@ -186,15 +195,47 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     [userPkh]
   );
 
-  // Pagination
+  // Count active (non-default) filters for "clear all" indicator
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (debouncedSearch !== '') count++;
+    if (sortBy !== 'newest') count++;
+    if (statusFilter !== 'all') count++;
+    if (categoryFilter !== 'all') count++;
+    if (priceMin !== '') count++;
+    if (priceMax !== '') count++;
+    if (showFavoritesOnly) count++;
+    return count;
+  }, [debouncedSearch, sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
+
+  // Load more pagination — accumulate batches instead of showing a single page
   const ITEMS_PER_PAGE = 20;
 
-  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / ITEMS_PER_PAGE));
-
   const paginatedResults = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredAndSorted.slice(start, start + ITEMS_PER_PAGE);
+    return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
   }, [filteredAndSorted, currentPage]);
+
+  const hasMore = paginatedResults.length < filteredAndSorted.length;
+
+  // IntersectionObserver for auto-loading when scrolling near the bottom
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          dispatch({ type: 'SET_PAGE', payload: currentPage + 1 });
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, currentPage, dispatch]);
 
   if (loading) {
     return <SkeletonGrid />;
@@ -209,7 +250,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         action={
           <button
             onClick={fetchEncryptions}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Try Again
           </button>
@@ -275,28 +316,15 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
             ))}
           </select>
 
-          {/* Price Range */}
-          <div className="flex items-center gap-1.5">
-            <input
-              type="number"
-              min="0"
-              placeholder="Min"
-              value={priceMin}
-              onChange={(e) => dispatch({ type: 'SET_PRICE_MIN', payload: e.target.value })}
-              aria-label="Minimum price in ADA"
-              className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <span className="text-xs text-[var(--text-muted)]">-</span>
-            <input
-              type="number"
-              min="0"
-              placeholder="Max"
-              value={priceMax}
-              onChange={(e) => dispatch({ type: 'SET_PRICE_MAX', payload: e.target.value })}
-              aria-label="Maximum price in ADA"
-              className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
+          {/* Price Range Slider */}
+          <PriceRangeSlider
+            min={priceRange.min}
+            max={priceRange.max}
+            valueMin={priceMin}
+            valueMax={priceMax}
+            onChangeMin={(v) => dispatch({ type: 'SET_PRICE_MIN', payload: v })}
+            onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
+          />
 
           {/* Sort */}
           <select
@@ -376,7 +404,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
           {/* Refresh */}
           <button
             onClick={fetchEncryptions}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh listings"
             aria-label="Refresh listings"
           >
@@ -392,11 +420,18 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         </div>
       </div>
 
-      {/* Results Count */}
-      <div className="mb-4 text-sm text-[var(--text-muted)]">
-        {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
-        {totalPages > 1 && (
-          <span> &middot; Page {currentPage} of {totalPages}</span>
+      {/* Results Count + Clear Filters */}
+      <div className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
+        <span>
+          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
+        </span>
+        {activeFilterCount > 0 && (
+          <button
+            onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
+            className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors duration-150 cursor-pointer"
+          >
+            {activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active &mdash; Clear
+          </button>
         )}
       </div>
 
@@ -410,7 +445,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
             action={
               <button
                 onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
-                className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Clear Filters
               </button>
@@ -425,106 +460,58 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {paginatedResults.map((encryption) => (
-            <EncryptionCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              onPlaceBid={onPlaceBid}
-              isOwnListing={isOwnListing(encryption)}
-              hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-              bidCount={getBidCount(encryption.tokenName)}
-              isFavorite={favorites.has(encryption.tokenName)}
-              onToggleFavorite={handleToggleFavorite}
-            />
+          {paginatedResults.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <EncryptionCard
+                encryption={encryption}
+                onPlaceBid={onPlaceBid}
+                isOwnListing={isOwnListing(encryption)}
+                hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+                bidCount={getBidCount(encryption.tokenName)}
+                isFavorite={favorites.has(encryption.tokenName)}
+                onToggleFavorite={handleToggleFavorite}
+                searchQuery={searchQuery}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {paginatedResults.map((encryption) => (
-            <EncryptionCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              onPlaceBid={onPlaceBid}
-              isOwnListing={isOwnListing(encryption)}
-              hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
-              compact
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-              bidCount={getBidCount(encryption.tokenName)}
-              isFavorite={favorites.has(encryption.tokenName)}
-              onToggleFavorite={handleToggleFavorite}
-            />
+          {paginatedResults.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <EncryptionCard
+                encryption={encryption}
+                onPlaceBid={onPlaceBid}
+                isOwnListing={isOwnListing(encryption)}
+                hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
+                compact
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+                bidCount={getBidCount(encryption.tokenName)}
+                isFavorite={favorites.has(encryption.tokenName)}
+                onToggleFavorite={handleToggleFavorite}
+                searchQuery={searchQuery}
+              />
+            </div>
           ))}
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6" role="navigation" aria-label="Pagination">
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex flex-col items-center gap-3 mt-6">
+          <p className="text-xs text-[var(--text-muted)]">
+            Showing {paginatedResults.length} of {filteredAndSorted.length}
+          </p>
           <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: 1 })}
-            disabled={currentPage === 1}
-            className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="First page"
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
+            className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-            </svg>
+            Load More
           </button>
-          <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: Math.max(1, currentPage - 1) })}
-            disabled={currentPage === 1}
-            className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="Previous page"
-          >
-            Prev
-          </button>
-
-          {/* Page number buttons (sliding window of up to 5) */}
-          {(() => {
-            const maxVisible = 5;
-            let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-            const end = Math.min(totalPages, start + maxVisible - 1);
-            start = Math.max(1, end - maxVisible + 1);
-            const pages: number[] = [];
-            for (let i = start; i <= end; i++) pages.push(i);
-            return pages.map((page) => (
-              <button
-                key={page}
-                onClick={() => dispatch({ type: 'SET_PAGE', payload: page })}
-                className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
-                  page === currentPage
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-                aria-label={`Page ${page}`}
-                aria-current={page === currentPage ? 'page' : undefined}
-              >
-                {page}
-              </button>
-            ));
-          })()}
-
-          <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: Math.min(totalPages, currentPage + 1) })}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="Next page"
-          >
-            Next
-          </button>
-          <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: totalPages })}
-            disabled={currentPage === totalPages}
-            className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="Last page"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" />
-            </svg>
-          </button>
+          <div ref={sentinelRef} className="h-1" />
         </div>
       )}
     </div>

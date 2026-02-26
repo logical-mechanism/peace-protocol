@@ -34,7 +34,8 @@ router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
     }
 
     const confirmations = Math.max(0, tip.block_no - blockHeight);
-    return res.json({ data: { confirmations } });
+    res.set('Cache-Control', 'no-cache');
+    return res.json({ data: { confirmations, blockHeight } });
   } catch (error) {
     logger.error('Failed to get confirmations', { error: String(error) });
     return res.json({ data: { confirmations: 0 } });
@@ -51,6 +52,7 @@ router.get('/tip', async (_req, res) => {
   try {
     const koios = getKoiosClient();
     const tip = await koios.getTip();
+    res.set('Cache-Control', 'max-age=5');
     return res.json({
       data: {
         block_no: tip.block_no,
@@ -59,9 +61,9 @@ router.get('/tip', async (_req, res) => {
       },
     });
   } catch (error) {
-    logger.error('Failed to get chain tip', { error: String(error) });
+    logger.error('Failed to get chain tip', { error: String(error), requestId: _req.requestId });
     return res.status(503).json({
-      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to fetch chain tip' },
+      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to fetch chain tip', requestId: _req.requestId },
     });
   }
 });

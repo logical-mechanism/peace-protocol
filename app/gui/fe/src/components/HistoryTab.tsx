@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
@@ -17,6 +18,7 @@ import {
 } from '../services/transactionHistory';
 import { exportTextFile } from '../services/fileExport';
 import type { HistoryFilters, HistoryAction } from '../hooks/useTabFilterState';
+import { useDebounce } from '../hooks/useDebounce';
 
 const ALL_TX_TYPES: TransactionType[] = [
   'create-listing', 'remove-listing', 'place-bid', 'cancel-bid',
@@ -54,6 +56,7 @@ function HistoryTab({
 }: HistoryTabProps) {
   // Destructure filter state from Dashboard-level reducer
   const { statusFilter, typeFilter, dateRange, searchQuery } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [allRecords, setAllRecords] = useState<TransactionRecord[]>(transactions);
   const [loading, setLoading] = useState(true);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -156,11 +159,13 @@ function HistoryTab({
       for (const tx of pendingTxs) {
         if (cancelled) break;
         try {
-          const { confirmations: count } = await chainApi.getConfirmations(tx.txHash);
+          const { confirmations: count, blockHeight } = await chainApi.getConfirmations(tx.txHash);
           updated.set(tx.txHash, count);
 
           if (count >= 15) {
-            updateTransactionStatus(userPkh, tx.txHash, 'confirmed');
+            updateTransactionStatus(userPkh, tx.txHash, 'confirmed', {
+              confirmedAtBlock: blockHeight,
+            });
             statusChanged = true;
           }
         } catch {
@@ -209,8 +214,8 @@ function HistoryTab({
     }
 
     // Search filter (tx hash, description, token name — case-insensitive partial match)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(tx =>
         tx.txHash.toLowerCase().includes(query) ||
         (tx.description && tx.description.toLowerCase().includes(query)) ||
@@ -219,7 +224,7 @@ function HistoryTab({
     }
 
     return result;
-  }, [allRecords, statusFilter, typeFilter, dateRange, searchQuery]);
+  }, [allRecords, statusFilter, typeFilter, dateRange, debouncedSearch]);
 
   const pendingCount = useMemo(
     () => allRecords.filter(tx => tx.status === 'pending').length,
@@ -343,7 +348,7 @@ function HistoryTab({
           {/* Action buttons */}
           <button
             onClick={refresh}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh history"
             aria-label="Refresh history"
           >
@@ -359,7 +364,7 @@ function HistoryTab({
           <button
             onClick={handleExportCsv}
             disabled={filtered.length === 0}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Export as CSV"
             aria-label="Export as CSV"
           >
@@ -374,7 +379,7 @@ function HistoryTab({
           </button>
           <button
             onClick={handleClear}
-            className="px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
           >
             Clear History
           </button>
@@ -396,82 +401,138 @@ function HistoryTab({
           description="Try adjusting your filters or search query"
         />
       ) : (
-        <div className="space-y-3">
-          {filtered.map((tx) => (
+        <VirtualizedHistoryList
+          items={filtered}
+          searchQuery={searchQuery}
+          confirmations={confirmations}
+          onRetryListing={onRetryListing}
+        />
+      )}
+    </div>
+  );
+}
+
+function VirtualizedHistoryList({
+  items,
+  searchQuery,
+  confirmations,
+  onRetryListing,
+}: {
+  items: TransactionRecord[];
+  searchQuery: string;
+  confirmations: Map<string, number>;
+  onRetryListing?: (draftId: string) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 92,
+    overscan: 5,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="overflow-y-auto"
+      style={{ maxHeight: 'calc(100vh - 320px)' }}
+    >
+      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const tx = items[virtualItem.index];
+          const query = searchQuery.trim().toLowerCase();
+          const hashMatchesSearch = query !== '' && tx.txHash.toLowerCase().includes(query);
+          return (
             <div
               key={tx.txHash}
-              className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-4 flex items-center gap-4"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+                paddingBottom: '12px',
+              }}
             >
-              {/* Status icon */}
-              <div className="flex-shrink-0">
-                {tx.status === 'pending' ? (
-                  <LoadingSpinner size="sm" />
-                ) : tx.status === 'confirmed' ? (
-                  <svg className="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
-              </div>
-
-              {/* Details */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-[var(--text-primary)]">
-                    {getTypeLabel(tx.type)}
-                  </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    tx.status === 'pending'
-                      ? 'bg-[var(--warning)]/20 text-[var(--warning)]'
-                      : tx.status === 'confirmed'
-                      ? 'bg-[var(--success)]/20 text-[var(--success)]'
-                      : 'bg-[var(--error)]/20 text-[var(--error)]'
-                  }`}>
-                    {tx.status === 'pending' && confirmations.has(tx.txHash)
-                      ? `pending (${confirmations.get(tx.txHash)} conf.)`
-                      : tx.status}
-                  </span>
+              <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-4 flex items-center gap-4 h-[80px]">
+                {/* Status icon */}
+                <div className="flex-shrink-0">
+                  {tx.status === 'pending' ? (
+                    <LoadingSpinner size="sm" />
+                  ) : tx.status === 'confirmed' ? (
+                    <svg className="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
                 </div>
-                <div className="text-xs text-[var(--text-muted)]">
-                  <TransactionLink txHash={tx.txHash} className="text-xs" />
-                </div>
-                {tx.description && (
-                  <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
-                    {tx.description}
-                  </p>
-                )}
-                {tx.status === 'pending' && confirmations.has(tx.txHash) && (
-                  <div className="mt-2 h-1 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[var(--warning)] rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, ((confirmations.get(tx.txHash) ?? 0) / 15) * 100)}%` }}
-                    />
+                {/* Details */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      {getTypeLabel(tx.type)}
+                    </span>
+                    {tx.amountLovelace !== undefined && (
+                      <span className="text-sm text-[var(--text-secondary)] font-mono">
+                        {(tx.amountLovelace / 1_000_000).toLocaleString(undefined, {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        })} ADA
+                      </span>
+                    )}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      tx.status === 'pending'
+                        ? 'bg-[var(--warning)]/20 text-[var(--warning)]'
+                        : tx.status === 'confirmed'
+                        ? 'bg-[var(--success)]/20 text-[var(--success)]'
+                        : 'bg-[var(--error)]/20 text-[var(--error)]'
+                    }`}>
+                      {tx.status === 'pending' && confirmations.has(tx.txHash)
+                        ? `pending (${confirmations.get(tx.txHash)} conf.)`
+                        : tx.status}
+                    </span>
                   </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    <TransactionLink txHash={tx.txHash} truncate={!hashMatchesSearch} className="text-xs" />
+                  </div>
+                  {tx.description && (
+                    <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
+                      {tx.description}
+                    </p>
+                  )}
+                  {tx.status === 'pending' && confirmations.has(tx.txHash) && (
+                    <div className="mt-2 h-1 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--warning)] rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, ((confirmations.get(tx.txHash) ?? 0) / 15) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+                {/* Retry button for failed file listings */}
+                {tx.status === 'failed' && tx.draftId && onRetryListing && (
+                  <button
+                    onClick={() => onRetryListing(tx.draftId!)}
+                    className="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                    title="Retry listing without re-uploading the file"
+                  >
+                    Retry
+                  </button>
                 )}
-              </div>
-
-              {/* Retry button for failed file listings */}
-              {tx.status === 'failed' && tx.draftId && onRetryListing && (
-                <button
-                  onClick={() => onRetryListing(tx.draftId!)}
-                  className="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
-                  title="Retry listing without re-uploading the file"
-                >
-                  Retry
-                </button>
-              )}
-
-              {/* Timestamp */}
-              <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
-                {formatTimestamp(tx.timestamp)}
+                {/* Timestamp */}
+                <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
+                  {formatTimestamp(tx.timestamp)}
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }

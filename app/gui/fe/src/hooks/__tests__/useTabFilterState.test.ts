@@ -81,6 +81,36 @@ describe('marketplaceReducer', () => {
     expect(next.showFavoritesOnly).toBe(false)
   })
 
+  it('HYDRATE merges partial state and resets page', () => {
+    const next = marketplaceReducer(MARKETPLACE_INITIAL, {
+      type: 'HYDRATE',
+      payload: { searchQuery: 'hello', sortBy: 'price-high', viewMode: 'list', currentPage: 5 },
+    })
+    expect(next.searchQuery).toBe('hello')
+    expect(next.sortBy).toBe('price-high')
+    expect(next.viewMode).toBe('list')
+    expect(next.currentPage).toBe(1) // always reset
+  })
+
+  it('HYDRATE with empty payload returns initial state', () => {
+    const state = { ...MARKETPLACE_INITIAL, searchQuery: 'old', currentPage: 3 }
+    const next = marketplaceReducer(state, { type: 'HYDRATE', payload: {} })
+    expect(next.searchQuery).toBe('')
+    expect(next.sortBy).toBe('newest')
+    expect(next.currentPage).toBe(1)
+  })
+
+  it('HYDRATE fills missing fields from initial state', () => {
+    const next = marketplaceReducer(MARKETPLACE_INITIAL, {
+      type: 'HYDRATE',
+      payload: { categoryFilter: 'audio' },
+    })
+    expect(next.categoryFilter).toBe('audio')
+    expect(next.searchQuery).toBe('') // default
+    expect(next.sortBy).toBe('newest') // default
+    expect(next.viewMode).toBe('grid') // default
+  })
+
   it('returns same state for unknown action', () => {
     const state = { ...MARKETPLACE_INITIAL }
     // @ts-expect-error testing unknown action
@@ -120,6 +150,15 @@ describe('myPurchasesReducer', () => {
   it('SET_STATUS updates statusFilter', () => {
     const next = myPurchasesReducer(MY_PURCHASES_INITIAL, { type: 'SET_STATUS', payload: 'accepted' })
     expect(next.statusFilter).toBe('accepted')
+  })
+
+  it('SET_STATUS accepts "complete" value', () => {
+    const next = myPurchasesReducer(MY_PURCHASES_INITIAL, { type: 'SET_STATUS', payload: 'complete' })
+    expect(next.statusFilter).toBe('complete')
+  })
+
+  it('initial statusFilter is "all"', () => {
+    expect(MY_PURCHASES_INITIAL.statusFilter).toBe('all')
   })
 })
 
@@ -164,5 +203,25 @@ describe('libraryReducer', () => {
   it('SET_SEARCH updates searchQuery', () => {
     const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SEARCH', payload: 'test' })
     expect(next.searchQuery).toBe('test')
+  })
+
+  it('SET_SORT accepts size-asc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'size-asc' })
+    expect(next.sortBy).toBe('size-asc')
+  })
+
+  it('SET_SORT accepts size-desc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'size-desc' })
+    expect(next.sortBy).toBe('size-desc')
+  })
+
+  it('SET_SORT accepts type-asc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'type-asc' })
+    expect(next.sortBy).toBe('type-asc')
+  })
+
+  it('SET_SORT accepts type-desc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'type-desc' })
+    expect(next.sortBy).toBe('type-desc')
   })
 })

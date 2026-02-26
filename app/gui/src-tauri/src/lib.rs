@@ -5,29 +5,32 @@ mod process;
 
 use commands::media::{ContentDir, MediaDir};
 use commands::secrets::SecretsDir;
+use commands::snark::AppTmpDir;
 use commands::wallet::WalletState;
 use config::AppConfig;
+use crypto::audit::AuditLog;
 use crypto::secrets::SecretsKey;
 use process::manager::NodeManager;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Global flag to prevent duplicate shutdown attempts.
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Workaround for WebKitGTK crashes on newer kernels (6.17+) and older GPUs
+    // Workaround for WebKitGTK DMA-BUF crashes on newer kernels (6.17+)
     #[cfg(target_os = "linux")]
     {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
     }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let app_data_dir = app
                 .path()
@@ -44,30 +47,65 @@ pub fn run() {
                 .resource_dir()
                 .unwrap_or_else(|_| app_data_dir.clone());
             let app_config = AppConfig::load(&resource_dir);
+            if let Err(msg) = app_config.validate() {
+                eprintln!("Config validation failed: {msg}");
+                use tauri_plugin_dialog::DialogExt;
+                app.dialog()
+                    .message(format!(
+                        "Invalid configuration:\n\n{msg}\n\nPlease reinstall the application."
+                    ))
+                    .title("Veiled: Configuration Error")
+                    .blocking_show();
+                std::process::exit(1);
+            }
+            let ogmios_port = app_config.ogmios_port;
+            let kupo_port = app_config.kupo_port;
             app.manage(app_config);
 
-            // Node manager (Phase 2)
-            let node_manager = NodeManager::new(app.handle().clone());
+            // Node manager (Phase 2) — pass service ports for periodic health checks
+            let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
             app.manage(node_manager);
+
+            // App-specific temp directory — wiped on startup to clean crash orphans
+            // (SNARK temp files contain secret cryptographic material)
+            let app_tmp_dir = app_data_dir.join("tmp");
+            if app_tmp_dir.exists() {
+                if let Err(e) = std::fs::remove_dir_all(&app_tmp_dir) {
+                    eprintln!("Warning: failed to clean temp dir: {e}");
+                }
+            }
+            std::fs::create_dir_all(&app_tmp_dir).expect("Failed to create app temp directory");
+            crypto::wallet::set_owner_only_dir(&app_tmp_dir)
+                .expect("Failed to set temp directory permissions");
+            app.manage(AppTmpDir(app_tmp_dir));
 
             // Secret storage directory (filesystem-backed, survives WebView resets)
             let secrets_dir = app_data_dir.join("secrets");
             std::fs::create_dir_all(&secrets_dir).expect("Failed to create secrets directory");
+            crypto::wallet::set_owner_only_dir(&secrets_dir)
+                .expect("Failed to set secrets directory permissions");
             app.manage(SecretsDir(secrets_dir));
 
             // Secrets encryption key (derived from mnemonic on wallet unlock)
             app.manage(SecretsKey(Mutex::new(None)));
 
+            // Audit log for secrets operations
+            app.manage(AuditLog::new(&app_data_dir));
+
             // Media directory (for cached listing preview images)
             let media_images_dir = app_data_dir.join("media").join("images");
             std::fs::create_dir_all(&media_images_dir)
                 .expect("Failed to create media/images directory");
+            crypto::wallet::set_owner_only_dir(&media_images_dir)
+                .expect("Failed to set media directory permissions");
             app.manage(MediaDir(media_images_dir));
 
             // Content directory (for purchased/decrypted files, organized by category)
             let content_dir = app_data_dir.join("media").join("content");
             commands::media::ensure_content_dirs(&content_dir)
                 .expect("Failed to create content directories");
+            crypto::wallet::set_owner_only_dir(&content_dir)
+                .expect("Failed to set content directory permissions");
             app.manage(ContentDir(content_dir));
 
             Ok(())
@@ -86,14 +124,14 @@ pub fn run() {
 
                 let app_handle = window.app_handle().clone();
 
-                // Hide the window immediately so the user sees instant feedback.
-                let _ = window.hide();
+                // Show a shutdown overlay in the frontend instead of hiding.
+                let _ = window.emit("app-shutting-down", ());
 
                 // Run the blocking shutdown on a dedicated thread so the
                 // Tauri event loop stays responsive.
                 std::thread::spawn(move || {
                     let manager = app_handle.state::<NodeManager>();
-                    manager.kill_all_sync();
+                    manager.kill_all_sync(&app_handle);
                     app_handle.exit(0);
                 });
             }
@@ -121,6 +159,7 @@ pub fn run() {
             commands::config::get_data_dir,
             commands::config::get_app_config,
             commands::config::get_disk_usage,
+            commands::config::get_available_disk_space,
             // SNARK commands (Phase 4)
             commands::snark::snark_check_setup,
             commands::snark::snark_decompress_setup,
@@ -173,9 +212,11 @@ pub fn run() {
             // Library commands (browse/read/delete/export decrypted content)
             commands::media::list_library_items,
             commands::media::read_library_content,
+            commands::media::read_subtitle_file,
             commands::media::delete_library_item,
             commands::media::export_library_content,
             commands::media::export_text_file,
+            commands::media::open_with_system,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

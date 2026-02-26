@@ -1,8 +1,9 @@
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
-import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
+import { useModal } from '../contexts/ModalContext'
 import { copyToClipboard } from '../utils/clipboard'
 import { truncateHex } from '../utils/truncate'
 const MarketplaceTab = lazy(() => import('../components/MarketplaceTab'))
@@ -12,6 +13,7 @@ const HistoryTab = lazy(() => import('../components/HistoryTab'))
 const LibraryTab = lazy(() => import('../components/LibraryTab'))
 import { SkeletonGrid } from '../components/SkeletonCard'
 import ScrollToTop from '../components/ScrollToTop'
+import KeyboardShortcutsOverlay from '../components/KeyboardShortcutsOverlay'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
@@ -22,6 +24,8 @@ import { encryptionsApi, bidsApi } from '../services/api'
 import { cleanupStaleSecrets } from '../services/secretCleanup'
 import { isIagonConnected, connectIagon } from '../services/iagonAuth'
 import { useBidNotifications } from '../hooks/useBidNotifications'
+import { playNotificationSound } from '../services/notificationSound'
+import { sendDesktopNotification } from '../services/desktopNotifications'
 import {
   createListing, retryListingFromDraft, removeListing, placeBid, cancelBid,
   cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
@@ -33,7 +37,10 @@ import { saveDecryptedContent, saveContentMetadata } from '../services/contentSt
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../services/listingDraftStorage'
 import { getTransactions, addTransaction } from '../services/transactionHistory'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
+import { getPersistedFilters, persistFilters } from '../services/filterStorage'
+import { listLibraryItems } from '../services/libraryService'
 import { useDataRefresh } from '../hooks/useDataRefresh'
+import { useWalletHealth } from '../hooks/useWalletHealth'
 import {
   marketplaceReducer, MARKETPLACE_INITIAL,
   mySalesReducer, MY_SALES_INITIAL,
@@ -68,12 +75,35 @@ export default function Dashboard() {
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
   const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
   const navigate = useNavigate()
+  const { hasOpenModal } = useModal()
+  const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
   const setActiveTab = useCallback((tab: TabId) => {
     setActiveTabRaw(tab)
     setLastActiveTab(tab)
   }, [])
+  const tabListRef = useRef<HTMLDivElement>(null)
+  const handleTabKeyDown = useCallback((e: ReactKeyboardEvent) => {
+    const tabIds = TABS.map(t => t.id)
+    const currentIndex = tabIds.indexOf(activeTab)
+    let nextIndex: number | null = null
+    if (e.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabIds.length
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabIds.length) % tabIds.length
+    } else if (e.key === 'Home') {
+      nextIndex = 0
+    } else if (e.key === 'End') {
+      nextIndex = tabIds.length - 1
+    }
+    if (nextIndex !== null) {
+      e.preventDefault()
+      setActiveTab(tabIds[nextIndex])
+      const nextButton = tabListRef.current?.querySelector(`#tab-${tabIds[nextIndex]}`) as HTMLElement
+      nextButton?.focus()
+    }
+  }, [activeTab, setActiveTab])
   // Tab filter state (persisted across tab switches via useReducer at Dashboard level)
   const [marketplaceFilters, marketplaceDispatch] = useReducer(marketplaceReducer, MARKETPLACE_INITIAL)
   const [mySalesFilters, mySalesDispatch] = useReducer(mySalesReducer, MY_SALES_INITIAL)
@@ -84,12 +114,19 @@ export default function Dashboard() {
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
   const [acceptedBidCount, setAcceptedBidCount] = useState(0)
+  const [libraryCount, setLibraryCount] = useState<number | null>(null)
   const [showCreateListing, setShowCreateListing] = useState(false)
   const [showPlaceBid, setShowPlaceBid] = useState(false)
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
+  const [selectedBidCount, setSelectedBidCount] = useState(0)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
-  const { refreshSignal, historySignal, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
+  const [failedDecryptTokens, setFailedDecryptTokens] = useState<Set<string>>(new Set())
+  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [relativeTime, setRelativeTime] = useState('just now')
   const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
   // Accept bid flow state
   const [showSnarkModal, setShowSnarkModal] = useState(false)
@@ -101,6 +138,66 @@ export default function Dashboard() {
   const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
   const toast = useToast()
   const [iagonConnected, setIagonConnected] = useState(false)
+
+  // Refresh handler for manual data refresh
+  const handleRefresh = useCallback(() => {
+    if (isRefreshing) return
+    setIsRefreshing(true)
+    triggerRefresh()
+    setLastRefreshTime(Date.now())
+    setRelativeTime('just now')
+    setTimeout(() => setIsRefreshing(false), 2000)
+  }, [isRefreshing, triggerRefresh])
+
+  // Update relative time display every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const seconds = Math.floor((Date.now() - lastRefreshTime) / 1000)
+      if (seconds < 10) setRelativeTime('just now')
+      else if (seconds < 60) setRelativeTime(`${seconds}s ago`)
+      else if (seconds < 3600) setRelativeTime(`${Math.floor(seconds / 60)}m ago`)
+      else setRelativeTime(`${Math.floor(seconds / 3600)}h ago`)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [lastRefreshTime])
+
+  // Reset timestamp when data refreshes externally (e.g. after tx submission)
+  useEffect(() => {
+    setLastRefreshTime(Date.now())
+    setRelativeTime('just now')
+  }, [refreshSignal])
+
+  // Keyboard shortcuts: Ctrl+1-5 for tabs, Ctrl+R for refresh
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (hasOpenModal) return
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        setShowShortcuts(true)
+        return
+      }
+
+      if (!e.ctrlKey && !e.metaKey) return
+
+      const tabIds: TabId[] = ['marketplace', 'my-sales', 'my-purchases', 'history', 'library']
+      const digit = parseInt(e.key, 10)
+
+      if (digit >= 1 && digit <= 5) {
+        e.preventDefault()
+        setActiveTab(tabIds[digit - 1])
+        const btn = document.getElementById(`tab-${tabIds[digit - 1]}`)
+        btn?.focus()
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault()
+        handleRefresh()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [hasOpenModal, setActiveTab, handleRefresh])
 
   // Check Iagon connection status; silently auto-connect if not yet connected
   useEffect(() => {
@@ -158,6 +255,28 @@ export default function Dashboard() {
     }
   }, [address])
 
+  // Hydrate marketplace filters from localStorage once PKH is known
+  const hydratedRef = useRef(false)
+  useEffect(() => {
+    if (!userPkh || hydratedRef.current) return
+    hydratedRef.current = true
+    const saved = getPersistedFilters(userPkh)
+    if (saved) {
+      marketplaceDispatch({ type: 'HYDRATE', payload: saved })
+    }
+  }, [userPkh])
+
+  // Debounced persistence of marketplace filters to localStorage
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => {
+    if (!userPkh || !hydratedRef.current) return
+    clearTimeout(persistTimeoutRef.current)
+    persistTimeoutRef.current = setTimeout(() => {
+      persistFilters(userPkh, marketplaceFilters)
+    }, 300)
+    return () => clearTimeout(persistTimeoutRef.current)
+  }, [userPkh, marketplaceFilters])
+
   // Bid notification system — watches tipSlot for new bids on seller's listings
   const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
 
@@ -177,6 +296,10 @@ export default function Dashboard() {
         `You have ${bidNotifications.unseenBidCount} new ${bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'} on your listings`,
         8000
       )
+      playNotificationSound()
+      const count = bidNotifications.unseenBidCount
+      const label = count === 1 ? 'bid' : 'bids'
+      sendDesktopNotification('New Bids Received', `You have ${count} new ${label} on your listings`)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
@@ -243,7 +366,7 @@ export default function Dashboard() {
       }
 
       if (result.txHash) {
-        toast.transactionSuccess('Listing Resumed!', result.txHash)
+        toast.transactionSuccess('Listing Resumed!', result.txHash, { type: 'create-listing' })
         recordTransaction({
           txHash: result.txHash,
           type: 'create-listing',
@@ -286,7 +409,7 @@ export default function Dashboard() {
       }
 
       if (result.txHash) {
-        toast.transactionSuccess('Listing Retried!', result.txHash)
+        toast.transactionSuccess('Listing Retried!', result.txHash, { type: 'create-listing' })
         recordTransaction({
           txHash: result.txHash,
           type: 'create-listing',
@@ -331,8 +454,9 @@ export default function Dashboard() {
     disconnect()
   }, [disconnect])
 
-  const handlePlaceBid = useCallback((encryption: EncryptionDisplay) => {
+  const handlePlaceBid = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
     setSelectedEncryption(encryption)
+    setSelectedBidCount(bidCount)
     setShowPlaceBid(true)
   }, [])
 
@@ -368,7 +492,7 @@ export default function Dashboard() {
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Bid Placed!', result.txHash)
+      toast.transactionSuccess('Bid Placed!', result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) })
     } else {
       toast.success('Bid Placed!', 'Transaction submitted successfully')
     }
@@ -382,13 +506,15 @@ export default function Dashboard() {
         timestamp: Date.now(),
         status: result.isStub ? 'confirmed' : 'pending',
         description: `Bid ${bidAmountAda} ADA on ${encryptionTokenName.slice(0, 12)}...`,
+        amountLovelace: Math.round(bidAmountAda * 1_000_000),
+        counterparty: selectedEncryption?.sellerPkh,
       })
     }
 
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -421,7 +547,7 @@ export default function Dashboard() {
               8000
             )
           } else if (result.txHash) {
-            toast.transactionSuccess('Listing Removed!', result.txHash)
+            toast.transactionSuccess('Listing Removed!', result.txHash, { type: 'remove-listing' })
           } else {
             toast.success('Listing Removed!', 'Transaction submitted successfully')
           }
@@ -519,7 +645,7 @@ export default function Dashboard() {
           8000
         )
       } else if (result.txHash) {
-        toast.transactionSuccess('SNARK Proof Submitted!', result.txHash)
+        toast.transactionSuccess('SNARK Proof Submitted!', result.txHash, { type: 'accept-bid', amountLovelace: acceptBidBid.amount })
       }
 
       // Record in history
@@ -531,6 +657,8 @@ export default function Dashboard() {
           timestamp: Date.now(),
           status: result.isStub ? 'confirmed' : 'pending',
           description: `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (SNARK proof)`,
+          amountLovelace: acceptBidBid.amount,
+          counterparty: acceptBidBid.bidderPkh,
         })
       }
 
@@ -587,7 +715,7 @@ export default function Dashboard() {
               8000
             )
           } else if (result.txHash) {
-            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash)
+            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash, { type: 'cancel-pending' })
           }
 
           if (result.txHash) {
@@ -658,7 +786,7 @@ export default function Dashboard() {
           8000
         )
       } else if (result.txHash) {
-        toast.transactionSuccess('Sale Completed!', result.txHash)
+        toast.transactionSuccess('Sale Completed!', result.txHash, { type: 'complete-sale', amountLovelace: acceptedBid.amount })
       }
 
       // Record in history
@@ -670,6 +798,8 @@ export default function Dashboard() {
           timestamp: Date.now(),
           status: result.isStub ? 'confirmed' : 'pending',
           description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
+          amountLovelace: acceptedBid.amount,
+          counterparty: acceptedBid.bidderPkh,
         })
       }
 
@@ -719,7 +849,7 @@ export default function Dashboard() {
               8000
             )
           } else if (result.txHash) {
-            toast.transactionSuccess('Bid Cancelled!', result.txHash)
+            toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount })
           } else {
             toast.success('Bid Cancelled!', 'Transaction submitted successfully')
           }
@@ -732,6 +862,7 @@ export default function Dashboard() {
               timestamp: Date.now(),
               status: result.isStub ? 'confirmed' : 'pending',
               description: `Cancel bid of ${amountAda} ADA`,
+              amountLovelace: bid.amount,
             })
           }
 
@@ -768,6 +899,19 @@ export default function Dashboard() {
     setSelectedEncryption(encryption)
     setShowDecrypt(true)
   }, [])
+
+  const handleDecryptResult = useCallback((result: { success: boolean; encryptionToken: string }) => {
+    if (result.success) {
+      setFailedDecryptTokens((prev) => {
+        const next = new Set(prev)
+        next.delete(result.encryptionToken)
+        return next
+      })
+      triggerRefresh()
+    } else {
+      setFailedDecryptTokens((prev) => new Set(prev).add(result.encryptionToken))
+    }
+  }, [triggerRefresh])
 
   const handleCreateListing = useCallback(async (
     formData: CreateListingFormData,
@@ -807,6 +951,7 @@ export default function Dashboard() {
           category,
           seller: address,
           decryptedAt: new Date().toISOString(),
+          fileSize: contentBytes.length,
         });
       } catch (err) {
         console.warn('Failed to save listing content to library:', err);
@@ -821,7 +966,7 @@ export default function Dashboard() {
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Listing Created!', result.txHash)
+      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' })
     } else {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }
@@ -879,6 +1024,14 @@ export default function Dashboard() {
         setMyBidsCount(0)
         setAcceptedBidCount(0)
       }
+
+      // Fetch library count (Tauri command, independent of API)
+      try {
+        const items = await listLibraryItems()
+        setLibraryCount(items.length)
+      } catch {
+        setLibraryCount(0)
+      }
     }
 
     fetchStats()
@@ -923,6 +1076,7 @@ export default function Dashboard() {
             onDecryptEncryption={handleDecryptEncryption}
             filters={myPurchasesFilters}
             dispatch={myPurchasesDispatch}
+            failedDecryptTokens={failedDecryptTokens}
           />
         )
       case 'history':
@@ -1042,12 +1196,30 @@ export default function Dashboard() {
               Iagon Offline
             </button>
           )}
+          {/* Collateral Indicator */}
+          {nodeStage === 'synced' && !walletHealth.isChecking && (
+            walletHealth.hasCollateral ? (
+              <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                Collateral Set
+              </span>
+            ) : (
+              <button
+                onClick={() => navigate('/settings', { state: { section: 'wallet' } })}
+                className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-full hover:bg-[var(--warning)]/20 transition-all cursor-pointer"
+                title="No collateral UTxO found — click to set up in Settings"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
+                No Collateral
+              </button>
+            )
+          )}
         </div>
         <div className="flex items-center gap-4">
           {/* Create Listing Button */}
           <button
             onClick={() => setShowCreateListing(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1063,12 +1235,12 @@ export default function Dashboard() {
           {/* Address with copy button */}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-tertiary"
             title={address || 'Loading...'}
           >
             <span>{address ? truncateHex(address, 12, 8) : '...'}</span>
             <svg
-              className="w-4 h-4"
+              className={`w-4 h-4${copied ? ' copy-check-animate' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1094,10 +1266,11 @@ export default function Dashboard() {
           {/* Settings */}
           <button
             onClick={() => navigate('/settings')}
-            className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
             title="Settings"
+            aria-label="Settings"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -1106,7 +1279,7 @@ export default function Dashboard() {
           {/* Disconnect button */}
           <button
             onClick={handleDisconnect}
-            className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Disconnect
           </button>
@@ -1130,19 +1303,19 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
                 <button
                   onClick={() => handleDraftRecovery('discard')}
-                  className="px-3 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+                  className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
                   Discard
                 </button>
                 <button
                   onClick={() => handleDraftRecovery('resume')}
-                  className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                 >
                   Resume Listing
                 </button>
                 <button
                   onClick={() => setRecoverableDraft(null)}
-                  className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  className="p-1 btn-base btn-icon"
                   title="Dismiss"
                   aria-label="Dismiss draft recovery banner"
                 >
@@ -1157,10 +1330,10 @@ export default function Dashboard() {
       )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <button
             onClick={() => setActiveTab('my-sales')}
             className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
@@ -1174,7 +1347,7 @@ export default function Dashboard() {
               {myListingsCount === null ? '...' : `${myListingsCount} active`}
             </p>
             {bidNotifications.unseenBidCount > 0 && (
-              <p className="text-sm text-[var(--success)] mt-1">
+              <p className="text-sm text-[var(--success)] mt-1" aria-live="polite">
                 {bidNotifications.unseenBidCount} new {bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'}
               </p>
             )}
@@ -1192,17 +1365,48 @@ export default function Dashboard() {
               {myBidsCount === null ? '...' : `${myBidsCount} pending`}
             </p>
           </button>
+          <button
+            onClick={() => setActiveTab('library')}
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+              activeTab === 'library'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+            }`}
+          >
+            <h2 className="text-lg font-medium mb-2">Library</h2>
+            <p className="text-2xl font-semibold text-[var(--accent)]">
+              {libraryCount === null ? '...' : `${libraryCount} ${libraryCount === 1 ? 'item' : 'items'}`}
+            </p>
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+              activeTab === 'history'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+            }`}
+          >
+            <h2 className="text-lg font-medium mb-2">Transactions</h2>
+            <p className="text-2xl font-semibold text-[var(--accent)]">
+              {pendingTxCount > 0 ? `${pendingTxCount} pending` : 'None pending'}
+            </p>
+          </button>
         </div>
 
         {/* Tabs */}
         <div className="border-b border-[var(--border-subtle)] mb-6">
-          <div className="flex gap-6" role="tablist">
-            {TABS.map((tab) => (
+          <div className="flex items-center justify-between">
+          <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
+            {TABS.map((tab, index) => (
               <button
                 key={tab.id}
+                id={`tab-${tab.id}`}
                 role="tab"
                 aria-selected={activeTab === tab.id}
+                aria-controls={`tabpanel-${tab.id}`}
+                tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
+                title={`${tab.label} (Ctrl+${index + 1})`}
                 className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
@@ -1228,12 +1432,48 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
+          {/* Refresh button + timestamp */}
+          <div className="flex items-center gap-3 pb-3">
+            <span className="text-xs text-[var(--text-muted)]">
+              Updated {relativeTime}
+            </span>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh data (Ctrl+R)"
+              aria-label="Refresh data"
+            >
+              <svg
+                className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          </div>
+          </div>
         </div>
 
         {/* Tab Content */}
-        <Suspense fallback={<SkeletonGrid />}>
-          {renderTabContent()}
-        </Suspense>
+        <div
+          id={`tabpanel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${activeTab}`}
+          aria-busy={isRefreshing}
+          tabIndex={0}
+        >
+          <Suspense fallback={<SkeletonGrid />}>
+            {renderTabContent()}
+          </Suspense>
+        </div>
       </main>
 
       {/* Scroll to Top Button */}
@@ -1253,9 +1493,12 @@ export default function Dashboard() {
         onClose={() => {
           setShowPlaceBid(false)
           setSelectedEncryption(null)
+          setSelectedBidCount(0)
         }}
         onSubmit={handlePlaceBidSubmit}
         encryption={selectedEncryption}
+        bidCount={selectedBidCount}
+        balanceLovelace={lovelace ?? undefined}
       />
 
       {/* Decrypt Modal */}
@@ -1269,6 +1512,7 @@ export default function Dashboard() {
         bid={selectedBid}
         encryption={selectedEncryption}
         isIagonConnected={iagonConnected}
+        onDecryptResult={handleDecryptResult}
       />
 
       {/* Confirmation Modal (destructive actions) */}
@@ -1314,7 +1558,8 @@ export default function Dashboard() {
       />
 
       {/* Toast Notifications */}
-      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
+      <KeyboardShortcutsOverlay isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )
 }

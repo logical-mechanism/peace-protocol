@@ -1,8 +1,10 @@
+import { useRef } from 'react';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
 import EmptyState from './EmptyState';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface BidsModalProps {
   isOpen: boolean;
@@ -20,9 +22,11 @@ export default function BidsModal({
   onAcceptBid,
 }: BidsModalProps) {
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('bids', isOpen, onClose);
+  const { zIndex, shouldRender, animationState } = useModalStack('bids', isOpen, onClose);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -56,6 +60,7 @@ export default function BidsModal({
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 flex items-center justify-center"
       style={{ zIndex }}
       role="dialog"
@@ -64,13 +69,13 @@ export default function BidsModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-xl max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
+      <div className={`relative w-full max-w-xl max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
@@ -84,7 +89,7 @@ export default function BidsModal({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -184,7 +189,7 @@ export default function BidsModal({
           )}
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+            className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Close
           </button>
@@ -237,7 +242,7 @@ function BidCard({
         {canAccept && bid.status === 'pending' && onAccept && (
           <button
             onClick={() => onAccept(bid)}
-            className="px-4 py-2 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer flex-shrink-0"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex-shrink-0 btn-base btn-success"
           >
             Accept Bid
           </button>

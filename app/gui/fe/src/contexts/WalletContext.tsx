@@ -144,6 +144,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Throttled mousemove handler — fires at most once per 5 seconds
+    let lastMouseMove = 0
+    const resetActivityThrottled = () => {
+      const now = Date.now()
+      if (now - lastMouseMove > 5000) {
+        lastMouseMove = now
+        resetActivity()
+      }
+    }
+
     const startWarningCountdown = (remainingMs: number) => {
       if (warningIntervalRef.current) return // Already running
       setSessionWarningSeconds(Math.ceil(remainingMs / 1000))
@@ -170,6 +180,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('mousedown', resetActivity)
     document.addEventListener('keydown', resetActivity)
+    document.addEventListener('mousemove', resetActivityThrottled)
 
     // Coarse check every 30s — activates fine-grained countdown when close to timeout
     const interval = setInterval(() => {
@@ -187,6 +198,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => {
       document.removeEventListener('mousedown', resetActivity)
       document.removeEventListener('keydown', resetActivity)
+      document.removeEventListener('mousemove', resetActivityThrottled)
       clearInterval(interval)
       clearWarningInterval()
       setSessionWarningSeconds(null)

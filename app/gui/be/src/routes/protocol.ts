@@ -8,6 +8,9 @@ import type { ProtocolConfig } from '../types/index.js';
 
 const router = Router();
 
+const CACHE_CONFIG = 'max-age=60, stale-while-revalidate=120';
+const CACHE_STATIC = 'max-age=300, stale-while-revalidate=600';
+
 /**
  * GET /api/protocol/config
  * Get protocol configuration (contract addresses, policy IDs, etc.)
@@ -15,6 +18,7 @@ const router = Router();
 router.get('/config', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
+      res.set('Cache-Control', CACHE_CONFIG);
       return res.json({ data: STUB_PROTOCOL_CONFIG });
     }
 
@@ -52,11 +56,12 @@ router.get('/config', async (_req: Request, res: Response) => {
         : null,
     };
 
+    res.set('Cache-Control', CACHE_CONFIG);
     return res.json({ data: protocolConfig });
   } catch (error) {
-    logger.error('Error fetching protocol config', { error: String(error) });
+    logger.error('Error fetching protocol config', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol config' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol config', requestId: _req.requestId },
     });
   }
 });
@@ -68,6 +73,7 @@ router.get('/config', async (_req: Request, res: Response) => {
 router.get('/reference', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
+      res.set('Cache-Control', CACHE_STATIC);
       return res.json({
         data: STUB_PROTOCOL_CONFIG.referenceScripts,
       });
@@ -88,11 +94,12 @@ router.get('/reference', async (_req: Request, res: Response) => {
       assets: utxo.asset_list,
     }));
 
+    res.set('Cache-Control', CACHE_STATIC);
     return res.json({ data: references });
   } catch (error) {
-    logger.error('Error fetching reference data', { error: String(error) });
+    logger.error('Error fetching reference data', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch reference data' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch reference data', requestId: _req.requestId },
     });
   }
 });
@@ -104,6 +111,7 @@ router.get('/reference', async (_req: Request, res: Response) => {
 router.get('/scripts', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
+      res.set('Cache-Control', CACHE_STATIC);
       return res.json({
         data: {
           encryption: {
@@ -119,6 +127,7 @@ router.get('/scripts', async (_req: Request, res: Response) => {
     }
 
     const { contracts } = getNetworkConfig();
+    res.set('Cache-Control', CACHE_STATIC);
     return res.json({
       data: {
         encryption: {
@@ -132,9 +141,9 @@ router.get('/scripts', async (_req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    logger.error('Error fetching scripts', { error: String(error) });
+    logger.error('Error fetching scripts', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch scripts' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch scripts', requestId: _req.requestId },
     });
   }
 });
@@ -146,6 +155,7 @@ router.get('/scripts', async (_req: Request, res: Response) => {
 router.get('/params', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
+      res.set('Cache-Control', CACHE_STATIC);
       return res.json({
         data: {
           minFeeA: 44,
@@ -163,11 +173,12 @@ router.get('/params', async (_req: Request, res: Response) => {
 
     const koios = getKoiosClient();
     const params = await koios.getProtocolParams();
+    res.set('Cache-Control', CACHE_STATIC);
     return res.json({ data: params });
   } catch (error) {
-    logger.error('Error fetching protocol params', { error: String(error) });
+    logger.error('Error fetching protocol params', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol params' },
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch protocol params', requestId: _req.requestId },
     });
   }
 });

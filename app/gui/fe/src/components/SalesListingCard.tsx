@@ -5,6 +5,7 @@ import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
+import { formatRelativeTime } from '../utils/time';
 
 // Default fallback price when suggested price can't be parsed
 const DEFAULT_FALLBACK_PRICE = 1;
@@ -33,15 +34,6 @@ export default function SalesListingCard({
   initialBanned = false,
 }: SalesListingCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
 
   // Format price with fallback to 1 ADA if undefined, null, NaN, or invalid
   const formatPrice = (price?: number): string => {
@@ -136,6 +128,15 @@ export default function SalesListingCard({
                     {truncateDescription(encryption.description)}
                   </p>
                 )}
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {isActive && (
+                    <>
+                      <span>Bids: {bidCount}</span>
+                      <span className="mx-1">|</span>
+                    </>
+                  )}
+                  <span>{formatRelativeTime(encryption.createdAt)}</span>
+                </p>
               </div>
             </div>
 
@@ -161,7 +162,7 @@ export default function SalesListingCard({
                   <>
                     <button
                       onClick={() => onViewBids?.(encryption)}
-                      className="px-3 py-1.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+                      className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                     >
                       View Bids
                       {bidCount > 0 && (
@@ -172,7 +173,7 @@ export default function SalesListingCard({
                     </button>
                     <button
                       onClick={() => onRemove?.(encryption)}
-                      className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+                      className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
                       title="Remove listing"
                     >
                       Remove
@@ -183,13 +184,13 @@ export default function SalesListingCard({
                   <>
                     <button
                       onClick={() => onCompleteSale?.(encryption)}
-                      className="px-3 py-1.5 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer"
+                      className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
                     >
                       Complete Sale
                     </button>
                     <button
                       onClick={() => onCancelPending?.(encryption)}
-                      className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+                      className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
                     >
                       Cancel
                     </button>
@@ -217,13 +218,13 @@ export default function SalesListingCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0">
                 {truncateHex(encryption.tokenName, 8, 4)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />
               <span
-                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border ${
+                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
                   isUnknownStorageLayer(encryption.storageLayer)
                     ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
@@ -233,7 +234,15 @@ export default function SalesListingCard({
               </span>
             </div>
             <p className="text-xs text-[var(--text-muted)]">
-              Listed {formatDate(encryption.createdAt)}
+              {isActive && (
+                <>
+                  <span>Bids: {bidCount}</span>
+                  <span className="mx-1.5">|</span>
+                </>
+              )}
+              <span>Views: N/A</span>
+              <span className="mx-1.5">|</span>
+              <span>Created: {formatRelativeTime(encryption.createdAt)}</span>
             </p>
           </div>
         </div>
@@ -312,7 +321,7 @@ export default function SalesListingCard({
             <>
               <button
                 onClick={() => onViewBids?.(encryption)}
-                className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
               >
                 <span>View Bids</span>
                 {bidCount > 0 && (
@@ -323,7 +332,7 @@ export default function SalesListingCard({
               </button>
               <button
                 onClick={() => onRemove?.(encryption)}
-                className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+                className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
                 Remove Listing
               </button>
@@ -333,13 +342,13 @@ export default function SalesListingCard({
             <>
               <button
                 onClick={() => onCompleteSale?.(encryption)}
-                className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--success)] text-white rounded-[var(--radius-md)] hover:bg-[var(--success)]/90 transition-all duration-150 cursor-pointer"
+                className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
               >
                 Complete Sale
               </button>
               <button
                 onClick={() => onCancelPending?.(encryption)}
-                className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+                className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
                 Cancel Pending Sale
               </button>

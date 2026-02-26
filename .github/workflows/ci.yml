@@ -123,5 +123,5 @@ jobs:
       - run: cd be && npx eslint src/
       - run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
-      - run: npm --prefix fe run test
-      - run: npm --prefix be run test
+      - run: npm --prefix fe run test:coverage
+      - run: npm --prefix be run test:coverage

@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import type { LibraryItem } from '../services/libraryService';
-import { readLibraryContent, deleteLibraryItem, exportLibraryContent } from '../services/libraryService';
+import { readLibraryContent, readSubtitleFile, deleteLibraryItem, exportLibraryContent, openWithSystem } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
+import { formatBytes } from '../utils/formatBytes';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import ConfirmModal from './ConfirmModal';
 import LoadingSpinner from './LoadingSpinner';
 import Badge from './Badge';
@@ -18,6 +20,9 @@ interface LibraryContentModalProps {
   onClose: () => void;
   item: LibraryItem | null;
   onDelete: (item: LibraryItem) => void;
+  items?: LibraryItem[];
+  currentIndex?: number;
+  onNavigate?: (item: LibraryItem, index: number) => void;
 }
 
 type ModalState = 'loading' | 'loaded' | 'error';
@@ -137,10 +142,14 @@ export default function LibraryContentModal({
   onClose,
   item,
   onDelete,
+  items,
+  currentIndex,
+  onNavigate,
 }: LibraryContentModalProps) {
   const [state, setState] = useState<ModalState>('loading');
   const [textContent, setTextContent] = useState<string | null>(null);
   const [rawContent, setRawContent] = useState<Uint8Array | null>(null);
+  const [subtitleData, setSubtitleData] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -155,6 +164,7 @@ export default function LibraryContentModal({
     setState('loading');
     setTextContent(null);
     setRawContent(null);
+    setSubtitleData(null);
     setError(null);
     setCopied(false);
     setConfirmingDelete(false);
@@ -184,6 +194,12 @@ export default function LibraryContentModal({
         if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video' || viewMode === 'download') {
           setRawContent(data);
         }
+        // Load subtitle file for videos (best-effort, non-blocking)
+        if (viewMode === 'video') {
+          readSubtitleFile(item.tokenName, item.category)
+            .then(subs => { if (!cancelled) setSubtitleData(subs); })
+            .catch(() => {}); // Subtitle not found is fine
+        }
         setState('loaded');
       } catch (err) {
         if (cancelled) return;
@@ -196,7 +212,9 @@ export default function LibraryContentModal({
   }, [isOpen, item]);
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
+  const { zIndex, shouldRender, animationState } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
   const handleCopy = useCallback(async () => {
     if (!textContent) return;
@@ -240,7 +258,52 @@ export default function LibraryContentModal({
     }
   }, [item]);
 
-  if (!isOpen || !item) return null;
+  const handleOpenExternal = useCallback(async () => {
+    if (!item) return;
+    try {
+      await openWithSystem(item.tokenName, item.category);
+    } catch (err) {
+      console.error('Failed to open with system player:', err);
+    }
+  }, [item]);
+
+  // Navigation
+  const canGoPrev = items != null && currentIndex != null && currentIndex > 0;
+  const canGoNext = items != null && currentIndex != null && currentIndex < items.length - 1;
+
+  const handlePrev = useCallback(() => {
+    if (!items || currentIndex == null || currentIndex <= 0 || !onNavigate) return;
+    onNavigate(items[currentIndex - 1], currentIndex - 1);
+  }, [items, currentIndex, onNavigate]);
+
+  const handleNext = useCallback(() => {
+    if (!items || currentIndex == null || currentIndex >= items.length - 1 || !onNavigate) return;
+    onNavigate(items[currentIndex + 1], currentIndex + 1);
+  }, [items, currentIndex, onNavigate]);
+
+  // Arrow key navigation
+  useEffect(() => {
+    if (!isOpen || !onNavigate) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't navigate when interacting with form elements
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'ArrowLeft' && canGoPrev) {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key === 'ArrowRight' && canGoNext) {
+        e.preventDefault();
+        handleNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onNavigate, canGoPrev, canGoNext, handlePrev, handleNext]);
+
+  if (!shouldRender || !item) return null;
 
   const viewMode = getViewMode(item.category, item.fileExtension);
   const isWideModal = viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video';
@@ -252,33 +315,73 @@ export default function LibraryContentModal({
 
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+      <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
         {/* Backdrop */}
         <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
           onClick={!deleting ? onClose : undefined}
         />
 
         {/* Modal */}
-        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'}`}>
+        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'} ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
-            <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-                Library
-              </h2>
-              <p className="text-sm text-[var(--text-muted)] mt-1">
-                {truncateHex(item.tokenName, 12, 6)}
-              </p>
+            <div className="flex items-center gap-3">
+              {/* Previous button */}
+              {items && items.length > 1 && (
+                <button
+                  onClick={handlePrev}
+                  disabled={!canGoPrev}
+                  className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
+                  title="Previous item (←)"
+                  aria-label="Previous item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                    Library
+                  </h2>
+                  {items && items.length > 1 && currentIndex != null && (
+                    <span className="text-sm text-[var(--text-muted)]">
+                      {currentIndex + 1} of {items.length}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-[var(--text-muted)] mt-1">
+                  {truncateHex(item.tokenName, 12, 6)}
+                </p>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-1">
+              {/* Next button */}
+              {items && items.length > 1 && (
+                <button
+                  onClick={handleNext}
+                  disabled={!canGoNext}
+                  className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
+                  title="Next item (→)"
+                  aria-label="Next item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                aria-label="Close dialog"
+                className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -330,6 +433,14 @@ export default function LibraryContentModal({
                     </p>
                   </div>
                 )}
+                {item.fileSize != null && (
+                  <div>
+                    <p className="text-xs text-[var(--text-muted)]">File Size</p>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {formatBytes(item.fileSize)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -357,11 +468,11 @@ export default function LibraryContentModal({
                 <div className="absolute top-3 right-3">
                   <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] rounded-[var(--radius-md)] btn-base btn-tertiary"
                   >
                     {copied ? (
                       <>
-                        <svg className="w-3.5 h-3.5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                         Copied!
@@ -431,6 +542,7 @@ export default function LibraryContentModal({
                   mimeType={videoExtensionToMimeType(item.fileExtension)}
                   fileExtension={item.fileExtension || '.mp4'}
                   onExport={handleExport}
+                  subtitleData={subtitleData}
                 />
               </Suspense>
             )}
@@ -470,29 +582,42 @@ export default function LibraryContentModal({
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmingDelete(true)}
-                className="px-4 py-2.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+                className="px-4 py-2.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
                 Delete from Library
               </button>
               {showSaveAs && (
-                <button
-                  onClick={handleExport}
-                  disabled={exporting || state !== 'loaded'}
-                  className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                    viewMode === 'download'
-                      ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
-                      : 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {exporting ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
+                <>
+                  <button
+                    onClick={handleOpenExternal}
+                    disabled={state !== 'loaded'}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Open with system default application"
+                  >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                  )}
-                  Save As
-                </button>
+                    Open Externally
+                  </button>
+                  <button
+                    onClick={handleExport}
+                    disabled={exporting || state !== 'loaded'}
+                    className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                      viewMode === 'download'
+                        ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
+                        : 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {exporting ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    )}
+                    Save As
+                  </button>
+                </>
               )}
               <button
                 onClick={onClose}

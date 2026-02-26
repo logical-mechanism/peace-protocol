@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
+import { listLibraryItems } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
@@ -10,6 +11,8 @@ import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import type { MyPurchasesFilters, MyPurchasesAction } from '../hooks/useTabFilterState';
+import type { PurchaseStage } from './BidTimeline';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface MyPurchasesTabProps {
   userPkh?: string;
@@ -19,6 +22,7 @@ interface MyPurchasesTabProps {
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
+  failedDecryptTokens?: Set<string>;
 }
 
 function MyPurchasesTab({
@@ -29,18 +33,21 @@ function MyPurchasesTab({
   refreshSignal,
   filters,
   dispatch,
+  failedDecryptTokens,
 }: MyPurchasesTabProps) {
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
   const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [completedTokens, setCompletedTokens] = useState<Set<string>>(new Set());
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -89,6 +96,14 @@ function MyPurchasesTab({
       } else {
         setPurchasedEncryptions([]);
       }
+
+      // Fetch library items to determine completed purchases
+      try {
+        const libraryItems = await listLibraryItems();
+        setCompletedTokens(new Set(libraryItems.map((item) => item.tokenName)));
+      } catch {
+        // Library lookup failure is non-critical
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch your bids');
     } finally {
@@ -118,18 +133,50 @@ function MyPurchasesTab({
     [encryptionsMap]
   );
 
+  // Derive purchase stage from on-chain status + local state
+  const getPurchaseStage = useCallback(
+    (bid: BidDisplay): PurchaseStage => {
+      if (completedTokens.has(bid.encryptionToken)) return 'complete';
+      if (failedDecryptTokens?.has(bid.encryptionToken)) return 'failed';
+      if (bid.status === 'accepted') return 'accepted';
+      return 'placed';
+    },
+    [completedTokens, failedDecryptTokens]
+  );
+
+  // Count bids per filter status (for chip badges)
+  const statusCounts = useMemo(() => {
+    const counts = { all: bids.length, pending: 0, accepted: 0, complete: 0 };
+    for (const bid of bids) {
+      if (completedTokens.has(bid.encryptionToken)) {
+        counts.complete++;
+      } else if (bid.status === 'accepted') {
+        counts.accepted++;
+      } else if (bid.status === 'pending') {
+        counts.pending++;
+      }
+    }
+    return counts;
+  }, [bids, completedTokens]);
+
   // Filter and sort bids
   const filteredAndSorted = useMemo(() => {
     let result = [...bids];
 
-    // Filter by status
-    if (statusFilter !== 'all') {
+    // Filter by status (using derived purchase stage for 'complete' and 'accepted')
+    if (statusFilter === 'complete') {
+      result = result.filter((b) => completedTokens.has(b.encryptionToken));
+    } else if (statusFilter === 'accepted') {
+      result = result.filter(
+        (b) => b.status === 'accepted' && !completedTokens.has(b.encryptionToken)
+      );
+    } else if (statusFilter !== 'all') {
       result = result.filter((b) => b.status === statusFilter);
     }
 
     // Search filter (by token name, encryption token, or encryption description)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter((b) => {
         const encryption = encryptionsMap.get(b.encryptionToken);
         return (
@@ -161,7 +208,7 @@ function MyPurchasesTab({
     }
 
     return result;
-  }, [bids, statusFilter, searchQuery, sortBy, encryptionsMap]);
+  }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, completedTokens]);
 
   // Handlers
   const handleCancelBid = useCallback(
@@ -205,7 +252,7 @@ function MyPurchasesTab({
         action={
           <button
             onClick={fetchData}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Try Again
           </button>
@@ -229,7 +276,7 @@ function MyPurchasesTab({
                 'Browse the Marketplace tab to find encryptions to bid on!'
               );
             }}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Browse Marketplace
           </button>
@@ -282,7 +329,7 @@ function MyPurchasesTab({
 
                 <button
                   onClick={() => onDecryptEncryption?.(enc)}
-                  className="w-full mt-2 px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full mt-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -336,18 +383,27 @@ function MyPurchasesTab({
 
         {/* Filters */}
         <div className="flex gap-3">
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MyPurchasesFilters['statusFilter'] })}
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          {/* Status Filter Chips */}
+          <div className="flex gap-1.5 items-center">
+            {(['all', 'pending', 'accepted', 'complete'] as const).map((status) => {
+              const isActive = statusFilter === status;
+              const label = status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1);
+              const count = statusCounts[status];
+              return (
+                <button
+                  key={status}
+                  onClick={() => dispatch({ type: 'SET_STATUS', payload: status })}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-150 cursor-pointer ${
+                    isActive
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card)] hover:text-[var(--text-secondary)]'
+                  }`}
+                >
+                  {label}{count > 0 && ` (${count})`}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Sort */}
           <select
@@ -404,7 +460,7 @@ function MyPurchasesTab({
           {/* Refresh */}
           <button
             onClick={fetchData}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh bids"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -438,7 +494,7 @@ function MyPurchasesTab({
                   dispatch({ type: 'SET_SEARCH', payload: '' });
                   dispatch({ type: 'SET_STATUS', payload: 'all' });
                 }}
-                className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Clear Filters
               </button>
@@ -453,27 +509,33 @@ function MyPurchasesTab({
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((bid) => (
-            <MyPurchaseBidCard
-              key={bid.tokenName}
-              bid={bid}
-              encryption={getEncryption(bid.encryptionToken)}
-              onCancel={handleCancelBid}
-              onDecrypt={handleDecrypt}
-            />
+          {filteredAndSorted.map((bid, index) => (
+            <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <MyPurchaseBidCard
+                bid={bid}
+                encryption={getEncryption(bid.encryptionToken)}
+                onCancel={handleCancelBid}
+                onDecrypt={handleDecrypt}
+                purchaseStage={getPurchaseStage(bid)}
+                decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((bid) => (
-            <MyPurchaseBidCard
-              key={bid.tokenName}
-              bid={bid}
-              encryption={getEncryption(bid.encryptionToken)}
-              onCancel={handleCancelBid}
-              onDecrypt={handleDecrypt}
-              compact
-            />
+          {filteredAndSorted.map((bid, index) => (
+            <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <MyPurchaseBidCard
+                bid={bid}
+                encryption={getEncryption(bid.encryptionToken)}
+                onCancel={handleCancelBid}
+                onDecrypt={handleDecrypt}
+                purchaseStage={getPurchaseStage(bid)}
+                decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
+                compact
+              />
+            </div>
           ))}
         </div>
       )}

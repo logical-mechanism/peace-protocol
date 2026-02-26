@@ -9,7 +9,8 @@ Thank you for your interest in contributing to the PEACE Protocol.
 | Python | 3.12+ | CLI, cryptography, tests |
 | Go | 1.25+ | gnark SNARK prover |
 | Aiken | v1.1.21 | Smart contract compiler |
-| Node.js | 22+ | Web UI |
+| Node.js | 22+ | Desktop app (Tauri) + Web UI |
+| Rust | 1.77.2+ | Tauri backend |
 | cardano-cli | latest | Transaction building (happy path only) |
 
 ## Repository Structure
@@ -20,7 +21,8 @@ Thank you for your interest in contributing to the PEACE Protocol.
 │   ├── contracts/    # Aiken smart contracts (validators + types + tests)
 │   ├── src/          # Python CLI modules
 │   ├── snark/        # Go/gnark SNARK prover
-│   ├── ui/           # TypeScript web UI (React frontend + Node.js backend)
+│   ├── gui/          # Veiled desktop app (Tauri + React + Express)
+│   ├── ui/           # TypeScript web UI (WASM test frontend)
 │   ├── commands/     # Happy path shell scripts
 │   └── tests/        # Python test suite
 └── documentation/    # Technical report, milestones, use cases
@@ -37,10 +39,20 @@ pip install -r requirements.txt
 ./setup.sh
 ```
 
+For the desktop app (Tauri):
+
+```bash
+cd app/gui
+bash run.sh          # Checks prerequisites, starts dev environment
+# Or manually:
+npm run install:all  # Install all deps + build backend
+npx tauri dev        # Start Vite dev server + Tauri window
+```
+
 For the web UI:
 
 ```bash
-cd ui/fe
+cd app/ui/fe
 npm install
 ```
 
@@ -65,7 +77,10 @@ cd app && python -m pytest -s -vv
 # Go (gnark prover)
 cd app/snark && go test ./... -count=1 -v -timeout 60m
 
-# TypeScript (UI)
+# Desktop app (Tauri)
+cd app/gui && bash test.sh
+
+# Web UI
 cd app/ui/fe && npx vitest run
 ```
 
@@ -90,19 +105,33 @@ cd contracts && aiken fmt
 # Go
 cd snark && gofmt -w . && go vet ./...
 
-# TypeScript
+# Desktop app (Tauri)
+cd gui && bash lint.sh
+
+# Web UI
 cd ui && npm run lint
 ```
+
+## Version Bump Checklist
+
+When releasing a new version, update ALL of these files:
+
+1. `app/gui/src-tauri/tauri.conf.json` — `version` field
+2. `app/gui/src-tauri/Cargo.toml` — `version` field
+3. `app/gui/package.json` — `version` field
+4. `app/gui/fe/package.json` — `version` field
+5. `app/gui/be/package.json` — `version` field
+6. `app/contracts/aiken.toml` — `version` field
+7. `app/gui/CHANGELOG.md` — add new entry at top
 
 ## Branch Workflow
 
 - **main** — stable releases
-- **dev** — integration branch
-- Feature branches are created from `dev` with descriptive names
+- Feature branches are created from `main` with descriptive names
 
 ## Pull Request Process
 
-1. Create a feature branch from `dev`
+1. Create a feature branch from `main`
 2. Make your changes
 3. Ensure all tests pass (`./run_tests.sh`)
 4. Run `./lint.sh` and fix any issues

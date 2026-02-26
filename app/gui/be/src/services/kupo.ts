@@ -13,6 +13,7 @@ import { config, getNetworkConfig } from '../config/index.js';
 import type { KoiosUtxo } from './koios.js';
 import { decodePlutusData, slotToUnixTime } from './cbor.js';
 import { fetchWithRetry } from './fetchWithRetry.js';
+import { CircuitBreaker } from './circuitBreaker.js';
 
 /** Kupo /matches response item (with ?resolve_hashes) */
 export interface KupoMatch {
@@ -99,21 +100,29 @@ export function matchToKoiosUtxo(match: KupoMatch, network: 'preprod' | 'mainnet
 class KupoClient {
   private baseUrl: string;
   private network: 'preprod' | 'mainnet';
+  private circuitBreaker: CircuitBreaker;
 
   constructor() {
     const { kupoUrl } = getNetworkConfig();
     this.baseUrl = kupoUrl;
     this.network = config.network;
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'kupo',
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+    });
   }
 
   private async request<T>(path: string): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
-    const response = await fetchWithRetry(url);
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`Kupo API error: ${response.status} ${response.statusText} - ${body}`);
-    }
-    return response.json();
+    return this.circuitBreaker.execute(async () => {
+      const url = `${this.baseUrl}${path}`;
+      const response = await fetchWithRetry(url);
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        throw new Error(`Kupo API error: ${response.status} ${response.statusText} - ${body}`);
+      }
+      return response.json();
+    });
   }
 
   /**

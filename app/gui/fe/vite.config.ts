@@ -69,16 +69,17 @@ export default defineConfig({
     alias: {
       '@tauri-apps/api/core': path.resolve(__dirname, 'src/test/__mocks__/tauri.ts'),
       '@tauri-apps/api/event': path.resolve(__dirname, 'src/test/__mocks__/tauri.ts'),
+      '@tauri-apps/plugin-notification': path.resolve(__dirname, 'src/test/__mocks__/tauri-notification.ts'),
     },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary'],
       include: ['src/services/**', 'src/hooks/**', 'src/contexts/**', 'src/config/**', 'src/utils/**'],
       thresholds: {
-        lines: 40,
-        functions: 40,
-        branches: 35,
-        statements: 40,
+        lines: 55,
+        functions: 70,
+        branches: 85,
+        statements: 55,
       },
     },
   },

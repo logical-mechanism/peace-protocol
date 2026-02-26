@@ -9,7 +9,9 @@
     "core:window:allow-set-title",
     "dialog:default",
     "shell:allow-open",
+    "opener:default",
     "shell:allow-kill",
+    "notification:default",
     {
       "identifier": "shell:allow-spawn",
       "allow": [

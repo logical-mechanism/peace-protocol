@@ -1,6 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
 import { getToastDurationMs } from '../services/toastSettings';
+import { getTypeLabel, type TransactionType } from '../services/transactionHistory';
+import { copyToClipboard } from '../utils/clipboard';
+
+export interface TransactionDetails {
+  type?: TransactionType;
+  amountLovelace?: number;
+  message?: string;
+}
+
+const MAX_VISIBLE_TOASTS = 3;
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -25,14 +35,36 @@ interface ToastProps {
 }
 
 function Toast({ toast, onClose }: ToastProps) {
+  const [copied, setCopied] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  const handleClose = useCallback(() => {
+    if (!closing) setClosing(true);
+  }, [closing]);
+
+  const handleAnimationEnd = useCallback((e: React.AnimationEvent) => {
+    if (e.animationName === 'toast-exit') {
+      onClose(toast.id);
+    }
+  }, [onClose, toast.id]);
+
   useEffect(() => {
-    if (toast.duration !== 0) {
+    if (toast.duration !== 0 && !closing) {
       const timer = setTimeout(() => {
-        onClose(toast.id);
+        handleClose();
       }, toast.duration || 5000);
       return () => clearTimeout(timer);
     }
-  }, [toast.id, toast.duration, onClose]);
+  }, [toast.id, toast.duration, closing, handleClose]);
+
+  const handleCopy = async () => {
+    const text = toast.message ? `${toast.title}: ${toast.message}` : toast.title;
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
   const getColors = () => {
     switch (toast.type) {
@@ -118,7 +150,8 @@ function Toast({ toast, onClose }: ToastProps) {
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg animate-in slide-in-from-right-full duration-300`}
+      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg ${closing ? 'toast-exit' : 'animate-in slide-in-from-right-full duration-300'}`}
+      onAnimationEnd={handleAnimationEnd}
       role="alert"
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
@@ -164,8 +197,25 @@ function Toast({ toast, onClose }: ToastProps) {
           </div>
         )}
       </div>
+      {(toast.type === 'error' || toast.type === 'warning') && (
+        <button
+          onClick={handleCopy}
+          className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          aria-label="Copy error to clipboard"
+        >
+          {copied ? (
+            <svg className="w-4 h-4 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
+      )}
       <button
-        onClick={() => onClose(toast.id)}
+        onClick={handleClose}
         className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
         aria-label="Dismiss notification"
       >
@@ -185,13 +235,23 @@ function Toast({ toast, onClose }: ToastProps) {
 interface ToastContainerProps {
   toasts: ToastMessage[];
   onClose: (id: string) => void;
+  queuedCount?: number;
+  onDismissAll?: () => void;
 }
 
-export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
+export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full" aria-live="polite" role="status">
+      {toasts.length >= 2 && onDismissAll && (
+        <button
+          onClick={onDismissAll}
+          className="self-end text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer mb-1"
+        >
+          Dismiss all{queuedCount > 0 ? ` (${queuedCount} queued)` : ''}
+        </button>
+      )}
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} onClose={onClose} />
       ))}
@@ -201,10 +261,13 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
 
 /**
  * Hook for managing toast notifications.
+ * Limits visible toasts to MAX_VISIBLE_TOASTS and queues the rest.
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [visibleToasts, setVisibleToasts] = useState<ToastMessage[]>([]);
+  const [queuedCount, setQueuedCount] = useState(0);
+  const queueRef = useRef<ToastMessage[]>([]);
 
   const addToast = useCallback(
     (
@@ -216,14 +279,35 @@ export function useToast() {
     ) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const newToast: ToastMessage = { id, type, title, message, duration, action };
-      setToasts((prev) => [...prev, newToast]);
+      setVisibleToasts((prev) => {
+        if (prev.length < MAX_VISIBLE_TOASTS) {
+          return [...prev, newToast];
+        }
+        queueRef.current.push(newToast);
+        setQueuedCount(queueRef.current.length);
+        return prev;
+      });
       return id;
     },
     []
   );
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setVisibleToasts((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      if (next.length < MAX_VISIBLE_TOASTS && queueRef.current.length > 0) {
+        const promoted = queueRef.current.splice(0, MAX_VISIBLE_TOASTS - next.length);
+        setQueuedCount(queueRef.current.length);
+        return [...next, ...promoted];
+      }
+      return next;
+    });
+  }, []);
+
+  const dismissAll = useCallback(() => {
+    setVisibleToasts([]);
+    queueRef.current = [];
+    setQueuedCount(0);
   }, []);
 
   const success = useCallback(
@@ -258,22 +342,52 @@ export function useToast() {
 
   /**
    * Shows a success toast for a submitted transaction with a CardanoScan link.
+   * Accepts either a plain string message or a TransactionDetails object with
+   * type and amount for richer display.
    */
   const transactionSuccess = useCallback(
-    (title: string, txHash: string, message?: string) => {
+    (title: string, txHash: string, messageOrDetails?: string | TransactionDetails) => {
       const base = getToastDurationMs();
       const action: ToastAction | undefined = isValidTxHash(txHash)
         ? { label: 'View on CardanoScan', href: getTransactionUrl(txHash) }
         : undefined;
-      return addToast('success', title, message || `Transaction: ${txHash.slice(0, 16)}...`, base === 0 ? 0 : Math.max(base, 8000), action);
+
+      let message: string;
+      if (typeof messageOrDetails === 'string') {
+        message = messageOrDetails || `Transaction: ${txHash.slice(0, 16)}...`;
+      } else if (messageOrDetails) {
+        const parts: string[] = [];
+        if (messageOrDetails.type) {
+          parts.push(getTypeLabel(messageOrDetails.type));
+        }
+        if (messageOrDetails.amountLovelace !== undefined && messageOrDetails.amountLovelace > 0) {
+          const ada = (messageOrDetails.amountLovelace / 1_000_000).toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          });
+          parts.push(`${ada} ADA`);
+        }
+        if (messageOrDetails.message) {
+          parts.push(messageOrDetails.message);
+        }
+        message = parts.length > 0
+          ? parts.join(' \u2014 ')
+          : `Transaction: ${txHash.slice(0, 16)}...`;
+      } else {
+        message = `Transaction: ${txHash.slice(0, 16)}...`;
+      }
+
+      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action);
     },
     [addToast]
   );
 
   return {
-    toasts,
+    toasts: visibleToasts,
+    queuedCount,
     addToast,
     removeToast,
+    dismissAll,
     success,
     error,
     warning,

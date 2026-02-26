@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { truncateHex } from '../utils/truncate';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface DescriptionModalProps {
   isOpen: boolean;
@@ -15,20 +17,23 @@ export default function DescriptionModal({
   tokenName,
 }: DescriptionModalProps) {
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('description', isOpen, onClose);
+  const { zIndex, shouldRender, animationState } = useModalStack('description', isOpen, onClose);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
+    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
+      <div className={`relative w-full max-w-lg max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
@@ -43,9 +48,10 @@ export default function DescriptionModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+            aria-label="Close dialog"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -67,7 +73,7 @@ export default function DescriptionModal({
         <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+            className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Close
           </button>

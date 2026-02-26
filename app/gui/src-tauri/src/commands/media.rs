@@ -334,6 +334,7 @@ struct ContentMetadataJson {
     seller: Option<String>,
     created_at: Option<String>,
     decrypted_at: String,
+    file_size: Option<u64>,
 }
 
 /// A library item returned to the frontend.
@@ -351,6 +352,7 @@ pub struct LibraryItem {
     pub created_at: Option<String>,
     pub decrypted_at: String,
     pub content_missing: bool,
+    pub file_size: Option<u64>,
 }
 
 /// List all library items by scanning content directories for metadata files.
@@ -400,7 +402,16 @@ pub fn list_library_items(state: tauri::State<'_, ContentDir>) -> Result<Vec<Lib
             };
 
             // Check if the actual content file exists (any non-.json file)
-            let content_missing = !has_content_file(&token_dir, &token_name);
+            let content_file = find_content_file(&token_dir, &token_name);
+            let content_missing = content_file.is_none();
+
+            // Use metadata file_size if present, otherwise read from disk
+            let file_size = meta.file_size.or_else(|| {
+                content_file
+                    .as_ref()
+                    .and_then(|p| std::fs::metadata(p).ok())
+                    .map(|m| m.len())
+            });
 
             items.push(LibraryItem {
                 token_name: meta.token_name,
@@ -414,6 +425,7 @@ pub fn list_library_items(state: tauri::State<'_, ContentDir>) -> Result<Vec<Lib
                 created_at: meta.created_at,
                 decrypted_at: meta.decrypted_at,
                 content_missing,
+                file_size,
             });
         }
     }
@@ -443,6 +455,40 @@ pub fn read_library_content(
         .ok_or_else(|| "Content file not found".to_string())?;
 
     std::fs::read(&content_path).map_err(|e| format!("Failed to read content file: {e}"))
+}
+
+/// Read a subtitle file (.vtt or .srt) from a library item's directory, if one exists.
+/// Returns the file bytes or None if no subtitle file is found.
+#[tauri::command]
+pub fn read_subtitle_file(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<Option<Vec<u8>>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Ok(None);
+    }
+
+    let entries =
+        std::fs::read_dir(&token_dir).map_err(|e| format!("Failed to read directory: {e}"))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = ext.to_lowercase();
+            if ext_lower == "vtt" || ext_lower == "srt" {
+                let bytes = std::fs::read(&path)
+                    .map_err(|e| format!("Failed to read subtitle file: {e}"))?;
+                return Ok(Some(bytes));
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 /// Delete a library item (removes the entire token directory).
@@ -538,11 +584,6 @@ pub async fn export_text_file(
     }
 }
 
-/// Check if a content (non-metadata) file exists in the token directory.
-fn has_content_file(token_dir: &Path, token_name: &str) -> bool {
-    find_content_file(token_dir, token_name).is_some()
-}
-
 /// Find the content file in a token directory (the non-.json file).
 fn find_content_file(token_dir: &Path, token_name: &str) -> Option<PathBuf> {
     let json_name = format!("{}.json", token_name);
@@ -555,4 +596,31 @@ fn find_content_file(token_dir: &Path, token_name: &str) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Open a library content file with the OS default application.
+#[tauri::command]
+pub async fn open_with_system(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    let path_str = content_path.to_string_lossy().to_string();
+
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_path(&path_str, None::<&str>)
+        .map_err(|e| format!("Failed to open with system player: {e}"))
 }

@@ -195,4 +195,84 @@ describe('PlaceBidModal', () => {
     fireEvent.click(screen.getByLabelText('Close dialog'));
     expect(mockOnClose).toHaveBeenCalledOnce();
   });
+
+  // --- Suggested price hint ---
+
+  it('shows hint when bid is below suggested price', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '50' } });
+    expect(screen.getByText(/below the seller's suggested price/)).toBeInTheDocument();
+  });
+
+  it('does not show hint when bid equals suggested price', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '100' } });
+    expect(screen.queryByText(/below the seller's suggested price/)).not.toBeInTheDocument();
+  });
+
+  it('does not show hint when bid exceeds suggested price', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '150' } });
+    expect(screen.queryByText(/below the seller's suggested price/)).not.toBeInTheDocument();
+  });
+
+  it('does not show hint when suggestedPrice is undefined', () => {
+    renderModal({ encryption: { ...baseEncryption, suggestedPrice: undefined } });
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '5' } });
+    expect(screen.queryByText(/below the seller's suggested price/)).not.toBeInTheDocument();
+  });
+
+  // --- Bid count display ---
+
+  it('shows bid count when bidCount > 0', () => {
+    renderModal({ bidCount: 5 });
+    expect(screen.getByText('5 bids on this listing')).toBeInTheDocument();
+  });
+
+  it('shows singular "bid" for count of 1', () => {
+    renderModal({ bidCount: 1 });
+    expect(screen.getByText('1 bid on this listing')).toBeInTheDocument();
+  });
+
+  it('does not show bid count when bidCount is 0', () => {
+    renderModal({ bidCount: 0 });
+    expect(screen.queryByText(/bids? on this listing/)).not.toBeInTheDocument();
+  });
+
+  // --- Wallet balance display ---
+
+  it('shows wallet balance when balanceLovelace is provided', () => {
+    renderModal({ balanceLovelace: '1234000000' }); // 1,234 ADA
+    expect(screen.getByText(/Balance: 1,234/)).toBeInTheDocument();
+  });
+
+  it('does not show balance when balanceLovelace is undefined', () => {
+    renderModal({ balanceLovelace: undefined });
+    expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
+  });
+
+  it('Max button fills input with balance minus fee reserve', () => {
+    renderModal({ balanceLovelace: '100000000' }); // 100 ADA
+    fireEvent.click(screen.getByRole('button', { name: 'Max' }));
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    expect(input.value).toBe('95'); // 100 - 5 fee reserve
+  });
+
+  it('Max button is disabled when balance is too low', () => {
+    renderModal({ balanceLovelace: '3000000' }); // 3 ADA (below 5 ADA reserve)
+    expect(screen.getByRole('button', { name: 'Max' })).toBeDisabled();
+  });
+
+  it('validates bid exceeding balance', async () => {
+    renderModal({ balanceLovelace: '50000000' }); // 50 ADA
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '60' } });
+    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
+    expect(await screen.findByText('Bid exceeds your wallet balance')).toBeInTheDocument();
+    expect(mockOnSubmit).not.toHaveBeenCalled();
+  });
 });

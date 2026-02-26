@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import { truncateDescription } from './descriptionUtils';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -26,17 +28,20 @@ export default function ConfirmModal({
   loading = false,
 }: ConfirmModalProps) {
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('confirm', isOpen, onClose, loading);
+  const { zIndex, shouldRender, animationState } = useModalStack('confirm', isOpen, onClose, loading);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const confirmClass =
     confirmVariant === 'danger'
-      ? 'bg-[var(--error)] hover:bg-[var(--error)]/80 text-white'
-      : 'bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-white';
+      ? 'bg-[var(--error)] hover:bg-[var(--error)]/80 text-white btn-base'
+      : 'btn-base btn-primary';
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 flex items-center justify-center"
       style={{ zIndex }}
       role="dialog"
@@ -45,13 +50,13 @@ export default function ConfirmModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={loading ? undefined : onClose}
         aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md max-h-[85vh] mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl flex flex-col overflow-hidden">
+      <div className={`relative z-10 w-full max-w-md max-h-[85vh] mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl flex flex-col overflow-hidden ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         <div className="flex-1 overflow-y-auto p-6">
           <h2
             id="confirm-modal-title"
@@ -73,14 +78,14 @@ export default function ConfirmModal({
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className={`px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${confirmClass}`}
+            className={`px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center gap-2 ${confirmClass}`}
           >
             {loading && <LoadingSpinner size="sm" />}
             {confirmLabel}

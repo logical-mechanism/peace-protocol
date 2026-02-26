@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LibraryItem } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
+import { formatBytes } from '../utils/formatBytes';
 import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -10,6 +11,9 @@ interface LibraryCardProps {
   onView: (item: LibraryItem) => void;
   onDelete: (item: LibraryItem) => void;
   compact?: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (tokenName: string) => void;
 }
 
 
@@ -76,16 +80,36 @@ export default function LibraryCard({
   onView,
   onDelete,
   compact = false,
+  selectMode = false,
+  selected = false,
+  onToggleSelect,
 }: LibraryCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
 
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
+        <div
+          className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-4 transition-all duration-150 ${
+            selected
+              ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
+              : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)]'
+          } ${selectMode ? 'cursor-pointer' : ''}`}
+          onClick={selectMode ? () => onToggleSelect?.(item.tokenName) : undefined}
+        >
           <div className="flex items-center justify-between gap-4">
-            {/* Left: Icon + Info */}
+            {/* Left: Checkbox + Icon + Info */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
+              {selectMode && (
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => onToggleSelect?.(item.tokenName)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-4 h-4 accent-[var(--accent)] cursor-pointer flex-shrink-0"
+                  aria-label={`Select ${item.tokenName}`}
+                />
+              )}
               <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
                 <CategoryIcon category={item.category} size="sm" />
               </div>
@@ -121,28 +145,31 @@ export default function LibraryCard({
                 )}
                 <p className="text-xs text-[var(--text-muted)]">
                   {formatDate(item.decryptedAt)}
+                  {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
                 </p>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onView(item)}
-                  className="px-3 py-1.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => onDelete(item)}
-                  className="p-1.5 text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-muted)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
-                  title="Delete from library"
-                  aria-label="Delete from library"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
+              {!selectMode && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onView(item)}
+                    className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => onDelete(item)}
+                    className="p-1.5 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-muted)] btn-base"
+                    title="Delete from library"
+                    aria-label="Delete from library"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -159,7 +186,28 @@ export default function LibraryCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150">
+      <div
+        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-150 ${
+          selected
+            ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
+            : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]'
+        } ${selectMode ? 'cursor-pointer' : ''}`}
+        onClick={selectMode ? () => onToggleSelect?.(item.tokenName) : undefined}
+      >
+        {/* Select checkbox */}
+        {selectMode && (
+          <div className="absolute top-3 left-3">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => onToggleSelect?.(item.tokenName)}
+              onClick={(e) => e.stopPropagation()}
+              className="w-4 h-4 accent-[var(--accent)] cursor-pointer"
+              aria-label={`Select ${item.tokenName}`}
+            />
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
@@ -174,6 +222,7 @@ export default function LibraryCard({
             </div>
             <p className="text-xs text-[var(--text-muted)]">
               Decrypted {formatDate(item.decryptedAt)}
+              {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
             </p>
           </div>
         </div>
@@ -211,20 +260,22 @@ export default function LibraryCard({
         )}
 
         {/* Action Buttons */}
-        <div className="mt-4 space-y-2">
-          <button
-            onClick={() => onView(item)}
-            className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
-          >
-            View Content
-          </button>
-          <button
-            onClick={() => onDelete(item)}
-            className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
-          >
-            Delete
-          </button>
-        </div>
+        {!selectMode && (
+          <div className="mt-4 space-y-2">
+            <button
+              onClick={() => onView(item)}
+              className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              View Content
+            </button>
+            <button
+              onClick={() => onDelete(item)}
+              className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       <DescriptionModal

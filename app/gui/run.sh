@@ -17,9 +17,9 @@ export WEBKIT_DISABLE_DMABUF_RENDERER=1
 # export WEBKIT_DISABLE_COMPOSITING_MODE=1
 
 # If you're on Wayland, test forcing X11 (common trigger for this error class).
-if [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
-  export GDK_BACKEND=x11
-fi
+# if [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
+#   export GDK_BACKEND=x11
+# fi
 
 echo "Installing dependencies and building backend..."
 npm run install:all

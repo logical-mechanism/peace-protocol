@@ -8,6 +8,8 @@ import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
+import { getTransactions } from '../services/transactionHistory';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface MySalesTabProps {
   userPkh?: string;
@@ -42,6 +44,7 @@ function MySalesTab({
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
   const [selectedListing, setSelectedListing] = useState<EncryptionDisplay | null>(null);
@@ -98,27 +101,56 @@ function MySalesTab({
     fetchData();
   }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Get bid count for a listing
+  // Pre-compute pending bid counts per listing
+  const bidCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [tokenName, bids] of bidsMap) {
+      const count = bids.filter((b) => b.status === 'pending').length;
+      if (count > 0) map.set(tokenName, count);
+    }
+    return map;
+  }, [bidsMap]);
+
   const getBidCount = useCallback(
-    (tokenName: string): number => {
-      const bids = bidsMap.get(tokenName) || [];
-      return bids.filter((b) => b.status === 'pending').length;
-    },
-    [bidsMap]
+    (tokenName: string): number => bidCountMap.get(tokenName) ?? 0,
+    [bidCountMap]
   );
 
-  // Filter and sort encryptions
-  const filteredAndSorted = useMemo(() => {
+  // Compute sales stats for summary banner
+  const salesStats = useMemo(() => {
+    const activeCount = encryptions.filter(e => e.status === 'active').length;
+    const pendingCount = encryptions.filter(e => e.status === 'pending').length;
+
+    const listedValue = encryptions
+      .filter(e => e.status === 'active')
+      .reduce((sum, e) => sum + (e.suggestedPrice ?? 0), 0);
+
+    let totalBidCount = 0;
+    let totalBidValue = 0;
+    for (const [, bids] of bidsMap) {
+      const pendingBids = bids.filter(b => b.status === 'pending');
+      totalBidCount += pendingBids.length;
+      totalBidValue += pendingBids.reduce((sum, b) => sum + b.amount, 0);
+    }
+
+    const completedSales = userPkh
+      ? getTransactions(userPkh).filter(
+          tx => (tx.type === 'accept-bid' || tx.type === 'complete-sale') && tx.status === 'confirmed'
+        ).length
+      : 0;
+
+    return { activeCount, pendingCount, completedSales, listedValue, totalBidCount, totalBidValue };
+  }, [encryptions, bidsMap, userPkh]);
+
+  // Filter encryptions (separate from sort so sort changes don't re-filter)
+  const filtered = useMemo(() => {
     let result = [...encryptions];
 
-    // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter((e) => e.status === statusFilter);
     }
-
-    // Search filter (by token name or description)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(
         (e) =>
           e.tokenName.toLowerCase().includes(query) ||
@@ -126,7 +158,12 @@ function MySalesTab({
       );
     }
 
-    // Sort
+    return result;
+  }, [encryptions, statusFilter, debouncedSearch]);
+
+  // Sort filtered results (only reruns when sort order or bid counts change)
+  const filteredAndSorted = useMemo(() => {
+    const result = [...filtered];
     switch (sortBy) {
       case 'newest':
         result.sort(
@@ -145,12 +182,11 @@ function MySalesTab({
         result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
         break;
       case 'most-bids':
-        result.sort((a, b) => getBidCount(b.tokenName) - getBidCount(a.tokenName));
+        result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
         break;
     }
-
     return result;
-  }, [encryptions, statusFilter, searchQuery, sortBy, getBidCount]);
+  }, [filtered, sortBy, bidCountMap]);
 
   // Handlers
   const handleViewBids = useCallback((encryption: EncryptionDisplay) => {
@@ -223,7 +259,7 @@ function MySalesTab({
         action={
           <button
             onClick={fetchData}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Try Again
           </button>
@@ -242,7 +278,7 @@ function MySalesTab({
         action={
           <button
             onClick={onCreateListing}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Create Listing
           </button>
@@ -253,6 +289,44 @@ function MySalesTab({
 
   return (
     <div>
+      {/* Earnings Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Active Listings</p>
+          <p className="text-xl font-semibold text-[var(--text-primary)]">
+            {salesStats.activeCount}
+          </p>
+          {salesStats.listedValue > 0 && (
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              {salesStats.listedValue.toLocaleString()} ADA listed
+            </p>
+          )}
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Pending Bids</p>
+          <p className="text-xl font-semibold text-[var(--accent)]">
+            {salesStats.totalBidCount}
+          </p>
+          {salesStats.totalBidValue > 0 && (
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              {(salesStats.totalBidValue / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} ADA total
+            </p>
+          )}
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Pending Sales</p>
+          <p className="text-xl font-semibold text-[var(--warning)]">
+            {salesStats.pendingCount}
+          </p>
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Completed Sales</p>
+          <p className="text-xl font-semibold text-[var(--success)]">
+            {salesStats.completedSales}
+          </p>
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {/* Search */}
@@ -357,7 +431,7 @@ function MySalesTab({
           {/* Refresh */}
           <button
             onClick={fetchData}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh listings"
             aria-label="Refresh listings"
           >
@@ -392,7 +466,7 @@ function MySalesTab({
                   dispatch({ type: 'SET_SEARCH', payload: '' });
                   dispatch({ type: 'SET_STATUS', payload: 'all' });
                 }}
-                className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Clear Filters
               </button>
@@ -407,34 +481,36 @@ function MySalesTab({
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((encryption) => (
-            <SalesListingCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              bidCount={getBidCount(encryption.tokenName)}
-              onViewBids={handleViewBids}
-              onRemove={handleRemoveListing}
-              onCancelPending={handleCancelPending}
-              onCompleteSale={onCompleteSale}
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-            />
+          {filteredAndSorted.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <SalesListingCard
+                encryption={encryption}
+                bidCount={getBidCount(encryption.tokenName)}
+                onViewBids={handleViewBids}
+                onRemove={handleRemoveListing}
+                onCancelPending={handleCancelPending}
+                onCompleteSale={onCompleteSale}
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((encryption) => (
-            <SalesListingCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              bidCount={getBidCount(encryption.tokenName)}
-              onViewBids={handleViewBids}
-              onRemove={handleRemoveListing}
-              onCancelPending={handleCancelPending}
-              compact
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-            />
+          {filteredAndSorted.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <SalesListingCard
+                encryption={encryption}
+                bidCount={getBidCount(encryption.tokenName)}
+                onViewBids={handleViewBids}
+                onRemove={handleRemoveListing}
+                onCancelPending={handleCancelPending}
+                compact
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+              />
+            </div>
           ))}
         </div>
       )}

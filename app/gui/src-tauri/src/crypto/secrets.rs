@@ -23,23 +23,79 @@ pub struct EncryptedSecret {
     pub ciphertext: String,
 }
 
-/// Fixed salt for deriving the secrets encryption key from the mnemonic.
-/// Domain-separated and not secret — the mnemonic provides all the entropy.
-const SECRETS_KEY_SALT: &[u8; 16] = b"PEACE_SECRETS_V1";
+/// KDF metadata, stored at `secrets/kdf_meta.json`.
+/// Tracks the key derivation version and per-user salt.
+#[derive(Serialize, Deserialize)]
+pub struct KdfMeta {
+    pub version: u32,
+    /// Random 16-byte salt (hex-encoded). Present for version >= 2.
+    pub salt: String,
+}
 
-/// Derive a 32-byte AES key from the wallet mnemonic for secret encryption.
-///
-/// Uses Argon2id with light parameters (4 MiB, 1 iteration) since the
-/// mnemonic already has 256 bits of entropy.
-/// Returns `Zeroizing<[u8; 32]>` — key material is automatically zeroed on drop.
-pub fn derive_secrets_key(mnemonic: &str) -> Result<Zeroizing<[u8; 32]>, String> {
+/// Fixed salt for KDF version 1 (legacy, retained for migration only).
+const SECRETS_KEY_SALT_V1: &[u8; 16] = b"PEACE_SECRETS_V1";
+
+/// Derive secrets key using KDF version 1 (legacy).
+/// 4 MiB, 1 iteration, 1 parallelism, fixed salt.
+pub fn derive_secrets_key_v1(mnemonic: &str) -> Result<Zeroizing<[u8; 32]>, String> {
     let params = Params::new(4096, 1, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = Zeroizing::new([0u8; 32]);
     argon2
-        .hash_password_into(mnemonic.as_bytes(), SECRETS_KEY_SALT, &mut *key)
+        .hash_password_into(mnemonic.as_bytes(), SECRETS_KEY_SALT_V1, &mut *key)
         .map_err(|e| format!("Secrets key derivation failed: {e}"))?;
     Ok(key)
+}
+
+/// Derive secrets key using KDF version 2 (current).
+/// 32 MiB, 2 iterations, 1 parallelism, random per-user salt.
+pub fn derive_secrets_key_v2(mnemonic: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, String> {
+    let params = Params::new(32768, 2, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut key = Zeroizing::new([0u8; 32]);
+    argon2
+        .hash_password_into(mnemonic.as_bytes(), salt, &mut *key)
+        .map_err(|e| format!("Secrets key derivation failed: {e}"))?;
+    Ok(key)
+}
+
+/// Generate a random 16-byte salt for KDF v2.
+pub fn generate_kdf_salt() -> [u8; 16] {
+    let mut salt = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut salt);
+    salt
+}
+
+/// Load KDF metadata from the secrets directory.
+/// Returns `(meta, needs_migration)`. If no `kdf_meta.json` exists, returns
+/// a v1 placeholder with `needs_migration = true`.
+pub fn load_kdf_meta(secrets_dir: &std::path::Path) -> Result<(KdfMeta, bool), String> {
+    let path = secrets_dir.join("kdf_meta.json");
+    if path.exists() {
+        let json = std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read kdf_meta.json: {e}"))?;
+        let meta: KdfMeta =
+            serde_json::from_str(&json).map_err(|e| format!("Invalid kdf_meta.json: {e}"))?;
+        Ok((meta, false))
+    } else {
+        Ok((
+            KdfMeta {
+                version: 1,
+                salt: String::new(),
+            },
+            true,
+        ))
+    }
+}
+
+/// Save KDF metadata to the secrets directory.
+pub fn save_kdf_meta(secrets_dir: &std::path::Path, meta: &KdfMeta) -> Result<(), String> {
+    let path = secrets_dir.join("kdf_meta.json");
+    let json =
+        serde_json::to_string_pretty(meta).map_err(|e| format!("Failed to serialize: {e}"))?;
+    std::fs::write(&path, &json).map_err(|e| format!("Failed to write kdf_meta.json: {e}"))?;
+    crate::crypto::wallet::set_owner_only_file(&path)?;
+    Ok(())
 }
 
 /// Encrypt plaintext bytes with AES-256-GCM using the secrets key.
@@ -107,11 +163,11 @@ pub fn secure_delete(path: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
-fn to_hex(bytes: &[u8]) -> String {
+pub(crate) fn to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn from_hex(hex: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn from_hex(hex: &str) -> Result<Vec<u8>, String> {
     if hex.len() % 2 != 0 {
         return Err("Invalid hex: odd length".to_string());
     }
@@ -126,23 +182,49 @@ mod tests {
     use super::*;
 
     #[test]
-    fn derive_key_deterministic() {
+    fn derive_key_v1_deterministic() {
         let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
-        let key1 = derive_secrets_key(mnemonic).unwrap();
-        let key2 = derive_secrets_key(mnemonic).unwrap();
+        let key1 = derive_secrets_key_v1(mnemonic).unwrap();
+        let key2 = derive_secrets_key_v1(mnemonic).unwrap();
         assert_eq!(key1, key2);
     }
 
     #[test]
+    fn derive_key_v2_deterministic() {
+        let mnemonic = "test mnemonic for v2";
+        let salt = [42u8; 16];
+        let key1 = derive_secrets_key_v2(mnemonic, &salt).unwrap();
+        let key2 = derive_secrets_key_v2(mnemonic, &salt).unwrap();
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn v1_and_v2_produce_different_keys() {
+        let mnemonic = "alpha bravo charlie delta echo foxtrot";
+        let key_v1 = derive_secrets_key_v1(mnemonic).unwrap();
+        // Even using the same salt bytes as V1, params differ → different key
+        let key_v2 = derive_secrets_key_v2(mnemonic, b"PEACE_SECRETS_V1").unwrap();
+        assert_ne!(*key_v1, *key_v2);
+    }
+
+    #[test]
+    fn v2_different_salts_different_keys() {
+        let mnemonic = "alpha bravo charlie delta echo foxtrot";
+        let key1 = derive_secrets_key_v2(mnemonic, &[1u8; 16]).unwrap();
+        let key2 = derive_secrets_key_v2(mnemonic, &[2u8; 16]).unwrap();
+        assert_ne!(key1, key2);
+    }
+
+    #[test]
     fn different_mnemonics_different_keys() {
-        let key1 = derive_secrets_key("alpha bravo charlie delta echo foxtrot").unwrap();
-        let key2 = derive_secrets_key("golf hotel india juliet kilo lima").unwrap();
+        let key1 = derive_secrets_key_v1("alpha bravo charlie delta echo foxtrot").unwrap();
+        let key2 = derive_secrets_key_v1("golf hotel india juliet kilo lima").unwrap();
         assert_ne!(key1, key2);
     }
 
     #[test]
     fn encrypt_decrypt_roundtrip() {
-        let key = derive_secrets_key("test mnemonic phrase for unit testing").unwrap();
+        let key = derive_secrets_key_v1("test mnemonic phrase for unit testing").unwrap();
         let plaintext = b"secret scalar a=0xdeadbeef";
 
         let encrypted = encrypt_secret(&key, plaintext).unwrap();
@@ -154,12 +236,40 @@ mod tests {
 
     #[test]
     fn wrong_key_fails() {
-        let key1 = derive_secrets_key("correct mnemonic").unwrap();
-        let key2 = derive_secrets_key("wrong mnemonic").unwrap();
+        let key1 = derive_secrets_key_v1("correct mnemonic").unwrap();
+        let key2 = derive_secrets_key_v1("wrong mnemonic").unwrap();
 
         let encrypted = encrypt_secret(&key1, b"secret data").unwrap();
         let result = decrypt_secret(&key2, &encrypted);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn kdf_meta_roundtrip() {
+        let dir = std::env::temp_dir().join("peace_test_kdf_meta");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // No file → needs migration
+        let (meta, needs) = load_kdf_meta(&dir).unwrap();
+        assert_eq!(meta.version, 1);
+        assert!(needs);
+
+        // Save v2 meta
+        let salt = generate_kdf_salt();
+        let meta = KdfMeta {
+            version: 2,
+            salt: to_hex(&salt),
+        };
+        save_kdf_meta(&dir, &meta).unwrap();
+
+        // Load back → no migration
+        let (loaded, needs) = load_kdf_meta(&dir).unwrap();
+        assert_eq!(loaded.version, 2);
+        assert!(!needs);
+        assert_eq!(loaded.salt, to_hex(&salt));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

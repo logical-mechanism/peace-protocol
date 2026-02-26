@@ -1,3 +1,4 @@
+use crate::crypto::audit::AuditLog;
 use crate::crypto::secrets::{secure_delete, SecretsKey};
 use std::path::Path;
 use zeroize::Zeroizing;
@@ -85,25 +86,30 @@ fn map_reqwest_error(e: reqwest::Error) -> String {
 pub fn store_iagon_api_key(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
     api_key: String,
 ) -> Result<(), String> {
     let key = get_secrets_key(&key_state)?;
     let dir = iagon_dir(&state.0);
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("Failed to create iagon secrets dir: {e}"))?;
-    encrypt_and_write(&key, &dir.join(API_KEY_FILENAME), api_key.as_bytes())
+    let result = encrypt_and_write(&key, &dir.join(API_KEY_FILENAME), api_key.as_bytes());
+    audit.log("WRITE", "iagon/api_key.json");
+    result
 }
 
 #[tauri::command]
 pub fn get_iagon_api_key(
     state: tauri::State<'_, SecretsDir>,
     key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
 ) -> Result<Option<String>, String> {
     let key = get_secrets_key(&key_state)?;
     let path = iagon_dir(&state.0).join(API_KEY_FILENAME);
     if !path.exists() {
         return Ok(None);
     }
+    audit.log("READ", "iagon/api_key.json");
     let plaintext = read_and_decrypt(&key, &path)?;
     let api_key = String::from_utf8(plaintext)
         .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
@@ -111,8 +117,12 @@ pub fn get_iagon_api_key(
 }
 
 #[tauri::command]
-pub fn remove_iagon_api_key(state: tauri::State<'_, SecretsDir>) -> Result<(), String> {
+pub fn remove_iagon_api_key(
+    state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
+) -> Result<(), String> {
     let path = iagon_dir(&state.0).join(API_KEY_FILENAME);
+    audit.log("DELETE", "iagon/api_key.json");
     secure_delete(&path)
 }
 

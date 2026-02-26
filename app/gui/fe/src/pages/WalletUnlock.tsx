@@ -36,7 +36,8 @@ export default function WalletUnlock() {
   }, [deleteWallet, navigate])
 
   return (
-    <div
+    <main
+      id="main-content"
       className="min-h-screen flex items-center justify-center p-8"
       style={{ background: 'var(--bg-primary)' }}
     >
@@ -88,12 +89,13 @@ export default function WalletUnlock() {
                 autoComplete="current-password"
                 autoFocus
                 disabled={isUnlocking}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'password-error' : undefined}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded cursor-pointer"
-                style={{ color: 'var(--text-muted)' }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded btn-base btn-icon"
               >
                 {showPassword ? 'Hide' : 'Show'}
               </button>
@@ -102,6 +104,8 @@ export default function WalletUnlock() {
 
           {error && (
             <div
+              id="password-error"
+              role="alert"
               className="mb-4 p-3 rounded-lg text-sm"
               style={{
                 background: 'var(--error-muted)',
@@ -138,12 +142,10 @@ export default function WalletUnlock() {
           <button
             type="submit"
             disabled={!password || isUnlocking}
-            className="w-full px-6 py-2 rounded-lg text-sm font-medium transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+            className="w-full px-6 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 btn-base btn-primary disabled:opacity-40 disabled:pointer-events-none"
             style={{
               background:
-                password && !isUnlocking ? 'var(--accent)' : 'var(--bg-elevated)',
-              color: '#fff',
-              cursor: password && !isUnlocking ? 'pointer' : undefined,
+                password && !isUnlocking ? undefined : 'var(--bg-elevated)',
             }}
           >
             {isUnlocking && <LoadingSpinner size="sm" className="text-white" />}
@@ -203,22 +205,13 @@ export default function WalletUnlock() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm cursor-pointer"
-                  style={{
-                    background: 'var(--bg-elevated)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="flex-1 px-4 py-2 rounded-lg text-sm btn-base btn-tertiary"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
-                  style={{
-                    background: 'var(--error)',
-                    color: '#fff',
-                  }}
+                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--error)] text-white btn-base"
                 >
                   Delete Wallet
                 </button>
@@ -227,6 +220,6 @@ export default function WalletUnlock() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   )
 }

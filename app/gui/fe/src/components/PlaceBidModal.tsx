@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
+import { useFocusTrap } from '../hooks/useFocusTrap';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -24,6 +26,8 @@ interface PlaceBidModalProps {
     futurePrice: number
   ) => Promise<void>;
   encryption: EncryptionDisplay | null;
+  bidCount?: number;
+  balanceLovelace?: string;
 }
 
 const INITIAL_FORM_DATA: PlaceBidFormData = {
@@ -34,16 +38,22 @@ const INITIAL_FORM_DATA: PlaceBidFormData = {
 // Minimum bid in ADA (to cover UTxO minimum)
 const MIN_BID_ADA = 2;
 
+// ADA reserved for transaction fees when using Max button
+const FEE_RESERVE_ADA = 5;
+
 export default function PlaceBidModal({
   isOpen,
   onClose,
   onSubmit,
   encryption,
+  bidCount = 0,
+  balanceLovelace,
 }: PlaceBidModalProps) {
   const [formData, setFormData] = useState<PlaceBidFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
 
   // Reset form when modal opens (only on isOpen transition)
@@ -60,7 +70,21 @@ export default function PlaceBidModal({
   }, [isOpen, encryption?.suggestedPrice]);
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('place-bid', isOpen, onClose, isSubmitting);
+  const { zIndex, shouldRender, animationState } = useModalStack('place-bid', isOpen, onClose, isSubmitting);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, isOpen);
+
+  // Derived: check if bid is below suggested price
+  const parsedBid = parseFloat(formData.bidAmount);
+  const isBelowSuggested =
+    encryption?.suggestedPrice != null &&
+    !isNaN(parsedBid) &&
+    parsedBid > 0 &&
+    parsedBid < encryption.suggestedPrice;
+
+  // Derived: wallet balance in ADA
+  const balanceAda =
+    balanceLovelace !== undefined ? parseInt(balanceLovelace, 10) / 1_000_000 : undefined;
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -76,6 +100,8 @@ export default function PlaceBidModal({
         newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA (to cover UTxO minimum)`;
       } else if (amount > 1000000000) {
         newErrors.bidAmount = 'Bid amount is too high';
+      } else if (balanceAda !== undefined && amount > balanceAda) {
+        newErrors.bidAmount = 'Bid exceeds your wallet balance';
       }
     }
 
@@ -135,10 +161,11 @@ export default function PlaceBidModal({
     }
   };
 
-  if (!isOpen || !encryption) return null;
+  if (!shouldRender || !encryption) return null;
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 flex items-center justify-center"
       style={{ zIndex }}
       role="dialog"
@@ -147,13 +174,13 @@ export default function PlaceBidModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={isSubmitting ? undefined : onClose}
         aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4">
+      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
@@ -161,12 +188,17 @@ export default function PlaceBidModal({
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
               Bid on encrypted data listing
             </p>
+            {bidCount > 0 && (
+              <p className="text-xs text-[var(--accent)] mt-0.5">
+                {bidCount} {bidCount === 1 ? 'bid' : 'bids'} on this listing
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
-            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -239,7 +271,7 @@ export default function PlaceBidModal({
                         setFormData((prev) => ({ ...prev, bidAmount: encryption.suggestedPrice!.toString() }))
                       }
                       disabled={isSubmitting}
-                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       Suggested ({encryption.suggestedPrice} ADA)
                     </button>
@@ -252,7 +284,7 @@ export default function PlaceBidModal({
                         }))
                       }
                       disabled={isSubmitting}
-                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       +10%
                     </button>
@@ -265,7 +297,7 @@ export default function PlaceBidModal({
                         }))
                       }
                       disabled={isSubmitting}
-                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       +25%
                     </button>
@@ -281,6 +313,8 @@ export default function PlaceBidModal({
                   onChange={handleInputChange}
                   disabled={isSubmitting}
                   placeholder="0.00"
+                  aria-invalid={!!errors.bidAmount}
+                  aria-describedby={errors.bidAmount ? 'bidAmount-error' : undefined}
                   className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
                     errors.bidAmount ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
@@ -290,12 +324,45 @@ export default function PlaceBidModal({
                 </span>
               </div>
               {errors.bidAmount && (
-                <p className="mt-1 text-xs text-[var(--error)]">{errors.bidAmount}</p>
+                <p id="bidAmount-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.bidAmount}</p>
               )}
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Minimum bid: {MIN_BID_ADA} ADA. Your bid will be locked until the seller accepts or
-                you cancel.
-              </p>
+              {!errors.bidAmount && isBelowSuggested && (
+                <p className="mt-1 text-xs text-[var(--warning)]">
+                  Your bid is below the seller's suggested price of{' '}
+                  {encryption.suggestedPrice!.toLocaleString()} ADA
+                </p>
+              )}
+              <div className="mt-1 space-y-1">
+                <p className="text-xs text-[var(--text-muted)]">
+                  Minimum bid: {MIN_BID_ADA} ADA. Your bid will be locked until the seller accepts or
+                  you cancel.
+                </p>
+                {balanceAda !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      Balance: {balanceAda.toLocaleString(undefined, { maximumFractionDigits: 2 })} ADA
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const maxBid = Math.max(
+                          Math.floor(balanceAda - FEE_RESERVE_ADA),
+                          MIN_BID_ADA
+                        );
+                        setFormData((prev) => ({ ...prev, bidAmount: maxBid.toString() }));
+                        if (errors.bidAmount) {
+                          setErrors((prev) => ({ ...prev, bidAmount: undefined }));
+                        }
+                        setSubmitError(null);
+                      }}
+                      disabled={isSubmitting || balanceAda <= FEE_RESERVE_ADA}
+                      className="px-1.5 py-0.5 text-xs rounded-[var(--radius-sm)] btn-base btn-tertiary"
+                    >
+                      Max
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Future Listing Price (collapsible) */}
@@ -304,7 +371,7 @@ export default function PlaceBidModal({
                 type="button"
                 onClick={() => setShowFuturePrice(!showFuturePrice)}
                 disabled={isSubmitting}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm btn-base btn-tertiary border-0"
               >
                 <span>Set Future Listing Price</span>
                 <svg
@@ -333,7 +400,7 @@ export default function PlaceBidModal({
                             setFormData((prev) => ({ ...prev, futurePrice: encryption.suggestedPrice!.toString() }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                         >
                           Same Price
                         </button>
@@ -346,7 +413,7 @@ export default function PlaceBidModal({
                             }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                         >
                           +10%
                         </button>
@@ -359,7 +426,7 @@ export default function PlaceBidModal({
                             }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                         >
                           +25%
                         </button>
@@ -375,6 +442,8 @@ export default function PlaceBidModal({
                       onChange={handleInputChange}
                       disabled={isSubmitting}
                       placeholder="0.00"
+                      aria-invalid={!!errors.futurePrice}
+                      aria-describedby={errors.futurePrice ? 'futurePrice-error' : undefined}
                       className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
                         errors.futurePrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                       }`}
@@ -384,7 +453,7 @@ export default function PlaceBidModal({
                     </span>
                   </div>
                   {errors.futurePrice && (
-                    <p className="mt-1 text-xs text-[var(--error)]">{errors.futurePrice}</p>
+                    <p id="futurePrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.futurePrice}</p>
                   )}
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
                     The suggested price for the next listing after you win. Defaults to the current price.
@@ -395,8 +464,26 @@ export default function PlaceBidModal({
 
             {/* Submit Error */}
             {submitError && (
-              <div className="p-3 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-[var(--radius-md)]">
-                <p className="text-sm text-[var(--error)]">{submitError}</p>
+              <div className="flex items-start gap-2 p-3 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-[var(--radius-md)]">
+                <p className="flex-1 text-sm text-[var(--error)]">{submitError}</p>
+                <button
+                  onClick={async () => {
+                    const ok = await copyToClipboard(submitError);
+                    if (ok) { setCopiedError(true); setTimeout(() => setCopiedError(false), 1500); }
+                  }}
+                  className="flex-shrink-0 p-1 text-[var(--error)]/60 hover:text-[var(--error)] transition-colors cursor-pointer"
+                  aria-label="Copy error to clipboard"
+                >
+                  {copiedError ? (
+                    <svg className="w-4 h-4 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                </button>
               </div>
             )}
           </div>
@@ -416,14 +503,14 @@ export default function PlaceBidModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
               >
                 {isSubmitting ? (
                   <>

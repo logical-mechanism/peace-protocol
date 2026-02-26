@@ -14,18 +14,12 @@ import { copyToClipboard } from '../utils/clipboard'
 import { formatEta, formatSpeed, getErrorGuidance } from '../utils/nodeSyncHelpers'
 import { invoke } from '@tauri-apps/api/core'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { formatBytes } from '../utils/formatBytes'
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
   return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
 function ProgressBar({ percent }: { percent: number }) {
@@ -113,9 +107,9 @@ function ConsoleLog({ logs }: { logs: string[] }) {
 }
 
 const SERVICE_ITEMS = [
-  { name: 'cardano-node', label: 'Cardano Node', startingText: 'Replaying ledger...' },
-  { name: 'ogmios', label: 'Ogmios Bridge', startingText: 'Connecting...' },
-  { name: 'kupo', label: 'Kupo Indexer', startingText: 'Starting...' },
+  { name: 'cardano-node', label: 'Cardano Node', startingText: 'Replaying ledger...', description: 'Validates blocks from the Cardano blockchain and maintains a local copy of the ledger.' },
+  { name: 'ogmios', label: 'Ogmios Bridge', startingText: 'Connecting...', description: 'Translates node data into a WebSocket protocol for transaction building and submission.' },
+  { name: 'kupo', label: 'Kupo Indexer', startingText: 'Starting...', description: 'Indexes UTxOs at contract and wallet addresses for fast balance and listing queries.' },
 ]
 
 function getServiceState(name: string, processes: ProcessInfo[]): {
@@ -142,7 +136,7 @@ function getServiceState(name: string, processes: ProcessInfo[]): {
 function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
   return (
     <div className="mb-4 space-y-3">
-      {SERVICE_ITEMS.map(({ name, label }) => {
+      {SERVICE_ITEMS.map(({ name, label, description }) => {
         const state = getServiceState(name, processes)
         return (
           <div key={name} className="flex items-center gap-3">
@@ -172,6 +166,14 @@ function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
                 : 'text-[var(--text-secondary)]'
             }`}>
               {label}
+            </span>
+            <span className="relative group">
+              <span className="w-4 h-4 inline-flex items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-muted)] cursor-help text-[10px] leading-none">
+                ?
+              </span>
+              <span className="absolute left-6 top-1/2 -translate-y-1/2 z-10 hidden group-hover:block bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] px-3 py-2 text-xs text-[var(--text-secondary)] w-52 shadow-lg whitespace-normal">
+                {description}
+              </span>
             </span>
             <span className={`text-xs ml-auto ${
               state.indicator === 'error'
@@ -214,6 +216,29 @@ export default function NodeSync() {
   } = useNode()
 
   const toast = useToast()
+
+  // Disk space check for first-run bootstrap
+  const [diskSpaceWarning, setDiskSpaceWarning] = useState<string | null>(null)
+  useEffect(() => {
+    if (!needsBootstrap || stage !== 'stopped') return
+    const checkSpace = async () => {
+      try {
+        const result = await invoke<{ available_bytes: number }>('get_available_disk_space')
+        const availableGb = result.available_bytes / (1024 ** 3)
+        const requiredGb = network === 'mainnet' ? 100 : 5
+        if (availableGb < requiredGb) {
+          setDiskSpaceWarning(
+            `Low disk space: ${availableGb.toFixed(1)} GB available, ~${requiredGb} GB needed for ${network}. The sync may fail if disk space runs out.`
+          )
+        } else {
+          setDiskSpaceWarning(null)
+        }
+      } catch {
+        // Silently skip — not critical
+      }
+    }
+    checkSpace()
+  }, [needsBootstrap, stage, network])
 
   const [showConsole, setShowConsole] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -510,7 +535,8 @@ export default function NodeSync() {
   }
 
   return (
-    <div
+    <main
+      id="main-content"
       className="min-h-screen flex items-center justify-center p-6"
       style={{ background: 'var(--bg-primary)' }}
     >
@@ -625,6 +651,13 @@ export default function NodeSync() {
           {stage === 'stopped' && (
             <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--info-muted)] text-[var(--info)] border border-[var(--info)]/20">
               {statusMessage}
+            </div>
+          )}
+
+          {/* Disk space warning */}
+          {diskSpaceWarning && stage === 'stopped' && (
+            <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20">
+              {diskSpaceWarning}
             </div>
           )}
 
@@ -748,7 +781,7 @@ export default function NodeSync() {
           )}
         </div>
       </div>
-      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
-    </div>
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
+    </main>
   )
 }

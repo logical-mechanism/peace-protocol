@@ -1,11 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useModal } from '../contexts/ModalContext';
+
+export type ModalAnimationState = 'entering' | 'entered' | 'exiting';
 
 /**
  * Registers a modal with the modal stack when open and provides
  * stack-aware Escape key handling. Only the topmost modal closes on Escape.
  *
- * Replaces the manual Escape useEffect in each modal with a single hook call.
+ * Also manages enter/exit animation state:
+ * - `shouldRender`: true while modal is visible or animating out
+ * - `animationState`: 'entering' → 'entered' → 'exiting'
  */
 export function useModalStack(
   id: string,
@@ -15,6 +19,38 @@ export function useModalStack(
   disabled?: boolean,
 ) {
   const { openModal, closeModal, isTopModal, getZIndex } = useModal();
+  const [exitAnimating, setExitAnimating] = useState(false);
+  const [animationState, setAnimationState] = useState<ModalAnimationState>('entering');
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  // Adjust state during render when isOpen prop changes
+  // (React-recommended pattern for deriving state from props)
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setAnimationState('entering');
+    } else {
+      setExitAnimating(true);
+      setAnimationState('exiting');
+    }
+  }
+
+  // shouldRender derived: immediately true when isOpen, stays true during exit animation
+  const shouldRender = isOpen || exitAnimating;
+
+  // Entering → entered transition timer
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => setAnimationState('entered'), 200);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
+
+  // Exit animation cleanup timer
+  useEffect(() => {
+    if (!exitAnimating) return;
+    const timer = setTimeout(() => setExitAnimating(false), 150);
+    return () => clearTimeout(timer);
+  }, [exitAnimating]);
 
   // Register/unregister with the modal stack
   useEffect(() => {
@@ -40,15 +76,15 @@ export function useModalStack(
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, disabled, id, isTopModal, onClose]);
 
-  // Body scroll lock (only lock/unlock based on this modal's own state)
+  // Body scroll lock (based on shouldRender, not isOpen, to cover exit animation)
   useEffect(() => {
-    if (isOpen) {
+    if (shouldRender) {
       document.body.style.overflow = 'hidden';
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [shouldRender]);
 
-  return { zIndex: isOpen ? getZIndex(id) : 50 };
+  return { zIndex: isOpen ? getZIndex(id) : 50, shouldRender, animationState };
 }

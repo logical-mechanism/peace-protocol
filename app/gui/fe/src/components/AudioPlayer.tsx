@@ -100,6 +100,8 @@ function fftInPlace(re: Float32Array, im: Float32Array): void {
   }
 }
 
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+
 const BAR_COUNT = 32;
 const FFT_SIZE = 1024;
 const SMOOTHING = 0.8;
@@ -132,6 +134,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLooping, setIsLooping] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1.0);
   const [metadata, setMetadata] = useState<AudioMetadata | null>(null);
 
   // Native <audio> element for playback — no Web Audio API in the output path
@@ -165,6 +168,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setPlaybackRate(1.0);
     setMetadata(null);
     isPlayingRef.current = false;
     vizTimeRef.current = 0;
@@ -386,22 +390,40 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     }
   }, [duration, drawWaveform]);
 
-  // Animation loop — throttled to TARGET_FPS to reduce CPU pressure on WebKitGTK
+  // Animation loop — throttled to TARGET_FPS, pauses when window is not visible
   useEffect(() => {
     let running = true;
     let lastTime = 0;
-    const loop = (now: number) => {
+
+    const startLoop = () => {
       if (!running) return;
-      if (now - lastTime >= FRAME_INTERVAL) {
-        lastTime = now;
-        drawFrame();
-      }
+      const loop = (now: number) => {
+        if (!running || document.hidden) return;
+        if (now - lastTime >= FRAME_INTERVAL) {
+          lastTime = now;
+          drawFrame();
+        }
+        rafRef.current = requestAnimationFrame(loop);
+      };
       rafRef.current = requestAnimationFrame(loop);
     };
-    rafRef.current = requestAnimationFrame(loop);
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(rafRef.current);
+      } else {
+        lastTime = 0;
+        startLoop();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    if (!document.hidden) startLoop();
+
     return () => {
       running = false;
       cancelAnimationFrame(rafRef.current);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [drawFrame]);
 
@@ -546,6 +568,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       return next;
     });
   }, []);
+
+  const handleSpeedChange = useCallback(() => {
+    const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
+    const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
+    setPlaybackRate(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  }, [playbackRate]);
 
   // --- Render ---
 
@@ -747,6 +776,16 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
             </svg>
+          </button>
+
+          {/* Playback Speed */}
+          <button
+            onClick={handleSpeedChange}
+            className={`${transportBtn} ml-1 text-[10px] font-bold tracking-tight min-w-[32px] ${playbackRate !== 1 ? '!text-[var(--accent)]' : ''}`}
+            title={`Speed: ${playbackRate}x`}
+            aria-label={`Playback speed: ${playbackRate}x`}
+          >
+            {playbackRate}x
           </button>
         </div>
 

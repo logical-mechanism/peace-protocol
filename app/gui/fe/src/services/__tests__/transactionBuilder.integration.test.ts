@@ -33,6 +33,13 @@ const {
     changeAddress: vi.fn().mockReturnThis(),
     selectUtxosFrom: vi.fn().mockReturnThis(),
     complete: mockComplete,
+    // Plutus script spending chain methods
+    spendingPlutusScriptV3: vi.fn().mockReturnThis(),
+    spendingTxInReference: vi.fn().mockReturnThis(),
+    txInInlineDatumPresent: vi.fn().mockReturnThis(),
+    txInRedeemerValue: vi.fn().mockReturnThis(),
+    // Property set by createTxBuilder
+    txEvaluationMultiplier: 1.0,
   };
   return {
     mockComplete,
@@ -120,7 +127,7 @@ vi.mock('../listingDraftStorage', () => ({
 
 // ── Import after mocks ──────────────────────────────────────────────
 
-import { placeBid, computeTokenName } from '../transactionBuilder';
+import { placeBid, cancelBid, removeListing, computeTokenName } from '../transactionBuilder';
 
 // ── Test data ───────────────────────────────────────────────────────
 
@@ -413,5 +420,224 @@ describe('placeBid integration', () => {
     expect(datum.fields[2]).toHaveProperty('bytes');
     // Field 3: encryption token name
     expect(datum.fields[3].bytes).toBe('enc_token');
+  });
+});
+
+// ── cancelBid integration ──────────────────────────────────────────
+
+describe('cancelBid integration', () => {
+  const bidInput = {
+    tokenName: 'bid_token_name_hex',
+    utxo: { txHash: 'b'.repeat(64), outputIndex: 0 },
+    datum: { owner_vkh: 'abc123def456abc123def456abc123de' },
+  };
+
+  it('returns success with txHash', async () => {
+    const result = await cancelBid(mockWallet as never, bidInput);
+
+    expect(result.success).toBe(true);
+    expect(result.txHash).toBe('submitted_tx_hash_abc123');
+  });
+
+  it('burns the bid token (-1 mint)', async () => {
+    await cancelBid(mockWallet as never, bidInput);
+
+    expect(mockTxBuilder.mint).toHaveBeenCalledWith(
+      '-1',
+      'bid_policy_id_hex',
+      bidInput.tokenName,
+    );
+  });
+
+  it('spends the bid UTxO as input', async () => {
+    await cancelBid(mockWallet as never, bidInput);
+
+    expect(mockTxBuilder.txIn).toHaveBeenCalledWith(
+      bidInput.utxo.txHash,
+      bidInput.utxo.outputIndex,
+    );
+  });
+
+  it('requires signer hash matching bid owner', async () => {
+    await cancelBid(mockWallet as never, bidInput);
+
+    expect(mockTxBuilder.requiredSignerHash).toHaveBeenCalledWith(
+      bidInput.datum.owner_vkh,
+    );
+  });
+
+  it('returns error when wallet has no UTxOs', async () => {
+    mockWallet.getUtxos.mockResolvedValue([]);
+
+    const result = await cancelBid(mockWallet as never, bidInput);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/No UTxOs found/);
+  });
+
+  it('returns error when no collateral is set', async () => {
+    mockWallet.getCollateral.mockResolvedValue([]);
+
+    const result = await cancelBid(mockWallet as never, bidInput);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/No collateral/);
+  });
+});
+
+// ── removeListing integration ──────────────────────────────────────
+
+describe('removeListing integration', () => {
+  const encryptionInput = {
+    tokenName: 'enc_token_name_hex',
+    utxo: { txHash: 'e'.repeat(64), outputIndex: 1 },
+    datum: { owner_vkh: 'abc123def456abc123def456abc123de' },
+  };
+
+  it('returns success with txHash and tokenName', async () => {
+    const result = await removeListing(mockWallet as never, encryptionInput);
+
+    expect(result.success).toBe(true);
+    expect(result.txHash).toBe('submitted_tx_hash_abc123');
+    expect(result.tokenName).toBe(encryptionInput.tokenName);
+  });
+
+  it('burns the encryption token (-1 mint)', async () => {
+    await removeListing(mockWallet as never, encryptionInput);
+
+    expect(mockTxBuilder.mint).toHaveBeenCalledWith(
+      '-1',
+      'enc_policy_id_hex',
+      encryptionInput.tokenName,
+    );
+  });
+
+  it('spends the encryption UTxO as input', async () => {
+    await removeListing(mockWallet as never, encryptionInput);
+
+    expect(mockTxBuilder.txIn).toHaveBeenCalledWith(
+      encryptionInput.utxo.txHash,
+      encryptionInput.utxo.outputIndex,
+    );
+  });
+
+  it('requires signer hash matching encryption owner', async () => {
+    await removeListing(mockWallet as never, encryptionInput);
+
+    expect(mockTxBuilder.requiredSignerHash).toHaveBeenCalledWith(
+      encryptionInput.datum.owner_vkh,
+    );
+  });
+
+  it('returns error when wallet has no UTxOs', async () => {
+    mockWallet.getUtxos.mockResolvedValue([]);
+
+    const result = await removeListing(mockWallet as never, encryptionInput);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/No UTxOs found/);
+  });
+
+  it('returns error when protocol config missing encryption policy', async () => {
+    mockGetConfig.mockResolvedValue({
+      ...protocolConfig,
+      contracts: { ...protocolConfig.contracts, encryptionPolicyId: '' },
+    });
+
+    const result = await removeListing(mockWallet as never, encryptionInput);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/missing encryption/i);
+  });
+});
+
+// ── Cross-flow: listing → bid → cancel bid lifecycle ───────────────
+
+describe('listing + bid lifecycle', () => {
+  it('bid token name is deterministic from wallet UTxO', () => {
+    // The same UTxO always produces the same token name
+    const name1 = computeTokenName(testUtxo.input.txHash, testUtxo.input.outputIndex);
+    const name2 = computeTokenName(testUtxo.input.txHash, testUtxo.input.outputIndex);
+    expect(name1).toBe(name2);
+  });
+
+  it('different UTxOs produce different token names', () => {
+    const name1 = computeTokenName(testUtxo.input.txHash, 0);
+    const name2 = computeTokenName(testUtxo.input.txHash, 1);
+    expect(name1).not.toBe(name2);
+  });
+
+  it('placeBid then cancelBid uses same policy ID', async () => {
+    // Place a bid
+    await placeBid(
+      mockWallet as never,
+      'enc_token',
+      10,
+      { txHash: 'e'.repeat(64), outputIndex: 0 },
+    );
+
+    const placeMintCall = mockTxBuilder.mint.mock.calls[0];
+    expect(placeMintCall[0]).toBe('1'); // +1 mint
+    const policyUsedForPlace = placeMintCall[1];
+
+    vi.clearAllMocks();
+    // Reset mocks for cancel
+    mockGetConfig.mockResolvedValue(protocolConfig);
+    mockWallet.getUtxos.mockResolvedValue([testUtxo]);
+    mockWallet.getUsedAddresses.mockResolvedValue(['addr_test1_wallet']);
+    mockWallet.getChangeAddress.mockResolvedValue('addr_test1_wallet');
+    mockWallet.getCollateral.mockResolvedValue([collateralUtxo]);
+    mockWallet.signTx.mockResolvedValue('signed_tx_hex');
+    mockWallet.submitTx.mockResolvedValue('cancel_tx_hash');
+    mockFetcher.fetchAddressUTxOs.mockResolvedValue([genesisRefUtxo]);
+    Object.values(mockTxBuilder).forEach(fn => {
+      if (typeof fn === 'function' && fn !== mockComplete) {
+        fn.mockReturnThis();
+      }
+    });
+    mockComplete.mockResolvedValue('unsigned_tx_hex');
+
+    // Cancel the bid
+    const bidTokenName = computeTokenName(testUtxo.input.txHash, 0);
+    await cancelBid(mockWallet as never, {
+      tokenName: bidTokenName,
+      utxo: { txHash: 'f'.repeat(64), outputIndex: 0 },
+      datum: { owner_vkh: 'abc123def456abc123def456abc123de' },
+    });
+
+    const cancelMintCall = mockTxBuilder.mint.mock.calls[0];
+    expect(cancelMintCall[0]).toBe('-1'); // -1 burn
+    const policyUsedForCancel = cancelMintCall[1];
+
+    // Same policy ID for minting and burning
+    expect(policyUsedForCancel).toBe(policyUsedForPlace);
+  });
+
+  it('transaction builder error propagates as result.error', async () => {
+    mockComplete.mockRejectedValue(new Error('Insufficient funds'));
+
+    const result = await placeBid(
+      mockWallet as never,
+      'enc_token',
+      10,
+      { txHash: 'e'.repeat(64), outputIndex: 0 },
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Insufficient funds/);
+  });
+
+  it('wallet submitTx error propagates as result.error', async () => {
+    mockWallet.submitTx.mockRejectedValue(new Error('Submit failed: UTxO already spent'));
+
+    const result = await placeBid(
+      mockWallet as never,
+      'enc_token',
+      10,
+      { txHash: 'e'.repeat(64), outputIndex: 0 },
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Submit failed/);
   });
 });

@@ -33,6 +33,7 @@ export interface ContentMetadata {
   seller?: string;
   createdAt?: string;
   decryptedAt: string; // ISO timestamp of when content was decrypted
+  fileSize?: number; // Size of the content file in bytes
 }
 
 /**

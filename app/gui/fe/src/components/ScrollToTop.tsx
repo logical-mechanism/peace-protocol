@@ -32,7 +32,7 @@ export default function ScrollToTop({ threshold = 300 }: ScrollToTopProps) {
   return (
     <button
       onClick={scrollToTop}
-      className="fixed bottom-6 right-6 z-50 p-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-full shadow-[var(--shadow-lg)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-all duration-200 cursor-pointer"
+      className="fixed bottom-6 right-6 z-50 p-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-full shadow-[var(--shadow-lg)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] btn-base"
       title="Scroll to top"
       aria-label="Scroll to top"
     >

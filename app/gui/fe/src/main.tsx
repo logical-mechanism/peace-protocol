@@ -8,10 +8,16 @@ import { ModalProvider } from './contexts/ModalContext'
 import './index.css'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
+import ShutdownOverlay from './components/ShutdownOverlay'
+import { initializeTheme } from './services/themeStorage'
+
+// Apply stored theme before first paint to prevent flash of wrong theme
+initializeTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
+      <ShutdownOverlay />
       <WalletProvider>
         <NodeProvider>
           <WasmProvider>

@@ -169,13 +169,28 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
   return response.json();
 }
 
+// Cached fetch: checks in-memory TTL cache before making HTTP call
+import { apiCache } from './apiCache';
+
+async function cachedApiFetch<T>(endpoint: string, ttlMs?: number): Promise<T> {
+  const cached = apiCache.get<T>(endpoint);
+  if (cached !== undefined) return cached;
+
+  const result = await apiFetch<T>(endpoint);
+  apiCache.set(endpoint, result, ttlMs);
+  return result;
+}
+
+const CACHE_TTL_DATA = 15_000;     // 15s for marketplace data
+const CACHE_TTL_PROTOCOL = 60_000; // 60s for protocol config (rarely changes)
+
 // Encryption API
 export const encryptionsApi = {
   /**
    * Get all encryptions
    */
   async getAll(): Promise<EncryptionDisplay[]> {
-    const response = await apiFetch<ApiResponse<EncryptionDisplay[]>>('/api/encryptions');
+    const response = await cachedApiFetch<ApiResponse<EncryptionDisplay[]>>('/api/encryptions', CACHE_TTL_DATA);
     return response.data;
   },
 
@@ -218,7 +233,7 @@ export const bidsApi = {
    * Get all bids
    */
   async getAll(): Promise<BidDisplay[]> {
-    const response = await apiFetch<ApiResponse<BidDisplay[]>>('/api/bids');
+    const response = await cachedApiFetch<ApiResponse<BidDisplay[]>>('/api/bids', CACHE_TTL_DATA);
     return response.data;
   },
 
@@ -261,7 +276,7 @@ export const protocolApi = {
    * Get protocol configuration
    */
   async getConfig(): Promise<ProtocolConfig> {
-    const response = await apiFetch<ApiResponse<ProtocolConfig>>('/api/protocol/config');
+    const response = await cachedApiFetch<ApiResponse<ProtocolConfig>>('/api/protocol/config', CACHE_TTL_PROTOCOL);
     return response.data;
   },
 
@@ -269,7 +284,7 @@ export const protocolApi = {
    * Get reference script UTxOs
    */
   async getReferenceScripts(): Promise<ProtocolConfig['referenceScripts']> {
-    const response = await apiFetch<ApiResponse<ProtocolConfig['referenceScripts']>>('/api/protocol/reference');
+    const response = await cachedApiFetch<ApiResponse<ProtocolConfig['referenceScripts']>>('/api/protocol/reference', CACHE_TTL_PROTOCOL);
     return response.data;
   },
 
@@ -280,10 +295,10 @@ export const protocolApi = {
     encryption: { address: string; policyId: string };
     bidding: { address: string; policyId: string };
   }> {
-    const response = await apiFetch<ApiResponse<{
+    const response = await cachedApiFetch<ApiResponse<{
       encryption: { address: string; policyId: string };
       bidding: { address: string; policyId: string };
-    }>>('/api/protocol/scripts');
+    }>>('/api/protocol/scripts', CACHE_TTL_PROTOCOL);
     return response.data;
   },
 
@@ -291,7 +306,7 @@ export const protocolApi = {
    * Get protocol parameters
    */
   async getParams(): Promise<unknown> {
-    const response = await apiFetch<ApiResponse<unknown>>('/api/protocol/params');
+    const response = await cachedApiFetch<ApiResponse<unknown>>('/api/protocol/params', CACHE_TTL_PROTOCOL);
     return response.data;
   },
 };
@@ -302,8 +317,8 @@ export const chainApi = {
    * Get the number of block confirmations for a transaction.
    * Returns 0 if the tx is not yet in a block or not found.
    */
-  async getConfirmations(txHash: string): Promise<{ confirmations: number }> {
-    const response = await apiFetch<ApiResponse<{ confirmations: number }>>(`/api/chain/confirmations/${txHash}`);
+  async getConfirmations(txHash: string): Promise<{ confirmations: number; blockHeight?: number }> {
+    const response = await apiFetch<ApiResponse<{ confirmations: number; blockHeight?: number }>>(`/api/chain/confirmations/${txHash}`);
     return response.data;
   },
 

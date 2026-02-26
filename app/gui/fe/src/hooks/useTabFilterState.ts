@@ -29,6 +29,7 @@ export type MarketplaceAction =
   | { type: 'SET_FAVORITES_ONLY'; payload: boolean }
   | { type: 'SET_PAGE'; payload: number }
   | { type: 'CLEAR_FILTERS' }
+  | { type: 'HYDRATE'; payload: Partial<MarketplaceFilters> }
 
 export const MARKETPLACE_INITIAL: MarketplaceFilters = {
   searchQuery: '', sortBy: 'newest', statusFilter: 'all',
@@ -48,6 +49,7 @@ export function marketplaceReducer(state: MarketplaceFilters, action: Marketplac
     case 'SET_FAVORITES_ONLY': return { ...state, showFavoritesOnly: action.payload, currentPage: 1 }
     case 'SET_PAGE': return { ...state, currentPage: action.payload }
     case 'CLEAR_FILTERS': return { ...MARKETPLACE_INITIAL, viewMode: state.viewMode }
+    case 'HYDRATE': return { ...MARKETPLACE_INITIAL, ...action.payload, currentPage: 1 }
     default: return state
   }
 }
@@ -86,7 +88,7 @@ export function mySalesReducer(state: MySalesFilters, action: MySalesAction): My
 export interface MyPurchasesFilters {
   searchQuery: string
   sortBy: 'newest' | 'oldest' | 'amount-high' | 'amount-low'
-  statusFilter: 'all' | 'pending' | 'accepted' | 'rejected' | 'cancelled'
+  statusFilter: 'all' | 'pending' | 'accepted' | 'complete'
   viewMode: ViewMode
 }
 
@@ -143,7 +145,7 @@ export function historyReducer(state: HistoryFilters, action: HistoryAction): Hi
 
 export interface LibraryFilters {
   searchQuery: string
-  sortBy: 'newest' | 'oldest' | 'name-asc' | 'name-desc'
+  sortBy: 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc' | 'type-asc' | 'type-desc'
   categoryFilter: string
   viewMode: ViewMode
 }

@@ -6,10 +6,11 @@ interface Props {
 }
 
 const requirementLabels = [
-  { key: 'minLength' as const, label: '8+ characters' },
+  { key: 'minLength' as const, label: '12+ characters' },
   { key: 'hasUppercase' as const, label: 'One uppercase letter' },
   { key: 'hasLowercase' as const, label: 'One lowercase letter' },
   { key: 'hasDigit' as const, label: 'One digit' },
+  { key: 'hasSpecialChar' as const, label: 'One special character' },
 ]
 
 const levelConfig = {
@@ -89,11 +90,6 @@ export default function PasswordStrengthIndicator({ strength, password }: Props)
         <div className="text-xs mt-1" style={{ color: config.color }}>
           {config.label}
         </div>
-        {strength.level === 'fair' && strength.allMet && (
-          <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Use 12+ characters for a strong password
-          </div>
-        )}
       </div>
     </div>
   )

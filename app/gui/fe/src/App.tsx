@@ -8,6 +8,8 @@ import WalletUnlock from './pages/WalletUnlock'
 import NodeSync from './pages/NodeSync'
 import Settings from './pages/Settings'
 import SessionWarningBanner from './components/SessionWarningBanner'
+import OfflineBanner from './components/OfflineBanner'
+import OnboardingOverlay from './components/OnboardingOverlay'
 
 function App() {
   const { walletState, refreshBalance } = useWalletContext()
@@ -27,18 +29,27 @@ function App() {
 
   if (walletState === 'loading') {
     return (
-      <div
+      <main
+        id="main-content"
         className="min-h-screen flex items-center justify-center"
         style={{ background: 'var(--bg-primary)' }}
       >
         <div style={{ color: 'var(--text-muted)' }}>Loading...</div>
-      </div>
+      </main>
     )
   }
 
   return (
     <>
+    <a
+      href="#main-content"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:bg-[var(--bg-card)] focus:text-[var(--text-primary)] focus:border focus:border-[var(--accent)] focus:rounded-[var(--radius-md)] focus:shadow-lg focus:outline-none"
+    >
+      Skip to content
+    </a>
+    <OfflineBanner />
     <SessionWarningBanner />
+    <OnboardingOverlay />
     <div key={location.pathname} className="page-transition">
     <Routes>
       <Route

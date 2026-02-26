@@ -1,5 +1,14 @@
-use crate::crypto::secrets::{derive_secrets_key, SecretsKey};
-use crate::crypto::wallet::{decrypt_mnemonic, encrypt_mnemonic, EncryptedWallet};
+use crate::crypto::audit::AuditLog;
+use crate::crypto::migration::migrate_secrets;
+use crate::crypto::secrets::{
+    derive_secrets_key_v1, derive_secrets_key_v2, from_hex, generate_kdf_salt, load_kdf_meta,
+    save_kdf_meta, to_hex, KdfMeta, SecretsKey,
+};
+use crate::crypto::wallet::{
+    decrypt_mnemonic, encrypt_mnemonic, set_owner_only_file, EncryptedWallet,
+};
+
+use super::secrets::SecretsDir;
 
 /// Application state for wallet management.
 pub struct WalletState {
@@ -14,9 +23,11 @@ pub fn wallet_exists(state: tauri::State<'_, WalletState>) -> bool {
 }
 
 /// Create a new wallet by encrypting the mnemonic with the password.
+/// Also initializes the KDF v2 salt for secrets encryption.
 #[tauri::command]
 pub fn create_wallet(
     state: tauri::State<'_, WalletState>,
+    secrets_dir_state: tauri::State<'_, SecretsDir>,
     mnemonic: String,
     password: String,
 ) -> Result<(), String> {
@@ -26,6 +37,15 @@ pub fn create_wallet(
             "Mnemonic must be exactly 24 words, got {}",
             words.len()
         ));
+    }
+
+    // Validate BIP39 checksum (catches typos in imported mnemonics)
+    bip39::Mnemonic::parse_in_normalized(bip39::Language::English, &mnemonic).map_err(|_| {
+        "Invalid mnemonic: checksum verification failed. Please double-check your recovery phrase for typos.".to_string()
+    })?;
+
+    if password.len() < 12 {
+        return Err("Password must be at least 12 characters".to_string());
     }
 
     let encrypted = encrypt_mnemonic(&mnemonic, &password)?;
@@ -40,16 +60,32 @@ pub fn create_wallet(
     std::fs::write(&state.wallet_path, json)
         .map_err(|e| format!("Failed to write wallet file: {e}"))?;
 
+    // Restrict wallet file to owner-only read/write (0o600 on Unix)
+    set_owner_only_file(&state.wallet_path)?;
+
+    // Initialize KDF v2 salt for this new wallet
+    let new_salt = generate_kdf_salt();
+    let meta = KdfMeta {
+        version: 2,
+        salt: to_hex(&new_salt),
+    };
+    save_kdf_meta(&secrets_dir_state.0, &meta)?;
+
     Ok(())
 }
 
 /// Unlock the wallet by decrypting the mnemonic with the password.
 /// Returns the mnemonic words as a JSON array of strings.
 /// Also derives the secrets encryption key from the mnemonic.
+///
+/// On first unlock after a KDF upgrade, transparently re-encrypts all secrets
+/// from v1 (4 MiB, fixed salt) to v2 (32 MiB, random per-user salt).
 #[tauri::command]
 pub fn unlock_wallet(
     state: tauri::State<'_, WalletState>,
     secrets_key_state: tauri::State<'_, SecretsKey>,
+    secrets_dir_state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
     password: String,
 ) -> Result<Vec<String>, String> {
     let json = std::fs::read_to_string(&state.wallet_path)
@@ -61,8 +97,36 @@ pub fn unlock_wallet(
     let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
     let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
 
-    // Derive the secrets encryption key from the mnemonic
-    let secrets_key = derive_secrets_key(&mnemonic)?;
+    let secrets_dir = &secrets_dir_state.0;
+    let (kdf_meta, needs_migration) = load_kdf_meta(secrets_dir)?;
+
+    let secrets_key = if needs_migration {
+        // Derive old key (v1) for reading existing secrets
+        let old_key = derive_secrets_key_v1(&mnemonic)?;
+
+        // Generate new salt and derive new key (v2)
+        let new_salt = generate_kdf_salt();
+        let new_key = derive_secrets_key_v2(&mnemonic, &new_salt)?;
+
+        // Re-encrypt all secrets
+        audit.log("MIGRATE", "kdf_v1_to_v2_start");
+        let count = migrate_secrets(secrets_dir, &old_key, &new_key, &audit)?;
+        audit.log("MIGRATE", &format!("kdf_v1_to_v2_complete ({count} files)"));
+
+        // Write KDF metadata
+        let meta = KdfMeta {
+            version: 2,
+            salt: to_hex(&new_salt),
+        };
+        save_kdf_meta(secrets_dir, &meta)?;
+
+        new_key
+    } else {
+        // Normal path: derive with stored salt
+        let salt = from_hex(&kdf_meta.salt)?;
+        derive_secrets_key_v2(&mnemonic, &salt)?
+    };
+
     *secrets_key_state
         .0
         .lock()

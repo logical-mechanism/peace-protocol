@@ -31,6 +31,7 @@ export function validateParam(
         error: {
           code: 'INVALID_PARAM',
           message: errorMessage,
+          requestId: req.requestId,
         },
       });
       return;

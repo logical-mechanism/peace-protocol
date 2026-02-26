@@ -12,6 +12,7 @@ export interface LibraryItem {
   createdAt?: string;
   decryptedAt: string;
   contentMissing: boolean;
+  fileSize?: number;
 }
 
 export async function listLibraryItems(): Promise<LibraryItem[]> {
@@ -31,6 +32,21 @@ export async function deleteLibraryItem(
   category: string
 ): Promise<void> {
   return invoke<void>('delete_library_item', { tokenName, category });
+}
+
+export async function readSubtitleFile(
+  tokenName: string,
+  category: string
+): Promise<Uint8Array | null> {
+  const data = await invoke<number[] | null>('read_subtitle_file', { tokenName, category });
+  return data ? new Uint8Array(data) : null;
+}
+
+export async function openWithSystem(
+  tokenName: string,
+  category: string
+): Promise<void> {
+  return invoke<void>('open_with_system', { tokenName, category });
 }
 
 export async function exportLibraryContent(

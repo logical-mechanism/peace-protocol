@@ -19,10 +19,15 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
   const [flippedH, setFlippedH] = useState(false);
+  const [showZoomIndicator, setShowZoomIndicator] = useState(false);
+  // 'fit' = scale to container, 'actual' = 1:1 pixel size, null = manual zoom
+  const [fitMode, setFitMode] = useState<'fit' | 'actual' | null>('fit');
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const positionAtDragStart = useRef({ x: 0, y: 0 });
+  const zoomIndicatorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Create a Blob URL inside useEffect so each mount (including React
   // StrictMode remounts) gets a fresh URL that won't be prematurely revoked.
@@ -34,6 +39,12 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     setBlobUrl(url); // eslint-disable-line react-hooks/set-state-in-effect -- Blob URL must be created in effect for StrictMode
     return () => URL.revokeObjectURL(url);
   }, [data, mimeType]);
+
+  const flashZoomIndicator = useCallback(() => {
+    setShowZoomIndicator(true);
+    if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
+    zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1500);
+  }, []);
 
   // Escape key closes fullscreen (not the parent modal)
   useEffect(() => {
@@ -49,15 +60,31 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [isFullscreen]);
 
-  const zoomIn = useCallback(() => setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP)), []);
+  const zoomIn = useCallback(() => { setFitMode(null); setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP)); flashZoomIndicator(); }, [flashZoomIndicator]);
   const zoomOut = useCallback(() => {
+    setFitMode(null);
     setScale(s => {
       const next = Math.max(ZOOM_MIN, s - ZOOM_STEP);
       if (next <= 1) setPosition({ x: 0, y: 0 });
       return next;
     });
-  }, []);
+    flashZoomIndicator();
+  }, [flashZoomIndicator]);
   const zoomReset = useCallback(() => {
+    setFitMode(null);
+    setScale(1.0);
+    setPosition({ x: 0, y: 0 });
+    flashZoomIndicator();
+  }, [flashZoomIndicator]);
+
+  const setFitToScreen = useCallback(() => {
+    setFitMode('fit');
+    setScale(1.0);
+    setPosition({ x: 0, y: 0 });
+  }, []);
+
+  const setActualSize = useCallback(() => {
+    setFitMode('actual');
     setScale(1.0);
     setPosition({ x: 0, y: 0 });
   }, []);
@@ -69,6 +96,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
+    setFitMode(null);
+    flashZoomIndicator();
     if (e.deltaY < 0) {
       setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP));
     } else {
@@ -78,7 +107,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         return next;
       });
     }
-  }, []);
+  }, [flashZoomIndicator]);
 
   // Pan/drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -151,8 +180,28 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         </button>
       </div>
 
-      {/* Rotate/flip + Save As + Fullscreen */}
+      {/* Fit/Actual + Rotate/flip + Save As + Fullscreen */}
       <div className="flex items-center gap-2">
+        {/* Fit to screen */}
+        <button
+          onClick={setFitToScreen}
+          className={`${btnClass} ${fitMode === 'fit' ? 'text-[var(--accent)]' : ''}`}
+          title="Fit to screen"
+          aria-label="Fit to screen"
+        >
+          Fit
+        </button>
+        {/* Actual size 1:1 */}
+        <button
+          onClick={setActualSize}
+          className={`${btnClass} ${fitMode === 'actual' ? 'text-[var(--accent)]' : ''}`}
+          title="Actual size (1:1)"
+          aria-label="Actual size"
+        >
+          1:1
+        </button>
+
+        <div className="w-px h-5 bg-[var(--border-subtle)]" />
         {/* Rotate clockwise */}
         <button
           onClick={rotateClockwise}
@@ -215,20 +264,45 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     </div>
   );
 
+  const getImageStyle = (): React.CSSProperties => {
+    if (fitMode === 'actual' && naturalSize) {
+      return {
+        transform: imageTransform,
+        transformOrigin: 'center',
+        width: naturalSize.w,
+        height: naturalSize.h,
+      };
+    }
+    if (fitMode === 'fit' || (fitMode === null && scale <= 1)) {
+      return {
+        transform: imageTransform,
+        transformOrigin: 'center',
+        maxWidth: '100%',
+        maxHeight: !isFullscreen ? '500px' : '100%',
+        objectFit: 'contain',
+      };
+    }
+    // Manual zoom > 1
+    return {
+      transform: imageTransform,
+      transformOrigin: 'center',
+      maxWidth: 'none',
+      maxHeight: 'none',
+    };
+  };
+
   const imageElement = blobUrl ? (
     <img
       src={blobUrl}
       alt="Decrypted content"
       className="select-none"
       draggable={false}
-      style={{
-        transform: imageTransform,
-        transformOrigin: 'center',
-        maxWidth: scale <= 1 ? '100%' : 'none',
-        maxHeight: scale <= 1 && !isFullscreen ? '500px' : scale <= 1 ? '100%' : 'none',
-        objectFit: 'contain',
+      style={getImageStyle()}
+      onLoad={(e) => {
+        const img = e.currentTarget;
+        setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+        setLoading(false);
       }}
-      onLoad={() => setLoading(false)}
       onError={() => {
         setLoading(false);
         setError('The image could not be rendered.');
@@ -239,6 +313,12 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
   const containerCursor = scale > 1
     ? (isDragging ? 'grabbing' : 'grab')
     : 'default';
+
+  const zoomIndicator = showZoomIndicator ? (
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/70 text-white text-sm font-mono rounded-full pointer-events-none transition-opacity duration-300 z-10">
+      {Math.round(scale * 100)}%
+    </div>
+  ) : null;
 
   // Fullscreen overlay
   if (isFullscreen) {
@@ -258,7 +338,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
 
           {/* Image content area */}
           <div
-            className="flex-1 overflow-hidden flex items-center justify-center p-4 bg-[var(--bg-secondary)]"
+            className="flex-1 overflow-hidden flex items-center justify-center p-4 bg-[var(--bg-secondary)] relative"
             style={{ cursor: containerCursor }}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
@@ -266,6 +346,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
           >
+            {zoomIndicator}
             {imageElement}
           </div>
         </div>
@@ -278,7 +359,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     <div className="space-y-3">
       {toolbar}
       <div
-        className="flex items-center justify-center overflow-hidden max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2"
+        className={`flex items-center justify-center max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative ${fitMode === 'actual' ? 'overflow-auto' : 'overflow-hidden'}`}
         style={{ cursor: containerCursor }}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
@@ -286,6 +367,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
+        {zoomIndicator}
         {loading && blobUrl && (
           <div className="py-12 text-center">
             <LoadingSpinner size="lg" className="mx-auto mb-4" />

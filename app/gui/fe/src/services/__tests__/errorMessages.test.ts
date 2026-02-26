@@ -75,6 +75,25 @@ describe('getFriendlyError', () => {
     });
   });
 
+  describe('mnemonic checksum errors', () => {
+    it('matches checksum verification failed', () => {
+      expectTitle(
+        'Invalid mnemonic: checksum verification failed. Please double-check your recovery phrase for typos.',
+        'Invalid Recovery Phrase',
+      );
+    });
+
+    it('matches invalid mnemonic', () => {
+      expectTitle('Invalid mnemonic: bad word at index 3', 'Invalid Recovery Phrase');
+    });
+  });
+
+  describe('password policy errors', () => {
+    it('matches password too short', () => {
+      expectTitle('Password must be at least 12 characters', 'Password Too Short');
+    });
+  });
+
   describe('wallet errors', () => {
     it('matches incorrect password', () => {
       expectTitle('Incorrect password', 'Incorrect Password');
@@ -99,7 +118,57 @@ describe('getFriendlyError', () => {
     });
   });
 
-  describe('transaction errors', () => {
+  describe('specific transaction errors', () => {
+    it('matches insufficient collateral', () => {
+      expectTitle('Insufficient collateral for transaction', 'Insufficient Collateral');
+    });
+
+    it('matches collateral insufficient', () => {
+      expectTitle('Collateral insufficient: need 5 ADA', 'Insufficient Collateral');
+    });
+
+    it('matches script execution failure', () => {
+      expectTitle('Script execution failed in phase 2', 'Script Validation Failed');
+    });
+
+    it('matches script evaluation failure', () => {
+      expectTitle('Script evaluation failed: budget exceeded', 'Script Validation Failed');
+    });
+
+    it('matches ExUnits exceeded', () => {
+      expectTitle('ExUnits exceeded for script', 'Script Validation Failed');
+    });
+
+    it('matches budget exceeded', () => {
+      expectTitle('Budget exceeded during script validation', 'Script Validation Failed');
+    });
+
+    it('matches already spent UTxO', () => {
+      expectTitle('Input already spent in a previous transaction', 'Transaction Conflict');
+    });
+
+    it('matches UTxO not found', () => {
+      expectTitle('UTxO not found at the given reference', 'Transaction Conflict');
+    });
+
+    it('matches conflicting input', () => {
+      expectTitle('Conflicting input detected', 'Transaction Conflict');
+    });
+
+    it('matches fee too low', () => {
+      expectTitle('Fee too low: minimum required 200000', 'Transaction Fee Error');
+    });
+
+    it('matches minimum fee', () => {
+      expectTitle('Below minimum fee threshold', 'Transaction Fee Error');
+    });
+
+    it('matches feeTooSmall', () => {
+      expectTitle('feeTooSmall: provided 170000, required 185000', 'Transaction Fee Error');
+    });
+  });
+
+  describe('generic transaction errors', () => {
     it('matches submit failure', () => {
       expectTitle('Submit failed: phase-2 validation error', 'Transaction Failed');
     });

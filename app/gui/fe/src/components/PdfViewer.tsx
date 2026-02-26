@@ -15,6 +15,63 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.0;
+const THUMBNAIL_WIDTH = 80;
+const THUMBNAIL_SCALE = 0.15;
+
+/** Renders a single page thumbnail, lazy-loaded via IntersectionObserver. */
+function LazyThumbnail({
+  pageNumber,
+  isActive,
+  onClick,
+}: {
+  pageNumber: number;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const containerRef = useRef<HTMLButtonElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
+      { rootMargin: '100px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <button
+      ref={containerRef}
+      onClick={onClick}
+      className={`flex-shrink-0 cursor-pointer rounded-[var(--radius-sm)] overflow-hidden border-2 transition-colors duration-150 ${
+        isActive ? 'border-[var(--accent)]' : 'border-transparent hover:border-[var(--border-subtle)]'
+      }`}
+      style={{ width: THUMBNAIL_WIDTH, minHeight: THUMBNAIL_WIDTH * 1.4 }}
+      title={`Page ${pageNumber}`}
+      aria-label={`Go to page ${pageNumber}`}
+    >
+      {isVisible ? (
+        <Page
+          pageNumber={pageNumber}
+          scale={THUMBNAIL_SCALE}
+          renderTextLayer={false}
+          renderAnnotationLayer={false}
+          loading={
+            <div className="w-full h-full bg-[var(--bg-secondary)]" />
+          }
+        />
+      ) : (
+        <div className="w-full h-full bg-[var(--bg-secondary)]" />
+      )}
+      <div className={`text-[9px] text-center py-0.5 ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}>
+        {pageNumber}
+      </div>
+    </button>
+  );
+}
 
 interface PdfViewerProps {
   data: Uint8Array;
@@ -28,7 +85,9 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
   const [scale, setScale] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showThumbnails, setShowThumbnails] = useState(false);
   const pageInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailsRef = useRef<HTMLDivElement>(null);
 
   // Search state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -77,6 +136,13 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     }
     setCurrentPage(parsed);
   }, [pageInputValue, numPages, currentPage]);
+
+  // Auto-scroll thumbnail sidebar to current page
+  useEffect(() => {
+    if (!showThumbnails || !thumbnailsRef.current) return;
+    const child = thumbnailsRef.current.children[currentPage - 1] as HTMLElement | undefined;
+    child?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [currentPage, showThumbnails]);
 
   // --- Search logic ---
 
@@ -265,6 +331,23 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
           </svg>
         </button>
 
+        {/* Thumbnails toggle */}
+        {numPages > 1 && (
+          <>
+            <div className="w-px h-5 bg-[var(--border-subtle)]" />
+            <button
+              onClick={() => setShowThumbnails(t => !t)}
+              className={`${btnClass} ${showThumbnails ? 'text-[var(--accent)]' : ''}`}
+              title={showThumbnails ? 'Hide page thumbnails' : 'Show page thumbnails'}
+              aria-label={showThumbnails ? 'Hide page thumbnails' : 'Show page thumbnails'}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </button>
+          </>
+        )}
+
         {/* Search toggle */}
         <div className="w-px h-5 bg-[var(--border-subtle)]" />
         <button
@@ -382,6 +465,23 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     </div>
   ) : null;
 
+  const thumbnailSidebar = showThumbnails && numPages > 1 ? (
+    <div
+      ref={thumbnailsRef}
+      className="flex-shrink-0 overflow-y-auto flex flex-col items-center gap-2 p-2 bg-[var(--bg-card)] border-r border-[var(--border-subtle)]"
+      style={{ width: THUMBNAIL_WIDTH + 16 }}
+    >
+      {Array.from({ length: numPages }, (_, i) => (
+        <LazyThumbnail
+          key={i + 1}
+          pageNumber={i + 1}
+          isActive={currentPage === i + 1}
+          onClick={() => setCurrentPage(i + 1)}
+        />
+      ))}
+    </div>
+  ) : null;
+
   const pdfLoading = (
     <div className="py-12 text-center">
       <LoadingSpinner size="lg" className="mx-auto mb-4" />
@@ -389,27 +489,33 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     </div>
   );
 
-  const pdfContent = blobUrl ? (
-    <Document
-      file={blobUrl}
-      onLoadSuccess={onDocumentLoadSuccess}
-      onLoadError={onDocumentLoadError}
-      loading={pdfLoading}
-    >
-      <Page
-        pageNumber={currentPage}
-        scale={scale}
-        loading={
-          <div className="py-8 text-center">
-            <LoadingSpinner size="sm" className="mx-auto" />
-          </div>
-        }
-        renderTextLayer={true}
-        renderAnnotationLayer={true}
-        customTextRenderer={isSearchOpen && searchResults.length > 0 ? customTextRenderer : undefined}
-      />
-    </Document>
-  ) : pdfLoading;
+  const mainPage = (
+    <Page
+      pageNumber={currentPage}
+      scale={scale}
+      loading={
+        <div className="py-8 text-center">
+          <LoadingSpinner size="sm" className="mx-auto" />
+        </div>
+      }
+      renderTextLayer={true}
+      renderAnnotationLayer={true}
+      customTextRenderer={isSearchOpen && searchResults.length > 0 ? customTextRenderer : undefined}
+    />
+  );
+
+  // Wrap everything in a single <Document> so both thumbnails and main page share context
+  const documentWrapper = (children: React.ReactNode) =>
+    blobUrl ? (
+      <Document
+        file={blobUrl}
+        onLoadSuccess={onDocumentLoadSuccess}
+        onLoadError={onDocumentLoadError}
+        loading={pdfLoading}
+      >
+        {children}
+      </Document>
+    ) : pdfLoading;
 
   // Fullscreen overlay
   if (isFullscreen) {
@@ -428,9 +534,16 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
           </div>
           {searchBar}
 
-          {/* PDF content area */}
-          <div className="flex-1 overflow-auto flex justify-center bg-[var(--bg-secondary)]">
-            {pdfContent}
+          {/* PDF content area with optional thumbnails sidebar */}
+          <div className="flex-1 flex min-h-0">
+            {documentWrapper(
+              <>
+                {thumbnailSidebar}
+                <div className="flex-1 overflow-auto flex justify-center bg-[var(--bg-secondary)]">
+                  {mainPage}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </>
@@ -442,8 +555,15 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     <div className="space-y-3">
       {toolbar}
       {searchBar}
-      <div className="flex justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-        {pdfContent}
+      <div className="flex max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+        {documentWrapper(
+          <>
+            {thumbnailSidebar}
+            <div className="flex-1 overflow-auto flex justify-center">
+              {mainPage}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
