@@ -44,15 +44,15 @@ fn encrypt_and_write(key: &[u8; 32], path: &std::path::Path, data: &[u8]) -> Res
             .map_err(|e| format!("Failed to write secret: {e}"))?;
         file.write_all(json.as_bytes())
             .map_err(|e| format!("Failed to write secret: {e}"))?;
-        return Ok(());
     }
 
     #[cfg(not(unix))]
     {
         std::fs::write(path, json).map_err(|e| format!("Failed to write secret: {e}"))?;
         set_owner_only_file(path)?;
-        Ok(())
     }
+
+    Ok(())
 }
 
 fn read_and_decrypt(key: &[u8; 32], path: &std::path::Path) -> Result<Vec<u8>, String> {

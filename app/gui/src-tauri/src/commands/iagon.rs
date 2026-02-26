@@ -87,10 +87,7 @@ fn map_iagon_error(status: reqwest::StatusCode, body: &str) -> String {
 /// Map a reqwest transport error into a structured JSON error.
 fn map_reqwest_error(e: reqwest::Error) -> String {
     if e.is_timeout() {
-        iagon_error_json(
-            "TIMEOUT",
-            "Cannot reach Iagon servers. Request timed out.",
-        )
+        iagon_error_json("TIMEOUT", "Cannot reach Iagon servers. Request timed out.")
     } else if e.is_connect() {
         iagon_error_json(
             "CONNECTION",

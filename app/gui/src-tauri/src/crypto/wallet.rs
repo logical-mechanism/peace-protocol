@@ -33,9 +33,7 @@ fn derive_key(password: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, String
     match argon2.hash_password_into(password.as_bytes(), salt, &mut *key) {
         Ok(()) => return Ok(key),
         Err(e) => {
-            eprintln!(
-                "Warning: Argon2id with 64 MiB failed ({e}), retrying with 32 MiB"
-            );
+            eprintln!("Warning: Argon2id with 64 MiB failed ({e}), retrying with 32 MiB");
         }
     }
 
