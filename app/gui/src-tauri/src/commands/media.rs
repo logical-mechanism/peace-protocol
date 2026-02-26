@@ -473,8 +473,8 @@ pub fn read_subtitle_file(
         return Ok(None);
     }
 
-    let entries = std::fs::read_dir(&token_dir)
-        .map_err(|e| format!("Failed to read directory: {e}"))?;
+    let entries =
+        std::fs::read_dir(&token_dir).map_err(|e| format!("Failed to read directory: {e}"))?;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -584,11 +584,6 @@ pub async fn export_text_file(
     }
 }
 
-/// Check if a content (non-metadata) file exists in the token directory.
-fn has_content_file(token_dir: &Path, token_name: &str) -> bool {
-    find_content_file(token_dir, token_name).is_some()
-}
-
 /// Find the content file in a token directory (the non-.json file).
 fn find_content_file(token_dir: &Path, token_name: &str) -> Option<PathBuf> {
     let json_name = format!("{}.json", token_name);
@@ -624,8 +619,8 @@ pub async fn open_with_system(
 
     let path_str = content_path.to_string_lossy().to_string();
 
-    use tauri_plugin_shell::ShellExt;
-    app.shell()
-        .open(&path_str, None)
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_path(&path_str, None::<&str>)
         .map_err(|e| format!("Failed to open with system player: {e}"))
 }
