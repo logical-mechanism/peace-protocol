@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
-import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam } from '../middleware/validate.js';
+import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam, validateStatusParam } from '../middleware/validate.js';
 import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_BIDS } from '../stubs/index.js';
 import {
@@ -162,19 +162,9 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
  * GET /api/bids/status/:status
  * Get bids by status (pending, accepted, rejected, cancelled)
  */
-router.get('/status/:status', async (req: Request<{status: string}>, res: Response) => {
+router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejected', 'cancelled']), async (req: Request<{status: string}>, res: Response) => {
   try {
     const { status } = req.params;
-
-    if (!['pending', 'accepted', 'rejected', 'cancelled'].includes(status)) {
-      return res.status(400).json({
-        error: {
-          code: 'INVALID_STATUS',
-          message: 'Status must be pending, accepted, rejected, or cancelled',
-          requestId: req.requestId,
-        },
-      });
-    }
 
     const paginationParams = parsePagination(req);
 

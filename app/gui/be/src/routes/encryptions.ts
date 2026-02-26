@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
-import { validateTokenNameParam, validatePkhParam } from '../middleware/validate.js';
+import { validateTokenNameParam, validatePkhParam, validateStatusParam } from '../middleware/validate.js';
 import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_ENCRYPTIONS } from '../stubs/index.js';
 import {
@@ -161,15 +161,9 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
  * GET /api/encryptions/status/:status
  * Get encryptions by status (active, pending, completed)
  */
-router.get('/status/:status', async (req: Request<{status: string}>, res: Response) => {
+router.get('/status/:status', validateStatusParam(['active', 'pending', 'completed']), async (req: Request<{status: string}>, res: Response) => {
   try {
     const { status } = req.params;
-
-    if (!['active', 'pending', 'completed'].includes(status)) {
-      return res.status(400).json({
-        error: { code: 'INVALID_STATUS', message: 'Status must be active, pending, or completed', requestId: req.requestId },
-      });
-    }
 
     const paginationParams = parsePagination(req);
 
