@@ -69,6 +69,7 @@ export default defineConfig({
     alias: {
       '@tauri-apps/api/core': path.resolve(__dirname, 'src/test/__mocks__/tauri.ts'),
       '@tauri-apps/api/event': path.resolve(__dirname, 'src/test/__mocks__/tauri.ts'),
+      '@tauri-apps/plugin-notification': path.resolve(__dirname, 'src/test/__mocks__/tauri-notification.ts'),
     },
     coverage: {
       provider: 'v8',

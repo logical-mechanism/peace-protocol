@@ -376,7 +376,7 @@ Each item has:
 
 > Key files: `fe/src/hooks/useBidNotifications.ts`, `fe/src/components/Toast.tsx`
 
-- [ ] **Desktop notifications for new bids**
+- [x] **Desktop notifications for new bids**
   - **How**: Use the `tauri-plugin-notification` to send system-level desktop notifications when new bids arrive (detected by `useBidNotifications`). Show: "New bid on [listing name]: 50 ADA". Add a toggle in Settings to enable/disable.
   - **Why**: Users who aren't actively looking at the app miss new bids. Desktop notifications ensure they don't miss opportunities.
 

@@ -24,6 +24,7 @@ import { cleanupStaleSecrets } from '../services/secretCleanup'
 import { isIagonConnected, connectIagon } from '../services/iagonAuth'
 import { useBidNotifications } from '../hooks/useBidNotifications'
 import { playNotificationSound } from '../services/notificationSound'
+import { sendDesktopNotification } from '../services/desktopNotifications'
 import {
   createListing, retryListingFromDraft, removeListing, placeBid, cancelBid,
   cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
@@ -285,6 +286,9 @@ export default function Dashboard() {
         8000
       )
       playNotificationSound()
+      const count = bidNotifications.unseenBidCount
+      const label = count === 1 ? 'bid' : 'bids'
+      sendDesktopNotification('New Bids Received', `You have ${count} new ${label} on your listings`)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bidNotifications.unseenBidCount, bidNotifications.isReady])

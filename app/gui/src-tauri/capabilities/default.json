@@ -11,6 +11,7 @@
     "shell:allow-open",
     "opener:default",
     "shell:allow-kill",
+    "notification:default",
     {
       "identifier": "shell:allow-spawn",
       "allow": [
