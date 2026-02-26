@@ -1,11 +1,13 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { apiCache } from '../apiCache';
 
 let mockFetch: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   mockFetch = vi.fn();
   globalThis.fetch = mockFetch;
+  apiCache.clear();
 });
 
 afterEach(() => {

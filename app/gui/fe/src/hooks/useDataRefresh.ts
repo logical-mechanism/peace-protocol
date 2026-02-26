@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { apiCache } from '../services/apiCache'
 
 /** Escalating delays after a transaction is submitted (ms). */
 const TX_CONFIRMATION_DELAYS = [20_000, 45_000, 90_000, 180_000]
@@ -30,6 +31,7 @@ export function useDataRefresh(): DataRefreshState {
   }, [])
 
   const triggerRefresh = useCallback(() => {
+    apiCache.clear()
     setRefreshSignal(prev => prev + 1)
     setHistorySignal(prev => prev + 1)
   }, [])
@@ -39,7 +41,8 @@ export function useDataRefresh(): DataRefreshState {
   }, [])
 
   const triggerTransactionRefresh = useCallback(() => {
-    // Immediate refresh
+    // Immediate refresh — clear cache so each retry gets fresh data
+    apiCache.clear()
     setRefreshSignal(prev => prev + 1)
     setHistorySignal(prev => prev + 1)
 
@@ -50,6 +53,7 @@ export function useDataRefresh(): DataRefreshState {
     // Schedule escalating retries
     const newTimers = TX_CONFIRMATION_DELAYS.map(delay =>
       setTimeout(() => {
+        apiCache.clear()
         setRefreshSignal(prev => prev + 1)
         setHistorySignal(prev => prev + 1)
       }, delay)

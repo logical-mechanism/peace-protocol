@@ -514,7 +514,7 @@ Each item has:
   - **How**: Add `loading="lazy"` to all `<img>` tags in EncryptionCard, SalesListingCard, and LibraryCard. For listing images loaded via the image cache service, use `IntersectionObserver` to trigger the download only when the card is visible.
   - **Why**: All images fetch immediately even when off-screen. Lazy loading reduces initial bandwidth and speeds up first paint.
 
-- [ ] **API response caching with TTL**
+- [x] **API response caching with TTL**
   - **How**: Wrap `api.ts` fetch calls with a simple in-memory cache (Map with TTL). Cache marketplace listings for 15s, protocol config for 60s. Bypass cache on explicit refresh. The backend already has a cache module — mirror the pattern in the frontend.
   - **Why**: Tab switching triggers full re-fetches of the same data. A 15s cache eliminates redundant network calls.
 
