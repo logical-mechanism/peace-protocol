@@ -20,16 +20,33 @@ pub struct EncryptedWallet {
 
 /// Derive a 32-byte AES key from password + salt using Argon2id.
 ///
-/// Parameters: m=65536 (64 MiB), t=3 iterations, p=4 parallelism.
+/// Tries m=65536 (64 MiB) first; if memory allocation fails (e.g. on low-memory
+/// systems or VMs), falls back to m=32768 (32 MiB) which is still secure.
 /// Returns `Zeroizing<[u8; 32]>` — key material is automatically zeroed on drop,
 /// including on error paths and panics.
 fn derive_key(password: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, String> {
-    let params = Params::new(65536, 3, 4, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
-    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let full_params =
+        Params::new(65536, 3, 4, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, full_params);
     let mut key = Zeroizing::new([0u8; 32]);
+
+    match argon2.hash_password_into(password.as_bytes(), salt, &mut *key) {
+        Ok(()) => return Ok(key),
+        Err(e) => {
+            eprintln!(
+                "Warning: Argon2id with 64 MiB failed ({e}), retrying with 32 MiB"
+            );
+        }
+    }
+
+    // Fallback: reduced memory (32 MiB), still secure for password-based KDF
+    let fallback_params =
+        Params::new(32768, 3, 4, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, fallback_params);
+    key.fill(0);
     argon2
         .hash_password_into(password.as_bytes(), salt, &mut *key)
-        .map_err(|e| format!("Key derivation failed: {e}"))?;
+        .map_err(|e| format!("Key derivation failed (even with reduced memory): {e}"))?;
     Ok(key)
 }
 

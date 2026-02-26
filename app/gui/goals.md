@@ -458,7 +458,7 @@ Each item has:
 
 > Key files: `src-tauri/src/crypto/`, `src-tauri/src/commands/`, `src-tauri/src/process/`, `src-tauri/src/config.rs`
 
-- [ ] **Argon2id memory allocation fallback for low-memory systems**
+- [x] **Argon2id memory allocation fallback for low-memory systems**
   - **How**: In `wallet.rs` (lines 26-34), `m=65536` (64 MiB) Argon2id can fail on low-memory systems. Wrap the KDF call in a retry: if the first attempt fails with memory error, try again with `m=32768` (32 MiB, still secure). Log a warning about reduced security params.
   - **Why**: Users on older hardware or VMs with limited RAM get a cryptic error on wallet creation instead of a graceful fallback.
 
