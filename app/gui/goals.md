@@ -280,7 +280,7 @@ Each item has:
   - **How**: Below the description textarea, show live character count: "142 / 1024 characters". Use CIP-20 metadata's max length as the limit. Change color to warning when approaching limit (> 900), error when exceeded.
   - **Why**: Description length is limited by CIP-20 metadata constraints, but users don't know the limit until they hit an error after submitting.
 
-- [ ] **Image link preview**
+- [x] **Image link preview**
   - **How**: When the image URL field loses focus, attempt to load the image in a small preview thumbnail (64x64) below the input. Show a green check if loaded, red X if failed. Use `new Image()` to test loading.
   - **Why**: Users paste image URLs but can't verify they're valid until the listing appears in the marketplace. A preview catches bad URLs early.
 

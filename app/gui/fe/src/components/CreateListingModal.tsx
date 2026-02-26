@@ -55,6 +55,8 @@ export default function CreateListingModal({
   const [creationStep, setCreationStep] = useState<ListingCreationStep | null>(null);
   const [displayPrice, setDisplayPrice] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [imagePreviewState, setImagePreviewState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
@@ -63,6 +65,8 @@ export default function CreateListingModal({
       setFormData(INITIAL_FORM_DATA);
       setDisplayPrice('');
       setIsDragging(false);
+      setImagePreviewState('idle');
+      setImagePreviewUrl(null);
       setErrors({});
       setSubmitError(null);
       setCreationStep(null);
@@ -203,6 +207,28 @@ export default function CreateListingModal({
       setErrors((prev) => ({ ...prev, file: undefined }));
     }
     setSubmitError(null);
+  };
+
+  const handleImageLinkBlur = () => {
+    const url = formData.imageLink.trim();
+    if (!url) {
+      setImagePreviewState('idle');
+      setImagePreviewUrl(null);
+      return;
+    }
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        setImagePreviewState('error');
+        setImagePreviewUrl(null);
+        return;
+      }
+      setImagePreviewState('loading');
+      setImagePreviewUrl(url);
+    } catch {
+      setImagePreviewState('error');
+      setImagePreviewUrl(null);
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -596,6 +622,7 @@ export default function CreateListingModal({
                   name="imageLink"
                   value={formData.imageLink}
                   onChange={handleInputChange}
+                  onBlur={handleImageLinkBlur}
                   disabled={isSubmitting}
                   placeholder="https://example.com/preview.png"
                   className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
@@ -608,6 +635,42 @@ export default function CreateListingModal({
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Optional. Public preview image URL.
                 </p>
+                {imagePreviewState !== 'idle' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    {imagePreviewUrl ? (
+                      <img
+                        src={imagePreviewUrl}
+                        alt="Preview"
+                        className="w-16 h-16 rounded-[var(--radius-sm)] object-cover border border-[var(--border-subtle)]"
+                        onLoad={() => setImagePreviewState('loaded')}
+                        onError={() => {
+                          setImagePreviewState('error');
+                          setImagePreviewUrl(null);
+                        }}
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-[var(--radius-sm)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-center">
+                        <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0023.25 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                        </svg>
+                      </div>
+                    )}
+                    {imagePreviewState === 'loading' && <LoadingSpinner size="sm" />}
+                    {imagePreviewState === 'loaded' && (
+                      <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    {imagePreviewState === 'error' && (
+                      <div className="flex items-center gap-1">
+                        <svg className="w-4 h-4 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="text-xs text-[var(--text-muted)]">Could not load preview</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
