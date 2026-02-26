@@ -204,4 +204,24 @@ describe('libraryReducer', () => {
     const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SEARCH', payload: 'test' })
     expect(next.searchQuery).toBe('test')
   })
+
+  it('SET_SORT accepts size-asc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'size-asc' })
+    expect(next.sortBy).toBe('size-asc')
+  })
+
+  it('SET_SORT accepts size-desc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'size-desc' })
+    expect(next.sortBy).toBe('size-desc')
+  })
+
+  it('SET_SORT accepts type-asc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'type-asc' })
+    expect(next.sortBy).toBe('type-asc')
+  })
+
+  it('SET_SORT accepts type-desc', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'type-desc' })
+    expect(next.sortBy).toBe('type-desc')
+  })
 })

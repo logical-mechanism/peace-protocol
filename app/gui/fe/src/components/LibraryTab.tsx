@@ -101,6 +101,18 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
           (b.description || b.tokenName).localeCompare(a.description || a.tokenName)
         );
         break;
+      case 'size-desc':
+        result.sort((a, b) => (b.fileSize ?? 0) - (a.fileSize ?? 0));
+        break;
+      case 'size-asc':
+        result.sort((a, b) => (a.fileSize ?? 0) - (b.fileSize ?? 0));
+        break;
+      case 'type-asc':
+        result.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+        break;
+      case 'type-desc':
+        result.sort((a, b) => (b.category || '').localeCompare(a.category || ''));
+        break;
     }
 
     return result;
@@ -228,6 +240,10 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
             <option value="oldest">Oldest First</option>
             <option value="name-asc">Name: A to Z</option>
             <option value="name-desc">Name: Z to A</option>
+            <option value="size-desc">Size: Largest First</option>
+            <option value="size-asc">Size: Smallest First</option>
+            <option value="type-asc">Type: A to Z</option>
+            <option value="type-desc">Type: Z to A</option>
           </select>
 
           {/* View Toggle */}

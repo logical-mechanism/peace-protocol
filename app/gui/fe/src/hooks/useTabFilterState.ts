@@ -145,7 +145,7 @@ export function historyReducer(state: HistoryFilters, action: HistoryAction): Hi
 
 export interface LibraryFilters {
   searchQuery: string
-  sortBy: 'newest' | 'oldest' | 'name-asc' | 'name-desc'
+  sortBy: 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc' | 'type-asc' | 'type-desc'
   categoryFilter: string
   viewMode: ViewMode
 }
