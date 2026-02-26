@@ -238,11 +238,11 @@ Each item has:
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [x] **Min bid explanation in plain language**
+- [ ] **Min bid explanation in plain language**
   - **How**: In `PlaceBidModal.tsx` (lines 99-105), the minimum 2 ADA message mentions "UTxO minimum" which is technical jargon. Replace with: "Minimum bid is 2 ADA (required by the Cardano network to hold bid data on-chain)." Add a small "Why?" link/tooltip that explains UTxO minimums briefly.
   - **Why**: Non-technical users don't understand why they can't bid 0.5 ADA. A clear explanation prevents confusion and support requests.
 
-- [x] **Balance parsing safety check**
+- [ ] **Balance parsing safety check**
   - **How**: In `PlaceBidModal.tsx` (lines 85-87), `balanceLovelace` is parsed with `parseInt()` without validating the input. Add: `const parsed = parseInt(balanceLovelace ?? '0', 10); const balanceAda = isNaN(parsed) ? undefined : parsed / 1_000_000;`. When `undefined`, show "Balance: loading..." instead of "0 ADA".
   - **Why**: If Kupo is slow to respond, `balanceLovelace` could be `undefined` or empty string, causing NaN display.
 
@@ -252,19 +252,19 @@ Each item has:
 
 > Key files: `fe/src/components/PdfViewer.tsx`, `fe/src/components/ImageViewer.tsx`, `fe/src/components/AudioPlayer.tsx`, `fe/src/components/VideoPlayer.tsx`
 
-- [x] **PDF page jump invalid input feedback**
+- [ ] **PDF page jump invalid input feedback**
   - **How**: In `PdfViewer.tsx` (lines 131-138), entering an invalid page number silently resets to the current page. Show a brief red border flash (200ms) on the page number input and set `aria-invalid="true"` temporarily when the entered page is out of range.
   - **Why**: Users typing page "200" in a 50-page PDF see the input reset with no explanation. A visual cue indicates the page doesn't exist.
 
-- [x] **Image viewer EXIF orientation handling**
+- [ ] **Image viewer EXIF orientation handling**
   - **How**: In `ImageViewer.tsx`, some JPEG images have EXIF orientation metadata that causes them to display rotated. Before creating the Blob URL, check for EXIF orientation tag using a lightweight parser (e.g., read the first 64KB of JPEG for APP1 marker) and apply CSS `image-orientation: from-image` or transform accordingly.
   - **Why**: Photos taken on phones often have EXIF rotation. Displaying them sideways makes the viewer feel broken.
 
-- [x] **Audio player elapsed/remaining time toggle**
+- [ ] **Audio player elapsed/remaining time toggle**
   - **How**: In `AudioPlayer.tsx`, clicking the time display toggles between "elapsed / total" and "elapsed / -remaining" format. Store preference in a local `showRemaining` state. Update display in the existing time render logic.
   - **Why**: Standard media player feature. Some users prefer seeing how much time is left rather than total duration.
 
-- [ ] **Video player keyboard shortcuts**
+- [x] **Video player keyboard shortcuts**
   - **How**: In `VideoPlayer.tsx`, add keyboard event handlers: Space = play/pause, Left/Right = seek ±5s, Up/Down = volume ±10%, F = toggle fullscreen, M = mute. Only active when the video player has focus. Show a brief key hint overlay on first interaction.
   - **Why**: Standard video player keyboard controls are expected. Mouse-only control is frustrating for keyboard users.
 
@@ -362,7 +362,7 @@ Each item has:
   - **How**: Ensure the toast container, bid notification badge, loading/error states, and pagination info all live within `aria-live` regions. Add `role="status"` to the pagination summary ("Showing 1-20 of 150"). Add `role="alert"` to error messages.
   - **Why**: Screen reader users miss dynamically updated content (new toasts, bid count changes, loading completions) unless announced via ARIA live regions.
 
-- [ ] **Automated a11y testing with vitest-axe**
+- [s] **Automated a11y testing with vitest-axe**
   - **How**: Install `vitest-axe` (or `jest-axe`). Add a11y tests for critical components: `expect(await axe(container)).toHaveNoViolations()` for CreateListingModal, PlaceBidModal, WalletSetup, WalletUnlock, Dashboard. Run as part of `npm test`.
   - **Why**: Manual accessibility audits miss issues. Automated axe scans catch 30-50% of WCAG violations automatically on every test run.
 

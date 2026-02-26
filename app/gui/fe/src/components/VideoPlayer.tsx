@@ -69,8 +69,11 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [showCaptions, setShowCaptions] = useState(false);
   const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
 
+  const [showKeyHints, setShowKeyHints] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
+  const hasShownHints = useRef(false);
 
   // PiP feature detection
   useEffect(() => {
@@ -295,6 +298,13 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       const tag = (document.activeElement?.tagName ?? '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
+      // Show key hints on first keyboard interaction
+      if (!hasShownHints.current) {
+        hasShownHints.current = true;
+        setShowKeyHints(true);
+        setTimeout(() => setShowKeyHints(false), 3000);
+      }
+
       switch (e.key) {
         case ' ':
           e.preventDefault();
@@ -307,6 +317,24 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         case 'ArrowRight':
           e.preventDefault();
           handleSkipForward();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setVolume(prev => {
+            const v = Math.min(1, prev + 0.1);
+            if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = false; }
+            setIsMuted(false);
+            return v;
+          });
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          setVolume(prev => {
+            const v = Math.max(0, prev - 0.1);
+            if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = v === 0; }
+            setIsMuted(v === 0);
+            return v;
+          });
           break;
         case 'f':
         case 'F':
@@ -521,6 +549,19 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     </div>
   );
 
+  const keyHintsOverlay = showKeyHints ? (
+    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-300">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
+        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">F</kbd> Fullscreen</span>
+        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s</span>
+        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
+        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
+        {subtitleUrl && <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
+      </div>
+    </div>
+  ) : null;
+
   const videoElement = blobUrl ? (
     <video
       ref={videoRef}
@@ -562,8 +603,9 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         {/* Fullscreen overlay */}
         <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)]">
           {/* Video content area */}
-          <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-[var(--bg-secondary)]">
+          <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-[var(--bg-secondary)] relative">
             {videoElement}
+            {keyHintsOverlay}
           </div>
 
           {/* Control bar at bottom */}
@@ -578,7 +620,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   // Normal inline view
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2">
+      <div className="flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative">
         {loading && blobUrl && (
           <div className="py-12 text-center">
             <LoadingSpinner size="lg" className="mx-auto mb-4" />
@@ -586,6 +628,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           </div>
         )}
         {videoElement}
+        {keyHintsOverlay}
       </div>
       {controlBar}
     </div>
