@@ -741,21 +741,31 @@ export default function Settings() {
               <p className="text-sm text-[var(--text-muted)] mb-4">
                 Automatically lock the wallet after a period of inactivity.
               </p>
-              <select
-                value={autolockValue}
-                onChange={(e) => {
-                  const mins = Number(e.target.value)
-                  setAutolockValue(mins)
-                  setAutolockMinutes(mins)
-                }}
-                className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-              >
-                <option value={5}>5 minutes</option>
-                <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={60}>1 hour</option>
-                <option value={0}>Never</option>
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: '5 min', value: 5 },
+                  { label: '10 min', value: 10 },
+                  { label: '15 min', value: 15 },
+                  { label: '30 min', value: 30 },
+                  { label: '1 hour', value: 60 },
+                  { label: 'Never', value: 0 },
+                ].map((preset) => (
+                  <button
+                    key={preset.value}
+                    onClick={() => {
+                      setAutolockValue(preset.value)
+                      setAutolockMinutes(preset.value)
+                    }}
+                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                      autolockValue === preset.value
+                        ? 'bg-[var(--accent)] text-white'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Notification Duration */}

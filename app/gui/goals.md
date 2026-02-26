@@ -362,7 +362,7 @@ Each item has:
   - **How**: Replace the text-only disk usage display with a horizontal stacked bar chart showing chain data, SNARK data, wallet, library, and cache sizes. Color-code each segment. Show percentages on hover.
   - **Why**: Numbers like "Chain: 4.2 GB, SNARK: 650 MB" are harder to grasp than a visual proportional bar.
 
-- [ ] **Auto-lock timeout preset buttons**
+- [x] **Auto-lock timeout preset buttons**
   - **How**: Replace the raw number input for auto-lock with preset buttons: 5, 10, 15, 30, 60 min, Never. Highlight the active preset. Allow custom input as a fallback.
   - **Why**: Typing a number is more cognitive effort than clicking a preset. Most users want one of a few common values.
 
