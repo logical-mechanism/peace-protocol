@@ -119,6 +119,17 @@ describe('GET /api/bids', () => {
     expect(res.status).toBe(200);
     expect(res.body.warnings).toBeUndefined();
   });
+
+  it('passes refresh=true to skip cache', async () => {
+    (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      warnings: {},
+    });
+
+    await request(app).get('/api/bids?refresh=true');
+
+    expect(getAllBids).toHaveBeenCalledWith(true);
+  });
 });
 
 describe('GET /api/bids/:tokenName', () => {
@@ -141,6 +152,17 @@ describe('GET /api/bids/:tokenName', () => {
 
     const res = await request(app).get('/api/bids/aabb');
     expect(res.status).toBe(404);
+  });
+
+  it('passes refresh=true to skip cache', async () => {
+    (getBidByToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { tokenName: 'b1' },
+      warnings: {},
+    });
+
+    await request(app).get('/api/bids/b1?refresh=true');
+
+    expect(getBidByToken).toHaveBeenCalledWith('b1', true);
   });
 });
 

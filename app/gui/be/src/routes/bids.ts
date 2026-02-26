@@ -55,6 +55,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
+    const skipCache = req.query.refresh === 'true';
 
     if (config.useStubs) {
       const bid = STUB_BIDS.find(b => b.tokenName === tokenName);
@@ -67,7 +68,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       return res.json({ data: bid });
     }
 
-    const result = await getBidByToken(tokenName);
+    const result = await getBidByToken(tokenName, skipCache);
     if (!result.data) {
       return res.status(404).json({
         error: { code: 'NOT_FOUND', message: 'Bid not found' },
@@ -93,6 +94,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
 router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, res: Response) => {
   try {
     const { pkh } = req.params;
+    const skipCache = req.query.refresh === 'true';
 
     const paginationParams = parsePagination(req);
 
@@ -105,7 +107,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       return res.json({ data, meta: { total: userBids.length }, pagination });
     }
 
-    const result = await getBidsByUser(pkh);
+    const result = await getBidsByUser(pkh, skipCache);
     const { data, pagination } = paginate(result.data, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
@@ -129,6 +131,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
 router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (req: Request<{encryptionToken: string}>, res: Response) => {
   try {
     const { encryptionToken } = req.params;
+    const skipCache = req.query.refresh === 'true';
 
     const paginationParams = parsePagination(req);
 
@@ -141,7 +144,7 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
       return res.json({ data, meta: { total: encryptionBids.length }, pagination });
     }
 
-    const result = await getBidsByEncryption(encryptionToken);
+    const result = await getBidsByEncryption(encryptionToken, skipCache);
     const { data, pagination } = paginate(result.data, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
@@ -165,6 +168,7 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
 router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejected', 'cancelled']), async (req: Request<{status: string}>, res: Response) => {
   try {
     const { status } = req.params;
+    const skipCache = req.query.refresh === 'true';
 
     const paginationParams = parsePagination(req);
 
@@ -176,7 +180,8 @@ router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejec
     }
 
     const result = await getBidsByStatus(
-      status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
+      status as 'pending' | 'accepted' | 'rejected' | 'cancelled',
+      skipCache,
     );
     const { data, pagination } = paginate(result.data, paginationParams);
     res.set('Cache-Control', CACHE_DATA);

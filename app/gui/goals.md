@@ -448,7 +448,7 @@ Each item has:
   - **How**: In `be/src/routes/chain.ts`, the `GET /tip` endpoint returns `block_no`, `epoch_no`, `block_time` but not `abs_slot`. Add `slot_no` from the Koios `/tip` response (which returns it). Frontend needs this for sync calculation.
   - **Why**: Frontend calculates sync percentage using slot numbers. Without the tip slot in the API response, it makes a separate Tauri invoke for the same data.
 
-- [ ] **Bid cache refresh query parameter**
+- [x] **Bid cache refresh query parameter**
   - **How**: In `be/src/routes/bids.ts`, add `?refresh=true` query param support (already exists for encryptions, missing for bids). Set `skipCache = req.query.refresh === 'true'` to bust the cache on manual refresh.
   - **Why**: After a bid is accepted, the cache still shows the old state until TTL expires. Frontend refresh button should force a fresh fetch.
 
