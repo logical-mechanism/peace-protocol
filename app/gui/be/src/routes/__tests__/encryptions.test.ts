@@ -206,7 +206,7 @@ describe('GET /api/encryptions/status/:status', () => {
 });
 
 describe('GET /api/encryptions/:tokenName/levels', () => {
-  it('returns encryption levels', async () => {
+  it('returns encryption levels with pagination', async () => {
     (getEncryptionLevels as ReturnType<typeof vi.fn>).mockResolvedValue([
       { r1: 'aa', r2_g1: 'bb' },
     ]);
@@ -216,6 +216,24 @@ describe('GET /api/encryptions/:tokenName/levels', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     expect(res.body.meta.total).toBe(1);
+    expect(res.body.pagination).toBeDefined();
+    expect(res.body.pagination.total).toBe(1);
+    expect(res.body.pagination.hasMore).toBe(false);
+  });
+
+  it('respects pagination params', async () => {
+    const levels = Array.from({ length: 5 }, (_, i) => ({ r1: `level${i}` }));
+    (getEncryptionLevels as ReturnType<typeof vi.fn>).mockResolvedValue(levels);
+
+    const res = await request(app).get('/api/encryptions/ab01/levels?limit=2&offset=1');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.meta.total).toBe(5);
+    expect(res.body.pagination.total).toBe(5);
+    expect(res.body.pagination.limit).toBe(2);
+    expect(res.body.pagination.offset).toBe(1);
+    expect(res.body.pagination.hasMore).toBe(true);
   });
 
   it('returns 500 on service error', async () => {

@@ -11,7 +11,7 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../services/encryptions.js';
-import type { ApiResponse, EncryptionLevel } from '../types/index.js';
+import type { EncryptionLevel } from '../types/index.js';
 
 const router = Router();
 
@@ -57,24 +57,19 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
+    const paginationParams = parsePagination(req);
 
     if (config.useStubs) {
       // Stub: return empty levels (stub decryption doesn't use real levels)
-      const response: ApiResponse<EncryptionLevel[]> = {
-        data: [],
-        meta: { total: 0 },
-      };
+      const { data, pagination } = paginate([] as EncryptionLevel[], paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json(response);
+      return res.json({ data, meta: { total: 0 }, pagination });
     }
 
     const levels = await getEncryptionLevels(tokenName);
-    const response: ApiResponse<EncryptionLevel[]> = {
-      data: levels,
-      meta: { total: levels.length },
-    };
+    const { data, pagination } = paginate(levels, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
-    return res.json(response);
+    return res.json({ data, meta: { total: levels.length }, pagination });
   } catch (error) {
     logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
     return res.status(500).json({

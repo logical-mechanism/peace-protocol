@@ -436,7 +436,7 @@ Each item has:
   - **How**: In `be/src/services/kupo.ts` (lines 119-125), wrap circuit breaker errors with the operation name: `catch (err) { throw new Error(\`Kupo ${path}: ${err.message}\`); }`. This helps distinguish "Kupo /matches failed" from "Kupo /datums failed" in logs.
   - **Why**: All Kupo failures currently look the same in logs. Adding the path makes it clear which operation triggered the circuit breaker.
 
-- [ ] **Levels endpoint pagination**
+- [x] **Levels endpoint pagination**
   - **How**: In `be/src/routes/encryptions.ts`, the `GET /encryptions/:tokenName/levels` endpoint returns all levels without pagination. Apply the existing `paginate()` middleware with a generous default (limit=100). Return `{ data, pagination }` wrapper.
   - **Why**: A token with many re-encryption hops could return an unbounded array, causing slow responses and high memory usage.
 
