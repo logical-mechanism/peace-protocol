@@ -647,15 +647,15 @@ Each item has:
 
 > Key files: `.github/workflows/ci.yml`, `CHANGELOG.md`, `CONTRIBUTING.md`
 
-- [ ] **Fix CI path references**
+- [s] **Fix CI path references**
   - **How**: In `.github/workflows/ci.yml`, update the TypeScript job path from `app/ui/fe` to `app/gui/fe`. Verify all path references match the current repo structure.
   - **Why**: The CI TypeScript job references a stale path (`app/ui/fe`), meaning frontend tests may not run in CI at all.
 
-- [ ] **Add Tauri build to CI**
+- [s] **Add Tauri build to CI**
   - **How**: Add a CI job that runs `npx tauri build` (with stub sidecar binaries). This verifies the Rust compilation, Vite build, and Tauri packaging all succeed. Cache `target/` and `node_modules/` between runs.
   - **Why**: CI currently only lints and runs unit tests. A build failure would only be caught when someone tries to create a release.
 
-- [ ] **Coverage reporting in CI**
+- [x] **Coverage reporting in CI**
   - **How**: Run `vitest --coverage` in CI for both FE and BE. Fail the job if coverage drops below thresholds. Optionally post a coverage summary comment on PRs using a GitHub Action.
   - **Why**: Coverage thresholds exist in config but aren't enforced. Without CI enforcement, coverage can silently regress.
 
@@ -671,7 +671,7 @@ Each item has:
   - **How**: Adopt conventional commits (`feat:`, `fix:`, `chore:`) and add `conventional-changelog` as a dev dependency. Add a `changelog` npm script that auto-generates entries from commit messages. Run before each release.
   - **Why**: CHANGELOG.md is manually maintained and sparse (only v0.3.0). Automated generation ensures every change is documented.
 
-- [ ] **Release automation**
+- [s] **Release automation**
   - **How**: Create a GitHub Actions workflow triggered by a version tag (e.g., `v0.4.0`). Steps: run tests, build Tauri for Linux (and optionally macOS/Windows), create a GitHub Release with the installer artifacts and auto-generated release notes.
   - **Why**: Manual release builds are error-prone. Automated releases ensure every version is built consistently and published immediately.
 
