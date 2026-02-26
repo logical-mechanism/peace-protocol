@@ -48,6 +48,16 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
+  // Insufficient collateral — must be before generic "insufficient" balance match
+  {
+    test: (e) => /insufficient.*collateral|collateral.*insufficient/i.test(e),
+    result: {
+      title: 'Insufficient Collateral',
+      message: 'The transaction requires more collateral than is available.',
+      action: 'Ensure your wallet has a UTxO set as collateral. Try refreshing your wallet balance.',
+      recoverable: true,
+    },
+  },
   // Wallet balance / min-UTxO
   {
     test: (e) => /insufficient|balance|min.?ada|not enough|utxo.*too.*small/i.test(e),
@@ -128,7 +138,35 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
-  // Transaction submission failures
+  // Specific transaction failures — must be before generic tx failure pattern
+  {
+    test: (e) => /script.*(?:execution|evaluation).*fail|exunits.*exceeded|budget.*exceeded|eval.*error/i.test(e),
+    result: {
+      title: 'Script Validation Failed',
+      message: 'A smart contract script failed during validation.',
+      action: 'The on-chain state may have changed. Refresh and try again.',
+      recoverable: true,
+    },
+  },
+  {
+    test: (e) => /already.*spent|utxo.*not.*found|input.*consumed|conflicting.*input/i.test(e),
+    result: {
+      title: 'Transaction Conflict',
+      message: 'One or more inputs have already been spent by another transaction.',
+      action: 'Someone else may have acted on this listing. Refresh the page and try again.',
+      recoverable: true,
+    },
+  },
+  {
+    test: (e) => /fee.*(?:too.*low|insufficient)|minimum.*fee|feeTooSmall/i.test(e),
+    result: {
+      title: 'Transaction Fee Error',
+      message: 'The transaction fee was calculated too low.',
+      action: 'Try again. If the issue persists, restart the app to refresh fee parameters.',
+      recoverable: true,
+    },
+  },
+  // Generic transaction submission failures (catch-all for tx errors)
   {
     test: (e) => /submit.*fail|transaction.*(?:fail|reject)|tx.*reject|phase.?2|script.*fail/i.test(e),
     result: {
