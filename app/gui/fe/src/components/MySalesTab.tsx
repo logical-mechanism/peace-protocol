@@ -8,6 +8,7 @@ import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
+import { getTransactions } from '../services/transactionHistory';
 
 interface MySalesTabProps {
   userPkh?: string;
@@ -106,6 +107,32 @@ function MySalesTab({
     },
     [bidsMap]
   );
+
+  // Compute sales stats for summary banner
+  const salesStats = useMemo(() => {
+    const activeCount = encryptions.filter(e => e.status === 'active').length;
+    const pendingCount = encryptions.filter(e => e.status === 'pending').length;
+
+    const listedValue = encryptions
+      .filter(e => e.status === 'active')
+      .reduce((sum, e) => sum + (e.suggestedPrice ?? 0), 0);
+
+    let totalBidCount = 0;
+    let totalBidValue = 0;
+    for (const [, bids] of bidsMap) {
+      const pendingBids = bids.filter(b => b.status === 'pending');
+      totalBidCount += pendingBids.length;
+      totalBidValue += pendingBids.reduce((sum, b) => sum + b.amount, 0);
+    }
+
+    const completedSales = userPkh
+      ? getTransactions(userPkh).filter(
+          tx => (tx.type === 'accept-bid' || tx.type === 'complete-sale') && tx.status === 'confirmed'
+        ).length
+      : 0;
+
+    return { activeCount, pendingCount, completedSales, listedValue, totalBidCount, totalBidValue };
+  }, [encryptions, bidsMap, userPkh]);
 
   // Filter and sort encryptions
   const filteredAndSorted = useMemo(() => {
@@ -253,6 +280,44 @@ function MySalesTab({
 
   return (
     <div>
+      {/* Earnings Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Active Listings</p>
+          <p className="text-xl font-semibold text-[var(--text-primary)]">
+            {salesStats.activeCount}
+          </p>
+          {salesStats.listedValue > 0 && (
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              {salesStats.listedValue.toLocaleString()} ADA listed
+            </p>
+          )}
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Pending Bids</p>
+          <p className="text-xl font-semibold text-[var(--accent)]">
+            {salesStats.totalBidCount}
+          </p>
+          {salesStats.totalBidValue > 0 && (
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              {(salesStats.totalBidValue / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} ADA total
+            </p>
+          )}
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Pending Sales</p>
+          <p className="text-xl font-semibold text-[var(--warning)]">
+            {salesStats.pendingCount}
+          </p>
+        </div>
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
+          <p className="text-xs text-[var(--text-muted)] mb-1">Completed Sales</p>
+          <p className="text-xl font-semibold text-[var(--success)]">
+            {salesStats.completedSales}
+          </p>
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {/* Search */}

@@ -5,6 +5,7 @@ import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
+import { formatRelativeTime } from '../utils/time';
 
 // Default fallback price when suggested price can't be parsed
 const DEFAULT_FALLBACK_PRICE = 1;
@@ -33,15 +34,6 @@ export default function SalesListingCard({
   initialBanned = false,
 }: SalesListingCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
 
   // Format price with fallback to 1 ADA if undefined, null, NaN, or invalid
   const formatPrice = (price?: number): string => {
@@ -136,6 +128,15 @@ export default function SalesListingCard({
                     {truncateDescription(encryption.description)}
                   </p>
                 )}
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {isActive && (
+                    <>
+                      <span>Bids: {bidCount}</span>
+                      <span className="mx-1">|</span>
+                    </>
+                  )}
+                  <span>{formatRelativeTime(encryption.createdAt)}</span>
+                </p>
               </div>
             </div>
 
@@ -233,7 +234,15 @@ export default function SalesListingCard({
               </span>
             </div>
             <p className="text-xs text-[var(--text-muted)]">
-              Listed {formatDate(encryption.createdAt)}
+              {isActive && (
+                <>
+                  <span>Bids: {bidCount}</span>
+                  <span className="mx-1.5">|</span>
+                </>
+              )}
+              <span>Views: N/A</span>
+              <span className="mx-1.5">|</span>
+              <span>Created: {formatRelativeTime(encryption.createdAt)}</span>
             </p>
           </div>
         </div>

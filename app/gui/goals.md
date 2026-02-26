@@ -184,7 +184,7 @@ Each item has:
 
 > Key file: `fe/src/components/MySalesTab.tsx`, `fe/src/components/SalesListingCard.tsx`
 
-- [ ] **Earnings summary at the top**
+- [x] **Earnings summary at the top**
   - **How**: Calculate total earned ADA from accepted bids (sum of bid amounts for completed sales). Show as a banner: "Total Earned: 1,250 ADA from 8 sales". Pull data from transaction history or on-chain data.
   - **Why**: Sellers want to see their total earnings at a glance without mentally adding up individual sales.
 
@@ -192,7 +192,7 @@ Each item has:
   - **How**: Add a "Select" mode toggle that shows checkboxes on each SalesListingCard. When items are selected, show a floating action bar: "3 selected — Cancel All". Each cancel calls `removeListing()` sequentially (batch tx not possible on Cardano).
   - **Why**: Sellers with many expired or unwanted listings must cancel them one by one. Bulk select speeds this up.
 
-- [ ] **Listing analytics per item**
+- [x] **Listing analytics per item**
   - **How**: On each SalesListingCard, show "Views: N/A | Bids: 3 | Created: 2d ago". Bid count is already available. Created time comes from the on-chain datum. Views would need a backend counter (optional — can start with just bids + age).
   - **Why**: Sellers have no insight into how their listings are performing. Basic analytics help them adjust pricing.
 
