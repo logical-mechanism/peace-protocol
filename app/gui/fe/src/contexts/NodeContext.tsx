@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { useVisibleInterval } from '../hooks/useVisibility'
 
 export type NodeStage =
   | 'stopped'
@@ -91,7 +92,6 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const [needsBootstrap, setNeedsBootstrap] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
-  const pollRef = useRef<number | null>(null)
   const mountedRef = useRef(true)
 
   // Listen for Tauri events from Rust backend
@@ -134,49 +134,40 @@ export function NodeProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Poll get_node_status every 5 seconds
-  useEffect(() => {
-    const poll = async () => {
+  // Poll get_node_status every 5 seconds (pauses when window is not visible)
+  useVisibleInterval(async () => {
+    if (!mountedRef.current) return
+    try {
+      const status = await invoke<NodeStatus>('get_node_status')
       if (!mountedRef.current) return
-      try {
-        const status = await invoke<NodeStatus>('get_node_status')
-        if (!mountedRef.current) return
 
-        setNetwork(status.network)
-        setSyncProgress(status.sync_progress * 100)
-        setKupoSyncProgress(status.kupo_sync_progress * 100)
-        setTipSlot(status.tip_slot)
-        setTipHeight(status.tip_height)
-        setProcesses(status.processes)
-        setNeedsBootstrap(status.needs_bootstrap)
+      setNetwork(status.network)
+      setSyncProgress(status.sync_progress * 100)
+      setKupoSyncProgress(status.kupo_sync_progress * 100)
+      setTipSlot(status.tip_slot)
+      setTipHeight(status.tip_height)
+      setProcesses(status.processes)
+      setNeedsBootstrap(status.needs_bootstrap)
 
-        // Map overall state to stage
-        const stageMap: Record<string, NodeStage> = {
-          Stopped: 'stopped',
-          Bootstrapping: 'bootstrapping',
-          Starting: 'starting',
-          Syncing: 'syncing',
-          Synced: 'synced',
-          Error: 'error',
-        }
-        setStage(stageMap[status.overall] || 'stopped')
-
-        // Clear error when things are running fine
-        if (status.overall !== 'Error') {
-          setError(null)
-        }
-      } catch {
-        // Node commands not available yet or invoke failed, ignore
+      // Map overall state to stage
+      const stageMap: Record<string, NodeStage> = {
+        Stopped: 'stopped',
+        Bootstrapping: 'bootstrapping',
+        Starting: 'starting',
+        Syncing: 'syncing',
+        Synced: 'synced',
+        Error: 'error',
       }
-    }
+      setStage(stageMap[status.overall] || 'stopped')
 
-    poll()
-    pollRef.current = window.setInterval(poll, 5000)
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
+      // Clear error when things are running fine
+      if (status.overall !== 'Error') {
+        setError(null)
+      }
+    } catch {
+      // Node commands not available yet or invoke failed, ignore
     }
-  }, [])
+  }, 5000)
 
   const startNode = useCallback(async (walletAddress: string) => {
     setError(null)

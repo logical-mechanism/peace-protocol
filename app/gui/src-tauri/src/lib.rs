@@ -24,7 +24,10 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        // Force X11 backend on Wayland to avoid WebKitGTK focus/rendering bugs
+        if std::env::var("XDG_SESSION_TYPE").unwrap_or_default() == "wayland" {
+            std::env::set_var("GDK_BACKEND", "x11");
+        }
     }
 
     tauri::Builder::default()

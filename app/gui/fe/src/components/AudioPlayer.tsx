@@ -390,22 +390,40 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     }
   }, [duration, drawWaveform]);
 
-  // Animation loop — throttled to TARGET_FPS to reduce CPU pressure on WebKitGTK
+  // Animation loop — throttled to TARGET_FPS, pauses when window is not visible
   useEffect(() => {
     let running = true;
     let lastTime = 0;
-    const loop = (now: number) => {
+
+    const startLoop = () => {
       if (!running) return;
-      if (now - lastTime >= FRAME_INTERVAL) {
-        lastTime = now;
-        drawFrame();
-      }
+      const loop = (now: number) => {
+        if (!running || document.hidden) return;
+        if (now - lastTime >= FRAME_INTERVAL) {
+          lastTime = now;
+          drawFrame();
+        }
+        rafRef.current = requestAnimationFrame(loop);
+      };
       rafRef.current = requestAnimationFrame(loop);
     };
-    rafRef.current = requestAnimationFrame(loop);
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(rafRef.current);
+      } else {
+        lastTime = 0;
+        startLoop();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    if (!document.hidden) startLoop();
+
     return () => {
       running = false;
       cancelAnimationFrame(rafRef.current);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [drawFrame]);
 
