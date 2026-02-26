@@ -128,26 +128,19 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     return { min: 0, max: Math.max(maxPrice, 1) };
   }, [encryptions]);
 
-  // Filter and sort encryptions
-  const filteredAndSorted = useMemo(() => {
+  // Filter encryptions (separate from sort so sort changes don't re-filter)
+  const filtered = useMemo(() => {
     let result = [...encryptions];
 
-    // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter((e) => e.status === statusFilter);
     }
-
-    // Filter by category
     if (categoryFilter !== 'all') {
       result = result.filter((e) => (e.category || 'text') === categoryFilter);
     }
-
-    // Filter by favorites
     if (showFavoritesOnly) {
       result = result.filter((e) => favorites.has(e.tokenName));
     }
-
-    // Filter by price range
     if (priceMin !== '' || priceMax !== '') {
       const min = priceMin !== '' ? Number(priceMin) : -Infinity;
       const max = priceMax !== '' ? Number(priceMax) : Infinity;
@@ -158,8 +151,6 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         });
       }
     }
-
-    // Search filter (by token name, seller address, or description)
     if (debouncedSearch.trim()) {
       const query = debouncedSearch.toLowerCase();
       result = result.filter(
@@ -170,7 +161,12 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
       );
     }
 
-    // Sort
+    return result;
+  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch]);
+
+  // Sort filtered results (only reruns when sort order or bid counts change)
+  const filteredAndSorted = useMemo(() => {
+    const result = [...filtered];
     switch (sortBy) {
       case 'newest':
         result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -185,12 +181,11 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
         break;
       case 'most-bids':
-        result.sort((a, b) => getBidCount(b.tokenName) - getBidCount(a.tokenName));
+        result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
         break;
     }
-
     return result;
-  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, sortBy, getBidCount]);
+  }, [filtered, sortBy, bidCountMap]);
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {

@@ -522,7 +522,7 @@ Each item has:
   - **How**: In MarketplaceTab and LibraryTab, debounce the search query filter by 300ms using a `useDebounce` hook. The raw input updates immediately for responsive typing, but the filter dispatch is delayed.
   - **Why**: Each keystroke in the search box re-filters and re-renders the entire card grid. Debouncing batches rapid keystrokes.
 
-- [ ] **Memoize expensive card grid computations**
+- [x] **Memoize expensive card grid computations**
   - **How**: Wrap the `filteredAndSorted` computation in MarketplaceTab with `useMemo` (already done partially). Ensure the dependency array is minimal — only the filter values and raw data, not the entire component state.
   - **Why**: Filter/sort on every render is O(n log n). Memoization ensures it only recalculates when inputs actually change.
 

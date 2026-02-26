@@ -101,13 +101,19 @@ function MySalesTab({
     fetchData();
   }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Get bid count for a listing
+  // Pre-compute pending bid counts per listing
+  const bidCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [tokenName, bids] of bidsMap) {
+      const count = bids.filter((b) => b.status === 'pending').length;
+      if (count > 0) map.set(tokenName, count);
+    }
+    return map;
+  }, [bidsMap]);
+
   const getBidCount = useCallback(
-    (tokenName: string): number => {
-      const bids = bidsMap.get(tokenName) || [];
-      return bids.filter((b) => b.status === 'pending').length;
-    },
-    [bidsMap]
+    (tokenName: string): number => bidCountMap.get(tokenName) ?? 0,
+    [bidCountMap]
   );
 
   // Compute sales stats for summary banner
@@ -136,16 +142,13 @@ function MySalesTab({
     return { activeCount, pendingCount, completedSales, listedValue, totalBidCount, totalBidValue };
   }, [encryptions, bidsMap, userPkh]);
 
-  // Filter and sort encryptions
-  const filteredAndSorted = useMemo(() => {
+  // Filter encryptions (separate from sort so sort changes don't re-filter)
+  const filtered = useMemo(() => {
     let result = [...encryptions];
 
-    // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter((e) => e.status === statusFilter);
     }
-
-    // Search filter (by token name or description)
     if (debouncedSearch.trim()) {
       const query = debouncedSearch.toLowerCase();
       result = result.filter(
@@ -155,7 +158,12 @@ function MySalesTab({
       );
     }
 
-    // Sort
+    return result;
+  }, [encryptions, statusFilter, debouncedSearch]);
+
+  // Sort filtered results (only reruns when sort order or bid counts change)
+  const filteredAndSorted = useMemo(() => {
+    const result = [...filtered];
     switch (sortBy) {
       case 'newest':
         result.sort(
@@ -174,12 +182,11 @@ function MySalesTab({
         result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
         break;
       case 'most-bids':
-        result.sort((a, b) => getBidCount(b.tokenName) - getBidCount(a.tokenName));
+        result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
         break;
     }
-
     return result;
-  }, [encryptions, statusFilter, debouncedSearch, sortBy, getBidCount]);
+  }, [filtered, sortBy, bidCountMap]);
 
   // Handlers
   const handleViewBids = useCallback((encryption: EncryptionDisplay) => {
