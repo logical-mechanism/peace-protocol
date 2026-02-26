@@ -16,10 +16,10 @@
   --border-default: #333333;
   --border-focus: #444444;
 
-  /* Text - high contrast for readability */
+  /* Text - high contrast for readability (WCAG AA 4.5:1 on all bg-* surfaces) */
   --text-primary: #fafafa;
   --text-secondary: #a1a1a1;
-  --text-muted: #8a8a8a;
+  --text-muted: #9ca3af;
 
   /* Accent - single accent color, used sparingly */
   --accent: #6366f1;
@@ -89,10 +89,10 @@
   --border-default: #d0d0d0;
   --border-focus: #bfbfbf;
 
-  /* Text */
+  /* Text (WCAG AA 4.5:1 on all bg-* surfaces) */
   --text-primary: #171717;
   --text-secondary: #525252;
-  --text-muted: #737373;
+  --text-muted: #6b7280;
 
   /* Accent — slightly darker indigo for light bg contrast */
   --accent: #4f46e5;

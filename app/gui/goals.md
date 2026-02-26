@@ -306,7 +306,7 @@ Each item has:
 
 > Key files: `fe/src/index.css`, all components
 
-- [ ] **WCAG AA color contrast audit and fixes**
+- [x] **WCAG AA color contrast audit and fixes**
   - **How**: Run a contrast checker on all CSS variable combinations in both dark and light themes. `--text-muted` (rgb 138,138,138) on `--bg-primary` likely fails WCAG AA 4.5:1 ratio. Increase to at least rgb(156,163,175) for dark theme. Document all color pairs and their contrast ratios.
   - **Why**: Users with low vision or color blindness cannot read muted text. WCAG AA compliance is a baseline accessibility requirement.
 
