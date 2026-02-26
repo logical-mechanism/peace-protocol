@@ -23,11 +23,12 @@ pub fn wallet_exists(state: tauri::State<'_, WalletState>) -> bool {
 }
 
 /// Create a new wallet by encrypting the mnemonic with the password.
-/// Also initializes the KDF v2 salt for secrets encryption.
+/// Also initializes the KDF v3 salt for secrets encryption.
 #[tauri::command]
 pub fn create_wallet(
     state: tauri::State<'_, WalletState>,
     secrets_dir_state: tauri::State<'_, SecretsDir>,
+    audit: tauri::State<'_, AuditLog>,
     mnemonic: String,
     password: String,
 ) -> Result<(), String> {
@@ -71,6 +72,7 @@ pub fn create_wallet(
     };
     save_kdf_meta(&secrets_dir_state.0, &meta)?;
 
+    audit.log("WALLET_CREATED", "wallet.json");
     Ok(())
 }
 
@@ -143,18 +145,23 @@ pub fn unlock_wallet(
         .lock()
         .map_err(|_| "Internal error: secrets key lock poisoned".to_string())? = Some(secrets_key);
 
+    audit.log("WALLET_UNLOCKED", "wallet.json");
     Ok(words)
 }
 
 /// Lock the wallet by clearing the secrets key from memory.
 /// Zeroizing::drop automatically zeros the key bytes when the Option is set to None.
 #[tauri::command]
-pub fn lock_wallet(secrets_key_state: tauri::State<'_, SecretsKey>) -> Result<(), String> {
+pub fn lock_wallet(
+    secrets_key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
+) -> Result<(), String> {
     let mut guard = secrets_key_state
         .0
         .lock()
         .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
     *guard = None;
+    audit.log("WALLET_LOCKED", "wallet.json");
     Ok(())
 }
 
@@ -164,6 +171,7 @@ pub fn lock_wallet(secrets_key_state: tauri::State<'_, SecretsKey>) -> Result<()
 pub fn delete_wallet(
     state: tauri::State<'_, WalletState>,
     secrets_key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
 ) -> Result<(), String> {
     if state.wallet_path.exists() {
         std::fs::remove_file(&state.wallet_path)
@@ -175,6 +183,7 @@ pub fn delete_wallet(
         .lock()
         .map_err(|_| "Internal error: secrets key lock poisoned".to_string())?;
     *guard = None;
+    audit.log("WALLET_DELETED", "wallet.json");
     Ok(())
 }
 
@@ -184,6 +193,7 @@ pub fn delete_wallet(
 #[tauri::command]
 pub fn reveal_mnemonic(
     state: tauri::State<'_, WalletState>,
+    audit: tauri::State<'_, AuditLog>,
     password: String,
 ) -> Result<Vec<String>, String> {
     let json = std::fs::read_to_string(&state.wallet_path)
@@ -195,5 +205,6 @@ pub fn reveal_mnemonic(
     let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
     let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
 
+    audit.log("MNEMONIC_REVEALED", "wallet.json");
     Ok(words)
 }

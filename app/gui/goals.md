@@ -486,7 +486,7 @@ Each item has:
   - **How**: In `secrets.rs`, `store_seller_secrets()` accepts `a` and `r` as strings without validating format. Add: `if a.len() > 128 || !a.chars().all(|c| c.is_ascii_hexdigit()) { return Err("Invalid hex for seller secret 'a'".into()); }`. Same for `r`.
   - **Why**: Malformed secrets stored to disk will cause cryptic failures later during SNARK proving or re-encryption. Validation at storage time catches the issue early.
 
-- [ ] **Wallet operation audit logging**
+- [x] **Wallet operation audit logging**
   - **How**: In `commands/wallet.rs`, add audit log entries for: `WALLET_CREATED`, `WALLET_UNLOCKED`, `WALLET_LOCKED`, `WALLET_DELETED`, `MNEMONIC_REVEALED`. Use the existing `audit.rs` logging infrastructure. Include timestamps but never secret material.
   - **Why**: Secrets operations are audited but wallet operations (the most security-sensitive) are not. An attacker who unlocks the wallet leaves no trace.
 
