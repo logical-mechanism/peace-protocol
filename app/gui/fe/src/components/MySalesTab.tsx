@@ -62,7 +62,9 @@ function MySalesTab({
       setEncryptions(userEncryptions);
 
       // Fetch image cache status for all listings
-      listCachedImages().then(setImageCacheStatus).catch(() => {});
+      listCachedImages().then(setImageCacheStatus).catch((err) => {
+        console.warn('Image cache refresh failed:', err);
+      });
 
       // Fetch bids for all user listings
       if (userEncryptions.length > 0) {
@@ -118,12 +120,17 @@ function MySalesTab({
 
   // Compute sales stats for summary banner
   const salesStats = useMemo(() => {
-    const activeCount = encryptions.filter(e => e.status === 'active').length;
-    const pendingCount = encryptions.filter(e => e.status === 'pending').length;
-
-    const listedValue = encryptions
-      .filter(e => e.status === 'active')
-      .reduce((sum, e) => sum + (e.suggestedPrice ?? 0), 0);
+    let activeCount = 0;
+    let pendingCount = 0;
+    let listedValue = 0;
+    for (const e of encryptions) {
+      if (e.status === 'active') {
+        activeCount++;
+        listedValue += e.suggestedPrice ?? 0;
+      } else if (e.status === 'pending') {
+        pendingCount++;
+      }
+    }
 
     let totalBidCount = 0;
     let totalBidValue = 0;
@@ -162,24 +169,30 @@ function MySalesTab({
   }, [encryptions, statusFilter, debouncedSearch]);
 
   // Sort filtered results (only reruns when sort order or bid counts change)
+  // Null-safe: missing prices sort last; missing dates sort to epoch 0
   const filteredAndSorted = useMemo(() => {
     const result = [...filtered];
+    const safeTime = (d: string) => {
+      const t = new Date(d ?? '').getTime();
+      return isNaN(t) ? 0 : t;
+    };
+    const safePrice = (p: number | undefined | null, fallback: number) => {
+      if (p == null) return fallback;
+      const n = Number(p);
+      return isNaN(n) ? fallback : n;
+    };
     switch (sortBy) {
       case 'newest':
-        result.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        result.sort((a, b) => safeTime(b.createdAt) - safeTime(a.createdAt));
         break;
       case 'oldest':
-        result.sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
+        result.sort((a, b) => safeTime(a.createdAt) - safeTime(b.createdAt));
         break;
       case 'price-high':
-        result.sort((a, b) => (b.suggestedPrice ?? 0) - (a.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(b.suggestedPrice, -Infinity) - safePrice(a.suggestedPrice, -Infinity));
         break;
       case 'price-low':
-        result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(a.suggestedPrice, Infinity) - safePrice(b.suggestedPrice, Infinity));
         break;
       case 'most-bids':
         result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));

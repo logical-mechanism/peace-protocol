@@ -1046,6 +1046,7 @@ export default function Dashboard() {
           <MarketplaceTab
             refreshSignal={refreshSignal}
             userPkh={userPkh}
+            lovelace={lovelace}
             onPlaceBid={handlePlaceBid}
             filters={marketplaceFilters}
             dispatch={marketplaceDispatch}

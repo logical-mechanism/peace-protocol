@@ -7,8 +7,6 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 
-// Default fallback price when suggested price can't be parsed
-const DEFAULT_FALLBACK_PRICE = 1;
 
 interface EncryptionCardProps {
   encryption: EncryptionDisplay;
@@ -19,6 +17,7 @@ interface EncryptionCardProps {
   initialCached?: boolean;
   initialBanned?: boolean;
   bidCount?: number;
+  lovelace?: string | null;
   isFavorite?: boolean;
   onToggleFavorite?: (tokenName: string) => void;
   searchQuery?: string;
@@ -33,6 +32,7 @@ export default function EncryptionCard({
   initialCached = false,
   initialBanned = false,
   bidCount = 0,
+  lovelace,
   isFavorite = false,
   onToggleFavorite,
   searchQuery = '',
@@ -48,14 +48,15 @@ export default function EncryptionCard({
     });
   };
 
-  // Format price with fallback to 1 ADA if undefined, null, NaN, or invalid
+  // Format price with "No suggested price" fallback for missing/invalid values
   const formatPrice = (price?: number): string => {
     if (price === undefined || price === null || isNaN(price) || price < 0) {
-      return `${DEFAULT_FALLBACK_PRICE} ADA`;
+      return 'No suggested price';
     }
     return `${price.toLocaleString()} ADA`;
   };
 
+  const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);
   const canBid = encryption.status === 'active' && !isOwnListing && !hasBid;
 
   // Get category label, defaulting to "Text" for backward compatibility
@@ -114,8 +115,10 @@ export default function EncryptionCard({
             </span>
             {canBid && onPlaceBid && (
               <button
-                onClick={() => onPlaceBid(encryption, bidCount)}
-                className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+                disabled={hasLowBalance}
+                title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+                className={`px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
               >
                 Bid
               </button>
@@ -222,10 +225,12 @@ export default function EncryptionCard({
         {/* Action Button */}
         {canBid && onPlaceBid && (
           <button
-            onClick={() => onPlaceBid(encryption, bidCount)}
-            className="w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+            disabled={hasLowBalance}
+            title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+            className={`w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
           >
-            Place Bid
+            {hasLowBalance ? 'Insufficient Balance' : 'Place Bid'}
           </button>
         )}
 

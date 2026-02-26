@@ -14,13 +14,14 @@ import { useDebounce } from '../hooks/useDebounce';
 
 interface MarketplaceTabProps {
   userPkh?: string;
+  lovelace?: string | null;
   onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, lovelace, onPlaceBid, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
@@ -45,7 +46,9 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
       setAllBids(allBids);
 
       // Fetch image cache status for all listings
-      listCachedImages().then(setImageCacheStatus).catch(() => {});
+      listCachedImages().then(setImageCacheStatus).catch((err) => {
+        console.warn('Image cache refresh failed:', err);
+      });
 
       // Build set of encryption tokens the user has pending bids on
       if (userPkh) {
@@ -121,8 +124,9 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
   const priceRange = useMemo(() => {
     let maxPrice = 0;
     for (const e of encryptions) {
-      if (e.suggestedPrice != null && e.suggestedPrice > maxPrice) {
-        maxPrice = e.suggestedPrice;
+      const price = Number(e.suggestedPrice);
+      if (!isNaN(price) && price > maxPrice) {
+        maxPrice = price;
       }
     }
     return { min: 0, max: Math.max(maxPrice, 1) };
@@ -165,20 +169,30 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
   }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch]);
 
   // Sort filtered results (only reruns when sort order or bid counts change)
+  // Null-safe: missing prices sort last; missing dates sort to epoch 0
   const filteredAndSorted = useMemo(() => {
     const result = [...filtered];
+    const safeTime = (d: string) => {
+      const t = new Date(d ?? '').getTime();
+      return isNaN(t) ? 0 : t;
+    };
+    const safePrice = (p: number | undefined | null, fallback: number) => {
+      if (p == null) return fallback;
+      const n = Number(p);
+      return isNaN(n) ? fallback : n;
+    };
     switch (sortBy) {
       case 'newest':
-        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        result.sort((a, b) => safeTime(b.createdAt) - safeTime(a.createdAt));
         break;
       case 'oldest':
-        result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        result.sort((a, b) => safeTime(a.createdAt) - safeTime(b.createdAt));
         break;
       case 'price-high':
-        result.sort((a, b) => (b.suggestedPrice ?? 0) - (a.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(b.suggestedPrice, -Infinity) - safePrice(a.suggestedPrice, -Infinity));
         break;
       case 'price-low':
-        result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(a.suggestedPrice, Infinity) - safePrice(b.suggestedPrice, Infinity));
         break;
       case 'most-bids':
         result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
@@ -470,6 +484,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
                 bidCount={getBidCount(encryption.tokenName)}
+                lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}
@@ -490,6 +505,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
                 bidCount={getBidCount(encryption.tokenName)}
+                lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}

@@ -96,6 +96,8 @@ struct ManagedProcess {
     shutdown_timeout_secs: u64,
     /// Consecutive HTTP health check failures (for services with health endpoints)
     health_check_failures: u32,
+    /// Number of log lines dropped due to buffer eviction
+    dropped_log_count: u64,
 }
 
 impl ManagedProcess {
@@ -104,6 +106,7 @@ impl ManagedProcess {
         self.log_buffer.push(line);
         if self.log_buffer.len() > LOG_BUFFER_SIZE {
             self.log_buffer.remove(0);
+            self.dropped_log_count += 1;
         }
     }
 }
@@ -389,6 +392,7 @@ impl NodeManager {
                         user_stopped: false,
                         shutdown_timeout_secs: default_shutdown_timeout(name),
                         health_check_failures: 0,
+                        dropped_log_count: 0,
                     },
                 );
             }
@@ -816,6 +820,7 @@ impl NodeManager {
                         user_stopped: false,
                         shutdown_timeout_secs: default_shutdown_timeout(name),
                         health_check_failures: 0,
+                        dropped_log_count: 0,
                     },
                 );
             }
@@ -1041,12 +1046,28 @@ impl NodeManager {
         procs.values().map(|p| p.info.clone()).collect()
     }
 
-    /// Get recent log lines for a process
+    /// Get recent log lines for a process.
+    /// If lines were evicted from the circular buffer, a marker is prepended.
     pub async fn get_logs(&self, name: &str, lines: usize) -> Vec<String> {
         let procs = self.processes.lock().await;
         if let Some(proc) = procs.get(name) {
             let start = proc.log_buffer.len().saturating_sub(lines);
-            proc.log_buffer[start..].to_vec()
+            let mut result = proc.log_buffer[start..].to_vec();
+            if proc.dropped_log_count > 0 && start == 0 {
+                result.insert(
+                    0,
+                    format!(
+                        "... [{} earlier line{} dropped] ...",
+                        proc.dropped_log_count,
+                        if proc.dropped_log_count == 1 {
+                            ""
+                        } else {
+                            "s"
+                        }
+                    ),
+                );
+            }
+            result
         } else {
             Vec::new()
         }
@@ -1538,6 +1559,7 @@ mod tests {
             user_stopped: false,
             shutdown_timeout_secs: 10,
             health_check_failures: 0,
+            dropped_log_count: 0,
         };
 
         proc.append_log("line 1".to_string());
@@ -1565,6 +1587,7 @@ mod tests {
             user_stopped: false,
             shutdown_timeout_secs: 10,
             health_check_failures: 0,
+            dropped_log_count: 0,
         };
 
         // Fill to LOG_BUFFER_SIZE + 1
@@ -1572,12 +1595,50 @@ mod tests {
             proc.append_log(format!("line {}", i));
         }
 
+        // Buffer stays at LOG_BUFFER_SIZE (marker replaces first entry)
         assert_eq!(proc.log_buffer.len(), LOG_BUFFER_SIZE);
-        // First entry should be "line 1" (line 0 was evicted)
-        assert_eq!(proc.log_buffer[0], "line 1");
+        // First entry is the eviction marker
+        assert!(proc.log_buffer[0].starts_with("... [1 earlier line dropped] ..."));
+        // Last entry is the most recent
         assert_eq!(
             proc.log_buffer[LOG_BUFFER_SIZE - 1],
             format!("line {}", LOG_BUFFER_SIZE)
+        );
+        assert_eq!(proc.dropped_log_count, 1);
+    }
+
+    #[test]
+    fn append_log_eviction_marker_updates_count() {
+        let mut proc = ManagedProcess {
+            child: None,
+            info: ProcessInfo {
+                name: "test".to_string(),
+                status: ProcessStatus::Stopped,
+                pid: None,
+                restart_count: 0,
+                last_error: None,
+            },
+            restart_policy: RestartPolicy::default(),
+            log_buffer: Vec::new(),
+            launch_info: None,
+            user_stopped: false,
+            shutdown_timeout_secs: 10,
+            health_check_failures: 0,
+            dropped_log_count: 0,
+        };
+
+        // Fill to LOG_BUFFER_SIZE + 5 to cause 5 evictions
+        for i in 0..(LOG_BUFFER_SIZE + 5) {
+            proc.append_log(format!("line {}", i));
+        }
+
+        assert_eq!(proc.dropped_log_count, 5);
+        // Marker shows cumulative count
+        assert!(proc.log_buffer[0].starts_with("... [5 earlier lines dropped] ..."));
+        // Last entry is correct
+        assert_eq!(
+            proc.log_buffer[proc.log_buffer.len() - 1],
+            format!("line {}", LOG_BUFFER_SIZE + 4)
         );
     }
 
