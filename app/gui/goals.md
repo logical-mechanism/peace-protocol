@@ -420,7 +420,7 @@ Each item has:
   - **How**: In `be/src/middleware/validate.ts`, add `validateStatusParam(validStatuses: string[])` that returns 400 `INVALID_PARAM` for unknown statuses. Replace inline validation in `encryptions.ts` (line 164-171) and `bids.ts` (line 169-176) with the shared middleware.
   - **Why**: Status validation is duplicated across routes with hardcoded strings. A shared validator prevents drift when new statuses are added.
 
-- [ ] **Exact PKH matching instead of substring includes**
+- [x] **Exact PKH matching instead of substring includes**
   - **How**: In `be/src/routes/encryptions.ts` (line 136) and `be/src/routes/bids.ts` (line 101), change `.includes(pkh.toLowerCase())` to `=== pkh.toLowerCase()` for user lookups. The current substring match means PKH "abc" would match "abcdef...".
   - **Why**: Substring matching is a correctness bug. A short PKH prefix could return other users' data. This is both a privacy and data integrity issue.
 

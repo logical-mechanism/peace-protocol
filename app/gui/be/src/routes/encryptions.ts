@@ -133,7 +133,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
 
     if (config.useStubs) {
       const userEncryptions = STUB_ENCRYPTIONS.filter(e =>
-        e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())
+        e.sellerPkh.toLowerCase() === pkh.toLowerCase()
       );
       const { data, pagination } = paginate(userEncryptions, paginationParams);
       res.set('Cache-Control', CACHE_DATA);

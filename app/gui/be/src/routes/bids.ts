@@ -98,7 +98,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
 
     if (config.useStubs) {
       const userBids = STUB_BIDS.filter(b =>
-        b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())
+        b.bidderPkh.toLowerCase() === pkh.toLowerCase()
       );
       const { data, pagination } = paginate(userBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
