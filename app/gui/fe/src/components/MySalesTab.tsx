@@ -250,7 +250,7 @@ function MySalesTab({
         action={
           <button
             onClick={fetchData}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Try Again
           </button>
@@ -269,7 +269,7 @@ function MySalesTab({
         action={
           <button
             onClick={onCreateListing}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Create Listing
           </button>
@@ -422,7 +422,7 @@ function MySalesTab({
           {/* Refresh */}
           <button
             onClick={fetchData}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh listings"
             aria-label="Refresh listings"
           >
@@ -457,7 +457,7 @@ function MySalesTab({
                   dispatch({ type: 'SET_SEARCH', payload: '' });
                   dispatch({ type: 'SET_STATUS', payload: 'all' });
                 }}
-                className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Clear Filters
               </button>

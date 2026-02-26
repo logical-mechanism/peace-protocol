@@ -253,7 +253,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         action={
           <button
             onClick={fetchEncryptions}
-            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Try Again
           </button>
@@ -407,7 +407,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
           {/* Refresh */}
           <button
             onClick={fetchEncryptions}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh listings"
             aria-label="Refresh listings"
           >
@@ -448,7 +448,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
             action={
               <button
                 onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
-                className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer"
+                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Clear Filters
               </button>
@@ -508,7 +508,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
           </p>
           <button
             onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
-            className="px-6 py-2.5 text-sm font-medium bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
             Load More
           </button>

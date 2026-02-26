@@ -115,7 +115,7 @@ export default function EncryptionCard({
             {canBid && onPlaceBid && (
               <button
                 onClick={() => onPlaceBid(encryption, bidCount)}
-                className="px-3 py-1.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+                className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
                 Bid
               </button>
@@ -223,7 +223,7 @@ export default function EncryptionCard({
         {canBid && onPlaceBid && (
           <button
             onClick={() => onPlaceBid(encryption, bidCount)}
-            className="w-full mt-4 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+            className="w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Place Bid
           </button>
