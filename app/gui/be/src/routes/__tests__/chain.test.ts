@@ -57,7 +57,7 @@ beforeEach(() => {
 describe('GET /api/chain/confirmations/:txHash', () => {
   const validTxHash = 'a'.repeat(64);
 
-  it('returns confirmation count and blockHeight for confirmed tx', async () => {
+  it('returns confirmation count, blockHeight, and status for confirmed tx', async () => {
     mockKoiosClient.getTxInfo.mockResolvedValue({ block_height: 100 });
     mockKoiosClient.getTip.mockResolvedValue({ block_no: 120 });
 
@@ -66,9 +66,10 @@ describe('GET /api/chain/confirmations/:txHash', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.confirmations).toBe(20);
     expect(res.body.data.blockHeight).toBe(100);
+    expect(res.body.data.status).toBe('confirmed');
   });
 
-  it('returns 0 confirmations when tx not found', async () => {
+  it('returns 0 confirmations with pending status when tx not found', async () => {
     mockKoiosClient.getTxInfo.mockRejectedValue(new Error('not found'));
     mockKoiosClient.getTip.mockResolvedValue({ block_no: 120 });
 
@@ -76,9 +77,10 @@ describe('GET /api/chain/confirmations/:txHash', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.confirmations).toBe(0);
+    expect(res.body.data.status).toBe('pending');
   });
 
-  it('returns 0 when block_height is not a number', async () => {
+  it('returns 0 with pending status when block_height is not a number', async () => {
     mockKoiosClient.getTxInfo.mockResolvedValue({ block_height: null });
     mockKoiosClient.getTip.mockResolvedValue({ block_no: 120 });
 
@@ -86,6 +88,7 @@ describe('GET /api/chain/confirmations/:txHash', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.confirmations).toBe(0);
+    expect(res.body.data.status).toBe('pending');
   });
 
   it('returns 400 for invalid tx hash (too short)', async () => {
@@ -109,16 +112,17 @@ describe('GET /api/chain/confirmations/:txHash', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.confirmations).toBe(0);
+    expect(res.body.data.status).toBe('confirmed');
   });
 
-  it('returns 0 confirmations on service error (never 500)', async () => {
+  it('returns 503 when Koios is unreachable', async () => {
     mockKoiosClient.getTxInfo.mockRejectedValue(new Error('network error'));
     mockKoiosClient.getTip.mockRejectedValue(new Error('network error'));
 
     const res = await request(app).get(`/api/chain/confirmations/${validTxHash}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.confirmations).toBe(0);
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('TIP_UNAVAILABLE');
   });
 });
 

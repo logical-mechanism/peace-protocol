@@ -424,7 +424,7 @@ Each item has:
   - **How**: In `be/src/routes/encryptions.ts` (line 136) and `be/src/routes/bids.ts` (line 101), change `.includes(pkh.toLowerCase())` to `=== pkh.toLowerCase()` for user lookups. The current substring match means PKH "abc" would match "abcdef...".
   - **Why**: Substring matching is a correctness bug. A short PKH prefix could return other users' data. This is both a privacy and data integrity issue.
 
-- [ ] **Distinguish "not confirmed" vs "unable to check" in confirmations endpoint**
+- [x] **Distinguish "not confirmed" vs "unable to check" in confirmations endpoint**
   - **How**: In `be/src/routes/chain.ts` (lines 40-42), the `/confirmations/:txHash` endpoint returns `{ confirmations: 0 }` for both "tx exists but unconfirmed" and "Koios is unreachable". Return `{ confirmations: 0, status: 'pending' }` for unconfirmed and `{ error: { code: 'TIP_UNAVAILABLE', message: '...' } }` with 503 when Koios is down.
   - **Why**: Frontend treats all zeros as "pending" and keeps polling. If Koios is down, it polls forever instead of showing "confirmation check unavailable."
 

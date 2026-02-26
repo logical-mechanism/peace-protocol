@@ -25,20 +25,22 @@ router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
     ]);
 
     if (!txInfo) {
-      return res.json({ data: { confirmations: 0 } });
+      return res.json({ data: { confirmations: 0, status: 'pending' } });
     }
 
     const blockHeight = txInfo.block_height;
     if (typeof blockHeight !== 'number') {
-      return res.json({ data: { confirmations: 0 } });
+      return res.json({ data: { confirmations: 0, status: 'pending' } });
     }
 
     const confirmations = Math.max(0, tip.block_no - blockHeight);
     res.set('Cache-Control', 'no-cache');
-    return res.json({ data: { confirmations, blockHeight } });
+    return res.json({ data: { confirmations, blockHeight, status: 'confirmed' } });
   } catch (error) {
-    logger.error('Failed to get confirmations', { error: String(error) });
-    return res.json({ data: { confirmations: 0 } });
+    logger.error('Failed to get confirmations', { error: String(error), requestId: req.requestId });
+    return res.status(503).json({
+      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to check transaction confirmations', requestId: req.requestId },
+    });
   }
 });
 
