@@ -69,6 +69,23 @@ fn chrono_now() -> String {
     format!("{}", dur.as_secs())
 }
 
+/// Validate that a hex scalar string is non-empty, at most 128 hex chars, and all hex digits.
+fn validate_hex_scalar(name: &str, value: &str) -> Result<(), String> {
+    if value.is_empty() {
+        return Err(format!("Seller secret '{name}' cannot be empty"));
+    }
+    if value.len() > 128 {
+        return Err(format!(
+            "Seller secret '{name}' too long ({} chars, max 128)",
+            value.len()
+        ));
+    }
+    if !value.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(format!("Seller secret '{name}' must be valid hex"));
+    }
+    Ok(())
+}
+
 // ── Seller secrets ──────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize)]
@@ -98,6 +115,9 @@ pub fn store_seller_secrets(
     a: String,
     r: String,
 ) -> Result<(), String> {
+    validate_hex_scalar("a", &a)?;
+    validate_hex_scalar("r", &r)?;
+
     let key = get_secrets_key(&key_state)?;
     let dir = seller_dir(&state.0);
     std::fs::create_dir_all(&dir)

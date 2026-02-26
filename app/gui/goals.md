@@ -482,7 +482,7 @@ Each item has:
   - **How**: In `secrets.rs` (line 31-32), secret files are written then have permissions set afterwards. Use `std::fs::OpenOptions::new().create(true).write(true).mode(0o600).open(path)?` to create the file with restricted permissions atomically, before writing any data.
   - **Why**: If the process crashes between write and chmod, the secret file could briefly be world-readable. Atomic permission setting eliminates this race.
 
-- [ ] **Seller secret input hex validation**
+- [x] **Seller secret input hex validation**
   - **How**: In `secrets.rs`, `store_seller_secrets()` accepts `a` and `r` as strings without validating format. Add: `if a.len() > 128 || !a.chars().all(|c| c.is_ascii_hexdigit()) { return Err("Invalid hex for seller secret 'a'".into()); }`. Same for `r`.
   - **Why**: Malformed secrets stored to disk will cause cryptic failures later during SNARK proving or re-encryption. Validation at storage time catches the issue early.
 
