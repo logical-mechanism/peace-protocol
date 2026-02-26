@@ -182,6 +182,7 @@ pub fn run() {
             // Library commands (browse/read/delete/export decrypted content)
             commands::media::list_library_items,
             commands::media::read_library_content,
+            commands::media::read_subtitle_file,
             commands::media::delete_library_item,
             commands::media::export_library_content,
             commands::media::export_text_file,

@@ -6,6 +6,7 @@ interface VideoPlayerProps {
   mimeType: string;
   fileExtension: string;
   onExport?: () => void;
+  subtitleData?: Uint8Array | null;
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
@@ -49,7 +50,7 @@ async function remuxToMp4(
   throw new Error('Unexpected output type from ffmpeg');
 }
 
-export default function VideoPlayer({ data, mimeType, fileExtension, onExport }: VideoPlayerProps) {
+export default function VideoPlayer({ data, mimeType, fileExtension, onExport, subtitleData }: VideoPlayerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [remuxing, setRemuxing] = useState(false);
@@ -65,6 +66,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport }:
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [pipSupported, setPipSupported] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(false);
+  const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
@@ -77,6 +80,27 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport }:
       (document as Document & { pictureInPictureEnabled: boolean }).pictureInPictureEnabled,
     );
   }, []);
+
+  // Create Blob URL for subtitle track
+  useEffect(() => {
+    if (!subtitleData || subtitleData.length === 0) {
+      setSubtitleUrl(null);
+      return;
+    }
+    // Convert SRT to VTT if needed (WebVTT is required for <track>)
+    let blob: Blob;
+    const text = new TextDecoder().decode(subtitleData);
+    if (!text.trimStart().startsWith('WEBVTT')) {
+      // Simple SRT → VTT conversion: add WEBVTT header, replace comma with dot in timestamps
+      const vtt = 'WEBVTT\n\n' + text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+      blob = new Blob([vtt], { type: 'text/vtt' });
+    } else {
+      blob = new Blob([subtitleData], { type: 'text/vtt' });
+    }
+    const url = URL.createObjectURL(blob);
+    setSubtitleUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [subtitleData]);
 
   // Probe whether the browser can play the blob directly; if not, remux.
   useEffect(() => {
@@ -238,6 +262,17 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport }:
     video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
   }, []);
 
+  const handleCaptionToggle = useCallback(() => {
+    setShowCaptions(prev => {
+      const next = !prev;
+      const video = videoRef.current;
+      if (video && video.textTracks.length > 0) {
+        video.textTracks[0].mode = next ? 'showing' : 'hidden';
+      }
+      return next;
+    });
+  }, []);
+
   const handlePip = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
@@ -281,12 +316,16 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport }:
         case 'M':
           handleMuteToggle();
           break;
+        case 'c':
+        case 'C':
+          if (subtitleUrl) handleCaptionToggle();
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [blobUrl, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle]);
+  }, [blobUrl, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle, subtitleUrl, handleCaptionToggle]);
 
   // --- Error state ---
 
@@ -428,6 +467,18 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport }:
 
       {divider}
 
+      {/* CC / Subtitles */}
+      {subtitleUrl && (
+        <button
+          onClick={handleCaptionToggle}
+          className={`${btnClass} font-bold text-xs ${showCaptions ? 'text-[var(--accent)]' : ''}`}
+          title={showCaptions ? 'Hide subtitles (C)' : 'Show subtitles (C)'}
+          aria-label={showCaptions ? 'Hide subtitles' : 'Show subtitles'}
+        >
+          CC
+        </button>
+      )}
+
       {/* Speed */}
       <button
         onClick={handleSpeedChange}
@@ -486,7 +537,17 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport }:
       onPause={() => setIsPlaying(false)}
       onEnded={() => setIsPlaying(false)}
       onClick={handlePlayPause}
-    />
+    >
+      {subtitleUrl && (
+        <track
+          kind="subtitles"
+          src={subtitleUrl}
+          srcLang="en"
+          label="Subtitles"
+          default={showCaptions}
+        />
+      )}
+    </video>
   ) : null;
 
   // Fullscreen overlay

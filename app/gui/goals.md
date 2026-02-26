@@ -268,7 +268,7 @@ Each item has:
 
 > Key file: `fe/src/components/CreateListingModal.tsx`
 
-- [ ] **Drag-and-drop file upload**
+- [x] **Drag-and-drop file upload**
   - **How**: Wrap the file input area in a `<div onDragOver onDrop>` handler. On drop, extract `e.dataTransfer.files[0]` and process like the existing file input `onChange`. Show a visual drop zone with dashed border and "Drop file here" text on drag over.
   - **Why**: Click-to-browse is the only upload method. Drag-and-drop is the expected interaction for file uploads in desktop apps.
 
@@ -340,7 +340,7 @@ Each item has:
   - **How**: Same approach as audio — add a speed selector near the video controls. Set `videoRef.current.playbackRate`. Show the current speed on the button.
   - **Why**: Standard feature for video players. Essential for educational content and long-form video review.
 
-- [ ] **Video: Subtitle/CC support**
+- [x] **Video: Subtitle/CC support**
   - **How**: If a `.vtt` or `.srt` file is present alongside the video in the library, load it as a `<track>` element on the `<video>`. Add a CC toggle button in the toolbar.
   - **Why**: Accessibility feature. Some video content includes subtitles, and the player should display them.
 

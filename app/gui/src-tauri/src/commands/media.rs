@@ -457,6 +457,40 @@ pub fn read_library_content(
     std::fs::read(&content_path).map_err(|e| format!("Failed to read content file: {e}"))
 }
 
+/// Read a subtitle file (.vtt or .srt) from a library item's directory, if one exists.
+/// Returns the file bytes or None if no subtitle file is found.
+#[tauri::command]
+pub fn read_subtitle_file(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<Option<Vec<u8>>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Ok(None);
+    }
+
+    let entries = std::fs::read_dir(&token_dir)
+        .map_err(|e| format!("Failed to read directory: {e}"))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = ext.to_lowercase();
+            if ext_lower == "vtt" || ext_lower == "srt" {
+                let bytes = std::fs::read(&path)
+                    .map_err(|e| format!("Failed to read subtitle file: {e}"))?;
+                return Ok(Some(bytes));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
 /// Delete a library item (removes the entire token directory).
 #[tauri::command]
 pub fn delete_library_item(

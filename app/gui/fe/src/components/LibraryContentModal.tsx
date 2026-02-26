@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { LibraryItem } from '../services/libraryService';
-import { readLibraryContent, deleteLibraryItem, exportLibraryContent } from '../services/libraryService';
+import { readLibraryContent, readSubtitleFile, deleteLibraryItem, exportLibraryContent } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import { formatBytes } from '../utils/formatBytes';
@@ -142,6 +142,7 @@ export default function LibraryContentModal({
   const [state, setState] = useState<ModalState>('loading');
   const [textContent, setTextContent] = useState<string | null>(null);
   const [rawContent, setRawContent] = useState<Uint8Array | null>(null);
+  const [subtitleData, setSubtitleData] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -156,6 +157,7 @@ export default function LibraryContentModal({
     setState('loading');
     setTextContent(null);
     setRawContent(null);
+    setSubtitleData(null);
     setError(null);
     setCopied(false);
     setConfirmingDelete(false);
@@ -184,6 +186,12 @@ export default function LibraryContentModal({
         }
         if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video' || viewMode === 'download') {
           setRawContent(data);
+        }
+        // Load subtitle file for videos (best-effort, non-blocking)
+        if (viewMode === 'video') {
+          readSubtitleFile(item.tokenName, item.category)
+            .then(subs => { if (!cancelled) setSubtitleData(subs); })
+            .catch(() => {}); // Subtitle not found is fine
         }
         setState('loaded');
       } catch (err) {
@@ -440,6 +448,7 @@ export default function LibraryContentModal({
                   mimeType={videoExtensionToMimeType(item.fileExtension)}
                   fileExtension={item.fileExtension || '.mp4'}
                   onExport={handleExport}
+                  subtitleData={subtitleData}
                 />
               </Suspense>
             )}

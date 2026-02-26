@@ -34,6 +34,14 @@ export async function deleteLibraryItem(
   return invoke<void>('delete_library_item', { tokenName, category });
 }
 
+export async function readSubtitleFile(
+  tokenName: string,
+  category: string
+): Promise<Uint8Array | null> {
+  const data = await invoke<number[] | null>('read_subtitle_file', { tokenName, category });
+  return data ? new Uint8Array(data) : null;
+}
+
 export async function exportLibraryContent(
   tokenName: string,
   category: string,
