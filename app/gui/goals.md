@@ -320,7 +320,7 @@ Each item has:
   - **How**: In PdfViewer, show "Match 3 of 12" next to the search input when a search is active. Track `currentMatchIndex` and `totalMatches` in state. Update on next/prev navigation.
   - **Why**: Users searching a long PDF don't know how many results exist or where they are in the list.
 
-- [ ] **PDF: Page thumbnails sidebar**
+- [x] **PDF: Page thumbnails sidebar**
   - **How**: Render a narrow sidebar (width ~80px) on the left of the PDF viewer showing miniature page thumbnails. Click a thumbnail to jump to that page. Lazy-render thumbnails as they scroll into view.
   - **Why**: Navigating a 50+ page document by typing page numbers is slow. Thumbnails give a visual overview and quick navigation.
 
