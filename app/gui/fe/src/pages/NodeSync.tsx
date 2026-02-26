@@ -33,7 +33,7 @@ function ProgressBar({ percent }: { percent: number }) {
       aria-label="Sync progress"
     >
       <div
-        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
+        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-[width] duration-500 ease-out"
         style={{ width: `${Math.min(percent, 100)}%` }}
       />
     </div>

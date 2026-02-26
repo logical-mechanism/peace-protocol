@@ -336,7 +336,7 @@ Each item has:
   - **How**: When loading, show the same number of skeleton cards as the previous data load (stored in a ref), or default to 6. This prevents the visual "jump" when 6 skeletons are replaced by 20 real cards.
   - **Why**: A fixed skeleton count that doesn't match actual data causes layout shifts on load completion.
 
-- [ ] **Progress bar smooth interpolation**
+- [x] **Progress bar smooth interpolation**
   - **How**: In NodeSync progress bars, use CSS `transition: width 500ms ease-out` so progress jumps (e.g., 45% → 52%) animate smoothly instead of jumping. Apply to both Mithril download and sync progress bars.
   - **Why**: Choppy progress bar updates (jumping in 5% increments) feel less polished than smooth continuous movement.
 
