@@ -27,6 +27,7 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
 
   // Modal state
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [contentModalOpen, setContentModalOpen] = useState(false);
 
   // Delete confirmation from card (outside modal)
@@ -139,9 +140,11 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
   }, [items]);
 
   const handleView = useCallback((item: LibraryItem) => {
+    const index = filteredAndSorted.findIndex(i => i.tokenName === item.tokenName);
     setSelectedItem(item);
+    setSelectedIndex(index);
     setContentModalOpen(true);
-  }, []);
+  }, [filteredAndSorted]);
 
   const handleDeleteFromCard = useCallback((item: LibraryItem) => {
     setDeleteTarget(item);
@@ -168,6 +171,12 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
   const handleCloseModal = useCallback(() => {
     setContentModalOpen(false);
     setSelectedItem(null);
+    setSelectedIndex(-1);
+  }, []);
+
+  const handleNavigate = useCallback((item: LibraryItem, index: number) => {
+    setSelectedItem(item);
+    setSelectedIndex(index);
   }, []);
 
   // Bulk select handlers
@@ -486,6 +495,9 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
         onClose={handleCloseModal}
         item={selectedItem}
         onDelete={handleDeleteFromModal}
+        items={filteredAndSorted}
+        currentIndex={selectedIndex}
+        onNavigate={handleNavigate}
       />
 
       {/* Floating Bulk Action Bar */}

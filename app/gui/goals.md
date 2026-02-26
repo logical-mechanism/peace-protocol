@@ -254,7 +254,7 @@ Each item has:
   - **How**: Add select mode (checkbox on each LibraryCard). Show floating action bar: "5 selected — Delete All". Confirm via ConfirmModal with: "Delete 5 items? This removes files from your local library. You can re-download them by decrypting again."
   - **Why**: Cleaning up a library with many items one by one is tedious. Bulk delete with a safety confirmation speeds this up.
 
-- [ ] **Previous/next navigation in LibraryContentModal**
+- [x] **Previous/next navigation in LibraryContentModal**
   - **How**: Pass the full library item list and current index to LibraryContentModal. Add left/right arrow buttons (and keyboard arrows) to navigate to the adjacent item without closing the modal.
   - **Why**: Users reviewing multiple library items must close and reopen the modal for each one. Inline navigation is much faster.
 

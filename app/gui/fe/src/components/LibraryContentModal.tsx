@@ -141,6 +141,9 @@ export default function LibraryContentModal({
   onClose,
   item,
   onDelete,
+  items,
+  currentIndex,
+  onNavigate,
 }: LibraryContentModalProps) {
   const [state, setState] = useState<ModalState>('loading');
   const [textContent, setTextContent] = useState<string | null>(null);
@@ -261,6 +264,42 @@ export default function LibraryContentModal({
     }
   }, [item]);
 
+  // Navigation
+  const canGoPrev = items != null && currentIndex != null && currentIndex > 0;
+  const canGoNext = items != null && currentIndex != null && currentIndex < items.length - 1;
+
+  const handlePrev = useCallback(() => {
+    if (!items || currentIndex == null || currentIndex <= 0 || !onNavigate) return;
+    onNavigate(items[currentIndex - 1], currentIndex - 1);
+  }, [items, currentIndex, onNavigate]);
+
+  const handleNext = useCallback(() => {
+    if (!items || currentIndex == null || currentIndex >= items.length - 1 || !onNavigate) return;
+    onNavigate(items[currentIndex + 1], currentIndex + 1);
+  }, [items, currentIndex, onNavigate]);
+
+  // Arrow key navigation
+  useEffect(() => {
+    if (!isOpen || !onNavigate) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't navigate when interacting with form elements
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'ArrowLeft' && canGoPrev) {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key === 'ArrowRight' && canGoNext) {
+        e.preventDefault();
+        handleNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onNavigate, canGoPrev, canGoNext, handlePrev, handleNext]);
+
   if (!isOpen || !item) return null;
 
   const viewMode = getViewMode(item.category, item.fileExtension);
@@ -284,22 +323,61 @@ export default function LibraryContentModal({
         <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'}`}>
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
-            <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-                Library
-              </h2>
-              <p className="text-sm text-[var(--text-muted)] mt-1">
-                {truncateHex(item.tokenName, 12, 6)}
-              </p>
+            <div className="flex items-center gap-3">
+              {/* Previous button */}
+              {items && items.length > 1 && (
+                <button
+                  onClick={handlePrev}
+                  disabled={!canGoPrev}
+                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Previous item (←)"
+                  aria-label="Previous item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                    Library
+                  </h2>
+                  {items && items.length > 1 && currentIndex != null && (
+                    <span className="text-sm text-[var(--text-muted)]">
+                      {currentIndex + 1} of {items.length}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-[var(--text-muted)] mt-1">
+                  {truncateHex(item.tokenName, 12, 6)}
+                </p>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-1">
+              {/* Next button */}
+              {items && items.length > 1 && (
+                <button
+                  onClick={handleNext}
+                  disabled={!canGoNext}
+                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Next item (→)"
+                  aria-label="Next item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Content */}
