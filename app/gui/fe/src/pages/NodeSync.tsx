@@ -257,6 +257,7 @@ export default function NodeSync() {
   // Network tip from Koios
   const [networkTip, setNetworkTip] = useState<number | null>(null)
   const networkTipTimerRef = useRef<number | null>(null)
+  const [tipFetchFailed, setTipFetchFailed] = useState(false)
 
   // Mithril download speed/ETA tracking
   const mithrilSamplesRef = useRef<{ time: number; bytes: number }[]>([])
@@ -284,6 +285,7 @@ export default function NodeSync() {
     // Reset state-based tracking
     setSyncEta(null)
     setNetworkTip(null)
+    setTipFetchFailed(false)
     setMithrilEta(null)
     setMithrilSpeed(null)
     setShowStuckMessage(false)
@@ -375,9 +377,12 @@ export default function NodeSync() {
     const fetchTip = async () => {
       try {
         const tip = await invoke<{ block_no: number }>('get_network_tip')
-        if (tip) setNetworkTip(tip.block_no)
+        if (tip) {
+          setNetworkTip(tip.block_no)
+          setTipFetchFailed(false)
+        }
       } catch {
-        // Koios may be unreachable; silently skip
+        setTipFetchFailed(true)
       }
     }
 
@@ -621,6 +626,12 @@ export default function NodeSync() {
                       {(networkTip - tipHeight).toLocaleString()} blocks remaining.
                     </span>
                   )}
+                </div>
+              )}
+
+              {tipFetchFailed && !networkTip && (
+                <div className="mt-3 p-3 bg-[var(--warning-muted)] border border-[var(--warning)]/20 rounded-[var(--radius-md)] text-xs text-[var(--warning)]">
+                  Could not fetch network tip — sync percentage may be approximate.
                 </div>
               )}
             </div>

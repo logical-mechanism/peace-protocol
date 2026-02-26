@@ -82,7 +82,7 @@ Each item has:
 
 > Key files: `fe/src/pages/NodeSync.tsx`, `src-tauri/src/process/manager.rs`, `src-tauri/src/commands/node.rs`
 
-- [ ] **Network tip fetch failure shows warning instead of silent catch**
+- [x] **Network tip fetch failure shows warning instead of silent catch**
   - **How**: In `NodeSync.tsx` (lines 370-388), the `get_network_tip` fetch failure is silently caught. Show a subtle info banner: "Could not fetch network tip — sync percentage may be approximate." Use a `tipFetchFailed` state flag.
   - **Why**: Without the network tip, sync progress percentage has no reference point. Users see "syncing" with no progress context.
 
@@ -152,7 +152,7 @@ Each item has:
 
 > Key files: `fe/src/components/MySalesTab.tsx`, `fe/src/components/SalesListingCard.tsx`
 
-- [ ] **Bulk cancel listings**
+- [s] **Bulk cancel listings**
   - **How**: Add a "Select" mode toggle that shows checkboxes on each SalesListingCard. When items are selected, show a floating action bar: "3 selected — Cancel All". Each cancel calls `removeListing()` sequentially (batch tx not possible on Cardano). Disable select mode while cancellations are in progress.
   - **Why**: Sellers with many expired or unwanted listings must cancel them one by one. Bulk select speeds this up.
 
