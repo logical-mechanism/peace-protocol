@@ -388,7 +388,7 @@ Each item has:
   - **How**: In the Toast component, limit visible toasts to 3 at a time. When a 4th arrives, queue it and show when a slot opens. Stack toasts vertically with newest on top. Add a "Dismiss all" button when multiple toasts are visible.
   - **Why**: Rapid actions (like multiple tx confirmations arriving at once) can stack 5+ toasts that overlap and obscure the UI.
 
-- [ ] **Transaction confirmation toast with details**
+- [x] **Transaction confirmation toast with details**
   - **How**: When a transaction confirms, show a rich toast with: tx type, amount, and a "View on Explorer" link. Use the existing `toast.transactionSuccess()` but add amount information.
   - **Why**: The current confirmation toast just says "Transaction confirmed" with a hash link. Adding context makes it more informative.
 
@@ -410,7 +410,7 @@ Each item has:
   - **How**: Define shared CSS classes or Tailwind utilities for button states: `.btn-primary:hover { background: var(--accent-hover) }`, `.btn-primary:active { transform: scale(0.98) }`. Apply consistently across all buttons.
   - **Why**: Some buttons have hover effects and some don't. Inconsistent feedback makes the UI feel unpolished.
 
-- [ ] **Focus ring improvement**
+- [x] **Focus ring improvement**
   - **How**: Replace the default `outline: 2px solid var(--accent)` with a subtle glow: `box-shadow: 0 0 0 3px var(--accent-muted)`. This looks softer and more integrated with the dark theme.
   - **Why**: The hard outline focus indicator looks harsh on a dark background. A glow is more visually appealing while still being accessible.
 

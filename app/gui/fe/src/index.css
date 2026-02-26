@@ -66,6 +66,7 @@
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
   --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --focus-ring: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -91,14 +92,15 @@ body {
   min-height: 100vh;
 }
 
-/* Focus visible indicators for keyboard navigation */
+/* Focus visible indicators for keyboard navigation — subtle glow */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 :focus:not(:focus-visible) {
   outline: none;
+  box-shadow: none;
 }
 
 /* Line clamp utilities for text truncation */
@@ -167,8 +169,8 @@ select option {
 }
 
 .winamp-slider:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .winamp-slider::-webkit-slider-thumb {
