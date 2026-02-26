@@ -466,7 +466,7 @@ Each item has:
   - **How**: When a form field has a validation error, add `aria-invalid="true"` and `aria-describedby="fieldname-error"` to the input. The error message element gets `id="fieldname-error"`.
   - **Why**: Screen readers don't announce form errors unless they're programmatically associated with the input field.
 
-- [ ] **Icon-only buttons need `aria-label`**
+- [x] **Icon-only buttons need `aria-label`**
   - **How**: Audit all icon-only buttons (favorite heart, copy, refresh, close X, zoom +/-). Add `aria-label` describing the action: `aria-label="Add to favorites"`, `aria-label="Copy address"`.
   - **Why**: Screen readers announce icon-only buttons as just "button" with no indication of what they do.
 

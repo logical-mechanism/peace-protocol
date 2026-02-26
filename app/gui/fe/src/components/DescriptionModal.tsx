@@ -25,6 +25,7 @@ export default function DescriptionModal({
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Modal */}
@@ -43,9 +44,10 @@ export default function DescriptionModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
