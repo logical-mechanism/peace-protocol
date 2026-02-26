@@ -329,7 +329,7 @@ function HistoryTab({
         <EmptyState
           illustration={<HistoryEmptyIllustration />}
           title="No transaction history"
-          description="Transactions you submit through the dApp will appear here"
+          description="Create a listing or place a bid to see your transactions here"
         />
       </>
     );
@@ -465,6 +465,14 @@ function HistoryTab({
           illustration={<NoResultsIllustration />}
           title="No matching transactions"
           description="Try adjusting your filters or search query"
+          action={
+            <button
+              onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
+              className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+            >
+              Clear Filters
+            </button>
+          }
         />
       ) : (
         <VirtualizedHistoryList

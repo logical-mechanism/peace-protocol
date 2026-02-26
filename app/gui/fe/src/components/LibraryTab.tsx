@@ -14,11 +14,12 @@ import { useDebounce } from '../hooks/useDebounce';
 
 interface LibraryTabProps {
   refreshSignal?: number;
+  onSwitchTab?: (tab: string) => void;
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
 }
 
-function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
+function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -252,7 +253,15 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
       <EmptyState
         illustration={<LibraryEmptyIllustration />}
         title="Your library is empty"
-        description="Decrypted content will appear here after successful purchases"
+        description="Purchase and decrypt a listing to see it here"
+        action={onSwitchTab && (
+          <button
+            onClick={() => onSwitchTab('marketplace')}
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+          >
+            Browse Marketplace
+          </button>
+        )}
       />
     );
   }

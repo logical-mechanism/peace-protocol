@@ -19,6 +19,7 @@ interface MyPurchasesTabProps {
   onCancelBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
   onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
+  onSwitchTab?: (tab: string) => void;
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
@@ -30,6 +31,7 @@ function MyPurchasesTab({
   onCancelBid,
   onDecrypt,
   onDecryptEncryption,
+  onSwitchTab,
   refreshSignal,
   filters,
   dispatch,
@@ -275,12 +277,7 @@ function MyPurchasesTab({
         description="Bids you place and encryptions you purchase will appear here"
         action={
           <button
-            onClick={() => {
-              // Placeholder - navigate to marketplace
-              alert(
-                'Browse the Marketplace tab to find encryptions to bid on!'
-              );
-            }}
+            onClick={() => onSwitchTab?.('marketplace')}
             className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
           >
             Browse Marketplace

@@ -1093,6 +1093,7 @@ export default function Dashboard() {
             userPkh={userPkh}
             lovelace={lovelace}
             onPlaceBid={handlePlaceBid}
+            onCreateListing={handleOpenCreateListing}
             filters={marketplaceFilters}
             dispatch={marketplaceDispatch}
           />
@@ -1120,6 +1121,7 @@ export default function Dashboard() {
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
             onDecryptEncryption={handleDecryptEncryption}
+            onSwitchTab={setActiveTab}
             filters={myPurchasesFilters}
             dispatch={myPurchasesDispatch}
             failedDecryptTokens={failedDecryptTokens}
@@ -1142,6 +1144,7 @@ export default function Dashboard() {
         return (
           <LibraryTab
             refreshSignal={refreshSignal}
+            onSwitchTab={setActiveTab}
             filters={libraryFilters}
             dispatch={libraryDispatch}
           />

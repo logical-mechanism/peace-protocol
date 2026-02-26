@@ -310,7 +310,7 @@ Each item has:
   - **How**: Run a contrast checker on all CSS variable combinations in both dark and light themes. `--text-muted` (rgb 138,138,138) on `--bg-primary` likely fails WCAG AA 4.5:1 ratio. Increase to at least rgb(156,163,175) for dark theme. Document all color pairs and their contrast ratios.
   - **Why**: Users with low vision or color blindness cannot read muted text. WCAG AA compliance is a baseline accessibility requirement.
 
-- [ ] **Consistent empty state messages with actionable CTAs**
+- [x] **Consistent empty state messages with actionable CTAs**
   - **How**: Audit all tabs' empty states (EmptyState, EmptyStateIllustrations). Ensure each includes: (1) an illustration, (2) a clear message explaining why it's empty, (3) a call-to-action button. Example: Library empty → "No items yet. Purchase and decrypt a listing to see it here." with "Browse Marketplace" button.
   - **Why**: Empty states vary in tone and detail. Some show just "No items" with no guidance on what to do next.
 

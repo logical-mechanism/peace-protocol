@@ -16,12 +16,13 @@ interface MarketplaceTabProps {
   userPkh?: string;
   lovelace?: string | null;
   onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
+  onCreateListing?: () => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-function MarketplaceTab({ userPkh, lovelace, onPlaceBid, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
@@ -470,6 +471,14 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, refreshSignal, filters,
             illustration={<MarketplaceEmptyIllustration />}
             title="No listings available"
             description="Listings will appear here once sellers create encryptions"
+            action={onCreateListing && (
+              <button
+                onClick={onCreateListing}
+                className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+              >
+                Create Listing
+              </button>
+            )}
           />
         )
       ) : viewMode === 'grid' ? (
