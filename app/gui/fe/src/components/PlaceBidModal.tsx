@@ -192,7 +192,7 @@ export default function PlaceBidModal({
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
-            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -265,7 +265,7 @@ export default function PlaceBidModal({
                         setFormData((prev) => ({ ...prev, bidAmount: encryption.suggestedPrice!.toString() }))
                       }
                       disabled={isSubmitting}
-                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       Suggested ({encryption.suggestedPrice} ADA)
                     </button>
@@ -278,7 +278,7 @@ export default function PlaceBidModal({
                         }))
                       }
                       disabled={isSubmitting}
-                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       +10%
                     </button>
@@ -291,7 +291,7 @@ export default function PlaceBidModal({
                         }))
                       }
                       disabled={isSubmitting}
-                      className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       +25%
                     </button>
@@ -348,7 +348,7 @@ export default function PlaceBidModal({
                         setSubmitError(null);
                       }}
                       disabled={isSubmitting || balanceAda <= FEE_RESERVE_ADA}
-                      className="px-1.5 py-0.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-1.5 py-0.5 text-xs rounded-[var(--radius-sm)] btn-base btn-tertiary"
                     >
                       Max
                     </button>
@@ -363,7 +363,7 @@ export default function PlaceBidModal({
                 type="button"
                 onClick={() => setShowFuturePrice(!showFuturePrice)}
                 disabled={isSubmitting}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm btn-base btn-tertiary border-0"
               >
                 <span>Set Future Listing Price</span>
                 <svg
@@ -392,7 +392,7 @@ export default function PlaceBidModal({
                             setFormData((prev) => ({ ...prev, futurePrice: encryption.suggestedPrice!.toString() }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                         >
                           Same Price
                         </button>
@@ -405,7 +405,7 @@ export default function PlaceBidModal({
                             }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                         >
                           +10%
                         </button>
@@ -418,7 +418,7 @@ export default function PlaceBidModal({
                             }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50"
+                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                         >
                           +25%
                         </button>
@@ -475,14 +475,14 @@ export default function PlaceBidModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
               >
                 {isSubmitting ? (
                   <>
