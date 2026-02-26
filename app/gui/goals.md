@@ -112,7 +112,7 @@ Each item has:
   - **How**: In `Dashboard.tsx` (lines 170-200), the `Ctrl+1`-`5` and `Ctrl+R` shortcuts fire even when the user is typing in a search input. Add a guard: `if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return` before handling shortcuts.
   - **Why**: Users typing in the marketplace search box accidentally trigger tab switches when pressing Ctrl+key combos.
 
-- [ ] **Smooth tab content transition**
+- [x] **Smooth tab content transition**
   - **How**: Wrap the tab panel content area in a CSS transition container. On tab switch, apply `opacity: 0` → `opacity: 1` over 150ms using a `key={activeTab}` prop and CSS `@keyframes fadeIn`. Keep it subtle — no sliding.
   - **Why**: Tab content switches instantly with a flash. A brief fade smooths the visual transition.
 

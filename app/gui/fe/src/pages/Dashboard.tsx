@@ -1464,11 +1464,13 @@ export default function Dashboard() {
 
         {/* Tab Content */}
         <div
+          key={activeTab}
           id={`tabpanel-${activeTab}`}
           role="tabpanel"
           aria-labelledby={`tab-${activeTab}`}
           aria-busy={isRefreshing}
           tabIndex={0}
+          className="tab-transition"
         >
           <Suspense fallback={<SkeletonGrid />}>
             {renderTabContent()}
