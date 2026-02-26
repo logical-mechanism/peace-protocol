@@ -4,6 +4,11 @@ import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
 import type { ListingCreationStep } from '../services/transactionBuilder';
+import {
+  saveListingFormDraft,
+  getListingFormDraft,
+  clearListingFormDraft,
+} from '../services/listingFormDraftStorage';
 
 export interface CreateListingFormData {
   category: FileCategory;
@@ -32,6 +37,16 @@ interface CreateListingModalProps {
 /** Files above this threshold show an informational upload time warning. */
 const LARGE_FILE_THRESHOLD_BYTES = 100 * 1024 * 1024; // 100 MB
 
+function formatPrice(raw: string): string {
+  if (!raw || raw.endsWith('.')) return raw;
+  const num = parseFloat(raw);
+  if (isNaN(num)) return raw;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
+  }).format(num);
+}
+
 const INITIAL_FORM_DATA: CreateListingFormData = {
   category: 'text',
   secretMessage: '',
@@ -57,12 +72,20 @@ export default function CreateListingModal({
   const [isDragging, setIsDragging] = useState(false);
   const [imagePreviewState, setImagePreviewState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
     if (isOpen) {
-      setFormData(INITIAL_FORM_DATA);
+      const savedDraft = getListingFormDraft();
+      if (savedDraft && (savedDraft.description || savedDraft.secretMessage || savedDraft.suggestedPrice)) {
+        setShowDraftPrompt(true);
+      } else {
+        setFormData(INITIAL_FORM_DATA);
+        setShowDraftPrompt(false);
+      }
       setDisplayPrice('');
       setIsDragging(false);
       setImagePreviewState('idle');
@@ -72,6 +95,35 @@ export default function CreateListingModal({
       setCreationStep(null);
     }
   }, [isOpen]);
+
+  // Auto-save form state on change (debounced 500ms)
+  useEffect(() => {
+    if (!isOpen || showDraftPrompt || isSubmitting) return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      if (formData.description || formData.secretMessage || formData.suggestedPrice || formData.imageLink) {
+        saveListingFormDraft({
+          category: formData.category,
+          secretMessage: formData.secretMessage,
+          description: formData.description,
+          suggestedPrice: formData.suggestedPrice,
+          imageLink: formData.imageLink,
+          fileName: formData.file?.name ?? null,
+          savedAt: new Date().toISOString(),
+        });
+      }
+    }, 500);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [isOpen, showDraftPrompt, isSubmitting, formData]);
 
   // Stack-aware Escape key + body scroll lock
   const { zIndex } = useModalStack('create-listing', isOpen, onClose, isSubmitting);
@@ -157,6 +209,29 @@ export default function CreateListingModal({
     }
   };
 
+  const handleResumeDraft = () => {
+    const draft = getListingFormDraft();
+    if (draft) {
+      setFormData({
+        category: (draft.category as FileCategory) || 'text',
+        secretMessage: draft.secretMessage || '',
+        file: null,
+        description: draft.description || '',
+        suggestedPrice: draft.suggestedPrice || '',
+        imageLink: draft.imageLink || '',
+      });
+      setDisplayPrice(formatPrice(draft.suggestedPrice || ''));
+    }
+    setShowDraftPrompt(false);
+  };
+
+  const handleDiscardDraft = () => {
+    clearListingFormDraft();
+    setFormData(INITIAL_FORM_DATA);
+    setDisplayPrice('');
+    setShowDraftPrompt(false);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     const category = file ? detectCategoryFromExtension(file.name) : 'other';
@@ -237,16 +312,6 @@ export default function CreateListingModal({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatPrice = (raw: string): string => {
-    if (!raw || raw.endsWith('.')) return raw;
-    const num = parseFloat(raw);
-    if (isNaN(num)) return raw;
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 6,
-    }).format(num);
-  };
-
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/,/g, '');
     setFormData((prev) => ({ ...prev, suggestedPrice: raw }));
@@ -278,6 +343,7 @@ export default function CreateListingModal({
 
     try {
       await onSubmit(formData, setCreationStep);
+      clearListingFormDraft();
       onClose();
     } catch (error) {
       console.error('Failed to create listing:', error);
@@ -339,6 +405,31 @@ export default function CreateListingModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
+            {/* Draft restoration prompt */}
+            {showDraftPrompt && (
+              <div className="p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
+                <p className="text-sm text-[var(--text-primary)] mb-2">
+                  You have an unsaved draft. Would you like to resume?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResumeDraft}
+                    className="px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] hover:bg-[var(--accent)]/10 transition-colors cursor-pointer"
+                  >
+                    Resume Draft
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDiscardDraft}
+                    className="px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+                  >
+                    Start Fresh
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Mode Toggle: Text vs File */}
             <div>
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">

@@ -288,7 +288,7 @@ Each item has:
   - **How**: Format the price input with a trailing "ADA" label and thousands separators. Use `Intl.NumberFormat` on blur to format the displayed value. Store the raw number in state for submission.
   - **Why**: "1500" is less readable than "1,500 ADA". Visual formatting reduces input errors and improves comprehension.
 
-- [ ] **Auto-save listing draft on form changes**
+- [x] **Auto-save listing draft on form changes**
   - **How**: Debounce form state changes (500ms) and persist to `listingDraftStorage`. On modal open, check for an unsaved draft and offer "Resume draft?" or "Start fresh". This extends the existing draft system to cover pre-upload state.
   - **Why**: Users who close the modal accidentally (or the app crashes mid-form) lose all their input. Auto-save prevents this.
 
