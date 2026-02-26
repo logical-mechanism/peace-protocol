@@ -354,7 +354,7 @@ Each item has:
 
 > Key file: `fe/src/pages/Settings.tsx`
 
-- [ ] **Settings sidebar navigation**
+- [x] **Settings sidebar navigation**
   - **How**: Replace the current flat layout with a sidebar on the left listing sections: Node, Wallet, Storage, Iagon, Cache, Logs. Clicking a section scrolls to (or shows) that section. Active section highlighted.
   - **Why**: The Settings page is long and disorganized. A sidebar gives structure and lets users jump directly to what they need.
 
@@ -369,10 +369,6 @@ Each item has:
 - [ ] **Network switch confirmation with restart warning**
   - **How**: When toggling between preprod and mainnet, show a ConfirmModal: "Switching networks will restart all services and may take several minutes to sync. Continue?" Show estimated sync time if possible.
   - **Why**: Network switches restart the node and require re-sync. Users need to understand the impact before confirming.
-
-- [ ] **Export all settings as JSON**
-  - **How**: Add an "Export Settings" button that serializes: auto-lock timeout, toast duration, active network, view preferences. Download as `veiled-settings.json` via Tauri's save dialog. Add a corresponding "Import Settings" button.
-  - **Why**: Users reinstalling the app or setting up on a new machine want to restore their preferences without reconfiguring everything.
 
 ---
 
