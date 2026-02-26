@@ -332,7 +332,7 @@ Each item has:
   - **How**: Add two buttons in the image toolbar: "Fit" (scales image to container) and "1:1" (actual pixel size). "Fit" sets `object-fit: contain` on the image. "1:1" sets width/height to natural dimensions with scrollable overflow.
   - **Why**: Large images either overflow or get scaled down. Users need to switch between overview and detail views.
 
-- [ ] **Audio: Playback speed control**
+- [x] **Audio: Playback speed control**
   - **How**: Add a speed button (e.g., "1x") next to the transport controls. Click to cycle through: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x. Set `audioRef.current.playbackRate` on change.
   - **Why**: Standard media player feature. Useful for spoken word content, podcasts, or audio review.
 
