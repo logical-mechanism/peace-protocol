@@ -21,6 +21,7 @@ import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../s
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
 import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, playNotificationSound } from '../services/notificationSound'
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../services/desktopNotifications'
+import { getTheme, setTheme, applyTheme, type Theme } from '../services/themeStorage'
 import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
 import ConfirmModal from '../components/ConfirmModal'
@@ -56,6 +57,7 @@ export default function Settings() {
   const [mnemonicCopied, setMnemonicCopied] = useState(false)
   const [networkSwitching, setNetworkSwitching] = useState(false)
   const [networkConfirmTarget, setNetworkConfirmTarget] = useState<string | null>(null)
+  const [currentTheme, setCurrentTheme] = useState<Theme>(() => getTheme())
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
   const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
@@ -381,6 +383,7 @@ export default function Settings() {
     { tab: 'node', title: 'Processes', keywords: ['process', 'pid', 'restart', 'ogmios', 'kupo', 'express', 'cardano', 'mithril'] },
     { tab: 'wallet', title: 'Wallet Info', keywords: ['wallet', 'address', 'balance', 'ada'] },
     { tab: 'wallet', title: 'Recovery Phrase', keywords: ['recovery', 'phrase', 'mnemonic', 'seed', 'backup'] },
+    { tab: 'wallet', title: 'Theme', keywords: ['theme', 'dark', 'light', 'mode', 'appearance', 'color'] },
     { tab: 'wallet', title: 'Auto-Lock', keywords: ['auto', 'lock', 'timeout', 'inactivity', 'security'] },
     { tab: 'wallet', title: 'Notification Duration', keywords: ['toast', 'notification', 'duration', 'dismiss', 'alert'] },
     { tab: 'wallet', title: 'Desktop Notifications', keywords: ['desktop', 'notification', 'system', 'os', 'bid', 'alert'] },
@@ -742,6 +745,36 @@ export default function Settings() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Theme */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <h2 className="text-lg font-medium mb-2">Theme</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                Choose between dark and light appearance.
+              </p>
+              <div className="flex gap-2">
+                {([
+                  { label: 'Dark', value: 'dark' as Theme },
+                  { label: 'Light', value: 'light' as Theme },
+                ] as const).map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      setCurrentTheme(option.value)
+                      setTheme(option.value)
+                      applyTheme(option.value)
+                    }}
+                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                      currentTheme === option.value
+                        ? 'bg-[var(--accent)] text-white'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Auto-Lock */}

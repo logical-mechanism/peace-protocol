@@ -74,6 +74,49 @@
   --transition-slow: 300ms ease;
 }
 
+/* Light theme overrides */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #fafafa;
+  --bg-secondary: #f0f0f0;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f5f5f5;
+  --bg-elevated: #ffffff;
+  --bg-tertiary: #e5e5e5;
+
+  /* Borders */
+  --border-subtle: #e0e0e0;
+  --border-default: #d0d0d0;
+  --border-focus: #bfbfbf;
+
+  /* Text */
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+
+  /* Accent — slightly darker indigo for light bg contrast */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-muted: rgba(79, 70, 229, 0.12);
+
+  /* Semantic — same hues, slightly adjusted for light bg */
+  --success: #16a34a;
+  --success-muted: rgba(22, 163, 74, 0.12);
+  --warning: #d97706;
+  --warning-muted: rgba(217, 119, 6, 0.12);
+  --error: #dc2626;
+  --error-muted: rgba(220, 38, 38, 0.1);
+
+  /* Shadows — much lower opacity */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.1);
+  --focus-ring: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
+
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -195,9 +238,15 @@ body {
   background-color: var(--bg-secondary);
 }
 
-/* Force dark color scheme for form controls (WebKit in Tauri ignores CSS color on <select>) */
+/* Force color scheme for form controls (WebKit in Tauri ignores CSS color on <select>) */
 select, input, textarea {
   color-scheme: dark;
+}
+
+[data-theme="light"] select,
+[data-theme="light"] input,
+[data-theme="light"] textarea {
+  color-scheme: light;
 }
 
 select option {

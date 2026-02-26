@@ -398,7 +398,7 @@ Each item has:
 
 > Key files: `fe/src/index.css`, all components
 
-- [ ] **Light theme option**
+- [x] **Light theme option**
   - **How**: Define a second set of CSS variables under `[data-theme="light"]` in index.css. Add a theme toggle in Settings that sets `document.documentElement.dataset.theme`. Persist preference in localStorage. Map all `--bg-*`, `--text-*`, `--border-*` to appropriate light values.
   - **Why**: Some users prefer light mode, especially in bright environments. A theme toggle is a standard expectation for desktop apps.
 
