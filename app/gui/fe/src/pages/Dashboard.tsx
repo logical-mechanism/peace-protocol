@@ -1318,7 +1318,7 @@ export default function Dashboard() {
               {myListingsCount === null ? '...' : `${myListingsCount} active`}
             </p>
             {bidNotifications.unseenBidCount > 0 && (
-              <p className="text-sm text-[var(--success)] mt-1">
+              <p className="text-sm text-[var(--success)] mt-1" aria-live="polite">
                 {bidNotifications.unseenBidCount} new {bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'}
               </p>
             )}
@@ -1438,6 +1438,7 @@ export default function Dashboard() {
           id={`tabpanel-${activeTab}`}
           role="tabpanel"
           aria-labelledby={`tab-${activeTab}`}
+          aria-busy={isRefreshing}
           tabIndex={0}
         >
           <Suspense fallback={<SkeletonGrid />}>

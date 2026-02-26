@@ -454,7 +454,7 @@ Each item has:
   - **How**: When a modal opens, trap keyboard focus within it. Tab from the last focusable element should cycle to the first. Escape closes the modal. On close, return focus to the element that opened it. Implement with a `useFocusTrap` hook.
   - **Why**: Without focus trapping, Tab key escapes the modal and interacts with hidden background elements. This is a WCAG 2.1 AA violation.
 
-- [ ] **`aria-live` regions for dynamic content**
+- [x] **`aria-live` regions for dynamic content**
   - **How**: Add `aria-live="polite"` to toast container, bid notification badge, sync progress display, and loading states. Add `aria-live="assertive"` for error messages.
   - **Why**: Screen readers don't announce dynamically updated content unless it's in an `aria-live` region. Users miss critical status changes.
 
