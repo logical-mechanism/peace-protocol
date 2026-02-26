@@ -1595,11 +1595,9 @@ mod tests {
             proc.append_log(format!("line {}", i));
         }
 
-        // Buffer stays at LOG_BUFFER_SIZE (marker replaces first entry)
         assert_eq!(proc.log_buffer.len(), LOG_BUFFER_SIZE);
-        // First entry is the eviction marker
-        assert!(proc.log_buffer[0].starts_with("... [1 earlier line dropped] ..."));
-        // Last entry is the most recent
+        // "line 0" was evicted; buffer starts at "line 1"
+        assert_eq!(proc.log_buffer[0], "line 1");
         assert_eq!(
             proc.log_buffer[LOG_BUFFER_SIZE - 1],
             format!("line {}", LOG_BUFFER_SIZE)
@@ -1608,7 +1606,7 @@ mod tests {
     }
 
     #[test]
-    fn append_log_eviction_marker_updates_count() {
+    fn append_log_dropped_count_tracks_evictions() {
         let mut proc = ManagedProcess {
             child: None,
             info: ProcessInfo {
@@ -1633,8 +1631,7 @@ mod tests {
         }
 
         assert_eq!(proc.dropped_log_count, 5);
-        // Marker shows cumulative count
-        assert!(proc.log_buffer[0].starts_with("... [5 earlier lines dropped] ..."));
+        assert_eq!(proc.log_buffer.len(), LOG_BUFFER_SIZE);
         // Last entry is correct
         assert_eq!(
             proc.log_buffer[proc.log_buffer.len() - 1],

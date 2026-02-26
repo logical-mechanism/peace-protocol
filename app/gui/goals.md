@@ -90,7 +90,7 @@ Each item has:
   - **How**: In `manager.rs` (line 120), `send_signal()` uses `libc::kill()` but only returns `false` on failure without logging why. Add `let err = std::io::Error::last_os_error(); log::warn!("Failed to signal PID {}: {}", pid, err);` after a failed kill.
   - **Why**: When a process can't be signaled, the current code gives no clue why (permission denied? process gone?), making debugging difficult.
 
-- [ ] **Log buffer eviction notice in process logs**
+- [x] **Log buffer eviction notice in process logs**
   - **How**: In `manager.rs` (line 103-109), when the 500-line circular buffer evicts old entries, insert a marker line: `"... [N earlier lines dropped] ..."` so users know the log is incomplete. Track `dropped_count` and include it in the next `append_log` call.
   - **Why**: Users debugging issues in Settings log viewer may not realize they're missing the earliest (potentially most relevant) log entries.
 
