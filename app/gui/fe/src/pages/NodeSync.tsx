@@ -234,7 +234,9 @@ export default function NodeSync() {
           setDiskSpaceWarning(null)
         }
       } catch {
-        // Silently skip — not critical
+        setDiskSpaceWarning(
+          'Could not verify disk space. Ensure you have at least 10 GB free before syncing.'
+        )
       }
     }
     checkSpace()
@@ -335,7 +337,7 @@ export default function NodeSync() {
       if (progress.length === 0 || progress[progress.length - 1].progress !== lastProgress) {
         // No new data yet, skip
       }
-      if (progress.length >= 2) {
+      if (progress.length >= 3) {
         const oldest = progress[0]
         const newest = progress[progress.length - 1]
         const timeDelta = newest.time - oldest.time
@@ -344,7 +346,7 @@ export default function NodeSync() {
           const rate = progressDelta / timeDelta
           const remaining = 100 - newest.progress
           const etaSeconds = remaining / rate
-          setSyncEta(etaSeconds < 86400 ? formatEta(etaSeconds) : 'estimating...')
+          setSyncEta(etaSeconds < 172800 ? formatEta(etaSeconds) : 'estimating...')
         }
       }
     }, 5000)
@@ -401,7 +403,7 @@ export default function NodeSync() {
       }
 
       const samples = mithrilSamplesRef.current
-      if (samples.length >= 2) {
+      if (samples.length >= 3) {
         const oldest = samples[0]
         const newest = samples[samples.length - 1]
         const timeDelta = newest.time - oldest.time
@@ -411,7 +413,8 @@ export default function NodeSync() {
           setMithrilSpeed(formatSpeed(speed))
           const remaining = total_bytes - newest.bytes
           if (remaining > 0) {
-            setMithrilEta(formatEta(remaining / speed))
+            const etaSeconds = remaining / speed
+            setMithrilEta(etaSeconds < 172800 ? formatEta(etaSeconds) : 'estimating...')
           } else {
             setMithrilEta(null)
           }

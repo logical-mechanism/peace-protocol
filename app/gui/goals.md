@@ -42,15 +42,15 @@ Each item has:
 
 > Key files: `fe/src/pages/WalletSetup.tsx`, `fe/src/pages/NodeSync.tsx`, `fe/src/components/OnboardingOverlay.tsx`
 
-- [ ] **Clipboard paste failure feedback on mnemonic import**
+- [x] **Clipboard paste failure feedback on mnemonic import**
   - **How**: In `WalletSetup.tsx`, the bulk paste handler catches `navigator.clipboard.readText()` rejection silently. Add `toast.warning('Could not access clipboard. Check browser permissions.')` in the catch block. Test with clipboard API denied in WebKitGTK.
   - **Why**: Users clicking "Paste all 24 words" see nothing happen if clipboard access is denied, with no way to know why.
 
-- [ ] **ETA bounds and validation on sync progress**
+- [x] **ETA bounds and validation on sync progress**
   - **How**: In `NodeSync.tsx` (lines 250-262), the ETA calculation from `syncSamplesRef` / `mithrilSamplesRef` can produce unrealistic values. Cap display at 48 hours (`if (etaSeconds > 172800) return 'Estimating...'`). Add a minimum sample count (3+) before showing any ETA.
   - **Why**: Early in the sync, ETAs can show "999+ hours" from a single slow sample, alarming users.
 
-- [ ] **Disk space check failure fallback warning**
+- [x] **Disk space check failure fallback warning**
   - **How**: In `NodeSync.tsx` (lines 236-241), `get_available_disk_space` invoke fails silently. Add a soft warning: "Could not verify disk space. Ensure you have at least 10 GB free." Show as an info banner, not a blocker.
   - **Why**: If the disk check itself fails, users get no warning at all, defeating the purpose of the check.
 
@@ -116,7 +116,7 @@ Each item has:
   - **How**: Wrap the tab panel content area in a CSS transition container. On tab switch, apply `opacity: 0` → `opacity: 1` over 150ms using a `key={activeTab}` prop and CSS `@keyframes fadeIn`. Keep it subtle — no sliding.
   - **Why**: Tab content switches instantly with a flash. A brief fade smooths the visual transition.
 
-- [ ] **Balance unavailable indicator when Kupo is down**
+- [x] **Balance unavailable indicator when Kupo is down**
   - **How**: In the Dashboard balance display area, when `lovelace` from WalletContext is `null`, show "Balance unavailable" with a small info icon instead of showing nothing or "0 ADA". Add tooltip: "Waiting for Kupo to start. Your funds are safe."
   - **Why**: Before Kupo starts, users see no balance and may panic thinking their funds are gone.
 
