@@ -596,7 +596,7 @@ Each item has:
 
 > Key files: `fe/src/test/`, `be/src/services/__tests__/`, test configs
 
-- [ ] **Component tests for critical modals**
+- [x] **Component tests for critical modals**
   - **How**: Write tests for CreateListingModal, PlaceBidModal, BidsModal, and DecryptModal using `@testing-library/react`. Mock Tauri invoke and context providers. Test: form validation, submit flow, error states, keyboard interactions.
   - **Why**: Modals are the core interactive UI and have zero tests. A bug in PlaceBidModal could cause users to lose funds.
 
