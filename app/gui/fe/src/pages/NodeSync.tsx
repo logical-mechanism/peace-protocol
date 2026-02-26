@@ -780,7 +780,7 @@ export default function NodeSync() {
           )}
         </div>
       </div>
-      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )
 }

@@ -1521,7 +1521,7 @@ export default function Dashboard() {
       />
 
       {/* Toast Notifications */}
-      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )
 }

@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
 import { getToastDurationMs } from '../services/toastSettings';
+
+const MAX_VISIBLE_TOASTS = 3;
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -185,13 +187,23 @@ function Toast({ toast, onClose }: ToastProps) {
 interface ToastContainerProps {
   toasts: ToastMessage[];
   onClose: (id: string) => void;
+  queuedCount?: number;
+  onDismissAll?: () => void;
 }
 
-export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
+export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full" aria-live="polite" role="status">
+      {toasts.length >= 2 && onDismissAll && (
+        <button
+          onClick={onDismissAll}
+          className="self-end text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer mb-1"
+        >
+          Dismiss all{queuedCount > 0 ? ` (${queuedCount} queued)` : ''}
+        </button>
+      )}
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} onClose={onClose} />
       ))}
@@ -201,10 +213,13 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
 
 /**
  * Hook for managing toast notifications.
+ * Limits visible toasts to MAX_VISIBLE_TOASTS and queues the rest.
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [visibleToasts, setVisibleToasts] = useState<ToastMessage[]>([]);
+  const [queuedCount, setQueuedCount] = useState(0);
+  const queueRef = useRef<ToastMessage[]>([]);
 
   const addToast = useCallback(
     (
@@ -216,14 +231,35 @@ export function useToast() {
     ) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const newToast: ToastMessage = { id, type, title, message, duration, action };
-      setToasts((prev) => [...prev, newToast]);
+      setVisibleToasts((prev) => {
+        if (prev.length < MAX_VISIBLE_TOASTS) {
+          return [...prev, newToast];
+        }
+        queueRef.current.push(newToast);
+        setQueuedCount(queueRef.current.length);
+        return prev;
+      });
       return id;
     },
     []
   );
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setVisibleToasts((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      if (next.length < MAX_VISIBLE_TOASTS && queueRef.current.length > 0) {
+        const promoted = queueRef.current.splice(0, MAX_VISIBLE_TOASTS - next.length);
+        setQueuedCount(queueRef.current.length);
+        return [...next, ...promoted];
+      }
+      return next;
+    });
+  }, []);
+
+  const dismissAll = useCallback(() => {
+    setVisibleToasts([]);
+    queueRef.current = [];
+    setQueuedCount(0);
   }, []);
 
   const success = useCallback(
@@ -271,9 +307,11 @@ export function useToast() {
   );
 
   return {
-    toasts,
+    toasts: visibleToasts,
+    queuedCount,
     addToast,
     removeToast,
+    dismissAll,
     success,
     error,
     warning,
