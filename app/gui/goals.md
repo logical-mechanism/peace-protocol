@@ -478,7 +478,7 @@ Each item has:
   - **How**: In `config.rs` (lines 157-174), `AppConfig::load()` silently falls back to `Default::default()` when both config paths fail. Add `eprintln!("Warning: config.json not found at either path, using defaults")` and emit a Tauri event `config-warning` so the frontend can show a banner.
   - **Why**: A missing or corrupted config file causes the app to run with default (likely wrong) contract addresses. Users see confusing errors instead of "config file missing."
 
-- [ ] **Atomic secret file creation with pre-set permissions**
+- [x] **Atomic secret file creation with pre-set permissions**
   - **How**: In `secrets.rs` (line 31-32), secret files are written then have permissions set afterwards. Use `std::fs::OpenOptions::new().create(true).write(true).mode(0o600).open(path)?` to create the file with restricted permissions atomically, before writing any data.
   - **Why**: If the process crashes between write and chmod, the secret file could briefly be world-readable. Atomic permission setting eliminates this race.
 

@@ -2,6 +2,7 @@ use crate::crypto::audit::AuditLog;
 use crate::crypto::secrets::{
     decrypt_secret, encrypt_secret, secure_delete, EncryptedSecret, SecretsKey,
 };
+#[cfg(not(unix))]
 use crate::crypto::wallet::set_owner_only_file;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -27,9 +28,31 @@ fn encrypt_and_write(key: &[u8; 32], path: &std::path::Path, data: &[u8]) -> Res
     let encrypted = encrypt_secret(key, data)?;
     let json = serde_json::to_string_pretty(&encrypted)
         .map_err(|e| format!("Failed to serialize encrypted secret: {e}"))?;
-    std::fs::write(path, json).map_err(|e| format!("Failed to write secret: {e}"))?;
-    set_owner_only_file(path)?;
-    Ok(())
+
+    // On Unix, create the file with 0o600 atomically (no race window where
+    // the file exists with default permissions before chmod).
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+            .map_err(|e| format!("Failed to write secret: {e}"))?;
+        file.write_all(json.as_bytes())
+            .map_err(|e| format!("Failed to write secret: {e}"))?;
+        return Ok(());
+    }
+
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, json).map_err(|e| format!("Failed to write secret: {e}"))?;
+        set_owner_only_file(path)?;
+        Ok(())
+    }
 }
 
 fn read_and_decrypt(key: &[u8; 32], path: &std::path::Path) -> Result<Vec<u8>, String> {
