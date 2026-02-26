@@ -460,6 +460,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
               bidCount={getBidCount(encryption.tokenName)}
               isFavorite={favorites.has(encryption.tokenName)}
               onToggleFavorite={handleToggleFavorite}
+              searchQuery={searchQuery}
             />
           ))}
         </div>
@@ -478,6 +479,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
               bidCount={getBidCount(encryption.tokenName)}
               isFavorite={favorites.has(encryption.tokenName)}
               onToggleFavorite={handleToggleFavorite}
+              searchQuery={searchQuery}
             />
           ))}
         </div>

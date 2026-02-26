@@ -5,6 +5,7 @@ import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
+import HighlightText from './HighlightText';
 
 // Default fallback price when suggested price can't be parsed
 const DEFAULT_FALLBACK_PRICE = 1;
@@ -20,6 +21,7 @@ interface EncryptionCardProps {
   bidCount?: number;
   isFavorite?: boolean;
   onToggleFavorite?: (tokenName: string) => void;
+  searchQuery?: string;
 }
 
 export default function EncryptionCard({
@@ -33,6 +35,7 @@ export default function EncryptionCard({
   bidCount = 0,
   isFavorite = false,
   onToggleFavorite,
+  searchQuery = '',
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
 
@@ -79,9 +82,11 @@ export default function EncryptionCard({
                   </svg>
                 </button>
               )}
-              <span className="text-xs font-mono text-[var(--text-muted)]">
-                {truncateHex(encryption.tokenName, 8, 4)}
-              </span>
+              <HighlightText
+                text={truncateHex(encryption.tokenName, 8, 4)}
+                query={searchQuery}
+                className="text-xs font-mono text-[var(--text-muted)]"
+              />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
@@ -100,7 +105,7 @@ export default function EncryptionCard({
               className="text-sm text-[var(--text-secondary)] line-clamp-1 mb-2 cursor-pointer hover:text-[var(--text-primary)]"
               onClick={() => setDescriptionModalOpen(true)}
             >
-              {truncateDescription(encryption.description)}
+              <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
             </p>
           )}
           <div className="flex items-center justify-between">
@@ -153,9 +158,11 @@ export default function EncryptionCard({
                   </svg>
                 </button>
               )}
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate">
-                {truncateHex(encryption.tokenName, 8, 4)}
-              </span>
+              <HighlightText
+                text={truncateHex(encryption.tokenName, 8, 4)}
+                query={searchQuery}
+                className="text-xs font-mono text-[var(--text-muted)] truncate"
+              />
               <EncryptionStatusBadge status={encryption.status} />
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
                 {getCategoryLabel(encryption.category)}
@@ -182,7 +189,7 @@ export default function EncryptionCard({
               className="text-sm text-[var(--text-secondary)] line-clamp-1"
               title={encryption.description}
             >
-              {truncateDescription(encryption.description)}
+              <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
             </p>
           </div>
         )}
