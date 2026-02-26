@@ -480,7 +480,7 @@ Each item has:
 
 > Key files: `fe/src/components/Toast.tsx`, `fe/src/components/ErrorBoundary.tsx`, `fe/src/services/api.ts`
 
-- [ ] **Actionable error messages**
+- [x] **Actionable error messages**
   - **How**: Create an error message mapping in `fe/src/services/errorMessages.ts` that translates raw errors into user-friendly guidance. Examples: "Failed to fetch" → "Can't reach the backend. Check that your node is running." "Insufficient funds" → "Your wallet doesn't have enough ADA. You need at least X ADA for this action."
   - **Why**: Raw error messages like "Network error" or "CBOR decode failed" mean nothing to users. Actionable messages tell them what to do.
 
@@ -488,7 +488,7 @@ Each item has:
   - **How**: Add a small "Copy" icon button next to error messages in modals and toasts. Copies the full error text (including stack trace if available) to clipboard for bug reports.
   - **Why**: When users report bugs, they need to share the exact error. Selecting and copying error text from toasts is awkward.
 
-- [ ] **Retry button on failed data fetches**
+- [x] **Retry button on failed data fetches**
   - **How**: When `fetchEncryptions()` or `fetchBids()` fails, show an error state with a "Retry" button instead of just an error message. The retry button calls the same fetch function.
   - **Why**: Transient network errors currently leave users staring at an error with no recourse except refreshing the page.
 
@@ -630,9 +630,6 @@ Each item has:
   - **How**: Add `.prettierrc` with consistent settings (singleQuote, trailingComma, printWidth: 100). Add `format` scripts to fe/ and be/ package.json. Run on CI.
   - **Why**: No auto-formatter means code style varies by contributor. Prettier eliminates style debates and ensures consistency.
 
-- [ ] **VS Code workspace configuration**
-  - **How**: Create `.vscode/settings.json` with: format-on-save enabled, ESLint auto-fix, Tailwind CSS IntelliSense paths, Rust Analyzer settings, recommended extensions list in `.vscode/extensions.json`.
-  - **Why**: New contributors must manually configure their editor. A workspace config provides instant productivity.
 
 - [ ] **Backend hot-reload**
   - **How**: In `run.sh`, run `tsc --watch` in the background and use `nodemon dist/index.js` instead of plain `node dist/index.js`. This auto-restarts Express when `tsc --watch` emits new compiled files.
@@ -675,10 +672,6 @@ Each item has:
 - [ ] **Changelog automation**
   - **How**: Adopt conventional commits (`feat:`, `fix:`, `chore:`) and add `conventional-changelog` as a dev dependency. Add a `changelog` npm script that auto-generates entries from commit messages. Run before each release.
   - **Why**: CHANGELOG.md is manually maintained and sparse (only v0.3.0). Automated generation ensures every change is documented.
-
-- [ ] **PR template**
-  - **How**: Create `.github/pull_request_template.md` with sections: Summary, Changes, Test Plan, Screenshots, Checklist (tests pass, lint passes, changelog updated). This appears automatically when creating a PR.
-  - **Why**: PRs without context make review slow. A template ensures consistent, reviewable PRs.
 
 - [ ] **Release automation**
   - **How**: Create a GitHub Actions workflow triggered by a version tag (e.g., `v0.4.0`). Steps: run tests, build Tauri for Linux (and optionally macOS/Windows), create a GitHub Release with the installer artifacts and auto-generated release notes.
