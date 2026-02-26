@@ -8,6 +8,7 @@ import WalletUnlock from './pages/WalletUnlock'
 import NodeSync from './pages/NodeSync'
 import Settings from './pages/Settings'
 import SessionWarningBanner from './components/SessionWarningBanner'
+import OfflineBanner from './components/OfflineBanner'
 import OnboardingOverlay from './components/OnboardingOverlay'
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
 
   return (
     <>
+    <OfflineBanner />
     <SessionWarningBanner />
     <OnboardingOverlay />
     <div key={location.pathname} className="page-transition">
