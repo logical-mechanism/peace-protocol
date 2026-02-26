@@ -466,7 +466,7 @@ Each item has:
   - **How**: In `secrets.rs` (lines 52-59), `derive_secrets_key_v2()` uses `m=32768, t=2, p=1` which is weaker than wallet KDF (`m=65536, t=3, p=4`). Increase to `m=65536, t=3, p=2` (parallelism 2 to keep it faster than wallet which uses 4). Profile to ensure < 500ms on typical hardware.
   - **Why**: Secrets (seller keys, bid keys, Iagon API key) are equally sensitive as the wallet. Weaker KDF means an attacker with the secrets files has an easier brute-force target.
 
-- [ ] **SNARK setup directory existence validation before proving**
+- [x] **SNARK setup directory existence validation before proving**
   - **How**: In `snark.rs` (lines 66-75), before spawning the SNARK sidecar, verify the setup directory exists and contains `pk.bin` and `ccs.bin`: `if !setup_dir.join("pk.bin").exists() { return Err("SNARK setup files not found. Run setup first.".into()); }`.
   - **Why**: Running the prover without setup files produces a cryptic sidecar error instead of a user-friendly message.
 

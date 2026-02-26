@@ -292,6 +292,14 @@ pub async fn snark_prove(
 ) -> Result<SnarkProofResult, String> {
     let snark_dir = setup_dir(&app)?;
 
+    // Verify setup files exist before spawning the sidecar
+    if !snark_dir.join("pk.bin").exists() || !snark_dir.join("ccs.bin").exists() {
+        return Err(
+            "SNARK setup files not found. Please run setup first (Settings → SNARK Setup)."
+                .to_string(),
+        );
+    }
+
     // Create a temporary directory for output files in the app temp dir
     let tmp_dir = tempfile::Builder::new()
         .prefix("veiled-proof-")
