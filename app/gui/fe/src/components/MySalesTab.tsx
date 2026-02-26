@@ -9,6 +9,7 @@ import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustra
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
 import { getTransactions } from '../services/transactionHistory';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface MySalesTabProps {
   userPkh?: string;
@@ -43,6 +44,7 @@ function MySalesTab({
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
   const [selectedListing, setSelectedListing] = useState<EncryptionDisplay | null>(null);
@@ -144,8 +146,8 @@ function MySalesTab({
     }
 
     // Search filter (by token name or description)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(
         (e) =>
           e.tokenName.toLowerCase().includes(query) ||
@@ -177,7 +179,7 @@ function MySalesTab({
     }
 
     return result;
-  }, [encryptions, statusFilter, searchQuery, sortBy, getBidCount]);
+  }, [encryptions, statusFilter, debouncedSearch, sortBy, getBidCount]);
 
   // Handlers
   const handleViewBids = useCallback((encryption: EncryptionDisplay) => {

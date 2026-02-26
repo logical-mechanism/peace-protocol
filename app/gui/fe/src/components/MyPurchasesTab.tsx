@@ -12,6 +12,7 @@ import EmptyState, { PackageIcon } from './EmptyState';
 import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import type { MyPurchasesFilters, MyPurchasesAction } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface MyPurchasesTabProps {
   userPkh?: string;
@@ -46,6 +47,7 @@ function MyPurchasesTab({
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -173,8 +175,8 @@ function MyPurchasesTab({
     }
 
     // Search filter (by token name, encryption token, or encryption description)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter((b) => {
         const encryption = encryptionsMap.get(b.encryptionToken);
         return (
@@ -206,7 +208,7 @@ function MyPurchasesTab({
     }
 
     return result;
-  }, [bids, statusFilter, searchQuery, sortBy, encryptionsMap, completedTokens]);
+  }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, completedTokens]);
 
   // Handlers
   const handleCancelBid = useCallback(

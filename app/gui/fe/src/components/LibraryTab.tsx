@@ -10,6 +10,7 @@ import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import type { LibraryFilters, LibraryAction } from '../hooks/useTabFilterState';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface LibraryTabProps {
   refreshSignal?: number;
@@ -24,6 +25,7 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, categoryFilter, searchQuery } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
@@ -77,8 +79,8 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
     }
 
     // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(
         (item) =>
           item.tokenName.toLowerCase().includes(query) ||
@@ -124,7 +126,7 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
     }
 
     return result;
-  }, [items, categoryFilter, searchQuery, sortBy]);
+  }, [items, categoryFilter, debouncedSearch, sortBy]);
 
   // Compute storage stats from all items (not filtered)
   const libraryStats = useMemo(() => {

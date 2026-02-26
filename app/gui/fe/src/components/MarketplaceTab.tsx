@@ -10,6 +10,7 @@ import { FILE_CATEGORIES } from '../config/categories';
 import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
 import PriceRangeSlider from './PriceRangeSlider';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface MarketplaceTabProps {
   userPkh?: string;
@@ -30,6 +31,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const fetchEncryptions = useCallback(async () => {
     setLoading(true);
@@ -158,8 +160,8 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     }
 
     // Search filter (by token name, seller address, or description)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(
         (e) =>
           e.tokenName.toLowerCase().includes(query) ||
@@ -188,7 +190,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     }
 
     return result;
-  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, searchQuery, sortBy, getBidCount]);
+  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, sortBy, getBidCount]);
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
@@ -201,7 +203,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
   // Count active (non-default) filters for "clear all" indicator
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (searchQuery !== '') count++;
+    if (debouncedSearch !== '') count++;
     if (sortBy !== 'newest') count++;
     if (statusFilter !== 'all') count++;
     if (categoryFilter !== 'all') count++;
@@ -209,7 +211,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     if (priceMax !== '') count++;
     if (showFavoritesOnly) count++;
     return count;
-  }, [searchQuery, sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
+  }, [debouncedSearch, sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
 
   // Load more pagination — accumulate batches instead of showing a single page
   const ITEMS_PER_PAGE = 20;

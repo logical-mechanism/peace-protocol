@@ -17,6 +17,7 @@ import {
 } from '../services/transactionHistory';
 import { exportTextFile } from '../services/fileExport';
 import type { HistoryFilters, HistoryAction } from '../hooks/useTabFilterState';
+import { useDebounce } from '../hooks/useDebounce';
 
 const ALL_TX_TYPES: TransactionType[] = [
   'create-listing', 'remove-listing', 'place-bid', 'cancel-bid',
@@ -54,6 +55,7 @@ function HistoryTab({
 }: HistoryTabProps) {
   // Destructure filter state from Dashboard-level reducer
   const { statusFilter, typeFilter, dateRange, searchQuery } = filters;
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [allRecords, setAllRecords] = useState<TransactionRecord[]>(transactions);
   const [loading, setLoading] = useState(true);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -211,8 +213,8 @@ function HistoryTab({
     }
 
     // Search filter (tx hash, description, token name — case-insensitive partial match)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(tx =>
         tx.txHash.toLowerCase().includes(query) ||
         (tx.description && tx.description.toLowerCase().includes(query)) ||
@@ -221,7 +223,7 @@ function HistoryTab({
     }
 
     return result;
-  }, [allRecords, statusFilter, typeFilter, dateRange, searchQuery]);
+  }, [allRecords, statusFilter, typeFilter, dateRange, debouncedSearch]);
 
   const pendingCount = useMemo(
     () => allRecords.filter(tx => tx.status === 'pending').length,

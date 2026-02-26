@@ -518,7 +518,7 @@ Each item has:
   - **How**: Wrap `api.ts` fetch calls with a simple in-memory cache (Map with TTL). Cache marketplace listings for 15s, protocol config for 60s. Bypass cache on explicit refresh. The backend already has a cache module — mirror the pattern in the frontend.
   - **Why**: Tab switching triggers full re-fetches of the same data. A 15s cache eliminates redundant network calls.
 
-- [ ] **Debounce search input**
+- [x] **Debounce search input**
   - **How**: In MarketplaceTab and LibraryTab, debounce the search query filter by 300ms using a `useDebounce` hook. The raw input updates immediately for responsive typing, but the filter dispatch is delayed.
   - **Why**: Each keystroke in the search box re-filters and re-renders the entire card grid. Debouncing batches rapid keystrokes.
 
