@@ -440,7 +440,7 @@ Each item has:
   - **How**: Add `transform: scale(0.97)` on `:active` state for all interactive buttons. Return to `scale(1)` on release with `transition: transform 100ms`. Apply via a shared CSS class.
   - **Why**: Physical buttons depress when pressed. Digital buttons should simulate this tactile feedback.
 
-- [ ] **Toast slide-in animation**
+- [x] **Toast slide-in animation**
   - **How**: Toasts should slide in from the right side (or top-right corner) instead of appearing instantly. Use `@keyframes slideIn { from { transform: translateX(100%); opacity: 0 } }`. Slide out on dismiss.
   - **Why**: Instant appearance of toasts is easy to miss. A sliding animation draws the eye to the notification.
 

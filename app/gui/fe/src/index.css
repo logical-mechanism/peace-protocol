@@ -405,6 +405,22 @@ select option {
   animation: copy-check 300ms ease-out;
 }
 
+/* Toast exit — slides out right and fades */
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.toast-exit {
+  animation: toast-exit 300ms ease-in forwards;
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,

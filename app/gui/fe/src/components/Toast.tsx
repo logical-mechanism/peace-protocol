@@ -36,15 +36,26 @@ interface ToastProps {
 
 function Toast({ toast, onClose }: ToastProps) {
   const [copied, setCopied] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  const handleClose = useCallback(() => {
+    if (!closing) setClosing(true);
+  }, [closing]);
+
+  const handleAnimationEnd = useCallback((e: React.AnimationEvent) => {
+    if (e.animationName === 'toast-exit') {
+      onClose(toast.id);
+    }
+  }, [onClose, toast.id]);
 
   useEffect(() => {
-    if (toast.duration !== 0) {
+    if (toast.duration !== 0 && !closing) {
       const timer = setTimeout(() => {
-        onClose(toast.id);
+        handleClose();
       }, toast.duration || 5000);
       return () => clearTimeout(timer);
     }
-  }, [toast.id, toast.duration, onClose]);
+  }, [toast.id, toast.duration, closing, handleClose]);
 
   const handleCopy = async () => {
     const text = toast.message ? `${toast.title}: ${toast.message}` : toast.title;
@@ -139,7 +150,8 @@ function Toast({ toast, onClose }: ToastProps) {
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg animate-in slide-in-from-right-full duration-300`}
+      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg ${closing ? 'toast-exit' : 'animate-in slide-in-from-right-full duration-300'}`}
+      onAnimationEnd={handleAnimationEnd}
       role="alert"
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
@@ -203,7 +215,7 @@ function Toast({ toast, onClose }: ToastProps) {
         </button>
       )}
       <button
-        onClick={() => onClose(toast.id)}
+        onClick={handleClose}
         className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
         aria-label="Dismiss notification"
       >
