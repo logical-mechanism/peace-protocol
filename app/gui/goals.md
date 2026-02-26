@@ -314,7 +314,7 @@ Each item has:
   - **How**: Audit all tabs' empty states (EmptyState, EmptyStateIllustrations). Ensure each includes: (1) an illustration, (2) a clear message explaining why it's empty, (3) a call-to-action button. Example: Library empty → "No items yet. Purchase and decrypt a listing to see it here." with "Browse Marketplace" button.
   - **Why**: Empty states vary in tone and detail. Some show just "No items" with no guidance on what to do next.
 
-- [ ] **Modal max-height constraint for small screens**
+- [x] **Modal max-height constraint for small screens**
   - **How**: Add `max-h-[90vh] overflow-y-auto` to the modal content container in all modals (CreateListingModal, PlaceBidModal, DecryptModal, etc.). Test at 800px viewport height. Ensure submit buttons remain visible (sticky footer or scroll into view).
   - **Why**: On smaller displays (800px height), modals can extend below the viewport with no scroll, hiding the submit button.
 
