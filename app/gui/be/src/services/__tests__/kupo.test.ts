@@ -159,11 +159,10 @@ describe('KupoClient circuit breaker', () => {
 
     // Fail 5 times to trip the circuit breaker
     for (let i = 0; i < 5; i++) {
-      await expect(client.getAddressUtxos('addr_test1')).rejects.toThrow('connection refused');
+      await expect(client.getAddressUtxos('addr_test1')).rejects.toThrow(/Kupo \/matches\/.*connection refused/);
     }
 
-    // 6th call should throw CircuitOpenError (fast-fail, no HTTP call)
-    const { CircuitOpenError } = await import('../circuitBreaker.js');
-    await expect(client.getAddressUtxos('addr_test1')).rejects.toThrow(CircuitOpenError);
+    // 6th call should fast-fail with circuit breaker context in the error message
+    await expect(client.getAddressUtxos('addr_test1')).rejects.toThrow(/Kupo \/matches\/.*Circuit breaker is OPEN/);
   });
 });

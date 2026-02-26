@@ -432,7 +432,7 @@ Each item has:
   - **How**: In `be/src/services/encryptions.ts` (lines 140-142), log the actual error with context: `logger.warn('Datum parse failed', { txHash, txIndex, error: String(err), datumPreview: JSON.stringify(utxo.inline_datum).slice(0, 200) })` instead of just `txHash` and `txIndex`.
   - **Why**: When a malformed datum is skipped, developers have no way to know what went wrong without the error details and a sample of the bad datum.
 
-- [ ] **Kupo error wrapping with operation context**
+- [x] **Kupo error wrapping with operation context**
   - **How**: In `be/src/services/kupo.ts` (lines 119-125), wrap circuit breaker errors with the operation name: `catch (err) { throw new Error(\`Kupo ${path}: ${err.message}\`); }`. This helps distinguish "Kupo /matches failed" from "Kupo /datums failed" in logs.
   - **Why**: All Kupo failures currently look the same in logs. Adding the path makes it clear which operation triggered the circuit breaker.
 
