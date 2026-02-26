@@ -174,7 +174,7 @@ Each item has:
   - **How**: The `favoritesStorage.ts` service and heart icon on EncryptionCard already exist. Add a "Favorites" filter toggle in the filter bar (already in the reducer as `showFavoritesOnly`). Ensure favorites persist across sessions per wallet PKH.
   - **Why**: Users browsing a large marketplace want to bookmark interesting listings and revisit them later.
 
-- [ ] **Sort by "most bids" and "newest first"**
+- [x] **Sort by "most bids" and "newest first"**
   - **How**: Add `sortBy: 'most-bids'` and `sortBy: 'newest'` to the sort options in the filter reducer. Sort by `bidCount` descending for most-bids. Sort by `createdAt` descending for newest. The bid count is already computed from `allBids`.
   - **Why**: Popular listings (most bids) signal quality. Newest listings let users discover fresh content.
 
