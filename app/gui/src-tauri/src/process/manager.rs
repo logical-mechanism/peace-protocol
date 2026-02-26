@@ -119,7 +119,15 @@ fn apply_jitter(delay_ms: f64) -> f64 {
 /// Using libc avoids spawning external `/usr/bin/kill` which can fail inside AppImage.
 fn send_signal(pid: u32, signal: i32) -> bool {
     // SAFETY: libc::kill is a POSIX syscall; invalid pid/signal returns -1 (not UB).
-    unsafe { libc::kill(pid as i32, signal) == 0 }
+    let ok = unsafe { libc::kill(pid as i32, signal) == 0 };
+    if !ok && signal != 0 {
+        let err = std::io::Error::last_os_error();
+        eprintln!(
+            "[NodeManager] Failed to send signal {} to PID {}: {}",
+            signal, pid, err
+        );
+    }
+    ok
 }
 
 /// The central process manager, held in Tauri state.

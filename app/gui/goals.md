@@ -86,7 +86,7 @@ Each item has:
   - **How**: In `NodeSync.tsx` (lines 370-388), the `get_network_tip` fetch failure is silently caught. Show a subtle info banner: "Could not fetch network tip — sync percentage may be approximate." Use a `tipFetchFailed` state flag.
   - **Why**: Without the network tip, sync progress percentage has no reference point. Users see "syncing" with no progress context.
 
-- [ ] **Process signal error logging with errno context**
+- [x] **Process signal error logging with errno context**
   - **How**: In `manager.rs` (line 120), `send_signal()` uses `libc::kill()` but only returns `false` on failure without logging why. Add `let err = std::io::Error::last_os_error(); log::warn!("Failed to signal PID {}: {}", pid, err);` after a failed kill.
   - **Why**: When a process can't be signaled, the current code gives no clue why (permission denied? process gone?), making debugging difficult.
 
