@@ -346,15 +346,15 @@ Each item has:
 
 > Key files: all components, `fe/src/index.css`
 
-- [ ] **`focus-visible` styles on all interactive elements**
+- [x] **`focus-visible` styles on all interactive elements**
   - **How**: Audit all clickable elements (favorite buttons, bid buttons, card actions, tab buttons) and ensure each has a `:focus-visible` style (not just `:focus`). Use `outline: 2px solid var(--accent); outline-offset: 2px` as the standard. Remove `:focus` styles that show on mouse click.
   - **Why**: `:focus` shows outlines on mouse click (distracting), while `:focus-visible` only shows for keyboard users (correct behavior).
 
-- [ ] **Comprehensive aria-label audit for icon-only buttons**
+- [x] **Comprehensive aria-label audit for icon-only buttons**
   - **How**: Search all components for `<button>` elements that contain only SVG/icon children (no text). Verify each has `aria-label` or `aria-labelledby`. Priority targets: close buttons (X), zoom controls (+/-), refresh icons, copy icons, settings gear, navigation arrows.
   - **Why**: Screen readers announce these as just "button" with no description of what they do.
 
-- [ ] **Disable filter controls during initial data load**
+- [x] **Disable filter controls during initial data load**
   - **How**: In MarketplaceTab, MySalesTab, LibraryTab — while `isLoading` is true, set `disabled` and `aria-disabled="true"` on search input, sort dropdown, and filter controls. Add `opacity-50 pointer-events-none` for visual indication.
   - **Why**: Interacting with filters before data loads can dispatch actions on empty arrays, causing flash-of-empty-state before real data appears.
 
@@ -490,7 +490,7 @@ Each item has:
   - **How**: In `commands/wallet.rs`, add audit log entries for: `WALLET_CREATED`, `WALLET_UNLOCKED`, `WALLET_LOCKED`, `WALLET_DELETED`, `MNEMONIC_REVEALED`. Use the existing `audit.rs` logging infrastructure. Include timestamps but never secret material.
   - **Why**: Secrets operations are audited but wallet operations (the most security-sensitive) are not. An attacker who unlocks the wallet leaves no trace.
 
-- [ ] **Skip empty env vars in config generation**
+- [x] **Skip empty env vars in config generation**
   - **How**: In `config.rs` (lines 62-125), `to_env_vars()` adds all config values as env vars including empty strings. Add `if !value.is_empty()` guard before each push. Express currently handles empty values with `||` fallbacks, but passing empty strings can cause subtle bugs.
   - **Why**: Empty env vars override Express defaults (which expect the var to be unset, not empty). `PORT="" || 3001` works, but `process.env.KUPO_URL || 'http://...'` would fail with empty string since `""` is falsy.
 

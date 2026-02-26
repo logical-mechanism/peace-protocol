@@ -59,6 +59,7 @@ pub struct ContractConfig {
 impl ContractConfig {
     /// Generate environment variables for the Express backend.
     /// Uses the network-suffixed naming convention that be/src/config/index.ts expects.
+    /// Empty values are skipped to avoid overriding Express defaults with empty strings.
     pub fn to_env_vars(&self, network: &Network) -> Vec<(String, String)> {
         let suffix = match network {
             Network::Preprod => "PREPROD",
@@ -122,6 +123,9 @@ impl ContractConfig {
                 self.groth_ref_output_index.to_string(),
             ),
         ]
+        .into_iter()
+        .filter(|(_, v)| !v.is_empty())
+        .collect()
     }
 }
 
