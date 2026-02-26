@@ -13,6 +13,7 @@ const HistoryTab = lazy(() => import('../components/HistoryTab'))
 const LibraryTab = lazy(() => import('../components/LibraryTab'))
 import { SkeletonGrid } from '../components/SkeletonCard'
 import ScrollToTop from '../components/ScrollToTop'
+import KeyboardShortcutsOverlay from '../components/KeyboardShortcutsOverlay'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
@@ -122,6 +123,7 @@ export default function Dashboard() {
   const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const [relativeTime, setRelativeTime] = useState('just now')
   const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
   // Accept bid flow state
@@ -169,6 +171,13 @@ export default function Dashboard() {
       if (hasOpenModal) return
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        setShowShortcuts(true)
+        return
+      }
+
       if (!e.ctrlKey && !e.metaKey) return
 
       const tabIds: TabId[] = ['marketplace', 'my-sales', 'my-purchases', 'history', 'library']
@@ -1529,6 +1538,7 @@ export default function Dashboard() {
       />
 
       {/* Toast Notifications */}
+      <KeyboardShortcutsOverlay isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )

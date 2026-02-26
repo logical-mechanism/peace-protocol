@@ -470,7 +470,7 @@ Each item has:
   - **How**: Audit all icon-only buttons (favorite heart, copy, refresh, close X, zoom +/-). Add `aria-label` describing the action: `aria-label="Add to favorites"`, `aria-label="Copy address"`.
   - **Why**: Screen readers announce icon-only buttons as just "button" with no indication of what they do.
 
-- [ ] **Keyboard shortcut documentation overlay**
+- [x] **Keyboard shortcut documentation overlay**
   - **How**: Add a `?` key shortcut (or Ctrl+/) that opens an overlay listing all keyboard shortcuts: Tab navigation, media controls, modal escape, etc. Display as a simple two-column table.
   - **Why**: Keyboard shortcuts exist but are undiscoverable. A help overlay teaches users about them.
 
