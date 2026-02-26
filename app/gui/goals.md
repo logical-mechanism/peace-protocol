@@ -292,7 +292,7 @@ Each item has:
 
 > Key files: `fe/src/hooks/useBidNotifications.ts`, `fe/src/components/Toast.tsx`
 
-- [ ] **Transaction retry action in error toasts**
+- [x] **Transaction retry action in error toasts**
   - **How**: When a transaction fails, add a "Retry" button to the error toast. The retry button re-invokes the same transaction builder function with the same parameters. Store the failed tx params in a `lastFailedTx` ref. Toast becomes sticky (no auto-dismiss) on tx failure.
   - **Why**: Transaction failures currently require users to navigate back to the modal and re-enter everything. A retry button reduces friction.
 

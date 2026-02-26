@@ -573,7 +573,9 @@ export default function Dashboard() {
           console.error('Failed to remove listing:', error)
           toast.error(
             'Failed to Remove Listing',
-            error instanceof Error ? error.message : 'Unknown error occurred'
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleRemoveListing(encryption) }
           )
         }
       },
@@ -618,7 +620,9 @@ export default function Dashboard() {
       console.error('Failed to prepare SNARK inputs:', error)
       toast.error(
         'Failed to Prepare Proof',
-        error instanceof Error ? error.message : 'Unknown error occurred'
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        0,
+        { label: 'Retry', onClick: () => handleAcceptBid(encryption, bid) }
       )
     }
   }, [toast, wasmReady, wasmLoading, navigate, wallet])
@@ -629,6 +633,10 @@ export default function Dashboard() {
       toast.error('Error', 'Missing accept-bid state')
       return
     }
+
+    // Capture state before finally clears it, so the retry closure can reference them
+    const savedEncryption = acceptBidEncryption
+    const savedBid = acceptBidBid
 
     try {
       // Step 3: Submit SNARK transaction (Phase 12e)
@@ -679,7 +687,9 @@ export default function Dashboard() {
       console.error('Failed to submit SNARK transaction:', error)
       toast.error(
         'Failed to Accept Bid',
-        error instanceof Error ? error.message : 'Unknown error occurred'
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        0,
+        { label: 'Retry', onClick: () => handleAcceptBid(savedEncryption, savedBid) }
       )
     } finally {
       // Clean up state
@@ -691,7 +701,7 @@ export default function Dashboard() {
       setSnarkInputs(null)
       setShowSnarkModal(false)
     }
-  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, handleAcceptBid])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -739,7 +749,9 @@ export default function Dashboard() {
           console.error('Failed to cancel pending listing:', error)
           toast.error(
             'Failed to Cancel Pending',
-            error instanceof Error ? error.message : 'Unknown error occurred'
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleCancelPending(encryption) }
           )
         }
       },
@@ -813,7 +825,9 @@ export default function Dashboard() {
       console.error('Failed to complete sale:', error)
       toast.error(
         'Failed to Complete Sale',
-        error instanceof Error ? error.message : 'Unknown error occurred'
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        0,
+        { label: 'Retry', onClick: () => handleCompleteSale(encryption) }
       )
     }
   }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
@@ -876,7 +890,9 @@ export default function Dashboard() {
           console.error('Failed to cancel bid:', error)
           toast.error(
             'Failed to Cancel Bid',
-            error instanceof Error ? error.message : 'Unknown error occurred'
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleCancelBid(bid) }
           )
         }
       },
