@@ -406,7 +406,7 @@ Each item has:
   - **How**: Wrap all CSS animations and transitions in `@media (prefers-reduced-motion: no-preference)`. When reduced motion is preferred, disable `animate-pulse`, page transitions, and card hover animations. Use instant state changes instead.
   - **Why**: Users with motion sensitivity or vestibular disorders are excluded by animations. Respecting OS accessibility settings is a WCAG requirement.
 
-- [ ] **Consistent button hover/active states**
+- [x] **Consistent button hover/active states**
   - **How**: Define shared CSS classes or Tailwind utilities for button states: `.btn-primary:hover { background: var(--accent-hover) }`, `.btn-primary:active { transform: scale(0.98) }`. Apply consistently across all buttons.
   - **Why**: Some buttons have hover effects and some don't. Inconsistent feedback makes the UI feel unpolished.
 
