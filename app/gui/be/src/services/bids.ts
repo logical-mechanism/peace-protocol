@@ -96,7 +96,12 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
         parsed.push({ utxo, datum });
       } catch (err) {
         skippedDatums++;
-        logger.warn('Failed to parse bid datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
+        logger.warn('Failed to parse bid datum', {
+          txHash: utxo.tx_hash,
+          txIndex: utxo.tx_index,
+          error: String(err),
+          datumPreview: JSON.stringify(utxo.inline_datum)?.slice(0, 200),
+        });
       }
     }
 

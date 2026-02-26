@@ -428,7 +428,7 @@ Each item has:
   - **How**: In `be/src/routes/chain.ts` (lines 40-42), the `/confirmations/:txHash` endpoint returns `{ confirmations: 0 }` for both "tx exists but unconfirmed" and "Koios is unreachable". Return `{ confirmations: 0, status: 'pending' }` for unconfirmed and `{ error: { code: 'TIP_UNAVAILABLE', message: '...' } }` with 503 when Koios is down.
   - **Why**: Frontend treats all zeros as "pending" and keeps polling. If Koios is down, it polls forever instead of showing "confirmation check unavailable."
 
-- [ ] **Failed datum parsing includes error context**
+- [x] **Failed datum parsing includes error context**
   - **How**: In `be/src/services/encryptions.ts` (lines 140-142), log the actual error with context: `logger.warn('Datum parse failed', { txHash, txIndex, error: String(err), datumPreview: JSON.stringify(utxo.inline_datum).slice(0, 200) })` instead of just `txHash` and `txIndex`.
   - **Why**: When a malformed datum is skipped, developers have no way to know what went wrong without the error details and a sample of the bad datum.
 
