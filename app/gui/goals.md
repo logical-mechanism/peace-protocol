@@ -608,7 +608,7 @@ Each item has:
   - **How**: Use `supertest` (already a dependency) to test all route groups. Mock Kupo/Koios responses. Test: happy path responses, error handling, query param validation, missing data handling.
   - **Why**: Zero route tests exist. Backend changes could silently break API contracts.
 
-- [ ] **Raise test coverage thresholds**
+- [x] **Raise test coverage thresholds**
   - **How**: After adding component and route tests, raise thresholds from 40%/50% to 60%/65% in vitest configs. Add coverage enforcement in CI (fail the job if below threshold).
   - **Why**: Current thresholds are low (40% FE, 50% BE). Higher thresholds prevent coverage regression as the codebase grows.
 
