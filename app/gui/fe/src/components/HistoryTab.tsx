@@ -345,7 +345,7 @@ function HistoryTab({
           {/* Action buttons */}
           <button
             onClick={refresh}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh history"
             aria-label="Refresh history"
           >
@@ -361,7 +361,7 @@ function HistoryTab({
           <button
             onClick={handleExportCsv}
             disabled={filtered.length === 0}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Export as CSV"
             aria-label="Export as CSV"
           >
@@ -376,7 +376,7 @@ function HistoryTab({
           </button>
           <button
             onClick={handleClear}
-            className="px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+            className="px-3 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
           >
             Clear History
           </button>
@@ -470,7 +470,7 @@ function HistoryTab({
               {tx.status === 'failed' && tx.draftId && onRetryListing && (
                 <button
                   onClick={() => onRetryListing(tx.draftId!)}
-                  className="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer"
+                  className="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                   title="Retry listing without re-uploading the file"
                 >
                   Retry

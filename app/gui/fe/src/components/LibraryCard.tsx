@@ -154,13 +154,13 @@ export default function LibraryCard({
                 <div className="flex gap-2">
                   <button
                     onClick={() => onView(item)}
-                    className="px-3 py-1.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+                    className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                   >
                     View
                   </button>
                   <button
                     onClick={() => onDelete(item)}
-                    className="p-1.5 text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-muted)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer"
+                    className="p-1.5 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-muted)] btn-base"
                     title="Delete from library"
                     aria-label="Delete from library"
                   >
@@ -264,13 +264,13 @@ export default function LibraryCard({
           <div className="mt-4 space-y-2">
             <button
               onClick={() => onView(item)}
-              className="w-full px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
+              className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
               View Content
             </button>
             <button
               onClick={() => onDelete(item)}
-              className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+              className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
             >
               Delete
             </button>
