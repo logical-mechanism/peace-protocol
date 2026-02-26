@@ -8,6 +8,7 @@ import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStat
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
 import { FILE_CATEGORIES } from '../config/categories';
 import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
+import PriceRangeSlider from './PriceRangeSlider';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 
 interface MarketplaceTabProps {
@@ -113,6 +114,17 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     (tokenName: string): number => bidCountMap.get(tokenName) ?? 0,
     [bidCountMap]
   );
+
+  // Compute price range from all listings for the slider
+  const priceRange = useMemo(() => {
+    let maxPrice = 0;
+    for (const e of encryptions) {
+      if (e.suggestedPrice != null && e.suggestedPrice > maxPrice) {
+        maxPrice = e.suggestedPrice;
+      }
+    }
+    return { min: 0, max: Math.max(maxPrice, 1) };
+  }, [encryptions]);
 
   // Filter and sort encryptions
   const filteredAndSorted = useMemo(() => {
@@ -288,28 +300,15 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
             ))}
           </select>
 
-          {/* Price Range */}
-          <div className="flex items-center gap-1.5">
-            <input
-              type="number"
-              min="0"
-              placeholder="Min"
-              value={priceMin}
-              onChange={(e) => dispatch({ type: 'SET_PRICE_MIN', payload: e.target.value })}
-              aria-label="Minimum price in ADA"
-              className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <span className="text-xs text-[var(--text-muted)]">-</span>
-            <input
-              type="number"
-              min="0"
-              placeholder="Max"
-              value={priceMax}
-              onChange={(e) => dispatch({ type: 'SET_PRICE_MAX', payload: e.target.value })}
-              aria-label="Maximum price in ADA"
-              className="w-20 px-2 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
+          {/* Price Range Slider */}
+          <PriceRangeSlider
+            min={priceRange.min}
+            max={priceRange.max}
+            valueMin={priceMin}
+            valueMax={priceMax}
+            onChangeMin={(v) => dispatch({ type: 'SET_PRICE_MIN', payload: v })}
+            onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
+          />
 
           {/* Sort */}
           <select
