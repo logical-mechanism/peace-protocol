@@ -115,6 +115,7 @@ export default function Dashboard() {
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
+  const [failedDecryptTokens, setFailedDecryptTokens] = useState<Set<string>>(new Set())
   const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -486,13 +487,15 @@ export default function Dashboard() {
         timestamp: Date.now(),
         status: result.isStub ? 'confirmed' : 'pending',
         description: `Bid ${bidAmountAda} ADA on ${encryptionTokenName.slice(0, 12)}...`,
+        amountLovelace: Math.round(bidAmountAda * 1_000_000),
+        counterparty: selectedEncryption?.sellerPkh,
       })
     }
 
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -635,6 +638,8 @@ export default function Dashboard() {
           timestamp: Date.now(),
           status: result.isStub ? 'confirmed' : 'pending',
           description: `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (SNARK proof)`,
+          amountLovelace: acceptBidBid.amount,
+          counterparty: acceptBidBid.bidderPkh,
         })
       }
 
@@ -774,6 +779,8 @@ export default function Dashboard() {
           timestamp: Date.now(),
           status: result.isStub ? 'confirmed' : 'pending',
           description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
+          amountLovelace: acceptedBid.amount,
+          counterparty: acceptedBid.bidderPkh,
         })
       }
 
@@ -836,6 +843,7 @@ export default function Dashboard() {
               timestamp: Date.now(),
               status: result.isStub ? 'confirmed' : 'pending',
               description: `Cancel bid of ${amountAda} ADA`,
+              amountLovelace: bid.amount,
             })
           }
 
@@ -872,6 +880,19 @@ export default function Dashboard() {
     setSelectedEncryption(encryption)
     setShowDecrypt(true)
   }, [])
+
+  const handleDecryptResult = useCallback((result: { success: boolean; encryptionToken: string }) => {
+    if (result.success) {
+      setFailedDecryptTokens((prev) => {
+        const next = new Set(prev)
+        next.delete(result.encryptionToken)
+        return next
+      })
+      triggerRefresh()
+    } else {
+      setFailedDecryptTokens((prev) => new Set(prev).add(result.encryptionToken))
+    }
+  }, [triggerRefresh])
 
   const handleCreateListing = useCallback(async (
     formData: CreateListingFormData,
@@ -1035,6 +1056,7 @@ export default function Dashboard() {
             onDecryptEncryption={handleDecryptEncryption}
             filters={myPurchasesFilters}
             dispatch={myPurchasesDispatch}
+            failedDecryptTokens={failedDecryptTokens}
           />
         )
       case 'history':
@@ -1447,6 +1469,7 @@ export default function Dashboard() {
         bid={selectedBid}
         encryption={selectedEncryption}
         isIagonConnected={iagonConnected}
+        onDecryptResult={handleDecryptResult}
       />
 
       {/* Confirmation Modal (destructive actions) */}

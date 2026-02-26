@@ -34,7 +34,7 @@ router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
     }
 
     const confirmations = Math.max(0, tip.block_no - blockHeight);
-    return res.json({ data: { confirmations } });
+    return res.json({ data: { confirmations, blockHeight } });
   } catch (error) {
     logger.error('Failed to get confirmations', { error: String(error) });
     return res.json({ data: { confirmations: 0 } });

@@ -150,27 +150,27 @@ Each item has:
 
 > Key files: `fe/src/components/MarketplaceTab.tsx`, `fe/src/components/EncryptionCard.tsx`
 
-- [ ] **Persist filters and view mode across sessions**
+- [x] **Persist filters and view mode across sessions**
   - **How**: In `useTabFilterState`, serialize the filter state to localStorage on every change (debounced). On mount, hydrate from localStorage. Key by wallet PKH so different wallets have independent filters.
   - **Why**: Every page navigation or app restart resets all filters. Users who set price range + category + sort have to redo it every time.
 
-- [ ] **"Clear all filters" button**
+- [x] **"Clear all filters" button**
   - **How**: Add a "Clear filters" link/button that appears when any filter is active (non-default). Dispatch a `RESET_FILTERS` action to the reducer. Show count of active filters: "3 filters active — Clear".
   - **Why**: Users with multiple active filters must reset each one individually. A single clear button speeds this up.
 
-- [ ] **Search result highlighting**
+- [x] **Search result highlighting**
   - **How**: When `searchQuery` is non-empty, wrap matching substrings in card titles/descriptions with a `<mark>` tag styled with `background: var(--accent-muted)`. Use a simple `text.replace(new RegExp(query, 'gi'), '<mark>$&</mark>')` with `dangerouslySetInnerHTML` (sanitize first) or split + span approach.
   - **Why**: Users search for a term but can't see why each result matched. Highlighting shows the match context.
 
-- [ ] **Price range slider instead of text inputs**
+- [x] **Price range slider instead of text inputs**
   - **How**: Replace the min/max price text inputs with a dual-thumb range slider. Use two `<input type="range">` overlaid on the same track, or a lightweight lib like `rc-slider`. Show current values as labels above the thumbs.
   - **Why**: Text inputs for price filtering are clunky. A slider lets users visually define a range with immediate feedback.
 
-- [ ] **Infinite scroll or "Load more" pagination**
+- [x] **Infinite scroll or "Load more" pagination**
   - **How**: Instead of rendering all encryptions at once, show 20 items initially with a "Load more" button at the bottom. Use `IntersectionObserver` to auto-load the next batch when the user scrolls near the bottom. Track `currentPage` in the filter reducer.
   - **Why**: As the marketplace grows, rendering 100+ cards at once causes lag. Pagination keeps the DOM lean.
 
-- [ ] **Favorite listings**
+- [x] **Favorite listings**
   - **How**: The `favoritesStorage.ts` service and heart icon on EncryptionCard already exist. Add a "Favorites" filter toggle in the filter bar (already in the reducer as `showFavoritesOnly`). Ensure favorites persist across sessions per wallet PKH.
   - **Why**: Users browsing a large marketplace want to bookmark interesting listings and revisit them later.
 
@@ -224,15 +224,15 @@ Each item has:
   - **How**: After sorting transactions by timestamp, group them into date buckets: "Today", "Yesterday", "This Week", "This Month", "Older". Render date headers between groups. Use `Intl.DateTimeFormat` for locale-aware dates.
   - **Why**: A flat list of 50+ transactions with timestamps is hard to scan. Date grouping creates natural visual landmarks.
 
-- [ ] **Search by transaction hash**
+- [x] **Search by transaction hash**
   - **How**: Add a search input that filters transactions by txHash substring match. Display the full hash in a monospace font on match. Support pasting a full hash for exact match.
   - **Why**: When investigating a specific transaction (from a block explorer link or support request), users need to find it by hash.
 
-- [ ] **Transaction amount display**
+- [x] **Transaction amount display**
   - **How**: Store the ADA amount in `transactionHistory.ts` alongside `txHash`, `type`, and `timestamp`. Display it on each history row: "Placed bid: 50 ADA", "Listed for sale", "Cancelled listing: refund 2 ADA".
   - **Why**: Transaction history shows types and hashes but not amounts. Users can't see their financial history at a glance.
 
-- [ ] **CSV export with full details**
+- [x] **CSV export with full details**
   - **How**: Expand the existing CSV export to include: date, type, txHash, amount, status, confirmation block, counterparty. Use proper CSV escaping for fields containing commas.
   - **Why**: Users may need transaction records for tax reporting or personal accounting. A detailed CSV export covers this.
 

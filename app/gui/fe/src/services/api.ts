@@ -302,8 +302,8 @@ export const chainApi = {
    * Get the number of block confirmations for a transaction.
    * Returns 0 if the tx is not yet in a block or not found.
    */
-  async getConfirmations(txHash: string): Promise<{ confirmations: number }> {
-    const response = await apiFetch<ApiResponse<{ confirmations: number }>>(`/api/chain/confirmations/${txHash}`);
+  async getConfirmations(txHash: string): Promise<{ confirmations: number; blockHeight?: number }> {
+    const response = await apiFetch<ApiResponse<{ confirmations: number; blockHeight?: number }>>(`/api/chain/confirmations/${txHash}`);
     return response.data;
   },
 

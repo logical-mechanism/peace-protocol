@@ -156,11 +156,13 @@ function HistoryTab({
       for (const tx of pendingTxs) {
         if (cancelled) break;
         try {
-          const { confirmations: count } = await chainApi.getConfirmations(tx.txHash);
+          const { confirmations: count, blockHeight } = await chainApi.getConfirmations(tx.txHash);
           updated.set(tx.txHash, count);
 
           if (count >= 15) {
-            updateTransactionStatus(userPkh, tx.txHash, 'confirmed');
+            updateTransactionStatus(userPkh, tx.txHash, 'confirmed', {
+              confirmedAtBlock: blockHeight,
+            });
             statusChanged = true;
           }
         } catch {
@@ -397,7 +399,10 @@ function HistoryTab({
         />
       ) : (
         <div className="space-y-3">
-          {filtered.map((tx) => (
+          {filtered.map((tx) => {
+            const query = searchQuery.trim().toLowerCase();
+            const hashMatchesSearch = query !== '' && tx.txHash.toLowerCase().includes(query);
+            return (
             <div
               key={tx.txHash}
               className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-4 flex items-center gap-4"
@@ -423,6 +428,14 @@ function HistoryTab({
                   <span className="text-sm font-medium text-[var(--text-primary)]">
                     {getTypeLabel(tx.type)}
                   </span>
+                  {tx.amountLovelace !== undefined && (
+                    <span className="text-sm text-[var(--text-secondary)] font-mono">
+                      {(tx.amountLovelace / 1_000_000).toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2,
+                      })} ADA
+                    </span>
+                  )}
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     tx.status === 'pending'
                       ? 'bg-[var(--warning)]/20 text-[var(--warning)]'
@@ -436,7 +449,7 @@ function HistoryTab({
                   </span>
                 </div>
                 <div className="text-xs text-[var(--text-muted)]">
-                  <TransactionLink txHash={tx.txHash} className="text-xs" />
+                  <TransactionLink txHash={tx.txHash} truncate={!hashMatchesSearch} className="text-xs" />
                 </div>
                 {tx.description && (
                   <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
@@ -469,7 +482,8 @@ function HistoryTab({
                 {formatTimestamp(tx.timestamp)}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

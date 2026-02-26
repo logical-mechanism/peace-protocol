@@ -17,6 +17,12 @@ export interface TransactionRecord {
   description?: string;
   /** Listing draft ID for file listings — enables retry without re-upload. */
   draftId?: string;
+  /** Transaction amount in lovelace. Undefined for types with no meaningful amount. */
+  amountLovelace?: number;
+  /** Counterparty payment key hash (56 hex chars). */
+  counterparty?: string;
+  /** Block height at which this transaction was confirmed. */
+  confirmedAtBlock?: number;
 }
 
 const STORAGE_KEY_PREFIX = 'peace_tx_history_';
@@ -55,12 +61,16 @@ export function addTransaction(walletPkh: string, record: TransactionRecord): vo
 export function updateTransactionStatus(
   walletPkh: string,
   txHash: string,
-  status: TransactionStatus
+  status: TransactionStatus,
+  extra?: { confirmedAtBlock?: number },
 ): void {
   const records = getTransactions(walletPkh);
   const record = records.find(r => r.txHash === txHash);
   if (record) {
     record.status = status;
+    if (extra?.confirmedAtBlock !== undefined) {
+      record.confirmedAtBlock = extra.confirmedAtBlock;
+    }
     localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(records));
   }
 }
@@ -226,7 +236,7 @@ function csvEscape(value: string): string {
  * Columns: Date, Type, Status, Tx Hash, Token Name, Description
  */
 export function toCSV(records: TransactionRecord[]): string {
-  const header = 'Date,Type,Status,Tx Hash,Token Name,Description';
+  const header = 'Date,Type,Status,Tx Hash,Token Name,Description,Amount (ADA),Confirmation Block,Counterparty';
   const rows = records.map(r => {
     const date = new Date(r.timestamp).toISOString();
     const type = getTypeLabel(r.type);
@@ -234,7 +244,12 @@ export function toCSV(records: TransactionRecord[]): string {
     const hash = r.txHash;
     const token = r.tokenName ?? '';
     const desc = csvEscape(r.description ?? '');
-    return `${date},${type},${status},${hash},${token},${desc}`;
+    const amount = r.amountLovelace !== undefined
+      ? (r.amountLovelace / 1_000_000).toFixed(6)
+      : '';
+    const block = r.confirmedAtBlock !== undefined ? String(r.confirmedAtBlock) : '';
+    const counterparty = r.counterparty ?? '';
+    return `${date},${type},${status},${hash},${token},${desc},${amount},${block},${counterparty}`;
   });
   return [header, ...rows].join('\n');
 }
