@@ -211,7 +211,7 @@ export default function LibraryContentModal({
   }, [isOpen, item]);
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
+  const { zIndex, shouldRender, animationState } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
 
   const handleCopy = useCallback(async () => {
     if (!textContent) return;
@@ -300,7 +300,7 @@ export default function LibraryContentModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onNavigate, canGoPrev, canGoNext, handlePrev, handleNext]);
 
-  if (!isOpen || !item) return null;
+  if (!shouldRender || !item) return null;
 
   const viewMode = getViewMode(item.category, item.fileExtension);
   const isWideModal = viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video';
@@ -315,12 +315,12 @@ export default function LibraryContentModal({
       <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
         {/* Backdrop */}
         <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
           onClick={!deleting ? onClose : undefined}
         />
 
         {/* Modal */}
-        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'}`}>
+        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'} ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-3">

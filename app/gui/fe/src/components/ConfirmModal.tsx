@@ -26,9 +26,9 @@ export default function ConfirmModal({
   loading = false,
 }: ConfirmModalProps) {
   // Stack-aware Escape key + body scroll lock
-  const { zIndex } = useModalStack('confirm', isOpen, onClose, loading);
+  const { zIndex, shouldRender, animationState } = useModalStack('confirm', isOpen, onClose, loading);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const confirmClass =
     confirmVariant === 'danger'
@@ -45,13 +45,13 @@ export default function ConfirmModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={loading ? undefined : onClose}
         aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md max-h-[85vh] mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl flex flex-col overflow-hidden">
+      <div className={`relative z-10 w-full max-w-md max-h-[85vh] mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl flex flex-col overflow-hidden ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         <div className="flex-1 overflow-y-auto p-6">
           <h2
             id="confirm-modal-title"
