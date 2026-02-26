@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
 import { getToastDurationMs } from '../services/toastSettings';
 import { getTypeLabel, type TransactionType } from '../services/transactionHistory';
+import { copyToClipboard } from '../utils/clipboard';
 
 export interface TransactionDetails {
   type?: TransactionType;
@@ -34,6 +35,8 @@ interface ToastProps {
 }
 
 function Toast({ toast, onClose }: ToastProps) {
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     if (toast.duration !== 0) {
       const timer = setTimeout(() => {
@@ -42,6 +45,15 @@ function Toast({ toast, onClose }: ToastProps) {
       return () => clearTimeout(timer);
     }
   }, [toast.id, toast.duration, onClose]);
+
+  const handleCopy = async () => {
+    const text = toast.message ? `${toast.title}: ${toast.message}` : toast.title;
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
   const getColors = () => {
     switch (toast.type) {
@@ -173,6 +185,23 @@ function Toast({ toast, onClose }: ToastProps) {
           </div>
         )}
       </div>
+      {(toast.type === 'error' || toast.type === 'warning') && (
+        <button
+          onClick={handleCopy}
+          className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          aria-label="Copy error to clipboard"
+        >
+          {copied ? (
+            <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
+      )}
       <button
         onClick={() => onClose(toast.id)}
         className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"

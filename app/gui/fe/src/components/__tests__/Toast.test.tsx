@@ -1,11 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { useToast } from '../Toast'
+import { renderHook, act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { useToast, ToastContainer, type ToastMessage } from '../Toast'
 
 vi.mock('../../utils/network', () => ({
   getTransactionUrl: (hash: string) => `https://cardanoscan.io/transaction/${hash}`,
   isValidTxHash: (hash: string) => /^[0-9a-f]{64}$/.test(hash),
 }))
+
+vi.mock('../../utils/clipboard', () => ({
+  copyToClipboard: vi.fn().mockResolvedValue(true),
+}))
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { copyToClipboard } = await import('../../utils/clipboard')
 
 vi.mock('../../services/toastSettings', () => ({
   getToastDurationMs: () => 5000,
@@ -343,6 +351,54 @@ describe('useToast', () => {
       })
 
       expect(result.current.toasts[0].message).toContain('Transaction:')
+    })
+  })
+})
+
+describe('Toast copy button', () => {
+  const mockOnClose = vi.fn()
+
+  function renderToasts(toasts: ToastMessage[]) {
+    return render(<ToastContainer toasts={toasts} onClose={mockOnClose} />)
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('shows copy button for error toasts', () => {
+    renderToasts([{ id: '1', type: 'error', title: 'Fail', message: 'Details', duration: 0 }])
+    expect(screen.getByLabelText('Copy error to clipboard')).toBeInTheDocument()
+  })
+
+  it('shows copy button for warning toasts', () => {
+    renderToasts([{ id: '1', type: 'warning', title: 'Warn', message: 'Details', duration: 0 }])
+    expect(screen.getByLabelText('Copy error to clipboard')).toBeInTheDocument()
+  })
+
+  it('does not show copy button for success toasts', () => {
+    renderToasts([{ id: '1', type: 'success', title: 'OK', message: 'Details', duration: 0 }])
+    expect(screen.queryByLabelText('Copy error to clipboard')).not.toBeInTheDocument()
+  })
+
+  it('does not show copy button for info toasts', () => {
+    renderToasts([{ id: '1', type: 'info', title: 'FYI', message: 'Details', duration: 0 }])
+    expect(screen.queryByLabelText('Copy error to clipboard')).not.toBeInTheDocument()
+  })
+
+  it('copies title and message to clipboard on click', async () => {
+    renderToasts([{ id: '1', type: 'error', title: 'Network Error', message: 'Failed to fetch', duration: 0 }])
+    fireEvent.click(screen.getByLabelText('Copy error to clipboard'))
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith('Network Error: Failed to fetch')
+    })
+  })
+
+  it('copies only title when no message', async () => {
+    renderToasts([{ id: '1', type: 'error', title: 'Network Error', duration: 0 }])
+    fireEvent.click(screen.getByLabelText('Copy error to clipboard'))
+    await waitFor(() => {
+      expect(copyToClipboard).toHaveBeenCalledWith('Network Error')
     })
   })
 })

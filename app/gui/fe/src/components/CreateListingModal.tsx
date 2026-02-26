@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
+import { copyToClipboard } from '../utils/clipboard';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 import {
@@ -67,6 +68,7 @@ export default function CreateListingModal({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [copiedError, setCopiedError] = useState(false);
   const [creationStep, setCreationStep] = useState<ListingCreationStep | null>(null);
   const [displayPrice, setDisplayPrice] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -767,8 +769,26 @@ export default function CreateListingModal({
 
             {/* Submit Error */}
             {submitError && (
-              <div className="p-3 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-[var(--radius-md)]">
-                <p className="text-sm text-[var(--error)]">{submitError}</p>
+              <div className="flex items-start gap-2 p-3 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-[var(--radius-md)]">
+                <p className="flex-1 text-sm text-[var(--error)]">{submitError}</p>
+                <button
+                  onClick={async () => {
+                    const ok = await copyToClipboard(submitError);
+                    if (ok) { setCopiedError(true); setTimeout(() => setCopiedError(false), 1500); }
+                  }}
+                  className="flex-shrink-0 p-1 text-[var(--error)]/60 hover:text-[var(--error)] transition-colors cursor-pointer"
+                  aria-label="Copy error to clipboard"
+                >
+                  {copiedError ? (
+                    <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                </button>
               </div>
             )}
           </div>
