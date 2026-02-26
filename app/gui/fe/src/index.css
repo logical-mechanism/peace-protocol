@@ -385,6 +385,26 @@ select option {
   animation: card-enter 300ms ease-out forwards;
 }
 
+/* Copy-to-clipboard checkmark — scale in with a slight overshoot */
+@keyframes copy-check {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.copy-check-animate {
+  animation: copy-check 300ms ease-out;
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,

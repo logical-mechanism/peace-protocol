@@ -432,7 +432,7 @@ Each item has:
   - **How**: When a list of cards renders, stagger their entrance by 50ms each: card 1 at 0ms, card 2 at 50ms, card 3 at 100ms, etc. Use `animation-delay: calc(var(--index) * 50ms)` via inline style. Limit to first 10 cards to avoid long waits.
   - **Why**: A wall of cards appearing instantly is visually overwhelming. Staggered entrance creates a pleasing cascade effect.
 
-- [ ] **Copy-to-clipboard feedback animation**
+- [x] **Copy-to-clipboard feedback animation**
   - **How**: When copying an address or txHash, briefly flash a green checkmark icon next to the copied text (scale in + fade out over 1s). Use CSS `@keyframes` with React state toggle.
   - **Why**: The current "Copied!" text change is functional but not delightful. A checkmark animation is universally understood.
 

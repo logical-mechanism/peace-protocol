@@ -1211,7 +1211,7 @@ export default function Dashboard() {
           >
             <span>{address ? truncateHex(address, 12, 8) : '...'}</span>
             <svg
-              className="w-4 h-4"
+              className={`w-4 h-4${copied ? ' copy-check-animate' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
