@@ -147,7 +147,7 @@ export default function MyPurchaseBidCard({
               {isPending && (
                 <button
                   onClick={() => onCancel?.(bid)}
-                  className="px-3 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+                  className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
                 >
                   Cancel
                 </button>
@@ -155,10 +155,10 @@ export default function MyPurchaseBidCard({
               {isAccepted && (
                 <button
                   onClick={() => onDecrypt?.(bid)}
-                  className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                  className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] btn-base ${
                     decryptFailed
                       ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
-                      : 'bg-[var(--success)] hover:bg-[var(--success)]/90'
+                      : 'btn-success'
                   }`}
                 >
                   {decryptFailed ? 'Retry' : 'Decrypt'}
@@ -311,7 +311,7 @@ export default function MyPurchaseBidCard({
         {isPending && (
           <button
             onClick={() => onCancel?.(bid)}
-            className="w-full px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] transition-all duration-150 cursor-pointer"
+            className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
           >
             Cancel Bid
           </button>
@@ -319,10 +319,10 @@ export default function MyPurchaseBidCard({
         {isAccepted && (
           <button
             onClick={() => onDecrypt?.(bid)}
-            className={`w-full px-4 py-2.5 text-sm font-medium text-white rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer flex items-center justify-center gap-2 ${
+            className={`w-full px-4 py-2.5 text-sm font-medium text-white rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base ${
               decryptFailed
                 ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
-                : 'bg-[var(--success)] hover:bg-[var(--success)]/90'
+                : 'btn-success'
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
