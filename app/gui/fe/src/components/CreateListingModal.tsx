@@ -318,7 +318,13 @@ export default function CreateListingModal({
                 {errors.secretMessage && (
                   <p className="mt-1 text-xs text-[var(--error)]">{errors.secretMessage}</p>
                 )}
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                <p className={`mt-1 text-xs ${
+                  formData.secretMessage.length > 280
+                    ? 'text-[var(--error)]'
+                    : formData.secretMessage.length > 224
+                      ? 'text-[var(--warning)]'
+                      : 'text-[var(--text-muted)]'
+                }`}>
                   {formData.secretMessage.length}/280 characters
                 </p>
               </div>
@@ -446,7 +452,13 @@ export default function CreateListingModal({
               {errors.description && (
                 <p className="mt-1 text-xs text-[var(--error)]">{errors.description}</p>
               )}
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
+              <p className={`mt-1 text-xs ${
+                formData.description.length > 500
+                  ? 'text-[var(--error)]'
+                  : formData.description.length > 400
+                    ? 'text-[var(--warning)]'
+                    : 'text-[var(--text-muted)]'
+              }`}>
                 {formData.description.length}/500 characters (stored in CIP-20 metadata)
               </p>
             </div>

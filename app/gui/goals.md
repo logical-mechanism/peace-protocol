@@ -276,7 +276,7 @@ Each item has:
   - **How**: After file selection, check `file.size` against limits (e.g., 100 MB for Iagon free tier). Show warning: "This file is 150 MB. Large files take longer to upload and cost more to store." Allow proceeding but with informed consent. Max file size needs to be a parameter to be set.
   - **Why**: Users might accidentally select a multi-GB file. Showing size and implications prevents surprise upload failures.
 
-- [ ] **Description character counter**
+- [x] **Description character counter**
   - **How**: Below the description textarea, show live character count: "142 / 1024 characters". Use CIP-20 metadata's max length as the limit. Change color to warning when approaching limit (> 900), error when exceeded.
   - **Why**: Description length is limited by CIP-20 metadata constraints, but users don't know the limit until they hit an error after submitting.
 
