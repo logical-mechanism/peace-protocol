@@ -73,6 +73,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setPaymentKeyHex(paymentKey)
     setLovelace(null) // Updated by refreshBalance() once Kupo is running
     setWalletState('unlocked')
+
+    // Best-effort mnemonic cleanup: overwrite array slots to reduce the window
+    // where raw mnemonic words sit in JS heap memory. Note that JS strings are
+    // immutable and GC timing is non-deterministic, so this is not a guarantee
+    // — but it eliminates the most obvious reference.
+    for (let i = 0; i < words.length; i++) {
+      words[i] = ''
+    }
   }, [])
 
   const createWalletFn = useCallback(
@@ -144,12 +152,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Throttled mousemove handler — fires at most once per 5 seconds
-    let lastMouseMove = 0
-    const resetActivityThrottled = () => {
+    // Shared 1-second throttle for all activity listeners.
+    // During an active warning, the throttle is bypassed so any
+    // interaction (including mouse movement) dismisses immediately.
+    let lastReset = 0
+    const throttledReset = () => {
       const now = Date.now()
-      if (now - lastMouseMove > 5000) {
-        lastMouseMove = now
+      if (warningIntervalRef.current || now - lastReset >= 1000) {
+        lastReset = now
         resetActivity()
       }
     }
@@ -178,9 +188,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }, 1000)
     }
 
-    document.addEventListener('mousedown', resetActivity)
-    document.addEventListener('keydown', resetActivity)
-    document.addEventListener('mousemove', resetActivityThrottled)
+    document.addEventListener('mousedown', throttledReset)
+    document.addEventListener('keydown', throttledReset)
+    document.addEventListener('mousemove', throttledReset)
 
     // Coarse check every 30s — activates fine-grained countdown when close to timeout
     const interval = setInterval(() => {
@@ -196,9 +206,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }, AUTOLOCK_CHECK_INTERVAL)
 
     return () => {
-      document.removeEventListener('mousedown', resetActivity)
-      document.removeEventListener('keydown', resetActivity)
-      document.removeEventListener('mousemove', resetActivityThrottled)
+      document.removeEventListener('mousedown', throttledReset)
+      document.removeEventListener('keydown', throttledReset)
+      document.removeEventListener('mousemove', throttledReset)
       clearInterval(interval)
       clearWarningInterval()
       setSessionWarningSeconds(null)

@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWalletContext } from '../contexts/WalletContext'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { useModalStack } from '../hooks/useModalStack'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { parseUnlockError } from '../utils/walletErrors'
 import type { UnlockErrorInfo } from '../utils/walletErrors'
 
@@ -14,6 +16,11 @@ export default function WalletUnlock() {
   const [error, setError] = useState<UnlockErrorInfo | null>(null)
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const onCloseDelete = useCallback(() => setShowDeleteConfirm(false), [])
+  const { zIndex: deleteZIndex, shouldRender: deleteRender, animationState: deleteAnim } =
+    useModalStack('DeleteWalletConfirm', showDeleteConfirm, onCloseDelete)
+  const deleteDialogRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(deleteDialogRef, showDeleteConfirm)
 
   const handleUnlock = useCallback(async () => {
     if (!password || isUnlocking) return
@@ -166,15 +173,22 @@ export default function WalletUnlock() {
         </form>
 
         {/* Delete confirmation dialog */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 flex items-center justify-center z-50">
+        {deleteRender && (
+          <div
+            ref={deleteDialogRef}
+            className="fixed inset-0 flex items-center justify-center"
+            style={{ zIndex: deleteZIndex }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-wallet-title"
+          >
             <div
-              className="absolute inset-0"
-              style={{ background: 'rgba(0,0,0,0.6)' }}
-              onClick={() => setShowDeleteConfirm(false)}
+              className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${deleteAnim === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+              onClick={onCloseDelete}
+              aria-hidden="true"
             />
             <div
-              className="relative w-full max-w-sm mx-4 p-6 rounded-xl"
+              className={`relative z-10 w-full max-w-sm mx-4 p-6 rounded-xl ${deleteAnim === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}
               style={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-default)',
@@ -182,6 +196,7 @@ export default function WalletUnlock() {
               }}
             >
               <h3
+                id="delete-wallet-title"
                 className="text-lg font-semibold mb-3"
                 style={{ color: 'var(--text-primary)' }}
               >
@@ -204,7 +219,7 @@ export default function WalletUnlock() {
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowDeleteConfirm(false)}
+                  onClick={onCloseDelete}
                   className="flex-1 px-4 py-2 rounded-lg text-sm btn-base btn-tertiary"
                 >
                   Cancel

@@ -60,19 +60,19 @@ Each item has:
 
 > Key files: `fe/src/pages/WalletUnlock.tsx`, `fe/src/contexts/WalletContext.tsx`, `src-tauri/src/crypto/wallet.rs`
 
-- [ ] **Delete wallet confirmation uses focus trap and modal stack**
+- [x] **Delete wallet confirmation uses focus trap and modal stack**
   - **How**: In `WalletUnlock.tsx` (lines 142-221), the delete confirmation dialog uses raw fixed positioning without `useFocusTrap` or `useModalStack`. Refactor to use the standard modal pattern: register with `useModalStack('DeleteWalletConfirm')`, apply `useFocusTrap(dialogRef)`, and match the backdrop/animation pattern from other modals.
   - **Why**: Tab key escapes the delete dialog and interacts with background elements. This is a WCAG violation on a destructive action.
 
-- [ ] **Auto-lock countdown resets on user interaction during warning**
+- [x] **Auto-lock countdown resets on user interaction during warning**
   - **How**: In `WalletContext.tsx` (lines 117-200), the auto-lock warning fires at T-90s but the countdown continues even if the user moves the mouse during the warning period. Modify `resetActivity()` to also cancel the warning state and restart the full timer, not just extend it.
   - **Why**: Users see the warning, wiggle their mouse expecting it to dismiss, but get locked out anyway if they don't perform a "real" interaction.
 
-- [ ] **Throttle all activity listeners in WalletContext**
+- [x] **Throttle all activity listeners in WalletContext**
   - **How**: In `WalletContext.tsx` (lines 133-196), `mousedown`, `keydown`, and `mousemove` all call `resetActivity()`. Throttle all three (not just mousemove) to once per second using a shared timestamp check: `if (Date.now() - lastResetRef.current < 1000) return`.
   - **Why**: Rapid typing fires `keydown` + `resetActivity()` on every keystroke, causing unnecessary work.
 
-- [ ] **Secure mnemonic zeroing on frontend after key derivation**
+- [x] **Secure mnemonic zeroing on frontend after key derivation**
   - **How**: After `unlock_wallet` returns the mnemonic in the frontend (WalletContext), the string is held in JS memory for the session duration. After deriving the BLS secret via `walletSecret.ts`, overwrite the mnemonic variable with empty string and null the reference. Document that JS GC doesn't guarantee immediate cleanup.
   - **Why**: The raw mnemonic sitting in JS heap memory is a target for memory-scraping attacks. Zeroing it after use reduces the exposure window.
 
