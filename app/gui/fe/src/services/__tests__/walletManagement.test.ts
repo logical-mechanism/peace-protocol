@@ -550,7 +550,7 @@ describe('previewDefrag', () => {
     const preview = await previewDefrag(mockWallet(utxos))
     expect(preview.isFeasible).toBe(true)
     expect(preview.tokenOutputs).toHaveLength(0)
-    expect(preview.resultingUtxoCount).toBe(1)
+    expect(preview.resultingUtxoCount).toBe(2) // change + collateral
     expect(preview.estimatedChangeLovelace).toBeGreaterThan(0n)
   })
 
@@ -562,11 +562,11 @@ describe('previewDefrag', () => {
     const preview = await previewDefrag(mockWallet(utxos))
     expect(preview.isFeasible).toBe(true)
     expect(preview.tokenOutputs).toHaveLength(1)
-    expect(preview.resultingUtxoCount).toBe(2) // 1 change + 1 token
+    expect(preview.resultingUtxoCount).toBe(3) // change + collateral + 1 token
   })
 
-  it('returns infeasible when ADA too low for token min', async () => {
-    // Only 1.5 ADA total across 2 UTxOs, but tokens need ~1.2 ADA min + fee + change
+  it('returns infeasible when ADA too low for collateral + token min', async () => {
+    // Only 1.5 ADA total across 2 UTxOs, but need collateral (5 ADA) + tokens + fee + change
     const utxos = [
       tokenUtxo(800_000, [{ unit: TOKEN_A1, quantity: '1' }], 'h'.repeat(64), 0),
       tokenUtxo(700_000, [{ unit: TOKEN_B1, quantity: '1' }], 'h'.repeat(64), 1),

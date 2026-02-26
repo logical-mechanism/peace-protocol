@@ -341,10 +341,10 @@ export async function previewDefrag(wallet: IWallet): Promise<DefragPreview> {
   )
 
   const estimatedChange =
-    totalLovelace - totalLockedByTokens - ESTIMATED_FEE
+    totalLovelace - totalLockedByTokens - COLLATERAL_LOVELACE - ESTIMATED_FEE
 
-  // 1 change output + N token outputs
-  const resultingUtxoCount = 1 + tokenOutputs.length
+  // 1 change output + 1 collateral output + N token outputs
+  const resultingUtxoCount = 2 + tokenOutputs.length
 
   const isFeasible = estimatedChange >= MIN_CHANGE_LOVELACE
   let infeasibleReason: string | undefined
@@ -361,9 +361,9 @@ export async function previewDefrag(wallet: IWallet): Promise<DefragPreview> {
     }
   }
   if (!isFeasible) {
-    const needed = totalLockedByTokens + MIN_CHANGE_LOVELACE + ESTIMATED_FEE
+    const needed = totalLockedByTokens + COLLATERAL_LOVELACE + MIN_CHANGE_LOVELACE + ESTIMATED_FEE
     const neededAda = Number(needed) / 1_000_000
-    infeasibleReason = `Insufficient ADA. Need at least ${neededAda.toFixed(1)} ADA to cover token UTxOs and fees.`
+    infeasibleReason = `Insufficient ADA. Need at least ${neededAda.toFixed(1)} ADA to cover collateral, token UTxOs, and fees.`
   }
 
   return {
@@ -478,8 +478,8 @@ export async function defragWallet(
       0n,
     )
 
-    // Feasibility: need enough ADA for token UTxOs + min change + fee
-    const minRequired = totalLockedByTokens + MIN_CHANGE_LOVELACE + ESTIMATED_FEE
+    // Feasibility: need enough ADA for collateral + token UTxOs + min change + fee
+    const minRequired = totalLockedByTokens + COLLATERAL_LOVELACE + MIN_CHANGE_LOVELACE + ESTIMATED_FEE
     if (totalLovelace < minRequired) {
       const neededAda = Number(minRequired) / 1_000_000
       const haveAda = Number(totalLovelace) / 1_000_000
@@ -505,6 +505,11 @@ export async function defragWallet(
         utxo.output.address,
       )
     }
+
+    // Add collateral output (5 ADA pure lovelace)
+    txBuilder.txOut(changeAddress, [
+      { unit: 'lovelace', quantity: COLLATERAL_LOVELACE.toString() },
+    ])
 
     // Add token outputs (one per policy group / overflow placement)
     for (const output of tokenOutputs) {
