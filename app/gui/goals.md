@@ -318,7 +318,7 @@ Each item has:
   - **How**: Add `max-h-[90vh] overflow-y-auto` to the modal content container in all modals (CreateListingModal, PlaceBidModal, DecryptModal, etc.). Test at 800px viewport height. Ensure submit buttons remain visible (sticky footer or scroll into view).
   - **Why**: On smaller displays (800px height), modals can extend below the viewport with no scroll, hiding the submit button.
 
-- [ ] **Scrollbar styling for dark theme**
+- [x] **Scrollbar styling for dark theme**
   - **How**: In `index.css`, add custom scrollbar styles for WebKitGTK: `::-webkit-scrollbar { width: 8px }`, `::-webkit-scrollbar-track { background: var(--bg-secondary) }`, `::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 4px }`. Apply to both themes.
   - **Why**: Default scrollbars appear as bright white bars on dark backgrounds, breaking the visual cohesion of the dark theme.
 
@@ -416,7 +416,7 @@ Each item has:
 
 > Key files: `be/src/routes/`, `be/src/services/`, `be/src/middleware/`
 
-- [ ] **Extract shared status enum validator middleware**
+- [x] **Extract shared status enum validator middleware**
   - **How**: In `be/src/middleware/validate.ts`, add `validateStatusParam(validStatuses: string[])` that returns 400 `INVALID_PARAM` for unknown statuses. Replace inline validation in `encryptions.ts` (line 164-171) and `bids.ts` (line 169-176) with the shared middleware.
   - **Why**: Status validation is duplicated across routes with hardcoded strings. A shared validator prevents drift when new statuses are added.
 

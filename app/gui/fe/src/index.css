@@ -146,6 +146,29 @@ body {
   box-shadow: none;
 }
 
+/* Custom scrollbar styling for WebKitGTK */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-secondary);
+}
+
 /* Line clamp utilities for text truncation */
 .line-clamp-1 {
   display: -webkit-box;
