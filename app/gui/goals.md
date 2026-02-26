@@ -600,11 +600,11 @@ Each item has:
   - **How**: Write tests for CreateListingModal, PlaceBidModal, BidsModal, and DecryptModal using `@testing-library/react`. Mock Tauri invoke and context providers. Test: form validation, submit flow, error states, keyboard interactions.
   - **Why**: Modals are the core interactive UI and have zero tests. A bug in PlaceBidModal could cause users to lose funds.
 
-- [ ] **Context provider tests**
+- [x] **Context provider tests**
   - **How**: Write tests for WalletContext, NodeContext, and WasmContext. Mock Tauri invoke responses. Test state transitions: `loading → no_wallet → locked → unlocked`, `stopped → syncing → synced → error`. Test edge cases: unlock failure, node crash during sync.
   - **Why**: Contexts manage all critical app state. Untested context logic is the #1 risk for hard-to-debug state bugs.
 
-- [ ] **Express route handler tests**
+- [x] **Express route handler tests**
   - **How**: Use `supertest` (already a dependency) to test all route groups. Mock Kupo/Koios responses. Test: happy path responses, error handling, query param validation, missing data handling.
   - **Why**: Zero route tests exist. Backend changes could silently break API contracts.
 
@@ -616,7 +616,7 @@ Each item has:
   - **How**: Write a test that exercises: create listing → listing appears in marketplace → place bid → bid appears in seller's view. Use mocked Tauri IPC and API responses. Run with Vitest in a jsdom environment.
   - **Why**: The full listing-to-bid flow spans multiple components and services. A single e2e test catches integration bugs that unit tests miss.
 
-- [ ] **Rust core tests**
+- [x] **Rust core tests**
   - **How**: Add `#[cfg(test)]` modules to `wallet.rs`, `secrets.rs`, and `manager.rs`. Test: wallet create/unlock/lock cycle, secrets encrypt/decrypt round-trip, process restart backoff timing.
   - **Why**: The Rust crypto and process management code has no visible tests. These are security-critical paths.
 
