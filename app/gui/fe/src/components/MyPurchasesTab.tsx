@@ -42,6 +42,7 @@ function MyPurchasesTab({
   const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevDataCount, setPrevDataCount] = useState(0);
   const [completedTokens, setCompletedTokens] = useState<Set<string>>(new Set());
   const [secretsLoadErrors, setSecretsLoadErrors] = useState<Set<string>>(new Set());
   const [descModalOpen, setDescModalOpen] = useState(false);
@@ -62,6 +63,7 @@ function MyPurchasesTab({
         ? allBids.filter((b) => b.bidderPkh === userPkh)
         : [];
       setBids(userBids);
+      setPrevDataCount(userBids.length);
 
       // Fetch all encryptions (needed for both bids and purchased encryptions)
       const allEncryptions = await encryptionsApi.getAll();
@@ -247,7 +249,7 @@ function MyPurchasesTab({
   );
 
   if (loading) {
-    return <SkeletonGrid />;
+    return <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />;
   }
 
   if (error) {

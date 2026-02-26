@@ -30,6 +30,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
@@ -45,6 +46,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
       ]);
       setEncryptions(data);
       setAllBids(allBids);
+      setPrevDataCount(data.length);
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch((err) => {
@@ -253,7 +255,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   }, [hasMore, currentPage, dispatch]);
 
   if (loading) {
-    return <SkeletonGrid />;
+    return <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />;
   }
 
   if (error) {

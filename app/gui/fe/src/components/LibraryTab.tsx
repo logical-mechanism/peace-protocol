@@ -23,6 +23,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, categoryFilter, searchQuery } = filters;
@@ -49,6 +50,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
     try {
       const result = await listLibraryItems();
       setItems(result);
+      setPrevDataCount(result.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load library');
     } finally {
@@ -227,7 +229,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
   }, [selectedItems, items]);
 
   if (loading) {
-    return <SkeletonGrid />;
+    return <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />;
   }
 
   if (error) {

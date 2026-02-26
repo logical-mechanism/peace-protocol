@@ -41,6 +41,7 @@ function MySalesTab({
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery } = filters;
@@ -60,6 +61,7 @@ function MySalesTab({
         ? allEncryptions.filter((e) => e.sellerPkh === userPkh)
         : [];
       setEncryptions(userEncryptions);
+      setPrevDataCount(userEncryptions.length);
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch((err) => {
@@ -260,7 +262,7 @@ function MySalesTab({
   );
 
   if (loading) {
-    return <SkeletonGrid />;
+    return <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />;
   }
 
   if (error) {

@@ -332,7 +332,7 @@ Each item has:
   - **How**: On EncryptionCard and SalesListingCard, when the bid count increases between renders, apply a CSS `@keyframes pulse { 0% { transform: scale(1) } 50% { transform: scale(1.2) } 100% { transform: scale(1) } }` animation to the bid count badge. Track previous count in a ref to detect changes.
   - **Why**: Updated bid counts are easy to miss in a grid of cards. A brief pulse draws attention to new activity.
 
-- [ ] **Skeleton card count matches expected data**
+- [x] **Skeleton card count matches expected data**
   - **How**: When loading, show the same number of skeleton cards as the previous data load (stored in a ref), or default to 6. This prevents the visual "jump" when 6 skeletons are replaced by 20 real cards.
   - **Why**: A fixed skeleton count that doesn't match actual data causes layout shifts on load completion.
 
