@@ -12,7 +12,7 @@ const DEFAULT_FALLBACK_PRICE = 1;
 
 interface EncryptionCardProps {
   encryption: EncryptionDisplay;
-  onPlaceBid?: (encryption: EncryptionDisplay) => void;
+  onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   isOwnListing?: boolean;
   hasBid?: boolean;
   compact?: boolean;
@@ -114,7 +114,7 @@ export default function EncryptionCard({
             </span>
             {canBid && onPlaceBid && (
               <button
-                onClick={() => onPlaceBid(encryption)}
+                onClick={() => onPlaceBid(encryption, bidCount)}
                 className="px-3 py-1.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
               >
                 Bid
@@ -222,7 +222,7 @@ export default function EncryptionCard({
         {/* Action Button */}
         {canBid && onPlaceBid && (
           <button
-            onClick={() => onPlaceBid(encryption)}
+            onClick={() => onPlaceBid(encryption, bidCount)}
             className="w-full mt-4 px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-hover)] transition-all duration-150 cursor-pointer"
           >
             Place Bid

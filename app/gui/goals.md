@@ -258,7 +258,7 @@ Each item has:
   - **How**: Pass the full library item list and current index to LibraryContentModal. Add left/right arrow buttons (and keyboard arrows) to navigate to the adjacent item without closing the modal.
   - **Why**: Users reviewing multiple library items must close and reopen the modal for each one. Inline navigation is much faster.
 
-- [ ] **Storage usage summary**
+- [x] **Storage usage summary**
   - **How**: At the top of LibraryTab, show "Library: 23 items — 1.2 GB". Calculate by summing file sizes from metadata. Optionally break down by category.
   - **Why**: Users need to know their total library disk usage, especially on machines with limited storage.
 

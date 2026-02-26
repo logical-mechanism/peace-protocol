@@ -24,6 +24,8 @@ interface PlaceBidModalProps {
     futurePrice: number
   ) => Promise<void>;
   encryption: EncryptionDisplay | null;
+  bidCount?: number;
+  balanceLovelace?: string;
 }
 
 const INITIAL_FORM_DATA: PlaceBidFormData = {
@@ -34,11 +36,16 @@ const INITIAL_FORM_DATA: PlaceBidFormData = {
 // Minimum bid in ADA (to cover UTxO minimum)
 const MIN_BID_ADA = 2;
 
+// ADA reserved for transaction fees when using Max button
+const FEE_RESERVE_ADA = 5;
+
 export default function PlaceBidModal({
   isOpen,
   onClose,
   onSubmit,
   encryption,
+  bidCount = 0,
+  balanceLovelace,
 }: PlaceBidModalProps) {
   const [formData, setFormData] = useState<PlaceBidFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -62,6 +69,18 @@ export default function PlaceBidModal({
   // Stack-aware Escape key + body scroll lock
   const { zIndex } = useModalStack('place-bid', isOpen, onClose, isSubmitting);
 
+  // Derived: check if bid is below suggested price
+  const parsedBid = parseFloat(formData.bidAmount);
+  const isBelowSuggested =
+    encryption?.suggestedPrice != null &&
+    !isNaN(parsedBid) &&
+    parsedBid > 0 &&
+    parsedBid < encryption.suggestedPrice;
+
+  // Derived: wallet balance in ADA
+  const balanceAda =
+    balanceLovelace !== undefined ? parseInt(balanceLovelace, 10) / 1_000_000 : undefined;
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -76,6 +95,8 @@ export default function PlaceBidModal({
         newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA (to cover UTxO minimum)`;
       } else if (amount > 1000000000) {
         newErrors.bidAmount = 'Bid amount is too high';
+      } else if (balanceAda !== undefined && amount > balanceAda) {
+        newErrors.bidAmount = 'Bid exceeds your wallet balance';
       }
     }
 
@@ -161,6 +182,11 @@ export default function PlaceBidModal({
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
               Bid on encrypted data listing
             </p>
+            {bidCount > 0 && (
+              <p className="text-xs text-[var(--accent)] mt-0.5">
+                {bidCount} {bidCount === 1 ? 'bid' : 'bids'} on this listing
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -292,10 +318,43 @@ export default function PlaceBidModal({
               {errors.bidAmount && (
                 <p className="mt-1 text-xs text-[var(--error)]">{errors.bidAmount}</p>
               )}
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Minimum bid: {MIN_BID_ADA} ADA. Your bid will be locked until the seller accepts or
-                you cancel.
-              </p>
+              {!errors.bidAmount && isBelowSuggested && (
+                <p className="mt-1 text-xs text-[var(--warning)]">
+                  Your bid is below the seller's suggested price of{' '}
+                  {encryption.suggestedPrice!.toLocaleString()} ADA
+                </p>
+              )}
+              <div className="mt-1 space-y-1">
+                <p className="text-xs text-[var(--text-muted)]">
+                  Minimum bid: {MIN_BID_ADA} ADA. Your bid will be locked until the seller accepts or
+                  you cancel.
+                </p>
+                {balanceAda !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      Balance: {balanceAda.toLocaleString(undefined, { maximumFractionDigits: 2 })} ADA
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const maxBid = Math.max(
+                          Math.floor(balanceAda - FEE_RESERVE_ADA),
+                          MIN_BID_ADA
+                        );
+                        setFormData((prev) => ({ ...prev, bidAmount: maxBid.toString() }));
+                        if (errors.bidAmount) {
+                          setErrors((prev) => ({ ...prev, bidAmount: undefined }));
+                        }
+                        setSubmitError(null);
+                      }}
+                      disabled={isSubmitting || balanceAda <= FEE_RESERVE_ADA}
+                      className="px-1.5 py-0.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Max
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Future Listing Price (collapsible) */}

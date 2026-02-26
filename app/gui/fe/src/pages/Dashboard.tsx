@@ -114,6 +114,7 @@ export default function Dashboard() {
   const [showPlaceBid, setShowPlaceBid] = useState(false)
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedEncryption, setSelectedEncryption] = useState<EncryptionDisplay | null>(null)
+  const [selectedBidCount, setSelectedBidCount] = useState(0)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
   const [failedDecryptTokens, setFailedDecryptTokens] = useState<Set<string>>(new Set())
   const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
@@ -436,8 +437,9 @@ export default function Dashboard() {
     disconnect()
   }, [disconnect])
 
-  const handlePlaceBid = useCallback((encryption: EncryptionDisplay) => {
+  const handlePlaceBid = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
     setSelectedEncryption(encryption)
+    setSelectedBidCount(bidCount)
     setShowPlaceBid(true)
   }, [])
 
@@ -1454,9 +1456,12 @@ export default function Dashboard() {
         onClose={() => {
           setShowPlaceBid(false)
           setSelectedEncryption(null)
+          setSelectedBidCount(0)
         }}
         onSubmit={handlePlaceBidSubmit}
         encryption={selectedEncryption}
+        bidCount={selectedBidCount}
+        balanceLovelace={lovelace ?? undefined}
       />
 
       {/* Decrypt Modal */}

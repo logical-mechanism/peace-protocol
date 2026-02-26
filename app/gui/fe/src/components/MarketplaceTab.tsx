@@ -13,7 +13,7 @@ import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilte
 
 interface MarketplaceTabProps {
   userPkh?: string;
-  onPlaceBid?: (encryption: EncryptionDisplay) => void;
+  onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
