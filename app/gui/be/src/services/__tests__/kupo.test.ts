@@ -1,8 +1,10 @@
 /**
  * Tests for matchToKoiosUtxo — the data pipeline from Kupo format to KoiosUtxo.
  * Every UTxO in the app flows through this function.
+ *
+ * Also tests KupoClient circuit breaker integration.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { matchToKoiosUtxo, type KupoMatch } from '../kupo.js';
 
 /** Minimal valid KupoMatch fixture */
@@ -126,5 +128,42 @@ describe('matchToKoiosUtxo', () => {
       const result = matchToKoiosUtxo(match, 'preprod');
       expect(result.reference_script).toBeNull();
     });
+  });
+});
+
+describe('KupoClient circuit breaker', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('throws CircuitOpenError after 5 consecutive failures', async () => {
+    // Mock dependencies
+    vi.doMock('../../config/index.js', () => ({
+      config: { network: 'preprod' },
+      getNetworkConfig: () => ({
+        kupoUrl: 'http://127.0.0.1:1442',
+        koiosUrl: 'https://preprod.koios.rest/api/v1',
+        koiosToken: '',
+        contracts: {},
+      }),
+    }));
+    vi.doMock('../fetchWithRetry.js', () => ({
+      fetchWithRetry: vi.fn().mockRejectedValue(new Error('connection refused')),
+    }));
+    vi.doMock('../logger.js', () => ({
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    }));
+
+    const { getKupoClient } = await import('../kupo.js');
+    const client = getKupoClient();
+
+    // Fail 5 times to trip the circuit breaker
+    for (let i = 0; i < 5; i++) {
+      await expect(client.getAddressUtxos('addr_test1')).rejects.toThrow('connection refused');
+    }
+
+    // 6th call should throw CircuitOpenError (fast-fail, no HTTP call)
+    const { CircuitOpenError } = await import('../circuitBreaker.js');
+    await expect(client.getAddressUtxos('addr_test1')).rejects.toThrow(CircuitOpenError);
   });
 });
