@@ -556,7 +556,7 @@ Each item has:
   - **How**: Add a request logging middleware that logs: method, path, status code, latency, and a request ID (UUID). Use the existing `logger.ts`. Include the request ID in error responses so users can reference it in bug reports.
   - **Why**: Debugging production issues without request logs is guesswork. Structured logs enable filtering and correlation.
 
-- [ ] **Graceful shutdown handler**
+- [x] **Graceful shutdown handler**
   - **How**: In `be/src/index.ts`, add `process.on('SIGTERM', ...)` that stops accepting new connections, waits for in-flight requests (up to 10s), then exits. Log "Shutting down gracefully."
   - **Why**: Tauri kills the Express process, which may have in-flight requests. Graceful shutdown prevents truncated responses.
 
