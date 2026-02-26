@@ -21,6 +21,7 @@ import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../s
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
 import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
+import ConfirmModal from '../components/ConfirmModal'
 
 interface DiskUsage {
   chain_data_bytes: number
@@ -52,6 +53,7 @@ export default function Settings() {
   const [mnemonicLoading, setMnemonicLoading] = useState(false)
   const [mnemonicCopied, setMnemonicCopied] = useState(false)
   const [networkSwitching, setNetworkSwitching] = useState(false)
+  const [networkConfirmTarget, setNetworkConfirmTarget] = useState<string | null>(null)
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
   const [addressCopied, setAddressCopied] = useState(false)
@@ -209,22 +211,22 @@ export default function Settings() {
     }
   }, [imageCacheStatus])
 
-  const handleNetworkSwitch = useCallback(async (newNetwork: string) => {
-    if (newNetwork === currentNetwork) return
-    if (!confirm(`Switch to ${newNetwork}? This requires restarting the node and uses a separate chain data directory.`)) return
+  const handleNetworkSwitch = useCallback(async () => {
+    if (!networkConfirmTarget || networkConfirmTarget === currentNetwork) return
 
     setNetworkSwitching(true)
     try {
-      await invoke('set_network', { network: newNetwork })
-      setCurrentNetwork(newNetwork)
-      alert(`Network switched to ${newNetwork}. Please restart the application for changes to take effect.`)
+      await invoke('set_network', { network: networkConfirmTarget })
+      setCurrentNetwork(networkConfirmTarget)
+      setNetworkConfirmTarget(null)
+      alert(`Network switched to ${networkConfirmTarget}. Please restart the application for changes to take effect.`)
     } catch (error) {
       console.error('Failed to switch network:', error)
       alert(`Failed to switch network: ${error}`)
     } finally {
       setNetworkSwitching(false)
     }
-  }, [currentNetwork])
+  }, [currentNetwork, networkConfirmTarget])
 
   const handleRevealMnemonic = useCallback(async () => {
     if (!mnemonicPassword) {
@@ -818,8 +820,8 @@ export default function Settings() {
                 {['preprod', 'mainnet'].map((net) => (
                   <button
                     key={net}
-                    onClick={() => handleNetworkSwitch(net)}
-                    disabled={networkSwitching}
+                    onClick={() => net !== currentNetwork && setNetworkConfirmTarget(net)}
+                    disabled={networkSwitching || net === currentNetwork}
                     className={`p-4 rounded-[var(--radius-lg)] border-2 transition-all cursor-pointer ${
                       currentNetwork === net
                         ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
@@ -1408,6 +1410,19 @@ export default function Settings() {
         )}
       </main>
       </div>
+
+      {/* Network Switch Confirmation */}
+      <ConfirmModal
+        isOpen={networkConfirmTarget !== null}
+        onClose={() => setNetworkConfirmTarget(null)}
+        onConfirm={handleNetworkSwitch}
+        title="Switch Network"
+        message={`Switching to ${networkConfirmTarget} will restart all node services. This may take several minutes to sync. Any pending operations will be interrupted.`}
+        description="Each network uses its own chain data directory. Your wallet and settings are preserved."
+        confirmLabel="Switch Network"
+        confirmVariant="default"
+        loading={networkSwitching}
+      />
     </div>
   )
 }

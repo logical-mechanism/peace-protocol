@@ -366,7 +366,7 @@ Each item has:
   - **How**: Replace the raw number input for auto-lock with preset buttons: 5, 10, 15, 30, 60 min, Never. Highlight the active preset. Allow custom input as a fallback.
   - **Why**: Typing a number is more cognitive effort than clicking a preset. Most users want one of a few common values.
 
-- [ ] **Network switch confirmation with restart warning**
+- [x] **Network switch confirmation with restart warning**
   - **How**: When toggling between preprod and mainnet, show a ConfirmModal: "Switching networks will restart all services and may take several minutes to sync. Continue?" Show estimated sync time if possible.
   - **Why**: Network switches restart the node and require re-sync. Users need to understand the impact before confirming.
 
@@ -384,7 +384,7 @@ Each item has:
   - **How**: Play a short notification sound when a new bid arrives or a transaction confirms. Use the Web Audio API or an `<audio>` element with a bundled sound file. Add a toggle + volume control in Settings.
   - **Why**: Visual-only notifications are easy to miss. A subtle sound (like a coin drop for ADA received) adds a satisfying feedback layer.
 
-- [ ] **Toast queue management**
+- [x] **Toast queue management**
   - **How**: In the Toast component, limit visible toasts to 3 at a time. When a 4th arrives, queue it and show when a slot opens. Stack toasts vertically with newest on top. Add a "Dismiss all" button when multiple toasts are visible.
   - **Why**: Rapid actions (like multiple tx confirmations arriving at once) can stack 5+ toasts that overlap and obscure the UI.
 
