@@ -128,7 +128,7 @@ pub fn get_available_disk_space(
         }
         // f_bavail = blocks available to unprivileged users
         // f_frsize = fragment size (actual block size)
-        stat.f_bavail as u64 * stat.f_frsize as u64
+        stat.f_bavail * stat.f_frsize
     };
 
     Ok(AvailableDiskSpace {
