@@ -211,15 +211,34 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     return count;
   }, [searchQuery, sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
 
-  // Pagination
+  // Load more pagination — accumulate batches instead of showing a single page
   const ITEMS_PER_PAGE = 20;
 
-  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / ITEMS_PER_PAGE));
-
   const paginatedResults = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredAndSorted.slice(start, start + ITEMS_PER_PAGE);
+    return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
   }, [filteredAndSorted, currentPage]);
+
+  const hasMore = paginatedResults.length < filteredAndSorted.length;
+
+  // IntersectionObserver for auto-loading when scrolling near the bottom
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          dispatch({ type: 'SET_PAGE', payload: currentPage + 1 });
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, currentPage, dispatch]);
 
   if (loading) {
     return <SkeletonGrid />;
@@ -408,9 +427,6 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
       <div className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
         <span>
           {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
-          {totalPages > 1 && (
-            <span> &middot; Page {currentPage} of {totalPages}</span>
-          )}
         </span>
         {activeFilterCount > 0 && (
           <button
@@ -484,71 +500,19 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6" role="navigation" aria-label="Pagination">
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex flex-col items-center gap-3 mt-6">
+          <p className="text-xs text-[var(--text-muted)]">
+            Showing {paginatedResults.length} of {filteredAndSorted.length}
+          </p>
           <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: 1 })}
-            disabled={currentPage === 1}
-            className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="First page"
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
+            className="px-6 py-2.5 text-sm font-medium bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-            </svg>
+            Load More
           </button>
-          <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: Math.max(1, currentPage - 1) })}
-            disabled={currentPage === 1}
-            className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="Previous page"
-          >
-            Prev
-          </button>
-
-          {/* Page number buttons (sliding window of up to 5) */}
-          {(() => {
-            const maxVisible = 5;
-            let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-            const end = Math.min(totalPages, start + maxVisible - 1);
-            start = Math.max(1, end - maxVisible + 1);
-            const pages: number[] = [];
-            for (let i = start; i <= end; i++) pages.push(i);
-            return pages.map((page) => (
-              <button
-                key={page}
-                onClick={() => dispatch({ type: 'SET_PAGE', payload: page })}
-                className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
-                  page === currentPage
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-                aria-label={`Page ${page}`}
-                aria-current={page === currentPage ? 'page' : undefined}
-              >
-                {page}
-              </button>
-            ));
-          })()}
-
-          <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: Math.min(totalPages, currentPage + 1) })}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="Next page"
-          >
-            Next
-          </button>
-          <button
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: totalPages })}
-            disabled={currentPage === totalPages}
-            className="px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 cursor-pointer"
-            aria-label="Last page"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" />
-            </svg>
-          </button>
+          <div ref={sentinelRef} className="h-1" />
         </div>
       )}
     </div>
