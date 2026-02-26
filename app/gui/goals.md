@@ -436,7 +436,7 @@ Each item has:
   - **How**: When copying an address or txHash, briefly flash a green checkmark icon next to the copied text (scale in + fade out over 1s). Use CSS `@keyframes` with React state toggle.
   - **Why**: The current "Copied!" text change is functional but not delightful. A checkmark animation is universally understood.
 
-- [ ] **Button press effect**
+- [x] **Button press effect**
   - **How**: Add `transform: scale(0.97)` on `:active` state for all interactive buttons. Return to `scale(1)` on release with `transition: transform 100ms`. Apply via a shared CSS class.
   - **Why**: Physical buttons depress when pressed. Digital buttons should simulate this tactile feedback.
 
