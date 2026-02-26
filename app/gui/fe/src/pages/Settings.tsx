@@ -20,6 +20,7 @@ import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../services/toastSettings'
 import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, playNotificationSound } from '../services/notificationSound'
+import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../services/desktopNotifications'
 import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
 import ConfirmModal from '../components/ConfirmModal'
@@ -59,6 +60,7 @@ export default function Settings() {
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
   const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
   const [soundVolume, setSoundVolumeState] = useState(() => getSoundVolume())
+  const [desktopNotifEnabled, setDesktopNotifEnabledState] = useState(() => isDesktopNotificationsEnabled())
   const [addressCopied, setAddressCopied] = useState(false)
   const location = useLocation()
   const [activeSection, setActiveSection] = useState<string>(
@@ -381,6 +383,7 @@ export default function Settings() {
     { tab: 'wallet', title: 'Recovery Phrase', keywords: ['recovery', 'phrase', 'mnemonic', 'seed', 'backup'] },
     { tab: 'wallet', title: 'Auto-Lock', keywords: ['auto', 'lock', 'timeout', 'inactivity', 'security'] },
     { tab: 'wallet', title: 'Notification Duration', keywords: ['toast', 'notification', 'duration', 'dismiss', 'alert'] },
+    { tab: 'wallet', title: 'Desktop Notifications', keywords: ['desktop', 'notification', 'system', 'os', 'bid', 'alert'] },
     { tab: 'wallet', title: 'Notification Sound', keywords: ['sound', 'notification', 'audio', 'volume', 'alert', 'ping'] },
     { tab: 'wallet', title: 'Lock Wallet', keywords: ['lock', 'wallet', 'password'] },
     { tab: 'network', title: 'Network Selection', keywords: ['network', 'preprod', 'mainnet', 'switch', 'restart'] },
@@ -795,6 +798,38 @@ export default function Settings() {
               </select>
             </div>
 
+            {/* Desktop Notifications */}
+            <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-medium">Desktop Notifications</h2>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Show system notifications when new bids arrive on your listings.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !desktopNotifEnabled
+                    setDesktopNotifEnabledState(next)
+                    setDesktopNotificationsEnabled(next)
+                    if (next) {
+                      sendDesktopNotification('Veiled', 'Desktop notifications enabled!')
+                    }
+                  }}
+                  className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                    desktopNotifEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+                  }`}
+                  role="switch"
+                  aria-checked={desktopNotifEnabled}
+                  aria-label="Toggle desktop notifications"
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                    desktopNotifEnabled ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+            </div>
+
             {/* Notification Sound */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
               <div className="flex items-center justify-between mb-4">
@@ -855,7 +890,7 @@ export default function Settings() {
               </p>
               <button
                 onClick={() => { lock(); navigate('/') }}
-                className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
                 Lock Wallet
               </button>
@@ -963,7 +998,7 @@ export default function Settings() {
                   <button
                     onClick={handleConnectIagon}
                     disabled={iagonLoading || !wallet || walletState !== 'unlocked'}
-                    className="px-4 py-2.5 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center gap-2 btn-base btn-primary"
                   >
                     {iagonLoading ? (
                       <>
@@ -987,14 +1022,14 @@ export default function Settings() {
                     <button
                       onClick={handleVerifyIagon}
                       disabled={iagonLoading}
-                      className="px-4 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       {iagonLoading ? 'Checking...' : 'Verify Connection'}
                     </button>
                     <button
                       onClick={handleDisconnectIagon}
                       disabled={iagonLoading}
-                      className="px-4 py-2 text-sm text-[var(--error)] border border-[var(--error)]/30 rounded-[var(--radius-md)] hover:bg-[var(--error)]/10 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                     >
                       Disconnect
                     </button>
@@ -1037,7 +1072,7 @@ export default function Settings() {
                   <button
                     onClick={handleSaveManualKey}
                     disabled={iagonLoading || !manualApiKey.trim()}
-                    className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                   >
                     {iagonLoading ? 'Saving...' : 'Save Key'}
                   </button>
