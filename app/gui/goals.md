@@ -667,7 +667,7 @@ Each item has:
   - **How**: Change all references from `app/ui/` to `app/gui/` in CONTRIBUTING.md. Update the development setup instructions. Add the version bump checklist.
   - **Why**: CONTRIBUTING.md references the old `app/ui/` directory structure. New contributors following these instructions will get confused.
 
-- [ ] **Changelog automation**
+- [x] **Changelog automation**
   - **How**: Adopt conventional commits (`feat:`, `fix:`, `chore:`) and add `conventional-changelog` as a dev dependency. Add a `changelog` npm script that auto-generates entries from commit messages. Run before each release.
   - **Why**: CHANGELOG.md is manually maintained and sparse (only v0.3.0). Automated generation ensures every change is documented.
 

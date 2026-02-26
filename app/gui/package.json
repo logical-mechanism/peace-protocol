@@ -16,10 +16,12 @@
     "lint": "bash lint.sh",
     "lint:fe": "npm --prefix fe run lint",
     "lint:be": "npm --prefix be run lint:eslint",
-    "clean": "rm -rf node_modules fe/node_modules be/node_modules be/dist src-tauri/target"
+    "clean": "rm -rf node_modules fe/node_modules be/node_modules be/dist src-tauri/target",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
-    "concurrently": "^9.0.0"
+    "concurrently": "^9.0.0",
+    "conventional-changelog-cli": "^5.0.0"
   }
 }
