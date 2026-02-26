@@ -402,7 +402,7 @@ Each item has:
   - **How**: Define a second set of CSS variables under `[data-theme="light"]` in index.css. Add a theme toggle in Settings that sets `document.documentElement.dataset.theme`. Persist preference in localStorage. Map all `--bg-*`, `--text-*`, `--border-*` to appropriate light values.
   - **Why**: Some users prefer light mode, especially in bright environments. A theme toggle is a standard expectation for desktop apps.
 
-- [ ] **`prefers-reduced-motion` support**
+- [x] **`prefers-reduced-motion` support**
   - **How**: Wrap all CSS animations and transitions in `@media (prefers-reduced-motion: no-preference)`. When reduced motion is preferred, disable `animate-pulse`, page transitions, and card hover animations. Use instant state changes instead.
   - **Why**: Users with motion sensitivity or vestibular disorders are excluded by animations. Respecting OS accessibility settings is a WCAG requirement.
 
