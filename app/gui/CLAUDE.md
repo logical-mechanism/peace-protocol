@@ -27,14 +27,14 @@ app/gui/
 ├── fe/                              # React 19 frontend (Vite)
 │   ├── src/
 │   │   ├── App.tsx                  # Router + auth/state guards
-│   │   ├── main.tsx                 # Entry: ErrorBoundary → Wallet → Node → Wasm → Router → Modal → App
-│   │   ├── index.css                # CSS variables (dark theme) + Tailwind v4
+│   │   ├── main.tsx                 # Entry: initializeTheme → ErrorBoundary → ShutdownOverlay → Wallet → Node → Wasm → Router → Modal → App
+│   │   ├── index.css                # CSS variables (dark/light theme) + Tailwind v4
 │   │   ├── fonts.css                # @font-face declarations for Inter + JetBrains Mono (self-hosted woff2)
 │   │   ├── config/                 # App configuration
 │   │   │   └── categories.ts      # File category definitions + integration flags
 │   │   ├── contexts/               # WalletContext, NodeContext, WasmContext, ModalContext
 │   │   ├── pages/                   # WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings
-│   │   ├── components/              # Tabs, modals, cards, PdfViewer, presentational
+│   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, presentational
 │   │   ├── services/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios singletons
@@ -49,18 +49,27 @@ app/gui/
 │   │   │   ├── iagonAuth.ts         # CIP-8 wallet auth + API key management for Iagon
 │   │   │   ├── contentStorage.ts    # Saves decrypted files + metadata to media/content/; uses fileExtension (payload field 3) for correct filename, falls back to category default
 │   │   │   ├── listingDraftStorage.ts # Persists multi-step listing creation state (Tauri-backed)
+│   │   │   ├── listingFormDraftStorage.ts # Pre-upload listing form state recovery (localStorage)
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation, file encryption
 │   │   │   ├── snark/               # Native SNARK prover interface
 │   │   │   ├── bidNotifications.ts   # localStorage: seen-bid state for notification diffing
 │   │   │   ├── tabStorage.ts        # localStorage: active Dashboard tab persistence
 │   │   │   ├── favoritesStorage.ts  # localStorage: marketplace listing favorites (PKH-keyed)
+│   │   │   ├── filterStorage.ts     # localStorage: marketplace filter state persistence (PKH-keyed)
+│   │   │   ├── onboardingStorage.ts # localStorage: multi-step onboarding tour state
 │   │   │   ├── errorMessages.ts     # User-facing error message mapping (pattern-matched from raw errors)
 │   │   │   ├── toastSettings.ts     # localStorage: toast auto-dismiss duration configuration
+│   │   │   ├── themeStorage.ts      # localStorage: dark/light theme persistence + apply before first paint
 │   │   │   ├── fileExport.ts        # Text file export via Tauri native save dialog
 │   │   │   ├── pdfSearch.ts         # PDF full-text search + highlight for library PdfViewer
-│   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid, tx history, listing drafts
-│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack
-│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors
+│   │   │   ├── apiCache.ts          # In-memory TTL cache for frontend API responses
+│   │   │   ├── desktopNotifications.ts # OS-level notifications via @tauri-apps/plugin-notification
+│   │   │   ├── notificationSound.ts # Programmatic WAV notification ping generation + volume control
+│   │   │   ├── walletManagement.ts  # Collateral creation + UTxO defragmentation (MeshTxBuilder)
+│   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
+│   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
+│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth
+│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, time, logClassification
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
 │   ├── src/
@@ -70,7 +79,9 @@ app/gui/
 │   │   ├── routes/                  # encryptions, bids, protocol, chain
 │   │   ├── middleware/
 │   │   │   ├── validate.ts          # Param validators (pkh, tokenName, txHash, encryptionToken)
-│   │   │   └── requestLogger.ts     # Request/response JSON logging with request IDs
+│   │   │   ├── requestLogger.ts     # Request/response JSON logging with request IDs
+│   │   │   ├── pagination.ts        # Query param pagination (default 50, max 200, offset-based)
+│   │   │   └── timeout.ts           # Request timeout middleware (30s default, returns 504)
 │   │   ├── services/
 │   │   │   ├── kupo.ts              # Kupo HTTP client (current UTxOs)
 │   │   │   ├── cbor.ts              # CBOR decoder + slot-to-time (extracted from kupo.ts)
@@ -92,7 +103,9 @@ app/gui/
 │   │   ├── config.rs                # AppConfig, Network, ContractConfig
 │   │   ├── crypto/
 │   │   │   ├── wallet.rs            # AES-256-GCM + Argon2id wallet encryption
-│   │   │   └── secrets.rs           # AES key derivation for secrets storage
+│   │   │   ├── secrets.rs           # AES key derivation for secrets storage
+│   │   │   ├── audit.rs             # Cryptographic audit utilities
+│   │   │   └── migration.rs         # Secret format migration
 │   │   ├── process/
 │   │   │   ├── manager.rs           # Generic process lifecycle + restart policy
 │   │   │   ├── cardano.rs           # cardano-node config & lifecycle
@@ -114,7 +127,7 @@ app/gui/
 │   │   ├── cardano/{network}/       # Node configs (topology, genesis files)
 │   │   └── snark/vk.json            # SNARK verification key
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
-│   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn)
+│   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn, notification:default)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
 │   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest
 ├── build.sh                         # Sources check-prereqs.sh, installs deps, runs `tauri build`
@@ -145,7 +158,7 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, SessionWarningBanner, ScrollToTop) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider) + descriptionUtils
 
 **Transaction building** (fe/src/services/transactionBuilder.ts ~2174 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
@@ -175,16 +188,20 @@ app/gui/
 - `secretStorage` — encryption secrets by token name
 - `bidSecretStorage` — bid secrets for later decryption
 - `acceptBidStorage` — accept-bid workflow state (A0, R0, Hk, proof)
-- `transactionHistory` — tx log with timestamps and hashes
+- `transactionHistory` — tx record persistence (pending/confirmed/failed states, PKH-keyed)
 - `bidNotifications` — seen-bid state for seller notification diffing (PKH-keyed)
 - `listingDraftStorage` — multi-step listing creation state (Tauri-backed encrypted JSON, not localStorage). Lifecycle: uploading → uploaded → verified → signing → submitted → confirmed/failed/abandoned. Prevents re-uploading to Iagon on retry/crash.
+- `listingFormDraftStorage` — pre-upload listing form state recovery (localStorage-backed)
 - `contentStorage` — saves decrypted files + metadata to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
 - `autolock` — inactivity timeout in minutes (default 15, 0 = never)
 - `tabStorage` — active Dashboard tab persistence (localStorage, defaults to 'marketplace')
 - `favoritesStorage` — marketplace listing favorites, PKH-keyed Set<string> in localStorage
+- `filterStorage` — marketplace filter state persistence, PKH-keyed in localStorage
+- `onboardingStorage` — multi-step onboarding tour state (4 steps)
 - `toastSettings` — toast auto-dismiss duration in ms (localStorage, default 5000, 0 = never)
+- `themeStorage` — dark/light theme preference (localStorage, default dark); applied before first paint via `initializeTheme()`
 
-**Styling:** Dark theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Hard-coded dark mode (no light theme). All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
+**Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`); dark is default. All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
 **Error handling — two tiers:**
 - `ErrorBoundary` (class component) wraps the entire app in main.tsx — catches React render errors only, NOT async/promise rejections. `InlineErrorBoundary` variant for section-level recovery.
@@ -233,6 +250,7 @@ app/gui/
 - `GET /api/protocol[/config|/reference|/scripts|/params]`
 - `GET /api/chain[/confirmations/:txHash|/tip]`
 - `GET /health` — status (healthy/degraded/unhealthy), uptimeSeconds, kupo/koios dependency health (reachable, latencyMs, lastSuccess, error?), network, useStubs
+- `GET /health/ready` — readiness probe (returns 503 if unhealthy)
 
 **Datum parsing** (be/src/services/parsers.ts): Decodes CBOR/Plutus JSON inline datums into TypeScript types. Handles indefinite-length byte strings (G2 points > 64 bytes are CBOR-chunked).
 
@@ -246,7 +264,7 @@ app/gui/
 
 **Resilience:** Koios requests use a circuit breaker (5 consecutive failures → 30s OPEN cooldown → HALF_OPEN probe) with TTL cache (15s default) providing stale fallback when the circuit is open. `fetchWithRetry` provides exponential backoff (3 retries, 1s initial delay, 2x multiplier) for transient failures. JSON structured logging via `logger.ts` (configurable level via LOG_LEVEL env).
 
-**Middleware:** `requestLogger` logs method/path/status/duration for every request. `validate.ts` provides param validators (`validatePkhParam`, `validateTokenNameParam`, `validateTxHashParam`, `validateEncryptionTokenParam`) that return 400 with `INVALID_PARAM` code on invalid input.
+**Middleware:** `requestLogger` logs method/path/status/duration for every request with 8-char request IDs. `validate.ts` provides param validators (`validatePkhParam`, `validateTokenNameParam`, `validateTxHashParam`, `validateEncryptionTokenParam`) that return 400 with `INVALID_PARAM` code on invalid input. `pagination.ts` adds offset-based pagination (default 50, max 200) with `{ total, limit, offset, hasMore }` response meta. `timeout.ts` enforces 30s request timeout (returns 504 Gateway Timeout).
 
 **Stub mode:** When `USE_STUBS=true`, all endpoints return hardcoded sample data. No Kupo/Koios needed.
 
@@ -344,18 +362,18 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (65 commands, invoke from frontend):
+**Tauri commands** (68 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
-- Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`
+- Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`, `get_available_disk_space`
 - SNARK: `snark_check_setup`, `snark_decompress_setup`, `snark_prove`, `snark_gt_to_hash`, `snark_decrypt_to_hash`
 - Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
 - Listing Drafts: `store_listing_draft`, `update_listing_draft`, `get_listing_draft`, `list_listing_drafts`, `remove_listing_draft`
 - Iagon Keys: `store_iagon_api_key`, `get_iagon_api_key`, `remove_iagon_api_key`, `has_iagon_api_key`
 - Iagon HTTP: `iagon_get_nonce`, `iagon_verify`, `iagon_generate_api_key`, `iagon_verify_api_key`, `iagon_upload`, `iagon_download`, `iagon_delete_file`, `iagon_search_files`, `iagon_list_files`
 - Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`
-- Library: `list_library_items`, `read_library_content`, `delete_library_item`, `export_library_content`, `export_text_file`
+- Library: `list_library_items`, `read_library_content`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -382,18 +400,18 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret (14 files)
-  - `fe/src/services/__tests__/` — transactionBuilder, transactionBuilder.integration, transactionHistory, autolock, metadata, bidNotifications, api, contentStorage, errorMessages, favoritesStorage, kupoAdapter, listingDraftStorage, pdfSearch, secretCleanup, tabStorage, toastSettings (16 files)
-  - `fe/src/config/__tests__/` — categories
-  - `fe/src/hooks/__tests__/` — usePasswordStrength, useAsyncAction, useBidNotifications, useDataRefresh, useSnarkProver, useTabFilterState (6 files)
+  - `fe/src/services/__tests__/` — transactionBuilder, transactionBuilder.integration, transactionHistory, autolock, metadata, bidNotifications, api, apiCache, contentStorage, desktopNotifications, errorMessages, favoritesStorage, filterStorage, kupoAdapter, listingDraftStorage, listingFormDraftStorage, notificationSound, onboardingStorage, pdfSearch, secretCleanup, tabStorage, themeStorage, toastSettings, walletManagement (24 files)
+  - `fe/src/config/__tests__/` — categories (1 file)
+  - `fe/src/hooks/__tests__/` — usePasswordStrength, useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, useSnarkProver, useTabFilterState, useWalletHealth (10 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, PlaceBidModal (2 files)
-  - `fe/src/pages/__tests__/` — nodeSyncHelpers, walletUnlockErrors (2 files)
-  - `fe/src/utils/` — clipboard, network, truncate (3 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, BidsModal, BidTimeline, CreateListingModal, DecryptModal, HighlightText, KeyboardShortcutsOverlay, OfflineBanner, PlaceBidModal, Toast (10 files)
+  - `fe/src/pages/__tests__/` — nodeSyncHelpers, settingsLogHelpers, walletUnlockErrors (3 files)
+  - `fe/src/utils/` — clipboard, formatBytes, network, time, truncate (5 files)
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
 - Backend test locations:
   - `be/src/services/__tests__/` — parsers (datum + CIP-20), kupo-cbor, kupo, cache, circuitBreaker, fetchWithRetry, health, logger (8 files)
   - `be/src/routes/__tests__/` — encryptions, bids, protocol, chain, health (5 files)
-  - `be/src/middleware/__tests__/` — validate (1 file)
+  - `be/src/middleware/__tests__/` — validate, pagination, timeout (3 files)
 - Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
 - Tests using WebCrypto (ecies) use `// @vitest-environment node` pragma
 - Tests importing transactionBuilder mock `@meshsdk/core`, `@meshsdk/provider`, and Tauri storage modules to avoid libsodium WASM
@@ -492,7 +510,7 @@ const json: ApiResponse<YourType> = await res.json();
 - **Datum parsing failures are silent** — bad datums logged as warnings, skipped from results; frontend sees incomplete data
 - **Auto-lock timer** — configurable inactivity timeout (default 15 min, 0 = never); stored in localStorage; timer runs in WalletContext
 - **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
-- **Provider nesting order** — ErrorBoundary → WalletProvider → NodeProvider → WasmProvider → BrowserRouter → ModalProvider → App (in main.tsx); order matters for context dependencies
+- **Provider nesting order** — ErrorBoundary → ShutdownOverlay → WalletProvider → NodeProvider → WasmProvider → BrowserRouter → ModalProvider → App (in main.tsx); `initializeTheme()` called before `createRoot()` to prevent flash; order matters for context dependencies
 - **File categories** — Defined in `fe/src/config/categories.ts`. All categories now enabled. `text` uses on-chain storage (capsule only); all other categories (document, audio, image, video, other) use Iagon off-chain storage (AES-256-GCM encrypted before upload). Category stored in CIP-20 metadata. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
 - **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes, `delete_library_item` removes the token directory, `export_library_content` opens native save dialog. LibraryContentModal lazy-loads PdfViewer, ImageViewer, AudioPlayer, VideoPlayer via React `lazy()` + `Suspense`. Uses wide modal (`max-w-4xl`) for rich media. View mode determined by `getViewMode()`: prioritizes fileExtension from payload field 3, falls back to category. Modes: text (inline), PDF (PdfViewer), image (ImageViewer), audio (AudioPlayer), video (VideoPlayer), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
 - **PdfViewer** — Uses `react-pdf` (pdfjs-dist worker). Renders decrypted PDFs from `Uint8Array` via Blob URL. Zoom 0.5x-3.0x, page navigation, fullscreen overlay at `z-[60]` (above modal `z-50`). Blob URL created in useEffect to handle React StrictMode double-mount
@@ -511,3 +529,12 @@ const json: ApiResponse<YourType> = await res.json();
 - **Resilient Koios** — Koios requests go through a circuit breaker (5 failures → 30s cooldown) with TTL cache stale fallback and fetch retry (3 attempts, exponential backoff). Prevents cascading failures when Koios is temporarily unavailable
 - **Backend structured logging** — All backend logging goes through `logger.ts` which outputs JSON entries with level, timestamp, message, and arbitrary context. Log level configurable via `LOG_LEVEL` env var (default: info)
 - **Prerequisite checks** — `check-prereqs.sh` validates Node 20+, npm, Rust toolchain, sidecar binaries (cardano-node, ogmios, kupo, mithril-client, snark), and WebKitGTK (Linux). Sourced by run.sh, build.sh, build-debug.sh
+- **ShutdownOverlay** — Full-screen overlay shown during app shutdown; listens to Tauri `app-shutting-down` events, rendered above all other content in main.tsx
+- **Onboarding system** — `OnboardingOverlay` + `onboardingStorage.ts` provide a multi-step guided tour on first launch (4 steps); state persisted in localStorage
+- **Desktop notifications** — `desktopNotifications.ts` uses `@tauri-apps/plugin-notification` for OS-level notifications; `notificationSound.ts` generates programmatic WAV notification pings
+- **Wallet management** — `walletManagement.ts` provides collateral creation + UTxO defragmentation via MeshTxBuilder; `useWalletHealth` hook monitors UTxO health (collateral presence, fragmentation)
+- **Theme toggle** — `themeStorage.ts` persists dark/light preference in localStorage; `initializeTheme()` applies before first paint to prevent flash; uses `data-theme` attribute on `<html>`
+- **Virtual scrolling** — `@tanstack/react-virtual` available for large list performance optimization
+- **Focus traps** — `useFocusTrap` hook manages Tab key focus wrapping + focus restoration within modal/overlay containers (accessibility)
+- **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout
+- **Pagination** — Backend `pagination.ts` middleware provides offset-based pagination (default 50, max 200 items) with `{ total, limit, offset, hasMore }` meta
