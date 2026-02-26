@@ -260,7 +260,7 @@ Each item has:
   - **How**: In `ImageViewer.tsx`, some JPEG images have EXIF orientation metadata that causes them to display rotated. Before creating the Blob URL, check for EXIF orientation tag using a lightweight parser (e.g., read the first 64KB of JPEG for APP1 marker) and apply CSS `image-orientation: from-image` or transform accordingly.
   - **Why**: Photos taken on phones often have EXIF rotation. Displaying them sideways makes the viewer feel broken.
 
-- [ ] **Audio player elapsed/remaining time toggle**
+- [x] **Audio player elapsed/remaining time toggle**
   - **How**: In `AudioPlayer.tsx`, clicking the time display toggles between "elapsed / total" and "elapsed / -remaining" format. Store preference in a local `showRemaining` state. Update display in the existing time render logic.
   - **Why**: Standard media player feature. Some users prefer seeing how much time is left rather than total duration.
 
