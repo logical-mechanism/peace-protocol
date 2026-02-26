@@ -188,11 +188,11 @@ Each item has:
   - **How**: After sorting transactions by timestamp, group into date buckets: "Today", "Yesterday", "This Week", "This Month", "Older". Render date headers between groups using `Intl.DateTimeFormat` for locale-aware dates. Use a `groupByDate(txList)` utility function.
   - **Why**: A flat list of 50+ transactions with timestamps is hard to scan. Date grouping creates natural visual landmarks.
 
-- [ ] **On-chain vs localStorage reconciliation conflict handling**
+- [x] **On-chain vs localStorage reconciliation conflict handling**
   - **How**: In `HistoryTab.tsx` (lines 67-123), when on-chain data conflicts with localStorage records (e.g., tx confirmed on-chain but marked "pending" locally), always prefer on-chain truth. Log discrepancies: `console.warn('Tx ${hash} status mismatch: local=${local} vs chain=${onChain}')`.
   - **Why**: After a crash or app update, localStorage could contain stale transaction states that confuse users.
 
-- [ ] **Stale data warning when API fallback to cache**
+- [x] **Stale data warning when API fallback to cache**
   - **How**: In `HistoryTab.tsx` (lines 113-119), when the API fetch fails and data falls back to localStorage, show a subtle banner: "Showing cached transaction history. Refresh to update." with a retry button.
   - **Why**: Users may see outdated transaction statuses without realizing the data isn't fresh.
 

@@ -60,6 +60,7 @@ function HistoryTab({
   const [allRecords, setAllRecords] = useState<TransactionRecord[]>(transactions);
   const [loading, setLoading] = useState(true);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
   const [confirmations, setConfirmations] = useState<Map<string, number>>(new Map());
   const confirmationsRef = useRef<Map<string, number>>(new Map());
 
@@ -104,16 +105,25 @@ function HistoryTab({
         }
       }
 
-      // 2. Reconcile: persist on-chain records + promote matching pending -> confirmed
-      reconcileWithOnChain(userPkh, onChainRecords);
+      // 2. Reconcile: persist on-chain records + promote matching pending/failed -> confirmed
+      const { discrepancies } = reconcileWithOnChain(userPkh, onChainRecords);
+      for (const d of discrepancies) {
+        if (d.localStatus === 'failed') {
+          console.warn(
+            `Tx ${d.txHash.slice(0, 16)}... status mismatch: local=${d.localStatus} vs chain=${d.resolvedStatus}`
+          );
+        }
+      }
 
-      // 3. Check remaining pending txs against Blockfrost (for remove-listing etc.)
+      // 3. Check remaining pending txs against Kupo (for remove-listing etc.)
       const resolved = await resolvePendingTxs(userPkh);
+      setIsStale(false);
       setAllRecords(resolved);
       onHistoryUpdated?.(resolved);
     } catch (err) {
       console.error('Failed to refresh history:', err);
       // Fall back to localStorage
+      setIsStale(true);
       const fallback = getTransactions(userPkh);
       setAllRecords(fallback);
       onHistoryUpdated?.(fallback);
@@ -258,17 +268,70 @@ function HistoryTab({
     }
   };
 
+  const staleBanner = isStale ? (
+    <div
+      className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+      style={{
+        background: 'var(--warning-muted)',
+        border: '1px solid var(--warning)',
+        color: 'var(--warning)',
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      <svg
+        className="w-4 h-4 flex-shrink-0"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+        />
+      </svg>
+      <span>Showing cached transaction history. Data may be outdated.</span>
+      <button
+        onClick={refresh}
+        className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+        style={{
+          background: 'var(--warning)',
+          color: 'var(--bg-primary)',
+        }}
+        aria-label="Retry loading transaction history"
+      >
+        Retry
+      </button>
+      <button
+        onClick={() => setIsStale(false)}
+        className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+        style={{ color: 'var(--warning)' }}
+        aria-label="Dismiss stale data warning"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  ) : null;
+
   if (loading) {
     return <SkeletonHistoryList />;
   }
 
   if (allRecords.length === 0) {
     return (
-      <EmptyState
-        illustration={<HistoryEmptyIllustration />}
-        title="No transaction history"
-        description="Transactions you submit through the dApp will appear here"
-      />
+      <>
+        {staleBanner}
+        <EmptyState
+          illustration={<HistoryEmptyIllustration />}
+          title="No transaction history"
+          description="Transactions you submit through the dApp will appear here"
+        />
+      </>
     );
   }
 
@@ -392,6 +455,9 @@ function HistoryTab({
           {exportMessage}
         </div>
       )}
+
+      {/* Stale data warning */}
+      {staleBanner}
 
       {/* Transaction list or filtered empty state */}
       {filtered.length === 0 ? (

@@ -180,9 +180,9 @@ describe('transactionHistory', () => {
     addTransaction(WALLET, makeRecord({ txHash: hash, status: 'pending' }));
 
     const onChain = [makeRecord({ txHash: hash, status: 'confirmed' })];
-    const result = reconcileWithOnChain(WALLET, onChain);
+    const { records } = reconcileWithOnChain(WALLET, onChain);
 
-    expect(result.find(r => r.txHash === hash)?.status).toBe('confirmed');
+    expect(records.find(r => r.txHash === hash)?.status).toBe('confirmed');
   });
 
   it('reconcileWithOnChain adds on-chain records not in local', () => {
@@ -191,10 +191,10 @@ describe('transactionHistory', () => {
     addTransaction(WALLET, makeRecord({ txHash: localHash }));
 
     const onChain = [makeRecord({ txHash: onChainHash, status: 'confirmed' })];
-    const result = reconcileWithOnChain(WALLET, onChain);
+    const { records } = reconcileWithOnChain(WALLET, onChain);
 
-    expect(result.some(r => r.txHash === onChainHash)).toBe(true);
-    expect(result.some(r => r.txHash === localHash)).toBe(true);
+    expect(records.some(r => r.txHash === onChainHash)).toBe(true);
+    expect(records.some(r => r.txHash === localHash)).toBe(true);
   });
 
   it('reconcileWithOnChain sorts newest first', () => {
@@ -204,11 +204,11 @@ describe('transactionHistory', () => {
       makeRecord({ txHash: '2'.repeat(64), timestamp: 3000, status: 'confirmed' }),
       makeRecord({ txHash: '3'.repeat(64), timestamp: 2000, status: 'confirmed' }),
     ];
-    const result = reconcileWithOnChain(WALLET, onChain);
+    const { records } = reconcileWithOnChain(WALLET, onChain);
 
-    expect(result[0].timestamp).toBeGreaterThanOrEqual(result[1].timestamp);
-    if (result.length > 2) {
-      expect(result[1].timestamp).toBeGreaterThanOrEqual(result[2].timestamp);
+    expect(records[0].timestamp).toBeGreaterThanOrEqual(records[1].timestamp);
+    if (records.length > 2) {
+      expect(records[1].timestamp).toBeGreaterThanOrEqual(records[2].timestamp);
     }
   });
 
@@ -224,8 +224,8 @@ describe('transactionHistory', () => {
       onChain.push(makeRecord({ txHash: i.toString(16).padStart(64, '0'), status: 'confirmed' }));
     }
 
-    const result = reconcileWithOnChain(WALLET, onChain);
-    expect(result.length).toBeLessThanOrEqual(100);
+    const { records } = reconcileWithOnChain(WALLET, onChain);
+    expect(records.length).toBeLessThanOrEqual(100);
   });
 
   it('reconcileWithOnChain does not write to localStorage when nothing changed', () => {
@@ -245,6 +245,66 @@ describe('transactionHistory', () => {
     expect(reconcileCalls).toHaveLength(0);
 
     spy.mockRestore();
+  });
+
+  it('reconcileWithOnChain promotes failed to confirmed when found on-chain', () => {
+    const hash = 'd'.repeat(64);
+    addTransaction(WALLET, makeRecord({ txHash: hash, status: 'failed' }));
+
+    const onChain = [makeRecord({ txHash: hash, status: 'confirmed' })];
+    const { records, discrepancies } = reconcileWithOnChain(WALLET, onChain);
+
+    expect(records.find(r => r.txHash === hash)?.status).toBe('confirmed');
+    expect(discrepancies).toHaveLength(1);
+    expect(discrepancies[0].localStatus).toBe('failed');
+    expect(discrepancies[0].resolvedStatus).toBe('confirmed');
+  });
+
+  it('reconcileWithOnChain reports discrepancy when promoting pending', () => {
+    const hash = 'e'.repeat(64);
+    addTransaction(WALLET, makeRecord({ txHash: hash, status: 'pending' }));
+
+    const onChain = [makeRecord({ txHash: hash, status: 'confirmed' })];
+    const { discrepancies } = reconcileWithOnChain(WALLET, onChain);
+
+    expect(discrepancies).toHaveLength(1);
+    expect(discrepancies[0].localStatus).toBe('pending');
+    expect(discrepancies[0].resolvedStatus).toBe('confirmed');
+  });
+
+  it('reconcileWithOnChain does not flag confirmed records as discrepancies', () => {
+    const hash = 'f'.repeat(64);
+    addTransaction(WALLET, makeRecord({ txHash: hash, status: 'confirmed' }));
+
+    const onChain = [makeRecord({ txHash: hash, status: 'confirmed' })];
+    const { discrepancies } = reconcileWithOnChain(WALLET, onChain);
+
+    expect(discrepancies).toHaveLength(0);
+  });
+
+  it('reconcileWithOnChain reports multiple discrepancies', () => {
+    const h1 = '1'.repeat(64);
+    const h2 = '2'.repeat(64);
+    addTransaction(WALLET, makeRecord({ txHash: h1, status: 'pending' }));
+    addTransaction(WALLET, makeRecord({ txHash: h2, status: 'failed' }));
+
+    const onChain = [
+      makeRecord({ txHash: h1, status: 'confirmed' }),
+      makeRecord({ txHash: h2, status: 'confirmed' }),
+    ];
+    const { discrepancies } = reconcileWithOnChain(WALLET, onChain);
+
+    expect(discrepancies).toHaveLength(2);
+    expect(discrepancies.find(d => d.txHash === h1)?.localStatus).toBe('pending');
+    expect(discrepancies.find(d => d.txHash === h2)?.localStatus).toBe('failed');
+  });
+
+  it('reconcileWithOnChain returns empty discrepancies when nothing changes', () => {
+    addTransaction(WALLET, makeRecord({ txHash: 'a'.repeat(64), status: 'confirmed' }));
+
+    const { discrepancies } = reconcileWithOnChain(WALLET, []);
+
+    expect(discrepancies).toHaveLength(0);
   });
 
   // --- resolvePendingTxs ---
