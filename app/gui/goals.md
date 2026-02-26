@@ -108,7 +108,7 @@ Each item has:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/App.tsx`
 
-- [ ] **Keyboard shortcuts ignore input focus**
+- [x] **Keyboard shortcuts ignore input focus**
   - **How**: In `Dashboard.tsx` (lines 170-200), the `Ctrl+1`-`5` and `Ctrl+R` shortcuts fire even when the user is typing in a search input. Add a guard: `if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return` before handling shortcuts.
   - **Why**: Users typing in the marketplace search box accidentally trigger tab switches when pressing Ctrl+key combos.
 
@@ -201,10 +201,6 @@ Each item has:
 ## 9. Library Tab
 
 > Key files: `fe/src/components/LibraryTab.tsx`, `fe/src/components/LibraryCard.tsx`, `fe/src/components/LibraryContentModal.tsx`
-
-- [ ] **Undo option after library item deletion**
-  - **How**: After single or bulk delete in LibraryTab, show a toast with "Undo" action button (visible for 5 seconds). The undo doesn't need to truly restore — just delay the actual `delete_library_item` invoke by 5 seconds. If user clicks Undo, cancel the pending deletion.
-  - **Why**: Accidental deletion of purchased content is irreversible (requires re-decryption which costs time and may require re-purchase). A brief undo window prevents costly mistakes.
 
 - [ ] **Library content type icon on cards**
   - **How**: On each LibraryCard, show a small icon indicating the content type: PDF icon, image icon, audio waveform, video play, text document. Derive from `category` field in metadata or from `getViewMode()` result in `LibraryContentModal.tsx`.
