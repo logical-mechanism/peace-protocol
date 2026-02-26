@@ -41,6 +41,7 @@ function MyPurchasesTab({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completedTokens, setCompletedTokens] = useState<Set<string>>(new Set());
+  const [secretsLoadErrors, setSecretsLoadErrors] = useState<Set<string>>(new Set());
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
@@ -82,17 +83,21 @@ function MyPurchasesTab({
         );
 
         const purchased: EncryptionDisplay[] = [];
+        const failedTokens = new Set<string>();
         for (const enc of userOwnedEncryptions) {
           try {
             const secrets = await getBidSecretsForEncryption(enc.tokenName);
             if (secrets.length > 0) {
               purchased.push(enc);
             }
-          } catch {
-            // Skip if IndexedDB lookup fails
+          } catch (err) {
+            console.warn(`Failed to load bid secrets for ${enc.tokenName}:`, err);
+            failedTokens.add(enc.tokenName);
+            purchased.push(enc);
           }
         }
         setPurchasedEncryptions(purchased);
+        setSecretsLoadErrors(failedTokens);
       } else {
         setPurchasedEncryptions([]);
       }
@@ -293,17 +298,36 @@ function MyPurchasesTab({
           <h3 className="text-lg font-medium text-[var(--text-primary)] mb-4">
             Purchased Encryptions
           </h3>
+          {secretsLoadErrors.size > 0 && (
+            <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-[var(--warning-muted)] border border-[var(--warning)]/30 rounded-[var(--radius-md)] text-sm text-[var(--warning)]">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Some bid data could not be loaded. Decryption may not be available for affected items.
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {purchasedEncryptions.map((enc) => (
+            {purchasedEncryptions.map((enc) => {
+              const hasSecretError = secretsLoadErrors.has(enc.tokenName);
+              return (
               <div
                 key={enc.tokenName}
                 className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-                    Purchased
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                      Purchased
+                    </span>
+                    {hasSecretError && (
+                      <span title="Bid secrets could not be loaded. Decryption may not be available.">
+                        <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-[var(--text-muted)] font-mono">
                     {truncateHex(enc.tokenName, 12, 8)}
                   </span>
@@ -342,7 +366,8 @@ function MyPurchasesTab({
                   Decrypt
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

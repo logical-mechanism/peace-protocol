@@ -76,8 +76,11 @@ export default function CreateListingModal({
   const [imagePreviewState, setImagePreviewState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -96,6 +99,8 @@ export default function CreateListingModal({
       setErrors({});
       setSubmitError(null);
       setCreationStep(null);
+      setDraftSaved(false);
+      setIsDirty(false);
     }
   }, [isOpen]);
 
@@ -118,74 +123,85 @@ export default function CreateListingModal({
           fileName: formData.file?.name ?? null,
           savedAt: new Date().toISOString(),
         });
+        setDraftSaved(true);
+        if (draftSavedTimerRef.current) clearTimeout(draftSavedTimerRef.current);
+        draftSavedTimerRef.current = setTimeout(() => setDraftSaved(false), 1500);
       }
     }, 500);
 
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (draftSavedTimerRef.current) clearTimeout(draftSavedTimerRef.current);
     };
   }, [isOpen, showDraftPrompt, isSubmitting, formData]);
 
+  // Close with unsaved changes warning
+  const handleClose = () => {
+    if (isDirty && !isSubmitting) {
+      if (!window.confirm('You have unsaved changes. Are you sure you want to close?')) return;
+    }
+    onClose();
+  };
+
   // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('create-listing', isOpen, onClose, isSubmitting);
+  const { zIndex, shouldRender, animationState } = useModalStack('create-listing', isOpen, handleClose, isSubmitting);
   const focusTrapRef = useRef<HTMLDivElement>(null);
   useFocusTrap(focusTrapRef, isOpen);
 
   const isFileMode = formData.category !== 'text';
   const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
 
+  const validateField = (fieldName: keyof FormErrors): string | undefined => {
+    switch (fieldName) {
+      case 'secretMessage':
+        if (formData.category === 'text') {
+          if (!formData.secretMessage.trim()) return 'Secret message is required';
+          if (formData.secretMessage.length > 280) return 'Message must be 280 characters or less';
+        }
+        return undefined;
+      case 'file':
+        if (isFileMode && !formData.file) return 'File is required';
+        return undefined;
+      case 'description':
+        if (!formData.description.trim()) return 'Description is required';
+        if (formData.description.length > 500) return 'Description must be less than 500 characters';
+        return undefined;
+      case 'suggestedPrice':
+        if (formData.suggestedPrice) {
+          const price = parseFloat(formData.suggestedPrice);
+          if (isNaN(price) || price < 0) return 'Price must be a positive number';
+          if (price > 1000000000) return 'Price is too high';
+        }
+        return undefined;
+      case 'imageLink':
+        if (formData.imageLink.trim()) {
+          try {
+            const url = new URL(formData.imageLink.trim());
+            if (!['http:', 'https:'].includes(url.protocol)) return 'Image link must use http:// or https://';
+          } catch {
+            return 'Invalid URL format';
+          }
+        }
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
-
-    // Secret message validation (text category only)
-    if (formData.category === 'text') {
-      if (!formData.secretMessage.trim()) {
-        newErrors.secretMessage = 'Secret message is required';
-      } else if (formData.secretMessage.length > 280) {
-        newErrors.secretMessage = 'Message must be 280 characters or less';
-      }
+    const fields: (keyof FormErrors)[] = ['secretMessage', 'file', 'description', 'suggestedPrice', 'imageLink'];
+    for (const field of fields) {
+      const error = validateField(field);
+      if (error) newErrors[field] = error;
     }
-
-    // File validation (file mode)
-    if (isFileMode) {
-      if (!formData.file) {
-        newErrors.file = 'File is required';
-      }
-    }
-
-    // Description validation
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    } else if (formData.description.length > 500) {
-      newErrors.description = 'Description must be less than 500 characters';
-    }
-
-    // Suggested price validation
-    if (formData.suggestedPrice) {
-      const price = parseFloat(formData.suggestedPrice);
-      if (isNaN(price) || price < 0) {
-        newErrors.suggestedPrice = 'Price must be a positive number';
-      } else if (price > 1000000000) {
-        newErrors.suggestedPrice = 'Price is too high';
-      }
-    }
-
-    // Image link validation (optional)
-    if (formData.imageLink.trim()) {
-      try {
-        const url = new URL(formData.imageLink.trim());
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          newErrors.imageLink = 'Image link must use http:// or https://';
-        }
-      } catch {
-        newErrors.imageLink = 'Invalid URL format';
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleFieldBlur = (fieldName: keyof FormErrors) => {
+    const error = validateField(fieldName);
+    setErrors((prev) => ({ ...prev, [fieldName]: error }));
   };
 
   const handleInputChange = (
@@ -197,6 +213,7 @@ export default function CreateListingModal({
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
     setSubmitError(null);
+    setIsDirty(true);
   };
 
   const handleModeToggle = (mode: 'text' | 'file') => {
@@ -228,6 +245,7 @@ export default function CreateListingModal({
       setDisplayPrice(formatPrice(draft.suggestedPrice || ''));
     }
     setShowDraftPrompt(false);
+    setIsDirty(false);
   };
 
   const handleDiscardDraft = () => {
@@ -235,6 +253,7 @@ export default function CreateListingModal({
     setFormData(INITIAL_FORM_DATA);
     setDisplayPrice('');
     setShowDraftPrompt(false);
+    setIsDirty(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,6 +264,7 @@ export default function CreateListingModal({
       setErrors((prev) => ({ ...prev, file: undefined }));
     }
     setSubmitError(null);
+    setIsDirty(true);
   };
 
   const handleRemoveFile = () => {
@@ -287,6 +307,7 @@ export default function CreateListingModal({
       setErrors((prev) => ({ ...prev, file: undefined }));
     }
     setSubmitError(null);
+    setIsDirty(true);
   };
 
   const handleImageLinkBlur = () => {
@@ -294,6 +315,7 @@ export default function CreateListingModal({
     if (!url) {
       setImagePreviewState('idle');
       setImagePreviewUrl(null);
+      handleFieldBlur('imageLink');
       return;
     }
     try {
@@ -301,6 +323,7 @@ export default function CreateListingModal({
       if (!['http:', 'https:'].includes(parsed.protocol)) {
         setImagePreviewState('error');
         setImagePreviewUrl(null);
+        handleFieldBlur('imageLink');
         return;
       }
       setImagePreviewState('loading');
@@ -309,6 +332,7 @@ export default function CreateListingModal({
       setImagePreviewState('error');
       setImagePreviewUrl(null);
     }
+    handleFieldBlur('imageLink');
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -325,6 +349,7 @@ export default function CreateListingModal({
       setErrors((prev) => ({ ...prev, suggestedPrice: undefined }));
     }
     setSubmitError(null);
+    setIsDirty(true);
   };
 
   const handlePriceFocus = () => {
@@ -333,6 +358,7 @@ export default function CreateListingModal({
 
   const handlePriceBlur = () => {
     setDisplayPrice(formatPrice(formData.suggestedPrice));
+    handleFieldBlur('suggestedPrice');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -349,6 +375,7 @@ export default function CreateListingModal({
     try {
       await onSubmit(formData, setCreationStep);
       clearListingFormDraft();
+      setIsDirty(false);
       onClose();
     } catch (error) {
       console.error('Failed to create listing:', error);
@@ -375,7 +402,7 @@ export default function CreateListingModal({
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
-        onClick={isSubmitting ? undefined : onClose}
+        onClick={isSubmitting ? undefined : handleClose}
         aria-hidden="true"
       />
 
@@ -392,7 +419,7 @@ export default function CreateListingModal({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
@@ -501,8 +528,10 @@ export default function CreateListingModal({
                   name="secretMessage"
                   value={formData.secretMessage}
                   onChange={handleInputChange}
+                  onBlur={() => handleFieldBlur('secretMessage')}
                   disabled={isSubmitting}
                   rows={4}
+                  maxLength={280}
                   placeholder="Enter the secret data you want to sell..."
                   aria-invalid={!!errors.secretMessage}
                   aria-describedby={errors.secretMessage ? 'secretMessage-error' : undefined}
@@ -650,8 +679,10 @@ export default function CreateListingModal({
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
+                onBlur={() => handleFieldBlur('description')}
                 disabled={isSubmitting}
                 rows={2}
+                maxLength={500}
                 placeholder="Brief description of what you're selling (visible to buyers)"
                 aria-invalid={!!errors.description}
                 aria-describedby={errors.description ? 'description-error' : undefined}
@@ -819,10 +850,16 @@ export default function CreateListingModal({
               </p>
             </div>
 
+            {draftSaved && (
+              <p className="mb-2 text-xs text-[var(--text-muted)] draft-saved-indicator text-center">
+                Draft saved
+              </p>
+            )}
+
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >

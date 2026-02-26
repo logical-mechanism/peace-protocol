@@ -170,11 +170,11 @@ Each item has:
 
 > Key files: `fe/src/components/MyPurchasesTab.tsx`, `fe/src/components/MyPurchaseBidCard.tsx`
 
-- [ ] **Bid secrets fetch error feedback**
+- [x] **Bid secrets fetch error feedback**
   - **How**: In `MyPurchasesTab.tsx` (lines 86-106), `getBidSecretsForEncryption()` errors are silently caught. Add `console.warn('Failed to load bid secrets:', err)` and set a `secretsError` flag to show a warning icon on affected bid cards: "Some bid data could not be loaded."
   - **Why**: If encrypted secrets can't be read (corruption, key mismatch), users see confusing bid states with no explanation.
 
-- [ ] **Offline detection for bid placement**
+- [x] **Offline detection for bid placement**
   - **How**: Before opening PlaceBidModal, check `navigator.onLine`. If offline, show toast: "You're offline. Bids require a network connection." Also save draft bid form state to `bidDraftStorage` on submit failure so users can retry without re-entering.
   - **Why**: If the network drops mid-bid, the user sees a generic error and loses their form input.
 
@@ -212,19 +212,19 @@ Each item has:
 
 > Key files: `fe/src/components/CreateListingModal.tsx`
 
-- [ ] **Real-time field validation during typing**
+- [x] **Real-time field validation during typing**
   - **How**: In `CreateListingModal.tsx`, add `onBlur` validation for description length, price format, and image URL validity. Show inline error messages below each field as soon as the user leaves it, instead of waiting for form submit. Use a `fieldErrors` state object keyed by field name.
   - **Why**: Users fill out the entire form, hit submit, and only then discover their description is too long or price is invalid. Real-time feedback prevents wasted effort.
 
-- [ ] **`maxLength` HTML attribute on text inputs**
+- [x] **`maxLength` HTML attribute on text inputs**
   - **How**: Add `maxLength={500}` to the description textarea and `maxLength={280}` to the secret message input in `CreateListingModal.tsx`. This provides a hard browser-level limit in addition to the existing character counter.
   - **Why**: The character counter shows the limit but doesn't prevent typing past it. Users can paste 10,000 characters and only discover the issue at submit time.
 
-- [ ] **Auto-save visual feedback indicator**
+- [x] **Auto-save visual feedback indicator**
   - **How**: In `CreateListingModal.tsx` (lines 110-129), the form auto-save to `listingFormDraftStorage` happens silently. Add a tiny "Draft saved" text that appears briefly (1.5s fade) near the form footer when auto-save completes. Use CSS `@keyframes` with opacity.
   - **Why**: Users don't know their progress is being saved. Visible feedback builds trust that they can safely close and reopen the form.
 
-- [ ] **Unsaved changes warning on modal close**
+- [x] **Unsaved changes warning on modal close**
   - **How**: Track a `isDirty` flag (set true on any form change, false after save/submit). In the Escape key handler and backdrop click handler, if `isDirty && !isSubmitting`, show a confirm: "You have unsaved changes. Discard?" before closing.
   - **Why**: Clicking outside the modal or pressing Escape discards all form input with no warning.
 

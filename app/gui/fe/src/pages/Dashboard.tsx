@@ -455,10 +455,14 @@ export default function Dashboard() {
   }, [disconnect])
 
   const handlePlaceBid = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
+    if (!navigator.onLine) {
+      toast.warning('You\'re offline', 'Bids require a network connection. Please reconnect and try again.')
+      return
+    }
     setSelectedEncryption(encryption)
     setSelectedBidCount(bidCount)
     setShowPlaceBid(true)
-  }, [])
+  }, [toast])
 
   const handlePlaceBidSubmit = useCallback(async (
     encryptionTokenName: string,

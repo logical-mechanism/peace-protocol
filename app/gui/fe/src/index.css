@@ -415,6 +415,18 @@ select option {
   animation: copy-check 300ms ease-out;
 }
 
+/* Draft saved indicator — fade in, hold, fade out */
+@keyframes draft-saved {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.draft-saved-indicator {
+  animation: draft-saved 1.5s ease-in-out forwards;
+}
+
 /* Toast exit — slides out right and fades */
 @keyframes toast-exit {
   from {

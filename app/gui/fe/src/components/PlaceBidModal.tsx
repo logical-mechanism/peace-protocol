@@ -5,6 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
+import { saveBidFormDraft, getBidFormDraft, clearBidFormDraft } from '../services/bidFormDraftStorage';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -55,19 +56,30 @@ export default function PlaceBidModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        bidAmount: encryption?.suggestedPrice?.toString() || '',
-        futurePrice: encryption?.suggestedPrice?.toString() || '',
-      });
       setErrors({});
       setSubmitError(null);
-      setShowFuturePrice(false);
+      setRestoredFromDraft(false);
+
+      // Try to restore from a saved draft for this encryption
+      const draft = encryption ? getBidFormDraft(encryption.tokenName) : null;
+      if (draft) {
+        setFormData({ bidAmount: draft.bidAmount, futurePrice: draft.futurePrice });
+        setShowFuturePrice(draft.showFuturePrice);
+        setRestoredFromDraft(true);
+      } else {
+        setFormData({
+          bidAmount: encryption?.suggestedPrice?.toString() || '',
+          futurePrice: encryption?.suggestedPrice?.toString() || '',
+        });
+        setShowFuturePrice(false);
+      }
     }
-  }, [isOpen, encryption?.suggestedPrice]);
+  }, [isOpen, encryption]);
 
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('place-bid', isOpen, onClose, isSubmitting);
@@ -150,12 +162,21 @@ export default function PlaceBidModal({
         ? parseFloat(formData.futurePrice)
         : encryption?.suggestedPrice ?? bidAmountAda;
       await onSubmit(encryption.tokenName, bidAmountAda, encryption.utxo, futurePrice);
+      clearBidFormDraft();
       onClose();
     } catch (error) {
       console.error('Failed to place bid:', error);
       setSubmitError(
         error instanceof Error ? error.message : 'Failed to place bid. Please try again.'
       );
+      // Save form state so user can retry without re-entering
+      saveBidFormDraft({
+        encryptionTokenName: encryption.tokenName,
+        bidAmount: formData.bidAmount,
+        futurePrice: formData.futurePrice,
+        showFuturePrice,
+        savedAt: new Date().toISOString(),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -253,6 +274,16 @@ export default function PlaceBidModal({
                 )}
               </div>
             </div>
+
+            {/* Restored from draft indicator */}
+            {restoredFromDraft && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] text-xs text-[var(--accent)]">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Restored from previous attempt
+              </div>
+            )}
 
             {/* Bid Amount */}
             <div>
