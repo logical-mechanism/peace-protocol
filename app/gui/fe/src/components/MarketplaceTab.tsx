@@ -186,6 +186,19 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     [userPkh]
   );
 
+  // Count active (non-default) filters for "clear all" indicator
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchQuery !== '') count++;
+    if (sortBy !== 'newest') count++;
+    if (statusFilter !== 'all') count++;
+    if (categoryFilter !== 'all') count++;
+    if (priceMin !== '') count++;
+    if (priceMax !== '') count++;
+    if (showFavoritesOnly) count++;
+    return count;
+  }, [searchQuery, sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
+
   // Pagination
   const ITEMS_PER_PAGE = 20;
 
@@ -392,11 +405,21 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         </div>
       </div>
 
-      {/* Results Count */}
-      <div className="mb-4 text-sm text-[var(--text-muted)]">
-        {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
-        {totalPages > 1 && (
-          <span> &middot; Page {currentPage} of {totalPages}</span>
+      {/* Results Count + Clear Filters */}
+      <div className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
+        <span>
+          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
+          {totalPages > 1 && (
+            <span> &middot; Page {currentPage} of {totalPages}</span>
+          )}
+        </span>
+        {activeFilterCount > 0 && (
+          <button
+            onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
+            className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors duration-150 cursor-pointer"
+          >
+            {activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active &mdash; Clear
+          </button>
         )}
       </div>
 
