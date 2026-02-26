@@ -11,6 +11,21 @@ vi.mock('../../services/toastSettings', () => ({
   getToastDurationMs: () => 5000,
 }))
 
+vi.mock('../../services/transactionHistory', () => ({
+  getTypeLabel: (type: string) => {
+    const labels: Record<string, string> = {
+      'create-listing': 'Create Listing',
+      'remove-listing': 'Remove Listing',
+      'place-bid': 'Place Bid',
+      'cancel-bid': 'Cancel Bid',
+      'accept-bid': 'Accept Bid',
+      'cancel-pending': 'Cancel Pending',
+      'complete-sale': 'Complete Sale',
+    }
+    return labels[type] || type
+  },
+}))
+
 describe('useToast', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -224,5 +239,110 @@ describe('useToast', () => {
     act(() => { result.current.removeToast(result.current.toasts[0].id) })
 
     expect(result.current.toasts.map(t => t.title)).toEqual(['Queued A', 'Queued B', 'Queued C'])
+  })
+
+  describe('transactionSuccess with details', () => {
+    const validHash = 'b'.repeat(64)
+
+    it('backward compat: plain string message works', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Test', validHash, 'Custom message')
+      })
+
+      expect(result.current.toasts[0].message).toBe('Custom message')
+    })
+
+    it('backward compat: no third arg shows hash preview', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Test', validHash)
+      })
+
+      expect(result.current.toasts[0].message).toContain('Transaction:')
+      expect(result.current.toasts[0].message).toContain(validHash.slice(0, 16))
+    })
+
+    it('shows type label when TransactionDetails has type', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Bid Placed!', validHash, { type: 'place-bid' })
+      })
+
+      expect(result.current.toasts[0].message).toContain('Place Bid')
+    })
+
+    it('shows formatted ADA amount when TransactionDetails has amountLovelace', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Bid Placed!', validHash, {
+          type: 'place-bid',
+          amountLovelace: 50_000_000,
+        })
+      })
+
+      const msg = result.current.toasts[0].message!
+      expect(msg).toContain('Place Bid')
+      expect(msg).toContain('50')
+      expect(msg).toContain('ADA')
+    })
+
+    it('shows only type when amount is zero', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Test', validHash, {
+          type: 'remove-listing',
+          amountLovelace: 0,
+        })
+      })
+
+      expect(result.current.toasts[0].message).toBe('Remove Listing')
+    })
+
+    it('shows custom message from details', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Test', validHash, {
+          message: 'Extra info',
+        })
+      })
+
+      expect(result.current.toasts[0].message).toBe('Extra info')
+    })
+
+    it('combines type, amount, and message with em-dash separator', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Test', validHash, {
+          type: 'accept-bid',
+          amountLovelace: 100_000_000,
+          message: 'SNARK proof',
+        })
+      })
+
+      const msg = result.current.toasts[0].message!
+      expect(msg).toContain('Accept Bid')
+      expect(msg).toContain('100')
+      expect(msg).toContain('ADA')
+      expect(msg).toContain('SNARK proof')
+      expect(msg).toContain('\u2014') // em-dash separator
+    })
+
+    it('falls back to hash preview when details object is empty', () => {
+      const { result } = renderHook(() => useToast())
+
+      act(() => {
+        result.current.transactionSuccess('Test', validHash, {})
+      })
+
+      expect(result.current.toasts[0].message).toContain('Transaction:')
+    })
   })
 })

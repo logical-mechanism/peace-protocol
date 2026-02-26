@@ -349,7 +349,7 @@ export default function Dashboard() {
       }
 
       if (result.txHash) {
-        toast.transactionSuccess('Listing Resumed!', result.txHash)
+        toast.transactionSuccess('Listing Resumed!', result.txHash, { type: 'create-listing' })
         recordTransaction({
           txHash: result.txHash,
           type: 'create-listing',
@@ -392,7 +392,7 @@ export default function Dashboard() {
       }
 
       if (result.txHash) {
-        toast.transactionSuccess('Listing Retried!', result.txHash)
+        toast.transactionSuccess('Listing Retried!', result.txHash, { type: 'create-listing' })
         recordTransaction({
           txHash: result.txHash,
           type: 'create-listing',
@@ -475,7 +475,7 @@ export default function Dashboard() {
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Bid Placed!', result.txHash)
+      toast.transactionSuccess('Bid Placed!', result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) })
     } else {
       toast.success('Bid Placed!', 'Transaction submitted successfully')
     }
@@ -530,7 +530,7 @@ export default function Dashboard() {
               8000
             )
           } else if (result.txHash) {
-            toast.transactionSuccess('Listing Removed!', result.txHash)
+            toast.transactionSuccess('Listing Removed!', result.txHash, { type: 'remove-listing' })
           } else {
             toast.success('Listing Removed!', 'Transaction submitted successfully')
           }
@@ -628,7 +628,7 @@ export default function Dashboard() {
           8000
         )
       } else if (result.txHash) {
-        toast.transactionSuccess('SNARK Proof Submitted!', result.txHash)
+        toast.transactionSuccess('SNARK Proof Submitted!', result.txHash, { type: 'accept-bid', amountLovelace: acceptBidBid.amount })
       }
 
       // Record in history
@@ -698,7 +698,7 @@ export default function Dashboard() {
               8000
             )
           } else if (result.txHash) {
-            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash)
+            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash, { type: 'cancel-pending' })
           }
 
           if (result.txHash) {
@@ -769,7 +769,7 @@ export default function Dashboard() {
           8000
         )
       } else if (result.txHash) {
-        toast.transactionSuccess('Sale Completed!', result.txHash)
+        toast.transactionSuccess('Sale Completed!', result.txHash, { type: 'complete-sale', amountLovelace: acceptedBid.amount })
       }
 
       // Record in history
@@ -832,7 +832,7 @@ export default function Dashboard() {
               8000
             )
           } else if (result.txHash) {
-            toast.transactionSuccess('Bid Cancelled!', result.txHash)
+            toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount })
           } else {
             toast.success('Bid Cancelled!', 'Transaction submitted successfully')
           }
@@ -949,7 +949,7 @@ export default function Dashboard() {
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Listing Created!', result.txHash)
+      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' })
     } else {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }

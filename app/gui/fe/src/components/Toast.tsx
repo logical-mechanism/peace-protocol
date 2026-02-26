@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
 import { getToastDurationMs } from '../services/toastSettings';
+import { getTypeLabel, type TransactionType } from '../services/transactionHistory';
+
+export interface TransactionDetails {
+  type?: TransactionType;
+  amountLovelace?: number;
+  message?: string;
+}
 
 const MAX_VISIBLE_TOASTS = 3;
 
@@ -294,14 +301,42 @@ export function useToast() {
 
   /**
    * Shows a success toast for a submitted transaction with a CardanoScan link.
+   * Accepts either a plain string message or a TransactionDetails object with
+   * type and amount for richer display.
    */
   const transactionSuccess = useCallback(
-    (title: string, txHash: string, message?: string) => {
+    (title: string, txHash: string, messageOrDetails?: string | TransactionDetails) => {
       const base = getToastDurationMs();
       const action: ToastAction | undefined = isValidTxHash(txHash)
         ? { label: 'View on CardanoScan', href: getTransactionUrl(txHash) }
         : undefined;
-      return addToast('success', title, message || `Transaction: ${txHash.slice(0, 16)}...`, base === 0 ? 0 : Math.max(base, 8000), action);
+
+      let message: string;
+      if (typeof messageOrDetails === 'string') {
+        message = messageOrDetails || `Transaction: ${txHash.slice(0, 16)}...`;
+      } else if (messageOrDetails) {
+        const parts: string[] = [];
+        if (messageOrDetails.type) {
+          parts.push(getTypeLabel(messageOrDetails.type));
+        }
+        if (messageOrDetails.amountLovelace !== undefined && messageOrDetails.amountLovelace > 0) {
+          const ada = (messageOrDetails.amountLovelace / 1_000_000).toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          });
+          parts.push(`${ada} ADA`);
+        }
+        if (messageOrDetails.message) {
+          parts.push(messageOrDetails.message);
+        }
+        message = parts.length > 0
+          ? parts.join(' \u2014 ')
+          : `Transaction: ${txHash.slice(0, 16)}...`;
+      } else {
+        message = `Transaction: ${txHash.slice(0, 16)}...`;
+      }
+
+      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action);
     },
     [addToast]
   );
