@@ -29,6 +29,9 @@ interface CreateListingModalProps {
   isIagonConnected?: boolean;
 }
 
+/** Files above this threshold show an informational upload time warning. */
+const LARGE_FILE_THRESHOLD_BYTES = 100 * 1024 * 1024; // 100 MB
+
 const INITIAL_FORM_DATA: CreateListingFormData = {
   category: 'text',
   secretMessage: '',
@@ -346,6 +349,11 @@ export default function CreateListingModal({
                         </span>
                       </div>
                       <p className="text-xs text-[var(--text-muted)]">{formatFileSize(formData.file.size)}</p>
+                      {formData.file.size > LARGE_FILE_THRESHOLD_BYTES && (
+                        <p className="text-xs text-[var(--warning)] mt-0.5">
+                          Large files take longer to encrypt and upload.
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"

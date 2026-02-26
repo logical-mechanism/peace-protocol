@@ -246,7 +246,7 @@ Each item has:
   - **How**: Include the file size in the metadata JSON written by `contentStorage.ts`. Display it on LibraryCard: "PDF — 2.3 MB". Format with `formatBytes()` utility.
   - **Why**: Users have no sense of how much disk space their library uses or how large individual files are.
 
-- [ ] **Sort by size, type, and date added**
+- [x] **Sort by size, type, and date added**
   - **How**: Add sort options to LibraryTab: "Name", "Date Added", "Size", "Type". The metadata JSON already includes `savedAt` timestamp and `category`. Size needs to be added (see above).
   - **Why**: Users with large libraries need to organize and find items. Sorting by size helps identify large files for cleanup.
 
@@ -272,7 +272,7 @@ Each item has:
   - **How**: Wrap the file input area in a `<div onDragOver onDrop>` handler. On drop, extract `e.dataTransfer.files[0]` and process like the existing file input `onChange`. Show a visual drop zone with dashed border and "Drop file here" text on drag over.
   - **Why**: Click-to-browse is the only upload method. Drag-and-drop is the expected interaction for file uploads in desktop apps.
 
-- [ ] **File size warning before upload**
+- [x] **File size warning before upload**
   - **How**: After file selection, check `file.size` against limits (e.g., 100 MB for Iagon free tier). Show warning: "This file is 150 MB. Large files take longer to upload and cost more to store." Allow proceeding but with informed consent. Max file size needs to be a parameter to be set.
   - **Why**: Users might accidentally select a multi-GB file. Showing size and implications prevents surprise upload failures.
 
