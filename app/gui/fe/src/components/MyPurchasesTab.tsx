@@ -507,31 +507,33 @@ function MyPurchasesTab({
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((bid) => (
-            <MyPurchaseBidCard
-              key={bid.tokenName}
-              bid={bid}
-              encryption={getEncryption(bid.encryptionToken)}
-              onCancel={handleCancelBid}
-              onDecrypt={handleDecrypt}
-              purchaseStage={getPurchaseStage(bid)}
-              decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
-            />
+          {filteredAndSorted.map((bid, index) => (
+            <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <MyPurchaseBidCard
+                bid={bid}
+                encryption={getEncryption(bid.encryptionToken)}
+                onCancel={handleCancelBid}
+                onDecrypt={handleDecrypt}
+                purchaseStage={getPurchaseStage(bid)}
+                decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((bid) => (
-            <MyPurchaseBidCard
-              key={bid.tokenName}
-              bid={bid}
-              encryption={getEncryption(bid.encryptionToken)}
-              onCancel={handleCancelBid}
-              onDecrypt={handleDecrypt}
-              purchaseStage={getPurchaseStage(bid)}
-              decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
-              compact
-            />
+          {filteredAndSorted.map((bid, index) => (
+            <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <MyPurchaseBidCard
+                bid={bid}
+                encryption={getEncryption(bid.encryptionToken)}
+                onCancel={handleCancelBid}
+                onDecrypt={handleDecrypt}
+                purchaseStage={getPurchaseStage(bid)}
+                decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
+                compact
+              />
+            </div>
           ))}
         </div>
       )}

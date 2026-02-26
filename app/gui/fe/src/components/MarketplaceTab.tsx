@@ -463,39 +463,41 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {paginatedResults.map((encryption) => (
-            <EncryptionCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              onPlaceBid={onPlaceBid}
-              isOwnListing={isOwnListing(encryption)}
-              hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-              bidCount={getBidCount(encryption.tokenName)}
-              isFavorite={favorites.has(encryption.tokenName)}
-              onToggleFavorite={handleToggleFavorite}
-              searchQuery={searchQuery}
-            />
+          {paginatedResults.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <EncryptionCard
+                encryption={encryption}
+                onPlaceBid={onPlaceBid}
+                isOwnListing={isOwnListing(encryption)}
+                hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+                bidCount={getBidCount(encryption.tokenName)}
+                isFavorite={favorites.has(encryption.tokenName)}
+                onToggleFavorite={handleToggleFavorite}
+                searchQuery={searchQuery}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {paginatedResults.map((encryption) => (
-            <EncryptionCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              onPlaceBid={onPlaceBid}
-              isOwnListing={isOwnListing(encryption)}
-              hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
-              compact
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-              bidCount={getBidCount(encryption.tokenName)}
-              isFavorite={favorites.has(encryption.tokenName)}
-              onToggleFavorite={handleToggleFavorite}
-              searchQuery={searchQuery}
-            />
+          {paginatedResults.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <EncryptionCard
+                encryption={encryption}
+                onPlaceBid={onPlaceBid}
+                isOwnListing={isOwnListing(encryption)}
+                hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
+                compact
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+                bidCount={getBidCount(encryption.tokenName)}
+                isFavorite={favorites.has(encryption.tokenName)}
+                onToggleFavorite={handleToggleFavorite}
+                searchQuery={searchQuery}
+              />
+            </div>
           ))}
         </div>
       )}

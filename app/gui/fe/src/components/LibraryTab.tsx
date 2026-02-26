@@ -460,31 +460,33 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((item) => (
-            <LibraryCard
-              key={item.tokenName}
-              item={item}
-              onView={handleView}
-              onDelete={handleDeleteFromCard}
-              selectMode={selectMode}
-              selected={selectedItems.has(item.tokenName)}
-              onToggleSelect={handleToggleSelect}
-            />
+          {filteredAndSorted.map((item, index) => (
+            <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <LibraryCard
+                item={item}
+                onView={handleView}
+                onDelete={handleDeleteFromCard}
+                selectMode={selectMode}
+                selected={selectedItems.has(item.tokenName)}
+                onToggleSelect={handleToggleSelect}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((item) => (
-            <LibraryCard
-              key={item.tokenName}
-              item={item}
-              onView={handleView}
-              onDelete={handleDeleteFromCard}
-              compact
-              selectMode={selectMode}
-              selected={selectedItems.has(item.tokenName)}
-              onToggleSelect={handleToggleSelect}
-            />
+          {filteredAndSorted.map((item, index) => (
+            <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <LibraryCard
+                item={item}
+                onView={handleView}
+                onDelete={handleDeleteFromCard}
+                compact
+                selectMode={selectMode}
+                selected={selectedItems.has(item.tokenName)}
+                onToggleSelect={handleToggleSelect}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -399,12 +399,12 @@ function HistoryTab({
         />
       ) : (
         <div className="space-y-3">
-          {filtered.map((tx) => {
+          {filtered.map((tx, index) => {
             const query = searchQuery.trim().toLowerCase();
             const hashMatchesSearch = query !== '' && tx.txHash.toLowerCase().includes(query);
             return (
+            <div key={tx.txHash} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
             <div
-              key={tx.txHash}
               className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-4 flex items-center gap-4"
             >
               {/* Status icon */}
@@ -481,6 +481,7 @@ function HistoryTab({
               <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
                 {formatTimestamp(tx.timestamp)}
               </div>
+            </div>
             </div>
             );
           })}

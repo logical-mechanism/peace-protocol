@@ -428,7 +428,7 @@ Each item has:
   - **How**: Add CSS keyframes for modal enter (fade-in + scale from 0.95 to 1.0) and exit (fade-out + scale to 0.95). Use React's `onAnimationEnd` to delay unmounting until exit animation completes. Backdrop fades in/out separately.
   - **Why**: Modals appearing and disappearing instantly feels jarring. A 200ms animation smooths the transition.
 
-- [ ] **Card entrance stagger animation**
+- [x] **Card entrance stagger animation**
   - **How**: When a list of cards renders, stagger their entrance by 50ms each: card 1 at 0ms, card 2 at 50ms, card 3 at 100ms, etc. Use `animation-delay: calc(var(--index) * 50ms)` via inline style. Limit to first 10 cards to avoid long waits.
   - **Why**: A wall of cards appearing instantly is visually overwhelming. Staggered entrance creates a pleasing cascade effect.
 

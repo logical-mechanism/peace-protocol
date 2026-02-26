@@ -472,34 +472,36 @@ function MySalesTab({
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((encryption) => (
-            <SalesListingCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              bidCount={getBidCount(encryption.tokenName)}
-              onViewBids={handleViewBids}
-              onRemove={handleRemoveListing}
-              onCancelPending={handleCancelPending}
-              onCompleteSale={onCompleteSale}
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-            />
+          {filteredAndSorted.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <SalesListingCard
+                encryption={encryption}
+                bidCount={getBidCount(encryption.tokenName)}
+                onViewBids={handleViewBids}
+                onRemove={handleRemoveListing}
+                onCancelPending={handleCancelPending}
+                onCompleteSale={onCompleteSale}
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((encryption) => (
-            <SalesListingCard
-              key={encryption.tokenName}
-              encryption={encryption}
-              bidCount={getBidCount(encryption.tokenName)}
-              onViewBids={handleViewBids}
-              onRemove={handleRemoveListing}
-              onCancelPending={handleCancelPending}
-              compact
-              initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
-              initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
-            />
+          {filteredAndSorted.map((encryption, index) => (
+            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+              <SalesListingCard
+                encryption={encryption}
+                bidCount={getBidCount(encryption.tokenName)}
+                onViewBids={handleViewBids}
+                onRemove={handleRemoveListing}
+                onCancelPending={handleCancelPending}
+                compact
+                initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
+                initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+              />
+            </div>
           ))}
         </div>
       )}

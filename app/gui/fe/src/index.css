@@ -368,6 +368,23 @@ select option {
   color: transparent;
 }
 
+/* Card entrance stagger — cascade cards in with a slight upward slide */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-stagger {
+  opacity: 0;
+  animation: card-enter 300ms ease-out forwards;
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,
