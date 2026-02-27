@@ -153,11 +153,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/InfoTooltip.tsx`, `fe/src/components/MnemonicInput.tsx`
 
-- [ ] 🟢 **InfoTooltip focus ring visibility**
+- [x] 🟢 **InfoTooltip focus ring visibility**
   - **How**: In `InfoTooltip.tsx` (line ~54), the trigger button has `focus-visible:text-[var(--accent)]` (color change only) but no visible focus ring. Add `focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:rounded-full` to match the global focus ring pattern from `index.css`.
   - **Why**: Color-only focus indicators fail for color-blind users; a ring provides a shape-based indicator that works universally.
 
-- [ ] 🟢 **Focus return to trigger element on modal close**
+- [x] 🟢 **Focus return to trigger element on modal close** *(Already implemented — `useFocusTrap` saves `document.activeElement` on activation and restores on deactivation; all modals use this hook)*
   - **How**: In `useModalStack` or the modal Effect 2 pattern, save `document.activeElement` when modal opens and restore focus to it when modal closes. Currently focus is trapped inside the modal (via `useFocusTrap`) but not restored on close, leaving focus on `<body>`.
   - **Why**: WAI-ARIA dialog pattern requires focus to return to the triggering element on close; losing focus position forces keyboard users to re-navigate.
 
@@ -187,7 +187,7 @@ Difficulty ratings:
 
 > Key files: `be/src/routes/encryptions.ts`, `be/src/routes/bids.ts`
 
-- [ ] 🟢 **Validate `refresh` query parameter explicitly**
+- [s] 🟢 **Validate `refresh` query parameter explicitly**
   - **How**: In `be/src/routes/encryptions.ts` (line ~35) and `be/src/routes/bids.ts` (line ~34), the `refresh` query parameter is used as `req.query.refresh === 'true'` without validation. Add a check: if `req.query.refresh` is present but not `'true'` or `'false'`, return 400 with `{ error: { code: 'INVALID_PARAM', message: 'refresh must be true or false' } }`. Alternatively, add a `validateRefreshParam` middleware in `validate.ts`.
   - **Why**: Unvalidated query params accept arbitrary values silently; explicit validation catches typos and misuse.
 

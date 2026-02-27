@@ -51,7 +51,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
         onFocus={show}
         onBlur={hide}
         aria-label="More information"
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] focus-visible:text-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-help"
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] focus-visible:text-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:rounded-full transition-colors duration-[var(--transition-fast)] cursor-help"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
