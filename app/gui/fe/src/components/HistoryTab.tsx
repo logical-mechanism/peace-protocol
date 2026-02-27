@@ -64,6 +64,8 @@ function HistoryTab({
   const [confirmations, setConfirmations] = useState<Map<string, number>>(new Map());
   const confirmationsRef = useRef<Map<string, number>>(new Map());
 
+  const hasDataRef = useRef(false);
+
   // Reconcile local history with on-chain data and check pending txs
   const refresh = useCallback(async () => {
     if (!userPkh) {
@@ -71,7 +73,7 @@ function HistoryTab({
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     try {
       // 1. Fetch on-chain data (current UTxOs owned by user)
       const [encryptions, bids] = await Promise.all([
@@ -119,6 +121,7 @@ function HistoryTab({
       const resolved = await resolvePendingTxs(userPkh);
       setIsStale(false);
       setAllRecords(resolved);
+      hasDataRef.current = true;
       onHistoryUpdated?.(resolved);
     } catch (err) {
       console.error('Failed to refresh history:', err);
@@ -126,25 +129,17 @@ function HistoryTab({
       setIsStale(true);
       const fallback = getTransactions(userPkh);
       setAllRecords(fallback);
+      hasDataRef.current = true;
       onHistoryUpdated?.(fallback);
     } finally {
       setLoading(false);
     }
   }, [userPkh, onHistoryUpdated]);
 
+  // Fetch on mount and re-fetch when historySignal changes (background refresh after first load)
   useEffect(() => {
     refresh();
-  }, [refresh]);
-
-  // Re-fetch when Dashboard signals a history refresh
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    refresh();
-  }, [historySignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [historySignal, refresh]);
 
   // Also update if parent passes new transactions (e.g. after recording a new tx)
   useEffect(() => {

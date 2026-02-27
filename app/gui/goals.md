@@ -319,7 +319,7 @@ Difficulty ratings:
   - **How**: In `MarketplaceTab.tsx`, integrate `@tanstack/react-virtual` (already a dependency, used in HistoryTab) to virtualize the listing grid. Replace the current `.map()` over all filtered listings with a virtualized grid renderer. Requires calculating row heights based on card dimensions and window height. Model after HistoryTab's `useVirtualizer` implementation.
   - **Why**: With hundreds of listings, rendering all cards simultaneously causes jank on scroll; virtual scrolling renders only visible cards.
 
-- [ ] 🟡 **Tab data caching with stale-while-revalidate**
+- [x] 🟡 **Tab data caching with stale-while-revalidate**
   - **How**: In `Dashboard.tsx`, maintain a `Map<string, { data, timestamp }>` cache per tab. When switching tabs, immediately render cached data (if < 30s old) and refetch in the background. If refetch returns different data, update. This prevents skeleton flashing on every tab switch.
   - **Why**: Tab switching currently triggers full data refetch showing skeletons; cached data provides instant tab switching.
 

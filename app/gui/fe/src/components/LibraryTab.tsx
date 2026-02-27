@@ -46,13 +46,16 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState<{ completed: number; failed: number; total: number } | null>(null);
 
+  const hasDataRef = useRef(false);
+
   const fetchItems = useCallback(async () => {
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     setError(null);
     try {
       const result = await listLibraryItems();
       setItems(result);
       setPrevDataCount(result.length);
+      hasDataRef.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load library');
     } finally {
@@ -60,19 +63,10 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
     }
   }, []);
 
+  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]);
-
-  // Re-fetch when Dashboard signals a refresh (e.g. after decryption)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    fetchItems();
-  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSignal, fetchItems]);
 
   // Filter and sort items
   const filteredAndSorted = useMemo(() => {

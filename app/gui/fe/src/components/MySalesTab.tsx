@@ -51,8 +51,10 @@ function MySalesTab({
   const [selectedListing, setSelectedListing] = useState<EncryptionDisplay | null>(null);
   const [bidsModalOpen, setBidsModalOpen] = useState(false);
 
+  const hasDataRef = useRef(false);
+
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     setError(null);
     try {
       // Fetch all encryptions and filter by owner PKH from datum
@@ -62,6 +64,7 @@ function MySalesTab({
         : [];
       setEncryptions(userEncryptions);
       setPrevDataCount(userEncryptions.length);
+      hasDataRef.current = true;
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch((err) => {
@@ -91,19 +94,10 @@ function MySalesTab({
     }
   }, [userPkh]);
 
+  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
-
-  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    fetchData();
-  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSignal, fetchData]);
 
   // Pre-compute pending bid counts per listing and aggregate totals in a single pass
   const bidStats = useMemo(() => {

@@ -80,9 +80,14 @@ export default function Dashboard() {
   const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([getLastActiveTab()]))
   const setActiveTab = useCallback((tab: TabId) => {
     setActiveTabRaw(tab)
     setLastActiveTab(tab)
+    setVisitedTabs(prev => {
+      if (prev.has(tab)) return prev
+      return new Set(prev).add(tab)
+    })
   }, [])
   const tabListRef = useRef<HTMLDivElement>(null)
   const handleTabKeyDown = useCallback((e: ReactKeyboardEvent) => {
@@ -1091,78 +1096,8 @@ export default function Dashboard() {
 
   const handleOpenCreateListing = useCallback(() => setShowCreateListing(true), [])
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'marketplace':
-        return (
-          <MarketplaceTab
-            refreshSignal={refreshSignal}
-            userPkh={userPkh}
-            lovelace={lovelace}
-            onPlaceBid={handlePlaceBid}
-            onCreateListing={handleOpenCreateListing}
-            filters={marketplaceFilters}
-            dispatch={marketplaceDispatch}
-          />
-        )
-      case 'my-sales':
-        return (
-          <MySalesTab
-            refreshSignal={refreshSignal}
-            userPkh={userPkh}
-            onRemoveListing={handleRemoveListing}
-            onAcceptBid={handleAcceptBid}
-            onCancelPending={handleCancelPending}
-            onCompleteSale={handleCompleteSale}
-            onCreateListing={handleOpenCreateListing}
-            onBidsViewed={bidNotifications.markListingSeen}
-            filters={mySalesFilters}
-            dispatch={mySalesDispatch}
-          />
-        )
-      case 'my-purchases':
-        return (
-          <MyPurchasesTab
-            refreshSignal={refreshSignal}
-            userPkh={userPkh}
-            onCancelBid={handleCancelBid}
-            onDecrypt={handleDecrypt}
-            onDecryptEncryption={handleDecryptEncryption}
-            onSwitchTab={setActiveTab}
-            filters={myPurchasesFilters}
-            dispatch={myPurchasesDispatch}
-            failedDecryptTokens={failedDecryptTokens}
-          />
-        )
-      case 'history':
-        return (
-          <HistoryTab
-            historySignal={historySignal}
-            userPkh={userPkh}
-            transactions={txHistory}
-            onClearHistory={triggerHistoryRefresh}
-            onHistoryUpdated={setTxHistory}
-            onRetryListing={handleRetryListing}
-            filters={historyFilters}
-            dispatch={historyDispatch}
-          />
-        )
-      case 'library':
-        return (
-          <LibraryTab
-            refreshSignal={refreshSignal}
-            onSwitchTab={setActiveTab}
-            filters={libraryFilters}
-            dispatch={libraryDispatch}
-            onBulkDeleteResult={(message, hadErrors) =>
-              hadErrors ? toast.warning('Bulk Delete', message) : toast.success('Bulk Delete', message)
-            }
-          />
-        )
-      default:
-        return null
-    }
-  }
+  const tabPanelClass = (tabId: TabId) =>
+    activeTab !== tabId ? 'hidden' : undefined
 
   return (
     <div className="min-h-screen">
@@ -1533,20 +1468,128 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div
-          key={activeTab}
-          id={`tabpanel-${activeTab}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${activeTab}`}
-          aria-busy={isRefreshing}
-          tabIndex={0}
-          className="tab-transition"
-        >
-          <Suspense fallback={<SkeletonGrid />}>
-            {renderTabContent()}
-          </Suspense>
-        </div>
+        {/* Tab Content — tabs stay mounted once visited for instant switching */}
+        {visitedTabs.has('marketplace') && (
+          <div
+            id="tabpanel-marketplace"
+            role="tabpanel"
+            aria-labelledby="tab-marketplace"
+            aria-hidden={activeTab !== 'marketplace'}
+            aria-busy={activeTab === 'marketplace' && isRefreshing}
+            tabIndex={activeTab === 'marketplace' ? 0 : -1}
+            className={tabPanelClass('marketplace')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <MarketplaceTab
+                refreshSignal={refreshSignal}
+                userPkh={userPkh}
+                lovelace={lovelace}
+                onPlaceBid={handlePlaceBid}
+                onCreateListing={handleOpenCreateListing}
+                filters={marketplaceFilters}
+                dispatch={marketplaceDispatch}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('my-sales') && (
+          <div
+            id="tabpanel-my-sales"
+            role="tabpanel"
+            aria-labelledby="tab-my-sales"
+            aria-hidden={activeTab !== 'my-sales'}
+            aria-busy={activeTab === 'my-sales' && isRefreshing}
+            tabIndex={activeTab === 'my-sales' ? 0 : -1}
+            className={tabPanelClass('my-sales')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <MySalesTab
+                refreshSignal={refreshSignal}
+                userPkh={userPkh}
+                onRemoveListing={handleRemoveListing}
+                onAcceptBid={handleAcceptBid}
+                onCancelPending={handleCancelPending}
+                onCompleteSale={handleCompleteSale}
+                onCreateListing={handleOpenCreateListing}
+                onBidsViewed={bidNotifications.markListingSeen}
+                filters={mySalesFilters}
+                dispatch={mySalesDispatch}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('my-purchases') && (
+          <div
+            id="tabpanel-my-purchases"
+            role="tabpanel"
+            aria-labelledby="tab-my-purchases"
+            aria-hidden={activeTab !== 'my-purchases'}
+            aria-busy={activeTab === 'my-purchases' && isRefreshing}
+            tabIndex={activeTab === 'my-purchases' ? 0 : -1}
+            className={tabPanelClass('my-purchases')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <MyPurchasesTab
+                refreshSignal={refreshSignal}
+                userPkh={userPkh}
+                onCancelBid={handleCancelBid}
+                onDecrypt={handleDecrypt}
+                onDecryptEncryption={handleDecryptEncryption}
+                onSwitchTab={setActiveTab}
+                filters={myPurchasesFilters}
+                dispatch={myPurchasesDispatch}
+                failedDecryptTokens={failedDecryptTokens}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('history') && (
+          <div
+            id="tabpanel-history"
+            role="tabpanel"
+            aria-labelledby="tab-history"
+            aria-hidden={activeTab !== 'history'}
+            aria-busy={activeTab === 'history' && isRefreshing}
+            tabIndex={activeTab === 'history' ? 0 : -1}
+            className={tabPanelClass('history')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <HistoryTab
+                historySignal={historySignal}
+                userPkh={userPkh}
+                transactions={txHistory}
+                onClearHistory={triggerHistoryRefresh}
+                onHistoryUpdated={setTxHistory}
+                onRetryListing={handleRetryListing}
+                filters={historyFilters}
+                dispatch={historyDispatch}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('library') && (
+          <div
+            id="tabpanel-library"
+            role="tabpanel"
+            aria-labelledby="tab-library"
+            aria-hidden={activeTab !== 'library'}
+            aria-busy={activeTab === 'library' && isRefreshing}
+            tabIndex={activeTab === 'library' ? 0 : -1}
+            className={tabPanelClass('library')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <LibraryTab
+                refreshSignal={refreshSignal}
+                onSwitchTab={setActiveTab}
+                filters={libraryFilters}
+                dispatch={libraryDispatch}
+                onBulkDeleteResult={(message, hadErrors) =>
+                  hadErrors ? toast.warning('Bulk Delete', message) : toast.success('Bulk Delete', message)
+                }
+              />
+            </Suspense>
+          </div>
+        )}
       </main>
 
       {/* Scroll to Top Button */}

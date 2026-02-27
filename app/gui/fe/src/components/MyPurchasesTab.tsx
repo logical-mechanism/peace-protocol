@@ -53,8 +53,10 @@ function MyPurchasesTab({
   const { viewMode, sortBy, statusFilter, searchQuery } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
+  const hasDataRef = useRef(false);
+
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     setError(null);
     try {
       // Fetch all bids and filter by bidder PKH from datum
@@ -64,6 +66,7 @@ function MyPurchasesTab({
         : [];
       setBids(userBids);
       setPrevDataCount(userBids.length);
+      hasDataRef.current = true;
 
       // Fetch all encryptions (needed for both bids and purchased encryptions)
       const allEncryptions = await encryptionsApi.getAll();
@@ -120,19 +123,10 @@ function MyPurchasesTab({
     }
   }, [userPkh]);
 
+  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
-
-  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    fetchData();
-  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSignal, fetchData]);
 
   // Get encryption for a bid
   const getEncryption = useCallback(

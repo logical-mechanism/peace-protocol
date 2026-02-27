@@ -37,8 +37,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
+  const hasDataRef = useRef(false);
+
   const fetchEncryptions = useCallback(async () => {
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     setError(null);
     try {
       const [data, allBids] = await Promise.all([
@@ -48,6 +50,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
       setEncryptions(data);
       setAllBids(allBids);
       setPrevDataCount(data.length);
+      hasDataRef.current = true;
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch((err) => {
@@ -70,19 +73,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     }
   }, [userPkh]);
 
+  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
     fetchEncryptions();
-  }, [fetchEncryptions]);
-
-  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    fetchEncryptions();
-  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSignal, fetchEncryptions]);
 
   // Load favorites from localStorage when user changes
   useEffect(() => {
