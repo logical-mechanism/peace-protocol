@@ -126,23 +126,23 @@ Each item has:
 
 > Key files: `fe/src/components/MarketplaceTab.tsx`, `fe/src/components/EncryptionCard.tsx`
 
-- [ ] **Image cache fetch error handling**
+- [x] **Image cache fetch error handling**
   - **How**: In `MarketplaceTab.tsx` (line 48), the image cache fetch uses `.catch(() => {})`. Replace with `.catch(err => console.warn('Image cache refresh failed:', err))` and optionally set a `cacheError` state to show a subtle warning icon.
   - **Why**: Silent failures make debugging impossible. If the image cache is broken, all listing images fail without any diagnostic trail.
 
-- [ ] **Null-safe price range computation**
+- [x] **Null-safe price range computation**
   - **How**: In `MarketplaceTab.tsx` (lines 120-129), the price range `useMemo` assumes `suggestedPrice` is always a number. Add null coalescing: `const price = Number(e.suggestedPrice) || 0; if (isNaN(price)) return;` to skip malformed prices.
   - **Why**: A single malformed price datum from the blockchain could cause `NaN` to propagate through the price range slider.
 
-- [ ] **Null-safe sort comparisons**
+- [x] **Null-safe sort comparisons**
   - **How**: In MarketplaceTab and MySalesTab filter/sort logic, add null-safe comparisons for nullable fields: `(a.suggestedPrice ?? Infinity) - (b.suggestedPrice ?? Infinity)` for price sort, and `(a.createdAt ?? '').localeCompare(b.createdAt ?? '')` for date sort.
   - **Why**: Undefined sort values cause inconsistent ordering. Listings without prices should sort last, not cause NaN comparisons.
 
-- [ ] **Low balance warning on bid button**
+- [x] **Low balance warning on bid button**
   - **How**: In `EncryptionCard.tsx` (lines 59-65), `canBid` doesn't check wallet balance. Add `const hasBalance = lovelace !== null && parseInt(lovelace) >= 2_000_000;` and when `!hasBalance`, show the Bid button as disabled with tooltip: "Insufficient balance (minimum 2 ADA)".
   - **Why**: Users can open the bid modal, fill out the form, and only discover they can't afford it after tx building fails.
 
-- [ ] **Price fallback displays "No price" instead of 1 ADA**
+- [x] **Price fallback displays "No price" instead of 1 ADA**
   - **How**: In `EncryptionCard.tsx` (lines 52-57), when `suggestedPrice` is invalid/NaN, the fallback is 1 ADA which is misleading. Replace with `"Price: TBD"` or `"No suggested price"` for listings where the seller didn't set a price.
   - **Why**: Showing "1 ADA" for a listing that has no price set confuses buyers into thinking it's cheap.
 
