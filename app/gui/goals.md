@@ -105,11 +105,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/EncryptionCard.tsx`, `fe/src/components/MarketplaceTab.tsx`
 
-- [ ] 🟢 **Copy button on seller address display**
+- [x] 🟢 **Copy button on seller address display**
   - **How**: In `EncryptionCard.tsx` (line ~232-235), next to the truncated seller hex address, add a small copy icon button (w-3.5 h-3.5 clipboard SVG) that copies the full PKH to clipboard with `navigator.clipboard.writeText()` + brief checkmark feedback (reuse `copy-check` animation from `index.css`).
   - **Why**: Seller addresses are truncated with no way to copy the full value for verification or sharing.
 
-- [ ] 🟢 **Favorite toggle micro-animation**
+- [x] 🟢 **Favorite toggle micro-animation**
   - **How**: In `EncryptionCard.tsx` (line ~82-91), add a CSS scale animation to the star icon on toggle: `transition: transform 200ms ease` with a brief `scale(1.3)` on click that returns to `scale(1)`. Similar pattern to the existing `bid-pulse` animation but simpler.
   - **Why**: The favorite star currently snaps between filled/unfilled without feedback; a brief pulse makes the interaction feel responsive.
 
