@@ -359,7 +359,7 @@ Difficulty ratings:
   - **How**: In `src-tauri/src/commands/iagon.rs` `store_iagon_api_key` command, add a length check: `if api_key.len() > 1024 { return Err("API key too long".into()); }`. This prevents theoretical disk DoS from extremely long strings.
   - **Why**: API key input is not length-validated; while unlikely, an extremely long string would waste disk space on the encrypted JSON.
 
-- [ ] 🟡 **Image cache cleanup policy**
+- [x] 🟡 **Image cache cleanup policy**
   - **How**: In `src-tauri/src/commands/media.rs`, add a periodic cleanup function (called from the existing hourly background task in `lib.rs`) that deletes cached images older than 30 days. Track image access time via file modification time. Also add a max cache size check (e.g., 500 MB) — if exceeded, delete oldest images until under limit.
   - **Why**: Image cache grows unbounded with no cleanup; long-running instances accumulate significant disk usage.
 
