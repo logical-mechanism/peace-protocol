@@ -88,7 +88,7 @@ describe('SalesListingCard', () => {
 
     it('renders fallback price when undefined', () => {
       renderCard({ suggestedPrice: undefined });
-      expect(screen.getByText('1 ADA')).toBeInTheDocument();
+      expect(screen.getByText('No suggested price')).toBeInTheDocument();
     });
 
     it('renders description', () => {

@@ -83,7 +83,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/SalesListingCard.tsx`, `fe/src/components/EncryptionCard.tsx`
 
-- [ ] 🟢 **Align fallback price display between SalesListingCard and EncryptionCard**
+- [x] 🟢 **Align fallback price display between SalesListingCard and EncryptionCard**
   - **How**: In `SalesListingCard.tsx` (line 11), `DEFAULT_FALLBACK_PRICE = 1` causes listings without a suggested price to display "1 ADA", which is misleading. `EncryptionCard.tsx` (line 55) correctly shows "No suggested price". Remove the `DEFAULT_FALLBACK_PRICE` constant and use the same `formatPrice()` pattern from EncryptionCard: return `'No suggested price'` when price is undefined/null/NaN/negative.
   - **Why**: "1 ADA" is a fabricated price that misleads sellers into thinking their listing has a real price when none was set.
 
