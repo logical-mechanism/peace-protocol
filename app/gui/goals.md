@@ -163,7 +163,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/index.css`, `fe/src/components/ConfirmModal.tsx`, `fe/src/utils/formatAda.ts`
 
-- [ ] 🟢 **InfoTooltip focus ring offset**
+- [x] 🟢 **InfoTooltip focus ring offset**
   - **How**: In `InfoTooltip.tsx` (line 54), the focus ring has `focus-visible:ring-2 focus-visible:ring-[var(--accent)]` but no `ring-offset`. Add `focus-visible:ring-offset-1` to match other inline buttons (e.g., Toast.tsx line 174 uses `ring-offset-1`).
   - **Why**: Without ring-offset, the focus ring sits directly on the icon and is harder to see, especially on dark backgrounds.
 
@@ -185,7 +185,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/components/KeyboardShortcutsOverlay.tsx`
 
-- [x] 🟢 **`<kbd>` elements — screen reader improvement**
+- [ ] 🟢 **`<kbd>` elements — screen reader improvement**
   - **How**: In `KeyboardShortcutsOverlay.tsx` (line 78), `<kbd>` elements style keyboard keys but aren't announced distinctly by screen readers. Wrap each `<kbd>` with `aria-label="Key: {keyName}"` so screen readers say "Key: Escape" instead of just "Escape" in a table context.
   - **Why**: Screen reader users need context that these are keyboard shortcuts, not just text in a table.
 
@@ -287,11 +287,11 @@ Difficulty ratings:
 
 > Key files: `.github/workflows/`, `package.json`
 
-- [ ] 🟡 **GitHub Actions CI pipeline**
+- [s] 🟡 **GitHub Actions CI pipeline**
   - **How**: Create `.github/workflows/ci.yml` with jobs: (1) `lint` — runs `bash lint.sh` (eslint fe/be, tsc be, cargo fmt/clippy), (2) `test` — runs `bash test.sh` (vitest fe + be), (3) `typecheck` — runs `cd fe && npx tsc --noEmit`. Trigger on push to `main` and all pull requests. Use Node 20, Rust stable. Cache `node_modules`, `target/`, and `~/.cargo/registry`.
   - **Why**: No automated quality gate means regressions can slip into main unnoticed; CI catches lint errors, type errors, and test failures before merge.
 
-- [ ] 🟡 **Pre-commit hooks**
+- [s] 🟡 **Pre-commit hooks**
   - **How**: Install `husky` and `lint-staged` in the root `package.json`. Configure `lint-staged` to run `eslint --fix` on staged `.ts/.tsx` files and `cargo fmt` on staged `.rs` files. Run `npx husky install` and add a `.husky/pre-commit` hook that runs `npx lint-staged`.
   - **Why**: Without pre-commit hooks, developers must remember to lint manually; hooks enforce consistent code style automatically.
 
