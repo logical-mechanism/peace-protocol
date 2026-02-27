@@ -51,7 +51,7 @@ export default function Settings() {
   const { walletState, lock, wallet } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
-  const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes } = useNode()
+  const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes, stopNode } = useNode()
 
   // Settings state
   const [currentNetwork, setCurrentNetwork] = useState<string>('')
@@ -247,14 +247,19 @@ export default function Settings() {
       await invoke('set_network', { network: networkConfirmTarget })
       setCurrentNetwork(networkConfirmTarget)
       setNetworkConfirmTarget(null)
-      alert(`Network switched to ${networkConfirmTarget}. Please restart the application for changes to take effect.`)
+      toast.success(
+        `Network switched to ${networkConfirmTarget}`,
+        'Please restart the application for changes to take effect.',
+        0,
+        { label: 'Stop Node', onClick: () => { stopNode() } }
+      )
     } catch (error) {
       console.error('Failed to switch network:', error)
-      alert(`Failed to switch network: ${error}`)
+      toast.error('Network switch failed', `${error}`)
     } finally {
       setNetworkSwitching(false)
     }
-  }, [currentNetwork, networkConfirmTarget])
+  }, [currentNetwork, networkConfirmTarget, toast, stopNode])
 
   const handleRevealMnemonic = useCallback(async () => {
     if (!mnemonicPassword) {

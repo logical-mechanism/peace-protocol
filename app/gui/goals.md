@@ -203,7 +203,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Settings.tsx`
 
-- [ ] 🟡 **Replace network switch alert() with toast + error handling**
+- [x] 🟡 **Replace network switch alert() with toast + error handling**
   - **How**: In `Settings.tsx` (line ~241-250), replace `window.alert()` after network switch with `toast.success("Network switched to preprod. Restart required.")`. Wrap the switch in try-catch and show `toast.error()` with the specific failure reason on error. Add a "Restart Now" action button in the success toast that calls `invoke('stop_node')`.
   - **Why**: `alert()` is jarring, blocks the UI, and provides no error recovery path. Toast is consistent with the rest of the app.
 
