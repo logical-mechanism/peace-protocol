@@ -67,7 +67,7 @@ Difficulty ratings:
   - **How**: In `WalletUnlock.tsx` (line ~178), add `isDeleting` state. Set true before `invoke('delete_wallet')`, false after. Disable both confirm/cancel buttons, show `LoadingSpinner` in confirm button while `isDeleting`.
   - **Why**: Deletion involves Tauri file I/O; without loading state the button appears to hang briefly.
 
-- [ ] 🟢 **Mnemonic import word input focus ring**
+- [x] 🟢 **Mnemonic import word input focus ring**
   - **How**: In `MnemonicInput.tsx`, add `focus-visible:ring-2 focus-visible:ring-[var(--accent)]` to each word input element. The `data-import-index` inputs currently rely on browser default focus which is invisible in some themes.
   - **Why**: Keyboard users importing a mnemonic can't see which word field is focused.
 
