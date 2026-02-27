@@ -243,7 +243,7 @@ Difficulty ratings:
 
 > Key files: `src-tauri/src/lib.rs`, `src-tauri/src/process/manager.rs`, `src-tauri/src/commands/snark.rs`
 
-- [ ] 🔴 **SNARK cleanup task — synchronize with active prove operations**
+- [x] 🔴 **SNARK cleanup task — synchronize with active prove operations**
   - **How**: In `lib.rs` (line ~142), the hourly cleanup task deletes SNARK temp files older than 1 hour. But if a prove operation takes >1 hour (rare but possible on slow hardware), cleanup could delete files mid-operation. Solution: before deleting, check if the `SnarkLock` mutex is held (i.e., a prove is in progress). If locked, skip cleanup for that cycle. Alternatively, track active temp directories in a `HashSet<PathBuf>` behind the `SnarkLock` and exclude them from cleanup.
   - **Why**: Deleting temp files during an active SNARK proof would cause the proof to fail silently or produce corrupt output, wasting 3+ minutes of computation.
 

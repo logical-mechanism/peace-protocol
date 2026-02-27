@@ -127,19 +127,32 @@ pub fn run() {
                 .expect("Failed to set temp directory permissions");
             app.manage(AppTmpDir(app_tmp_dir.clone()));
 
-            // SNARK serialization lock — prevents concurrent sidecar invocations
-            app.manage(SnarkLock(tokio::sync::Mutex::new(())));
+            // SNARK serialization lock — prevents concurrent sidecar invocations.
+            // Wrapped in Arc so the cleanup task can check if a prove is in progress.
+            let snark_mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+            let snark_mutex_for_cleanup = snark_mutex.clone();
+            app.manage(SnarkLock(snark_mutex));
 
             // Pre-compute media images path for background cleanup task
             let media_images_cleanup_dir = app_data_dir.join("media").join("images");
 
             // Periodic cleanup (runs every hour):
             // 1. Securely delete orphaned SNARK temp files older than 1 hour
+            //    (skipped if a prove operation is in progress to avoid deleting active files)
             // 2. Evict cached images older than 30 days or exceeding 500 MB total
             tauri::async_runtime::spawn(async move {
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
-                    cleanup_old_temp_files(&app_tmp_dir);
+                    match snark_mutex_for_cleanup.try_lock() {
+                        Ok(_guard) => {
+                            cleanup_old_temp_files(&app_tmp_dir);
+                        }
+                        Err(_) => {
+                            eprintln!(
+                                "[cleanup] Skipping SNARK temp cleanup: prove operation in progress"
+                            );
+                        }
+                    }
                     commands::media::cleanup_image_cache(
                         &media_images_cleanup_dir,
                         2_592_000,   // 30 days in seconds
