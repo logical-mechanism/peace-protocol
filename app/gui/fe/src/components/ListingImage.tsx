@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import { downloadImage, getCachedImage, banImage, unbanImage } from '../services/imageCache';
 
 type ImageState = 'no-link' | 'default' | 'loading' | 'loaded' | 'banned';
@@ -163,7 +163,7 @@ export default function ListingImage({
         )}
         {state === 'loading' && (
           <div className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center">
-            <LoadingSpinner size="sm" label="Loading image" />
+            <DelayedSpinner size="sm" label="Loading image" />
           </div>
         )}
         {state === 'loaded' && dataUrl && (
@@ -210,7 +210,7 @@ export default function ListingImage({
             className="w-full h-full object-cover blur-sm"
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <LoadingSpinner size="lg" label="Downloading image" />
+            <DelayedSpinner size="lg" label="Downloading image" />
           </div>
         </>
       )}

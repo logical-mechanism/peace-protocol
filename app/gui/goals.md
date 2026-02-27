@@ -229,7 +229,7 @@ Difficulty ratings:
   - **How**: In `Toast.tsx`, when rendering multiple toasts, add a staggered entry delay: each toast's `animation-delay` increments by 50ms (e.g., toast 1: 0ms, toast 2: 50ms, toast 3: 100ms). This creates a cascade effect instead of all toasts appearing simultaneously.
   - **Why**: Multiple simultaneous toasts currently snap into position together, which feels abrupt.
 
-- [ ] 🟡 **Loading delay masking for spinners**
+- [x] 🟡 **Loading delay masking for spinners**
   - **How**: Create a `DelayedSpinner` component in `fe/src/components/LoadingSpinner.tsx` that wraps `LoadingSpinner` with a 300ms delay before rendering. Use `useState` + `useEffect` with a timeout. Replace direct `LoadingSpinner` usage in data-fetching contexts (tab content, modal content) with `DelayedSpinner`. Keep instant spinners for button loading states.
   - **Why**: Fast requests show a brief spinner flash (< 300ms); delaying the spinner eliminates the flicker for quick loads while still showing it for genuinely slow operations.
 

@@ -4,7 +4,7 @@ import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
 import { HistoryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import { SkeletonHistoryList } from './SkeletonCard';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
@@ -547,7 +547,7 @@ function VirtualizedHistoryList({
                 {/* Status icon */}
                 <div className="flex-shrink-0">
                   {tx.status === 'pending' ? (
-                    <LoadingSpinner size="sm" />
+                    <DelayedSpinner size="sm" />
                   ) : tx.status === 'confirmed' ? (
                     <svg className="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

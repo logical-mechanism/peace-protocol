@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN = 0.25;
@@ -373,7 +373,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         {zoomIndicator}
         {loading && blobUrl && (
           <div className="py-12 text-center">
-            <LoadingSpinner size="lg" className="mx-auto mb-4" />
+            <DelayedSpinner size="lg" className="mx-auto mb-4" />
             <p className="text-sm text-[var(--text-muted)]">Loading image...</p>
           </div>
         )}

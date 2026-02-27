@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -39,4 +41,25 @@ export default function LoadingSpinner({
       />
     </svg>
   );
+}
+
+interface DelayedSpinnerProps extends LoadingSpinnerProps {
+  delay?: number;
+}
+
+/**
+ * A LoadingSpinner that waits before rendering, preventing flash for fast operations.
+ * Use for data-fetching contexts; keep instant LoadingSpinner for button loading states.
+ */
+export function DelayedSpinner({ delay = 300, ...props }: DelayedSpinnerProps) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShow(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  if (!show) return null;
+
+  return <LoadingSpinner {...props} />;
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 
 interface AudioMetadata {
   title?: string;
@@ -687,7 +687,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         />
         {!isReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-[var(--winamp-bg-dark)]/80">
-            <LoadingSpinner size="sm" className="mr-2" />
+            <DelayedSpinner size="sm" className="mr-2" />
             <span className="text-xs text-[var(--text-muted)]">Loading audio...</span>
           </div>
         )}

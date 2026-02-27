@@ -3,7 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import { findMatchesInPdf, highlightText } from '../services/pdfSearch';
 import type { SearchMatch } from '../services/pdfSearch';
 
@@ -499,7 +499,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
 
   const pdfLoading = (
     <div className="py-12 text-center">
-      <LoadingSpinner size="lg" className="mx-auto mb-4" />
+      <DelayedSpinner size="lg" className="mx-auto mb-4" />
       <p className="text-sm text-[var(--text-muted)]">Loading PDF...</p>
     </div>
   );
@@ -510,7 +510,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
       scale={scale}
       loading={
         <div className="py-8 text-center">
-          <LoadingSpinner size="sm" className="mx-auto" />
+          <DelayedSpinner size="sm" className="mx-auto" />
         </div>
       }
       renderTextLayer={true}

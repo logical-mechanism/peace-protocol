@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 
 interface VideoPlayerProps {
   data: Uint8Array;
@@ -400,7 +400,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   if (remuxing) {
     return (
       <div className="py-12 text-center space-y-4">
-        <LoadingSpinner size="lg" className="mx-auto" />
+        <DelayedSpinner size="lg" className="mx-auto" />
         <p className="text-sm text-[var(--text-muted)]">Converting for playback...</p>
         <div className="mx-auto max-w-xs">
           <div className="h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden border border-[var(--border-subtle)]">
@@ -623,7 +623,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       <div className="flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative">
         {loading && blobUrl && (
           <div className="py-12 text-center">
-            <LoadingSpinner size="lg" className="mx-auto mb-4" />
+            <DelayedSpinner size="lg" className="mx-auto mb-4" />
             <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
           </div>
         )}
