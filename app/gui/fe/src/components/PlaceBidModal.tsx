@@ -113,7 +113,7 @@ export default function PlaceBidModal({
       if (isNaN(amount) || amount <= 0) {
         newErrors.bidAmount = 'Bid amount must be a positive number';
       } else if (amount < MIN_BID_ADA) {
-        newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA (required by the Cardano network to hold bid data on-chain)`;
+        newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA`;
       } else if (amount > 1000000000) {
         newErrors.bidAmount = 'Bid amount is too high';
       } else if (balanceAda !== undefined && amount > balanceAda) {
@@ -384,12 +384,8 @@ export default function PlaceBidModal({
               <div className="mt-1 space-y-1">
                 <p id="bidAmount-hint" className="text-xs text-[var(--text-muted)]">
                   Your bid will be locked until the seller accepts or you cancel.{' '}
-                  <span
-                    title="The Cardano network requires each piece of on-chain data (UTxO) to hold a minimum amount of ADA. Your bid is stored on-chain, so it must meet this minimum."
-                    className="underline decoration-dotted cursor-help"
-                  >
-                    Why {MIN_BID_ADA} ADA minimum?
-                  </span>
+                  Why {MIN_BID_ADA} ADA minimum?
+                  <InfoTooltip text="The Cardano network requires each piece of on-chain data (UTxO) to hold a minimum amount of ADA. Your bid is stored on-chain, so it must meet this minimum." />
                 </p>
                 {balanceAda !== undefined ? (
                   <div className="flex items-center gap-2">
@@ -448,7 +444,8 @@ export default function PlaceBidModal({
                       htmlFor="futurePrice"
                       className="text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-1"
                     >
-                      Future Listing Price (ADA)
+                      Future Listing Price (ADA){' '}
+                      <span className="text-[var(--text-muted)] font-normal">(optional)</span>
                       <InfoTooltip text="The price you intend to re-list this data for after you win the bid. Recorded on-chain as metadata for future buyers." />
                     </label>
                     {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (

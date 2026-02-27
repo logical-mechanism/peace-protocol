@@ -643,6 +643,8 @@ function PasswordForm({
   onToggleShow: () => void
   onSubmit: () => void
 }) {
+  const [capsLockOn, setCapsLockOn] = useState(false)
+
   return (
     <div
       className="p-[var(--space-lg)] rounded-xl"
@@ -669,6 +671,7 @@ function PasswordForm({
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => onPasswordChange(e.target.value)}
+              onKeyDown={(e) => setCapsLockOn(e.getModifierState('CapsLock'))}
               className="w-full px-[var(--space-md)] py-[var(--space-2)] rounded-lg text-sm pr-16"
               style={{
                 background: 'var(--bg-secondary)',
@@ -691,6 +694,11 @@ function PasswordForm({
             </button>
           </div>
           <PasswordStrengthIndicator strength={strength} password={password} />
+          {capsLockOn && (
+            <p className="text-xs mt-1" style={{ color: 'var(--warning)' }}>
+              Caps Lock is on
+            </p>
+          )}
         </div>
 
         <div>
@@ -705,6 +713,7 @@ function PasswordForm({
             value={confirmPassword}
             onChange={(e) => onConfirmChange(e.target.value)}
             onKeyDown={(e) => {
+              setCapsLockOn(e.getModifierState('CapsLock'))
               if (e.key === 'Enter' && passwordValid) onSubmit()
             }}
             className="w-full px-[var(--space-md)] py-[var(--space-2)] rounded-lg text-sm"

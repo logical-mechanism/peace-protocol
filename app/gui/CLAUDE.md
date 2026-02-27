@@ -161,7 +161,7 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
 **Transaction building** (fe/src/services/transactionBuilder.ts ~2174 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
@@ -319,8 +319,11 @@ app/gui/
 - Mnemonic held in memory only while unlocked; zeroed on lock
 
 **Secrets** (src-tauri/src/commands/secrets.rs + iagon.rs):
-- AES key derived from mnemonic via `derive_secrets_key()` — Argon2id with light params (4 MiB, 1 iter), fixed salt `"PEACE_SECRETS_V1"`
-- File format: `{ version: 1, nonce: hex(12 bytes), ciphertext: hex }` (AES-256-GCM)
+- AES key derived from mnemonic via `derive_secrets_key()` — 3 KDF versions with transparent migration on unlock:
+  - v1: Argon2id 4 MiB, 1 iter, fixed salt `"PEACE_SECRETS_V1"`
+  - v2: Argon2id 32 MiB, 1 iter, random per-user salt
+  - v3: Argon2id 32 MiB (current); `migration.rs` handles v1→v2→v3 re-encryption
+- File format: `{ version: 1, nonce: hex(12 bytes), ciphertext: hex }` (AES-256-GCM); KDF metadata in `kdf_meta.json`
 - Five secret types stored in `app_data_dir/secrets/`:
   - `seller/{token_name}.json` — `{ a, r }` scalars
   - `bid/{encryption_token}.json` — array of `{ bidTokenName, sk_bid }`
@@ -406,14 +409,14 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Frontend: `cd fe && npm test` (Vitest + jsdom)
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
-  - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret (14 files)
-  - `fe/src/services/__tests__/` — api, apiCache, autolock, bidFormDraftStorage, bidNotifications, contentStorage, desktopNotifications, errorMessages, favoritesStorage, filterStorage, iagonApi, iagonAuth, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, secretCleanup, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (29 files)
+  - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
+  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (34 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryTab, ListingImage, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, PdfViewer, PlaceBidModal, SalesListingCard, SessionWarningBanner, ShutdownOverlay, SnarkDownloadModal, SnarkProvingModal, Toast, VideoPlayer (32 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (44 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
-  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
+  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, formatDate, logClassification, network, time, truncate, walletErrors (10 files)
   - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
   - `fe/src/test/__mocks__/tauri-notification.ts` — Tauri notification plugin mock

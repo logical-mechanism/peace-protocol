@@ -27,7 +27,7 @@ function ProgressBar({ percent }: { percent: number }) {
       aria-label="Sync progress"
     >
       <div
-        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-[width] duration-500 ease-out"
+        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-[width] duration-500 ease-out progress-bar-shimmer"
         style={{ width: `${Math.min(percent, 100)}%` }}
       />
     </div>
@@ -629,7 +629,7 @@ export default function NodeSync() {
 
               {showStuckMessage && (
                 <div className="mt-[var(--space-3)] p-[var(--space-3)] bg-[var(--info-muted)] border border-[var(--info)]/20 rounded-[var(--radius-md)] text-xs text-[var(--info)]">
-                  The last few blocks take longer as the node validates recent transactions. This is normal.
+                  The last few blocks take longer as the node validates recent transactions. This is normal. The last few percent may take 5–15 minutes as the node validates recent blocks.
                   {tipHeight && networkTip && networkTip > tipHeight && (
                     <span className="block mt-[var(--space-1)]">
                       {(networkTip - tipHeight).toLocaleString()} blocks remaining.

@@ -80,6 +80,7 @@ export default function Settings() {
   const [iagonConnected, setIagonConnected] = useState(false)
   const [iagonLoading, setIagonLoading] = useState(false)
   const [iagonError, setIagonError] = useState('')
+  const [iagonDisconnectConfirm, setIagonDisconnectConfirm] = useState(false)
   const [manualApiKey, setManualApiKey] = useState('')
 
   // Orphaned Iagon files (from failed/abandoned listing drafts)
@@ -1192,12 +1193,12 @@ export default function Settings() {
                   <button
                     key={net}
                     onClick={() => net !== currentNetwork && setNetworkConfirmTarget(net)}
-                    disabled={networkSwitching || net === currentNetwork}
+                    disabled={networkSwitching || net === currentNetwork || (stage !== 'stopped' && stage !== 'synced')}
                     className={`p-4 rounded-[var(--radius-lg)] border-2 transition-all cursor-pointer ${
                       currentNetwork === net
                         ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
                         : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
-                    } ${networkSwitching ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    } ${networkSwitching || (stage !== 'stopped' && stage !== 'synced') ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-left">
                       <h3 className="text-lg font-medium capitalize">{net}</h3>
@@ -1213,6 +1214,11 @@ export default function Settings() {
                   </button>
                 ))}
               </div>
+              {stage !== 'stopped' && stage !== 'synced' && (
+                <p className="text-xs text-[var(--text-muted)] mt-3">
+                  Stop the node before switching networks.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1307,7 +1313,7 @@ export default function Settings() {
                       {iagonLoading ? 'Checking...' : 'Verify Connection'}
                     </button>
                     <button
-                      onClick={handleDisconnectIagon}
+                      onClick={() => setIagonDisconnectConfirm(true)}
                       disabled={iagonLoading}
                       className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                     >
@@ -1860,6 +1866,19 @@ export default function Settings() {
         confirmLabel="Clear Cache"
         confirmVariant="danger"
         loading={cacheClearingAll}
+      />
+
+      {/* Iagon Disconnect Confirmation */}
+      <ConfirmModal
+        isOpen={iagonDisconnectConfirm}
+        onClose={() => setIagonDisconnectConfirm(false)}
+        onConfirm={() => { setIagonDisconnectConfirm(false); handleDisconnectIagon(); }}
+        title="Disconnect Iagon"
+        message="This will remove your Iagon API key. You won't be able to upload or download files until you reconnect."
+        description="You'll need to re-authenticate with your wallet before uploading files again."
+        confirmLabel="Disconnect"
+        confirmVariant="danger"
+        loading={iagonLoading}
       />
 
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />

@@ -416,6 +416,26 @@ select option {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
+/* Progress bar shimmer — translucent highlight sweep over colored gradient */
+.progress-bar-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
 /* PDF search highlights — text layer is transparent overlay on canvas */
 .textLayer .pdf-search-highlight {
   background-color: rgba(255, 196, 0, 0.35);

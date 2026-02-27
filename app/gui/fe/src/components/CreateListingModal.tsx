@@ -287,6 +287,11 @@ export default function CreateListingModal({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    if (file && file.size > LARGE_FILE_THRESHOLD_BYTES) {
+      setErrors((prev) => ({ ...prev, file: 'File too large (max 100 MB)' }));
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     const category = file ? detectCategoryFromExtension(file.name) : 'other';
     setFormData((prev) => ({ ...prev, file, category }));
     if (errors.file) {
@@ -329,6 +334,11 @@ export default function CreateListingModal({
 
     const file = e.dataTransfer.files[0] || null;
     if (!file) return;
+
+    if (file.size > LARGE_FILE_THRESHOLD_BYTES) {
+      setErrors((prev) => ({ ...prev, file: 'File too large (max 100 MB)' }));
+      return;
+    }
 
     const category = detectCategoryFromExtension(file.name);
     setFormData((prev) => ({ ...prev, file, category }));

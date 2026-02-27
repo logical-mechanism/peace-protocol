@@ -7,9 +7,6 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
 
-// Default fallback price when suggested price can't be parsed
-const DEFAULT_FALLBACK_PRICE = 1;
-
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
   bidCount: number;
@@ -42,10 +39,10 @@ function SalesListingCard({
     setBidPulseKey(k => k + 1);
   }
 
-  // Format price with fallback to 1 ADA if undefined, null, NaN, or invalid
+  // Format price with fallback matching EncryptionCard behavior
   const formatPrice = (price?: number): string => {
     if (price === undefined || price === null || isNaN(price) || price < 0) {
-      return `${DEFAULT_FALLBACK_PRICE} ADA`;
+      return 'No suggested price';
     }
     return `${price.toLocaleString()} ADA`;
   };

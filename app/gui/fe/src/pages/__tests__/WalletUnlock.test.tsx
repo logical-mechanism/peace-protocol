@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, createEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
 import WalletUnlock from '../WalletUnlock';
@@ -146,16 +146,50 @@ describe('WalletUnlock', () => {
     expect(screen.getByText('Delete Wallet')).toBeInTheDocument();
   });
 
-  it('deletes wallet and navigates to setup', async () => {
+  it('delete button is disabled until backup checkbox is checked', () => {
     renderPage();
 
     fireEvent.click(screen.getByText('Forgot password?'));
+
+    const deleteBtn = screen.getByText('Delete Wallet');
+    expect(deleteBtn).toBeDisabled();
+
+    // Check the acknowledgment checkbox
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+
+    expect(deleteBtn).not.toBeDisabled();
+  });
+
+  it('deletes wallet and navigates to setup after checkbox acknowledgment', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByText('Forgot password?'));
+
+    // Must check the checkbox first
+    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByText('Delete Wallet'));
 
     await waitFor(() => {
       expect(mockDeleteWallet).toHaveBeenCalledTimes(1);
       expect(mockNavigate).toHaveBeenCalledWith('/wallet-setup');
     });
+  });
+
+  it('resets backup checkbox when delete dialog is closed', () => {
+    renderPage();
+
+    // Open dialog and check the checkbox
+    fireEvent.click(screen.getByText('Forgot password?'));
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(screen.getByRole('checkbox')).toBeChecked();
+
+    // Close dialog
+    fireEvent.click(screen.getByText('Cancel'));
+
+    // Re-open — checkbox should be unchecked
+    fireEvent.click(screen.getByText('Forgot password?'));
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
   });
 
   it('closes delete confirmation on Cancel', () => {
@@ -194,6 +228,37 @@ describe('WalletUnlock', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog).toHaveAttribute('aria-labelledby', 'delete-wallet-title');
+  });
+
+  it('shows Caps Lock warning when Caps Lock is on', () => {
+    renderPage();
+
+    const input = screen.getByAutoComplete('current-password');
+
+    // createEvent + override getModifierState (jsdom doesn't support modifierCapsLock init)
+    const event = createEvent.keyDown(input, { key: 'A' });
+    Object.defineProperty(event, 'getModifierState', { value: () => true });
+    fireEvent(input, event);
+
+    expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
+  });
+
+  it('hides Caps Lock warning when Caps Lock is toggled off', () => {
+    renderPage();
+
+    const input = screen.getByAutoComplete('current-password');
+
+    // Turn on
+    const onEvent = createEvent.keyDown(input, { key: 'A' });
+    Object.defineProperty(onEvent, 'getModifierState', { value: () => true });
+    fireEvent(input, onEvent);
+    expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
+
+    // Turn off
+    const offEvent = createEvent.keyDown(input, { key: 'a' });
+    Object.defineProperty(offEvent, 'getModifierState', { value: () => false });
+    fireEvent(input, offEvent);
+    expect(screen.queryByText('Caps Lock is on')).not.toBeInTheDocument();
   });
 
   it('shows copy button in error details and copies raw error on click', async () => {
