@@ -241,7 +241,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/services/crypto/__tests__/decrypt.test.ts`. This module likely calls the native SNARK CLI for BLS pairings, so mock `invoke('snark_decrypt_to_hash', ...)`. Test: decryption flow with valid inputs produces expected output, invalid inputs return appropriate errors. Follow `snarkProver.test.ts` for Tauri CLI mocking patterns.
   - **Why**: Decryption is the core value delivery — buyers pay ADA to decrypt content. Bugs here mean paid content is inaccessible.
 
-- [ ] 🟡 **Storage services: error path tests for corrupted data**
+- [x] 🟡 **Storage services: error path tests for corrupted data**
   - **How**: In existing test files for `listingDraftStorage.test.ts`, `bidFormDraftStorage.test.ts`, `filterStorage.test.ts`, `favoritesStorage.test.ts`, `tabStorage.test.ts`, `onboardingStorage.test.ts`, and `themeStorage.test.ts`, add test cases for: corrupted JSON in localStorage (`JSON.parse` throws), missing keys in parsed objects, quota exceeded errors (`localStorage.setItem` throws `DOMException`). Mock `localStorage.getItem` to return malformed strings and `localStorage.setItem` to throw.
   - **Why**: 16 storage services currently test only happy paths; localStorage corruption (browser crash, quota exceeded) is a real failure mode that could crash the app.
 

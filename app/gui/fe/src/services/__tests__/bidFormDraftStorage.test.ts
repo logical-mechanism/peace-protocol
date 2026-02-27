@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   saveBidFormDraft,
   getBidFormDraft,
@@ -100,6 +100,40 @@ describe('hasBidFormDraft', () => {
 
   it('returns false for corrupted data', () => {
     localStorage.setItem(STORAGE_KEY, '{broken');
+    expect(hasBidFormDraft('abc123')).toBe(false);
+  });
+});
+
+describe('error paths', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('saveBidFormDraft silently swallows quota exceeded error', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    expect(() => saveBidFormDraft(baseDraft)).not.toThrow();
+  });
+
+  it('getBidFormDraft returns null when getItem throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('SecurityError');
+    });
+    expect(getBidFormDraft('abc123')).toBeNull();
+  });
+
+  it('clearBidFormDraft silently swallows errors', () => {
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new DOMException('SecurityError');
+    });
+    expect(() => clearBidFormDraft()).not.toThrow();
+  });
+
+  it('hasBidFormDraft returns false when getItem throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('SecurityError');
+    });
     expect(hasBidFormDraft('abc123')).toBe(false);
   });
 });

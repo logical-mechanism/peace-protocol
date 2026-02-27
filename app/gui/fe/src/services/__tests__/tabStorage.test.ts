@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../tabStorage';
 
 describe('tabStorage', () => {
@@ -33,5 +33,32 @@ describe('tabStorage', () => {
     expect(getLastActiveTab()).toBe('history');
     clearLastActiveTab();
     expect(getLastActiveTab()).toBe('marketplace');
+  });
+
+  describe('error paths', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('getLastActiveTab returns marketplace when getItem throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(getLastActiveTab()).toBe('marketplace');
+    });
+
+    it('setLastActiveTab silently swallows quota exceeded error', () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('QuotaExceededError');
+      });
+      expect(() => setLastActiveTab('history')).not.toThrow();
+    });
+
+    it('clearLastActiveTab silently swallows errors', () => {
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(() => clearLastActiveTab()).not.toThrow();
+    });
   });
 });
