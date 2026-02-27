@@ -39,6 +39,33 @@ interface CreateListingModalProps {
 /** Files above this threshold show an informational upload time warning. */
 const LARGE_FILE_THRESHOLD_BYTES = 100 * 1024 * 1024; // 100 MB
 
+/** All steps for file-based listing creation. */
+const FILE_LISTING_STEPS: { key: ListingCreationStep; label: string }[] = [
+  { key: 'encrypting', label: 'Encrypting file' },
+  { key: 'uploading', label: 'Uploading to Iagon' },
+  { key: 'verifying', label: 'Verifying upload' },
+  { key: 'building', label: 'Building transaction' },
+  { key: 'signing', label: 'Signing transaction' },
+  { key: 'submitting', label: 'Submitting to chain' },
+];
+
+/** Steps for text-only listing creation (no file upload). */
+const TEXT_LISTING_STEPS: { key: ListingCreationStep; label: string }[] = [
+  { key: 'building', label: 'Building transaction' },
+  { key: 'signing', label: 'Signing transaction' },
+  { key: 'submitting', label: 'Submitting to chain' },
+];
+
+/** Maps each step to its ordinal index for comparison. */
+const STEP_ORDER: Record<ListingCreationStep, number> = {
+  encrypting: 0,
+  uploading: 1,
+  verifying: 2,
+  building: 3,
+  signing: 4,
+  submitting: 5,
+};
+
 function formatPrice(raw: string): string {
   if (!raw || raw.endsWith('.')) return raw;
   const num = parseFloat(raw);
@@ -860,6 +887,45 @@ export default function CreateListingModal({
               <p className="mb-2 text-xs text-[var(--text-muted)] draft-saved-indicator text-center">
                 Draft saved
               </p>
+            )}
+
+            {/* Progress stepper — shown during submission */}
+            {isSubmitting && creationStep && (
+              <div className="mb-4 space-y-1" role="status" aria-label="Listing creation progress">
+                {(isFileMode ? FILE_LISTING_STEPS : TEXT_LISTING_STEPS).map((step) => {
+                  const currentOrder = STEP_ORDER[creationStep];
+                  const stepOrder = STEP_ORDER[step.key];
+                  const isCompleted = stepOrder < currentOrder;
+                  const isCurrent = step.key === creationStep;
+
+                  return (
+                    <div key={step.key} className="flex items-center gap-2.5">
+                      {/* Step indicator */}
+                      <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+                        {isCompleted ? (
+                          <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : isCurrent ? (
+                          <LoadingSpinner size="sm" label={step.label} />
+                        ) : (
+                          <div className="w-2.5 h-2.5 rounded-full border-2 border-[var(--border-subtle)]" aria-hidden="true" />
+                        )}
+                      </div>
+                      {/* Step label */}
+                      <span className={`text-xs ${
+                        isCompleted
+                          ? 'text-[var(--success)]'
+                          : isCurrent
+                            ? 'text-[var(--text-primary)] font-medium'
+                            : 'text-[var(--text-muted)]'
+                      }`}>
+                        {step.label}{isCurrent && '...'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
 
             <div className="flex items-center gap-3">

@@ -457,8 +457,110 @@ describe('CreateListingModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
 
     await waitFor(() => {
-      expect(screen.getByText('Encrypting file...')).toBeInTheDocument();
+      // Text appears in both stepper and button — use getAllByText
+      const matches = screen.getAllByText('Encrypting file...');
+      expect(matches.length).toBeGreaterThanOrEqual(1);
     });
+  });
+
+  // --- Progress stepper UI ---
+
+  it('shows progress stepper with all 6 steps during file submission', async () => {
+    mockOnSubmit.mockImplementation(
+      async (_data: unknown, onProgress?: (step: string) => void) => {
+        onProgress?.('uploading');
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      },
+    );
+
+    renderModal();
+    // Switch to file mode and add a file
+    fireEvent.click(screen.getByText('File'));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'file desc', name: 'description' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
+
+    await waitFor(() => {
+      const stepper = screen.getByRole('status', { name: /Listing creation progress/ });
+      expect(stepper).toBeInTheDocument();
+      // All 6 steps should be present
+      expect(stepper).toHaveTextContent('Encrypting file');
+      expect(stepper).toHaveTextContent('Uploading to Iagon');
+      expect(stepper).toHaveTextContent('Verifying upload');
+      expect(stepper).toHaveTextContent('Building transaction');
+      expect(stepper).toHaveTextContent('Signing transaction');
+      expect(stepper).toHaveTextContent('Submitting to chain');
+    });
+  });
+
+  it('shows only 3 steps for text listing submission', async () => {
+    mockOnSubmit.mockImplementation(
+      async (_data: unknown, onProgress?: (step: string) => void) => {
+        onProgress?.('building');
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      },
+    );
+
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/Secret Message/), {
+      target: { value: 'secret', name: 'secretMessage' },
+    });
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'desc', name: 'description' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
+
+    await waitFor(() => {
+      const stepper = screen.getByRole('status', { name: /Listing creation progress/ });
+      expect(stepper).toBeInTheDocument();
+      // Only 3 steps for text mode
+      expect(stepper).toHaveTextContent('Building transaction');
+      expect(stepper).toHaveTextContent('Signing transaction');
+      expect(stepper).toHaveTextContent('Submitting to chain');
+      // File-specific steps should NOT be present
+      expect(stepper).not.toHaveTextContent('Encrypting file');
+      expect(stepper).not.toHaveTextContent('Uploading to Iagon');
+      expect(stepper).not.toHaveTextContent('Verifying upload');
+    });
+  });
+
+  it('does not show stepper when no creationStep is set', async () => {
+    // onSubmit never calls onProgress, so creationStep stays null
+    let resolveSubmit: () => void;
+    mockOnSubmit.mockImplementation(() => new Promise((resolve) => { resolveSubmit = resolve; }));
+
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/Secret Message/), {
+      target: { value: 'secret', name: 'secretMessage' },
+    });
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'desc', name: 'description' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
+
+    await waitFor(() => {
+      // Button shows generic "Creating..." text
+      expect(screen.getByText('Creating...')).toBeInTheDocument();
+    });
+
+    // Stepper should not be rendered
+    expect(screen.queryByRole('status', { name: /Listing creation progress/ })).not.toBeInTheDocument();
+
+    resolveSubmit!();
+  });
+
+  // --- Price input inputMode ---
+
+  it('price input has inputMode="decimal"', () => {
+    renderModal();
+    expect(screen.getByLabelText(/Suggested Price/)).toHaveAttribute('inputMode', 'decimal');
   });
 
   // --- Info box ---
