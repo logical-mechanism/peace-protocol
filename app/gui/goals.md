@@ -269,7 +269,7 @@ Difficulty ratings:
   - **How**: Create `be/src/__tests__/app.test.ts`. Use `supertest`. Test: CORS headers present on responses, JSON body parsing works, 404 returned for unknown routes, error handler returns `{ error: { code, message } }` format. Test request size limits if configured.
   - **Why**: The app factory wires all middleware together; a misconfigured middleware order (e.g., CORS after routes) silently breaks the entire API.
 
-- [ ] 🟡 **Frontend test: `providers.ts` — singleton lifecycle**
+- [x] 🟡 **Frontend test: `providers.ts` — singleton lifecycle**
   - **How**: Create `fe/src/services/__tests__/providers.test.ts`. Mock `OgmiosProvider` and `KupoAdapter`. Test: `getKupoAdapter()` returns same instance on repeated calls, `getOgmiosProvider()` returns same instance, `FixedOgmiosProvider.evaluateTx()` remaps `WITHDRAW` → `REWARD` tags.
   - **Why**: Provider singletons are used by every transaction build; a broken `WITHDRAW`→`REWARD` tag fix would silently break all bid acceptance operations.
 
