@@ -268,6 +268,16 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   background-color: var(--error-muted);
 }
 
+/* Danger: solid error background, white text (e.g., delete confirmation) */
+.btn-danger {
+  background-color: var(--error);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
 /* Success: solid success background */
 .btn-success {
   background-color: var(--success);

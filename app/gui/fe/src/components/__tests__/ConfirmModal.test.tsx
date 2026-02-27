@@ -139,7 +139,7 @@ describe('ConfirmModal', () => {
     it('applies danger styling by default', () => {
       renderModal();
       const confirmBtn = screen.getByText('Confirm');
-      expect(confirmBtn.className).toContain('bg-[var(--error)]');
+      expect(confirmBtn.className).toContain('btn-danger');
     });
 
     it('applies primary styling for default variant', () => {

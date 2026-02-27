@@ -167,7 +167,7 @@ Difficulty ratings:
   - **How**: In `InfoTooltip.tsx` (line 54), the focus ring has `focus-visible:ring-2 focus-visible:ring-[var(--accent)]` but no `ring-offset`. Add `focus-visible:ring-offset-1` to match other inline buttons (e.g., Toast.tsx line 174 uses `ring-offset-1`).
   - **Why**: Without ring-offset, the focus ring sits directly on the icon and is harder to see, especially on dark backgrounds.
 
-- [ ] 🟡 **Extract `.btn-danger` CSS class**
+- [x] 🟡 **Extract `.btn-danger` CSS class**
   - **How**: In `index.css`, add a `.btn-danger` class alongside the existing `.btn-primary`, `.btn-error` classes: `.btn-danger { background: var(--error); color: white; } .btn-danger:hover { opacity: 0.8; }`. Update `ConfirmModal.tsx` (line 39) to use `btn-base btn-danger` instead of inline `bg-[var(--error)] hover:bg-[var(--error)]/80 text-white`. Search for other inline danger button styles across the codebase.
   - **Why**: Inline danger button styling is duplicated and won't update if the error color changes; a CSS class ensures consistency.
 

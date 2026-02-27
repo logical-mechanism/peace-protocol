@@ -586,7 +586,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
           </button>
           <button
             onClick={() => setShowBulkDeleteConfirm(true)}
-            className="px-4 py-2 text-sm font-medium bg-[var(--error)] text-white rounded-[var(--radius-md)] hover:opacity-80 btn-base"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-danger"
           >
             Delete {selectedItems.size}
           </button>
