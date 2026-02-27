@@ -508,7 +508,7 @@ Each item has:
   - **How**: Create `fe/src/pages/__tests__/Dashboard.test.tsx`, `NodeSync.test.tsx`, `Settings.test.tsx`, `WalletSetup.test.tsx`, `WalletUnlock.test.tsx`. Mock all contexts (WalletContext, NodeContext, WasmContext) and Tauri invokes. Test: route guards, state transitions, error states, keyboard navigation. Use `@testing-library/react` + `renderWithProviders` helper.
   - **Why**: Page components are the top-level integration points. Currently only helper functions are tested, not the pages themselves.
 
-- [ ] **Tab component rendering tests**
+- [x] **Tab component rendering tests**
   - **How**: Create tests for `MarketplaceTab`, `MySalesTab`, `MyPurchasesTab`, `HistoryTab`, `LibraryTab`. Test: empty states, loading states, filter interactions, card rendering with mock data, error states. Mock API calls and Tauri invokes.
   - **Why**: Tab components contain the core business logic (filtering, sorting, data display) with zero test coverage.
 
