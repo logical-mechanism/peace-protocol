@@ -269,6 +269,7 @@ export default function NodeSync() {
   const stuckProgressRef = useRef<number>(0)
   const stuckTimerRef = useRef<number | null>(null)
   const [showStuckMessage, setShowStuckMessage] = useState(false)
+  const [copiedError, setCopiedError] = useState(false)
 
   // Render-time state adjustments when stage changes (per React docs)
   if (stage !== prevStage) {
@@ -542,6 +543,14 @@ export default function NodeSync() {
       break
   }
 
+  const handleCopyError = async () => {
+    const success = await copyToClipboard(statusMessage)
+    if (success) {
+      setCopiedError(true)
+      setTimeout(() => setCopiedError(false), 1500)
+    }
+  }
+
   return (
     <main
       id="main-content"
@@ -687,6 +696,39 @@ export default function NodeSync() {
                   ))}
                 </ul>
               )}
+              <details className="mt-2">
+                <summary
+                  className="text-xs cursor-pointer"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Details
+                </summary>
+                <div className="flex items-start gap-2 mt-1">
+                  <code
+                    className="block text-xs font-mono break-all flex-1"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {statusMessage}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyError}
+                    className="shrink-0 p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                    title="Copy error details"
+                    aria-label="Copy error details"
+                  >
+                    {copiedError ? (
+                      <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </details>
             </div>
           )}
 

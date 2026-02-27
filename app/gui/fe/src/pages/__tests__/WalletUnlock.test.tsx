@@ -22,6 +22,11 @@ vi.mock('../../contexts/WalletContext', () => ({
   }),
 }));
 
+const mockCopyToClipboard = vi.fn().mockResolvedValue(true);
+vi.mock('../../utils/clipboard', () => ({
+  copyToClipboard: (...args: unknown[]) => mockCopyToClipboard(...args),
+}));
+
 vi.mock('../../contexts/ModalContext', () => ({
   useModal: () => ({
     openModal: vi.fn(),
@@ -189,6 +194,37 @@ describe('WalletUnlock', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog).toHaveAttribute('aria-labelledby', 'delete-wallet-title');
+  });
+
+  it('shows copy button in error details and copies raw error on click', async () => {
+    // "Invalid wallet file" triggers a parsed error where raw !== title && raw !== suggestion
+    mockUnlockWallet.mockRejectedValue('Invalid wallet file: bad nonce');
+
+    renderPage();
+
+    const input = screen.getByAutoComplete('current-password');
+    fireEvent.change(input, { target: { value: 'test' } });
+    fireEvent.click(screen.getByText('Unlock'));
+
+    // Wait for error to appear
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    // Open the details
+    const details = screen.getByText('Details');
+    fireEvent.click(details);
+
+    // Copy button should be present
+    const copyBtn = screen.getByLabelText('Copy error details');
+    expect(copyBtn).toBeInTheDocument();
+
+    // Click copy
+    fireEvent.click(copyBtn);
+
+    await waitFor(() => {
+      expect(mockCopyToClipboard).toHaveBeenCalledWith('Invalid wallet file: bad nonce');
+    });
   });
 });
 

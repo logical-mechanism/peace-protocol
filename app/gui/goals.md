@@ -167,7 +167,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/services/errorMessages.ts`, `fe/src/pages/NodeSync.tsx`
 
-- [ ] 🟢 **Copyable raw error details in error displays**
+- [x] 🟢 **Copyable raw error details in error displays**
   - **How**: In `WalletUnlock.tsx` (line ~156-169), the `<details>` element shows raw error text. Add a small copy button (clipboard icon) inside the `<details>` that copies the raw error string via `copyToClipboard()`. Use the existing copy-check animation pattern from `index.css`. Apply the same pattern in `NodeSync.tsx` error displays.
   - **Why**: Users reporting bugs need to share exact error messages; manually selecting text inside a `<details>` element is awkward.
 
