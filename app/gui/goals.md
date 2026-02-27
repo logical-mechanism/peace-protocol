@@ -373,7 +373,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/__tests__/`, `fe/src/services/__tests__/`, `be/src/services/__tests__/`
 
-- [ ] 🟡 **Component tests: ConfirmModal, DescriptionModal**
+- [x] 🟡 **Component tests: ConfirmModal, DescriptionModal**
   - **How**: Create `fe/src/components/__tests__/ConfirmModal.test.tsx` testing: renders with title/message, calls onConfirm/onClose, shows danger variant styling, disables buttons during submission. Create `DescriptionModal.test.tsx` testing: renders full description text, handles empty description, closes on Escape.
   - **Why**: ConfirmModal is used by every destructive action in the app; DescriptionModal is a frequently opened modal. Both have zero test coverage.
 
