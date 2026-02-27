@@ -562,7 +562,7 @@ Each item has:
   - **How**: In `lint.sh`, only run `cargo fmt --check` and `cargo clippy` if Rust files changed since last commit: `if git diff --name-only HEAD | grep -q "^app/gui/src-tauri/"; then cargo fmt --check && cargo clippy; fi`. Falls back to running always if not in a git context.
   - **Why**: Cargo fmt + clippy takes 30-60s even with no changes. Skipping when only TS files changed saves significant time.
 
-- [ ] **More specific WebKit process cleanup**
+- [x] **More specific WebKit process cleanup**
   - **How**: In `run.sh`, the `pkill -u "$USER" -f 'WebKitNetworkProcess'` could kill unrelated WebKit processes. Change to: `lsof -ti:5173 2>/dev/null | xargs -r kill` (kill only processes holding the dev port), or pattern-match the Tauri app: `pgrep -f 'webkit.*veiled' | xargs -r kill`.
   - **Why**: Users running other WebKit-based apps (GNOME Web, other Tauri apps) get those killed when starting Veiled.
 
@@ -588,7 +588,7 @@ Each item has:
   - **How**: In `.github/workflows/ci.yml`, add `--coverage.thresholdAutoUpdate=false` flag to vitest commands (or check exit code). Currently coverage is generated but thresholds aren't enforced — the job passes even if coverage drops below configured minimums.
   - **Why**: Coverage thresholds (55% FE, 60% BE) exist in config but aren't gates. Coverage can regress silently.
 
-- [ ] **CI version consistency check**
+- [x] **CI version consistency check**
   - **How**: Add a CI step that verifies all version fields match: `V1=$(jq -r .version app/gui/package.json); V2=$(jq -r .version app/gui/fe/package.json); V3=$(jq -r .version app/gui/be/package.json); if [ "$V1" != "$V2" ] || [ "$V1" != "$V3" ]; then echo "Version mismatch!" && exit 1; fi`. Include `tauri.conf.json` and `Cargo.toml` versions too.
   - **Why**: Five files must have matching version numbers. It's easy to update some but forget others during a version bump.
 
@@ -600,7 +600,7 @@ Each item has:
   - **How**: Create `.github/PULL_REQUEST_TEMPLATE.md` with sections: Summary (1-3 bullets), Testing (checkbox list: ran tests, tested on Linux, checked linter), Breaking Changes (yes/no), Version Bump (yes/no with checklist of 5 files).
   - **Why**: PRs lack consistent format. Reviewers must ask the same questions every time. A template standardizes expectations.
 
-- [ ] **CI backend build step before tests**
+- [x] **CI backend build step before tests**
   - **How**: In `.github/workflows/ci.yml`, add `npm --prefix be run build` step after `npm run install:all` and before running tests. This catches backend TypeScript compilation errors that unit tests alone might miss.
   - **Why**: Backend `tsc` compilation errors don't fail the unit test job because tests use their own tsconfig. A separate build step catches type errors.
 

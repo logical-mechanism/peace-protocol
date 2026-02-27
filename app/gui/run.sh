@@ -6,10 +6,9 @@ cd "$(dirname "$0")"
 source ./check-prereqs.sh
 check_prerequisites
 
-# If a previous run left WebKit helper processes behind, kill them.
-# (Workaround for WebKitNetworkProcess sticking around / getting wedged)
-pkill -u "$USER" -f 'WebKitNetworkProcess' 2>/dev/null || true
-pkill -u "$USER" -f 'WebKitWebProcess'     2>/dev/null || true
+# If a previous run left processes on the dev port, kill them.
+# Uses port-based cleanup instead of pkill to avoid killing unrelated WebKit apps.
+lsof -ti:5173 2>/dev/null | xargs -r kill 2>/dev/null || true
 
 # WebKitGTK workarounds for Linux (older GPUs, kernel 6.17+)
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
