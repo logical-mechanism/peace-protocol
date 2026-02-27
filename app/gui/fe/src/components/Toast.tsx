@@ -171,7 +171,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
                 href={toast.action.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center gap-1 text-xs font-medium ${colors.icon} hover:underline`}
+                className={`inline-flex items-center gap-1 text-xs font-medium ${colors.icon} hover:underline rounded focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1`}
               >
                 {toast.action.label}
                 <svg
@@ -192,7 +192,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
             ) : toast.action.onClick ? (
               <button
                 onClick={toast.action.onClick}
-                className={`text-xs font-medium ${colors.icon} hover:underline cursor-pointer`}
+                className={`text-xs font-medium ${colors.icon} hover:underline cursor-pointer rounded focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1`}
               >
                 {toast.action.label}
               </button>
@@ -203,7 +203,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
       {(toast.type === 'error' || toast.type === 'warning') && (
         <button
           onClick={handleCopy}
-          className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          className="flex-shrink-0 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           aria-label="Copy error to clipboard"
         >
           {copied ? (
@@ -219,7 +219,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
       )}
       <button
         onClick={handleClose}
-        className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+        className="flex-shrink-0 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         aria-label="Dismiss notification"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +250,7 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
       {toasts.length >= 2 && onDismissAll && (
         <button
           onClick={onDismissAll}
-          className="self-end text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer mb-1"
+          className="self-end text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer mb-1 rounded focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           Dismiss all{queuedCount > 0 ? ` (${queuedCount} queued)` : ''}
         </button>

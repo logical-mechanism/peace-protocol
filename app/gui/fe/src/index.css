@@ -146,6 +146,20 @@ body {
   box-shadow: var(--focus-ring);
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Range slider thumb focus indicator */
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
+}
+
 :focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;

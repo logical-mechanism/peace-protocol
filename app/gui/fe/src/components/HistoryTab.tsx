@@ -454,6 +454,7 @@ function HistoryTab({
           </button>
           <button
             onClick={handleClear}
+            aria-label="Clear transaction history"
             className="px-3 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
           >
             Clear History
@@ -480,6 +481,7 @@ function HistoryTab({
           action={
             <button
               onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
+              aria-label="Clear all filters"
               className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
             >
               Clear Filters
@@ -607,6 +609,7 @@ function VirtualizedHistoryList({
                     onClick={() => onRetryListing(tx.draftId!)}
                     className="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                     title="Retry listing without re-uploading the file"
+                    aria-label="Retry failed listing"
                   >
                     Retry
                   </button>

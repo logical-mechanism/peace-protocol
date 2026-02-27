@@ -275,19 +275,19 @@ Difficulty ratings:
 
 > Key files: `fe/src/index.css`, `fe/src/components/PriceRangeSlider.tsx`, `fe/src/components/Toast.tsx`
 
-- [ ] 🟡 **Focus indicators on all interactive elements**
+- [x] 🟡 **Focus indicators on all interactive elements**
   - **How**: In `index.css`, add explicit `button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { box-shadow: var(--focus-ring); }` rule to ensure all interactive elements inherit the focus ring. Currently the global `:focus-visible` rule may not reach all elements due to specificity. Verify in WalletUnlock.tsx password input, PriceRangeSlider thumbs, and Toast action links.
   - **Why**: ~40% of interactive elements lack visible focus indicators; keyboard users can't track which element has focus.
 
-- [ ] 🟢 **PriceRangeSlider thumb focus indicator**
+- [x] 🟢 **PriceRangeSlider thumb focus indicator**
   - **How**: In `PriceRangeSlider.tsx` (line ~51-55), add `:focus-visible` styling to range input thumbs: `[&:focus-visible]:ring-2 [&:focus-visible]:ring-[var(--accent)]`. Also add `aria-label="Minimum price"` and `aria-label="Maximum price"` to the two range inputs.
   - **Why**: Slider thumbs have no focus indicator; screen reader users have no label for what the sliders control.
 
-- [ ] 🟢 **Toast action link focus style**
+- [x] 🟢 **Toast action link focus style**
   - **How**: In `Toast.tsx` (line ~171), add `focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 rounded` to action links. Currently links only show hover:underline with no focus indicator.
   - **Why**: Toast action links (e.g., "View on CardanoScan") are keyboard-navigable but have no visible focus state.
 
-- [ ] 🟢 **HistoryTab filter button aria-labels**
+- [x] 🟢 **HistoryTab filter button aria-labels**
   - **How**: In `HistoryTab.tsx`, add `aria-label` attributes to filter buttons that describe their function (e.g., `aria-label="Filter by pending transactions"`, `aria-label="Filter by confirmed transactions"`). Screen readers currently announce only the button text which may be ambiguous.
   - **Why**: Filter buttons may show only icons or abbreviated text; explicit labels improve screen reader navigation.
 
