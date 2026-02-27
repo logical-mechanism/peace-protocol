@@ -12,8 +12,15 @@ import { vi } from 'vitest';
 
 // ── @tauri-apps/api/core ────────────────────────────────────────────────
 
-/** Default: resolves to undefined. Override in tests with mockResolvedValueOnce / mockImplementation. */
-export const invoke = vi.fn().mockResolvedValue(undefined);
+/**
+ * Default: REJECTS with an error. Tests must explicitly mock each command they use.
+ * This prevents silent undefined returns from masking missing mocks.
+ *
+ * Override in tests with mockResolvedValueOnce / mockResolvedValue / mockImplementation.
+ */
+export const invoke = vi.fn().mockRejectedValue(
+  new Error('invoke() not mocked for this command — add an explicit mock in your test')
+);
 
 // ── @tauri-apps/api/event ───────────────────────────────────────────────
 

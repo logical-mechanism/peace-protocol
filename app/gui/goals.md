@@ -520,7 +520,7 @@ Each item has:
   - **How**: Create `be/src/services/__tests__/bids.test.ts` and `be/src/services/__tests__/encryptions.test.ts`. Mock Kupo HTTP responses with various datum shapes (valid, malformed, missing fields). Test: datum parsing, CIP-20 metadata extraction, status filtering, pagination.
   - **Why**: The core business logic for transforming raw blockchain data into display models is untested. A CBOR change could silently break bid/encryption parsing.
 
-- [ ] **Stricter Tauri mock defaults**
+- [x] **Stricter Tauri mock defaults**
   - **How**: In `fe/src/test/__mocks__/tauri.ts`, change the default `invoke` mock from resolving to `undefined` to throwing: `vi.fn().mockRejectedValue(new Error('invoke() not mocked for this command'))`. Tests must explicitly mock each command they use.
   - **Why**: Tests that forget to mock a Tauri command silently succeed with `undefined`, hiding real bugs. Strict mocks force explicit setup.
 
