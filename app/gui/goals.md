@@ -381,7 +381,7 @@ Difficulty ratings:
   - **How**: Create test files testing: progress bar rendering, error state display, "Do not close" warning visibility, cancel button behavior. Mock `useSnarkProver` and `invoke` calls. Follow existing `DecryptModal.test.tsx` patterns for modal testing.
   - **Why**: SNARK modals are long-running user-facing UIs with complex state machines; bugs here leave users stuck.
 
-- [ ] 🟡 **Component tests: PdfViewer, ImageViewer, VideoPlayer**
+- [x] 🟡 **Component tests: PdfViewer, ImageViewer, VideoPlayer**
   - **How**: Create test files in `fe/src/components/__tests__/`. Mock `react-pdf`, Blob URL creation, and `<video>` element. Test: renders without crash, handles empty data, shows zoom controls, fullscreen toggle works. Use `@vitest-environment jsdom` pragma.
   - **Why**: Media viewers have zero test coverage despite complex error paths (invalid data, unsupported formats, FFmpeg fallback).
 
