@@ -261,7 +261,7 @@ Difficulty ratings:
 
 > Key files: `be/src/services/cbor.ts`, `be/src/app.ts`, `fe/src/services/providers.ts`
 
-- [ ] 🔴 **Backend test: `cbor.ts` — CBOR decode + slot-to-time**
+- [x] 🔴 **Backend test: `cbor.ts` — CBOR decode + slot-to-time**
   - **How**: Create `be/src/services/__tests__/cbor.test.ts`. Test: `slotToUnixTime()` with preprod slot 0 → 1654041600, mainnet slot 4492800 → 1596491091, negative slot (should handle gracefully). `decodePlutusData()` with valid CBOR for Constructor, Integer, ByteString, List, Map. Test indefinite-length byte strings (G2 point chunking). Test malformed CBOR input (truncated, invalid tags). ~30+ test cases.
   - **Why**: `cbor.ts` is the foundation of all datum parsing — incorrect slot-to-time or CBOR decode silently corrupts all marketplace data.
 
