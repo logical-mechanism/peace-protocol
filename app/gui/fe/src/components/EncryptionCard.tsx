@@ -7,6 +7,7 @@ import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
+import { formatDate } from '../utils/formatDate';
 
 
 interface EncryptionCardProps {
@@ -48,15 +49,6 @@ function EncryptionCard({
     setPrevBidCount(bidCount);
     setBidPulseKey(k => k + 1);
   }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
 
   // Format price with "No suggested price" fallback for missing/invalid values
   const formatPrice = (price?: number): string => {

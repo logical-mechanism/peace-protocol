@@ -247,7 +247,7 @@ Difficulty ratings:
   - **How**: In `index.css`, add `--space-24: 6rem; --space-32: 8rem;` to the spacing scale. Update `EmptyState.tsx` from `p-12` (48px, not in token list) to use the new token or fall back to `p-8` (--space-8).
   - **Why**: EmptyState uses arbitrary `p-12` padding that doesn't map to any design token; larger tokens formalize these values.
 
-- [ ] 🟡 **Shared formatDate() utility**
+- [x] 🟡 **Shared formatDate() utility**
   - **How**: Create `fe/src/utils/formatDate.ts` exporting `formatDate(dateString: string): string` using `Intl.DateTimeFormat` with a consistent short format (e.g., "Jan 15, 2025"). Replace inline `new Intl.DateTimeFormat(...)` calls in `EncryptionCard.tsx` (line ~50-55), `SalesListingCard.tsx`, and any other card components that format dates.
   - **Why**: Cards use inline DateTimeFormat with potentially inconsistent options; a shared utility ensures uniform date display.
 

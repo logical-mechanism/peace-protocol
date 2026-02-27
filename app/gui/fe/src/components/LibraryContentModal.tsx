@@ -7,8 +7,9 @@ import { formatBytes } from '../utils/formatBytes';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import ConfirmModal from './ConfirmModal';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import Badge from './Badge';
+import { formatDateTime } from '../utils/formatDate';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
 const ImageViewer = lazy(() => import('./ImageViewer'));
@@ -27,18 +28,6 @@ interface LibraryContentModalProps {
 
 type ModalState = 'loading' | 'loaded' | 'error';
 
-
-const formatDate = (dateString?: string) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const getCategoryLabel = (category: string): string => {
   if (!category) return 'Text';
@@ -485,14 +474,14 @@ export default function LibraryContentModal({
                   <div>
                     <p className="text-xs text-[var(--text-muted)]">Listed</p>
                     <p className="text-sm text-[var(--text-secondary)]">
-                      {formatDate(item.createdAt)}
+                      {formatDateTime(item.createdAt)}
                     </p>
                   </div>
                 )}
                 <div>
                   <p className="text-xs text-[var(--text-muted)]">Decrypted</p>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {formatDate(item.decryptedAt)}
+                    {formatDateTime(item.decryptedAt)}
                   </p>
                 </div>
                 {item.storageLayer && (
@@ -656,7 +645,7 @@ export default function LibraryContentModal({
                     }`}
                   >
                     {exporting ? (
-                      <LoadingSpinner size="sm" />
+                      <DelayedSpinner size="sm" />
                     ) : (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

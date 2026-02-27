@@ -6,6 +6,7 @@ import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { getContentType } from '../utils/contentType';
+import { formatDate } from '../utils/formatDate';
 
 interface LibraryCardProps {
   item: LibraryItem;
@@ -17,15 +18,6 @@ interface LibraryCardProps {
   onToggleSelect?: (tokenName: string) => void;
 }
 
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
 
 const getCategoryLabel = (category: string): string => {
   if (!category) return 'Text';

@@ -8,6 +8,7 @@ import InfoTooltip from './InfoTooltip';
 import type { PurchaseStage } from './BidTimeline';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
+import { formatDate } from '../utils/formatDate';
 
 interface MyPurchaseBidCardProps {
   bid: BidDisplay;
@@ -29,15 +30,6 @@ function MyPurchaseBidCard({
   decryptFailed = false,
 }: MyPurchaseBidCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
 
   const isPending = bid.status === 'pending';
   const isAccepted = bid.status === 'accepted';
