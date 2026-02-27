@@ -398,7 +398,7 @@ Each item has:
   - **How**: Wrap `EncryptionCard`, `SalesListingCard`, `MyPurchaseBidCard`, and `LibraryCard` with `React.memo()`. These are rendered in lists of 20-100+ items and receive stable props (datum objects, callbacks). Use a custom comparison for props that contain objects.
   - **Why**: Without memo, every parent re-render (filter change, new data) re-renders all cards. With 100+ cards, this causes visible frame drops.
 
-- [ ] **Extract shared utility functions from components**
+- [x] **Extract shared utility functions from components**
   - **How**: In `DecryptModal.tsx` (line 148-154), `formatAda()` is defined inside the component and recreated on every render. Move to `fe/src/utils/formatAda.ts` and import. Similarly, extract `formatBytes` (already in utils — verify it's used everywhere instead of inline formatting).
   - **Why**: Functions defined inside components are recreated on every render, defeating memoization of child components that receive them as props.
 

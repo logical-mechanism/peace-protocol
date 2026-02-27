@@ -26,6 +26,7 @@ import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesk
 import { getTheme, setTheme, applyTheme, type Theme } from '../services/themeStorage'
 import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
+import { formatAdaDisplay } from '../utils/formatAda'
 import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { useWalletHealth } from '../hooks/useWalletHealth'
@@ -327,12 +328,6 @@ export default function Settings() {
       handleFetchLogs(selectedProcess)
     }
   }, [activeSection, selectedProcess, handleFetchLogs])
-
-  const formatAda = (lovelaceAmount: string | undefined) => {
-    if (!lovelaceAmount) return '...'
-    const ada = parseInt(lovelaceAmount) / 1_000_000
-    return ada.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  }
 
   const nodeStageLabel = (s: string) => {
     switch (s) {
@@ -786,7 +781,7 @@ export default function Settings() {
                 {lovelace && (
                   <div>
                     <span className="text-sm text-[var(--text-muted)]">Balance</span>
-                    <p className="text-lg font-medium text-[var(--accent)]">{formatAda(lovelace)} ADA</p>
+                    <p className="text-lg font-medium text-[var(--accent)]">{formatAdaDisplay(lovelace)} ADA</p>
                   </div>
                 )}
               </div>

@@ -6,6 +6,7 @@ import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, ty
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
+import { formatAda } from '../utils/formatAda';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -149,14 +150,6 @@ export default function DecryptModal({
     setSavedPath(null);
     onClose();
   }, [onClose]);
-
-  const formatAda = (lovelace: number): string => {
-    const ada = lovelace / 1_000_000;
-    return ada.toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 6,
-    });
-  };
 
   if (!shouldRender) return null;
 

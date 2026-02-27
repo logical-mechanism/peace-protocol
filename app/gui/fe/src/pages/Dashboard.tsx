@@ -6,6 +6,7 @@ import { useNode } from '../contexts/NodeContext'
 import { useModal } from '../contexts/ModalContext'
 import { copyToClipboard } from '../utils/clipboard'
 import { truncateHex } from '../utils/truncate'
+import { formatAdaDisplay } from '../utils/formatAda'
 const MarketplaceTab = lazy(() => import('../components/MarketplaceTab'))
 const MySalesTab = lazy(() => import('../components/MySalesTab'))
 const MyPurchasesTab = lazy(() => import('../components/MyPurchasesTab'))
@@ -458,12 +459,6 @@ export default function Dashboard() {
     () => txHistory.filter(tx => tx.status === 'pending').length,
     [txHistory]
   )
-
-  const formatAda = (lovelaceAmount: string | undefined) => {
-    if (!lovelaceAmount) return '...'
-    const ada = parseInt(lovelaceAmount) / 1_000_000
-    return ada.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  }
 
   const handleCopy = useCallback(async () => {
     if (!address) return
@@ -1281,7 +1276,7 @@ export default function Dashboard() {
           {/* ADA Balance */}
           {lovelace ? (
             <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
-              {formatAda(lovelace)} ADA
+              {formatAdaDisplay(lovelace)} ADA
             </div>
           ) : (
             <div

@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
+import { formatAda } from '../utils/formatAda';
 import { BidStatusBadge } from './Badge';
 import BidTimeline from './BidTimeline';
 import type { PurchaseStage } from './BidTimeline';
@@ -34,14 +35,6 @@ function MyPurchaseBidCard({
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-    });
-  };
-
-  const formatAda = (lovelace: number): string => {
-    const ada = lovelace / 1_000_000;
-    return ada.toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 6,
     });
   };
 
