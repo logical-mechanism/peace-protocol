@@ -1,11 +1,11 @@
 /**
- * Format a lovelace amount (number) as ADA with up to 6 decimal places.
- * Trailing zeros are omitted (e.g., 1_500_000 → "1.5", 2_000_000 → "2").
+ * Format a lovelace amount (number) as ADA with 2–6 decimal places.
+ * Always shows at least 2 decimals for visual consistency (e.g., 2_000_000 → "2.00").
  */
 export function formatAda(lovelace: number): string {
   const ada = lovelace / 1_000_000;
   return ada.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   });
 }
