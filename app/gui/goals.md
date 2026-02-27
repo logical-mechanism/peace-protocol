@@ -273,7 +273,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/services/__tests__/providers.test.ts`. Mock `OgmiosProvider` and `KupoAdapter`. Test: `getKupoAdapter()` returns same instance on repeated calls, `getOgmiosProvider()` returns same instance, `FixedOgmiosProvider.evaluateTx()` remaps `WITHDRAW` → `REWARD` tags.
   - **Why**: Provider singletons are used by every transaction build; a broken `WITHDRAW`→`REWARD` tag fix would silently break all bid acceptance operations.
 
-- [ ] 🟡 **Error path tests for Tauri IPC services**
+- [x] 🟡 **Error path tests for Tauri IPC services**
   - **How**: In existing test files for `imageCache.test.ts`, `iagonApi.test.ts`, `iagonAuth.test.ts`, `libraryService.test.ts`, and `snarkProver.test.ts`, add test cases for: `invoke()` rejecting with "wallet locked" error, `invoke()` rejecting with "file not found", `invoke()` rejecting with permission denied, `invoke()` timing out. Mock `invoke` to throw and verify the service either re-throws with a meaningful error or returns a failure result.
   - **Why**: All Tauri IPC services only test happy paths; invoke failures (locked wallet, missing files, process crash) are real production scenarios that could crash the UI.
 

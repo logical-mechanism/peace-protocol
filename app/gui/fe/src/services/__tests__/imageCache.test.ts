@@ -93,3 +93,32 @@ describe('deleteCachedImage', () => {
     await expect(deleteCachedImage('missing')).rejects.toThrow('File not found');
   });
 });
+
+// ── Error path tests ─────────────────────────────────────────────────
+
+describe('error handling', () => {
+  it('downloadImage propagates invoke rejection', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+    await expect(downloadImage('token1', 'https://example.com/img.png')).rejects.toThrow('wallet locked');
+  });
+
+  it('getCachedImage propagates invoke rejection', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('file not found'));
+    await expect(getCachedImage('token1')).rejects.toThrow('file not found');
+  });
+
+  it('listCachedImages propagates invoke rejection', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('permission denied'));
+    await expect(listCachedImages()).rejects.toThrow('permission denied');
+  });
+
+  it('banImage propagates invoke rejection', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+    await expect(banImage('token1')).rejects.toThrow('wallet locked');
+  });
+
+  it('unbanImage propagates invoke rejection', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+    await expect(unbanImage('token1')).rejects.toThrow('wallet locked');
+  });
+});

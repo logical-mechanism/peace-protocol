@@ -189,3 +189,41 @@ describe('getSnarkProver', () => {
     expect(prover1).toBe(prover2);
   });
 });
+
+// ── Error path tests ─────────────────────────────────────────────────
+
+describe('SnarkProver error handling', () => {
+  it('checkSetup propagates invoke rejection', async () => {
+    const prover = new SnarkProver({ useStubs: false });
+    mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+    await expect(prover.checkSetup()).rejects.toThrow('wallet locked');
+  });
+
+  it('initialize propagates decompress rejection', async () => {
+    const prover = new SnarkProver({ useStubs: false });
+    mockInvoke
+      .mockResolvedValueOnce(false)                          // snark_check_setup → not found
+      .mockRejectedValueOnce(new Error('disk full'));         // snark_decompress_setup fails
+    await expect(prover.initialize()).rejects.toThrow('disk full');
+  });
+
+  it('generateProof propagates invoke rejection', async () => {
+    const prover = new SnarkProver({ useStubs: false });
+    mockInvoke
+      .mockResolvedValueOnce(true)                           // snark_check_setup (from initialize)
+      .mockRejectedValueOnce(new Error('out of memory'));    // snark_prove fails
+    await expect(prover.generateProof(testInputs)).rejects.toThrow('out of memory');
+  });
+
+  it('gtToHash propagates invoke rejection', async () => {
+    const prover = new SnarkProver({ useStubs: false });
+    mockInvoke.mockRejectedValueOnce(new Error('binary not found'));
+    await expect(prover.gtToHash('0x123')).rejects.toThrow('binary not found');
+  });
+
+  it('decryptToHash propagates invoke rejection', async () => {
+    const prover = new SnarkProver({ useStubs: false });
+    mockInvoke.mockRejectedValueOnce(new Error('timeout'));
+    await expect(prover.decryptToHash('g1b', 'r1', 'shared', 'g2b')).rejects.toThrow('timeout');
+  });
+});
