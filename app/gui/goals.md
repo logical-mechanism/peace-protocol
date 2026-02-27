@@ -377,7 +377,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/components/__tests__/ConfirmModal.test.tsx` testing: renders with title/message, calls onConfirm/onClose, shows danger variant styling, disables buttons during submission. Create `DescriptionModal.test.tsx` testing: renders full description text, handles empty description, closes on Escape.
   - **Why**: ConfirmModal is used by every destructive action in the app; DescriptionModal is a frequently opened modal. Both have zero test coverage.
 
-- [ ] 🟡 **Component tests: SnarkProvingModal, SnarkDownloadModal**
+- [x] 🟡 **Component tests: SnarkProvingModal, SnarkDownloadModal**
   - **How**: Create test files testing: progress bar rendering, error state display, "Do not close" warning visibility, cancel button behavior. Mock `useSnarkProver` and `invoke` calls. Follow existing `DecryptModal.test.tsx` patterns for modal testing.
   - **Why**: SNARK modals are long-running user-facing UIs with complex state machines; bugs here leave users stuck.
 
