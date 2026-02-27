@@ -504,7 +504,7 @@ Each item has:
 
 > Key files: `fe/src/test/`, `be/src/services/__tests__/`, vitest configs
 
-- [ ] **Page component integration tests**
+- [x] **Page component integration tests**
   - **How**: Create `fe/src/pages/__tests__/Dashboard.test.tsx`, `NodeSync.test.tsx`, `Settings.test.tsx`, `WalletSetup.test.tsx`, `WalletUnlock.test.tsx`. Mock all contexts (WalletContext, NodeContext, WasmContext) and Tauri invokes. Test: route guards, state transitions, error states, keyboard navigation. Use `@testing-library/react` + `renderWithProviders` helper.
   - **Why**: Page components are the top-level integration points. Currently only helper functions are tested, not the pages themselves.
 
