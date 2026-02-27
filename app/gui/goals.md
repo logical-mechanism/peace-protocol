@@ -389,7 +389,7 @@ Difficulty ratings:
   - **How**: Create test files testing basic rendering, prop variations, and user interactions. SalesListingCard: renders title/price/status. MyPurchaseBidCard: renders bid amount/status. ListingImage: handles missing/cached/error images. MnemonicInput: validates word count, handles paste, Tab navigation.
   - **Why**: These components are user-facing cards and inputs with zero coverage; rendering bugs would be visible immediately.
 
-- [ ] 🟡 **Service tests: iagonApi.ts, iagonAuth.ts**
+- [x] 🟡 **Service tests: iagonApi.ts, iagonAuth.ts**
   - **How**: Create `fe/src/services/__tests__/iagonApi.test.ts` and `iagonAuth.test.ts`. Mock `invoke` from `@tauri-apps/api/core`. Test: upload returns file ID, download returns bytes, auth flow (getNonce → verify → generateApiKey), error handling for network failures and invalid responses.
   - **Why**: Iagon services are completely untested; they handle file upload/download/auth for all non-text listings. A broken wrapper silently blocks file marketplace features.
 
