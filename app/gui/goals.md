@@ -193,7 +193,7 @@ Difficulty ratings:
   - **How**: In `PdfViewer.tsx` (line ~216-240), add `ArrowLeft` → previous page and `ArrowRight` → next page to the existing keydown handler. Guard with `!isSearchOpen` to avoid conflicts with search input navigation.
   - **Why**: PDF viewers universally support arrow key navigation; users expect this keyboard shortcut.
 
-- [ ] 🟢 **ADA currency label in bid/price inputs**
+- [x] 🟢 **ADA currency label in bid/price inputs**
   - **How**: In `PlaceBidModal.tsx` and `CreateListingModal.tsx` price fields, add a trailing "ADA" label inside the input wrapper (right-aligned, `text-sm text-[var(--text-muted)]`). This clarifies the unit without requiring a separate label.
   - **Why**: Users can't tell if the amount field expects ADA or Lovelace without reading surrounding text.
 
