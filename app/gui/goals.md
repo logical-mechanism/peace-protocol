@@ -37,15 +37,15 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/WalletSetup.tsx`, `fe/src/pages/WalletUnlock.tsx`
 
-- [ ] 🟢 **WalletSetup hover states via CSS instead of inline JS**
+- [x] 🟢 **WalletSetup hover states via CSS instead of inline JS**
   - **How**: In `WalletSetup.tsx` (line ~264-301), the "Create New Wallet" and "Import Existing Wallet" buttons use `onMouseEnter`/`onMouseLeave` handlers with manual DOM style manipulation. Replace with CSS `:hover` pseudo-classes and `transition-all duration-[var(--transition-fast)]`. Remove the inline event handlers entirely.
   - **Why**: Inline hover handlers are fragile (don't fire on keyboard focus), feel janky, and bypass the design system's transition tokens.
 
-- [ ] 🟢 **Consistent "wallet password" terminology**
+- [x] 🟢 **Consistent "wallet password" terminology**
   - **How**: In `WalletSetup.tsx` (line ~675), "Spending password" is used as the label. Rename to "Wallet Password" across all occurrences (WalletSetup.tsx, WalletUnlock.tsx). Search for "spending password" and "Spending password" case-insensitively. This is a pure copy change — no logic affected.
   - **Why**: "Spending password" implies it's only used for spending, not for unlocking. "Wallet Password" is clearer and matches what other Cardano wallets use.
 
-- [ ] 🟢 **HTML constraints on password inputs**
+- [x] 🟢 **HTML constraints on password inputs**
   - **How**: In `WalletSetup.tsx` password fields, add `minLength={12}` and `maxLength={128}` attributes. In `WalletUnlock.tsx` password input, add `maxLength={128}`. These complement the existing JavaScript validation with browser-native constraint feedback.
   - **Why**: Native HTML constraints enable browser-level hints (form validity API, autocomplete behavior) alongside JavaScript validation.
 

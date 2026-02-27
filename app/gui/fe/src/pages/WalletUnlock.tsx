@@ -108,6 +108,7 @@ export default function WalletUnlock() {
                 autoComplete="current-password"
                 autoFocus
                 disabled={isUnlocking}
+                maxLength={128}
                 aria-invalid={!!error}
                 aria-describedby={error ? 'password-error' : undefined}
               />

@@ -263,17 +263,7 @@ export default function WalletSetup() {
           <div className="space-y-4">
             <button
               onClick={() => setMode('create')}
-              className="w-full p-6 rounded-xl text-left transition-colors cursor-pointer"
-              style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = 'var(--bg-card-hover)')
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = 'var(--bg-card)')
-              }
+              className="w-full p-6 rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
             >
               <div
                 className="text-lg font-semibold mb-1"
@@ -288,17 +278,7 @@ export default function WalletSetup() {
 
             <button
               onClick={() => setMode('import')}
-              className="w-full p-6 rounded-xl text-left transition-colors cursor-pointer"
-              style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = 'var(--bg-card-hover)')
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = 'var(--bg-card)')
-              }
+              className="w-full p-6 rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
             >
               <div
                 className="text-lg font-semibold mb-1"
@@ -672,7 +652,7 @@ function PasswordForm({
       }}
     >
       <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        Set a spending password to encrypt your recovery phrase. You will need
+        Set a wallet password to encrypt your recovery phrase. You will need
         this password each time you open the app.
       </p>
 
@@ -698,6 +678,8 @@ function PasswordForm({
               }}
               placeholder="Enter password"
               autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
             />
             <button
               type="button"
@@ -740,6 +722,8 @@ function PasswordForm({
             }}
             placeholder="Confirm password"
             autoComplete="new-password"
+            minLength={12}
+            maxLength={128}
           />
         </div>
       </div>
