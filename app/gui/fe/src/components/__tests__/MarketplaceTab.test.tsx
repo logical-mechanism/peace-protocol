@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import MarketplaceTab from '../MarketplaceTab';
 import { ModalProvider } from '../../contexts/ModalContext';
 import { MARKETPLACE_INITIAL } from '../../hooks/useTabFilterState';
-import type { EncryptionDisplay, BidDisplay } from '../../services/api';
+import type { EncryptionDisplay } from '../../services/api';
 
 // ── Mocks ───────────────────────────────────────────────────────────
 
@@ -47,20 +47,6 @@ function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionD
   };
 }
 
-function makeBid(overrides: Partial<BidDisplay> = {}): BidDisplay {
-  return {
-    tokenName: 'bid' + Math.random().toString(36).slice(2, 18),
-    bidder: 'addr_test1bidder',
-    bidderPkh: USER_PKH,
-    encryptionToken: 'enc_token_abc',
-    amount: 50_000_000,
-    status: 'pending',
-    createdAt: '2024-06-16T12:00:00Z',
-    utxo: { txHash: 'b'.repeat(64), outputIndex: 0 },
-    datum: {} as BidDisplay['datum'],
-    ...overrides,
-  };
-}
 
 const noopDispatch = vi.fn();
 

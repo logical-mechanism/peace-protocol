@@ -8,7 +8,6 @@ import Dashboard from '../Dashboard';
 
 const mockNavigate = vi.fn();
 const mockDisconnect = vi.fn();
-const USER_PKH = 'abc123def456abc123def456abc123def456abc123def456abc123def456';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
