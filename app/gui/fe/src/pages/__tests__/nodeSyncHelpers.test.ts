@@ -1,5 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { formatEta, formatSpeed, getErrorGuidance } from '../../utils/nodeSyncHelpers'
+import { formatElapsedTime, formatEta, formatSpeed, getErrorGuidance } from '../../utils/nodeSyncHelpers'
+
+describe('formatElapsedTime', () => {
+  it('returns MM:SS for durations under 1 hour', () => {
+    expect(formatElapsedTime(0)).toBe('0:00')
+    expect(formatElapsedTime(5)).toBe('0:05')
+    expect(formatElapsedTime(45)).toBe('0:45')
+    expect(formatElapsedTime(60)).toBe('1:00')
+    expect(formatElapsedTime(599)).toBe('9:59')
+    expect(formatElapsedTime(3599)).toBe('59:59')
+  })
+
+  it('returns Xh Ym Zs for durations of 1 hour or more', () => {
+    expect(formatElapsedTime(3600)).toBe('1h 0m 0s')
+    expect(formatElapsedTime(3601)).toBe('1h 0m 1s')
+    expect(formatElapsedTime(3661)).toBe('1h 1m 1s')
+    expect(formatElapsedTime(7200)).toBe('2h 0m 0s')
+    expect(formatElapsedTime(9132)).toBe('2h 32m 12s')
+  })
+
+  it('handles large durations', () => {
+    expect(formatElapsedTime(86399)).toBe('23h 59m 59s')
+    expect(formatElapsedTime(86400)).toBe('24h 0m 0s')
+  })
+})
 
 describe('formatEta', () => {
   it('returns "less than a minute" for < 60 seconds', () => {

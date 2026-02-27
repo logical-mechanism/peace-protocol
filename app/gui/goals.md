@@ -55,7 +55,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/NodeSync.tsx`, `fe/src/contexts/NodeContext.tsx`
 
-- [ ] 🟢 **Elapsed timer human-readable format for long syncs**
+- [x] 🟢 **Elapsed timer human-readable format for long syncs**
   - **How**: In `NodeSync.tsx`, the elapsed timer displays `00:00:00` format (HH:MM:SS). For syncs exceeding 1 hour, switch to a human-readable format: "2h 34m 12s". Use the existing `formatDuration()` pattern from `fe/src/utils/time.ts` or add a small helper. Keep HH:MM:SS for syncs under 1 hour.
   - **Why**: Clock format is hard to parse at a glance for long operations; "2h 34m" is instantly understandable.
 
@@ -79,11 +79,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/EncryptionCard.tsx`, `fe/src/components/MarketplaceTab.tsx`
 
-- [ ] 🟢 **Token name tooltip showing full value**
+- [x] 🟢 **Token name tooltip showing full value**
   - **How**: In `EncryptionCard.tsx` (line ~104 compact, line ~184 standard), the token name is truncated via `truncateHex(encryption.tokenName, 8, 4)` but has no `title` attribute or tooltip showing the full hex. Add `title={encryption.tokenName}` to the wrapping element (or use the existing `InfoTooltip` component for a styled popover).
   - **Why**: Users verifying a specific listing have no way to see the full token name without opening browser dev tools.
 
-- [ ] 🟢 **Disabled bid button visual distinction**
+- [x] 🟢 **Disabled bid button visual distinction**
   - **How**: In `EncryptionCard.tsx` (line ~139-141), when `hasLowBalance` is true, the Bid button uses `opacity-50 cursor-not-allowed` which is too subtle. Replace with a more distinct disabled state: `bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]` (which is partially there) and add a small inline hint below the button: `<span className="text-xs text-[var(--error)]">Insufficient balance</span>`.
   - **Why**: Low-opacity buttons look broken rather than intentionally disabled; an explicit message explains why bidding is blocked.
 

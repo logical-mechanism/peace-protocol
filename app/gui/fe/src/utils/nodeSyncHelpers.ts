@@ -15,6 +15,18 @@ export function formatEta(totalSeconds: number): string {
   return `~${hours}h ${mins}m remaining`
 }
 
+export function formatElapsedTime(seconds: number): string {
+  if (seconds < 3600) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+  const hours = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  return `${hours}h ${mins}m ${secs}s`
+}
+
 export function formatSpeed(bytesPerSecond: number): string {
   if (bytesPerSecond < 1024 * 1024) {
     return `${(bytesPerSecond / 1024).toFixed(0)} KB/s`

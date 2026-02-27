@@ -11,16 +11,10 @@ import { useNode, type NodeStage, type ProcessInfo } from '../contexts/NodeConte
 import { useWalletContext } from '../contexts/WalletContext'
 import { useToast, ToastContainer } from '../components/Toast'
 import { copyToClipboard } from '../utils/clipboard'
-import { formatEta, formatSpeed, getErrorGuidance } from '../utils/nodeSyncHelpers'
+import { formatElapsedTime, formatEta, formatSpeed, getErrorGuidance } from '../utils/nodeSyncHelpers'
 import { invoke } from '@tauri-apps/api/core'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { formatBytes } from '../utils/formatBytes'
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
 
 function ProgressBar({ percent }: { percent: number }) {
   return (
@@ -700,7 +694,7 @@ export default function NodeSync() {
           {stage !== 'stopped' && stage !== 'synced' && (
             <div className="mb-6 text-center">
               <span className="text-2xl font-mono text-[var(--accent)]">
-                {formatTime(elapsedTime)}
+                {formatElapsedTime(elapsedTime)}
               </span>
             </div>
           )}
