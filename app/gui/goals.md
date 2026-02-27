@@ -229,7 +229,7 @@ Difficulty ratings:
   - **How**: In `pagination.ts` (line ~44), add a guard before computing `hasMore`: `if (offset > Number.MAX_SAFE_INTEGER - limit) return { ...result, hasMore: false }`. Also cap `offset` to a reasonable maximum (e.g., 1,000,000) in the query param parsing to prevent abuse.
   - **Why**: Extremely large offset values could cause incorrect pagination behavior or be used for denial-of-service.
 
-- [ ] 🟢 **Health check timestamps — add max age**
+- [x] 🟢 **Health check timestamps — add max age**
   - **How**: In `health.ts`, `lastKupoSuccess` and `lastKoiosSuccess` persist indefinitely. Add a staleness check: if `Date.now() - lastSuccess > 5 * 60 * 1000` (5 minutes), report the dependency as "stale" rather than "reachable" in the health response.
   - **Why**: A health endpoint reporting Kupo as "reachable" based on a success from 2 hours ago is misleading for monitoring.
 

@@ -3,6 +3,7 @@ import { getKupoClient } from './kupo.js';
 import { getKoiosClient } from './koios.js';
 
 const startTime = Date.now();
+const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 let lastKupoSuccess: string | null = null;
 let lastKoiosSuccess: string | null = null;
@@ -16,6 +17,7 @@ export interface DependencyHealth {
   reachable: boolean;
   latencyMs: number;
   lastSuccess: string | null;
+  stale: boolean;
   error?: string;
   circuitBreaker?: CircuitBreakerInfo;
 }
@@ -72,10 +74,16 @@ export async function getHealthStatus(network: string, useStubs: boolean): Promi
     koiosCircuitBreaker = getKoiosClient().getCircuitBreakerState();
   } catch { /* client not initialized yet */ }
 
+  const kupoStale = !kupoResult.ok && lastKupoSuccess !== null
+    && Date.now() - new Date(lastKupoSuccess).getTime() > STALE_THRESHOLD_MS;
+  const koiosStale = !koiosResult.ok && lastKoiosSuccess !== null
+    && Date.now() - new Date(lastKoiosSuccess).getTime() > STALE_THRESHOLD_MS;
+
   const kupo: DependencyHealth = {
     reachable: kupoResult.ok,
     latencyMs: kupoResult.latencyMs,
     lastSuccess: lastKupoSuccess,
+    stale: kupoStale,
     ...(kupoResult.error && { error: kupoResult.error }),
     ...(kupoCircuitBreaker && { circuitBreaker: kupoCircuitBreaker }),
   };
@@ -84,6 +92,7 @@ export async function getHealthStatus(network: string, useStubs: boolean): Promi
     reachable: koiosResult.ok,
     latencyMs: koiosResult.latencyMs,
     lastSuccess: lastKoiosSuccess,
+    stale: koiosStale,
     ...(koiosResult.error && { error: koiosResult.error }),
     ...(koiosCircuitBreaker && { circuitBreaker: koiosCircuitBreaker }),
   };

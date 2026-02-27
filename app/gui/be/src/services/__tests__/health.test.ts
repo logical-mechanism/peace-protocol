@@ -109,6 +109,52 @@ describe('getHealthStatus', () => {
     expect(health.koios.lastSuccess).toBeDefined();
   });
 
+  it('reports stale when dependency is down and lastSuccess exceeds threshold', async () => {
+    // First call: both succeed to set lastSuccess timestamps
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    const { getHealthStatus } = await import('../health.js');
+    await getHealthStatus('preprod', false);
+
+    // Advance time past the 5-minute staleness threshold
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 6 * 60 * 1000; // +6 minutes
+
+    // Second call: both fail
+    mockFetch.mockRejectedValue(new Error('down'));
+    const health = await getHealthStatus('preprod', false);
+
+    expect(health.kupo.stale).toBe(true);
+    expect(health.koios.stale).toBe(true);
+    expect(health.kupo.reachable).toBe(false);
+    expect(health.koios.reachable).toBe(false);
+
+    Date.now = originalNow;
+  });
+
+  it('reports not stale when dependency is down but lastSuccess is recent', async () => {
+    // First call: both succeed
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    const { getHealthStatus } = await import('../health.js');
+    await getHealthStatus('preprod', false);
+
+    // Second call: both fail, but within threshold
+    mockFetch.mockRejectedValue(new Error('down'));
+    const health = await getHealthStatus('preprod', false);
+
+    expect(health.kupo.stale).toBe(false);
+    expect(health.koios.stale).toBe(false);
+  });
+
+  it('reports not stale when dependency is reachable regardless of lastSuccess age', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    const { getHealthStatus } = await import('../health.js');
+    const health = await getHealthStatus('preprod', false);
+
+    expect(health.kupo.stale).toBe(false);
+    expect(health.koios.stale).toBe(false);
+    expect(health.kupo.reachable).toBe(true);
+  });
+
   it('includes circuit breaker state for both dependencies', async () => {
     mockFetch.mockResolvedValue({ ok: true, status: 200 });
     mockKupoCBState.state = 'OPEN';
