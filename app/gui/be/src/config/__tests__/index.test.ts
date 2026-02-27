@@ -39,7 +39,7 @@ describe('parseOutputIndex', () => {
   });
 
   it('throws on float input', () => {
-    expect(() => parseOutputIndex('1.5', '1')).toBe; // parseInt('1.5') = 1, which is valid
+    // parseInt('1.5') = 1, which is valid
     expect(parseOutputIndex('1.5', '0')).toBe(1);
   });
 });

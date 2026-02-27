@@ -120,7 +120,7 @@ describe('DecryptModal', () => {
 
   it('shows bid amount in idle state when bid is present', () => {
     renderModal();
-    expect(screen.getByText(/50 ADA/)).toBeInTheDocument();
+    expect(screen.getByText(/50\.00\s+ADA/)).toBeInTheDocument();
     expect(screen.getByText(/Your winning bid/)).toBeInTheDocument();
   });
 
