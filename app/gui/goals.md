@@ -221,7 +221,7 @@ Difficulty ratings:
   - **How**: Create test files for each in `fe/src/components/__tests__/`. These are simple render tests: Badge renders variant classes correctly, EmptyState renders illustration + message + CTA, LoadingSpinner renders with/without label, SkeletonCard renders all 5 layout variants, TransactionLink renders CardanoScan link with truncated hash, ScrollToTop appears on scroll. Group simple tests efficiently — can be ~10-15 lines each.
   - **Why**: Presentational primitives are used across the entire app; render tests catch Tailwind class typos and prop mishandling.
 
-- [ ] 🟡 **Service tests: secretStorage, bidSecretStorage, acceptBidStorage**
+- [x] 🟡 **Service tests: secretStorage, bidSecretStorage, acceptBidStorage**
   - **How**: Create test files in `fe/src/services/__tests__/`. Mock Tauri `invoke` from `@tauri-apps/api/core`. Test: store/get/remove operations, list operations, error handling when invoke rejects (wallet locked, file not found). These services wrap `store_seller_secrets`, `store_bid_secrets`, `store_accept_bid_secrets` Tauri commands. Follow `listingDraftStorage.test.ts` patterns.
   - **Why**: Secret storage services manage encryption keys critical to the marketplace — silent failures could cause permanent data loss.
 
