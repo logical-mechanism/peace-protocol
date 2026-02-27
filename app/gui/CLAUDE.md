@@ -419,14 +419,16 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
   - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (44 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
-  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, formatDate, logClassification, network, time, truncate, walletErrors (10 files)
+  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
   - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
   - `fe/src/test/__mocks__/tauri-notification.ts` — Tauri notification plugin mock
 - Backend test locations:
-  - `be/src/services/__tests__/` — bids, cache, circuitBreaker, encryptions, fetchWithRetry, health, koios, kupo, kupo-cbor, logger, parsers (11 files)
+  - `be/src/services/__tests__/` — bids, cache, cbor, circuitBreaker, encryptions, fetchWithRetry, health, koios, kupo, kupo-cbor, logger, parsers (12 files)
   - `be/src/routes/__tests__/` — encryptions, bids, protocol, chain, health (5 files)
   - `be/src/middleware/__tests__/` — validate, pagination, requestLogger, timeout (4 files)
+  - `be/src/config/__tests__/` — index (1 file)
+  - `be/src/__tests__/` — app (1 file)
 - Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
 - Tests using WebCrypto (ecies) use `// @vitest-environment node` pragma
 - Tests importing transactionBuilder mock `@meshsdk/core`, `@meshsdk/provider`, and Tauri storage modules to avoid libsodium WASM
