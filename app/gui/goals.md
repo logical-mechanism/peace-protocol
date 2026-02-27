@@ -532,7 +532,7 @@ Each item has:
   - **How**: For each test file, add at least one error-path test: `it('handles API failure gracefully', ...)`. Priority: transactionBuilder (invalid inputs, network errors), apiCache (fetch failure), walletManagement (insufficient UTxOs).
   - **Why**: Most tests only cover happy paths. Error paths are where users actually encounter bugs.
 
-- [ ] **Snapshot test staleness CI guard**
+- [x] **Snapshot test staleness CI guard**
   - **How**: Add a CI step: `npx vitest run 2>&1 | grep -q "Snapshots.*written" && echo "ERROR: Stale snapshots detected" && exit 1`. This fails CI if snapshots were regenerated (likely accidental), forcing explicit `--update-snapshots`.
   - **Why**: Snapshots can become stale without anyone noticing. Accidental regeneration (e.g., `vitest -u`) silently updates wrong snapshots.
 

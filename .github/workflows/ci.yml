@@ -144,3 +144,12 @@ jobs:
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
       - run: npm --prefix fe run test:coverage
       - run: npm --prefix be run test:coverage
+      - name: Check for stale or missing snapshots
+        working-directory: app/gui
+        run: |
+          SNAP_FILES=$(git status --porcelain -- '*.snap' 2>/dev/null)
+          if [ -n "$SNAP_FILES" ]; then
+            echo "::error::Snapshot files were created or modified during CI! Run tests locally and commit .snap files."
+            echo "$SNAP_FILES"
+            exit 1
+          fi
