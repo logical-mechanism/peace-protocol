@@ -360,4 +360,38 @@ describe('PlaceBidModal', () => {
     const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
     expect(input.getAttribute('inputmode')).toBe('decimal');
   });
+
+  // --- Future price "(optional)" label ---
+
+  it('shows "(optional)" in the future price section when expanded', () => {
+    renderModal();
+    // Expand the future price section
+    fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
+    expect(screen.getByText('(optional)')).toBeInTheDocument();
+  });
+
+  // --- Minimum bid InfoTooltip ---
+
+  it('shows minimum bid explanation via InfoTooltip instead of title attribute', () => {
+    renderModal();
+    // The "Why 2 ADA minimum?" text should be visible
+    expect(screen.getByText(/Why 2 ADA minimum\?/)).toBeInTheDocument();
+    // The InfoTooltip button should be present near the hint
+    const hintArea = screen.getByText(/Why 2 ADA minimum\?/).closest('p');
+    expect(hintArea).toBeInTheDocument();
+    // Should contain an info tooltip button (the (i) icon)
+    const tooltipButton = hintArea!.querySelector('button');
+    expect(tooltipButton).toBeInTheDocument();
+  });
+
+  // --- Simplified error message ---
+
+  it('shows simplified minimum bid error without technical explanation', async () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
+    const error = await screen.findByText(/Minimum bid is 2 ADA/);
+    expect(error.textContent).toBe('Minimum bid is 2 ADA');
+  });
 });

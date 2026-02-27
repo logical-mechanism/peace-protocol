@@ -149,7 +149,7 @@ Difficulty ratings:
   - **How**: In `Settings.tsx`, near the "Defragment Wallet" button, show the current UTxO count from `useWalletHealth()` hook: `<p className="text-xs text-[var(--text-muted)]">Your wallet has {utxoCount} UTxOs. {utxoCount > 20 ? 'Consider defragmenting for better performance.' : 'Wallet is healthy.'}</p>`. Disable the button when UTxO count is already optimal (< 10).
   - **Why**: Users don't know if defragmentation is needed or what "defragment" means in a wallet context.
 
-- [ ] 🟡 **Disable network switch during sync**
+- [x] 🟡 **Disable network switch during sync**
   - **How**: In `Settings.tsx`, disable the network toggle when `nodeStage` is not `'stopped'` or `'synced'`. Show: `<p className="text-xs text-[var(--text-muted)]">Stop the node before switching networks.</p>` when disabled. Switching mid-sync could leave the node in an inconsistent state.
   - **Why**: Users switching networks while syncing may corrupt chain data or cause the node to crash.
 
