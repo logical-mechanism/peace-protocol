@@ -265,7 +265,7 @@ Difficulty ratings:
   - **How**: Create `be/src/services/__tests__/cbor.test.ts`. Test: `slotToUnixTime()` with preprod slot 0 → 1654041600, mainnet slot 4492800 → 1596491091, negative slot (should handle gracefully). `decodePlutusData()` with valid CBOR for Constructor, Integer, ByteString, List, Map. Test indefinite-length byte strings (G2 point chunking). Test malformed CBOR input (truncated, invalid tags). ~30+ test cases.
   - **Why**: `cbor.ts` is the foundation of all datum parsing — incorrect slot-to-time or CBOR decode silently corrupts all marketplace data.
 
-- [ ] 🟡 **Backend test: `app.ts` — Express app factory**
+- [x] 🟡 **Backend test: `app.ts` — Express app factory**
   - **How**: Create `be/src/__tests__/app.test.ts`. Use `supertest`. Test: CORS headers present on responses, JSON body parsing works, 404 returned for unknown routes, error handler returns `{ error: { code, message } }` format. Test request size limits if configured.
   - **Why**: The app factory wires all middleware together; a misconfigured middleware order (e.g., CORS after routes) silently breaks the entire API.
 
