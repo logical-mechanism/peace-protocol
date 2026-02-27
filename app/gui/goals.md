@@ -65,7 +65,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/App.tsx`
 
-- [ ] 🟢 **Home/End key support for Dashboard tab navigation**
+- [x] 🟢 **Home/End key support for Dashboard tab navigation**
   - **How**: In `Dashboard.tsx`, the tab navigation already handles ArrowLeft/ArrowRight for tab switching. Add `Home` key → jump to first tab (Marketplace) and `End` key → jump to last tab (Library) in the same `onKeyDown` handler.
   - **Why**: Standard WAI-ARIA tab pattern includes Home/End keys; keyboard-heavy users expect these shortcuts.
 
