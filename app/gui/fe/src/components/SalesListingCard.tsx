@@ -104,10 +104,10 @@ function SalesListingCard({
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
-          <div className="flex items-center justify-between gap-4">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+          <div className="flex items-center justify-between gap-[var(--space-md)]">
             {/* Left: Token info */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex items-center gap-[var(--space-3)] min-w-0 flex-1">
               {/* Image / Lock icon */}
               <ListingImage
                 tokenName={encryption.tokenName}
@@ -118,7 +118,7 @@ function SalesListingCard({
               />
 
               <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                <div className="flex items-center gap-[var(--space-2)] mb-0.5 flex-wrap">
                   <span className="text-xs font-mono text-[var(--text-muted)]">
                     {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
@@ -139,7 +139,7 @@ function SalesListingCard({
                   {isActive && (
                     <>
                       <span>Bids: {bidCount}</span>
-                      <span className="mx-1">|</span>
+                      <span className="mx-[var(--space-1)]">|</span>
                     </>
                   )}
                   <span>{formatRelativeTime(encryption.createdAt)}</span>
@@ -148,7 +148,7 @@ function SalesListingCard({
             </div>
 
             {/* Middle: Price & Bids */}
-            <div className="flex items-center gap-6 flex-shrink-0">
+            <div className="flex items-center gap-[var(--space-lg)] flex-shrink-0">
               <div className="text-right">
                 <span className="text-lg font-semibold text-[var(--accent)]">
                   {formatPrice(encryption.suggestedPrice)}
@@ -164,12 +164,12 @@ function SalesListingCard({
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex gap-[var(--space-2)]">
                 {isActive && (
                   <>
                     <button
                       onClick={() => onViewBids?.(encryption)}
-                      className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                      className="px-[var(--space-3)] py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                     >
                       View Bids
                       {bidCount > 0 && (
@@ -183,7 +183,7 @@ function SalesListingCard({
                     </button>
                     <button
                       onClick={() => onRemove?.(encryption)}
-                      className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+                      className="px-[var(--space-3)] py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
                       title="Remove listing"
                     >
                       Remove
@@ -194,13 +194,13 @@ function SalesListingCard({
                   <>
                     <button
                       onClick={() => onCompleteSale?.(encryption)}
-                      className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
+                      className="px-[var(--space-3)] py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
                     >
                       Complete Sale
                     </button>
                     <button
                       onClick={() => onCancelPending?.(encryption)}
-                      className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+                      className="px-[var(--space-3)] py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
                     >
                       Cancel
                     </button>
@@ -224,11 +224,11 @@ function SalesListingCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-[var(--space-md)]">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-1)]">
               <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0">
                 {truncateHex(encryption.tokenName, 8, 4)}
               </span>
@@ -260,7 +260,7 @@ function SalesListingCard({
         {/* Description */}
         {encryption.description && (
           <div
-            className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+            className="mb-[var(--space-md)] p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
@@ -282,16 +282,16 @@ function SalesListingCard({
         />
 
         {/* Price */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-[var(--space-md)]">
           <p className="text-2xl font-semibold text-[var(--accent)]">
             {formatPrice(encryption.suggestedPrice)}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Suggested Price</p>
+          <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">Suggested Price</p>
         </div>
 
         {/* Bids Info (for active listings) */}
         {isActive && (
-          <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
             <span className="text-xs font-medium text-[var(--text-muted)]">Active Bids</span>
             <span
               className={`text-sm font-medium ${
@@ -305,14 +305,14 @@ function SalesListingCard({
 
         {/* Pending Status Info */}
         {isPending && (
-          <div className="mt-4 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
+          <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-[var(--warning)]">Sale in progress</p>
               {pendingTTL && (
                 <p className="text-xs text-[var(--warning)]">{pendingTTL}</p>
               )}
             </div>
-            <p className="text-xs text-[var(--text-muted)] mt-1">
+            <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">
               Complete the sale or it will automatically cancel
             </p>
           </div>
@@ -320,18 +320,18 @@ function SalesListingCard({
 
         {/* Completed Status Info */}
         {isCompleted && (
-          <div className="mt-4 p-3 bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
+          <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
             <p className="text-xs font-medium text-[var(--success)]">Sale completed</p>
           </div>
         )}
 
         {/* Action Buttons */}
-        <div className="mt-4 space-y-2">
+        <div className="mt-[var(--space-md)] space-y-[var(--space-2)]">
           {isActive && (
             <>
               <button
                 onClick={() => onViewBids?.(encryption)}
-                className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
+                className="w-full px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-[var(--space-2)] btn-base btn-primary"
               >
                 <span>View Bids</span>
                 {bidCount > 0 && (
@@ -345,7 +345,7 @@ function SalesListingCard({
               </button>
               <button
                 onClick={() => onRemove?.(encryption)}
-                className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+                className="w-full px-[var(--space-md)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
                 Remove Listing
               </button>
@@ -355,13 +355,13 @@ function SalesListingCard({
             <>
               <button
                 onClick={() => onCompleteSale?.(encryption)}
-                className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
+                className="w-full px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
               >
                 Complete Sale
               </button>
               <button
                 onClick={() => onCancelPending?.(encryption)}
-                className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+                className="w-full px-[var(--space-md)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
                 Cancel Pending Sale
               </button>
