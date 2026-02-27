@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { LibraryItem } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
 import { formatBytes } from '../utils/formatBytes';
@@ -84,7 +84,7 @@ function CategoryIcon({ category, fileExtension, size = 'md' }: { category: stri
   }
 }
 
-export default function LibraryCard({
+function LibraryCard({
   item,
   onView,
   onDelete,
@@ -296,3 +296,24 @@ export default function LibraryCard({
     </>
   );
 }
+
+function arePropsEqual(prev: LibraryCardProps, next: LibraryCardProps): boolean {
+  return (
+    prev.item.tokenName === next.item.tokenName &&
+    prev.item.category === next.item.category &&
+    prev.item.description === next.item.description &&
+    prev.item.contentMissing === next.item.contentMissing &&
+    prev.item.fileSize === next.item.fileSize &&
+    prev.item.fileExtension === next.item.fileExtension &&
+    prev.item.seller === next.item.seller &&
+    prev.item.decryptedAt === next.item.decryptedAt &&
+    prev.compact === next.compact &&
+    prev.selectMode === next.selectMode &&
+    prev.selected === next.selected &&
+    prev.onView === next.onView &&
+    prev.onDelete === next.onDelete &&
+    prev.onToggleSelect === next.onToggleSelect
+  );
+}
+
+export default memo(LibraryCard, arePropsEqual);

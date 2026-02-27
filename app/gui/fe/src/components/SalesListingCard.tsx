@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -22,7 +22,7 @@ interface SalesListingCardProps {
   initialBanned?: boolean;
 }
 
-export default function SalesListingCard({
+function SalesListingCard({
   encryption,
   bidCount,
   onViewBids,
@@ -380,3 +380,27 @@ export default function SalesListingCard({
     </>
   );
 }
+
+function arePropsEqual(prev: SalesListingCardProps, next: SalesListingCardProps): boolean {
+  return (
+    prev.encryption.tokenName === next.encryption.tokenName &&
+    prev.encryption.status === next.encryption.status &&
+    prev.encryption.suggestedPrice === next.encryption.suggestedPrice &&
+    prev.encryption.imageLink === next.encryption.imageLink &&
+    prev.encryption.description === next.encryption.description &&
+    prev.encryption.category === next.encryption.category &&
+    prev.encryption.storageLayer === next.encryption.storageLayer &&
+    prev.encryption.createdAt === next.encryption.createdAt &&
+    prev.encryption.datum?.status?.type === next.encryption.datum?.status?.type &&
+    prev.bidCount === next.bidCount &&
+    prev.compact === next.compact &&
+    prev.initialCached === next.initialCached &&
+    prev.initialBanned === next.initialBanned &&
+    prev.onViewBids === next.onViewBids &&
+    prev.onRemove === next.onRemove &&
+    prev.onCancelPending === next.onCancelPending &&
+    prev.onCompleteSale === next.onCompleteSale
+  );
+}
+
+export default memo(SalesListingCard, arePropsEqual);

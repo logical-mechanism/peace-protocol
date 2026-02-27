@@ -394,7 +394,7 @@ Each item has:
 
 > Key files: `fe/src/components/`, `fe/src/services/`
 
-- [ ] **React.memo() on card components**
+- [x] **React.memo() on card components**
   - **How**: Wrap `EncryptionCard`, `SalesListingCard`, `MyPurchaseBidCard`, and `LibraryCard` with `React.memo()`. These are rendered in lists of 20-100+ items and receive stable props (datum objects, callbacks). Use a custom comparison for props that contain objects.
   - **Why**: Without memo, every parent re-render (filter change, new data) re-renders all cards. With 100+ cards, this causes visible frame drops.
 
@@ -542,23 +542,23 @@ Each item has:
 
 > Key files: build scripts, package.json, configs
 
-- [ ] **Parallel test execution in test.sh**
+- [s] **Parallel test execution in test.sh**
   - **How**: Change `test.sh` from sequential `npm --prefix fe test && npm --prefix be test` to parallel: `npm --prefix fe test & npm --prefix be test & wait`. Frontend (~20s) and backend (~15s) tests have no dependencies. Reduces total time from ~35s to ~20s.
   - **Why**: Sequential test execution wastes time when both suites are independent.
 
-- [ ] **Conditional npm install in build scripts**
+- [s] **Conditional npm install in build scripts**
   - **How**: In `build.sh` and `build-debug.sh`, skip `npm install` if `node_modules/` is newer than `package-lock.json`. Add check: `if [ package-lock.json -nt node_modules/.package-lock.json ]; then npm ci; fi`. Same for fe/ and be/ directories.
   - **Why**: Unconditional `npm install` on every build wastes 10-30 seconds when dependencies haven't changed.
 
-- [ ] **Backend watch:test script for TDD**
+- [s] **Backend watch:test script for TDD**
   - **How**: Add `"watch:test": "vitest --watch"` to `be/package.json` scripts. Frontend already has this via default vitest behavior. This enables fast feedback during test-driven development.
   - **Why**: Backend developers must manually run `npm test` after each change. A watch mode gives instant feedback.
 
-- [ ] **Root type-check script**
+- [s] **Root type-check script**
   - **How**: Add `"type-check": "npm --prefix fe run type-check && npm --prefix be run type-check"` to root `package.json`. Add `"type-check": "tsc --noEmit"` to both fe and be package.json. This gives developers a quick type verification command.
   - **Why**: Type checking is only available via `lint.sh` (which also runs ESLint and Cargo checks). A standalone type-check is faster for quick iteration.
 
-- [ ] **Conditional Rust linting in lint.sh**
+- [s] **Conditional Rust linting in lint.sh**
   - **How**: In `lint.sh`, only run `cargo fmt --check` and `cargo clippy` if Rust files changed since last commit: `if git diff --name-only HEAD | grep -q "^app/gui/src-tauri/"; then cargo fmt --check && cargo clippy; fi`. Falls back to running always if not in a git context.
   - **Why**: Cargo fmt + clippy takes 30-60s even with no changes. Skipping when only TS files changed saves significant time.
 
@@ -584,7 +584,7 @@ Each item has:
 
 > Key files: `.github/workflows/ci.yml`, `CHANGELOG.md`
 
-- [ ] **CI coverage threshold enforcement**
+- [s] **CI coverage threshold enforcement**
   - **How**: In `.github/workflows/ci.yml`, add `--coverage.thresholdAutoUpdate=false` flag to vitest commands (or check exit code). Currently coverage is generated but thresholds aren't enforced — the job passes even if coverage drops below configured minimums.
   - **Why**: Coverage thresholds (55% FE, 60% BE) exist in config but aren't gates. Coverage can regress silently.
 
@@ -592,11 +592,11 @@ Each item has:
   - **How**: Add a CI step that verifies all version fields match: `V1=$(jq -r .version app/gui/package.json); V2=$(jq -r .version app/gui/fe/package.json); V3=$(jq -r .version app/gui/be/package.json); if [ "$V1" != "$V2" ] || [ "$V1" != "$V3" ]; then echo "Version mismatch!" && exit 1; fi`. Include `tauri.conf.json` and `Cargo.toml` versions too.
   - **Why**: Five files must have matching version numbers. It's easy to update some but forget others during a version bump.
 
-- [ ] **Upload coverage reports to tracking service**
+- [s] **Upload coverage reports to tracking service**
   - **How**: Add `- uses: codecov/codecov-action@v4` step after test jobs in CI. This uploads coverage to codecov.io, enabling trend tracking, PR annotations, and coverage delta reporting.
   - **Why**: Coverage reports are generated but discarded. Without history tracking, it's impossible to know if a PR improves or degrades coverage.
 
-- [ ] **PR template with testing checklist**
+- [s] **PR template with testing checklist**
   - **How**: Create `.github/PULL_REQUEST_TEMPLATE.md` with sections: Summary (1-3 bullets), Testing (checkbox list: ran tests, tested on Linux, checked linter), Breaking Changes (yes/no), Version Bump (yes/no with checklist of 5 files).
   - **Why**: PRs lack consistent format. Reviewers must ask the same questions every time. A template standardizes expectations.
 
@@ -604,7 +604,7 @@ Each item has:
   - **How**: In `.github/workflows/ci.yml`, add `npm --prefix be run build` step after `npm run install:all` and before running tests. This catches backend TypeScript compilation errors that unit tests alone might miss.
   - **Why**: Backend `tsc` compilation errors don't fail the unit test job because tests use their own tsconfig. A separate build step catches type errors.
 
-- [ ] **CI npm cache for all lockfiles**
+- [s] **CI npm cache for all lockfiles**
   - **How**: Update the `cache-dependency-path` in CI to include all lockfiles: `cache-dependency-path: | app/gui/package-lock.json app/gui/fe/package-lock.json app/gui/be/package-lock.json`. This ensures cache hits when any sub-project's deps change.
   - **Why**: Current CI only caches based on root lockfile. Changes to fe/ or be/ deps bust the cache unnecessarily.
 

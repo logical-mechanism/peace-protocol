@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -23,7 +23,7 @@ interface EncryptionCardProps {
   searchQuery?: string;
 }
 
-export default function EncryptionCard({
+function EncryptionCard({
   encryption,
   onPlaceBid,
   isOwnListing = false,
@@ -282,3 +282,28 @@ export default function EncryptionCard({
     </>
   );
 }
+
+function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): boolean {
+  return (
+    prev.encryption.tokenName === next.encryption.tokenName &&
+    prev.encryption.status === next.encryption.status &&
+    prev.encryption.suggestedPrice === next.encryption.suggestedPrice &&
+    prev.encryption.imageLink === next.encryption.imageLink &&
+    prev.encryption.description === next.encryption.description &&
+    prev.encryption.category === next.encryption.category &&
+    prev.encryption.createdAt === next.encryption.createdAt &&
+    prev.bidCount === next.bidCount &&
+    prev.compact === next.compact &&
+    prev.isOwnListing === next.isOwnListing &&
+    prev.hasBid === next.hasBid &&
+    prev.isFavorite === next.isFavorite &&
+    prev.searchQuery === next.searchQuery &&
+    prev.lovelace === next.lovelace &&
+    prev.initialCached === next.initialCached &&
+    prev.initialBanned === next.initialBanned &&
+    prev.onPlaceBid === next.onPlaceBid &&
+    prev.onToggleFavorite === next.onToggleFavorite
+  );
+}
+
+export default memo(EncryptionCard, arePropsEqual);
