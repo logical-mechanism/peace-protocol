@@ -7,6 +7,7 @@ import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
+import RefreshIndicator from './RefreshIndicator';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
 import { getTransactions } from '../services/transactionHistory';
 import { useDebounce } from '../hooks/useDebounce';
@@ -40,6 +41,7 @@ function MySalesTab({
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prevDataCount, setPrevDataCount] = useState(0);
 
@@ -54,7 +56,8 @@ function MySalesTab({
   const hasDataRef = useRef(false);
 
   const fetchData = useCallback(async () => {
-    if (!hasDataRef.current) setLoading(true);
+    if (hasDataRef.current) setIsRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       // Fetch all encryptions and filter by owner PKH from datum
@@ -91,6 +94,7 @@ function MySalesTab({
       setError(err instanceof Error ? err.message : 'Failed to fetch your listings');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [userPkh]);
 
@@ -318,6 +322,7 @@ function MySalesTab({
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      <RefreshIndicator visible={isRefreshing} />
       {/* Earnings Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">

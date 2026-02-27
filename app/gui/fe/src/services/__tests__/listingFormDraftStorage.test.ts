@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   saveListingFormDraft,
   getListingFormDraft,
@@ -93,5 +93,39 @@ describe('listingFormDraftStorage', () => {
       JSON.stringify({ category: 123, description: true })
     );
     expect(getListingFormDraft()).toBeNull();
+  });
+
+  describe('error paths', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('saveListingFormDraft silently swallows quota exceeded error', () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('QuotaExceededError');
+      });
+      expect(() => saveListingFormDraft(makeDraft())).not.toThrow();
+    });
+
+    it('getListingFormDraft returns null when getItem throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(getListingFormDraft()).toBeNull();
+    });
+
+    it('clearListingFormDraft silently swallows errors', () => {
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(() => clearListingFormDraft()).not.toThrow();
+    });
+
+    it('hasListingFormDraft returns false when getItem throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(hasListingFormDraft()).toBe(false);
+    });
   });
 });

@@ -89,6 +89,24 @@ export default function Dashboard() {
       return new Set(prev).add(tab)
     })
   }, [])
+  // Preload all tab chunks after initial render to eliminate first-switch loading flash
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const preload = () => {
+        import('../components/MarketplaceTab')
+        import('../components/MySalesTab')
+        import('../components/MyPurchasesTab')
+        import('../components/HistoryTab')
+        import('../components/LibraryTab')
+      }
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(preload)
+      } else {
+        preload()
+      }
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [])
   const tabListRef = useRef<HTMLDivElement>(null)
   const handleTabKeyDown = useCallback((e: ReactKeyboardEvent) => {
     const tabIds = TABS.map(t => t.id)

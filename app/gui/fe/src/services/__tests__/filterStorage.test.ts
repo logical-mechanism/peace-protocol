@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getPersistedFilters, persistFilters, clearPersistedFilters } from '../filterStorage';
 import { MARKETPLACE_INITIAL } from '../../hooks/useTabFilterState';
 
@@ -69,6 +69,33 @@ describe('filterStorage', () => {
       clearPersistedFilters('pkh1');
       expect(getPersistedFilters('pkh1')).toBeNull();
       expect(getPersistedFilters('pkh2')!.searchQuery).toBe('beta');
+    });
+  });
+
+  describe('error paths', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('getPersistedFilters returns null when getItem throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(getPersistedFilters('pkh1')).toBeNull();
+    });
+
+    it('persistFilters silently swallows quota exceeded error', () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('QuotaExceededError');
+      });
+      expect(() => persistFilters('pkh1', MARKETPLACE_INITIAL)).not.toThrow();
+    });
+
+    it('clearPersistedFilters silently swallows errors', () => {
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(() => clearPersistedFilters('pkh1')).not.toThrow();
     });
   });
 });

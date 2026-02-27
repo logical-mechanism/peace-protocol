@@ -7,6 +7,7 @@ import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { parseUnlockError } from '../utils/walletErrors'
 import type { UnlockErrorInfo } from '../utils/walletErrors'
+import { copyToClipboard } from '../utils/clipboard'
 
 export default function WalletUnlock() {
   const { unlockWallet, deleteWallet } = useWalletContext()
@@ -18,6 +19,7 @@ export default function WalletUnlock() {
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [copiedError, setCopiedError] = useState(false)
   const onCloseDelete = useCallback(() => setShowDeleteConfirm(false), [])
   const { zIndex: deleteZIndex, shouldRender: deleteRender, animationState: deleteAnim } =
     useModalStack('DeleteWalletConfirm', showDeleteConfirm, onCloseDelete)
@@ -53,6 +55,15 @@ export default function WalletUnlock() {
       setIsDeleting(false)
     }
   }, [deleteWallet, navigate])
+
+  const handleCopyError = useCallback(async () => {
+    if (!error) return
+    const success = await copyToClipboard(error.raw)
+    if (success) {
+      setCopiedError(true)
+      setTimeout(() => setCopiedError(false), 1500)
+    }
+  }, [error])
 
   return (
     <main
@@ -108,6 +119,7 @@ export default function WalletUnlock() {
                 autoComplete="current-password"
                 autoFocus
                 disabled={isUnlocking}
+                maxLength={128}
                 aria-invalid={!!error}
                 aria-describedby={error ? 'password-error' : undefined}
               />
@@ -160,12 +172,31 @@ export default function WalletUnlock() {
                   >
                     Details
                   </summary>
-                  <code
-                    className="block mt-1 text-xs font-mono break-all"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {error.raw}
-                  </code>
+                  <div className="flex items-start gap-2 mt-1">
+                    <code
+                      className="block text-xs font-mono break-all flex-1"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      {error.raw}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={handleCopyError}
+                      className="shrink-0 p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                      title="Copy error details"
+                      aria-label="Copy error details"
+                    >
+                      {copiedError ? (
+                        <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </details>
               )}
             </div>

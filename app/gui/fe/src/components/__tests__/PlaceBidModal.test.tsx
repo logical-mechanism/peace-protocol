@@ -80,7 +80,7 @@ describe('PlaceBidModal', () => {
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('validates non-numeric bid amount', async () => {
+  it('validates non-numeric bid amount (type="number" sanitizes to empty)', async () => {
     renderModal();
 
     const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
@@ -88,7 +88,8 @@ describe('PlaceBidModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
 
-    expect(await screen.findByText('Bid amount must be a positive number')).toBeInTheDocument();
+    // type="number" inputs sanitize non-numeric values to "", triggering "required"
+    expect(await screen.findByText('Bid amount is required')).toBeInTheDocument();
   });
 
   it('validates bid amount below minimum (2 ADA)', async () => {
@@ -322,12 +323,30 @@ describe('PlaceBidModal', () => {
     expect(screen.getByText('Bid exceeds your wallet balance')).toBeInTheDocument();
   });
 
-  // --- HTML max attribute ---
+  // --- HTML number input attributes ---
 
-  it('sets max attribute based on wallet balance', () => {
+  it('uses type="number" for native browser constraints', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    expect(input.type).toBe('number');
+  });
+
+  it('sets min attribute to MIN_BID_ADA', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    expect(input.getAttribute('min')).toBe('2');
+  });
+
+  it('sets step attribute to 0.1', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    expect(input.getAttribute('step')).toBe('0.1');
+  });
+
+  it('sets max attribute based on wallet balance minus fee reserve', () => {
     renderModal({ balanceLovelace: '500000000' }); // 500 ADA
     const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
-    expect(input.getAttribute('max')).toBe('500');
+    expect(input.getAttribute('max')).toBe('495'); // 500 - 5 fee reserve
   });
 
   it('does not set max attribute when balance is undefined', () => {

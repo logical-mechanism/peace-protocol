@@ -9,6 +9,7 @@ import { deleteLibraryItem } from '../services/libraryService';
 import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
+import RefreshIndicator from './RefreshIndicator';
 import type { LibraryFilters, LibraryAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -23,6 +24,7 @@ interface LibraryTabProps {
 function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDeleteResult }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prevDataCount, setPrevDataCount] = useState(0);
 
@@ -49,7 +51,8 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
   const hasDataRef = useRef(false);
 
   const fetchItems = useCallback(async () => {
-    if (!hasDataRef.current) setLoading(true);
+    if (hasDataRef.current) setIsRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       const result = await listLibraryItems();
@@ -60,6 +63,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
       setError(err instanceof Error ? err.message : 'Failed to load library');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -316,6 +320,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      <RefreshIndicator visible={isRefreshing} />
       {/* Storage Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">

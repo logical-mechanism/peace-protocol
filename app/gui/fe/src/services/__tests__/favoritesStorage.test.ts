@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getFavorites, toggleFavorite, clearFavorites } from '../favoritesStorage';
 
 describe('favoritesStorage', () => {
@@ -77,6 +77,26 @@ describe('favoritesStorage', () => {
       toggleFavorite('pkh2', 'token_b');
       clearFavorites('pkh1');
       expect(getFavorites('pkh2').has('token_b')).toBe(true);
+    });
+  });
+
+  describe('error paths', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('getFavorites returns empty set when getItem throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('SecurityError');
+      });
+      expect(getFavorites('pkh1').size).toBe(0);
+    });
+
+    it('toggleFavorite propagates when setItem throws (no try-catch)', () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('QuotaExceededError');
+      });
+      expect(() => toggleFavorite('pkh1', 'token_a')).toThrow('QuotaExceededError');
     });
   });
 });

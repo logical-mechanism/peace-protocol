@@ -85,9 +85,9 @@ function EncryptionCard({
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+          <div className="flex items-center justify-between mb-[var(--space-2)]">
+            <div className="flex items-center gap-[var(--space-2)]">
               {onToggleFavorite && (
                 <button
                   onClick={handleToggleFavorite}
@@ -100,13 +100,15 @@ function EncryptionCard({
                   </svg>
                 </button>
               )}
-              <HighlightText
-                text={truncateHex(encryption.tokenName, 8, 4)}
-                query={searchQuery}
-                className="text-xs font-mono text-[var(--text-muted)]"
-              />
+              <span title={encryption.tokenName}>
+                <HighlightText
+                  text={truncateHex(encryption.tokenName, 8, 4)}
+                  query={searchQuery}
+                  className="text-xs font-mono text-[var(--text-muted)]"
+                />
+              </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-[var(--space-2)]">
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
                 {getCategoryLabel(encryption.category)}
               </span>
@@ -123,7 +125,7 @@ function EncryptionCard({
           </div>
           {encryption.description && (
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-2 cursor-pointer hover:text-[var(--text-primary)]"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-[var(--space-2)] cursor-pointer hover:text-[var(--text-primary)]"
               onClick={() => setDescriptionModalOpen(true)}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
@@ -134,17 +136,22 @@ function EncryptionCard({
               {formatPrice(encryption.suggestedPrice)}
             </span>
             {canBid && onPlaceBid && (
-              <button
-                onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
-                disabled={hasLowBalance}
-                title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
-                className={`px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
-              >
-                Bid
-              </button>
+              <div className="flex items-center gap-[var(--space-2)]">
+                <button
+                  onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+                  disabled={hasLowBalance}
+                  title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+                  className={`px-[var(--space-3)] py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
+                >
+                  Bid
+                </button>
+                {hasLowBalance && (
+                  <span className="text-xs text-[var(--error)]">Insufficient balance</span>
+                )}
+              </div>
             )}
             {hasBid && encryption.status === 'active' && !isOwnListing && (
-              <span className="px-3 py-1.5 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+              <span className="px-[var(--space-3)] py-1.5 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
                 Bid Placed
               </span>
             )}
@@ -164,11 +171,11 @@ function EncryptionCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-[var(--space-md)]">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-1)] flex-wrap">
               {onToggleFavorite && (
                 <button
                   onClick={handleToggleFavorite}
@@ -181,11 +188,13 @@ function EncryptionCard({
                   </svg>
                 </button>
               )}
-              <HighlightText
-                text={truncateHex(encryption.tokenName, 8, 4)}
-                query={searchQuery}
-                className="text-xs font-mono text-[var(--text-muted)] truncate"
-              />
+              <span title={encryption.tokenName}>
+                <HighlightText
+                  text={truncateHex(encryption.tokenName, 8, 4)}
+                  query={searchQuery}
+                  className="text-xs font-mono text-[var(--text-muted)] truncate"
+                />
+              </span>
               <EncryptionStatusBadge status={encryption.status} />
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
                 {getCategoryLabel(encryption.category)}
@@ -208,7 +217,7 @@ function EncryptionCard({
         {/* Description */}
         {encryption.description && (
           <div
-            className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+            className="mb-[var(--space-md)] p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
@@ -230,15 +239,15 @@ function EncryptionCard({
         />
 
         {/* Price */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-[var(--space-md)]">
           <p className="text-2xl font-semibold text-[var(--accent)]">
             {formatPrice(encryption.suggestedPrice)}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Suggested Price</p>
+          <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">Suggested Price</p>
         </div>
 
         {/* Seller Info */}
-        <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-mono text-[var(--text-secondary)]">
@@ -265,36 +274,41 @@ function EncryptionCard({
 
         {/* Action Button */}
         {canBid && onPlaceBid && (
-          <button
-            onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
-            disabled={hasLowBalance}
-            title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
-            className={`w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
-          >
-            {hasLowBalance ? 'Insufficient Balance' : 'Place Bid'}
-          </button>
+          <>
+            <button
+              onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+              disabled={hasLowBalance}
+              title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+              className={`w-full mt-[var(--space-md)] px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
+            >
+              {hasLowBalance ? 'Insufficient Balance' : 'Place Bid'}
+            </button>
+            {hasLowBalance && (
+              <p className="mt-[var(--space-1)] text-center text-xs text-[var(--error)]">Insufficient balance</p>
+            )}
+          </>
         )}
 
         {hasBid && encryption.status === 'active' && !isOwnListing && (
-          <div className="mt-4 text-center text-xs text-[var(--text-muted)]">
+          <div className="mt-[var(--space-md)] text-center text-xs text-[var(--text-muted)]">
             You have a bid on this listing
           </div>
         )}
 
         {isOwnListing && (
-          <div className="mt-4 text-center text-xs text-[var(--text-muted)]">
+          <div className="mt-[var(--space-md)] text-center text-xs text-[var(--text-muted)]">
             This is your listing
           </div>
         )}
 
         {encryption.status === 'pending' && (
-          <div className="mt-4 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)] text-center">
+          <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)] text-center">
             <p className="text-xs text-[var(--warning)]">Sale in progress</p>
           </div>
         )}
 
         {encryption.status === 'completed' && (
-          <div className="mt-4 p-3 bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
+          <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
             <p className="text-xs text-[var(--success)]">Sale completed</p>
           </div>
         )}

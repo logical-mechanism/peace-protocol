@@ -45,6 +45,11 @@ vi.mock('../../contexts/WalletContext', () => ({
   }),
 }));
 
+const mockCopyToClipboard = vi.fn().mockResolvedValue(true);
+vi.mock('../../utils/clipboard', () => ({
+  copyToClipboard: (...args: unknown[]) => mockCopyToClipboard(...args),
+}));
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -154,6 +159,27 @@ describe('NodeSync — error stage', () => {
     // errorGuidance.title AND statusMessage are both 'Connection refused'
     const matches = screen.getAllByText('Connection refused');
     expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows copy button in error details that copies the error message', async () => {
+    mockNodeState.stage = 'error';
+    mockNodeState.error = 'Connection refused';
+    renderPage();
+
+    // Open the details
+    const details = screen.getByText('Details');
+    fireEvent.click(details);
+
+    // Copy button should be present
+    const copyBtn = screen.getByLabelText('Copy error details');
+    expect(copyBtn).toBeInTheDocument();
+
+    // Click copy
+    fireEvent.click(copyBtn);
+
+    await waitFor(() => {
+      expect(mockCopyToClipboard).toHaveBeenCalledWith('Connection refused');
+    });
   });
 });
 

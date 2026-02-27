@@ -56,10 +56,15 @@ export function useModalStack(
   useEffect(() => {
     if (isOpen) {
       openModal(id);
-    } else {
-      closeModal(id);
     }
-    return () => closeModal(id);
+    // Cleanup captures the current `isOpen` value from this render.
+    // When isOpen was true and changes to false, cleanup removes the modal.
+    // When isOpen was false, cleanup is a no-op (modal wasn't registered).
+    return () => {
+      if (isOpen) {
+        closeModal(id);
+      }
+    };
   }, [isOpen, id, openModal, closeModal]);
 
   // Escape key: only close if this is the topmost modal and not disabled

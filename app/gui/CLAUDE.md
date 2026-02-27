@@ -34,7 +34,7 @@ app/gui/
 │   │   │   └── categories.ts      # File category definitions + integration flags
 │   │   ├── contexts/               # WalletContext, NodeContext, WasmContext, ModalContext
 │   │   ├── pages/                   # WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings
-│   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, presentational
+│   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, InfoTooltip, presentational
 │   │   ├── services/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios singletons
@@ -53,6 +53,8 @@ app/gui/
 │   │   │   ├── bidFormDraftStorage.ts # Bid form draft state recovery (localStorage)
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation, file encryption
 │   │   │   ├── snark/               # Native SNARK prover interface
+│   │   │   │   ├── index.ts         # Barrel export
+│   │   │   │   └── prover.ts        # SNARK CLI wrapper
 │   │   │   ├── bidNotifications.ts   # localStorage: seen-bid state for notification diffing
 │   │   │   ├── tabStorage.ts        # localStorage: active Dashboard tab persistence
 │   │   │   ├── favoritesStorage.ts  # localStorage: marketplace listing favorites (PKH-keyed)
@@ -70,7 +72,7 @@ app/gui/
 │   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
 │   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth
-│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, time, logClassification, contentType
+│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, time, logClassification, contentType, formatDate
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
 │   ├── src/
@@ -159,7 +161,7 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip) + descriptionUtils
 
 **Transaction building** (fe/src/services/transactionBuilder.ts ~2174 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
@@ -170,6 +172,7 @@ app/gui/
 - Uses MeshTxBuilder with local Kupo (IFetcher) + Ogmios (ISubmitter/IEvaluator)
 
 **Crypto services** (fe/src/services/crypto/):
+- `index.ts` — Barrel export
 - `bls12381.ts` — BLS12-381 G1/G2 operations via @noble/curves
 - `schnorr.ts` — Schnorr signature proofs
 - `ecies.ts` — ECIES encryption/decryption
@@ -266,7 +269,7 @@ app/gui/
 
 **Resilience:** Koios requests use a circuit breaker (5 consecutive failures → 30s OPEN cooldown → HALF_OPEN probe) with TTL cache (15s default) providing stale fallback when the circuit is open. `fetchWithRetry` provides exponential backoff (3 retries, 1s initial delay, 2x multiplier) for transient failures. JSON structured logging via `logger.ts` (configurable level via LOG_LEVEL env).
 
-**Middleware:** `requestLogger` logs method/path/status/duration for every request with 8-char request IDs. `validate.ts` provides param validators (`validatePkhParam`, `validateTokenNameParam`, `validateTxHashParam`, `validateEncryptionTokenParam`) that return 400 with `INVALID_PARAM` code on invalid input. `pagination.ts` adds offset-based pagination (default 50, max 200) with `{ total, limit, offset, hasMore }` response meta. `timeout.ts` enforces 30s request timeout (returns 504 Gateway Timeout).
+**Middleware:** `requestLogger` logs method/path/status/duration for every request with 8-char request IDs. `validate.ts` provides param validators (`validatePkhParam`, `validateTokenNameParam`, `validateTxHashParam`, `validateEncryptionTokenParam`, `validateStatusParam`) that return 400 with `INVALID_PARAM` or `INVALID_STATUS` code on invalid input. `pagination.ts` adds offset-based pagination (default 50, max 200) with `{ total, limit, offset, hasMore }` response meta. `timeout.ts` enforces 30s request timeout (returns 504 Gateway Timeout).
 
 **Stub mode:** When `USE_STUBS=true`, all endpoints return hardcoded sample data. No Kupo/Koios needed.
 
@@ -404,18 +407,20 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret (14 files)
-  - `fe/src/services/__tests__/` — transactionBuilder, transactionBuilder.integration, transactionHistory, autolock, metadata, bidNotifications, api, apiCache, bidFormDraftStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, filterStorage, kupoAdapter, listingDraftStorage, listingFormDraftStorage, notificationSound, onboardingStorage, pdfSearch, secretCleanup, tabStorage, themeStorage, toastSettings, walletManagement (25 files)
+  - `fe/src/services/__tests__/` — api, apiCache, autolock, bidFormDraftStorage, bidNotifications, contentStorage, desktopNotifications, errorMessages, favoritesStorage, filterStorage, iagonApi, iagonAuth, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, secretCleanup, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (29 files)
   - `fe/src/config/__tests__/` — categories (1 file)
-  - `fe/src/hooks/__tests__/` — usePasswordStrength, useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, useSnarkProver, useTabFilterState, useWalletHealth (10 files)
+  - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, BidsModal, BidTimeline, CreateListingModal, DecryptModal, ErrorBoundary, HighlightText, HistoryTab, KeyboardShortcutsOverlay, LibraryCard, LibraryTab, MarketplaceTab, MyPurchasesTab, MySalesTab, OfflineBanner, PlaceBidModal, SessionWarningBanner, ShutdownOverlay, Toast (19 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryTab, ListingImage, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, PdfViewer, PlaceBidModal, SalesListingCard, SessionWarningBanner, ShutdownOverlay, SnarkDownloadModal, SnarkProvingModal, Toast, VideoPlayer (32 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
-  - `fe/src/utils/` — clipboard, formatAda, formatBytes, network, time, truncate (6 files)
+  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
+  - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
+  - `fe/src/test/__mocks__/tauri-notification.ts` — Tauri notification plugin mock
 - Backend test locations:
-  - `be/src/services/__tests__/` — bids, cache, circuitBreaker, encryptions, fetchWithRetry, health, kupo, kupo-cbor, logger, parsers (10 files)
+  - `be/src/services/__tests__/` — bids, cache, circuitBreaker, encryptions, fetchWithRetry, health, koios, kupo, kupo-cbor, logger, parsers (11 files)
   - `be/src/routes/__tests__/` — encryptions, bids, protocol, chain, health (5 files)
-  - `be/src/middleware/__tests__/` — validate, pagination, timeout (3 files)
+  - `be/src/middleware/__tests__/` — validate, pagination, requestLogger, timeout (4 files)
 - Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
 - Tests using WebCrypto (ecies) use `// @vitest-environment node` pragma
 - Tests importing transactionBuilder mock `@meshsdk/core`, `@meshsdk/provider`, and Tauri storage modules to avoid libsodium WASM
@@ -542,3 +547,4 @@ const json: ApiResponse<YourType> = await res.json();
 - **Focus traps** — `useFocusTrap` hook manages Tab key focus wrapping + focus restoration within modal/overlay containers (accessibility)
 - **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout
 - **Pagination** — Backend `pagination.ts` middleware provides offset-based pagination (default 50, max 200 items) with `{ total, limit, offset, hasMore }` meta
+- **Background cleanup** — Hourly async task in lib.rs: securely deletes orphaned SNARK temp files older than 1 hour, evicts cached images older than 30 days or exceeding 500MB total

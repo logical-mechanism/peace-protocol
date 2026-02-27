@@ -9,6 +9,7 @@ import { listCachedImages, type ImageCacheStatus } from '../services/imageCache'
 import { FILE_CATEGORIES } from '../config/categories';
 import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
 import PriceRangeSlider from './PriceRangeSlider';
+import RefreshIndicator from './RefreshIndicator';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -28,6 +29,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
@@ -40,7 +42,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const hasDataRef = useRef(false);
 
   const fetchEncryptions = useCallback(async () => {
-    if (!hasDataRef.current) setLoading(true);
+    if (hasDataRef.current) setIsRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       const [data, allBids] = await Promise.all([
@@ -70,6 +73,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
       setError(err instanceof Error ? err.message : 'Failed to fetch listings');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [userPkh]);
 
@@ -301,6 +305,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      <RefreshIndicator visible={isRefreshing} />
       {/* Toolbar */}
       <div className="mb-6">
         {/* Primary row: Search + Filters toggle + View toggle + Refresh */}

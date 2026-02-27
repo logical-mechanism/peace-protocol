@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   getOnboardingState,
   setOnboardingState,
@@ -79,6 +79,33 @@ describe('onboardingStorage', () => {
       setOnboardingState({ step: 2, completed: false })
       resetOnboarding()
       expect(getOnboardingState()).toEqual({ step: 0, completed: false })
+    })
+  })
+
+  describe('error paths', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('getOnboardingState returns default when getItem throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('SecurityError')
+      })
+      expect(getOnboardingState()).toEqual({ step: 0, completed: false })
+    })
+
+    it('setOnboardingState silently swallows quota exceeded error', () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('QuotaExceededError')
+      })
+      expect(() => setOnboardingState({ step: 1, completed: false })).not.toThrow()
+    })
+
+    it('resetOnboarding silently swallows errors', () => {
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new DOMException('SecurityError')
+      })
+      expect(() => resetOnboarding()).not.toThrow()
     })
   })
 })

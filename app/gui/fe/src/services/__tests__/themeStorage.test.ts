@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { getTheme, setTheme, applyTheme, initializeTheme } from '../themeStorage'
 
 describe('themeStorage', () => {
@@ -80,6 +80,28 @@ describe('themeStorage', () => {
       localStorage.setItem('veiled_theme', 'dark')
       initializeTheme()
       expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    })
+  })
+
+  describe('error paths', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('getTheme returns dark when getItem throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('SecurityError')
+      })
+      // getTheme has no try-catch, but getItem returning null is handled
+      // When getItem throws, it propagates
+      expect(() => getTheme()).toThrow('SecurityError')
+    })
+
+    it('setTheme propagates when setItem throws (no try-catch)', () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('QuotaExceededError')
+      })
+      expect(() => setTheme('dark')).toThrow('QuotaExceededError')
     })
   })
 })

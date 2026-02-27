@@ -60,6 +60,14 @@
   --space-lg: var(--space-6);  /* 24px - card padding, group spacing */
   --space-xl: var(--space-8);  /* 32px - section separation */
 
+  /* Spacing usage rules:
+   * Card inner padding:   var(--space-md)  = 16px  (replaces p-4)
+   * Section padding:      var(--space-lg)  = 24px  (replaces p-6)
+   * Page outer padding:   var(--space-xl)  = 32px  (replaces p-8)
+   * Sub-grid values (py-1.5, px-1.5, py-0.5) remain as Tailwind —
+   * they are intentional for compact inline elements (badges, pills, icon buttons).
+   */
+
   /* Border Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -528,6 +536,66 @@ select option {
 .tx-celebration {
   animation: tx-celebration 500ms ease-out;
   filter: drop-shadow(0 0 4px var(--success));
+}
+
+/* Background refresh indicator — indeterminate bar sliding left-to-right */
+@keyframes refresh-bar {
+  0%   { width: 0%; margin-left: 0%; }
+  50%  { width: 40%; margin-left: 30%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+
+.animate-refresh-bar {
+  animation: refresh-bar 1.5s ease-in-out infinite;
+}
+
+/* Modal entrance/exit — backdrop fade + panel slide-up */
+@keyframes modal-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-backdrop-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes modal-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.modal-backdrop-enter {
+  animation: modal-backdrop-enter 200ms ease-out;
+}
+
+.modal-backdrop-exit {
+  animation: modal-backdrop-exit 150ms ease-in forwards;
+}
+
+.modal-panel-enter {
+  animation: modal-panel-enter 200ms ease-out;
+}
+
+.modal-panel-exit {
+  animation: modal-panel-exit 150ms ease-in forwards;
 }
 
 /* Reduced motion: respect OS accessibility setting */

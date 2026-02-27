@@ -11,16 +11,10 @@ import { useNode, type NodeStage, type ProcessInfo } from '../contexts/NodeConte
 import { useWalletContext } from '../contexts/WalletContext'
 import { useToast, ToastContainer } from '../components/Toast'
 import { copyToClipboard } from '../utils/clipboard'
-import { formatEta, formatSpeed, getErrorGuidance } from '../utils/nodeSyncHelpers'
+import { formatElapsedTime, formatEta, formatSpeed, getErrorGuidance } from '../utils/nodeSyncHelpers'
 import { invoke } from '@tauri-apps/api/core'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { formatBytes } from '../utils/formatBytes'
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
 
 function ProgressBar({ percent }: { percent: number }) {
   return (
@@ -50,7 +44,7 @@ function StageIndicator({ stages, currentStage }: StageIndicatorProps) {
   const currentIndex = stageOrder.indexOf(currentStage)
 
   return (
-    <div className="flex flex-wrap gap-2 justify-center">
+    <div className="flex flex-wrap gap-[var(--space-2)] justify-center">
       {stages.map((s, i) => {
         const stageIndex = stageOrder.indexOf(s.key as NodeStage)
         const isActive = s.key === currentStage
@@ -60,7 +54,7 @@ function StageIndicator({ stages, currentStage }: StageIndicatorProps) {
         return (
           <span
             key={s.key}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+            className={`px-[var(--space-3)] py-[var(--space-1)] text-xs font-medium rounded-full transition-all ${
               isError
                 ? 'bg-[var(--error)]/20 text-[var(--error)] border border-[var(--error)]/30'
                 : isActive
@@ -91,10 +85,10 @@ function ConsoleLog({ logs }: { logs: string[] }) {
   return (
     <div
       ref={scrollRef}
-      className="bg-[#111] rounded-[var(--radius-md)] p-4 max-h-64 overflow-y-auto font-mono text-xs"
+      className="bg-[#111] rounded-[var(--radius-md)] p-[var(--space-md)] max-h-64 overflow-y-auto font-mono text-xs"
     >
       {logs.length === 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-[var(--space-2)]">
           <div className="h-3 w-4/5 rounded skeleton-shimmer" />
           <div className="h-3 w-3/5 rounded skeleton-shimmer" />
           <div className="h-3 w-full rounded skeleton-shimmer" />
@@ -141,11 +135,11 @@ function getServiceState(name: string, processes: ProcessInfo[]): {
 
 function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
   return (
-    <div className="mb-4 space-y-3">
+    <div className="mb-[var(--space-md)] space-y-[var(--space-3)]">
       {SERVICE_ITEMS.map(({ name, label, description }) => {
         const state = getServiceState(name, processes)
         return (
-          <div key={name} className="flex items-center gap-3">
+          <div key={name} className="flex items-center gap-[var(--space-3)]">
             {state.indicator === 'waiting' && (
               <span className="w-4 h-4 flex items-center justify-center">
                 <span className="w-2 h-2 rounded-full bg-[var(--text-muted)]" />
@@ -177,7 +171,7 @@ function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
               <span className="w-4 h-4 inline-flex items-center justify-center rounded-full border border-[var(--border-subtle)] text-[var(--text-muted)] cursor-help text-[10px] leading-none">
                 ?
               </span>
-              <span className="absolute left-6 top-1/2 -translate-y-1/2 z-10 hidden group-hover:block bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] px-3 py-2 text-xs text-[var(--text-secondary)] w-52 shadow-lg whitespace-normal">
+              <span className="absolute left-6 top-1/2 -translate-y-1/2 z-10 hidden group-hover:block bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] px-[var(--space-3)] py-[var(--space-2)] text-xs text-[var(--text-secondary)] w-52 shadow-lg whitespace-normal">
                 {description}
               </span>
             </span>
@@ -275,6 +269,7 @@ export default function NodeSync() {
   const stuckProgressRef = useRef<number>(0)
   const stuckTimerRef = useRef<number | null>(null)
   const [showStuckMessage, setShowStuckMessage] = useState(false)
+  const [copiedError, setCopiedError] = useState(false)
 
   // Render-time state adjustments when stage changes (per React docs)
   if (stage !== prevStage) {
@@ -548,19 +543,27 @@ export default function NodeSync() {
       break
   }
 
+  const handleCopyError = async () => {
+    const success = await copyToClipboard(statusMessage)
+    if (success) {
+      setCopiedError(true)
+      setTimeout(() => setCopiedError(false), 1500)
+    }
+  }
+
   return (
     <main
       id="main-content"
-      className="min-h-screen flex items-center justify-center p-6"
+      className="min-h-screen flex items-center justify-center p-[var(--space-lg)]"
       style={{ background: 'var(--bg-primary)' }}
     >
       <div className="max-w-lg w-full">
         <div
-          className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-8"
+          className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-xl)]"
           style={{ boxShadow: 'var(--shadow-lg)' }}
         >
           {/* Header */}
-          <div className="mb-6 text-center">
+          <div className="mb-[var(--space-lg)] text-center">
             <div>
               <h1 className="text-xl font-semibold">
                 {stage === 'stopped'
@@ -582,17 +585,17 @@ export default function NodeSync() {
           </div>
 
           {/* Stage Indicator */}
-          <div className="mb-6">
+          <div className="mb-[var(--space-lg)]">
             <StageIndicator stages={STAGES} currentStage={stage} />
           </div>
 
           {/* Sync status with block info and checklist */}
           {stage === 'syncing' && (
-            <div className="mb-4">
+            <div className="mb-[var(--space-md)]">
               {tipHeight != null && tipHeight > 0 && networkTip && networkTip > 0 ? (
                 <div className="text-center text-sm text-[var(--text-muted)]">
                   Block {tipHeight.toLocaleString()} / {networkTip.toLocaleString()}
-                  {syncEta && <span className="ml-2">— {syncEta}</span>}
+                  {syncEta && <span className="ml-[var(--space-2)]">— {syncEta}</span>}
                 </div>
               ) : (
                 <div className="text-center text-sm text-[var(--text-muted)]">
@@ -600,12 +603,12 @@ export default function NodeSync() {
                 </div>
               )}
 
-              <div className="space-y-3 mt-3 mb-3">
+              <div className="space-y-[var(--space-3)] mt-[var(--space-3)] mb-[var(--space-3)]">
                 {[
                   { label: 'Cardano Node', synced: syncProgress >= 99.9, activeText: 'Syncing...' },
                   { label: 'Kupo Indexer', synced: kupoSyncProgress >= 99.9, activeText: 'Indexing...' },
                 ].map(({ label, synced, activeText }) => (
-                  <div key={label} className="flex items-center gap-3">
+                  <div key={label} className="flex items-center gap-[var(--space-3)]">
                     {synced ? (
                       <span className="w-4 h-4 flex items-center justify-center text-[var(--success)] text-sm">✓</span>
                     ) : (
@@ -625,10 +628,10 @@ export default function NodeSync() {
               </div>
 
               {showStuckMessage && (
-                <div className="mt-3 p-3 bg-[var(--info-muted)] border border-[var(--info)]/20 rounded-[var(--radius-md)] text-xs text-[var(--info)]">
+                <div className="mt-[var(--space-3)] p-[var(--space-3)] bg-[var(--info-muted)] border border-[var(--info)]/20 rounded-[var(--radius-md)] text-xs text-[var(--info)]">
                   The last few blocks take longer as the node validates recent transactions. This is normal.
                   {tipHeight && networkTip && networkTip > tipHeight && (
-                    <span className="block mt-1">
+                    <span className="block mt-[var(--space-1)]">
                       {(networkTip - tipHeight).toLocaleString()} blocks remaining.
                     </span>
                   )}
@@ -636,7 +639,7 @@ export default function NodeSync() {
               )}
 
               {tipFetchFailed && !networkTip && (
-                <div className="mt-3 p-3 bg-[var(--warning-muted)] border border-[var(--warning)]/20 rounded-[var(--radius-md)] text-xs text-[var(--warning)]">
+                <div className="mt-[var(--space-3)] p-[var(--space-3)] bg-[var(--warning-muted)] border border-[var(--warning)]/20 rounded-[var(--radius-md)] text-xs text-[var(--warning)]">
                   Could not fetch network tip — sync percentage may be approximate.
                 </div>
               )}
@@ -647,14 +650,14 @@ export default function NodeSync() {
           )}
           {/* Mithril bootstrap progress bar with speed/ETA */}
           {stage === 'bootstrapping' && (
-            <div className="mb-4">
+            <div className="mb-[var(--space-md)]">
               <ProgressBar percent={progressPercent} />
-              <div className="flex justify-between mt-2 text-sm text-[var(--text-muted)]">
+              <div className="flex justify-between mt-[var(--space-2)] text-sm text-[var(--text-muted)]">
                 <span>{statusMessage}</span>
                 <span>{Math.round(progressPercent)}%</span>
               </div>
               {(mithrilSpeed || mithrilEta) && (
-                <div className="mt-1 text-center text-xs text-[var(--text-muted)]">
+                <div className="mt-[var(--space-1)] text-center text-xs text-[var(--text-muted)]">
                   {mithrilSpeed}{mithrilSpeed && mithrilEta && ' \u2014 '}{mithrilEta}
                 </div>
               )}
@@ -662,56 +665,89 @@ export default function NodeSync() {
           )}
           {/* Synced status message */}
           {stage === 'synced' && (
-            <div className="mb-4 text-sm text-center text-[var(--text-muted)]">
+            <div className="mb-[var(--space-md)] text-sm text-center text-[var(--text-muted)]">
               {statusMessage}
             </div>
           )}
 
           {/* Status Message (when stopped) */}
           {stage === 'stopped' && (
-            <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--info-muted)] text-[var(--info)] border border-[var(--info)]/20">
+            <div className="mb-[var(--space-md)] p-[var(--space-md)] rounded-[var(--radius-md)] text-sm bg-[var(--info-muted)] text-[var(--info)] border border-[var(--info)]/20">
               {statusMessage}
             </div>
           )}
 
           {/* Disk space warning */}
           {diskSpaceWarning && stage === 'stopped' && (
-            <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20">
+            <div className="mb-[var(--space-md)] p-[var(--space-md)] rounded-[var(--radius-md)] text-sm bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20">
               {diskSpaceWarning}
             </div>
           )}
 
           {/* Error state with recovery guidance */}
           {stage === 'error' && (
-            <div className="mb-4 p-4 rounded-[var(--radius-md)] text-sm bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/20">
-              <div className="font-medium mb-2">{errorGuidance?.title ?? 'Error'}</div>
-              <div className="text-xs text-[var(--text-secondary)] mb-2">{statusMessage}</div>
+            <div className="mb-[var(--space-md)] p-[var(--space-md)] rounded-[var(--radius-md)] text-sm bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/20">
+              <div className="font-medium mb-[var(--space-2)]">{errorGuidance?.title ?? 'Error'}</div>
+              <div className="text-xs text-[var(--text-secondary)] mb-[var(--space-2)]">{statusMessage}</div>
               {errorGuidance && (
-                <ul className="text-xs text-[var(--text-muted)] space-y-1 list-disc list-inside">
+                <ul className="text-xs text-[var(--text-muted)] space-y-[var(--space-1)] list-disc list-inside">
                   {errorGuidance.steps.map((step, i) => (
                     <li key={i}>{step}</li>
                   ))}
                 </ul>
               )}
+              <details className="mt-[var(--space-2)]">
+                <summary
+                  className="text-xs cursor-pointer"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Details
+                </summary>
+                <div className="flex items-start gap-[var(--space-2)] mt-[var(--space-1)]">
+                  <code
+                    className="block text-xs font-mono break-all flex-1"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {statusMessage}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyError}
+                    className="shrink-0 p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                    title="Copy error details"
+                    aria-label="Copy error details"
+                  >
+                    {copiedError ? (
+                      <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </details>
             </div>
           )}
 
           {/* Timer (when running) */}
           {stage !== 'stopped' && stage !== 'synced' && (
-            <div className="mb-6 text-center">
+            <div className="mb-[var(--space-lg)] text-center">
               <span className="text-2xl font-mono text-[var(--accent)]">
-                {formatTime(elapsedTime)}
+                {formatElapsedTime(elapsedTime)}
               </span>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-[var(--space-3)] justify-center">
             {stage === 'stopped' && (
               <button
                 onClick={handleStart}
                 disabled={isStarting}
-                className="flex-1 py-3 px-4 bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 py-[var(--space-3)] px-[var(--space-md)] bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-[var(--space-2)]"
               >
                 {isStarting
                   ? 'Starting...'
@@ -724,7 +760,7 @@ export default function NodeSync() {
             {stage === 'error' && (
               <button
                 onClick={handleRetry}
-                className="flex-1 py-3 px-4 bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer"
+                className="flex-1 py-[var(--space-3)] px-[var(--space-md)] bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer"
               >
                 Retry
               </button>
@@ -733,7 +769,7 @@ export default function NodeSync() {
             {canContinue && (
               <button
                 onClick={handleContinue}
-                className="flex-1 py-3 px-4 bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer"
+                className="flex-1 py-[var(--space-3)] px-[var(--space-md)] bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer"
               >
                 Continue to Dashboard
               </button>
@@ -742,7 +778,7 @@ export default function NodeSync() {
             {(stage === 'syncing' || stage === 'starting' || stage === 'bootstrapping') && (
               <button
                 onClick={() => navigate('/dashboard')}
-                className="py-3 px-4 border border-[var(--border-subtle)] text-[var(--text-secondary)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
+                className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
               >
                 Continue in Background
               </button>
@@ -751,7 +787,7 @@ export default function NodeSync() {
             {stage !== 'stopped' && stage !== 'synced' && (
               <button
                 onClick={stopNode}
-                className="py-3 px-4 border border-[var(--border-subtle)] text-[var(--text-muted)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
+                className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-muted)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
               >
                 Stop
               </button>
@@ -759,8 +795,8 @@ export default function NodeSync() {
           </div>
 
           {/* Console Toggle + Copy Logs */}
-          <div className="mt-6">
-            <div className="flex items-center gap-3">
+          <div className="mt-[var(--space-lg)]">
+            <div className="flex items-center gap-[var(--space-3)]">
               <button
                 onClick={() => setShowConsole(!showConsole)}
                 className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
@@ -770,7 +806,7 @@ export default function NodeSync() {
               {showConsole && logs.length > 0 && (
                 <button
                   onClick={handleCopyLogs}
-                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer flex items-center gap-1"
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer flex items-center gap-[var(--space-1)]"
                   aria-label="Copy logs to clipboard"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -782,7 +818,7 @@ export default function NodeSync() {
               )}
             </div>
             {showConsole && (
-              <div className="mt-2">
+              <div className="mt-[var(--space-2)]">
                 <ConsoleLog logs={logs} />
               </div>
             )}
@@ -790,8 +826,8 @@ export default function NodeSync() {
 
           {/* Info Box */}
           {stage === 'stopped' && needsBootstrap && (
-            <div className="mt-6 p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] text-sm text-[var(--text-muted)]">
-              <p className="font-medium text-[var(--text-secondary)] mb-1">First-time setup</p>
+            <div className="mt-[var(--space-lg)] p-[var(--space-md)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] text-sm text-[var(--text-muted)]">
+              <p className="font-medium text-[var(--text-secondary)] mb-[var(--space-1)]">First-time setup</p>
               <p>
                 A Mithril snapshot will be downloaded to bootstrap the Cardano node.
                 This takes approximately 10-20 minutes depending on your connection speed.
