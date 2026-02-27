@@ -45,11 +45,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/OnboardingOverlay.tsx`, `fe/src/services/onboardingStorage.ts`
 
-- [ ] 🟡 **Contextual help tooltips for domain-specific concepts**
+- [x] 🟡 **Contextual help tooltips for domain-specific concepts**
   - **How**: Add info-icon tooltips (a small `ⓘ` SVG + absolute-positioned popover) next to "Collateral", "Defragmentation", "SNARK Proving", "Binding Proof", and "Future Price" wherever they first appear. Create a reusable `InfoTooltip` component in `fe/src/components/InfoTooltip.tsx` that takes `text` prop, positions a popover on hover/focus. Wire into `Settings.tsx` (wallet management section), `CreateListingModal.tsx`, `PlaceBidModal.tsx`, and `SnarkProvingModal.tsx`.
   - **Why**: Non-expert users encounter Cardano-specific jargon without explanation; tooltips lower the knowledge barrier without cluttering the UI.
 
-- [ ] 🟢 **Explain text vs file listing difference in Create Listing**
+- [x] 🟢 **Explain text vs file listing difference in Create Listing**
   - **How**: In `CreateListingModal.tsx`, below the category selector, add a one-line helper: "Text listings store content on-chain. All other categories encrypt and upload files to Iagon." Show conditionally when category is selected. Use `text-xs text-[var(--text-muted)]`.
   - **Why**: Users may not understand why some categories require Iagon auth and others don't.
 

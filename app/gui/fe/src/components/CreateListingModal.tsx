@@ -510,7 +510,9 @@ export default function CreateListingModal({
                 </button>
               </div>
               <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-                {isFileMode ? 'Upload any file — type is auto-detected' : 'On-chain text message (no file upload)'}
+                {isFileMode
+                  ? 'Files are encrypted and uploaded to Iagon decentralized storage.'
+                  : 'Text listings store content directly on-chain in the encrypted capsule.'}
               </p>
             </div>
 

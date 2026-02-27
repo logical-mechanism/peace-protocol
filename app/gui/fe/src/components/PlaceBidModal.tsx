@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
+import InfoTooltip from './InfoTooltip';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
@@ -430,9 +431,10 @@ export default function PlaceBidModal({
                   <div className="flex items-center justify-between mb-2">
                     <label
                       htmlFor="futurePrice"
-                      className="text-sm font-medium text-[var(--text-primary)]"
+                      className="text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-1"
                     >
                       Future Listing Price (ADA)
+                      <InfoTooltip text="The price you intend to re-list this data for after you win the bid. Recorded on-chain as metadata for future buyers." />
                     </label>
                     {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
                       <div className="flex gap-1.5">

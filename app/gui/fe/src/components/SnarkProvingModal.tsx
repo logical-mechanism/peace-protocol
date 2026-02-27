@@ -3,6 +3,7 @@ import { getSnarkProver } from '../services/snark'
 import type { SnarkProofInputs, SnarkProof, ProvingProgress } from '../services/snark'
 import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import InfoTooltip from './InfoTooltip'
 
 interface SnarkProvingModalProps {
   isOpen: boolean
@@ -219,8 +220,16 @@ export default function SnarkProvingModal({
 
               {/* Progress info */}
               <div className="text-center space-y-2">
-                <p className="text-lg font-medium">
-                  {state === 'initializing' ? 'Initializing prover...' : 'Generating zero-knowledge proof...'}
+                <p className="text-lg font-medium inline-flex items-center justify-center gap-1.5">
+                  {state === 'initializing' ? 'Initializing prover...' : (
+                    <>
+                      Generating zero-knowledge proof...
+                      <InfoTooltip
+                        text="A SNARK proof mathematically proves the data re-encryption was done correctly, without revealing your secret. This lets the buyer verify the sale is honest."
+                        position="bottom"
+                      />
+                    </>
+                  )}
                 </p>
                 <p className="text-sm text-[var(--text-muted)]">
                   This may take ~3 minutes

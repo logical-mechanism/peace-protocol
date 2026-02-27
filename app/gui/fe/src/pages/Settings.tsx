@@ -28,6 +28,7 @@ import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
 import { formatAdaDisplay } from '../utils/formatAda'
 import ConfirmModal from '../components/ConfirmModal'
+import InfoTooltip from '../components/InfoTooltip'
 import { useToast, ToastContainer } from '../components/Toast'
 import { useWalletHealth } from '../hooks/useWalletHealth'
 import { createCollateral, defragWallet, previewDefrag, type DefragPreview } from '../services/walletManagement'
@@ -803,7 +804,10 @@ export default function Settings() {
                   {/* Status Grid */}
                   <div className="grid grid-cols-2 gap-4 p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
                     <div>
-                      <span className="text-sm text-[var(--text-muted)]">Collateral</span>
+                      <span className="text-sm text-[var(--text-muted)] inline-flex items-center gap-1">
+                        Collateral
+                        <InfoTooltip text="A dedicated 5 ADA UTxO required by Cardano for Plutus script transactions. It is returned to you if the transaction succeeds." />
+                      </span>
                       <p className={`text-sm font-medium flex items-center gap-2 ${walletHealth.hasCollateral ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`}>
                         <span className={`w-2 h-2 rounded-full ${walletHealth.hasCollateral ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`} />
                         {walletHealth.hasCollateral ? 'Set (5 ADA)' : 'Not Set'}
@@ -882,6 +886,7 @@ export default function Settings() {
                     >
                       {defragLoading ? 'Optimizing...' : 'Optimize Wallet'}
                     </button>
+                    <InfoTooltip text="Combines multiple small UTxOs into fewer, larger ones. This reduces transaction complexity and fees." />
                   </div>
                 </div>
               )}

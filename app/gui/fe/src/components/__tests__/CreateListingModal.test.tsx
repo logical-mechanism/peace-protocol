@@ -476,7 +476,7 @@ describe('CreateListingModal', () => {
   it('shows file-specific info in file mode', () => {
     renderModal();
     fireEvent.click(screen.getByText('File'));
-    expect(screen.getByText(/Files are encrypted and uploaded to Iagon/)).toBeInTheDocument();
+    expect(screen.getByText('Files are encrypted and uploaded to Iagon decentralized storage.')).toBeInTheDocument();
   });
 
   // --- maxLength attributes ---
