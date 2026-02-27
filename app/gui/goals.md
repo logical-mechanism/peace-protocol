@@ -205,7 +205,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/components/__tests__/LibraryContentModal.test.tsx`. Test: renders with text content, lazy-loads PdfViewer/ImageViewer/AudioPlayer/VideoPlayer based on view mode, handles loading state, export button calls export function. Mock `React.lazy` components and Tauri `invoke` calls. Use `@vitest-environment jsdom`.
   - **Why**: LibraryContentModal is the gateway to all media viewing; bugs here block access to purchased content.
 
-- [ ] 🟡 **Component tests: OnboardingOverlay**
+- [x] 🟡 **Component tests: OnboardingOverlay**
   - **How**: Create `fe/src/components/__tests__/OnboardingOverlay.test.tsx`. Test: renders first step on initial launch, advances through 4 steps, marks complete on finish, doesn't render when onboarding is complete. Mock `onboardingStorage`. Follow `ShutdownOverlay.test.tsx` patterns.
   - **Why**: First-run experience sets user expectations; a broken onboarding overlay is the first impression.
 
