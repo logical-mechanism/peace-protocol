@@ -57,6 +57,17 @@ describe('KeyboardShortcutsOverlay', () => {
     expect(dialog).toHaveAttribute('aria-labelledby', 'shortcuts-title');
   });
 
+  it('kbd elements have aria-label for screen readers', () => {
+    render(<KeyboardShortcutsOverlay isOpen={true} onClose={vi.fn()} />);
+
+    const kbds = document.querySelectorAll('kbd');
+    expect(kbds.length).toBe(6);
+    kbds.forEach((kbd) => {
+      expect(kbd).toHaveAttribute('aria-label');
+      expect(kbd.getAttribute('aria-label')).toMatch(/^Key: /);
+    });
+  });
+
   it('has close button with aria-label', () => {
     render(<KeyboardShortcutsOverlay isOpen={true} onClose={vi.fn()} />);
 

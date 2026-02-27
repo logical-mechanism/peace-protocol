@@ -185,7 +185,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/components/KeyboardShortcutsOverlay.tsx`
 
-- [ ] 🟢 **`<kbd>` elements — screen reader improvement**
+- [x] 🟢 **`<kbd>` elements — screen reader improvement**
   - **How**: In `KeyboardShortcutsOverlay.tsx` (line 78), `<kbd>` elements style keyboard keys but aren't announced distinctly by screen readers. Wrap each `<kbd>` with `aria-label="Key: {keyName}"` so screen readers say "Key: Escape" instead of just "Escape" in a table context.
   - **Why**: Screen reader users need context that these are keyboard shortcuts, not just text in a table.
 
