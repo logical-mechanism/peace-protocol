@@ -363,7 +363,7 @@ Difficulty ratings:
   - **How**: In `src-tauri/src/commands/media.rs`, add a periodic cleanup function (called from the existing hourly background task in `lib.rs`) that deletes cached images older than 30 days. Track image access time via file modification time. Also add a max cache size check (e.g., 500 MB) — if exceeded, delete oldest images until under limit.
   - **Why**: Image cache grows unbounded with no cleanup; long-running instances accumulate significant disk usage.
 
-- [ ] 🟢 **Secure delete SNARK temp files after use**
+- [s] 🟢 **Secure delete SNARK temp files after use**
   - **How**: In `src-tauri/src/commands/snark.rs`, after the SNARK sidecar process completes, call `secure_delete()` (from `crypto/secrets.rs`) on the temp secrets file before dropping the `NamedTempFile`. Currently the file is auto-deleted on drop but NOT overwritten with zeros first.
   - **Why**: SNARK secrets (a, r, v, w0, w1 scalars) persist in the temp file until the hourly cleanup or app restart; secure deletion removes them immediately.
 
@@ -427,11 +427,11 @@ Difficulty ratings:
 
 > Key files: `build.sh`, `run.sh`, `check-prereqs.sh`
 
-- [ ] 🟡 **GitHub Actions CI/CD pipeline**
+- [s] 🟡 **GitHub Actions CI/CD pipeline**
   - **How**: Create `.github/workflows/ci.yml` with jobs: (1) `lint` — runs `bash lint.sh`, (2) `test-frontend` — `cd fe && npm ci && npm test`, (3) `test-backend` — `cd be && npm ci && npm run build && npm test`. Trigger on push to main and all PRs. Use `ubuntu-latest` with Node 20 and Rust stable. Skip `tauri build` in CI (requires sidecar binaries).
   - **Why**: No CI pipeline exists; untested code can merge to main without any automated checks.
 
-- [ ] 🟢 **Backend .env.example file**
+- [x] 🟢 **Backend .env.example file**
   - **How**: Create `be/.env.example` with documented environment variables: `USE_STUBS=false`, `LOG_LEVEL=info`, `PORT=3001`, `NETWORK=preprod`. Include comments explaining each variable and when to change them (e.g., `# Set USE_STUBS=true to develop without running cardano-node`).
   - **Why**: New developers don't know about stub mode or configurable options; `.env.example` is the standard way to document environment variables.
 
