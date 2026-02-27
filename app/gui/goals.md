@@ -385,7 +385,7 @@ Difficulty ratings:
   - **How**: Create test files in `fe/src/components/__tests__/`. Mock `react-pdf`, Blob URL creation, and `<video>` element. Test: renders without crash, handles empty data, shows zoom controls, fullscreen toggle works. Use `@vitest-environment jsdom` pragma.
   - **Why**: Media viewers have zero test coverage despite complex error paths (invalid data, unsupported formats, FFmpeg fallback).
 
-- [ ] 🟡 **Component tests: SalesListingCard, MyPurchaseBidCard, ListingImage, MnemonicInput**
+- [x] 🟡 **Component tests: SalesListingCard, MyPurchaseBidCard, ListingImage, MnemonicInput**
   - **How**: Create test files testing basic rendering, prop variations, and user interactions. SalesListingCard: renders title/price/status. MyPurchaseBidCard: renders bid amount/status. ListingImage: handles missing/cached/error images. MnemonicInput: validates word count, handles paste, Tab navigation.
   - **Why**: These components are user-facing cards and inputs with zero coverage; rendering bugs would be visible immediately.
 
