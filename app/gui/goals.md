@@ -195,19 +195,19 @@ Difficulty ratings:
 
 > Key files: `fe/src/services/errorMessages.ts`, `fe/src/components/SnarkProvingModal.tsx`, `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] 🟡 **Iagon error messages — distinguish failure types**
+- [x] 🟡 **Iagon error messages — distinguish failure types**
   - **How**: In `errorMessages.ts` (line 101–110), the generic Iagon pattern matches all errors containing "iagon". Add two earlier patterns before it: `{ test: (e) => /invalid.*api.*key|api.*key.*invalid|unauthorized/i.test(e), result: { title: 'Iagon Authentication Failed', message: 'Your Iagon API key is invalid or expired.', action: 'Go to Settings → Data Layer and re-authenticate.', recoverable: true } }` and a quota pattern for 413/quota errors.
   - **Why**: Users get "Could not reach Iagon" when the real issue is an expired API key, leading them to check their internet instead of re-authenticating.
 
-- [ ] 🟡 **SNARK proving error classification**
+- [x] 🟡 **SNARK proving error classification**
   - **How**: In `SnarkProvingModal.tsx`, when proof generation fails, parse the error string to distinguish: timeout (>10min), memory ("out of memory", "allocation"), missing files ("setup files not found"), and crypto errors. Show distinct messages: "Proof generation timed out — try closing other applications to free memory" vs "SNARK setup files missing — go to Settings to re-download."
   - **Why**: A generic "Proof generation failed" doesn't help users fix the issue, and SNARK proving is the most technically opaque operation in the app.
 
-- [ ] 🟢 **SNARK proving modal — show estimated time**
+- [x] 🟢 **SNARK proving modal — show estimated time**
   - **How**: In `SnarkProvingModal.tsx`, below the elapsed timer, add: `<p className="text-xs text-[var(--text-muted)]">Typically takes 2–4 minutes</p>`. This is static text based on benchmarked timing (~3 min on desktop hardware).
   - **Why**: First-time users seeing a timer count up with no reference point panic and close the app, losing the proof computation.
 
-- [ ] 🟡 **Strip commas from ADA amount inputs**
+- [x] 🟡 **Strip commas from ADA amount inputs**
   - **How**: In `PlaceBidModal.tsx` (line 112) and `CreateListingModal.tsx` price validation, before `parseFloat(formData.bidAmount)`, add: `const sanitized = formData.bidAmount.replace(/,/g, '')`. Users entering "1,000" expect 1000 ADA, not 1 ADA (which is what `parseFloat("1,000")` returns). Apply the same sanitization in all ADA-parsing code paths.
   - **Why**: Comma-as-thousands-separator is standard in many locales; silently parsing "1,000" as "1" could cause users to bid/price dramatically less than intended.
 
@@ -217,7 +217,7 @@ Difficulty ratings:
 
 > Key files: `be/src/middleware/timeout.ts`, `be/src/middleware/pagination.ts`, `be/src/services/health.ts`, `be/src/config/index.ts`
 
-- [ ] 🟡 **Timeout middleware — guard against double response**
+- [x] 🟡 **Timeout middleware — guard against double response**
   - **How**: In `timeout.ts`, the timeout handler sends a 504 response but doesn't prevent the route handler from also sending a response if it completes just after the timeout. Add a `res.locals.timedOut = true` flag in the timeout callback and check it in the response: `const origSend = res.send; res.send = function(...args) { if (res.locals.timedOut) return res; return origSend.apply(this, args); };`. Alternatively, check `res.headersSent` before sending the timeout response.
   - **Why**: Double response causes "Cannot set headers after they are sent" crashes in Express, which are intermittent and hard to reproduce.
 
