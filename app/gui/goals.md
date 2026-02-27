@@ -129,7 +129,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/index.css`, various components
 
-- [ ] 🟡 **Consistent spacing token usage across components**
+- [x] 🟡 **Consistent spacing token usage across components**
   - **How**: Audit components that use hardcoded Tailwind spacing (`p-6`, `gap-3`, `mt-8`) instead of CSS variable tokens (`p-[var(--space-lg)]`). Key offenders identified by the audit: `NodeSync.tsx` uses `mx-3 mb-5`, `px-3 py-1`; `WalletSetup.tsx` uses `p-6 rounded-xl`; card components mix `p-4` and `p-6` without clear rules. Establish a rule: card inner padding = `--space-md` (16px), section spacing = `--space-lg` (24px), page padding = `--space-xl` (32px). Update components to use `p-[var(--space-md)]` etc.
   - **Why**: Mixing hardcoded Tailwind values with design tokens creates subtle spacing inconsistencies and makes system-wide adjustments impossible.
 

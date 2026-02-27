@@ -19,7 +19,7 @@ interface StepInfo {
 
 function StepIndicator({ steps, currentIndex }: { steps: StepInfo[]; currentIndex: number }) {
   return (
-    <div className="flex items-center justify-center mb-8">
+    <div className="flex items-center justify-center mb-[var(--space-xl)]">
       {steps.map((step, i) => {
         const isComplete = i < currentIndex
         const isActive = i === currentIndex
@@ -57,7 +57,7 @@ function StepIndicator({ steps, currentIndex }: { steps: StepInfo[]; currentInde
             {/* Connector line */}
             {i < steps.length - 1 && (
               <div
-                className="h-0.5 mx-3 mb-5"
+                className="h-0.5 mx-[var(--space-3)] mb-5"
                 style={{
                   width: '3rem',
                   background: i < currentIndex ? 'var(--success)' : 'var(--border-subtle)',
@@ -244,13 +244,13 @@ export default function WalletSetup() {
   if (mode === 'choose') {
     return (
       <div
-        className="min-h-screen flex items-center justify-center p-8"
+        className="min-h-screen flex items-center justify-center p-[var(--space-xl)]"
         style={{ background: 'var(--bg-primary)' }}
       >
         <div className="w-full max-w-lg">
-          <div className="text-center mb-12">
+          <div className="text-center mb-[var(--space-12)]">
             <h1
-              className="text-4xl font-bold mb-3"
+              className="text-4xl font-bold mb-[var(--space-3)]"
               style={{ color: 'var(--text-primary)' }}
             >
               Veiled
@@ -260,13 +260,13 @@ export default function WalletSetup() {
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-[var(--space-md)]">
             <button
               onClick={() => setMode('create')}
-              className="w-full p-6 rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
+              className="w-full p-[var(--space-lg)] rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
             >
               <div
-                className="text-lg font-semibold mb-1"
+                className="text-lg font-semibold mb-[var(--space-1)]"
                 style={{ color: 'var(--text-primary)' }}
               >
                 Create New Wallet
@@ -278,10 +278,10 @@ export default function WalletSetup() {
 
             <button
               onClick={() => setMode('import')}
-              className="w-full p-6 rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
+              className="w-full p-[var(--space-lg)] rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
             >
               <div
-                className="text-lg font-semibold mb-1"
+                className="text-lg font-semibold mb-[var(--space-1)]"
                 style={{ color: 'var(--text-primary)' }}
               >
                 Import Existing Wallet
@@ -300,12 +300,12 @@ export default function WalletSetup() {
   if (mode === 'create') {
     return (
       <div
-        className="min-h-screen flex items-center justify-center p-8"
+        className="min-h-screen flex items-center justify-center p-[var(--space-xl)]"
         style={{ background: 'var(--bg-primary)' }}
       >
         <div className="w-full max-w-2xl">
           {/* Header */}
-          <div className="flex items-center mb-4">
+          <div className="flex items-center mb-[var(--space-md)]">
             <button
               onClick={() => {
                 if (createStep === 'generate') {
@@ -317,7 +317,7 @@ export default function WalletSetup() {
                   setCreateStep('verify')
                 }
               }}
-              className="mr-4 px-3 py-1 rounded-lg text-sm cursor-pointer"
+              className="mr-[var(--space-md)] px-[var(--space-3)] py-[var(--space-1)] rounded-lg text-sm cursor-pointer"
               style={{
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border-subtle)',
@@ -346,14 +346,14 @@ export default function WalletSetup() {
           {/* Step: Generate */}
           {createStep === 'generate' && (
             <div
-              className="p-6 rounded-xl"
+              className="p-[var(--space-lg)] rounded-xl"
               style={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
               }}
             >
               <div
-                className="p-4 rounded-lg mb-6 text-sm"
+                className="p-[var(--space-md)] rounded-lg mb-[var(--space-lg)] text-sm"
                 style={{
                   background: 'var(--warning-muted)',
                   color: 'var(--warning)',
@@ -364,11 +364,11 @@ export default function WalletSetup() {
                 recover your wallet. Never share them with anyone.
               </div>
 
-              <div className="grid grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-4 gap-[var(--space-3)] mb-[var(--space-lg)]">
                 {mnemonic.map((word, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
+                    className="flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-2)] rounded-lg text-sm"
                     style={{
                       background: 'var(--bg-secondary)',
                       border: '1px solid var(--border-subtle)',
@@ -390,10 +390,10 @@ export default function WalletSetup() {
                 ))}
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-[var(--space-3)]">
                 <button
                   onClick={handleCopyMnemonic}
-                  className="px-4 py-2 rounded-lg text-sm cursor-pointer"
+                  className="px-[var(--space-md)] py-[var(--space-2)] rounded-lg text-sm cursor-pointer"
                   style={{
                     background: 'var(--bg-elevated)',
                     color: 'var(--text-secondary)',
@@ -405,7 +405,7 @@ export default function WalletSetup() {
                 <div className="flex-1" />
                 <button
                   onClick={() => setCreateStep('verify')}
-                  className="px-6 py-2 rounded-lg text-sm font-medium cursor-pointer"
+                  className="px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer"
                   style={{
                     background: 'var(--accent)',
                     color: '#fff',
@@ -420,18 +420,18 @@ export default function WalletSetup() {
           {/* Step: Verify */}
           {createStep === 'verify' && (
             <div
-              className="p-6 rounded-xl"
+              className="p-[var(--space-lg)] rounded-xl"
               style={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mb-[var(--space-lg)] text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Verify your recovery phrase by entering the following words.
                 Start typing and select the matching word.
               </p>
 
-              <div className="space-y-4 mb-6">
+              <div className="space-y-[var(--space-md)] mb-[var(--space-lg)]">
                 {verifyIndices.map((idx, i) => (
                   <div key={idx} data-verify-index={i}>
                     <MnemonicInput
@@ -448,7 +448,7 @@ export default function WalletSetup() {
               <button
                 onClick={() => setCreateStep('password')}
                 disabled={!verificationPassed}
-                className="w-full px-6 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   background: verificationPassed
                     ? 'var(--accent)'
@@ -486,12 +486,12 @@ export default function WalletSetup() {
   return (
     <main
       id="main-content"
-      className="min-h-screen flex items-center justify-center p-8"
+      className="min-h-screen flex items-center justify-center p-[var(--space-xl)]"
       style={{ background: 'var(--bg-primary)' }}
     >
       <div className="w-full max-w-2xl">
         {/* Header */}
-        <div className="flex items-center mb-4">
+        <div className="flex items-center mb-[var(--space-md)]">
           <button
             onClick={() => {
               if (importStep === 'enter') {
@@ -501,7 +501,7 @@ export default function WalletSetup() {
                 setImportStep('enter')
               }
             }}
-            className="mr-4 px-3 py-1 rounded-lg text-sm cursor-pointer"
+            className="mr-[var(--space-md)] px-[var(--space-3)] py-[var(--space-1)] rounded-lg text-sm cursor-pointer"
             style={{
               color: 'var(--text-secondary)',
               border: '1px solid var(--border-subtle)',
@@ -526,13 +526,13 @@ export default function WalletSetup() {
         {/* Step: Enter mnemonic */}
         {importStep === 'enter' && (
           <div
-            className="p-6 rounded-xl"
+            className="p-[var(--space-lg)] rounded-xl"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-subtle)',
             }}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-[var(--space-md)]">
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Enter your 24-word recovery phrase. Start typing each word and
                 select from the suggestions.
@@ -540,7 +540,7 @@ export default function WalletSetup() {
               <button
                 type="button"
                 onClick={handleBulkPaste}
-                className="ml-4 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap cursor-pointer"
+                className="ml-[var(--space-md)] px-[var(--space-3)] py-1.5 rounded-lg text-xs whitespace-nowrap cursor-pointer"
                 style={{
                   color: 'var(--accent)',
                   border: '1px solid var(--accent)',
@@ -551,7 +551,7 @@ export default function WalletSetup() {
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 mb-4" onPaste={handleImportPaste}>
+            <div className="grid grid-cols-4 gap-[var(--space-2)] mb-[var(--space-md)]" onPaste={handleImportPaste}>
               {importWords.map((word, i) => (
                 <div key={i} data-import-index={i}>
                   <MnemonicInput
@@ -566,7 +566,7 @@ export default function WalletSetup() {
             </div>
 
             <div
-              className="mb-4 text-sm"
+              className="mb-[var(--space-md)] text-sm"
               style={{
                 color: importValid
                   ? 'var(--success)'
@@ -584,7 +584,7 @@ export default function WalletSetup() {
                 setImportStep('password')
               }}
               disabled={!importValid}
-              className="w-full px-6 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 background: importValid ? 'var(--accent)' : 'var(--bg-elevated)',
                 color: '#fff',
@@ -645,21 +645,21 @@ function PasswordForm({
 }) {
   return (
     <div
-      className="p-6 rounded-xl"
+      className="p-[var(--space-lg)] rounded-xl"
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-subtle)',
       }}
     >
-      <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mb-[var(--space-lg)] text-sm" style={{ color: 'var(--text-secondary)' }}>
         Set a wallet password to encrypt your recovery phrase. You will need
         this password each time you open the app.
       </p>
 
-      <div className="space-y-4 mb-6">
+      <div className="space-y-[var(--space-md)] mb-[var(--space-lg)]">
         <div>
           <label
-            className="block text-sm mb-1"
+            className="block text-sm mb-[var(--space-1)]"
             style={{ color: 'var(--text-muted)' }}
           >
             Password
@@ -669,7 +669,7 @@ function PasswordForm({
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => onPasswordChange(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg text-sm pr-16"
+              className="w-full px-[var(--space-md)] py-[var(--space-2)] rounded-lg text-sm pr-16"
               style={{
                 background: 'var(--bg-secondary)',
                 color: 'var(--text-primary)',
@@ -684,7 +684,7 @@ function PasswordForm({
             <button
               type="button"
               onClick={onToggleShow}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs rounded cursor-pointer"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-[var(--space-2)] py-[var(--space-1)] text-xs rounded cursor-pointer"
               style={{ color: 'var(--text-muted)' }}
             >
               {showPassword ? 'Hide' : 'Show'}
@@ -695,7 +695,7 @@ function PasswordForm({
 
         <div>
           <label
-            className="block text-sm mb-1"
+            className="block text-sm mb-[var(--space-1)]"
             style={{ color: 'var(--text-muted)' }}
           >
             Confirm Password
@@ -707,7 +707,7 @@ function PasswordForm({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && passwordValid) onSubmit()
             }}
-            className="w-full px-4 py-2 rounded-lg text-sm"
+            className="w-full px-[var(--space-md)] py-[var(--space-2)] rounded-lg text-sm"
             aria-invalid={!!(confirmPassword && password !== confirmPassword)}
             aria-describedby={error ? 'setup-password-error' : undefined}
             style={{
@@ -732,7 +732,7 @@ function PasswordForm({
         <div
           id="setup-password-error"
           role="alert"
-          className="mb-4 p-3 rounded-lg text-sm"
+          className="mb-[var(--space-md)] p-[var(--space-3)] rounded-lg text-sm"
           style={{
             background: 'var(--error-muted)',
             color: 'var(--error)',
@@ -746,7 +746,7 @@ function PasswordForm({
       <button
         onClick={onSubmit}
         disabled={!passwordValid || isSubmitting}
-        className="w-full px-6 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         style={{
           background: passwordValid && !isSubmitting
             ? 'var(--accent)'
