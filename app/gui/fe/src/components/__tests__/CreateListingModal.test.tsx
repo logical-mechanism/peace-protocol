@@ -728,6 +728,45 @@ describe('CreateListingModal', () => {
     }
   });
 
+  // --- File size validation ---
+
+  it('rejects file over 100 MB via file input with inline error', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('File'));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    // 101 MB file
+    const largeFile = new File(['x'], 'big.pdf', { type: 'application/pdf' });
+    Object.defineProperty(largeFile, 'size', { value: 101 * 1024 * 1024 });
+    fireEvent.change(fileInput, { target: { files: [largeFile] } });
+    expect(screen.getByText('File too large (max 100 MB)')).toBeInTheDocument();
+    // File should not be shown as selected
+    expect(screen.queryByText('big.pdf')).not.toBeInTheDocument();
+  });
+
+  it('accepts file at exactly 100 MB via file input', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('File'));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const okFile = new File(['x'], 'ok.pdf', { type: 'application/pdf' });
+    Object.defineProperty(okFile, 'size', { value: 100 * 1024 * 1024 });
+    fireEvent.change(fileInput, { target: { files: [okFile] } });
+    expect(screen.queryByText('File too large (max 100 MB)')).not.toBeInTheDocument();
+    expect(screen.getByText('ok.pdf')).toBeInTheDocument();
+  });
+
+  it('rejects file over 100 MB via drag and drop', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('File'));
+    const dropZone = screen.getByText(/Click or drag a file here/).closest('label')!;
+    const largeFile = new File(['x'], 'huge.mp4', { type: 'video/mp4' });
+    Object.defineProperty(largeFile, 'size', { value: 200 * 1024 * 1024 });
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [largeFile] },
+    });
+    expect(screen.getByText('File too large (max 100 MB)')).toBeInTheDocument();
+    expect(screen.queryByText('huge.mp4')).not.toBeInTheDocument();
+  });
+
   it('does not show confirm after successful submit', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm');
     try {

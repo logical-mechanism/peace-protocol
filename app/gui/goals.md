@@ -109,7 +109,7 @@ Difficulty ratings:
   - **How**: In `CreateListingModal.tsx`, below the description `<textarea>`, add: `<span className="text-xs text-[var(--text-muted)]">{formData.description.length} / 500</span>`. The 500-char limit is already enforced in validation; this makes it visible while typing.
   - **Why**: Users don't know the character limit until they exceed it and see an error on submit.
 
-- [ ] 🟡 **File size validation feedback before upload**
+- [x] 🟡 **File size validation feedback before upload**
   - **How**: In `CreateListingModal.tsx`, in the file input `onChange` handler, check `file.size` before proceeding. If the file exceeds the Iagon max (100MB), show an inline error immediately: `setErrors({ ...errors, file: 'File too large (max 100 MB)' })` and don't set the file. Add `accept` attribute to `<input type="file">` based on the selected category (e.g., `accept=".pdf,.doc,.docx"` for documents, `accept="audio/*"` for audio).
   - **Why**: Users selecting a 500MB video file should learn immediately it's too large, not after waiting for encryption to complete.
 
@@ -119,19 +119,19 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] 🟡 **"Max" button to auto-fill wallet balance**
+- [x] 🟡 **"Max" button to auto-fill wallet balance**
   - **How**: In `PlaceBidModal.tsx`, add a small "Max" button next to the bid amount input. On click, compute `(parsedLovelace / 1_000_000) - FEE_RESERVE_ADA` and set `formData.bidAmount` to that value (formatted to 6 decimals). Disable the Max button when `balanceAda === undefined`.
   - **Why**: Users must manually calculate max bid from their balance; a "Max" button is standard UX in crypto apps and prevents "exceeds balance" errors.
 
-- [ ] 🟢 **Future price field labeled "(optional)"**
+- [x] 🟢 **Future price field labeled "(optional)"**
   - **How**: In `PlaceBidModal.tsx`, the "Future price" label doesn't indicate it's optional. Change the label to `"Future price (optional)"`. The field is already optional (line 125: only validated when `showFuturePrice && formData.futurePrice.trim()`), but users may not realize this.
   - **Why**: Users unsure whether to fill in a future price may abandon the bid form entirely.
 
-- [ ] 🟢 **Future price InfoTooltip explanation**
+- [x] 🟢 **Future price InfoTooltip explanation**
   - **How**: In `PlaceBidModal.tsx`, add `<InfoTooltip text="The price you'll set if you win this bid and re-list the decrypted content." />` next to the "Future price" label. Import `InfoTooltip` from `../components/InfoTooltip`.
   - **Why**: "Future price" is domain-specific jargon — new users won't know what it means or when it matters.
 
-- [ ] 🟢 **Simplify minimum bid error message**
+- [x] 🟢 **Simplify minimum bid error message**
   - **How**: In `PlaceBidModal.tsx` (line 116), change error from `'Minimum bid is ${MIN_BID_ADA} ADA (required by the Cardano network to hold bid data on-chain)'` to `'Minimum bid is ${MIN_BID_ADA} ADA'`. Move the technical explanation to an InfoTooltip near the bid input label.
   - **Why**: The parenthetical about network requirements is confusing for non-technical users and clutters the error message.
 
@@ -141,11 +141,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Settings.tsx`
 
-- [ ] 🟡 **Collateral creation explanation**
+- [x] 🟡 **Collateral creation explanation**
   - **How**: In `Settings.tsx`, near the "Set Collateral" button, add an `<InfoTooltip text="Collateral is a small ADA deposit required by the Cardano network to execute smart contracts. It's returned when you're done." />`. If the collateral is already set, show a green checkmark badge.
   - **Why**: Users don't understand why collateral is needed and may skip it, only to encounter errors when trying to bid.
 
-- [ ] 🟡 **Wallet defragmentation status indicator**
+- [x] 🟡 **Wallet defragmentation status indicator**
   - **How**: In `Settings.tsx`, near the "Defragment Wallet" button, show the current UTxO count from `useWalletHealth()` hook: `<p className="text-xs text-[var(--text-muted)]">Your wallet has {utxoCount} UTxOs. {utxoCount > 20 ? 'Consider defragmenting for better performance.' : 'Wallet is healthy.'}</p>`. Disable the button when UTxO count is already optimal (< 10).
   - **Why**: Users don't know if defragmentation is needed or what "defragment" means in a wallet context.
 
