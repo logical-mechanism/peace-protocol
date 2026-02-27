@@ -372,7 +372,7 @@ Each item has:
 
 > Key files: `fe/src/components/Toast.tsx`, `fe/src/services/errorMessages.ts`, `fe/src/services/api.ts`
 
-- [ ] **DecryptModal save failure shows warning toast**
+- [x] **DecryptModal save failure shows warning toast**
   - **How**: In `DecryptModal.tsx` (lines 83-105), when `save_content` invoke fails, the error is only logged as a warning. Add `toast.warning('Decryption succeeded but file could not be saved to library. Try again from My Purchases.')` so the user knows the file isn't persisted.
   - **Why**: Users see "Decryption complete!" but the file isn't in their library. They think it worked and can't find the content later.
 

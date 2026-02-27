@@ -1576,6 +1576,7 @@ export default function Dashboard() {
         encryption={selectedEncryption}
         isIagonConnected={iagonConnected}
         onDecryptResult={handleDecryptResult}
+        onSaveWarning={(msg) => toast.warning('Save failed', msg)}
       />
 
       {/* Confirmation Modal (destructive actions) */}

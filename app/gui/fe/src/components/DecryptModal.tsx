@@ -17,6 +17,7 @@ interface DecryptModalProps {
   encryption: EncryptionDisplay | null;
   isIagonConnected?: boolean;
   onDecryptResult?: (result: { success: boolean; encryptionToken: string }) => void;
+  onSaveWarning?: (message: string) => void;
 }
 
 type DecryptState = 'idle' | 'decrypting' | 'success' | 'error';
@@ -28,6 +29,7 @@ export default function DecryptModal({
   encryption,
   isIagonConnected = false,
   onDecryptResult,
+  onSaveWarning,
 }: DecryptModalProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletContext();
@@ -102,6 +104,7 @@ export default function DecryptModal({
           });
         } catch (err) {
           console.warn('Failed to save decrypted content:', err);
+          onSaveWarning?.('Decryption succeeded but file could not be saved to library. Try again from My Purchases.');
         }
 
         setState('success');
@@ -124,7 +127,7 @@ export default function DecryptModal({
         onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
       }
     }
-  }, [wallet, bid, encryption, onDecryptResult]);
+  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning]);
 
   const handleCopy = useCallback(async () => {
     if (!decryptedMessage) return;
