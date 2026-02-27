@@ -143,7 +143,7 @@ Difficulty ratings:
   - **How**: In `LibraryTab.tsx` (line ~213-229), when bulk deleting, track a `Map<string, 'pending' | 'success' | 'error'>` of per-item results. Show a progress indicator ("Deleting 3 of 10...") in the confirmation modal. After completion, if any failed, show a toast with count: "Deleted 8 of 10 items. 2 items could not be removed."
   - **Why**: Currently bulk delete only logs errors to console; users can't see which items failed or why.
 
-- [ ] 🟢 **Library content modal loading skeleton**
+- [x] 🟢 **Library content modal loading skeleton**
   - **How**: In `LibraryContentModal.tsx`, when content is loading asynchronously (PDF, image, audio, video), show a content-area skeleton matching the expected viewer dimensions before the lazy-loaded component mounts. Use `React.Suspense` fallback with a shimmer rectangle.
   - **Why**: Modal appears instantly but content loads async — the empty content area feels broken for a moment.
 

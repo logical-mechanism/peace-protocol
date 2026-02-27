@@ -137,6 +137,74 @@ function videoExtensionToMimeType(ext?: string): string {
   return map[ext?.toLowerCase() ?? ''] ?? 'video/mp4';
 }
 
+type ViewMode = ReturnType<typeof getViewMode>;
+
+function ContentSkeleton({ viewMode }: { viewMode: ViewMode }) {
+  switch (viewMode) {
+    case 'pdf':
+      return (
+        <div className="space-y-4">
+          <div className="w-full h-[500px] rounded-[var(--radius-md)] skeleton-shimmer" />
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-8 w-24 rounded-[var(--radius-md)] skeleton-shimmer" />
+            <div className="h-8 w-20 rounded-[var(--radius-md)] skeleton-shimmer" />
+            <div className="h-8 w-24 rounded-[var(--radius-md)] skeleton-shimmer" />
+          </div>
+        </div>
+      );
+    case 'image':
+      return (
+        <div className="flex items-center justify-center">
+          <div className="w-full h-[400px] rounded-[var(--radius-md)] skeleton-shimmer" />
+        </div>
+      );
+    case 'audio':
+      return (
+        <div className="space-y-4">
+          <div className="w-full h-[200px] rounded-[var(--radius-md)] skeleton-shimmer" />
+          <div className="flex items-center justify-center gap-4">
+            <div className="h-10 w-10 rounded-full skeleton-shimmer" />
+            <div className="h-10 w-10 rounded-full skeleton-shimmer" />
+            <div className="h-10 w-10 rounded-full skeleton-shimmer" />
+          </div>
+          <div className="h-2 w-full rounded-full skeleton-shimmer" />
+        </div>
+      );
+    case 'video':
+      return (
+        <div className="space-y-3">
+          <div className="w-full aspect-video rounded-[var(--radius-md)] skeleton-shimmer" />
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded skeleton-shimmer" />
+            <div className="flex-1 h-2 rounded-full skeleton-shimmer" />
+            <div className="h-8 w-16 rounded skeleton-shimmer" />
+          </div>
+        </div>
+      );
+    case 'text':
+      return (
+        <div className="space-y-2 p-4">
+          <div className="h-4 w-full rounded skeleton-shimmer" />
+          <div className="h-4 w-11/12 rounded skeleton-shimmer" />
+          <div className="h-4 w-4/5 rounded skeleton-shimmer" />
+          <div className="h-4 w-full rounded skeleton-shimmer" />
+          <div className="h-4 w-3/4 rounded skeleton-shimmer" />
+          <div className="h-4 w-5/6 rounded skeleton-shimmer" />
+          <div className="h-4 w-2/3 rounded skeleton-shimmer" />
+          <div className="h-4 w-full rounded skeleton-shimmer" />
+        </div>
+      );
+    default:
+      return (
+        <div className="p-6 text-center space-y-3">
+          <div className="w-14 h-14 mx-auto rounded-full skeleton-shimmer" />
+          <div className="h-4 w-32 mx-auto rounded skeleton-shimmer" />
+          <div className="h-3 w-48 mx-auto rounded skeleton-shimmer" />
+        </div>
+      );
+  }
+}
+
 export default function LibraryContentModal({
   isOpen,
   onClose,
@@ -448,10 +516,7 @@ export default function LibraryContentModal({
 
             {/* Loading state */}
             {state === 'loading' && (
-              <div className="py-12 text-center">
-                <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                <p className="text-sm text-[var(--text-muted)]">Loading content...</p>
-              </div>
+              <ContentSkeleton viewMode={viewMode} />
             )}
 
             {/* Error state */}
@@ -497,48 +562,28 @@ export default function LibraryContentModal({
 
             {/* Loaded state — PDF document viewer */}
             {state === 'loaded' && viewMode === 'pdf' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading PDF viewer...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="pdf" />}>
                 <PdfViewer data={rawContent} onExport={handleExport} />
               </Suspense>
             )}
 
             {/* Loaded state — image viewer */}
             {state === 'loaded' && viewMode === 'image' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading image viewer...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="image" />}>
                 <ImageViewer data={rawContent} mimeType={extensionToMimeType(item.fileExtension)} onExport={handleExport} />
               </Suspense>
             )}
 
             {/* Loaded state — Audio player */}
             {state === 'loaded' && viewMode === 'audio' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading audio player...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="audio" />}>
                 <AudioPlayer data={rawContent} fileExtension={item.fileExtension || '.mp3'} onExport={handleExport} />
               </Suspense>
             )}
 
             {/* Loaded state — Video player */}
             {state === 'loaded' && viewMode === 'video' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading video player...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="video" />}>
                 <VideoPlayer
                   data={rawContent}
                   mimeType={videoExtensionToMimeType(item.fileExtension)}
