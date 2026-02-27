@@ -69,7 +69,7 @@ Difficulty ratings:
   - **How**: In `Dashboard.tsx`, the tab navigation already handles ArrowLeft/ArrowRight for tab switching. Add `Home` key → jump to first tab (Marketplace) and `End` key → jump to last tab (Library) in the same `onKeyDown` handler.
   - **Why**: Standard WAI-ARIA tab pattern includes Home/End keys; keyboard-heavy users expect these shortcuts.
 
-- [ ] 🟡 **Background refresh indicator on data tabs**
+- [x] 🟡 **Background refresh indicator on data tabs**
   - **How**: In `MarketplaceTab.tsx`, `MySalesTab.tsx`, and `LibraryTab.tsx`, background data refreshes (triggered by `tipSlot` changes) currently show no visual feedback. Add a subtle "Refreshing..." badge or a thin animated bar at the top of the tab content area. Track `isRefreshing` state separately from the initial `loading` state. Initial load shows skeletons; background refresh shows the badge over existing data.
   - **Why**: Users can't tell whether the marketplace is re-fetching or stale when the block tip advances.
 
@@ -93,7 +93,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/CreateListingModal.tsx`
 
-- [ ] 🟡 **File upload progress indicator**
+- [x] 🟡 **File upload progress indicator**
   - **How**: In `CreateListingModal.tsx`, file uploads to Iagon via `iagon_upload` Tauri command currently show a spinning "Creating listing..." state with no progress. The `onProgress` callback (line ~35) tracks `ListingCreationStep` stages. Add a visual step indicator showing: "Encrypting file → Uploading to Iagon → Building transaction → Signing → Submitting". Render as a vertical stepper with checkmarks for completed steps and a spinner on the active step.
   - **Why**: File uploads for large files (up to 100MB) can take significant time; users need to know what's happening and how far along the process is.
 
