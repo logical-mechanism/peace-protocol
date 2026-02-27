@@ -122,11 +122,11 @@ class KupoClient {
     });
   }
 
-  private async request<T>(path: string): Promise<T> {
+  private async request<T>(path: string, signal?: AbortSignal): Promise<T> {
     try {
       return await this.circuitBreaker.execute(async () => {
         const url = `${this.baseUrl}${path}`;
-        const response = await fetchWithRetry(url);
+        const response = await fetchWithRetry(url, signal ? { signal } : undefined);
         if (!response.ok) {
           const body = await response.text().catch(() => '');
           throw new Error(`Kupo API error: ${response.status} ${response.statusText} - ${body}`);
@@ -150,9 +150,9 @@ class KupoClient {
    * Uses ?resolve_hashes to include datum CBOR in the response.
    * Returns KoiosUtxo-compatible format for backend service compatibility.
    */
-  async getAddressUtxos(address: string): Promise<KoiosUtxo[]> {
+  async getAddressUtxos(address: string, signal?: AbortSignal): Promise<KoiosUtxo[]> {
     const matches = await this.request<KupoMatch[]>(
-      `/matches/${address}?unspent&resolve_hashes`
+      `/matches/${address}?unspent&resolve_hashes`, signal
     );
     return matches.map((m) => this.matchToKoiosUtxo(m));
   }
@@ -161,12 +161,12 @@ class KupoClient {
    * Get UTxOs containing a specific asset.
    * Kupo can filter by policy_id and asset_name query parameters.
    */
-  async getAssetUtxos(policyId: string, assetName?: string): Promise<KoiosUtxo[]> {
+  async getAssetUtxos(policyId: string, assetName?: string, signal?: AbortSignal): Promise<KoiosUtxo[]> {
     let path = `/matches/*?unspent&resolve_hashes&policy_id=${policyId}`;
     if (assetName) {
       path += `&asset_name=${assetName}`;
     }
-    const matches = await this.request<KupoMatch[]>(path);
+    const matches = await this.request<KupoMatch[]>(path, signal);
     return matches.map((m) => this.matchToKoiosUtxo(m));
   }
 

@@ -7,6 +7,11 @@ export function requestTimeout(timeoutMs: number = DEFAULT_TIMEOUT_MS) {
   return (req: Request, res: Response, next: NextFunction): void => {
     let timedOut = false;
 
+    // Abort controller for cancelling in-flight fetch operations on timeout.
+    // Route handlers can pass res.locals.abortSignal to service calls.
+    const abortController = new AbortController();
+    res.locals.abortSignal = abortController.signal;
+
     // Intercept late responses — if the timeout fires first, subsequent
     // res.json()/res.send() calls no-op instead of crashing Express with
     // "Cannot set headers after they are sent".
@@ -42,6 +47,7 @@ export function requestTimeout(timeoutMs: number = DEFAULT_TIMEOUT_MS) {
         // Now suppress any late responses from the route handler
         timedOut = true;
         res.locals.timedOut = true;
+        abortController.abort();
       }
     }, timeoutMs);
 

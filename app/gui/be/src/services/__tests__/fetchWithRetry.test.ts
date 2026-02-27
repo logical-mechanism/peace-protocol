@@ -152,4 +152,29 @@ describe('fetchWithRetry', () => {
     expect(response.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+
+  it('does not retry on AbortError', async () => {
+    const abortError = new DOMException('The operation was aborted', 'AbortError');
+    fetchMock.mockRejectedValueOnce(abortError);
+
+    await expect(
+      fetchWithRetry('http://example.com/api', undefined, FAST_OPTIONS)
+    ).rejects.toThrow('The operation was aborted');
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('aborts fetch when signal fires', async () => {
+    const controller = new AbortController();
+    fetchMock.mockImplementation(() => {
+      controller.abort();
+      return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
+    });
+
+    await expect(
+      fetchWithRetry('http://example.com/api', { signal: controller.signal }, FAST_OPTIONS)
+    ).rejects.toThrow('The operation was aborted');
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });

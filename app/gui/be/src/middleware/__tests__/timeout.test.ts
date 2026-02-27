@@ -94,4 +94,37 @@ describe('requestTimeout middleware', () => {
     await new Promise(resolve => setTimeout(resolve, 150));
     expect(timedOutValue).toBe(true);
   });
+
+  it('provides abortSignal on res.locals and aborts it on timeout', async () => {
+    let signal: AbortSignal | undefined;
+    let abortedAfterTimeout = false;
+    const app = express();
+    app.use(requestTimeout(30));
+    app.get('/abort-check', (_req, res) => {
+      signal = res.locals.abortSignal as AbortSignal;
+      // Check signal state after timeout fires
+      setTimeout(() => {
+        abortedAfterTimeout = signal?.aborted ?? false;
+      }, 100);
+    });
+
+    await request(app).get('/abort-check');
+    await new Promise(resolve => setTimeout(resolve, 150));
+    expect(signal).toBeDefined();
+    expect(abortedAfterTimeout).toBe(true);
+  });
+
+  it('abortSignal is not aborted for fast responses', async () => {
+    let signal: AbortSignal | undefined;
+    const app = express();
+    app.use(requestTimeout(5000));
+    app.get('/fast-abort', (_req, res) => {
+      signal = res.locals.abortSignal as AbortSignal;
+      res.json({ ok: true });
+    });
+
+    await request(app).get('/fast-abort');
+    expect(signal).toBeDefined();
+    expect(signal!.aborted).toBe(false);
+  });
 });

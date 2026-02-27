@@ -221,7 +221,7 @@ Difficulty ratings:
   - **How**: In `timeout.ts`, the timeout handler sends a 504 response but doesn't prevent the route handler from also sending a response if it completes just after the timeout. Add a `res.locals.timedOut = true` flag in the timeout callback and check it in the response: `const origSend = res.send; res.send = function(...args) { if (res.locals.timedOut) return res; return origSend.apply(this, args); };`. Alternatively, check `res.headersSent` before sending the timeout response.
   - **Why**: Double response causes "Cannot set headers after they are sent" crashes in Express, which are intermittent and hard to reproduce.
 
-- [ ] 🔴 **Timeout middleware — abort underlying operations**
+- [x] 🔴 **Timeout middleware — abort underlying operations**
   - **How**: In `timeout.ts`, create an `AbortController` per request, attach it to `req` (e.g., `req.abortSignal = controller.signal`), and call `controller.abort()` when the timeout fires. Thread this signal through service calls: `kupo.ts` and `koios.ts` should pass it to `fetch()`. Requires updating all `fetch` calls in `fetchWithRetry.ts` to accept and forward the signal.
   - **Why**: Timed-out requests continue consuming resources (HTTP connections, CPU for CBOR parsing) even after the client has received 504.
 
