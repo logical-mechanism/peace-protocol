@@ -58,6 +58,7 @@ export default function PlaceBidModal({
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+  const bidAmountRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function PlaceBidModal({
         });
         setShowFuturePrice(false);
       }
+      setTimeout(() => bidAmountRef.current?.focus(), 50);
     }
   }, [isOpen, encryption]);
 
@@ -141,6 +143,13 @@ export default function PlaceBidModal({
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
     setSubmitError(null);
+  };
+
+  // Validate bid amount on blur for immediate feedback (only if user entered a value)
+  const handleBidAmountBlur = () => {
+    if (formData.bidAmount.trim()) {
+      validateForm();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -339,6 +348,7 @@ export default function PlaceBidModal({
               </div>
               <div className="relative">
                 <input
+                  ref={bidAmountRef}
                   type="text"
                   id="bidAmount"
                   name="bidAmount"

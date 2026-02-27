@@ -81,6 +81,7 @@ export default function CreateListingModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function CreateListingModal({
       } else {
         setFormData(INITIAL_FORM_DATA);
         setShowDraftPrompt(false);
+        setTimeout(() => descriptionRef.current?.focus(), 50);
       }
       setDisplayPrice('');
       setIsDragging(false);
@@ -677,6 +679,7 @@ export default function CreateListingModal({
                 Description <span className="text-[var(--error)]">*</span>
               </label>
               <textarea
+                ref={descriptionRef}
                 id="description"
                 name="description"
                 value={formData.description}
