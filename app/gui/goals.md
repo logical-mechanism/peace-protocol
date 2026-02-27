@@ -237,7 +237,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/services/crypto/__tests__/fileEncryption.test.ts`. Use `// @vitest-environment node` pragma for WebCrypto API. Test: `encryptFileForUpload` returns encrypted blob + key + nonce + digest, `decryptDownloadedFile` with matching key/nonce recovers original bytes, `verifyFileDigest` passes for correct data and fails for tampered data. Test round-trip: encrypt → decrypt → verify.
   - **Why**: File encryption is the security boundary for all non-text listings; incorrect encryption or decryption means permanent data loss or exposure.
 
-- [ ] 🟡 **Crypto tests: decrypt.ts**
+- [x] 🟡 **Crypto tests: decrypt.ts**
   - **How**: Create `fe/src/services/crypto/__tests__/decrypt.test.ts`. This module likely calls the native SNARK CLI for BLS pairings, so mock `invoke('snark_decrypt_to_hash', ...)`. Test: decryption flow with valid inputs produces expected output, invalid inputs return appropriate errors. Follow `snarkProver.test.ts` for Tauri CLI mocking patterns.
   - **Why**: Decryption is the core value delivery — buyers pay ADA to decrypt content. Bugs here mean paid content is inaccessible.
 
