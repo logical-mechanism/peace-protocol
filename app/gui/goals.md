@@ -405,7 +405,7 @@ Difficulty ratings:
   - **How**: Create test files in `fe/src/utils/`. contentType: test MIME type detection for various extensions. logClassification: test log line categorization (error, warning, info). walletErrors: test error message mapping patterns. Pure function tests — no mocking needed.
   - **Why**: Three untested utilities; pure functions are the easiest to test and provide the highest confidence per line of test code.
 
-- [ ] 🟡 **Backend: koios.ts service test**
+- [x] 🟡 **Backend: koios.ts service test**
   - **How**: Create `be/src/services/__tests__/koios.test.ts`. Mock `fetch`. Test: circuit breaker integration (5 failures → open → 30s → half-open → probe), TTL cache stale fallback, fetchWithRetry exponential backoff. Test the interaction between all three resilience layers.
   - **Why**: Koios combines three resilience patterns (circuit breaker + cache + retry) that are tested individually but never together; integration bugs could cause silent data staleness.
 
