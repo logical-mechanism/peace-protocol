@@ -355,7 +355,7 @@ Difficulty ratings:
   - **How**: In `src-tauri/src/commands/snark.rs`, add a `tokio::sync::Mutex<()>` to the SNARK prove command's state (or use the existing NodeManager). Acquire the lock at the start of `snark_prove` and release on completion. This prevents two concurrent prove calls from reading/writing the same setup directory simultaneously.
   - **Why**: Two concurrent prove calls could corrupt shared state; proving takes minutes so the risk window is significant.
 
-- [ ] 🟢 **Iagon API key length validation**
+- [x] 🟢 **Iagon API key length validation**
   - **How**: In `src-tauri/src/commands/iagon.rs` `store_iagon_api_key` command, add a length check: `if api_key.len() > 1024 { return Err("API key too long".into()); }`. This prevents theoretical disk DoS from extremely long strings.
   - **Why**: API key input is not length-validated; while unlikely, an extremely long string would waste disk space on the encrypted JSON.
 

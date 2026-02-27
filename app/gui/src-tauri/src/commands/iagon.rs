@@ -45,6 +45,16 @@ fn iagon_dir(base: &Path) -> std::path::PathBuf {
 
 const API_KEY_FILENAME: &str = "api_key.json";
 
+fn validate_api_key(api_key: &str) -> Result<(), String> {
+    if api_key.is_empty() {
+        return Err("API key must not be empty".to_string());
+    }
+    if api_key.len() > 1024 {
+        return Err("API key too long".to_string());
+    }
+    Ok(())
+}
+
 fn build_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
@@ -107,6 +117,7 @@ pub fn store_iagon_api_key(
     audit: tauri::State<'_, AuditLog>,
     api_key: String,
 ) -> Result<(), String> {
+    validate_api_key(&api_key)?;
     let key = get_secrets_key(&key_state)?;
     let dir = iagon_dir(&state.0);
     std::fs::create_dir_all(&dir)
@@ -436,4 +447,31 @@ pub async fn iagon_list_files(api_key: String) -> Result<IagonSearchResult, Stri
     let files: Vec<IagonFileInfo> =
         serde_json::from_value(files).map_err(|e| format!("Failed to parse file list: {e}"))?;
     Ok(IagonSearchResult { files })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_empty_api_key() {
+        assert!(validate_api_key("").is_err());
+    }
+
+    #[test]
+    fn rejects_oversized_api_key() {
+        let long = "a".repeat(1025);
+        assert!(validate_api_key(&long).is_err());
+    }
+
+    #[test]
+    fn accepts_normal_api_key() {
+        assert!(validate_api_key("sk-abc123-def456").is_ok());
+    }
+
+    #[test]
+    fn accepts_max_length_api_key() {
+        let max = "x".repeat(1024);
+        assert!(validate_api_key(&max).is_ok());
+    }
 }
