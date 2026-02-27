@@ -50,6 +50,7 @@ app/gui/
 │   │   │   ├── contentStorage.ts    # Saves decrypted files + metadata to media/content/; uses fileExtension (payload field 3) for correct filename, falls back to category default
 │   │   │   ├── listingDraftStorage.ts # Persists multi-step listing creation state (Tauri-backed)
 │   │   │   ├── listingFormDraftStorage.ts # Pre-upload listing form state recovery (localStorage)
+│   │   │   ├── bidFormDraftStorage.ts # Bid form draft state recovery (localStorage)
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation, file encryption
 │   │   │   ├── snark/               # Native SNARK prover interface
 │   │   │   ├── bidNotifications.ts   # localStorage: seen-bid state for notification diffing
@@ -69,7 +70,7 @@ app/gui/
 │   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
 │   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth
-│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, time, logClassification
+│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, time, logClassification, contentType
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
 │   ├── src/
@@ -192,6 +193,7 @@ app/gui/
 - `bidNotifications` — seen-bid state for seller notification diffing (PKH-keyed)
 - `listingDraftStorage` — multi-step listing creation state (Tauri-backed encrypted JSON, not localStorage). Lifecycle: uploading → uploaded → verified → signing → submitted → confirmed/failed/abandoned. Prevents re-uploading to Iagon on retry/crash.
 - `listingFormDraftStorage` — pre-upload listing form state recovery (localStorage-backed)
+- `bidFormDraftStorage` — bid form draft state for recovery (localStorage-backed)
 - `contentStorage` — saves decrypted files + metadata to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
 - `autolock` — inactivity timeout in minutes (default 15, 0 = never)
 - `tabStorage` — active Dashboard tab persistence (localStorage, defaults to 'marketplace')
@@ -379,6 +381,8 @@ app/gui/
 - `process-status` — stdout/stderr log lines from child processes
 - `mithril-progress` — download percentage during bootstrap
 - `snark-setup-progress` — decompression progress for setup files
+- `config-warning` — warning if config.json not found (using defaults)
+- `app-shutting-down` — signal to show shutdown overlay before exit
 
 ## Development Workflow
 
@@ -400,16 +404,16 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — bls12381, hashing, payload, snark-inputs, schnorr, binding, ecies, register, level, constants, zkKeyDerivation, createEncryption, createBid, walletSecret (14 files)
-  - `fe/src/services/__tests__/` — transactionBuilder, transactionBuilder.integration, transactionHistory, autolock, metadata, bidNotifications, api, apiCache, contentStorage, desktopNotifications, errorMessages, favoritesStorage, filterStorage, kupoAdapter, listingDraftStorage, listingFormDraftStorage, notificationSound, onboardingStorage, pdfSearch, secretCleanup, tabStorage, themeStorage, toastSettings, walletManagement (24 files)
+  - `fe/src/services/__tests__/` — transactionBuilder, transactionBuilder.integration, transactionHistory, autolock, metadata, bidNotifications, api, apiCache, bidFormDraftStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, filterStorage, kupoAdapter, listingDraftStorage, listingFormDraftStorage, notificationSound, onboardingStorage, pdfSearch, secretCleanup, tabStorage, themeStorage, toastSettings, walletManagement (25 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — usePasswordStrength, useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, useSnarkProver, useTabFilterState, useWalletHealth (10 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, BidsModal, BidTimeline, CreateListingModal, DecryptModal, HighlightText, KeyboardShortcutsOverlay, OfflineBanner, PlaceBidModal, Toast (10 files)
-  - `fe/src/pages/__tests__/` — nodeSyncHelpers, settingsLogHelpers, walletUnlockErrors (3 files)
-  - `fe/src/utils/` — clipboard, formatBytes, network, time, truncate (5 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, BidsModal, BidTimeline, CreateListingModal, DecryptModal, ErrorBoundary, HighlightText, HistoryTab, KeyboardShortcutsOverlay, LibraryCard, LibraryTab, MarketplaceTab, MyPurchasesTab, MySalesTab, OfflineBanner, PlaceBidModal, SessionWarningBanner, ShutdownOverlay, Toast (19 files)
+  - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
+  - `fe/src/utils/` — clipboard, formatAda, formatBytes, network, time, truncate (6 files)
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
 - Backend test locations:
-  - `be/src/services/__tests__/` — parsers (datum + CIP-20), kupo-cbor, kupo, cache, circuitBreaker, fetchWithRetry, health, logger (8 files)
+  - `be/src/services/__tests__/` — bids, cache, circuitBreaker, encryptions, fetchWithRetry, health, kupo, kupo-cbor, logger, parsers (10 files)
   - `be/src/routes/__tests__/` — encryptions, bids, protocol, chain, health (5 files)
   - `be/src/middleware/__tests__/` — validate, pagination, timeout (3 files)
 - Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
