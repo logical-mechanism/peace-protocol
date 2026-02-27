@@ -143,7 +143,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/index.css`, `fe/src/pages/WalletSetup.tsx`
 
-- [ ] 🟢 **Add hover transition to buttons using inline style changes**
+- [x] 🟢 **Add hover transition to buttons using inline style changes** *(Already completed as part of §1 item 1 — inline handlers replaced with `transition-colors duration-[var(--transition-fast)]` + `hover:bg-[var(--bg-card-hover)]`)*
   - **How**: In `WalletSetup.tsx` (line ~264-301), the mode selection buttons use `onMouseEnter`/`onMouseLeave` to change background color instantly. Remove inline handlers and add `transition-colors duration-[var(--transition-fast)]` via Tailwind classes with `:hover` state classes. This is the same fix as §1 item 1 but specifically about the animation aspect.
   - **Why**: Abrupt color changes on hover feel unpolished; CSS transitions create smooth visual feedback.
 
