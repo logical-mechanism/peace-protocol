@@ -225,7 +225,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/Toast.tsx`, `fe/src/services/desktopNotifications.ts`
 
-- [ ] 🟢 **Toast stagger animation for multiple concurrent toasts**
+- [x] 🟢 **Toast stagger animation for multiple concurrent toasts**
   - **How**: In `Toast.tsx`, when rendering multiple toasts, add a staggered entry delay: each toast's `animation-delay` increments by 50ms (e.g., toast 1: 0ms, toast 2: 50ms, toast 3: 100ms). This creates a cascade effect instead of all toasts appearing simultaneously.
   - **Why**: Multiple simultaneous toasts currently snap into position together, which feels abrupt.
 

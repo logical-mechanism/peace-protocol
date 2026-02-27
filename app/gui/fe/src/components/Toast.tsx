@@ -32,9 +32,10 @@ export interface ToastMessage {
 interface ToastProps {
   toast: ToastMessage;
   onClose: (id: string) => void;
+  index?: number;
 }
 
-function Toast({ toast, onClose }: ToastProps) {
+function Toast({ toast, onClose, index = 0 }: ToastProps) {
   const [copied, setCopied] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -151,6 +152,7 @@ function Toast({ toast, onClose }: ToastProps) {
   return (
     <div
       className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg ${closing ? 'toast-exit' : 'animate-in slide-in-from-right-full duration-300'}`}
+      style={!closing && index > 0 ? { animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' } : undefined}
       onAnimationEnd={handleAnimationEnd}
       role="alert"
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
@@ -252,8 +254,8 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
           Dismiss all{queuedCount > 0 ? ` (${queuedCount} queued)` : ''}
         </button>
       )}
-      {toasts.map((toast) => (
-        <Toast key={toast.id} toast={toast} onClose={onClose} />
+      {toasts.map((toast, index) => (
+        <Toast key={toast.id} toast={toast} onClose={onClose} index={index} />
       ))}
     </div>
   );

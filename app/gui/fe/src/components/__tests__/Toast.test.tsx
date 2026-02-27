@@ -422,6 +422,39 @@ describe('useToast', () => {
   })
 })
 
+describe('Toast stagger animation', () => {
+  const mockOnClose = vi.fn()
+
+  it('applies staggered animation delay to concurrent toasts', () => {
+    const toasts: ToastMessage[] = [
+      { id: '1', type: 'success', title: 'Toast 1', duration: 0 },
+      { id: '2', type: 'info', title: 'Toast 2', duration: 0 },
+      { id: '3', type: 'warning', title: 'Toast 3', duration: 0 },
+    ]
+    render(<ToastContainer toasts={toasts} onClose={mockOnClose} />)
+    const alerts = screen.getAllByRole('alert')
+    expect(alerts).toHaveLength(3)
+    // First toast has no delay
+    expect(alerts[0].style.animationDelay).toBe('')
+    // Subsequent toasts get incremental 50ms delays
+    expect(alerts[1].style.animationDelay).toBe('50ms')
+    expect(alerts[2].style.animationDelay).toBe('100ms')
+  })
+
+  it('applies animation-fill-mode backwards for staggered toasts', () => {
+    const toasts: ToastMessage[] = [
+      { id: '1', type: 'success', title: 'Toast 1', duration: 0 },
+      { id: '2', type: 'info', title: 'Toast 2', duration: 0 },
+    ]
+    render(<ToastContainer toasts={toasts} onClose={mockOnClose} />)
+    const alerts = screen.getAllByRole('alert')
+    // First toast: no fill mode override
+    expect(alerts[0].style.animationFillMode).toBe('')
+    // Second toast: backwards fill mode so it stays hidden during delay
+    expect(alerts[1].style.animationFillMode).toBe('backwards')
+  })
+})
+
 describe('Toast copy button', () => {
   const mockOnClose = vi.fn()
 
