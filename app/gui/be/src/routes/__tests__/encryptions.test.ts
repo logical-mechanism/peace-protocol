@@ -140,6 +140,7 @@ describe('GET /api/encryptions/:tokenName', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+    expect(res.body.error.requestId).toBeDefined();
   });
 
   it('returns 500 on service error', async () => {

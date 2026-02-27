@@ -103,7 +103,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       const encryption = STUB_ENCRYPTIONS.find(e => e.tokenName === tokenName);
       if (!encryption) {
         return res.status(404).json({
-          error: { code: 'NOT_FOUND', message: 'Encryption not found' },
+          error: { code: 'NOT_FOUND', message: 'Encryption not found', requestId: req.requestId },
         });
       }
       res.set('Cache-Control', CACHE_DATA);
@@ -113,7 +113,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
     const result = await getEncryptionByToken(tokenName);
     if (!result.data) {
       return res.status(404).json({
-        error: { code: 'NOT_FOUND', message: 'Encryption not found' },
+        error: { code: 'NOT_FOUND', message: 'Encryption not found', requestId: req.requestId },
       });
     }
     res.set('Cache-Control', CACHE_DATA);

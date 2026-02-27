@@ -341,7 +341,7 @@ Difficulty ratings:
   - **How**: In all paginated route handlers (`encryptions.ts`, `bids.ts`), remove the redundant `meta: { total }` field from responses. The `pagination: { total, limit, offset, hasMore }` field already contains the total count. Update frontend `api.ts` to read from `pagination` only.
   - **Why**: Having `total` in both `meta` and `pagination` is confusing for consumers; single source of truth prevents inconsistency.
 
-- [ ] 🟢 **Include requestId in all error responses**
+- [x] 🟢 **Include requestId in all error responses**
   - **How**: In route-level 404 handlers (e.g., `GET /api/encryptions/:tokenName` when not found), ensure `requestId` from `req.requestId` (set by `requestLogger` middleware) is included in the error response object. Currently some 404 paths omit it while the global 404 handler in `app.ts` includes it.
   - **Why**: Consistent requestId in all errors enables log correlation for debugging, even for "not found" responses.
 

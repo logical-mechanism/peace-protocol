@@ -169,6 +169,7 @@ describe('GET /api/bids/:tokenName', () => {
 
     const res = await request(app).get('/api/bids/aabb');
     expect(res.status).toBe(404);
+    expect(res.body.error.requestId).toBeDefined();
   });
 
   it('passes refresh=true to skip cache', async () => {
