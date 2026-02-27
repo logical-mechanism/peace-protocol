@@ -123,7 +123,7 @@ function EncryptionCard({
           </div>
           {encryption.description && (
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1 mb-2 cursor-pointer hover:text-[var(--text-primary)]"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-2 cursor-pointer hover:text-[var(--text-primary)]"
               onClick={() => setDescriptionModalOpen(true)}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
@@ -212,7 +212,7 @@ function EncryptionCard({
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
               title={encryption.description}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
@@ -239,7 +239,7 @@ function EncryptionCard({
 
         {/* Seller Info */}
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-          <span className="text-xs text-[var(--text-muted)]">Seller</span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-mono text-[var(--text-secondary)]">
               {truncateHex(encryption.seller, 10, 6)}

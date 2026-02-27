@@ -127,7 +127,7 @@ function LibraryCard({
                 </div>
                 {item.description && (
                   <p
-                    className="text-sm text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
                     onClick={() => setDescriptionModalOpen(true)}
                   >
                     {truncateDescription(item.description)}
@@ -235,7 +235,7 @@ function LibraryCard({
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
               title={item.description}
             >
               {truncateDescription(item.description)}
@@ -253,7 +253,7 @@ function LibraryCard({
         {/* Seller Info */}
         {item.seller && (
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-            <span className="text-xs text-[var(--text-muted)]">Seller</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
             <span className="text-xs font-mono text-[var(--text-secondary)]">
               {truncateHex(item.seller, 8, 4)}
             </span>

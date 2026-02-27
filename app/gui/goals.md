@@ -215,7 +215,7 @@ Difficulty ratings:
   - **How**: In `Settings.tsx` wallet management section, add a brief note above the "Create Collateral" button: "Collateral is a small ADA deposit (5 ADA) required by Cardano smart contracts for transaction validation." Below "Defragment UTxOs": "Combines small UTxOs into fewer, larger ones to reduce transaction fees."
   - **Why**: These terms are jargon; explanations currently only appear in error messages after the user encounters a problem.
 
-- [ ] 🟡 **Settings section visual hierarchy**
+- [x] 🟡 **Settings section visual hierarchy**
   - **How**: In `Settings.tsx`, group sections into categories with visual dividers: "Node & Network" (node info, process logs, network switch), "Wallet & Security" (collateral, defrag, auto-lock, delete wallet), "Storage & Data" (Iagon, cache, library). Add category headers in `text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]` with `mt-8 mb-4` spacing.
   - **Why**: 10+ flat sections all with the same heading style makes finding a specific setting require scrolling through everything.
 
@@ -251,7 +251,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/utils/formatDate.ts` exporting `formatDate(dateString: string): string` using `Intl.DateTimeFormat` with a consistent short format (e.g., "Jan 15, 2025"). Replace inline `new Intl.DateTimeFormat(...)` calls in `EncryptionCard.tsx` (line ~50-55), `SalesListingCard.tsx`, and any other card components that format dates.
   - **Why**: Cards use inline DateTimeFormat with potentially inconsistent options; a shared utility ensures uniform date display.
 
-- [ ] 🟢 **Standardize font-weight across card components**
+- [x] 🟢 **Standardize font-weight across card components**
   - **How**: Audit `EncryptionCard.tsx`, `SalesListingCard.tsx`, `MyPurchaseBidCard.tsx`, `LibraryCard.tsx` for title/label font-weight. Ensure card titles use `font-semibold` (600) and card labels use `font-medium` (500) consistently. Currently some titles don't specify weight (inherit browser default 400).
   - **Why**: Inconsistent font weights across cards create subtle visual imbalance that undermines the design system.
 
@@ -297,7 +297,7 @@ Difficulty ratings:
 
 > Key files: `be/src/services/kupo.ts`, `be/src/routes/`, `fe/src/services/errorMessages.ts`
 
-- [ ] 🟡 **Kupo-specific error codes for frontend messaging**
+- [x] 🟡 **Kupo-specific error codes for frontend messaging**
   - **How**: In `be/src/services/kupo.ts`, catch connection errors and return a structured error with code `KUPO_UNAVAILABLE`. In route handlers (`encryptions.ts`, `bids.ts`), detect this code and return 503 with `{ error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable' } }`. In `fe/src/services/errorMessages.ts`, add a pattern for this code: title "Kupo Unavailable", message "The UTxO indexer is starting up or unreachable", action "Wait for the node to finish syncing, then try again."
   - **Why**: Kupo failures currently return generic 500 "Failed to fetch encryptions"; users can't distinguish between a bug and a service starting up.
 

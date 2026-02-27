@@ -129,7 +129,7 @@ function SalesListingCard({
                 </div>
                 {encryption.description && (
                   <p
-                    className="text-sm text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
                     onClick={() => setDescriptionModalOpen(true)}
                   >
                     {truncateDescription(encryption.description)}
@@ -264,7 +264,7 @@ function SalesListingCard({
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
               title={encryption.description}
             >
               {truncateDescription(encryption.description)}
@@ -292,7 +292,7 @@ function SalesListingCard({
         {/* Bids Info (for active listings) */}
         {isActive && (
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-            <span className="text-xs text-[var(--text-muted)]">Active Bids</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Active Bids</span>
             <span
               className={`text-sm font-medium ${
                 bidCount > 0 ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
