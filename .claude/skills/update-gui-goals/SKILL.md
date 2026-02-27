@@ -177,7 +177,7 @@ Organize items into these approximate sections (merge or split as the findings d
 - Do NOT add items that are already implemented in the codebase — verify by reading the actual code
 - Do NOT pad sections — if a section has no real issues, omit it or include only 1-2 genuine items. Quality over quantity
 - Match the terse, reference-style tone of CLAUDE.md
-- Aim for 80-130 items total — be comprehensive but not padded
+- Include every genuine finding — no artificial item count target. A mature codebase may have 30 items; a new one may have 200. Let the findings emerge naturally
 - Run the four Explore agents in parallel to minimize wall-clock time
 - After writing, count the total items with `grep -c '^\- \[ \]'` and report the count
-- Report per-difficulty breakdown: `grep -c '🟢'`, `grep -c '🟡'`, `grep -c '🔴'` — aim for roughly 40% small, 40% medium, 20% large
+- Report per-difficulty breakdown: `grep -c '🟢'`, `grep -c '🟡'`, `grep -c '🔴'`
