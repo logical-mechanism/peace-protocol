@@ -397,7 +397,7 @@ Difficulty ratings:
   - **How**: Create test files mocking Tauri `invoke`. Test: libraryService list/read/delete operations, SNARK setup decompression progress events, prover invocation and result parsing. Follow `imageCache` test patterns for Tauri IPC mocking.
   - **Why**: Library and SNARK services are untested Tauri IPC wrappers; invoke argument errors or response parsing bugs would be invisible until runtime.
 
-- [ ] 🟢 **Hook test: useVisibility**
+- [x] 🟢 **Hook test: useVisibility**
   - **How**: Create `fe/src/hooks/__tests__/useVisibility.test.ts`. Test: returns true when document is visible, returns false when hidden, fires callback on visibility change. Mock `document.visibilityState` and `visibilitychange` event.
   - **Why**: Only untested hook (10/11 tested); completes hook coverage.
 
