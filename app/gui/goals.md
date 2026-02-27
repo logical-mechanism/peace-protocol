@@ -315,7 +315,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/MarketplaceTab.tsx`, `fe/src/pages/Dashboard.tsx`
 
-- [ ] 🔴 **Virtual scrolling for Marketplace tab**
+- [s] 🔴 **Virtual scrolling for Marketplace tab**
   - **How**: In `MarketplaceTab.tsx`, integrate `@tanstack/react-virtual` (already a dependency, used in HistoryTab) to virtualize the listing grid. Replace the current `.map()` over all filtered listings with a virtualized grid renderer. Requires calculating row heights based on card dimensions and window height. Model after HistoryTab's `useVirtualizer` implementation.
   - **Why**: With hundreds of listings, rendering all cards simultaneously causes jank on scroll; virtual scrolling renders only visible cards.
 
@@ -329,7 +329,7 @@ Difficulty ratings:
 
 > Key files: `be/src/routes/protocol.ts`, `be/src/app.ts`, `be/src/services/kupo.ts`
 
-- [ ] 🟡 **Protocol params bounds validation**
+- [s] 🟡 **Protocol params bounds validation**
   - **How**: In `be/src/routes/protocol.ts` (line ~155-184), after fetching params from Koios, validate key fields: `minFeeA > 0`, `minFeeB > 0`, `maxTxSize > 0 && maxTxSize <= 32768`, `maxValSize > 0`. If any field is out of bounds, log a warning and return the previous cached value (or hardcoded defaults). This prevents a compromised/buggy Koios from sending invalid params that break transaction building.
   - **Why**: Protocol params are accepted as-is from Koios with no sanity checks; malformed values would cause all transaction building to fail.
 
