@@ -15,7 +15,7 @@ import { useDebounce } from '../hooks/useDebounce';
 
 interface LibraryTabProps {
   refreshSignal?: number;
-  onSwitchTab?: (tab: string) => void;
+  onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
   onBulkDeleteResult?: (message: string, hadErrors: boolean) => void;

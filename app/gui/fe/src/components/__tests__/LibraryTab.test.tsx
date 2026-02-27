@@ -42,8 +42,9 @@ function makeItem(overrides: Partial<LibraryItem> = {}): LibraryItem {
     category: 'text',
     description: 'A test library item',
     seller: 'addr_test1seller',
-    savedAt: '2024-06-15T10:00:00Z',
-    size: 1024,
+    decryptedAt: '2024-06-15T10:00:00Z',
+    contentMissing: false,
+    fileSize: 1024,
     ...overrides,
   };
 }

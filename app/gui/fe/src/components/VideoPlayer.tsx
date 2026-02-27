@@ -98,7 +98,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       const vtt = 'WEBVTT\n\n' + text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
       blob = new Blob([vtt], { type: 'text/vtt' });
     } else {
-      blob = new Blob([subtitleData], { type: 'text/vtt' });
+      blob = new Blob([subtitleData as BlobPart], { type: 'text/vtt' });
     }
     const url = URL.createObjectURL(blob);
     setSubtitleUrl(url);

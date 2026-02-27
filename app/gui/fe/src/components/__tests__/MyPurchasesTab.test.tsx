@@ -33,7 +33,7 @@ function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionD
     tokenName: 'enc' + Math.random().toString(36).slice(2, 18),
     seller: 'addr_test1seller',
     sellerPkh: USER_PKH,
-    status: 'Open',
+    status: 'active',
     createdAt: '2024-06-15T10:00:00Z',
     utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
     datum: { full_level: { r1b: 'aa', r2_g1b: 'bb', r2_g2b: 'cc', r4b: 'dd' } } as unknown as EncryptionDisplay['datum'],

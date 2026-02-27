@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
@@ -6,7 +7,7 @@ import ErrorBoundary, { InlineErrorBoundary } from '../ErrorBoundary';
 // ── Helpers ──────────────────────────────────────────────────────────
 
 /** Component that throws on render — used to trigger error boundaries. */
-function ThrowingChild({ message = 'render boom' }: { message?: string }) {
+function ThrowingChild({ message = 'render boom' }: { message?: string }): React.ReactElement {
   throw new Error(message);
 }
 
@@ -172,7 +173,7 @@ describe('InlineErrorBoundary', () => {
   });
 
   it('shows generic message when error has no message', () => {
-    function ThrowEmpty() {
+    function ThrowEmpty(): React.ReactElement {
       throw new Error();
     }
     render(

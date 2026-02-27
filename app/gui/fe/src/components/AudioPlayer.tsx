@@ -12,7 +12,7 @@ interface AudioMetadata {
 
 function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: string } }) {
   const url = useMemo(() => {
-    const blob = new Blob([picture.data], { type: picture.format });
+    const blob = new Blob([picture.data as BlobPart], { type: picture.format });
     return URL.createObjectURL(blob);
   }, [picture]);
 

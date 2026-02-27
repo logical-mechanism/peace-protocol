@@ -54,7 +54,7 @@ import type { EncryptionDisplay, BidDisplay } from '../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../services/snark'
 import type { CreateListingFormData } from '../components/CreateListingModal'
 
-type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library';
+export type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library';
 
 interface Tab {
   id: TabId;
@@ -291,7 +291,7 @@ export default function Dashboard() {
   }, [userPkh])
 
   // Debounced persistence of marketplace filters to localStorage
-  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => {
     if (!userPkh || !hydratedRef.current) return
     clearTimeout(persistTimeoutRef.current)
@@ -310,7 +310,7 @@ export default function Dashboard() {
   // object reference is recreated each render (no useMemo in useToast).
   const isInitialBidCheck = useRef(true)
   const lastNotifiedCountRef = useRef(0)
-  const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => {
     if (!bidNotifications.isReady) return
     if (isInitialBidCheck.current) {

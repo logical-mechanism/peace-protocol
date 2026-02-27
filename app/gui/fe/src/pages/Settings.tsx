@@ -677,7 +677,7 @@ export default function Settings() {
                 >
                   <span className="text-sm font-medium">{s.title}</span>
                   <span className="text-xs text-[var(--text-muted)] ml-2">
-                    in {sections.find(sec => sec.id === s.tab)?.label}
+                    in {sectionGroups.flatMap(g => g.sections).find(sec => sec.id === s.tab)?.label}
                   </span>
                 </button>
               ))

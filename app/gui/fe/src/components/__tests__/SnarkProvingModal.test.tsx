@@ -35,11 +35,11 @@ vi.mock('../InfoTooltip', () => ({
 // ── Fixtures ────────────────────────────────────────────────────────
 
 const mockInputs: SnarkProofInputs = {
-  a: 'scalar_a',
-  r: 'scalar_r',
-  v: 'scalar_v',
-  w0: 'scalar_w0',
-  w1: 'scalar_w1',
+  secretA: 'scalar_a',
+  secretR: 'scalar_r',
+  publicV: 'scalar_v',
+  publicW0: 'scalar_w0',
+  publicW1: 'scalar_w1',
 };
 
 const mockProof: SnarkProof = {
@@ -47,7 +47,12 @@ const mockProof: SnarkProof = {
   publicJson: '["1", "2", "3"]',
 };
 
-const defaultProps = {
+const defaultProps: {
+  isOpen: boolean;
+  onClose: ReturnType<typeof vi.fn>;
+  onProofGenerated: ReturnType<typeof vi.fn>;
+  inputs: SnarkProofInputs | null;
+} = {
   isOpen: true,
   onClose: vi.fn(),
   onProofGenerated: vi.fn(),

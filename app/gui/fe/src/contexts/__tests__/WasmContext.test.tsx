@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { invoke, listen } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { WasmProvider, useWasm } from '../WasmContext';
 
 beforeEach(() => {

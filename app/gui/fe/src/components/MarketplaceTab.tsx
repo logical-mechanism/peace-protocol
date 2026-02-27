@@ -27,7 +27,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
-  const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
+  const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [], total_bytes: 0 });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);

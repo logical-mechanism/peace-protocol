@@ -397,7 +397,7 @@ describe('CreateListingModal', () => {
   // --- Close button ---
 
   it('disables close button during submit', async () => {
-    let resolveSubmit: () => void;
+    let resolveSubmit: (value?: unknown) => void;
     mockOnSubmit.mockImplementation(() => new Promise((resolve) => { resolveSubmit = resolve; }));
 
     renderModal();
@@ -532,7 +532,7 @@ describe('CreateListingModal', () => {
 
   it('does not show stepper when no creationStep is set', async () => {
     // onSubmit never calls onProgress, so creationStep stays null
-    let resolveSubmit: () => void;
+    let resolveSubmit: (value?: unknown) => void;
     mockOnSubmit.mockImplementation(() => new Promise((resolve) => { resolveSubmit = resolve; }));
 
     renderModal();
