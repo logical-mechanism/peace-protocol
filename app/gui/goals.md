@@ -91,7 +91,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/App.tsx`
 
-- [ ] 🟡 **Marketplace toolbar visual hierarchy**
+- [x] 🟡 **Marketplace toolbar visual hierarchy**
   - **How**: In `MarketplaceTab.tsx` (line ~298+), increase the search input prominence: wider default width, subtle left-aligned search icon inside the input, `text-sm` placeholder "Search listings by name or seller...". Move filter/sort controls into a collapsible "Filters" dropdown button that sits secondary (btn-tertiary style) next to search.
   - **Why**: Search, filters, and sort currently have equal visual weight; primary action (search) should be immediately obvious.
 
