@@ -574,7 +574,7 @@ Each item has:
   - **How**: Add `"engines": { "node": ">=20.0.0", "npm": ">=10.0.0" }` to fe/package.json and be/package.json. This causes `npm install` to warn if the Node version is incompatible.
   - **Why**: Code uses Node 20+ features (e.g., `fetch` global). Developers on Node 18 get cryptic runtime errors instead of a clear version mismatch warning.
 
-- [ ] **Remove dead tsconfig path alias**
+- [x] **Remove dead tsconfig path alias**
   - **How**: In `fe/tsconfig.app.json` (lines 24-26), the `@/*` path alias is configured but never used anywhere in the codebase (all imports are relative `../`). Remove it to avoid confusion.
   - **Why**: Dead configuration misleads developers into thinking path aliases work, then their imports fail at runtime because Vite isn't configured to resolve them.
 
