@@ -51,11 +51,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/NodeSync.tsx`, `fe/src/contexts/NodeContext.tsx`
 
-- [ ] 🟢 **Progress bar shimmer animation during sync**
+- [x] 🟢 **Progress bar shimmer animation during sync**
   - **How**: In `NodeSync.tsx`, the progress bar gradient (`from-[var(--accent)] to-[var(--success)]`) is static. Add a CSS `@keyframes shimmer` animation in `index.css`: `@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }` and apply `animation: shimmer 2s ease-in-out infinite` with `background-size: 200% 100%` to the progress bar. Respect `prefers-reduced-motion` by disabling in the existing media query.
   - **Why**: A static bar during a multi-hour sync feels frozen; a subtle shimmer signals the process is alive.
 
-- [ ] 🟢 **NodeSync "stuck at 99%" — add estimated wait time**
+- [x] 🟢 **NodeSync "stuck at 99%" — add estimated wait time**
   - **How**: In `NodeSync.tsx` (line ~632), the message says "This is normal" for the final sync phase. Append: "The last few percent may take 5–15 minutes as the node validates recent blocks." This is a pure copy change.
   - **Why**: Users panic when sync appears stalled at 99% and may restart the node, losing progress.
 
