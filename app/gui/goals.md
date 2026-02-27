@@ -211,7 +211,7 @@ Difficulty ratings:
   - **How**: In `Settings.tsx`, when `imageCacheStatus.cached.length === 0`, show "No cached images" text below the header instead of just a disabled "Clear All" button. Use `text-sm text-[var(--text-muted)]`.
   - **Why**: A disabled button with no explanation looks like a bug; explicit empty state communicates intent.
 
-- [ ] 🟢 **Proactive collateral/defrag explanation**
+- [x] 🟢 **Proactive collateral/defrag explanation**
   - **How**: In `Settings.tsx` wallet management section, add a brief note above the "Create Collateral" button: "Collateral is a small ADA deposit (5 ADA) required by Cardano smart contracts for transaction validation." Below "Defragment UTxOs": "Combines small UTxOs into fewer, larger ones to reduce transaction fees."
   - **Why**: These terms are jargon; explanations currently only appear in error messages after the user encounters a problem.
 
@@ -305,7 +305,7 @@ Difficulty ratings:
   - **How**: In `be/src/routes/protocol.ts` (line ~155-184), wrap the Koios params call in the existing TTL cache with a long TTL (300s — params rarely change). If both cache and Koios fail, return hardcoded Cardano defaults (minFeeA=44, maxTxSize=16384, etc.) with a `warnings: ['Using fallback protocol parameters']` field.
   - **Why**: When Koios is down, `/api/protocol/params` returns 500 and transaction building fails entirely; cached/fallback params keep the app functional.
 
-- [ ] 🟢 **Iagon cleanup per-item error feedback**
+- [x] 🟢 **Iagon cleanup per-item error feedback**
   - **How**: In `Settings.tsx` (line ~196-210), when bulk-deleting orphaned Iagon files, track success/failure per file. After completion, show toast: "Cleaned up X of Y files" and log failures. Currently bulk delete silently ignores individual file deletion errors.
   - **Why**: Users clicking "Delete All Orphans" get no feedback if some deletions fail due to network or permission errors.
 

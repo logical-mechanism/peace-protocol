@@ -197,18 +197,34 @@ export default function Settings() {
   const handleDeleteAllOrphans = useCallback(async () => {
     if (!confirm('Delete all orphaned files from Iagon? This cannot be undone.')) return
     const apiKey = await getStoredApiKey()
+    const total = orphanedDrafts.length
+    const succeededIds: string[] = []
+    let failedCount = 0
+
     for (const draft of orphanedDrafts) {
       try {
         if (apiKey && draft.iagonFileId) {
           await iagonDeleteFile(apiKey, draft.iagonFileId)
         }
         await removeListingDraft(draft.id)
-      } catch {
-        // continue with others
+        succeededIds.push(draft.id)
+      } catch (err) {
+        console.error(`Failed to delete orphaned file ${draft.id}:`, err)
+        failedCount++
       }
     }
-    setOrphanedDrafts([])
-  }, [orphanedDrafts])
+
+    const successSet = new Set(succeededIds)
+    setOrphanedDrafts(prev => prev.filter(d => !successSet.has(d.id)))
+
+    if (failedCount === 0) {
+      toast.success('Cleanup Complete', `Deleted ${total} orphaned file${total === 1 ? '' : 's'}.`)
+    } else if (succeededIds.length > 0) {
+      toast.warning('Partial Cleanup', `Deleted ${succeededIds.length} of ${total} files. ${failedCount} could not be removed.`)
+    } else {
+      toast.error('Cleanup Failed', 'Could not delete any orphaned files. Check your internet connection.')
+    }
+  }, [orphanedDrafts, toast])
 
   const handleDeleteCachedImage = useCallback(async (tokenName: string) => {
     setCacheDeleting(tokenName)
@@ -888,25 +904,35 @@ export default function Settings() {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="space-y-3">
                     {!walletHealth.hasCollateral && (
-                      <button
-                        onClick={() => setWalletConfirmAction('collateral')}
-                        disabled={collateralLoading || defragLoading}
-                        className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-                      >
-                        {collateralLoading ? 'Creating...' : 'Set Collateral (5 ADA)'}
-                      </button>
+                      <p className="text-sm text-[var(--text-muted)]">
+                        Collateral is a small ADA deposit (5 ADA) required by Cardano smart contracts for transaction validation.
+                      </p>
                     )}
-                    <button
-                      onClick={() => setWalletConfirmAction('defrag')}
-                      disabled={defragLoading || collateralLoading || walletHealth.utxoCount <= 1 || (defragPreview !== null && !defragPreview.isFeasible)}
-                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
-                      title={defragPreview && !defragPreview.isFeasible ? defragPreview.infeasibleReason : undefined}
-                    >
-                      {defragLoading ? 'Optimizing...' : 'Optimize Wallet'}
-                    </button>
-                    <InfoTooltip text="Combines multiple small UTxOs into fewer, larger ones. This reduces transaction complexity and fees." />
+                    <div className="flex gap-3">
+                      {!walletHealth.hasCollateral && (
+                        <button
+                          onClick={() => setWalletConfirmAction('collateral')}
+                          disabled={collateralLoading || defragLoading}
+                          className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                        >
+                          {collateralLoading ? 'Creating...' : 'Set Collateral (5 ADA)'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setWalletConfirmAction('defrag')}
+                        disabled={defragLoading || collateralLoading || walletHealth.utxoCount <= 1 || (defragPreview !== null && !defragPreview.isFeasible)}
+                        className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+                        title={defragPreview && !defragPreview.isFeasible ? defragPreview.infeasibleReason : undefined}
+                      >
+                        {defragLoading ? 'Optimizing...' : 'Optimize Wallet'}
+                      </button>
+                      <InfoTooltip text="Combines multiple small UTxOs into fewer, larger ones. This reduces transaction complexity and fees." />
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Optimization combines small UTxOs into fewer, larger ones to reduce transaction fees.
+                    </p>
                   </div>
                 </div>
               )}
