@@ -406,7 +406,7 @@ Each item has:
   - **How**: In `be/src/services/cache.ts`, add a `cleanupExpired()` method that removes entries past their TTL. Call via `setInterval(cleanupExpired, 60_000)` in the app startup. Currently expired entries persist in memory until their key is accessed again.
   - **Why**: Long-running backend instances accumulate stale cache entries. While they're overwritten on next fetch, the memory is held unnecessarily.
 
-- [ ] **Lazy load heavy modal content**
+- [x] **Lazy load heavy modal content**
   - **How**: Use React `lazy()` + `Suspense` for SnarkProvingModal and SnarkDownloadModal (which import heavy SNARK-related code). These modals are rarely opened but their imports increase initial bundle size. Follow the pattern already used in LibraryContentModal for media viewers.
   - **Why**: Reducing initial bundle size improves app startup time, especially on first launch when WebKitGTK is compiling JS.
 

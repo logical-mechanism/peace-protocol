@@ -18,7 +18,7 @@ import KeyboardShortcutsOverlay from '../components/KeyboardShortcutsOverlay'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
-import SnarkProvingModal from '../components/SnarkProvingModal'
+const SnarkProvingModal = lazy(() => import('../components/SnarkProvingModal'))
 import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
@@ -1603,20 +1603,22 @@ export default function Dashboard() {
       />
 
       {/* SNARK Proving Modal (Accept Bid Step 1) */}
-      <SnarkProvingModal
-        isOpen={showSnarkModal}
-        onClose={() => {
-          setShowSnarkModal(false)
-          setSnarkInputs(null)
-          setAcceptBidEncryption(null)
-          setAcceptBidBid(null)
-          setAcceptBidA0(null)
-          setAcceptBidR0(null)
-          setAcceptBidHk(null)
-        }}
-        onProofGenerated={handleProofGenerated}
-        inputs={snarkInputs}
-      />
+      <Suspense fallback={null}>
+        <SnarkProvingModal
+          isOpen={showSnarkModal}
+          onClose={() => {
+            setShowSnarkModal(false)
+            setSnarkInputs(null)
+            setAcceptBidEncryption(null)
+            setAcceptBidBid(null)
+            setAcceptBidA0(null)
+            setAcceptBidR0(null)
+            setAcceptBidHk(null)
+          }}
+          onProofGenerated={handleProofGenerated}
+          inputs={snarkInputs}
+        />
+      </Suspense>
 
       {/* Toast Notifications */}
       <KeyboardShortcutsOverlay isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
