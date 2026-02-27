@@ -402,7 +402,7 @@ Each item has:
   - **How**: In `DecryptModal.tsx` (line 148-154), `formatAda()` is defined inside the component and recreated on every render. Move to `fe/src/utils/formatAda.ts` and import. Similarly, extract `formatBytes` (already in utils — verify it's used everywhere instead of inline formatting).
   - **Why**: Functions defined inside components are recreated on every render, defeating memoization of child components that receive them as props.
 
-- [ ] **Backend cache periodic cleanup**
+- [x] **Backend cache periodic cleanup**
   - **How**: In `be/src/services/cache.ts`, add a `cleanupExpired()` method that removes entries past their TTL. Call via `setInterval(cleanupExpired, 60_000)` in the app startup. Currently expired entries persist in memory until their key is accessed again.
   - **Why**: Long-running backend instances accumulate stale cache entries. While they're overwritten on next fetch, the memory is held unnecessarily.
 
