@@ -109,7 +109,7 @@ export default function PlaceBidModal({
     if (!formData.bidAmount.trim()) {
       newErrors.bidAmount = 'Bid amount is required';
     } else {
-      const amount = parseFloat(formData.bidAmount);
+      const amount = parseFloat(formData.bidAmount.replace(/,/g, ''));
       if (isNaN(amount) || amount <= 0) {
         newErrors.bidAmount = 'Bid amount must be a positive number';
       } else if (amount < MIN_BID_ADA) {
@@ -123,7 +123,7 @@ export default function PlaceBidModal({
 
     // Future price validation (only if section is open and value provided)
     if (showFuturePrice && formData.futurePrice.trim()) {
-      const price = parseFloat(formData.futurePrice);
+      const price = parseFloat(formData.futurePrice.replace(/,/g, ''));
       if (isNaN(price) || price < 0) {
         newErrors.futurePrice = 'Future price must be a non-negative number';
       } else if (price > 1000000000) {
@@ -137,7 +137,11 @@ export default function PlaceBidModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Strip commas from ADA amounts so "1,000" parses as 1000, not 1
+    const sanitized = (name === 'bidAmount' || name === 'futurePrice')
+      ? value.replace(/,/g, '')
+      : value;
+    setFormData((prev) => ({ ...prev, [name]: sanitized }));
     // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -168,9 +172,9 @@ export default function PlaceBidModal({
     setSubmitError(null);
 
     try {
-      const bidAmountAda = parseFloat(formData.bidAmount);
+      const bidAmountAda = parseFloat(formData.bidAmount.replace(/,/g, ''));
       const futurePrice = showFuturePrice && formData.futurePrice.trim()
-        ? parseFloat(formData.futurePrice)
+        ? parseFloat(formData.futurePrice.replace(/,/g, ''))
         : encryption?.suggestedPrice ?? bidAmountAda;
       await onSubmit(encryption.tokenName, bidAmountAda, encryption.utxo, futurePrice);
       clearBidFormDraft();
