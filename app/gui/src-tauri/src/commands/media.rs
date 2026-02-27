@@ -106,6 +106,113 @@ fn read_image_result(dir: &Path, token_name: &str) -> Result<Option<ImageResult>
     }))
 }
 
+// ── Cache cleanup ───────────────────────────────────────────────────────
+
+/// Periodic image cache cleanup policy.
+///
+/// 1. Delete `.img` files older than `max_age_secs` (default: 30 days).
+/// 2. Remove orphaned `.banned` markers whose `.img` no longer exists.
+/// 3. If total cache size exceeds `max_size_bytes` (default: 500 MB),
+///    delete oldest `.img` files until under the limit.
+pub fn cleanup_image_cache(images_dir: &Path, max_age_secs: u64, max_size_bytes: u64) {
+    let entries = match std::fs::read_dir(images_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    let now = std::time::SystemTime::now();
+    let max_age = std::time::Duration::from_secs(max_age_secs);
+
+    struct CachedImage {
+        path: PathBuf,
+        token: String,
+        size: u64,
+        modified: std::time::SystemTime,
+    }
+
+    let mut images: Vec<CachedImage> = Vec::new();
+    let mut banned_tokens: Vec<String> = Vec::new();
+
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+
+        if let Some(token) = name_str.strip_suffix(".img") {
+            if let Ok(meta) = entry.metadata() {
+                let modified = meta.modified().unwrap_or(now);
+                images.push(CachedImage {
+                    path: entry.path(),
+                    token: token.to_string(),
+                    size: meta.len(),
+                    modified,
+                });
+            }
+        } else if let Some(token) = name_str.strip_suffix(".banned") {
+            banned_tokens.push(token.to_string());
+        }
+    }
+
+    // Pass 1: Delete images older than max_age
+    let mut deleted_age = 0u32;
+    images.retain(|img| {
+        let age = now.duration_since(img.modified).unwrap_or_default();
+        if age > max_age {
+            let _ = std::fs::remove_file(&img.path);
+            let ban = img.path.with_extension("banned");
+            if ban.exists() {
+                let _ = std::fs::remove_file(&ban);
+            }
+            deleted_age += 1;
+            false
+        } else {
+            true
+        }
+    });
+
+    // Pass 2: Remove orphaned .banned markers (no corresponding .img)
+    let img_tokens: std::collections::HashSet<&str> =
+        images.iter().map(|i| i.token.as_str()).collect();
+    for token in &banned_tokens {
+        if !img_tokens.contains(token.as_str()) {
+            let ban_path = images_dir.join(format!("{token}.banned"));
+            let _ = std::fs::remove_file(&ban_path);
+        }
+    }
+
+    // Pass 3: Enforce size cap — delete oldest first
+    let total_size: u64 = images.iter().map(|i| i.size).sum();
+    if total_size > max_size_bytes {
+        images.sort_by(|a, b| a.modified.cmp(&b.modified));
+        let mut current_size = total_size;
+        let mut deleted_size = 0u32;
+        for img in &images {
+            if current_size <= max_size_bytes {
+                break;
+            }
+            let _ = std::fs::remove_file(&img.path);
+            let ban = img.path.with_extension("banned");
+            if ban.exists() {
+                let _ = std::fs::remove_file(&ban);
+            }
+            current_size = current_size.saturating_sub(img.size);
+            deleted_size += 1;
+        }
+        if deleted_size > 0 {
+            eprintln!(
+                "Image cache cleanup: deleted {deleted_size} files to stay under {} MB limit",
+                max_size_bytes / (1024 * 1024)
+            );
+        }
+    }
+
+    if deleted_age > 0 {
+        eprintln!(
+            "Image cache cleanup: deleted {deleted_age} images older than {} days",
+            max_age_secs / 86400
+        );
+    }
+}
+
 // ── Commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -632,4 +739,75 @@ pub async fn open_with_system(
     app.opener()
         .open_path(&path_str, None::<&str>)
         .map_err(|e| format!("Failed to open with system player: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn test_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("peace_media_test_{name}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn cleanup_deletes_old_images() {
+        let dir = test_dir("cleanup_old");
+        let img = dir.join("abc123.img");
+        fs::write(&img, b"fake image data").unwrap();
+        // With max_age=0, all files are considered "old"
+        cleanup_image_cache(&dir, 0, u64::MAX);
+        assert!(!img.exists(), "Image should be deleted when max_age is 0");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cleanup_keeps_recent_images() {
+        let dir = test_dir("cleanup_recent");
+        let img = dir.join("abc123.img");
+        fs::write(&img, b"recent image").unwrap();
+        // 30 days is much longer than the file's age (just created)
+        cleanup_image_cache(&dir, 30 * 86400, u64::MAX);
+        assert!(img.exists(), "Recent image should be kept");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cleanup_enforces_size_cap() {
+        let dir = test_dir("cleanup_size");
+        // Create two files, total 200 bytes, with a 100-byte cap
+        let img1 = dir.join("older.img");
+        let img2 = dir.join("newer.img");
+        fs::write(&img1, vec![0u8; 100]).unwrap();
+        // Brief pause to ensure different mtime
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        fs::write(&img2, vec![0u8; 100]).unwrap();
+
+        cleanup_image_cache(&dir, 30 * 86400, 100);
+        // Oldest should be deleted first
+        assert!(!img1.exists(), "Oldest file should be deleted");
+        assert!(img2.exists(), "Newer file should be kept");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cleanup_removes_orphaned_banned() {
+        let dir = test_dir("cleanup_orphan_ban");
+        // Create a .banned with no corresponding .img
+        let ban = dir.join("orphan.banned");
+        fs::write(&ban, b"").unwrap();
+        // Create a .banned WITH a corresponding .img
+        let img = dir.join("valid.img");
+        let ban2 = dir.join("valid.banned");
+        fs::write(&img, b"data").unwrap();
+        fs::write(&ban2, b"").unwrap();
+
+        cleanup_image_cache(&dir, 30 * 86400, u64::MAX);
+        assert!(!ban.exists(), "Orphaned ban should be deleted");
+        assert!(ban2.exists(), "Ban with corresponding img should be kept");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

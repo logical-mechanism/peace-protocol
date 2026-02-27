@@ -13,7 +13,7 @@ import { config, getNetworkConfig } from '../config/index.js';
 import type { KoiosUtxo } from './koios.js';
 import { decodePlutusData, slotToUnixTime } from './cbor.js';
 import { fetchWithRetry } from './fetchWithRetry.js';
-import { CircuitBreaker } from './circuitBreaker.js';
+import { CircuitBreaker, CircuitOpenError } from './circuitBreaker.js';
 
 /** Kupo /matches response item (with ?resolve_hashes) */
 export interface KupoMatch {
@@ -97,6 +97,15 @@ export function matchToKoiosUtxo(match: KupoMatch, network: 'preprod' | 'mainnet
   };
 }
 
+export class KupoUnavailableError extends Error {
+  public readonly code = 'KUPO_UNAVAILABLE' as const;
+
+  constructor(message: string, cause?: unknown) {
+    super(message, { cause });
+    this.name = 'KupoUnavailableError';
+  }
+}
+
 class KupoClient {
   private baseUrl: string;
   private network: 'preprod' | 'mainnet';
@@ -125,7 +134,14 @@ class KupoClient {
         return response.json();
       });
     } catch (err) {
-      throw new Error(`Kupo ${path}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+      const message = err instanceof Error ? err.message : String(err);
+      if (
+        err instanceof CircuitOpenError ||
+        /ECONNREFUSED|ECONNRESET|ENOTFOUND|fetch failed|Failed to fetch/i.test(message)
+      ) {
+        throw new KupoUnavailableError(`Kupo ${path}: ${message}`, err);
+      }
+      throw new Error(`Kupo ${path}: ${message}`, { cause: err });
     }
   }
 

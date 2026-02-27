@@ -22,6 +22,13 @@ describe('getFriendlyError', () => {
   });
 
   describe('Kupo errors', () => {
+    it('matches KUPO_UNAVAILABLE error code', () => {
+      expectTitle('KUPO_UNAVAILABLE', 'Kupo Unavailable');
+      const result = getFriendlyError('KUPO_UNAVAILABLE');
+      expect(result.message).toBe('The UTxO indexer is starting up or unreachable.');
+      expect(result.action).toBe('Wait for the node to finish syncing, then try again.');
+    });
+
     it('matches port 1442', () => {
       expectTitle('connect ECONNREFUSED 127.0.0.1:1442', 'Kupo Unavailable');
     });

@@ -31,13 +31,16 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
+  const hasDataRef = useRef(false);
+
   const fetchEncryptions = useCallback(async () => {
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     setError(null);
     try {
       const [data, allBids] = await Promise.all([
@@ -47,6 +50,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
       setEncryptions(data);
       setAllBids(allBids);
       setPrevDataCount(data.length);
+      hasDataRef.current = true;
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch((err) => {
@@ -69,19 +73,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     }
   }, [userPkh]);
 
+  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
     fetchEncryptions();
-  }, [fetchEncryptions]);
-
-  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    fetchEncryptions();
-  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSignal, fetchEncryptions]);
 
   // Load favorites from localStorage when user changes
   useEffect(() => {
@@ -225,6 +220,18 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     return count;
   }, [debouncedSearch, sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
 
+  // Count only panel filters (excludes search) for the Filters button badge
+  const panelFilterCount = useMemo(() => {
+    let count = 0;
+    if (sortBy !== 'newest') count++;
+    if (statusFilter !== 'all') count++;
+    if (categoryFilter !== 'all') count++;
+    if (priceMin !== '') count++;
+    if (priceMax !== '') count++;
+    if (showFavoritesOnly) count++;
+    return count;
+  }, [sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
+
   // Load more pagination — accumulate batches instead of showing a single page
   const ITEMS_PER_PAGE = 20;
 
@@ -295,106 +302,60 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        {/* Search */}
-        <div className="flex-1 relative">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-            />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by token, seller, or description..."
-            value={searchQuery}
-            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
-            aria-label="Search listings"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
-          />
-        </div>
-
-        {/* Filters */}
+      <div className="mb-6">
+        {/* Primary row: Search + Filters toggle + View toggle + Refresh */}
         <div className="flex gap-3">
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MarketplaceFilters['statusFilter'] })}
-            aria-label="Filter by status"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-          </select>
-
-          {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
-            aria-label="Filter by category"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Categories</option>
-            {FILE_CATEGORIES.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.label}</option>
-            ))}
-          </select>
-
-          {/* Price Range Slider */}
-          <PriceRangeSlider
-            min={priceRange.min}
-            max={priceRange.max}
-            valueMin={priceMin}
-            valueMax={priceMax}
-            onChangeMin={(v) => dispatch({ type: 'SET_PRICE_MIN', payload: v })}
-            onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
-          />
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MarketplaceFilters['sortBy'] })}
-            aria-label="Sort listings"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="most-bids">Most Bids</option>
-          </select>
-
-          {/* Favorites Toggle */}
-          <button
-            onClick={() => dispatch({ type: 'SET_FAVORITES_ONLY', payload: !showFavoritesOnly })}
-            className={`px-3 py-2 border rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
-              showFavoritesOnly
-                ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
-                : 'bg-[var(--bg-secondary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-            }`}
-            title={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
-            aria-label={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
-            aria-pressed={showFavoritesOnly}
-          >
-            <svg className="w-4 h-4" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          {/* Search */}
+          <div className="flex-1 relative">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              />
             </svg>
+            <input
+              type="text"
+              placeholder="Search listings by name or seller..."
+              value={searchQuery}
+              onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
+              aria-label="Search listings"
+              className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
+            />
+          </div>
+
+          {/* Filters Toggle */}
+          <button
+            onClick={() => setFiltersOpen((o) => !o)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary cursor-pointer ${
+              filtersOpen ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]' : ''
+            }`}
+            aria-label="Toggle filters"
+            aria-expanded={filtersOpen}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <span>Filters</span>
+            {panelFilterCount > 0 && (
+              <span className="bg-[var(--accent)] text-white rounded-full text-xs w-5 h-5 flex items-center justify-center font-medium">
+                {panelFilterCount}
+              </span>
+            )}
           </button>
 
           {/* View Toggle */}
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -414,7 +375,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
             </button>
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -451,6 +412,77 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
             </svg>
           </button>
         </div>
+
+        {/* Collapsible filter panel */}
+        {filtersOpen && (
+          <div className="flex flex-wrap items-center gap-3 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MarketplaceFilters['statusFilter'] })}
+              aria-label="Filter by status"
+              className="px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+            </select>
+
+            {/* Category Filter */}
+            <select
+              value={categoryFilter}
+              onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
+              aria-label="Filter by category"
+              className="px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+            >
+              <option value="all">All Categories</option>
+              {FILE_CATEGORIES.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.label}</option>
+              ))}
+            </select>
+
+            {/* Price Range Slider */}
+            <PriceRangeSlider
+              min={priceRange.min}
+              max={priceRange.max}
+              valueMin={priceMin}
+              valueMax={priceMax}
+              onChangeMin={(v) => dispatch({ type: 'SET_PRICE_MIN', payload: v })}
+              onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
+            />
+
+            {/* Sort */}
+            <select
+              value={sortBy}
+              onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MarketplaceFilters['sortBy'] })}
+              aria-label="Sort listings"
+              className="px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="most-bids">Most Bids</option>
+            </select>
+
+            {/* Favorites Toggle */}
+            <button
+              onClick={() => dispatch({ type: 'SET_FAVORITES_ONLY', payload: !showFavoritesOnly })}
+              className={`px-3 py-2 border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                showFavoritesOnly
+                  ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                  : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+              title={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
+              aria-label={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
+              aria-pressed={showFavoritesOnly}
+            >
+              <svg className="w-4 h-4" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Results Count + Clear Filters */}
@@ -461,7 +493,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
         {activeFilterCount > 0 && (
           <button
             onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
-            className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors duration-150 cursor-pointer"
+            className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
           >
             {activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active &mdash; Clear
           </button>

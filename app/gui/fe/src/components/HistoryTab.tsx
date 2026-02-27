@@ -4,7 +4,7 @@ import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
 import { HistoryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import { SkeletonHistoryList } from './SkeletonCard';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
@@ -64,6 +64,8 @@ function HistoryTab({
   const [confirmations, setConfirmations] = useState<Map<string, number>>(new Map());
   const confirmationsRef = useRef<Map<string, number>>(new Map());
 
+  const hasDataRef = useRef(false);
+
   // Reconcile local history with on-chain data and check pending txs
   const refresh = useCallback(async () => {
     if (!userPkh) {
@@ -71,7 +73,7 @@ function HistoryTab({
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     try {
       // 1. Fetch on-chain data (current UTxOs owned by user)
       const [encryptions, bids] = await Promise.all([
@@ -119,6 +121,7 @@ function HistoryTab({
       const resolved = await resolvePendingTxs(userPkh);
       setIsStale(false);
       setAllRecords(resolved);
+      hasDataRef.current = true;
       onHistoryUpdated?.(resolved);
     } catch (err) {
       console.error('Failed to refresh history:', err);
@@ -126,25 +129,17 @@ function HistoryTab({
       setIsStale(true);
       const fallback = getTransactions(userPkh);
       setAllRecords(fallback);
+      hasDataRef.current = true;
       onHistoryUpdated?.(fallback);
     } finally {
       setLoading(false);
     }
   }, [userPkh, onHistoryUpdated]);
 
+  // Fetch on mount and re-fetch when historySignal changes (background refresh after first load)
   useEffect(() => {
     refresh();
-  }, [refresh]);
-
-  // Re-fetch when Dashboard signals a history refresh
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    refresh();
-  }, [historySignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [historySignal, refresh]);
 
   // Also update if parent passes new transactions (e.g. after recording a new tx)
   useEffect(() => {
@@ -373,7 +368,7 @@ function HistoryTab({
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search transaction history"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
+            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
           />
         </div>
 
@@ -454,6 +449,7 @@ function HistoryTab({
           </button>
           <button
             onClick={handleClear}
+            aria-label="Clear transaction history"
             className="px-3 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
           >
             Clear History
@@ -480,6 +476,7 @@ function HistoryTab({
           action={
             <button
               onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
+              aria-label="Clear all filters"
               className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
             >
               Clear Filters
@@ -547,7 +544,7 @@ function VirtualizedHistoryList({
                 {/* Status icon */}
                 <div className="flex-shrink-0">
                   {tx.status === 'pending' ? (
-                    <LoadingSpinner size="sm" />
+                    <DelayedSpinner size="sm" />
                   ) : tx.status === 'confirmed' ? (
                     <svg className="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -607,6 +604,7 @@ function VirtualizedHistoryList({
                     onClick={() => onRetryListing(tx.draftId!)}
                     className="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                     title="Retry listing without re-uploading the file"
+                    aria-label="Retry failed listing"
                   >
                     Retry
                   </button>

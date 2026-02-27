@@ -17,9 +17,10 @@ interface LibraryTabProps {
   onSwitchTab?: (tab: string) => void;
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
+  onBulkDeleteResult?: (message: string, hadErrors: boolean) => void;
 }
 
-function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTabProps) {
+function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDeleteResult }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,14 +44,18 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState<{ completed: number; failed: number; total: number } | null>(null);
+
+  const hasDataRef = useRef(false);
 
   const fetchItems = useCallback(async () => {
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     setError(null);
     try {
       const result = await listLibraryItems();
       setItems(result);
       setPrevDataCount(result.length);
+      hasDataRef.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load library');
     } finally {
@@ -58,19 +63,10 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
     }
   }, []);
 
+  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]);
-
-  // Re-fetch when Dashboard signals a refresh (e.g. after decryption)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    fetchItems();
-  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSignal, fetchItems]);
 
   // Filter and sort items
   const filteredAndSorted = useMemo(() => {
@@ -212,21 +208,52 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
 
   const handleBulkDelete = useCallback(async () => {
     setBulkDeleting(true);
-    try {
-      const toDelete = items.filter(i => selectedItems.has(i.tokenName));
-      for (const item of toDelete) {
+    const toDelete = items.filter(i => selectedItems.has(i.tokenName));
+    const total = toDelete.length;
+    setDeleteProgress({ completed: 0, failed: 0, total });
+
+    const succeededTokens: string[] = [];
+    const failedCount = { value: 0 };
+
+    for (let idx = 0; idx < toDelete.length; idx++) {
+      const item = toDelete[idx];
+      try {
         await deleteLibraryItem(item.tokenName, item.category);
+        succeededTokens.push(item.tokenName);
+      } catch (err) {
+        console.error(`Failed to delete ${item.tokenName}:`, err);
+        failedCount.value++;
       }
-      setItems(prev => prev.filter(i => !selectedItems.has(i.tokenName)));
-      setSelectedItems(new Set());
-      setSelectMode(false);
-      setShowBulkDeleteConfirm(false);
-    } catch (err) {
-      console.error('Bulk delete failed:', err);
-    } finally {
-      setBulkDeleting(false);
+      setDeleteProgress({ completed: idx + 1, failed: failedCount.value, total });
     }
-  }, [selectedItems, items]);
+
+    // Remove only successfully deleted items from the list
+    const successSet = new Set(succeededTokens);
+    setItems(prev => prev.filter(i => !successSet.has(i.tokenName)));
+
+    // Clean up state
+    setSelectedItems(new Set());
+    setSelectMode(false);
+    setDeleteProgress(null);
+    setShowBulkDeleteConfirm(false);
+    setBulkDeleting(false);
+
+    // Notify parent with summary
+    if (onBulkDeleteResult) {
+      if (failedCount.value === 0) {
+        onBulkDeleteResult(`Deleted ${total} ${total === 1 ? 'item' : 'items'} from library`, false);
+      } else {
+        onBulkDeleteResult(
+          `Deleted ${succeededTokens.length} of ${total} items. ${failedCount.value} ${failedCount.value === 1 ? 'item' : 'items'} could not be removed.`,
+          true
+        );
+      }
+    }
+  }, [selectedItems, items, onBulkDeleteResult]);
+
+  const bulkDeleteMessage = deleteProgress
+    ? `Deleting ${deleteProgress.completed} of ${deleteProgress.total}...${deleteProgress.failed > 0 ? ` (${deleteProgress.failed} failed)` : ''}`
+    : `This will permanently remove ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'} from your local library. You can re-download them by decrypting again.`;
 
   const screenReaderMessage = loading
     ? 'Loading your library…'
@@ -345,7 +372,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search library"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
+            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
           />
         </div>
 
@@ -387,7 +414,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -407,7 +434,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
             </button>
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -447,7 +474,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
           {/* Select Mode Toggle */}
           <button
             onClick={() => selectMode ? handleExitSelectMode() : setSelectMode(true)}
-            className={`px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+            className={`px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
               selectMode
                 ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
                 : 'bg-[var(--bg-secondary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -579,8 +606,8 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
         onClose={() => setShowBulkDeleteConfirm(false)}
         onConfirm={handleBulkDelete}
         title={`Delete ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'}`}
-        message={`This will permanently remove ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'} from your local library. You can re-download them by decrypting again.`}
-        confirmLabel={`Delete ${selectedItems.size}`}
+        message={bulkDeleteMessage}
+        confirmLabel={bulkDeleting ? 'Deleting...' : `Delete ${selectedItems.size}`}
         confirmVariant="danger"
         loading={bulkDeleting}
       />

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
+import InfoTooltip from './InfoTooltip';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
@@ -57,6 +58,7 @@ export default function PlaceBidModal({
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+  const bidAmountRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -78,6 +80,7 @@ export default function PlaceBidModal({
         });
         setShowFuturePrice(false);
       }
+      setTimeout(() => bidAmountRef.current?.focus(), 50);
     }
   }, [isOpen, encryption]);
 
@@ -140,6 +143,13 @@ export default function PlaceBidModal({
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
     setSubmitError(null);
+  };
+
+  // Validate bid amount on blur for immediate feedback (only if user entered a value)
+  const handleBidAmountBlur = () => {
+    if (formData.bidAmount.trim()) {
+      validateForm();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -336,18 +346,23 @@ export default function PlaceBidModal({
                   </div>
                 )}
               </div>
+              <p className="text-xs text-[var(--text-muted)] mb-1.5">Minimum bid: {MIN_BID_ADA} ADA</p>
               <div className="relative">
                 <input
+                  ref={bidAmountRef}
                   type="text"
+                  inputMode="decimal"
                   id="bidAmount"
                   name="bidAmount"
                   value={formData.bidAmount}
                   onChange={handleInputChange}
+                  onBlur={handleBidAmountBlur}
                   disabled={isSubmitting}
                   placeholder="0.00"
+                  max={balanceAda !== undefined ? Math.floor(balanceAda) : undefined}
                   aria-invalid={!!errors.bidAmount}
-                  aria-describedby={errors.bidAmount ? 'bidAmount-error' : undefined}
-                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
+                  aria-describedby={errors.bidAmount ? 'bidAmount-error' : 'bidAmount-hint'}
+                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
                     errors.bidAmount ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
                 />
@@ -365,15 +380,14 @@ export default function PlaceBidModal({
                 </p>
               )}
               <div className="mt-1 space-y-1">
-                <p className="text-xs text-[var(--text-muted)]">
-                  Minimum bid: {MIN_BID_ADA} ADA.{' '}
+                <p id="bidAmount-hint" className="text-xs text-[var(--text-muted)]">
+                  Your bid will be locked until the seller accepts or you cancel.{' '}
                   <span
                     title="The Cardano network requires each piece of on-chain data (UTxO) to hold a minimum amount of ADA. Your bid is stored on-chain, so it must meet this minimum."
                     className="underline decoration-dotted cursor-help"
                   >
-                    Why?
-                  </span>{' '}
-                  Your bid will be locked until the seller accepts or you cancel.
+                    Why {MIN_BID_ADA} ADA minimum?
+                  </span>
                 </p>
                 {balanceAda !== undefined ? (
                   <div className="flex items-center gap-2">
@@ -417,7 +431,7 @@ export default function PlaceBidModal({
               >
                 <span>Set Future Listing Price</span>
                 <svg
-                  className={`w-4 h-4 transition-transform duration-150 ${showFuturePrice ? 'rotate-180' : ''}`}
+                  className={`w-4 h-4 transition-transform duration-[var(--transition-fast)] ${showFuturePrice ? 'rotate-180' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -430,9 +444,10 @@ export default function PlaceBidModal({
                   <div className="flex items-center justify-between mb-2">
                     <label
                       htmlFor="futurePrice"
-                      className="text-sm font-medium text-[var(--text-primary)]"
+                      className="text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-1"
                     >
                       Future Listing Price (ADA)
+                      <InfoTooltip text="The price you intend to re-list this data for after you win the bid. Recorded on-chain as metadata for future buyers." />
                     </label>
                     {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
                       <div className="flex gap-1.5">
@@ -486,7 +501,7 @@ export default function PlaceBidModal({
                       placeholder="0.00"
                       aria-invalid={!!errors.futurePrice}
                       aria-describedby={errors.futurePrice ? 'futurePrice-error' : undefined}
-                      className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
+                      className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
                         errors.futurePrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                       }`}
                     />

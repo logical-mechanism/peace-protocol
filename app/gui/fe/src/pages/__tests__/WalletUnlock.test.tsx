@@ -124,10 +124,10 @@ describe('WalletUnlock', () => {
     const input = screen.getByAutoComplete('current-password');
     expect(input).toHaveAttribute('type', 'password');
 
-    fireEvent.click(screen.getByText('Show'));
+    fireEvent.click(screen.getByLabelText('Toggle password visibility'));
     expect(input).toHaveAttribute('type', 'text');
 
-    fireEvent.click(screen.getByText('Hide'));
+    fireEvent.click(screen.getByLabelText('Toggle password visibility'));
     expect(input).toHaveAttribute('type', 'password');
   });
 

@@ -1,11 +1,13 @@
 import { useState, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
+import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
+import { formatDate } from '../utils/formatDate';
 
 
 interface EncryptionCardProps {
@@ -40,20 +42,13 @@ function EncryptionCard({
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [prevBidCount, setPrevBidCount] = useState(bidCount);
   const [bidPulseKey, setBidPulseKey] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [favPulseKey, setFavPulseKey] = useState(0);
 
   if (bidCount > prevBidCount) {
     setPrevBidCount(bidCount);
     setBidPulseKey(k => k + 1);
   }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
 
   // Format price with "No suggested price" fallback for missing/invalid values
   const formatPrice = (price?: number): string => {
@@ -72,20 +67,35 @@ function EncryptionCard({
     return category.charAt(0).toUpperCase() + category.slice(1);
   };
 
+  const handleCopySeller = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const success = await copyToClipboard(encryption.sellerPkh);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavPulseKey(k => k + 1);
+    onToggleFavorite?.(encryption.tokenName);
+  };
+
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               {onToggleFavorite && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onToggleFavorite(encryption.tokenName); }}
-                  className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-150 cursor-pointer"
+                  onClick={handleToggleFavorite}
+                  className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
                   title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                   aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
-                  <svg className="w-3.5 h-3.5" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <svg key={favPulseKey} className={`w-3.5 h-3.5${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                   </svg>
                 </button>
@@ -113,7 +123,7 @@ function EncryptionCard({
           </div>
           {encryption.description && (
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1 mb-2 cursor-pointer hover:text-[var(--text-primary)]"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-2 cursor-pointer hover:text-[var(--text-primary)]"
               onClick={() => setDescriptionModalOpen(true)}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
@@ -154,19 +164,19 @@ function EncryptionCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {onToggleFavorite && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onToggleFavorite(encryption.tokenName); }}
-                  className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-150 cursor-pointer"
+                  onClick={handleToggleFavorite}
+                  className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
                   title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                   aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
-                  <svg className="w-4 h-4" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <svg key={favPulseKey} className={`w-4 h-4${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                   </svg>
                 </button>
@@ -202,7 +212,7 @@ function EncryptionCard({
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
               title={encryption.description}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
@@ -229,10 +239,28 @@ function EncryptionCard({
 
         {/* Seller Info */}
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-          <span className="text-xs text-[var(--text-muted)]">Seller</span>
-          <span className="text-xs font-mono text-[var(--text-secondary)]">
-            {truncateHex(encryption.seller, 10, 6)}
-          </span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-mono text-[var(--text-secondary)]">
+              {truncateHex(encryption.seller, 10, 6)}
+            </span>
+            <button
+              onClick={handleCopySeller}
+              className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+              title="Copy seller address"
+              aria-label="Copy seller address"
+            >
+              {copied ? (
+                <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Action Button */}

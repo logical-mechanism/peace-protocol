@@ -94,7 +94,13 @@ function ConsoleLog({ logs }: { logs: string[] }) {
       className="bg-[#111] rounded-[var(--radius-md)] p-4 max-h-64 overflow-y-auto font-mono text-xs"
     >
       {logs.length === 0 ? (
-        <div className="text-[var(--text-muted)]">Waiting for logs...</div>
+        <div className="space-y-2">
+          <div className="h-3 w-4/5 rounded skeleton-shimmer" />
+          <div className="h-3 w-3/5 rounded skeleton-shimmer" />
+          <div className="h-3 w-full rounded skeleton-shimmer" />
+          <div className="h-3 w-2/3 rounded skeleton-shimmer" />
+          <div className="h-3 w-3/4 rounded skeleton-shimmer" />
+        </div>
       ) : (
         logs.map((line, i) => (
           <div key={i} className="text-[var(--success)]/80">

@@ -288,4 +288,57 @@ describe('PlaceBidModal', () => {
     renderModal({ balanceLovelace: 'abc' });
     expect(screen.getByText('Balance: loading...')).toBeInTheDocument();
   });
+
+  // --- Min bid constraint hint ---
+
+  it('shows minimum bid hint before user interacts with input', () => {
+    renderModal();
+    expect(screen.getByText(/Minimum bid: 2 ADA/)).toBeInTheDocument();
+  });
+
+  // --- Blur validation ---
+
+  it('validates bid amount on blur when value is invalid', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.blur(input);
+    expect(screen.getByText(/Minimum bid is 2 ADA/)).toBeInTheDocument();
+  });
+
+  it('does not show error on blur when input is empty (untouched)', () => {
+    renderModal({ encryption: { ...baseEncryption, suggestedPrice: undefined } });
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    // Input starts empty when no suggested price, blur without typing
+    fireEvent.blur(input);
+    expect(screen.queryByText('Bid amount is required')).not.toBeInTheDocument();
+  });
+
+  it('shows balance-exceeded error on blur', () => {
+    renderModal({ balanceLovelace: '10000000' }); // 10 ADA
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '15' } });
+    fireEvent.blur(input);
+    expect(screen.getByText('Bid exceeds your wallet balance')).toBeInTheDocument();
+  });
+
+  // --- HTML max attribute ---
+
+  it('sets max attribute based on wallet balance', () => {
+    renderModal({ balanceLovelace: '500000000' }); // 500 ADA
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    expect(input.getAttribute('max')).toBe('500');
+  });
+
+  it('does not set max attribute when balance is undefined', () => {
+    renderModal({ balanceLovelace: undefined });
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    expect(input.getAttribute('max')).toBeNull();
+  });
+
+  it('has inputMode decimal for mobile keyboard hints', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    expect(input.getAttribute('inputmode')).toBe('decimal');
+  });
 });

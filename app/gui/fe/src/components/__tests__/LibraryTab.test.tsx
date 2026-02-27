@@ -20,10 +20,12 @@ vi.mock('../LibraryContentModal', () => ({
 
 // Mock ConfirmModal to control its rendering
 vi.mock('../ConfirmModal', () => ({
-  default: ({ title, onConfirm, onCancel, isOpen }: { title: string; onConfirm: () => void; onCancel: () => void; isOpen: boolean }) =>
+  default: ({ title, message, onConfirm, onCancel, isOpen, confirmLabel }: { title: string; message: string; onConfirm: () => void; onCancel: () => void; isOpen: boolean; confirmLabel?: string }) =>
     isOpen ? (
       <div data-testid="confirm-modal">
         <span>{title}</span>
+        <span data-testid="confirm-modal-message">{message}</span>
+        {confirmLabel && <span data-testid="confirm-modal-label">{confirmLabel}</span>}
         <button onClick={onConfirm}>Confirm</button>
         <button onClick={onCancel}>Cancel</button>
       </div>
@@ -161,6 +163,91 @@ describe('LibraryTab', () => {
     await waitFor(() => {
       const srRegion = document.querySelector('[role="status"][aria-live="polite"]');
       expect(srRegion).toBeInTheDocument();
+    });
+  });
+
+  describe('bulk delete', () => {
+    const item1 = makeItem({ tokenName: 'token_aaa', description: 'Item A', category: 'text' });
+    const item2 = makeItem({ tokenName: 'token_bbb', description: 'Item B', category: 'text' });
+    const item3 = makeItem({ tokenName: 'token_ccc', description: 'Item C', category: 'text' });
+
+    async function enterSelectModeAndSelectAll(onBulkDeleteResult?: ReturnType<typeof vi.fn>) {
+      (listLibraryItems as ReturnType<typeof vi.fn>).mockResolvedValue([item1, item2, item3]);
+      renderTab({ onBulkDeleteResult });
+
+      // Wait for items to render
+      await waitFor(() => {
+        expect(screen.getByText('Item A')).toBeInTheDocument();
+      });
+
+      // Enter select mode
+      fireEvent.click(screen.getByText('Select'));
+
+      // Select all via "Select All" button — first select one to show the floating bar
+      const checkboxes = screen.getAllByRole('checkbox');
+      fireEvent.click(checkboxes[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('Select All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Select All'));
+    }
+
+    it('calls onBulkDeleteResult with success message when all items deleted', async () => {
+      const onBulkDeleteResult = vi.fn();
+      await enterSelectModeAndSelectAll(onBulkDeleteResult);
+
+      // Open bulk delete confirm
+      await waitFor(() => {
+        expect(screen.getByText('Delete 3')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Delete 3'));
+
+      // Confirm
+      await waitFor(() => {
+        expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(onBulkDeleteResult).toHaveBeenCalledWith(
+          'Deleted 3 items from library',
+          false
+        );
+      });
+      expect(deleteLibraryItem).toHaveBeenCalledTimes(3);
+    });
+
+    it('reports partial failure and only removes successful items', async () => {
+      // item2 will fail
+      (deleteLibraryItem as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(undefined) // item1 OK
+        .mockRejectedValueOnce(new Error('permission denied')) // item2 fails
+        .mockResolvedValueOnce(undefined); // item3 OK
+
+      const onBulkDeleteResult = vi.fn();
+      await enterSelectModeAndSelectAll(onBulkDeleteResult);
+
+      await waitFor(() => {
+        expect(screen.getByText('Delete 3')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Delete 3'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(onBulkDeleteResult).toHaveBeenCalledWith(
+          'Deleted 2 of 3 items. 1 item could not be removed.',
+          true
+        );
+      });
+
+      // item2 should still be in the list (failed to delete)
+      expect(screen.getByText('Item B')).toBeInTheDocument();
     });
   });
 

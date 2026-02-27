@@ -4,9 +4,11 @@ import { truncateHex } from '../utils/truncate';
 import { formatAda } from '../utils/formatAda';
 import { BidStatusBadge } from './Badge';
 import BidTimeline from './BidTimeline';
+import InfoTooltip from './InfoTooltip';
 import type { PurchaseStage } from './BidTimeline';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
+import { formatDate } from '../utils/formatDate';
 
 interface MyPurchaseBidCardProps {
   bid: BidDisplay;
@@ -29,15 +31,6 @@ function MyPurchaseBidCard({
 }: MyPurchaseBidCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
   const isPending = bid.status === 'pending';
   const isAccepted = bid.status === 'accepted';
   const isRejected = bid.status === 'rejected';
@@ -52,12 +45,20 @@ function MyPurchaseBidCard({
     return null;
   };
 
+  const getStatusTooltip = () => {
+    if (isPending) return 'Waiting for the seller to accept or reject your bid. You can cancel at any time.';
+    if (isAccepted) return 'The seller accepted your bid. Decrypt to claim the content.';
+    if (isRejected) return 'The seller did not accept your bid.';
+    if (isCancelled) return 'You cancelled this bid.';
+    return '';
+  };
+
   const statusMessage = getStatusMessage();
 
   if (compact) {
     return (
       <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
         <div className="flex items-center justify-between gap-4">
           {/* Left: Bid info */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -96,10 +97,11 @@ function MyPurchaseBidCard({
                   Bid on {truncateHex(bid.encryptionToken, 8, 4)}
                 </span>
                 <BidStatusBadge status={bid.status} />
+                <InfoTooltip text={getStatusTooltip()} position="bottom" />
               </div>
               {encryption?.description && (
                 <p
-                  className="text-sm text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                  className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
                   onClick={() => setDescriptionModalOpen(true)}
                 >
                   {truncateDescription(encryption.description)}
@@ -174,7 +176,7 @@ function MyPurchaseBidCard({
 
   return (
     <>
-    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
@@ -184,6 +186,7 @@ function MyPurchaseBidCard({
               {truncateHex(bid.encryptionToken, 8, 4)}
             </span>
             <BidStatusBadge status={bid.status} />
+            <InfoTooltip text={getStatusTooltip()} position="bottom" />
           </div>
           <p className="text-xs text-[var(--text-muted)]">
             {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
@@ -205,7 +208,7 @@ function MyPurchaseBidCard({
           onClick={() => setDescriptionModalOpen(true)}
         >
           <p
-            className="text-sm text-[var(--text-secondary)] line-clamp-1"
+            className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
             title={encryption.description}
           >
             {truncateDescription(encryption.description)}
@@ -257,7 +260,7 @@ function MyPurchaseBidCard({
       {/* Seller Info */}
       {encryption && (
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-          <span className="text-xs text-[var(--text-muted)]">Seller</span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
           <span className="text-sm font-mono text-[var(--text-secondary)]">
             {truncateHex(encryption.seller, 12, 8)}
           </span>

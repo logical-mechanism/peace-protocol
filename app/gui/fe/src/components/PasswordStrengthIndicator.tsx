@@ -82,7 +82,7 @@ export default function PasswordStrengthIndicator({ strength, password }: Props)
               style={{
                 background:
                   i < config.segments ? config.color : 'var(--bg-secondary)',
-                transition: 'background 0.2s ease',
+                transition: 'background var(--transition-base)',
               }}
             />
           ))}

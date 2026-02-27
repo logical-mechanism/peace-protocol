@@ -27,14 +27,16 @@ export interface ToastMessage {
   message?: string;
   duration?: number;
   action?: ToastAction;
+  variant?: string;
 }
 
 interface ToastProps {
   toast: ToastMessage;
   onClose: (id: string) => void;
+  index?: number;
 }
 
-function Toast({ toast, onClose }: ToastProps) {
+function Toast({ toast, onClose, index = 0 }: ToastProps) {
   const [copied, setCopied] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -150,12 +152,13 @@ function Toast({ toast, onClose }: ToastProps) {
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg ${closing ? 'toast-exit' : 'animate-in slide-in-from-right-full duration-300'}`}
+      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg ${closing ? 'toast-exit' : 'animate-in slide-in-from-right-full duration-[var(--transition-slow)]'}`}
+      style={!closing && index > 0 ? { animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' } : undefined}
       onAnimationEnd={handleAnimationEnd}
       role="alert"
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
-      <div className={`flex-shrink-0 ${colors.icon}`}>{getIcon()}</div>
+      <div className={`flex-shrink-0 ${colors.icon}${toast.variant === 'transaction' ? ' tx-celebration' : ''}`}>{getIcon()}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[var(--text-primary)]">{toast.title}</p>
         {toast.message && (
@@ -168,7 +171,7 @@ function Toast({ toast, onClose }: ToastProps) {
                 href={toast.action.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center gap-1 text-xs font-medium ${colors.icon} hover:underline`}
+                className={`inline-flex items-center gap-1 text-xs font-medium ${colors.icon} hover:underline rounded focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1`}
               >
                 {toast.action.label}
                 <svg
@@ -189,7 +192,7 @@ function Toast({ toast, onClose }: ToastProps) {
             ) : toast.action.onClick ? (
               <button
                 onClick={toast.action.onClick}
-                className={`text-xs font-medium ${colors.icon} hover:underline cursor-pointer`}
+                className={`text-xs font-medium ${colors.icon} hover:underline cursor-pointer rounded focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1`}
               >
                 {toast.action.label}
               </button>
@@ -200,7 +203,7 @@ function Toast({ toast, onClose }: ToastProps) {
       {(toast.type === 'error' || toast.type === 'warning') && (
         <button
           onClick={handleCopy}
-          className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          className="flex-shrink-0 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           aria-label="Copy error to clipboard"
         >
           {copied ? (
@@ -216,7 +219,7 @@ function Toast({ toast, onClose }: ToastProps) {
       )}
       <button
         onClick={handleClose}
-        className="flex-shrink-0 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+        className="flex-shrink-0 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         aria-label="Dismiss notification"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,13 +250,13 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
       {toasts.length >= 2 && onDismissAll && (
         <button
           onClick={onDismissAll}
-          className="self-end text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer mb-1"
+          className="self-end text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer mb-1 rounded focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           Dismiss all{queuedCount > 0 ? ` (${queuedCount} queued)` : ''}
         </button>
       )}
-      {toasts.map((toast) => (
-        <Toast key={toast.id} toast={toast} onClose={onClose} />
+      {toasts.map((toast, index) => (
+        <Toast key={toast.id} toast={toast} onClose={onClose} index={index} />
       ))}
     </div>
   );
@@ -275,10 +278,11 @@ export function useToast() {
       title: string,
       message?: string,
       duration?: number,
-      action?: ToastAction
+      action?: ToastAction,
+      variant?: string
     ) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newToast: ToastMessage = { id, type, title, message, duration, action };
+      const newToast: ToastMessage = { id, type, title, message, duration, action, variant };
       setVisibleToasts((prev) => {
         if (prev.length < MAX_VISIBLE_TOASTS) {
           return [...prev, newToast];
@@ -377,7 +381,7 @@ export function useToast() {
         message = `Transaction: ${txHash.slice(0, 16)}...`;
       }
 
-      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action);
+      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action, 'transaction');
     },
     [addToast]
   );

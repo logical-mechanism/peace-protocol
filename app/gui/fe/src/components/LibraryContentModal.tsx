@@ -7,8 +7,9 @@ import { formatBytes } from '../utils/formatBytes';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import ConfirmModal from './ConfirmModal';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import Badge from './Badge';
+import { formatDateTime } from '../utils/formatDate';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
 const ImageViewer = lazy(() => import('./ImageViewer'));
@@ -27,18 +28,6 @@ interface LibraryContentModalProps {
 
 type ModalState = 'loading' | 'loaded' | 'error';
 
-
-const formatDate = (dateString?: string) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const getCategoryLabel = (category: string): string => {
   if (!category) return 'Text';
@@ -135,6 +124,74 @@ function videoExtensionToMimeType(ext?: string): string {
     '.m4v': 'video/mp4',
   };
   return map[ext?.toLowerCase() ?? ''] ?? 'video/mp4';
+}
+
+type ViewMode = ReturnType<typeof getViewMode>;
+
+function ContentSkeleton({ viewMode }: { viewMode: ViewMode }) {
+  switch (viewMode) {
+    case 'pdf':
+      return (
+        <div className="space-y-4">
+          <div className="w-full h-[500px] rounded-[var(--radius-md)] skeleton-shimmer" />
+          <div className="flex items-center justify-center gap-3">
+            <div className="h-8 w-24 rounded-[var(--radius-md)] skeleton-shimmer" />
+            <div className="h-8 w-20 rounded-[var(--radius-md)] skeleton-shimmer" />
+            <div className="h-8 w-24 rounded-[var(--radius-md)] skeleton-shimmer" />
+          </div>
+        </div>
+      );
+    case 'image':
+      return (
+        <div className="flex items-center justify-center">
+          <div className="w-full h-[400px] rounded-[var(--radius-md)] skeleton-shimmer" />
+        </div>
+      );
+    case 'audio':
+      return (
+        <div className="space-y-4">
+          <div className="w-full h-[200px] rounded-[var(--radius-md)] skeleton-shimmer" />
+          <div className="flex items-center justify-center gap-4">
+            <div className="h-10 w-10 rounded-full skeleton-shimmer" />
+            <div className="h-10 w-10 rounded-full skeleton-shimmer" />
+            <div className="h-10 w-10 rounded-full skeleton-shimmer" />
+          </div>
+          <div className="h-2 w-full rounded-full skeleton-shimmer" />
+        </div>
+      );
+    case 'video':
+      return (
+        <div className="space-y-3">
+          <div className="w-full aspect-video rounded-[var(--radius-md)] skeleton-shimmer" />
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded skeleton-shimmer" />
+            <div className="flex-1 h-2 rounded-full skeleton-shimmer" />
+            <div className="h-8 w-16 rounded skeleton-shimmer" />
+          </div>
+        </div>
+      );
+    case 'text':
+      return (
+        <div className="space-y-2 p-4">
+          <div className="h-4 w-full rounded skeleton-shimmer" />
+          <div className="h-4 w-11/12 rounded skeleton-shimmer" />
+          <div className="h-4 w-4/5 rounded skeleton-shimmer" />
+          <div className="h-4 w-full rounded skeleton-shimmer" />
+          <div className="h-4 w-3/4 rounded skeleton-shimmer" />
+          <div className="h-4 w-5/6 rounded skeleton-shimmer" />
+          <div className="h-4 w-2/3 rounded skeleton-shimmer" />
+          <div className="h-4 w-full rounded skeleton-shimmer" />
+        </div>
+      );
+    default:
+      return (
+        <div className="p-6 text-center space-y-3">
+          <div className="w-14 h-14 mx-auto rounded-full skeleton-shimmer" />
+          <div className="h-4 w-32 mx-auto rounded skeleton-shimmer" />
+          <div className="h-3 w-48 mx-auto rounded skeleton-shimmer" />
+        </div>
+      );
+  }
 }
 
 export default function LibraryContentModal({
@@ -417,14 +474,14 @@ export default function LibraryContentModal({
                   <div>
                     <p className="text-xs text-[var(--text-muted)]">Listed</p>
                     <p className="text-sm text-[var(--text-secondary)]">
-                      {formatDate(item.createdAt)}
+                      {formatDateTime(item.createdAt)}
                     </p>
                   </div>
                 )}
                 <div>
                   <p className="text-xs text-[var(--text-muted)]">Decrypted</p>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {formatDate(item.decryptedAt)}
+                    {formatDateTime(item.decryptedAt)}
                   </p>
                 </div>
                 {item.storageLayer && (
@@ -448,10 +505,7 @@ export default function LibraryContentModal({
 
             {/* Loading state */}
             {state === 'loading' && (
-              <div className="py-12 text-center">
-                <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                <p className="text-sm text-[var(--text-muted)]">Loading content...</p>
-              </div>
+              <ContentSkeleton viewMode={viewMode} />
             )}
 
             {/* Error state */}
@@ -497,48 +551,28 @@ export default function LibraryContentModal({
 
             {/* Loaded state — PDF document viewer */}
             {state === 'loaded' && viewMode === 'pdf' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading PDF viewer...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="pdf" />}>
                 <PdfViewer data={rawContent} onExport={handleExport} />
               </Suspense>
             )}
 
             {/* Loaded state — image viewer */}
             {state === 'loaded' && viewMode === 'image' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading image viewer...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="image" />}>
                 <ImageViewer data={rawContent} mimeType={extensionToMimeType(item.fileExtension)} onExport={handleExport} />
               </Suspense>
             )}
 
             {/* Loaded state — Audio player */}
             {state === 'loaded' && viewMode === 'audio' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading audio player...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="audio" />}>
                 <AudioPlayer data={rawContent} fileExtension={item.fileExtension || '.mp3'} onExport={handleExport} />
               </Suspense>
             )}
 
             {/* Loaded state — Video player */}
             {state === 'loaded' && viewMode === 'video' && rawContent && (
-              <Suspense fallback={
-                <div className="py-12 text-center">
-                  <LoadingSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-muted)]">Loading video player...</p>
-                </div>
-              }>
+              <Suspense fallback={<ContentSkeleton viewMode="video" />}>
                 <VideoPlayer
                   data={rawContent}
                   mimeType={videoExtensionToMimeType(item.fileExtension)}
@@ -593,7 +627,7 @@ export default function LibraryContentModal({
                   <button
                     onClick={handleOpenExternal}
                     disabled={state !== 'loaded'}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Open with system default application"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -604,14 +638,14 @@ export default function LibraryContentModal({
                   <button
                     onClick={handleExport}
                     disabled={exporting || state !== 'loaded'}
-                    className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                       viewMode === 'download'
                         ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
                         : 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {exporting ? (
-                      <LoadingSpinner size="sm" />
+                      <DelayedSpinner size="sm" />
                     ) : (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -623,7 +657,7 @@ export default function LibraryContentModal({
               )}
               <button
                 onClick={onClose}
-                className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                   viewMode === 'download' && showSaveAs
                     ? 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
                     : 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'

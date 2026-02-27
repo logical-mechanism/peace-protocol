@@ -5,6 +5,7 @@ import { BidStatusBadge } from './Badge';
 import EmptyState from './EmptyState';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { formatDateTime } from '../utils/formatDate';
 
 interface BidsModalProps {
   isOpen: boolean;
@@ -27,17 +28,6 @@ export default function BidsModal({
   useFocusTrap(modalRef, isOpen);
 
   if (!shouldRender) return null;
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const formatLovelace = (lovelace: number) => {
     const ada = lovelace / 1_000_000;
@@ -144,7 +134,6 @@ export default function BidsModal({
                         bid={bid}
                         canAccept={canAcceptBids}
                         onAccept={onAcceptBid}
-                                                formatDate={formatDate}
                         formatLovelace={formatLovelace}
                       />
                     ))}
@@ -164,7 +153,6 @@ export default function BidsModal({
                         key={bid.tokenName}
                         bid={bid}
                         canAccept={false}
-                                                formatDate={formatDate}
                         formatLovelace={formatLovelace}
                       />
                     ))}
@@ -204,7 +192,6 @@ interface BidCardProps {
   bid: BidDisplay;
   canAccept: boolean;
   onAccept?: (bid: BidDisplay) => void;
-  formatDate: (date: string) => string;
   formatLovelace: (amount: number) => string;
 }
 
@@ -212,11 +199,10 @@ function BidCard({
   bid,
   canAccept,
   onAccept,
-  formatDate,
   formatLovelace,
 }: BidCardProps) {
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:border-[var(--border-default)] transition-all duration-150">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {/* Bidder Address */}
@@ -234,7 +220,7 @@ function BidCard({
 
           {/* Date */}
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            Placed {formatDate(bid.createdAt)}
+            Placed {formatDateTime(bid.createdAt)}
           </p>
         </div>
 

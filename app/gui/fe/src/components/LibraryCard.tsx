@@ -6,6 +6,7 @@ import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { getContentType } from '../utils/contentType';
+import { formatDate } from '../utils/formatDate';
 
 interface LibraryCardProps {
   item: LibraryItem;
@@ -17,15 +18,6 @@ interface LibraryCardProps {
   onToggleSelect?: (tokenName: string) => void;
 }
 
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
 
 const getCategoryLabel = (category: string): string => {
   if (!category) return 'Text';
@@ -99,7 +91,7 @@ function LibraryCard({
     return (
       <>
         <div
-          className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-4 transition-all duration-150 ${
+          className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-4 transition-all duration-[var(--transition-fast)] ${
             selected
               ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
               : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)]'
@@ -135,7 +127,7 @@ function LibraryCard({
                 </div>
                 {item.description && (
                   <p
-                    className="text-sm text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
                     onClick={() => setDescriptionModalOpen(true)}
                   >
                     {truncateDescription(item.description)}
@@ -196,7 +188,7 @@ function LibraryCard({
   return (
     <>
       <div
-        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-150 ${
+        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-[var(--transition-fast)] ${
           selected
             ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
             : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]'
@@ -243,7 +235,7 @@ function LibraryCard({
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
               title={item.description}
             >
               {truncateDescription(item.description)}
@@ -261,7 +253,7 @@ function LibraryCard({
         {/* Seller Info */}
         {item.seller && (
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-            <span className="text-xs text-[var(--text-muted)]">Seller</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
             <span className="text-xs font-mono text-[var(--text-secondary)]">
               {truncateHex(item.seller, 8, 4)}
             </span>

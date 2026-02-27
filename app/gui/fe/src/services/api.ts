@@ -5,10 +5,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 // Types matching backend response structure
 export interface ApiResponse<T> {
   data: T;
-  meta?: {
-    total?: number;
-    page?: number;
-    limit?: number;
+  pagination?: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
   };
 }
 
@@ -355,5 +356,11 @@ export interface HealthStatus {
 }
 
 export async function checkHealth(): Promise<HealthStatus> {
-  return apiFetch('/health');
+  // /health returns 503 for unhealthy status — fetch directly instead of apiFetch
+  // which would throw on non-2xx responses
+  const url = `${API_URL}/health`;
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return response.json();
 }

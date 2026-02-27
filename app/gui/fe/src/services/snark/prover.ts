@@ -105,11 +105,13 @@ export class SnarkProver {
     onProgress?.({ stage: 'proving', message: 'Generating zero-knowledge proof (~3 min)...', percent: 10 })
 
     const result = await invoke<{ proofJson: string; publicJson: string }>('snark_prove', {
-      a: inputs.secretA,
-      r: inputs.secretR,
-      v: inputs.publicV,
-      w0: inputs.publicW0,
-      w1: inputs.publicW1,
+      secrets: {
+        a: inputs.secretA,
+        r: inputs.secretR,
+        v: inputs.publicV,
+        w0: inputs.publicW0,
+        w1: inputs.publicW1,
+      },
     })
 
     onProgress?.({ stage: 'complete', message: 'Proof generated', percent: 100 })

@@ -7,6 +7,11 @@ Each item has:
 - **How**: Implementation ideas and key files involved
 - **Why**: The value it provides
 
+Difficulty ratings:
+- 🟢 Small — isolated change, single file, < 1 hour
+- 🟡 Medium — touches 2-4 files, may need testing, < half day
+- 🔴 Large — cross-cutting, multiple components/services, needs design thought
+
 ---
 
 ## Table of Contents
@@ -18,89 +23,67 @@ Each item has:
 5. [Marketplace Tab](#5-marketplace-tab)
 6. [My Sales Tab](#6-my-sales-tab)
 7. [My Purchases Tab](#7-my-purchases-tab)
-8. [History Tab](#8-history-tab)
-9. [Library Tab](#9-library-tab)
-10. [Create Listing Modal](#10-create-listing-modal)
-11. [Place Bid Modal](#11-place-bid-modal)
-12. [Media Viewers (PDF, Image, Audio, Video)](#12-media-viewers-pdf-image-audio-video)
-13. [Settings Page](#13-settings-page)
-14. [Notifications & Alerts](#14-notifications--alerts)
-15. [Design System & Styling](#15-design-system--styling)
-16. [Animations & Micro-Interactions](#16-animations--micro-interactions)
-17. [Accessibility](#17-accessibility)
-18. [Error Handling & User Feedback](#18-error-handling--user-feedback)
-19. [Performance](#19-performance)
-20. [Backend API](#20-backend-api)
-21. [Rust Core & Security](#21-rust-core--security)
-22. [Testing](#22-testing)
-23. [Developer Experience & Tooling](#23-developer-experience--tooling)
-24. [Documentation & CI/CD](#24-documentation--cicd)
+8. [Library Tab](#8-library-tab)
+9. [Create Listing Modal](#9-create-listing-modal)
+10. [Place Bid Modal](#10-place-bid-modal)
+11. [Media Viewers (PDF, Image, Audio, Video)](#11-media-viewers-pdf-image-audio-video)
+12. [Settings Page](#12-settings-page)
+13. [Notifications & Alerts](#13-notifications--alerts)
+14. [Design System & Styling](#14-design-system--styling)
+15. [Animations & Micro-Interactions](#15-animations--micro-interactions)
+16. [Accessibility](#16-accessibility)
+17. [Error Handling & User Feedback](#17-error-handling--user-feedback)
+18. [Performance](#18-performance)
+19. [Backend API](#19-backend-api)
+20. [Rust Core & Security](#20-rust-core--security)
+21. [Testing](#21-testing)
+22. [Developer Experience & Tooling](#22-developer-experience--tooling)
 
 ---
 
 ## 1. Onboarding & First-Run Experience
 
-> Key files: `fe/src/pages/WalletSetup.tsx`, `fe/src/pages/NodeSync.tsx`, `fe/src/components/OnboardingOverlay.tsx`
+> Key files: `fe/src/components/OnboardingOverlay.tsx`, `fe/src/services/onboardingStorage.ts`
 
-- [x] **Clipboard paste failure feedback on mnemonic import**
-  - **How**: In `WalletSetup.tsx`, the bulk paste handler catches `navigator.clipboard.readText()` rejection silently. Add `toast.warning('Could not access clipboard. Check browser permissions.')` in the catch block. Test with clipboard API denied in WebKitGTK.
-  - **Why**: Users clicking "Paste all 24 words" see nothing happen if clipboard access is denied, with no way to know why.
+- [x] 🟡 **Contextual help tooltips for domain-specific concepts**
+  - **How**: Add info-icon tooltips (a small `ⓘ` SVG + absolute-positioned popover) next to "Collateral", "Defragmentation", "SNARK Proving", "Binding Proof", and "Future Price" wherever they first appear. Create a reusable `InfoTooltip` component in `fe/src/components/InfoTooltip.tsx` that takes `text` prop, positions a popover on hover/focus. Wire into `Settings.tsx` (wallet management section), `CreateListingModal.tsx`, `PlaceBidModal.tsx`, and `SnarkProvingModal.tsx`.
+  - **Why**: Non-expert users encounter Cardano-specific jargon without explanation; tooltips lower the knowledge barrier without cluttering the UI.
 
-- [x] **ETA bounds and validation on sync progress**
-  - **How**: In `NodeSync.tsx` (lines 250-262), the ETA calculation from `syncSamplesRef` / `mithrilSamplesRef` can produce unrealistic values. Cap display at 48 hours (`if (etaSeconds > 172800) return 'Estimating...'`). Add a minimum sample count (3+) before showing any ETA.
-  - **Why**: Early in the sync, ETAs can show "999+ hours" from a single slow sample, alarming users.
-
-- [x] **Disk space check failure fallback warning**
-  - **How**: In `NodeSync.tsx` (lines 236-241), `get_available_disk_space` invoke fails silently. Add a soft warning: "Could not verify disk space. Ensure you have at least 10 GB free." Show as an info banner, not a blocker.
-  - **Why**: If the disk check itself fails, users get no warning at all, defeating the purpose of the check.
+- [x] 🟢 **Explain text vs file listing difference in Create Listing**
+  - **How**: In `CreateListingModal.tsx`, below the category selector, add a one-line helper: "Text listings store content on-chain. All other categories encrypt and upload files to Iagon." Show conditionally when category is selected. Use `text-xs text-[var(--text-muted)]`.
+  - **Why**: Users may not understand why some categories require Iagon auth and others don't.
 
 ---
 
 ## 2. Wallet & Authentication
 
-> Key files: `fe/src/pages/WalletUnlock.tsx`, `fe/src/contexts/WalletContext.tsx`, `src-tauri/src/crypto/wallet.rs`
+> Key files: `fe/src/pages/WalletUnlock.tsx`, `fe/src/pages/WalletSetup.tsx`, `fe/src/contexts/WalletContext.tsx`
 
-- [x] **Delete wallet confirmation uses focus trap and modal stack**
-  - **How**: In `WalletUnlock.tsx` (lines 142-221), the delete confirmation dialog uses raw fixed positioning without `useFocusTrap` or `useModalStack`. Refactor to use the standard modal pattern: register with `useModalStack('DeleteWalletConfirm')`, apply `useFocusTrap(dialogRef)`, and match the backdrop/animation pattern from other modals.
-  - **Why**: Tab key escapes the delete dialog and interacts with background elements. This is a WCAG violation on a destructive action.
+- [x] 🟢 **Eye icon for password show/hide toggle**
+  - **How**: In `WalletUnlock.tsx` (line ~108-114), replace the "Show"/"Hide" text button with an inline SVG eye/eye-off icon (w-4 h-4, stroke-based, matching existing icon style). Add `aria-label="Toggle password visibility"`.
+  - **Why**: Text toggle looks inconsistent with the icon-based UI elsewhere; eye icon is universally understood.
 
-- [x] **Auto-lock countdown resets on user interaction during warning**
-  - **How**: In `WalletContext.tsx` (lines 117-200), the auto-lock warning fires at T-90s but the countdown continues even if the user moves the mouse during the warning period. Modify `resetActivity()` to also cancel the warning state and restart the full timer, not just extend it.
-  - **Why**: Users see the warning, wiggle their mouse expecting it to dismiss, but get locked out anyway if they don't perform a "real" interaction.
+- [x] 🟢 **Delete wallet button loading state**
+  - **How**: In `WalletUnlock.tsx` (line ~178), add `isDeleting` state. Set true before `invoke('delete_wallet')`, false after. Disable both confirm/cancel buttons, show `LoadingSpinner` in confirm button while `isDeleting`.
+  - **Why**: Deletion involves Tauri file I/O; without loading state the button appears to hang briefly.
 
-- [x] **Throttle all activity listeners in WalletContext**
-  - **How**: In `WalletContext.tsx` (lines 133-196), `mousedown`, `keydown`, and `mousemove` all call `resetActivity()`. Throttle all three (not just mousemove) to once per second using a shared timestamp check: `if (Date.now() - lastResetRef.current < 1000) return`.
-  - **Why**: Rapid typing fires `keydown` + `resetActivity()` on every keystroke, causing unnecessary work.
-
-- [x] **Secure mnemonic zeroing on frontend after key derivation**
-  - **How**: After `unlock_wallet` returns the mnemonic in the frontend (WalletContext), the string is held in JS memory for the session duration. After deriving the BLS secret via `walletSecret.ts`, overwrite the mnemonic variable with empty string and null the reference. Document that JS GC doesn't guarantee immediate cleanup.
-  - **Why**: The raw mnemonic sitting in JS heap memory is a target for memory-scraping attacks. Zeroing it after use reduces the exposure window.
+- [x] 🟢 **Mnemonic import word input focus ring**
+  - **How**: In `MnemonicInput.tsx`, add `focus-visible:ring-2 focus-visible:ring-[var(--accent)]` to each word input element. The `data-import-index` inputs currently rely on browser default focus which is invisible in some themes.
+  - **Why**: Keyboard users importing a mnemonic can't see which word field is focused.
 
 ---
 
 ## 3. Node Sync & Process Management
 
-> Key files: `fe/src/pages/NodeSync.tsx`, `src-tauri/src/process/manager.rs`, `src-tauri/src/commands/node.rs`
+> Key files: `fe/src/pages/NodeSync.tsx`, `fe/src/pages/Settings.tsx`, `fe/src/contexts/NodeContext.tsx`
 
-- [x] **Network tip fetch failure shows warning instead of silent catch**
-  - **How**: In `NodeSync.tsx` (lines 370-388), the `get_network_tip` fetch failure is silently caught. Show a subtle info banner: "Could not fetch network tip — sync percentage may be approximate." Use a `tipFetchFailed` state flag.
-  - **Why**: Without the network tip, sync progress percentage has no reference point. Users see "syncing" with no progress context.
+- [x] 🟢 **Skeleton placeholder for node sync console logs**
+  - **How**: In `NodeSync.tsx` (line ~82), when logs are empty and node is starting, render 4-5 skeleton text lines (thin gray bars, shimmer animation matching `SkeletonCard` pattern) instead of "Waiting for logs..." text. Reuse the shimmer from `index.css`.
+  - **Why**: The "Waiting for logs..." text looks unfinished; skeleton lines set the visual expectation of log output arriving.
 
-- [x] **Process signal error logging with errno context**
-  - **How**: In `manager.rs` (line 120), `send_signal()` uses `libc::kill()` but only returns `false` on failure without logging why. Add `let err = std::io::Error::last_os_error(); log::warn!("Failed to signal PID {}: {}", pid, err);` after a failed kill.
-  - **Why**: When a process can't be signaled, the current code gives no clue why (permission denied? process gone?), making debugging difficult.
-
-- [x] **Log buffer eviction notice in process logs**
-  - **How**: In `manager.rs` (line 103-109), when the 500-line circular buffer evicts old entries, insert a marker line: `"... [N earlier lines dropped] ..."` so users know the log is incomplete. Track `dropped_count` and include it in the next `append_log` call.
-  - **Why**: Users debugging issues in Settings log viewer may not realize they're missing the earliest (potentially most relevant) log entries.
-
-- [x] **Configurable process shutdown timeouts**
-  - **How**: In `manager.rs`, the shutdown timeouts (cardano-node 45s, mithril 30s, others 10s) are hardcoded. Add optional environment variable overrides: `SHUTDOWN_TIMEOUT_CARDANO=60`, `SHUTDOWN_TIMEOUT_MITHRIL=45`, etc. Fall back to current defaults if not set.
-  - **Why**: Users with slow storage (spinning disks, NFS mounts) may need longer shutdown windows for cardano-node to flush its ledger state.
-
-- [x] **Cache `app_data_dir()` path at startup instead of per-call**
-  - **How**: In `node.rs` (line 33-36), `get_node_status()` calls `app.path().app_data_dir()` on every invocation (polled every 5s). Cache the path in `AppDataDir` state struct at startup (similar to existing `AppTmpDir`), and read from the cached state.
-  - **Why**: `app_data_dir()` hits the filesystem each call. While fast, it's unnecessary repeated I/O on a path that never changes at runtime.
+- [x] 🟢 **Settings process log loading skeleton**
+  - **How**: In `Settings.tsx` where `logsLoading` is true, render skeleton text lines (same pattern as above) instead of an empty area while process logs load after switching processes.
+  - **Why**: Switching processes in Settings shows a blank space during log fetch — skeleton communicates loading.
 
 ---
 
@@ -108,43 +91,27 @@ Each item has:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/App.tsx`
 
-- [x] **Keyboard shortcuts ignore input focus**
-  - **How**: In `Dashboard.tsx` (lines 170-200), the `Ctrl+1`-`5` and `Ctrl+R` shortcuts fire even when the user is typing in a search input. Add a guard: `if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return` before handling shortcuts.
-  - **Why**: Users typing in the marketplace search box accidentally trigger tab switches when pressing Ctrl+key combos.
+- [x] 🟡 **Marketplace toolbar visual hierarchy**
+  - **How**: In `MarketplaceTab.tsx` (line ~298+), increase the search input prominence: wider default width, subtle left-aligned search icon inside the input, `text-sm` placeholder "Search listings by name or seller...". Move filter/sort controls into a collapsible "Filters" dropdown button that sits secondary (btn-tertiary style) next to search.
+  - **Why**: Search, filters, and sort currently have equal visual weight; primary action (search) should be immediately obvious.
 
-- [x] **Smooth tab content transition**
-  - **How**: Wrap the tab panel content area in a CSS transition container. On tab switch, apply `opacity: 0` → `opacity: 1` over 150ms using a `key={activeTab}` prop and CSS `@keyframes fadeIn`. Keep it subtle — no sliding.
-  - **Why**: Tab content switches instantly with a flash. A brief fade smooths the visual transition.
-
-- [x] **Balance unavailable indicator when Kupo is down**
-  - **How**: In the Dashboard balance display area, when `lovelace` from WalletContext is `null`, show "Balance unavailable" with a small info icon instead of showing nothing or "0 ADA". Add tooltip: "Waiting for Kupo to start. Your funds are safe."
-  - **Why**: Before Kupo starts, users see no balance and may panic thinking their funds are gone.
+- [x] 🟢 **"Clear filters" button on empty search results**
+  - **How**: In `MarketplaceTab.tsx` (line ~161-169), when `NoResultsIllustration` renders, add a "Clear filters" button below the illustration that calls `resetFilters()` / clears search query. Use `btn-tertiary` styling.
+  - **Why**: Users who search and get 0 results must manually clear the input; a one-click reset reduces friction.
 
 ---
 
 ## 5. Marketplace Tab
 
-> Key files: `fe/src/components/MarketplaceTab.tsx`, `fe/src/components/EncryptionCard.tsx`
+> Key files: `fe/src/components/EncryptionCard.tsx`, `fe/src/components/MarketplaceTab.tsx`
 
-- [x] **Image cache fetch error handling**
-  - **How**: In `MarketplaceTab.tsx` (line 48), the image cache fetch uses `.catch(() => {})`. Replace with `.catch(err => console.warn('Image cache refresh failed:', err))` and optionally set a `cacheError` state to show a subtle warning icon.
-  - **Why**: Silent failures make debugging impossible. If the image cache is broken, all listing images fail without any diagnostic trail.
+- [x] 🟢 **Copy button on seller address display**
+  - **How**: In `EncryptionCard.tsx` (line ~232-235), next to the truncated seller hex address, add a small copy icon button (w-3.5 h-3.5 clipboard SVG) that copies the full PKH to clipboard with `navigator.clipboard.writeText()` + brief checkmark feedback (reuse `copy-check` animation from `index.css`).
+  - **Why**: Seller addresses are truncated with no way to copy the full value for verification or sharing.
 
-- [x] **Null-safe price range computation**
-  - **How**: In `MarketplaceTab.tsx` (lines 120-129), the price range `useMemo` assumes `suggestedPrice` is always a number. Add null coalescing: `const price = Number(e.suggestedPrice) || 0; if (isNaN(price)) return;` to skip malformed prices.
-  - **Why**: A single malformed price datum from the blockchain could cause `NaN` to propagate through the price range slider.
-
-- [x] **Null-safe sort comparisons**
-  - **How**: In MarketplaceTab and MySalesTab filter/sort logic, add null-safe comparisons for nullable fields: `(a.suggestedPrice ?? Infinity) - (b.suggestedPrice ?? Infinity)` for price sort, and `(a.createdAt ?? '').localeCompare(b.createdAt ?? '')` for date sort.
-  - **Why**: Undefined sort values cause inconsistent ordering. Listings without prices should sort last, not cause NaN comparisons.
-
-- [x] **Low balance warning on bid button**
-  - **How**: In `EncryptionCard.tsx` (lines 59-65), `canBid` doesn't check wallet balance. Add `const hasBalance = lovelace !== null && parseInt(lovelace) >= 2_000_000;` and when `!hasBalance`, show the Bid button as disabled with tooltip: "Insufficient balance (minimum 2 ADA)".
-  - **Why**: Users can open the bid modal, fill out the form, and only discover they can't afford it after tx building fails.
-
-- [x] **Price fallback displays "No price" instead of 1 ADA**
-  - **How**: In `EncryptionCard.tsx` (lines 52-57), when `suggestedPrice` is invalid/NaN, the fallback is 1 ADA which is misleading. Replace with `"Price: TBD"` or `"No suggested price"` for listings where the seller didn't set a price.
-  - **Why**: Showing "1 ADA" for a listing that has no price set confuses buyers into thinking it's cheap.
+- [x] 🟢 **Favorite toggle micro-animation**
+  - **How**: In `EncryptionCard.tsx` (line ~82-91), add a CSS scale animation to the star icon on toggle: `transition: transform 200ms ease` with a brief `scale(1.3)` on click that returns to `scale(1)`. Similar pattern to the existing `bid-pulse` animation but simpler.
+  - **Why**: The favorite star currently snaps between filled/unfilled without feedback; a brief pulse makes the interaction feel responsive.
 
 ---
 
@@ -152,17 +119,9 @@ Each item has:
 
 > Key files: `fe/src/components/MySalesTab.tsx`, `fe/src/components/SalesListingCard.tsx`
 
-- [s] **Bulk cancel listings**
-  - **How**: Add a "Select" mode toggle that shows checkboxes on each SalesListingCard. When items are selected, show a floating action bar: "3 selected — Cancel All". Each cancel calls `removeListing()` sequentially (batch tx not possible on Cardano). Disable select mode while cancellations are in progress.
-  - **Why**: Sellers with many expired or unwanted listings must cancel them one by one. Bulk select speeds this up.
-
-- [x] **Image cache error handling in MySalesTab**
-  - **How**: In `MySalesTab.tsx` (line 65-66), the image cache fetch is fire-and-forget with `.catch(() => {})`. Add `console.warn` at minimum for diagnostic logging, matching MarketplaceTab improvements.
-  - **Why**: Same silent failure issue as MarketplaceTab — broken image cache is invisible.
-
-- [x] **Combined bid iteration for stats calculation**
-  - **How**: In `MySalesTab.tsx` (lines 119-143), the code iterates through bids twice — once in `useMemo` for counts and once for separate logic. Merge into a single pass that computes all stats (total bids, pending count, total earned) in one loop.
-  - **Why**: Double iteration is wasteful when the marketplace has hundreds of bids.
+- [x] 🟢 **Explain bid acceptance consequence in confirm dialog**
+  - **How**: When accepting a bid via `ConfirmModal` in the sales flow, include a brief explanation line: "The buyer will receive the decryption key and your listing will close." Currently the confirm dialog states the action but not the consequence for non-expert users.
+  - **Why**: First-time sellers may not understand that accepting a bid is irreversible and reveals the secret.
 
 ---
 
@@ -170,480 +129,348 @@ Each item has:
 
 > Key files: `fe/src/components/MyPurchasesTab.tsx`, `fe/src/components/MyPurchaseBidCard.tsx`
 
-- [x] **Bid secrets fetch error feedback**
-  - **How**: In `MyPurchasesTab.tsx` (lines 86-106), `getBidSecretsForEncryption()` errors are silently caught. Add `console.warn('Failed to load bid secrets:', err)` and set a `secretsError` flag to show a warning icon on affected bid cards: "Some bid data could not be loaded."
-  - **Why**: If encrypted secrets can't be read (corruption, key mismatch), users see confusing bid states with no explanation.
-
-- [x] **Offline detection for bid placement**
-  - **How**: Before opening PlaceBidModal, check `navigator.onLine`. If offline, show toast: "You're offline. Bids require a network connection." Also save draft bid form state to `bidDraftStorage` on submit failure so users can retry without re-entering.
-  - **Why**: If the network drops mid-bid, the user sees a generic error and loses their form input.
+- [x] 🟢 **Bid status explanation tooltips**
+  - **How**: In `MyPurchaseBidCard.tsx`, add a small `InfoTooltip` (from the reusable component proposed in §1) next to bid status badges (Pending, Accepted, etc.) explaining what each status means: "Pending: Waiting for the seller to accept or reject", "Accepted: Seller accepted — decrypt to claim content."
+  - **Why**: Purchase status labels are technical; buyers need to know what action (if any) they should take.
 
 ---
 
-## 8. History Tab
+## 8. Library Tab
 
-> Key files: `fe/src/components/HistoryTab.tsx`, `fe/src/services/transactionHistory.ts`
+> Key files: `fe/src/components/LibraryTab.tsx`, `fe/src/components/LibraryContentModal.tsx`
 
-- [s] **Group transactions by date**
-  - **How**: After sorting transactions by timestamp, group into date buckets: "Today", "Yesterday", "This Week", "This Month", "Older". Render date headers between groups using `Intl.DateTimeFormat` for locale-aware dates. Use a `groupByDate(txList)` utility function.
-  - **Why**: A flat list of 50+ transactions with timestamps is hard to scan. Date grouping creates natural visual landmarks.
+- [x] 🟡 **Bulk delete per-item status feedback**
+  - **How**: In `LibraryTab.tsx` (line ~213-229), when bulk deleting, track a `Map<string, 'pending' | 'success' | 'error'>` of per-item results. Show a progress indicator ("Deleting 3 of 10...") in the confirmation modal. After completion, if any failed, show a toast with count: "Deleted 8 of 10 items. 2 items could not be removed."
+  - **Why**: Currently bulk delete only logs errors to console; users can't see which items failed or why.
 
-- [x] **On-chain vs localStorage reconciliation conflict handling**
-  - **How**: In `HistoryTab.tsx` (lines 67-123), when on-chain data conflicts with localStorage records (e.g., tx confirmed on-chain but marked "pending" locally), always prefer on-chain truth. Log discrepancies: `console.warn('Tx ${hash} status mismatch: local=${local} vs chain=${onChain}')`.
-  - **Why**: After a crash or app update, localStorage could contain stale transaction states that confuse users.
-
-- [x] **Stale data warning when API fallback to cache**
-  - **How**: In `HistoryTab.tsx` (lines 113-119), when the API fetch fails and data falls back to localStorage, show a subtle banner: "Showing cached transaction history. Refresh to update." with a retry button.
-  - **Why**: Users may see outdated transaction statuses without realizing the data isn't fresh.
+- [x] 🟢 **Library content modal loading skeleton**
+  - **How**: In `LibraryContentModal.tsx`, when content is loading asynchronously (PDF, image, audio, video), show a content-area skeleton matching the expected viewer dimensions before the lazy-loaded component mounts. Use `React.Suspense` fallback with a shimmer rectangle.
+  - **Why**: Modal appears instantly but content loads async — the empty content area feels broken for a moment.
 
 ---
 
-## 9. Library Tab
-
-> Key files: `fe/src/components/LibraryTab.tsx`, `fe/src/components/LibraryCard.tsx`, `fe/src/components/LibraryContentModal.tsx`
-
-- [x] **Library content type icon on cards**
-  - **How**: On each LibraryCard, show a small icon indicating the content type: PDF icon, image icon, audio waveform, video play, text document. Derive from `category` field in metadata or from `getViewMode()` result in `LibraryContentModal.tsx`.
-  - **Why**: In compact/list view mode, all library items look identical. Type icons help users find content without opening each item.
-
----
-
-## 10. Create Listing Modal
+## 9. Create Listing Modal
 
 > Key files: `fe/src/components/CreateListingModal.tsx`
 
-- [x] **Real-time field validation during typing**
-  - **How**: In `CreateListingModal.tsx`, add `onBlur` validation for description length, price format, and image URL validity. Show inline error messages below each field as soon as the user leaves it, instead of waiting for form submit. Use a `fieldErrors` state object keyed by field name.
-  - **Why**: Users fill out the entire form, hit submit, and only then discover their description is too long or price is invalid. Real-time feedback prevents wasted effort.
+- [x] 🟢 **Character counter on description field**
+  - **How**: In `CreateListingModal.tsx` (line ~166), below the description textarea, add `<span className="text-xs text-[var(--text-muted)]">{description.length}/500</span>`. Change color to `--warning` when >400 and `--error` when =500.
+  - **Why**: Users don't know the 500-char limit until they exceed it and see an error; a live counter prevents this.
 
-- [x] **`maxLength` HTML attribute on text inputs**
-  - **How**: Add `maxLength={500}` to the description textarea and `maxLength={280}` to the secret message input in `CreateListingModal.tsx`. This provides a hard browser-level limit in addition to the existing character counter.
-  - **Why**: The character counter shows the limit but doesn't prevent typing past it. Users can paste 10,000 characters and only discover the issue at submit time.
+- [x] 🟢 **Auto-focus first input on modal open**
+  - **How**: In `CreateListingModal.tsx`, in the Effect 1 `[isOpen]` block, after resetting form state, add `setTimeout(() => firstInputRef.current?.focus(), 50)`. Add a `ref` to the first form field (title/description). Same pattern should apply to `PlaceBidModal.tsx`.
+  - **Why**: Users must Tab through the modal to reach the first input; auto-focus is standard modal UX.
 
-- [x] **Auto-save visual feedback indicator**
-  - **How**: In `CreateListingModal.tsx` (lines 110-129), the form auto-save to `listingFormDraftStorage` happens silently. Add a tiny "Draft saved" text that appears briefly (1.5s fade) near the form footer when auto-save completes. Use CSS `@keyframes` with opacity.
-  - **Why**: Users don't know their progress is being saved. Visible feedback builds trust that they can safely close and reopen the form.
-
-- [x] **Unsaved changes warning on modal close**
-  - **How**: Track a `isDirty` flag (set true on any form change, false after save/submit). In the Escape key handler and backdrop click handler, if `isDirty && !isSubmitting`, show a confirm: "You have unsaved changes. Discard?" before closing.
-  - **Why**: Clicking outside the modal or pressing Escape discards all form input with no warning.
-
-- [s] **Upload time estimate for large files**
-  - **How**: After file selection, if `file.size > 10_000_000` (10 MB), show an estimate: "Estimated upload time: ~X min" based on a conservative 2 Mbps assumption. Adjust the estimate based on actual Iagon upload speed once available from previous uploads.
-  - **Why**: Users selecting a 500 MB file have no idea if the upload will take 1 minute or 30 minutes.
+- [x] 🟢 **Help text for "Future Price" option**
+  - **How**: Next to the "Future Price" checkbox in `CreateListingModal.tsx`, add a brief inline note: "Set a suggested resale price. Buyers see this before bidding." Use `text-xs text-[var(--text-muted)]` below the checkbox label.
+  - **Why**: "Future Price" is a marketplace concept that's unclear to new users; it's only explained in the error message after invalid input.
 
 ---
 
-## 11. Place Bid Modal
+## 10. Place Bid Modal
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [x] **Min bid explanation in plain language**
-  - **How**: In `PlaceBidModal.tsx` (lines 99-105), the minimum 2 ADA message mentions "UTxO minimum" which is technical jargon. Replace with: "Minimum bid is 2 ADA (required by the Cardano network to hold bid data on-chain)." Add a small "Why?" link/tooltip that explains UTxO minimums briefly.
-  - **Why**: Non-technical users don't understand why they can't bid 0.5 ADA. A clear explanation prevents confusion and support requests.
+- [x] 🟢 **Show min bid constraint before user input**
+  - **How**: In `PlaceBidModal.tsx`, below the amount input label, add helper text: "Minimum bid: 2 ADA" in `text-xs text-[var(--text-muted)]`. Currently this only appears as a validation error after the user types a value below 2.
+  - **Why**: Constraints should be visible before the user encounters them, not after they fail validation.
 
-- [x] **Balance parsing safety check**
-  - **How**: In `PlaceBidModal.tsx` (lines 85-87), `balanceLovelace` is parsed with `parseInt()` without validating the input. Add: `const parsed = parseInt(balanceLovelace ?? '0', 10); const balanceAda = isNaN(parsed) ? undefined : parsed / 1_000_000;`. When `undefined`, show "Balance: loading..." instead of "0 ADA".
-  - **Why**: If Kupo is slow to respond, `balanceLovelace` could be `undefined` or empty string, causing NaN display.
+- [x] 🟢 **Validate bid amount on blur**
+  - **How**: In `PlaceBidModal.tsx` (line ~139), add an `onBlur` handler to the amount input that runs `validateForm()` and displays field-level errors. Currently validation only fires on submit; blur validation gives immediate feedback.
+  - **Why**: Users enter an invalid value, tab away, and see nothing until they hit Submit — blur validation catches errors early.
 
----
-
-## 12. Media Viewers (PDF, Image, Audio, Video)
-
-> Key files: `fe/src/components/PdfViewer.tsx`, `fe/src/components/ImageViewer.tsx`, `fe/src/components/AudioPlayer.tsx`, `fe/src/components/VideoPlayer.tsx`
-
-- [x] **PDF page jump invalid input feedback**
-  - **How**: In `PdfViewer.tsx` (lines 131-138), entering an invalid page number silently resets to the current page. Show a brief red border flash (200ms) on the page number input and set `aria-invalid="true"` temporarily when the entered page is out of range.
-  - **Why**: Users typing page "200" in a 50-page PDF see the input reset with no explanation. A visual cue indicates the page doesn't exist.
-
-- [x] **Image viewer EXIF orientation handling**
-  - **How**: In `ImageViewer.tsx`, some JPEG images have EXIF orientation metadata that causes them to display rotated. Before creating the Blob URL, check for EXIF orientation tag using a lightweight parser (e.g., read the first 64KB of JPEG for APP1 marker) and apply CSS `image-orientation: from-image` or transform accordingly.
-  - **Why**: Photos taken on phones often have EXIF rotation. Displaying them sideways makes the viewer feel broken.
-
-- [x] **Audio player elapsed/remaining time toggle**
-  - **How**: In `AudioPlayer.tsx`, clicking the time display toggles between "elapsed / total" and "elapsed / -remaining" format. Store preference in a local `showRemaining` state. Update display in the existing time render logic.
-  - **Why**: Standard media player feature. Some users prefer seeing how much time is left rather than total duration.
-
-- [x] **Video player keyboard shortcuts**
-  - **How**: In `VideoPlayer.tsx`, add keyboard event handlers: Space = play/pause, Left/Right = seek ±5s, Up/Down = volume ±10%, F = toggle fullscreen, M = mute. Only active when the video player has focus. Show a brief key hint overlay on first interaction.
-  - **Why**: Standard video player keyboard controls are expected. Mouse-only control is frustrating for keyboard users.
+- [x] 🟢 **Set HTML max attribute on bid amount input**
+  - **How**: In `PlaceBidModal.tsx`, add `max={maxBidAda}` attribute to the amount input element where `maxBidAda = (lovelace ?? 0) / 1_000_000`. This enables browser-native constraint feedback alongside the JS validation.
+  - **Why**: HTML constraints provide native browser hints (e.g., scroll wheel clamping on number inputs) without relying solely on JS validation.
 
 ---
 
-## 13. Settings Page
+## 11. Media Viewers (PDF, Image, Audio, Video)
+
+> Key files: `fe/src/components/PdfViewer.tsx`, `fe/src/components/ImageViewer.tsx`, `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx`
+
+- [x] 🟢 **PdfViewer arrow key page navigation**
+  - **How**: In `PdfViewer.tsx` (line ~216-240), add `ArrowLeft` → previous page and `ArrowRight` → next page to the existing keydown handler. Guard with `!isSearchOpen` to avoid conflicts with search input navigation.
+  - **Why**: PDF viewers universally support arrow key navigation; users expect this keyboard shortcut.
+
+- [x] 🟢 **ADA currency label in bid/price inputs**
+  - **How**: In `PlaceBidModal.tsx` and `CreateListingModal.tsx` price fields, add a trailing "ADA" label inside the input wrapper (right-aligned, `text-sm text-[var(--text-muted)]`). This clarifies the unit without requiring a separate label.
+  - **Why**: Users can't tell if the amount field expects ADA or Lovelace without reading surrounding text.
+
+---
+
+## 12. Settings Page
 
 > Key files: `fe/src/pages/Settings.tsx`
 
-- [s] **Express log level configurable from Settings**
-  - **How**: Add a "Log Level" dropdown (debug/info/warn/error) in the Node section of Settings. Store in `AppConfig` via a new Tauri command `set_log_level`. Pass as `LOG_LEVEL` env var in `config.rs` `express_env_vars()` (currently not set). Restart Express after change.
-  - **Why**: When users report issues, support needs debug logs. Currently there's no way to enable debug logging without code changes.
+- [x] 🟡 **Replace network switch alert() with toast + error handling**
+  - **How**: In `Settings.tsx` (line ~241-250), replace `window.alert()` after network switch with `toast.success("Network switched to preprod. Restart required.")`. Wrap the switch in try-catch and show `toast.error()` with the specific failure reason on error. Add a "Restart Now" action button in the success toast that calls `invoke('stop_node')`.
+  - **Why**: `alert()` is jarring, blocks the UI, and provides no error recovery path. Toast is consistent with the rest of the app.
 
-- [s] **Settings export/import for backup**
-  - **How**: Add "Export Settings" button that serializes all localStorage keys (autolock, theme, toast duration, filter prefs) and Tauri config into a JSON file via `export_text_file`. Add "Import Settings" that reads and applies. Exclude sensitive data (secrets, wallet, mnemonic).
-  - **Why**: Users reinstalling the app or setting up a second machine want to restore their preferences without reconfiguring everything.
+- [x] 🟢 **Image cache empty state message**
+  - **How**: In `Settings.tsx`, when `imageCacheStatus.cached.length === 0`, show "No cached images" text below the header instead of just a disabled "Clear All" button. Use `text-sm text-[var(--text-muted)]`.
+  - **Why**: A disabled button with no explanation looks like a bug; explicit empty state communicates intent.
 
-- [x] **Cache clear with size display**
-  - **How**: In the Storage section, show individual cache sizes: "Image cache: 45 MB", "API cache: 2 KB". Add "Clear" buttons next to each. For image cache, call `delete_cached_image` for each item. Show a confirmation with the space to be freed.
-  - **Why**: Users see total disk usage but can't clear individual caches. Some may want to free image cache space while keeping chain data.
+- [x] 🟢 **Proactive collateral/defrag explanation**
+  - **How**: In `Settings.tsx` wallet management section, add a brief note above the "Create Collateral" button: "Collateral is a small ADA deposit (5 ADA) required by Cardano smart contracts for transaction validation." Below "Defragment UTxOs": "Combines small UTxOs into fewer, larger ones to reduce transaction fees."
+  - **Why**: These terms are jargon; explanations currently only appear in error messages after the user encounters a problem.
 
----
-
-## 14. Notifications & Alerts
-
-> Key files: `fe/src/hooks/useBidNotifications.ts`, `fe/src/components/Toast.tsx`
-
-- [x] **Transaction retry action in error toasts**
-  - **How**: When a transaction fails, add a "Retry" button to the error toast. The retry button re-invokes the same transaction builder function with the same parameters. Store the failed tx params in a `lastFailedTx` ref. Toast becomes sticky (no auto-dismiss) on tx failure.
-  - **Why**: Transaction failures currently require users to navigate back to the modal and re-enter everything. A retry button reduces friction.
-
-- [x] **Notification grouping for multiple simultaneous events**
-  - **How**: When multiple bids arrive within 5 seconds, group them into a single notification: "3 new bids on your listings" instead of 3 separate toasts. In `useBidNotifications`, buffer incoming notifications with a 5s debounce window before dispatching to the toast system.
-  - **Why**: During active marketplace periods, a burst of bid notifications can stack 5+ toasts that obscure the UI.
+- [x] 🟡 **Settings section visual hierarchy**
+  - **How**: In `Settings.tsx`, group sections into categories with visual dividers: "Node & Network" (node info, process logs, network switch), "Wallet & Security" (collateral, defrag, auto-lock, delete wallet), "Storage & Data" (Iagon, cache, library). Add category headers in `text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]` with `mt-8 mb-4` spacing.
+  - **Why**: 10+ flat sections all with the same heading style makes finding a specific setting require scrolling through everything.
 
 ---
 
-## 15. Design System & Styling
+## 13. Notifications & Alerts
 
-> Key files: `fe/src/index.css`, all components
+> Key files: `fe/src/components/Toast.tsx`, `fe/src/services/desktopNotifications.ts`
 
-- [x] **WCAG AA color contrast audit and fixes**
-  - **How**: Run a contrast checker on all CSS variable combinations in both dark and light themes. `--text-muted` (rgb 138,138,138) on `--bg-primary` likely fails WCAG AA 4.5:1 ratio. Increase to at least rgb(156,163,175) for dark theme. Document all color pairs and their contrast ratios.
-  - **Why**: Users with low vision or color blindness cannot read muted text. WCAG AA compliance is a baseline accessibility requirement.
+- [x] 🟢 **Toast stagger animation for multiple concurrent toasts**
+  - **How**: In `Toast.tsx`, when rendering multiple toasts, add a staggered entry delay: each toast's `animation-delay` increments by 50ms (e.g., toast 1: 0ms, toast 2: 50ms, toast 3: 100ms). This creates a cascade effect instead of all toasts appearing simultaneously.
+  - **Why**: Multiple simultaneous toasts currently snap into position together, which feels abrupt.
 
-- [x] **Consistent empty state messages with actionable CTAs**
-  - **How**: Audit all tabs' empty states (EmptyState, EmptyStateIllustrations). Ensure each includes: (1) an illustration, (2) a clear message explaining why it's empty, (3) a call-to-action button. Example: Library empty → "No items yet. Purchase and decrypt a listing to see it here." with "Browse Marketplace" button.
-  - **Why**: Empty states vary in tone and detail. Some show just "No items" with no guidance on what to do next.
-
-- [x] **Modal max-height constraint for small screens**
-  - **How**: Add `max-h-[90vh] overflow-y-auto` to the modal content container in all modals (CreateListingModal, PlaceBidModal, DecryptModal, etc.). Test at 800px viewport height. Ensure submit buttons remain visible (sticky footer or scroll into view).
-  - **Why**: On smaller displays (800px height), modals can extend below the viewport with no scroll, hiding the submit button.
-
-- [x] **Scrollbar styling for dark theme**
-  - **How**: In `index.css`, add custom scrollbar styles for WebKitGTK: `::-webkit-scrollbar { width: 8px }`, `::-webkit-scrollbar-track { background: var(--bg-secondary) }`, `::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 4px }`. Apply to both themes.
-  - **Why**: Default scrollbars appear as bright white bars on dark backgrounds, breaking the visual cohesion of the dark theme.
+- [x] 🟡 **Loading delay masking for spinners**
+  - **How**: Create a `DelayedSpinner` component in `fe/src/components/LoadingSpinner.tsx` that wraps `LoadingSpinner` with a 300ms delay before rendering. Use `useState` + `useEffect` with a timeout. Replace direct `LoadingSpinner` usage in data-fetching contexts (tab content, modal content) with `DelayedSpinner`. Keep instant spinners for button loading states.
+  - **Why**: Fast requests show a brief spinner flash (< 300ms); delaying the spinner eliminates the flicker for quick loads while still showing it for genuinely slow operations.
 
 ---
 
-## 16. Animations & Micro-Interactions
+## 14. Design System & Styling
+
+> Key files: `fe/src/index.css`, `fe/src/fonts.css`
+
+- [x] 🟢 **Add line-height tokens to design system**
+  - **How**: In `index.css`, add to the `:root` variables: `--line-height-tight: 1.2; --line-height-normal: 1.5; --line-height-relaxed: 1.75;`. These complement the existing typography scale and can be referenced in component styles for consistency.
+  - **Why**: Components currently inherit browser default line-heights; explicit tokens ensure consistent vertical rhythm.
+
+- [x] 🟢 **Add larger space tokens**
+  - **How**: In `index.css`, add `--space-24: 6rem; --space-32: 8rem;` to the spacing scale. Update `EmptyState.tsx` from `p-12` (48px, not in token list) to use the new token or fall back to `p-8` (--space-8).
+  - **Why**: EmptyState uses arbitrary `p-12` padding that doesn't map to any design token; larger tokens formalize these values.
+
+- [x] 🟡 **Shared formatDate() utility**
+  - **How**: Create `fe/src/utils/formatDate.ts` exporting `formatDate(dateString: string): string` using `Intl.DateTimeFormat` with a consistent short format (e.g., "Jan 15, 2025"). Replace inline `new Intl.DateTimeFormat(...)` calls in `EncryptionCard.tsx` (line ~50-55), `SalesListingCard.tsx`, and any other card components that format dates.
+  - **Why**: Cards use inline DateTimeFormat with potentially inconsistent options; a shared utility ensures uniform date display.
+
+- [x] 🟢 **Standardize font-weight across card components**
+  - **How**: Audit `EncryptionCard.tsx`, `SalesListingCard.tsx`, `MyPurchaseBidCard.tsx`, `LibraryCard.tsx` for title/label font-weight. Ensure card titles use `font-semibold` (600) and card labels use `font-medium` (500) consistently. Currently some titles don't specify weight (inherit browser default 400).
+  - **Why**: Inconsistent font weights across cards create subtle visual imbalance that undermines the design system.
+
+---
+
+## 15. Animations & Micro-Interactions
 
 > Key files: `fe/src/index.css`, various components
 
-- [x] **Bid count badge pulse on increment**
-  - **How**: On EncryptionCard and SalesListingCard, when the bid count increases between renders, apply a CSS `@keyframes pulse { 0% { transform: scale(1) } 50% { transform: scale(1.2) } 100% { transform: scale(1) } }` animation to the bid count badge. Track previous count in a ref to detect changes.
-  - **Why**: Updated bid counts are easy to miss in a grid of cards. A brief pulse draws attention to new activity.
+- [x] 🟡 **Standardize transition durations to design tokens**
+  - **How**: Grep for hardcoded `duration-150`, `duration-200`, `duration-300` across components. Replace with references to `--transition-fast` (150ms), `--transition-base` (200ms), or `--transition-slow` (300ms) as appropriate. Key files: `PlaceBidModal.tsx`, `Toast.tsx`, `TransactionLink.tsx`. Use Tailwind arbitrary values: `duration-[var(--transition-base)]` or switch to CSS `transition` property referencing the variable.
+  - **Why**: Mixing hardcoded durations with design tokens creates inconsistency; animations should feel uniform.
 
-- [x] **Skeleton card count matches expected data**
-  - **How**: When loading, show the same number of skeleton cards as the previous data load (stored in a ref), or default to 6. This prevents the visual "jump" when 6 skeletons are replaced by 20 real cards.
-  - **Why**: A fixed skeleton count that doesn't match actual data causes layout shifts on load completion.
-
-- [x] **Progress bar smooth interpolation**
-  - **How**: In NodeSync progress bars, use CSS `transition: width 500ms ease-out` so progress jumps (e.g., 45% → 52%) animate smoothly instead of jumping. Apply to both Mithril download and sync progress bars.
-  - **Why**: Choppy progress bar updates (jumping in 5% increments) feel less polished than smooth continuous movement.
+- [x] 🟢 **Transaction success toast celebration**
+  - **How**: In `Toast.tsx`, for `transactionSuccess` variant, add a subtle shine/glow animation on the checkmark icon: a CSS `@keyframes` that briefly scales the icon to 1.1x and adds a faint `box-shadow` glow in `--success` color, then settles back. Duration 600ms, ease-out.
+  - **Why**: Successful transactions are the app's primary accomplishment moment; a brief celebration rewards the user's effort.
 
 ---
 
-## 17. Accessibility
+## 16. Accessibility
 
-> Key files: all components, `fe/src/index.css`
+> Key files: `fe/src/index.css`, `fe/src/components/PriceRangeSlider.tsx`, `fe/src/components/Toast.tsx`
 
-- [x] **`focus-visible` styles on all interactive elements**
-  - **How**: Audit all clickable elements (favorite buttons, bid buttons, card actions, tab buttons) and ensure each has a `:focus-visible` style (not just `:focus`). Use `outline: 2px solid var(--accent); outline-offset: 2px` as the standard. Remove `:focus` styles that show on mouse click.
-  - **Why**: `:focus` shows outlines on mouse click (distracting), while `:focus-visible` only shows for keyboard users (correct behavior).
+- [x] 🟡 **Focus indicators on all interactive elements**
+  - **How**: In `index.css`, add explicit `button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { box-shadow: var(--focus-ring); }` rule to ensure all interactive elements inherit the focus ring. Currently the global `:focus-visible` rule may not reach all elements due to specificity. Verify in WalletUnlock.tsx password input, PriceRangeSlider thumbs, and Toast action links.
+  - **Why**: ~40% of interactive elements lack visible focus indicators; keyboard users can't track which element has focus.
 
-- [x] **Comprehensive aria-label audit for icon-only buttons**
-  - **How**: Search all components for `<button>` elements that contain only SVG/icon children (no text). Verify each has `aria-label` or `aria-labelledby`. Priority targets: close buttons (X), zoom controls (+/-), refresh icons, copy icons, settings gear, navigation arrows.
-  - **Why**: Screen readers announce these as just "button" with no description of what they do.
+- [x] 🟢 **PriceRangeSlider thumb focus indicator**
+  - **How**: In `PriceRangeSlider.tsx` (line ~51-55), add `:focus-visible` styling to range input thumbs: `[&:focus-visible]:ring-2 [&:focus-visible]:ring-[var(--accent)]`. Also add `aria-label="Minimum price"` and `aria-label="Maximum price"` to the two range inputs.
+  - **Why**: Slider thumbs have no focus indicator; screen reader users have no label for what the sliders control.
 
-- [x] **Disable filter controls during initial data load**
-  - **How**: In MarketplaceTab, MySalesTab, LibraryTab — while `isLoading` is true, set `disabled` and `aria-disabled="true"` on search input, sort dropdown, and filter controls. Add `opacity-50 pointer-events-none` for visual indication.
-  - **Why**: Interacting with filters before data loads can dispatch actions on empty arrays, causing flash-of-empty-state before real data appears.
+- [x] 🟢 **Toast action link focus style**
+  - **How**: In `Toast.tsx` (line ~171), add `focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 rounded` to action links. Currently links only show hover:underline with no focus indicator.
+  - **Why**: Toast action links (e.g., "View on CardanoScan") are keyboard-navigable but have no visible focus state.
 
-- [x] **Announce dynamic content changes to screen readers**
-  - **How**: Ensure the toast container, bid notification badge, loading/error states, and pagination info all live within `aria-live` regions. Add `role="status"` to the pagination summary ("Showing 1-20 of 150"). Add `role="alert"` to error messages.
-  - **Why**: Screen reader users miss dynamically updated content (new toasts, bid count changes, loading completions) unless announced via ARIA live regions.
-
-- [s] **Automated a11y testing with vitest-axe**
-  - **How**: Install `vitest-axe` (or `jest-axe`). Add a11y tests for critical components: `expect(await axe(container)).toHaveNoViolations()` for CreateListingModal, PlaceBidModal, WalletSetup, WalletUnlock, Dashboard. Run as part of `npm test`.
-  - **Why**: Manual accessibility audits miss issues. Automated axe scans catch 30-50% of WCAG violations automatically on every test run.
+- [x] 🟢 **HistoryTab filter button aria-labels**
+  - **How**: In `HistoryTab.tsx`, add `aria-label` attributes to filter buttons that describe their function (e.g., `aria-label="Filter by pending transactions"`, `aria-label="Filter by confirmed transactions"`). Screen readers currently announce only the button text which may be ambiguous.
+  - **Why**: Filter buttons may show only icons or abbreviated text; explicit labels improve screen reader navigation.
 
 ---
 
-## 18. Error Handling & User Feedback
+## 17. Error Handling & User Feedback
 
-> Key files: `fe/src/components/Toast.tsx`, `fe/src/services/errorMessages.ts`, `fe/src/services/api.ts`
+> Key files: `be/src/services/kupo.ts`, `be/src/routes/`, `fe/src/services/errorMessages.ts`
 
-- [x] **DecryptModal save failure shows warning toast**
-  - **How**: In `DecryptModal.tsx` (lines 83-105), when `save_content` invoke fails, the error is only logged as a warning. Add `toast.warning('Decryption succeeded but file could not be saved to library. Try again from My Purchases.')` so the user knows the file isn't persisted.
-  - **Why**: Users see "Decryption complete!" but the file isn't in their library. They think it worked and can't find the content later.
+- [x] 🟡 **Kupo-specific error codes for frontend messaging**
+  - **How**: In `be/src/services/kupo.ts`, catch connection errors and return a structured error with code `KUPO_UNAVAILABLE`. In route handlers (`encryptions.ts`, `bids.ts`), detect this code and return 503 with `{ error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable' } }`. In `fe/src/services/errorMessages.ts`, add a pattern for this code: title "Kupo Unavailable", message "The UTxO indexer is starting up or unreachable", action "Wait for the node to finish syncing, then try again."
+  - **Why**: Kupo failures currently return generic 500 "Failed to fetch encryptions"; users can't distinguish between a bug and a service starting up.
 
-- [x] **Silent API failure logging throughout**
-  - **How**: Search all `.catch(() => {})` and `.catch(() => undefined)` patterns in the frontend. Replace with `.catch(err => console.warn('Operation failed:', err))` at minimum. Affected files: MarketplaceTab, MySalesTab, MyPurchasesTab, image cache fetches.
-  - **Why**: Empty catch blocks make debugging impossible. Even console warnings provide diagnostic value when users share logs.
+- [s] 🟡 **Protocol params cache with fallback**
+  - **How**: In `be/src/routes/protocol.ts` (line ~155-184), wrap the Koios params call in the existing TTL cache with a long TTL (300s — params rarely change). If both cache and Koios fail, return hardcoded Cardano defaults (minFeeA=44, maxTxSize=16384, etc.) with a `warnings: ['Using fallback protocol parameters']` field.
+  - **Why**: When Koios is down, `/api/protocol/params` returns 500 and transaction building fails entirely; cached/fallback params keep the app functional.
 
-- [x] **Clipboard access failure feedback**
-  - **How**: In all clipboard operations (CreateListingModal paste, address copy, txHash copy), add a catch handler that shows `toast.warning('Could not access clipboard')` instead of failing silently. Check `navigator.clipboard` availability first on WebKitGTK.
-  - **Why**: WebKitGTK has inconsistent clipboard API support. Users clicking "Copy" see the success animation but nothing is actually copied.
-
-- [x] **ModalContext error boundary and stack corruption guard**
-  - **How**: In `ModalContext.tsx` (lines 36-75), add a guard in `closeModal()`: if the modal being closed isn't in the stack, log a warning instead of corrupting the stack. Add `if (!stack.includes(modalId)) { console.warn('Attempted to close unregistered modal:', modalId); return; }`.
-  - **Why**: Double-closing a modal (e.g., from both Escape and onClose callback) can corrupt the stack, causing z-index issues for subsequent modals.
+- [x] 🟢 **Iagon cleanup per-item error feedback**
+  - **How**: In `Settings.tsx` (line ~196-210), when bulk-deleting orphaned Iagon files, track success/failure per file. After completion, show toast: "Cleaned up X of Y files" and log failures. Currently bulk delete silently ignores individual file deletion errors.
+  - **Why**: Users clicking "Delete All Orphans" get no feedback if some deletions fail due to network or permission errors.
 
 ---
 
-## 19. Performance
+## 18. Performance
 
-> Key files: `fe/src/components/`, `fe/src/services/`
+> Key files: `fe/src/components/MarketplaceTab.tsx`, `fe/src/pages/Dashboard.tsx`
 
-- [x] **React.memo() on card components**
-  - **How**: Wrap `EncryptionCard`, `SalesListingCard`, `MyPurchaseBidCard`, and `LibraryCard` with `React.memo()`. These are rendered in lists of 20-100+ items and receive stable props (datum objects, callbacks). Use a custom comparison for props that contain objects.
-  - **Why**: Without memo, every parent re-render (filter change, new data) re-renders all cards. With 100+ cards, this causes visible frame drops.
+- [s] 🔴 **Virtual scrolling for Marketplace tab**
+  - **How**: In `MarketplaceTab.tsx`, integrate `@tanstack/react-virtual` (already a dependency, used in HistoryTab) to virtualize the listing grid. Replace the current `.map()` over all filtered listings with a virtualized grid renderer. Requires calculating row heights based on card dimensions and window height. Model after HistoryTab's `useVirtualizer` implementation.
+  - **Why**: With hundreds of listings, rendering all cards simultaneously causes jank on scroll; virtual scrolling renders only visible cards.
 
-- [x] **Extract shared utility functions from components**
-  - **How**: In `DecryptModal.tsx` (line 148-154), `formatAda()` is defined inside the component and recreated on every render. Move to `fe/src/utils/formatAda.ts` and import. Similarly, extract `formatBytes` (already in utils — verify it's used everywhere instead of inline formatting).
-  - **Why**: Functions defined inside components are recreated on every render, defeating memoization of child components that receive them as props.
-
-- [x] **Backend cache periodic cleanup**
-  - **How**: In `be/src/services/cache.ts`, add a `cleanupExpired()` method that removes entries past their TTL. Call via `setInterval(cleanupExpired, 60_000)` in the app startup. Currently expired entries persist in memory until their key is accessed again.
-  - **Why**: Long-running backend instances accumulate stale cache entries. While they're overwritten on next fetch, the memory is held unnecessarily.
-
-- [x] **Lazy load heavy modal content**
-  - **How**: Use React `lazy()` + `Suspense` for SnarkProvingModal and SnarkDownloadModal (which import heavy SNARK-related code). These modals are rarely opened but their imports increase initial bundle size. Follow the pattern already used in LibraryContentModal for media viewers.
-  - **Why**: Reducing initial bundle size improves app startup time, especially on first launch when WebKitGTK is compiling JS.
+- [x] 🟡 **Tab data caching with stale-while-revalidate**
+  - **How**: In `Dashboard.tsx`, maintain a `Map<string, { data, timestamp }>` cache per tab. When switching tabs, immediately render cached data (if < 30s old) and refetch in the background. If refetch returns different data, update. This prevents skeleton flashing on every tab switch.
+  - **Why**: Tab switching currently triggers full data refetch showing skeletons; cached data provides instant tab switching.
 
 ---
 
-## 20. Backend API
+## 19. Backend API
 
-> Key files: `be/src/routes/`, `be/src/services/`, `be/src/middleware/`
+> Key files: `be/src/routes/protocol.ts`, `be/src/app.ts`, `be/src/services/kupo.ts`
 
-- [x] **Extract shared status enum validator middleware**
-  - **How**: In `be/src/middleware/validate.ts`, add `validateStatusParam(validStatuses: string[])` that returns 400 `INVALID_PARAM` for unknown statuses. Replace inline validation in `encryptions.ts` (line 164-171) and `bids.ts` (line 169-176) with the shared middleware.
-  - **Why**: Status validation is duplicated across routes with hardcoded strings. A shared validator prevents drift when new statuses are added.
+- [s] 🟡 **Protocol params bounds validation**
+  - **How**: In `be/src/routes/protocol.ts` (line ~155-184), after fetching params from Koios, validate key fields: `minFeeA > 0`, `minFeeB > 0`, `maxTxSize > 0 && maxTxSize <= 32768`, `maxValSize > 0`. If any field is out of bounds, log a warning and return the previous cached value (or hardcoded defaults). This prevents a compromised/buggy Koios from sending invalid params that break transaction building.
+  - **Why**: Protocol params are accepted as-is from Koios with no sanity checks; malformed values would cause all transaction building to fail.
 
-- [x] **Exact PKH matching instead of substring includes**
-  - **How**: In `be/src/routes/encryptions.ts` (line 136) and `be/src/routes/bids.ts` (line 101), change `.includes(pkh.toLowerCase())` to `=== pkh.toLowerCase()` for user lookups. The current substring match means PKH "abc" would match "abcdef...".
-  - **Why**: Substring matching is a correctness bug. A short PKH prefix could return other users' data. This is both a privacy and data integrity issue.
+- [x] 🟢 **Health endpoint returns 503 for unhealthy status**
+  - **How**: In `be/src/app.ts` (line ~28-63), change the `/health` endpoint to return HTTP 503 (not 200) when `status === 'unhealthy'`. The `/health/ready` endpoint already does this correctly; align `/health` to match.
+  - **Why**: Load balancers and monitoring tools expect non-200 status codes for unhealthy services; returning 200 with `"status": "unhealthy"` in the body misleads automated health checks.
 
-- [x] **Distinguish "not confirmed" vs "unable to check" in confirmations endpoint**
-  - **How**: In `be/src/routes/chain.ts` (lines 40-42), the `/confirmations/:txHash` endpoint returns `{ confirmations: 0 }` for both "tx exists but unconfirmed" and "Koios is unreachable". Return `{ confirmations: 0, status: 'pending' }` for unconfirmed and `{ error: { code: 'TIP_UNAVAILABLE', message: '...' } }` with 503 when Koios is down.
-  - **Why**: Frontend treats all zeros as "pending" and keeps polling. If Koios is down, it polls forever instead of showing "confirmation check unavailable."
+- [x] 🟢 **Deduplicate pagination response structure**
+  - **How**: In all paginated route handlers (`encryptions.ts`, `bids.ts`), remove the redundant `meta: { total }` field from responses. The `pagination: { total, limit, offset, hasMore }` field already contains the total count. Update frontend `api.ts` to read from `pagination` only.
+  - **Why**: Having `total` in both `meta` and `pagination` is confusing for consumers; single source of truth prevents inconsistency.
 
-- [x] **Failed datum parsing includes error context**
-  - **How**: In `be/src/services/encryptions.ts` (lines 140-142), log the actual error with context: `logger.warn('Datum parse failed', { txHash, txIndex, error: String(err), datumPreview: JSON.stringify(utxo.inline_datum).slice(0, 200) })` instead of just `txHash` and `txIndex`.
-  - **Why**: When a malformed datum is skipped, developers have no way to know what went wrong without the error details and a sample of the bad datum.
-
-- [x] **Kupo error wrapping with operation context**
-  - **How**: In `be/src/services/kupo.ts` (lines 119-125), wrap circuit breaker errors with the operation name: `catch (err) { throw new Error(\`Kupo ${path}: ${err.message}\`); }`. This helps distinguish "Kupo /matches failed" from "Kupo /datums failed" in logs.
-  - **Why**: All Kupo failures currently look the same in logs. Adding the path makes it clear which operation triggered the circuit breaker.
-
-- [x] **Levels endpoint pagination**
-  - **How**: In `be/src/routes/encryptions.ts`, the `GET /encryptions/:tokenName/levels` endpoint returns all levels without pagination. Apply the existing `paginate()` middleware with a generous default (limit=100). Return `{ data, pagination }` wrapper.
-  - **Why**: A token with many re-encryption hops could return an unbounded array, causing slow responses and high memory usage.
-
-- [x] **Health check includes circuit breaker state**
-  - **How**: In `be/src/services/health.ts`, add the circuit breaker's current state (CLOSED/OPEN/HALF_OPEN) and failure count to the health response for both Kupo and Koios: `{ kupo: { reachable, latencyMs, circuitBreaker: 'CLOSED' } }`.
-  - **Why**: Operators need to know if the circuit breaker is open (degraded mode) vs just slow (healthy but latent). Current health check doesn't expose this.
-
-- [x] **Chain tip response includes slot number**
-  - **How**: In `be/src/routes/chain.ts`, the `GET /tip` endpoint returns `block_no`, `epoch_no`, `block_time` but not `abs_slot`. Add `slot_no` from the Koios `/tip` response (which returns it). Frontend needs this for sync calculation.
-  - **Why**: Frontend calculates sync percentage using slot numbers. Without the tip slot in the API response, it makes a separate Tauri invoke for the same data.
-
-- [x] **Bid cache refresh query parameter**
-  - **How**: In `be/src/routes/bids.ts`, add `?refresh=true` query param support (already exists for encryptions, missing for bids). Set `skipCache = req.query.refresh === 'true'` to bust the cache on manual refresh.
-  - **Why**: After a bid is accepted, the cache still shows the old state until TTL expires. Frontend refresh button should force a fresh fetch.
+- [x] 🟢 **Include requestId in all error responses**
+  - **How**: In route-level 404 handlers (e.g., `GET /api/encryptions/:tokenName` when not found), ensure `requestId` from `req.requestId` (set by `requestLogger` middleware) is included in the error response object. Currently some 404 paths omit it while the global 404 handler in `app.ts` includes it.
+  - **Why**: Consistent requestId in all errors enables log correlation for debugging, even for "not found" responses.
 
 ---
 
-## 21. Rust Core & Security
+## 20. Rust Core & Security
 
-> Key files: `src-tauri/src/crypto/`, `src-tauri/src/commands/`, `src-tauri/src/process/`, `src-tauri/src/config.rs`
+> Key files: `src-tauri/src/commands/snark.rs`, `src-tauri/src/commands/iagon.rs`, `src-tauri/src/commands/media.rs`
 
-- [x] **Argon2id memory allocation fallback for low-memory systems**
-  - **How**: In `wallet.rs` (lines 26-34), `m=65536` (64 MiB) Argon2id can fail on low-memory systems. Wrap the KDF call in a retry: if the first attempt fails with memory error, try again with `m=32768` (32 MiB, still secure). Log a warning about reduced security params.
-  - **Why**: Users on older hardware or VMs with limited RAM get a cryptic error on wallet creation instead of a graceful fallback.
+- [x] 🟡 **Serialize SNARK prove calls**
+  - **How**: In `src-tauri/src/commands/snark.rs`, add a `tokio::sync::Mutex<()>` to the SNARK prove command's state (or use the existing NodeManager). Acquire the lock at the start of `snark_prove` and release on completion. This prevents two concurrent prove calls from reading/writing the same setup directory simultaneously.
+  - **Why**: Two concurrent prove calls could corrupt shared state; proving takes minutes so the risk window is significant.
 
-- [x] **Secrets KDF v2 strength parity with wallet KDF**
-  - **How**: In `secrets.rs` (lines 52-59), `derive_secrets_key_v2()` uses `m=32768, t=2, p=1` which is weaker than wallet KDF (`m=65536, t=3, p=4`). Increase to `m=65536, t=3, p=2` (parallelism 2 to keep it faster than wallet which uses 4). Profile to ensure < 500ms on typical hardware.
-  - **Why**: Secrets (seller keys, bid keys, Iagon API key) are equally sensitive as the wallet. Weaker KDF means an attacker with the secrets files has an easier brute-force target.
+- [x] 🟢 **Iagon API key length validation**
+  - **How**: In `src-tauri/src/commands/iagon.rs` `store_iagon_api_key` command, add a length check: `if api_key.len() > 1024 { return Err("API key too long".into()); }`. This prevents theoretical disk DoS from extremely long strings.
+  - **Why**: API key input is not length-validated; while unlikely, an extremely long string would waste disk space on the encrypted JSON.
 
-- [x] **SNARK setup directory existence validation before proving**
-  - **How**: In `snark.rs` (lines 66-75), before spawning the SNARK sidecar, verify the setup directory exists and contains `pk.bin` and `ccs.bin`: `if !setup_dir.join("pk.bin").exists() { return Err("SNARK setup files not found. Run setup first.".into()); }`.
-  - **Why**: Running the prover without setup files produces a cryptic sidecar error instead of a user-friendly message.
+- [x] 🟡 **Image cache cleanup policy**
+  - **How**: In `src-tauri/src/commands/media.rs`, add a periodic cleanup function (called from the existing hourly background task in `lib.rs`) that deletes cached images older than 30 days. Track image access time via file modification time. Also add a max cache size check (e.g., 500 MB) — if exceeded, delete oldest images until under limit.
+  - **Why**: Image cache grows unbounded with no cleanup; long-running instances accumulate significant disk usage.
 
-- [x] **Iagon typed error codes instead of string errors**
-  - **How**: In `iagon.rs` (lines 56-71), replace the generic string errors from `map_iagon_error()` with structured JSON: `{ "code": "AUTH_FAILED" | "TIMEOUT" | "UPLOAD_FAILED" | "SERVER_ERROR", "message": "..." }`. Frontend can then parse the code for specific handling (e.g., re-auth on AUTH_FAILED).
-  - **Why**: Frontend can't distinguish a timeout from an auth failure from a server error. All Iagon errors look the same to the user.
-
-- [x] **Config load failure warning log**
-  - **How**: In `config.rs` (lines 157-174), `AppConfig::load()` silently falls back to `Default::default()` when both config paths fail. Add `eprintln!("Warning: config.json not found at either path, using defaults")` and emit a Tauri event `config-warning` so the frontend can show a banner.
-  - **Why**: A missing or corrupted config file causes the app to run with default (likely wrong) contract addresses. Users see confusing errors instead of "config file missing."
-
-- [x] **Atomic secret file creation with pre-set permissions**
-  - **How**: In `secrets.rs` (line 31-32), secret files are written then have permissions set afterwards. Use `std::fs::OpenOptions::new().create(true).write(true).mode(0o600).open(path)?` to create the file with restricted permissions atomically, before writing any data.
-  - **Why**: If the process crashes between write and chmod, the secret file could briefly be world-readable. Atomic permission setting eliminates this race.
-
-- [x] **Seller secret input hex validation**
-  - **How**: In `secrets.rs`, `store_seller_secrets()` accepts `a` and `r` as strings without validating format. Add: `if a.len() > 128 || !a.chars().all(|c| c.is_ascii_hexdigit()) { return Err("Invalid hex for seller secret 'a'".into()); }`. Same for `r`.
-  - **Why**: Malformed secrets stored to disk will cause cryptic failures later during SNARK proving or re-encryption. Validation at storage time catches the issue early.
-
-- [x] **Wallet operation audit logging**
-  - **How**: In `commands/wallet.rs`, add audit log entries for: `WALLET_CREATED`, `WALLET_UNLOCKED`, `WALLET_LOCKED`, `WALLET_DELETED`, `MNEMONIC_REVEALED`. Use the existing `audit.rs` logging infrastructure. Include timestamps but never secret material.
-  - **Why**: Secrets operations are audited but wallet operations (the most security-sensitive) are not. An attacker who unlocks the wallet leaves no trace.
-
-- [x] **Skip empty env vars in config generation**
-  - **How**: In `config.rs` (lines 62-125), `to_env_vars()` adds all config values as env vars including empty strings. Add `if !value.is_empty()` guard before each push. Express currently handles empty values with `||` fallbacks, but passing empty strings can cause subtle bugs.
-  - **Why**: Empty env vars override Express defaults (which expect the var to be unset, not empty). `PORT="" || 3001` works, but `process.env.KUPO_URL || 'http://...'` would fail with empty string since `""` is falsy.
-
-- [x] **Periodic temp file cleanup during long-running sessions**
-  - **How**: In `lib.rs`, add a `tokio::spawn` task that runs every hour and scans the app temp directory for files older than 1 hour. Securely delete (overwrite + remove) any orphaned SNARK input files. Currently cleanup only happens on startup.
-  - **Why**: If a SNARK proving attempt fails mid-way, the temp file with secret material persists until the next app restart — which could be days.
+- [s] 🟢 **Secure delete SNARK temp files after use**
+  - **How**: In `src-tauri/src/commands/snark.rs`, after the SNARK sidecar process completes, call `secure_delete()` (from `crypto/secrets.rs`) on the temp secrets file before dropping the `NamedTempFile`. Currently the file is auto-deleted on drop but NOT overwritten with zeros first.
+  - **Why**: SNARK secrets (a, r, v, w0, w1 scalars) persist in the temp file until the hourly cleanup or app restart; secure deletion removes them immediately.
 
 ---
 
-## 22. Testing
+## 21. Testing
 
-> Key files: `fe/src/test/`, `be/src/services/__tests__/`, vitest configs
+> Key files: `fe/src/components/__tests__/`, `fe/src/services/__tests__/`, `be/src/services/__tests__/`
 
-- [x] **Page component integration tests**
-  - **How**: Create `fe/src/pages/__tests__/Dashboard.test.tsx`, `NodeSync.test.tsx`, `Settings.test.tsx`, `WalletSetup.test.tsx`, `WalletUnlock.test.tsx`. Mock all contexts (WalletContext, NodeContext, WasmContext) and Tauri invokes. Test: route guards, state transitions, error states, keyboard navigation. Use `@testing-library/react` + `renderWithProviders` helper.
-  - **Why**: Page components are the top-level integration points. Currently only helper functions are tested, not the pages themselves.
+- [x] 🟡 **Component tests: ConfirmModal, DescriptionModal**
+  - **How**: Create `fe/src/components/__tests__/ConfirmModal.test.tsx` testing: renders with title/message, calls onConfirm/onClose, shows danger variant styling, disables buttons during submission. Create `DescriptionModal.test.tsx` testing: renders full description text, handles empty description, closes on Escape.
+  - **Why**: ConfirmModal is used by every destructive action in the app; DescriptionModal is a frequently opened modal. Both have zero test coverage.
 
-- [x] **Tab component rendering tests**
-  - **How**: Create tests for `MarketplaceTab`, `MySalesTab`, `MyPurchasesTab`, `HistoryTab`, `LibraryTab`. Test: empty states, loading states, filter interactions, card rendering with mock data, error states. Mock API calls and Tauri invokes.
-  - **Why**: Tab components contain the core business logic (filtering, sorting, data display) with zero test coverage.
+- [x] 🟡 **Component tests: SnarkProvingModal, SnarkDownloadModal**
+  - **How**: Create test files testing: progress bar rendering, error state display, "Do not close" warning visibility, cancel button behavior. Mock `useSnarkProver` and `invoke` calls. Follow existing `DecryptModal.test.tsx` patterns for modal testing.
+  - **Why**: SNARK modals are long-running user-facing UIs with complex state machines; bugs here leave users stuck.
 
-- [x] **Untested component coverage: ErrorBoundary, SessionWarningBanner, ShutdownOverlay**
-  - **How**: Add `fe/src/components/__tests__/ErrorBoundary.test.tsx` — test that render errors are caught and recovery UI shown. `SessionWarningBanner.test.tsx` — test countdown display and dismiss. `ShutdownOverlay.test.tsx` — test Tauri event listener and overlay rendering.
-  - **Why**: These are safety-critical components (error recovery, session management, shutdown) that have no tests.
+- [x] 🟡 **Component tests: PdfViewer, ImageViewer, VideoPlayer**
+  - **How**: Create test files in `fe/src/components/__tests__/`. Mock `react-pdf`, Blob URL creation, and `<video>` element. Test: renders without crash, handles empty data, shows zoom controls, fullscreen toggle works. Use `@vitest-environment jsdom` pragma.
+  - **Why**: Media viewers have zero test coverage despite complex error paths (invalid data, unsupported formats, FFmpeg fallback).
 
-- [x] **Backend bids and encryptions service tests**
-  - **How**: Create `be/src/services/__tests__/bids.test.ts` and `be/src/services/__tests__/encryptions.test.ts`. Mock Kupo HTTP responses with various datum shapes (valid, malformed, missing fields). Test: datum parsing, CIP-20 metadata extraction, status filtering, pagination.
-  - **Why**: The core business logic for transforming raw blockchain data into display models is untested. A CBOR change could silently break bid/encryption parsing.
+- [x] 🟡 **Component tests: SalesListingCard, MyPurchaseBidCard, ListingImage, MnemonicInput**
+  - **How**: Create test files testing basic rendering, prop variations, and user interactions. SalesListingCard: renders title/price/status. MyPurchaseBidCard: renders bid amount/status. ListingImage: handles missing/cached/error images. MnemonicInput: validates word count, handles paste, Tab navigation.
+  - **Why**: These components are user-facing cards and inputs with zero coverage; rendering bugs would be visible immediately.
 
-- [x] **Stricter Tauri mock defaults**
-  - **How**: In `fe/src/test/__mocks__/tauri.ts`, change the default `invoke` mock from resolving to `undefined` to throwing: `vi.fn().mockRejectedValue(new Error('invoke() not mocked for this command'))`. Tests must explicitly mock each command they use.
-  - **Why**: Tests that forget to mock a Tauri command silently succeed with `undefined`, hiding real bugs. Strict mocks force explicit setup.
+- [x] 🟡 **Service tests: iagonApi.ts, iagonAuth.ts**
+  - **How**: Create `fe/src/services/__tests__/iagonApi.test.ts` and `iagonAuth.test.ts`. Mock `invoke` from `@tauri-apps/api/core`. Test: upload returns file ID, download returns bytes, auth flow (getNonce → verify → generateApiKey), error handling for network failures and invalid responses.
+  - **Why**: Iagon services are completely untested; they handle file upload/download/auth for all non-text listings. A broken wrapper silently blocks file marketplace features.
 
-- [x] **Verify invoke call arguments in tests**
-  - **How**: Add assertion patterns to existing tests: `expect(invoke).toHaveBeenCalledWith('store_seller_secrets', expect.objectContaining({ tokenName: 'abc', a: '...', r: '...' }))`. Priority: secrets storage, wallet operations, SNARK commands.
-  - **Why**: Many tests mock `invoke` return values but never verify the arguments passed. A renamed parameter would silently pass tests.
+- [x] 🟡 **Service tests: libraryService.ts, snark/index.ts, snark/prover.ts**
+  - **How**: Create test files mocking Tauri `invoke`. Test: libraryService list/read/delete operations, SNARK setup decompression progress events, prover invocation and result parsing. Follow `imageCache` test patterns for Tauri IPC mocking.
+  - **Why**: Library and SNARK services are untested Tauri IPC wrappers; invoke argument errors or response parsing bugs would be invisible until runtime.
 
-- [x] **Error path test coverage**
-  - **How**: For each test file, add at least one error-path test: `it('handles API failure gracefully', ...)`. Priority: transactionBuilder (invalid inputs, network errors), apiCache (fetch failure), walletManagement (insufficient UTxOs).
-  - **Why**: Most tests only cover happy paths. Error paths are where users actually encounter bugs.
+- [x] 🟢 **Hook test: useVisibility**
+  - **How**: Create `fe/src/hooks/__tests__/useVisibility.test.ts`. Test: returns true when document is visible, returns false when hidden, fires callback on visibility change. Mock `document.visibilityState` and `visibilitychange` event.
+  - **Why**: Only untested hook (10/11 tested); completes hook coverage.
 
-- [x] **Snapshot test staleness CI guard**
-  - **How**: Add a CI step: `npx vitest run 2>&1 | grep -q "Snapshots.*written" && echo "ERROR: Stale snapshots detected" && exit 1`. This fails CI if snapshots were regenerated (likely accidental), forcing explicit `--update-snapshots`.
-  - **Why**: Snapshots can become stale without anyone noticing. Accidental regeneration (e.g., `vitest -u`) silently updates wrong snapshots.
+- [x] 🟢 **Utility tests: contentType.ts, logClassification.ts, walletErrors.ts**
+  - **How**: Create test files in `fe/src/utils/`. contentType: test MIME type detection for various extensions. logClassification: test log line categorization (error, warning, info). walletErrors: test error message mapping patterns. Pure function tests — no mocking needed.
+  - **Why**: Three untested utilities; pure functions are the easiest to test and provide the highest confidence per line of test code.
 
----
+- [x] 🟡 **Backend: koios.ts service test**
+  - **How**: Create `be/src/services/__tests__/koios.test.ts`. Mock `fetch`. Test: circuit breaker integration (5 failures → open → 30s → half-open → probe), TTL cache stale fallback, fetchWithRetry exponential backoff. Test the interaction between all three resilience layers.
+  - **Why**: Koios combines three resilience patterns (circuit breaker + cache + retry) that are tested individually but never together; integration bugs could cause silent data staleness.
 
-## 23. Developer Experience & Tooling
+- [x] 🟢 **Backend: requestLogger middleware test**
+  - **How**: Create `be/src/middleware/__tests__/requestLogger.test.ts`. Test: assigns 8-char requestId, logs method/path/status/duration, handles errors gracefully. Mock the logger and verify call arguments.
+  - **Why**: RequestLogger middleware is untested; broken request ID generation or logging format would hinder debugging.
 
-> Key files: build scripts, package.json, configs
+- [x] 🟡 **Test data factories to reduce mock duplication**
+  - **How**: Create `fe/src/test/factories.ts` with factory functions: `createEncryption()`, `createBid()`, `createWalletState()`, `createNodeState()` that return valid mock objects with sensible defaults and optional overrides. Replace inline mock objects in test files (currently duplicated across 40+ files).
+  - **Why**: Duplicated mock setup across tests is fragile — changing a type requires updating mocks in 20+ files. Factories centralize mock construction.
 
-- [s] **Parallel test execution in test.sh**
-  - **How**: Change `test.sh` from sequential `npm --prefix fe test && npm --prefix be test` to parallel: `npm --prefix fe test & npm --prefix be test & wait`. Frontend (~20s) and backend (~15s) tests have no dependencies. Reduces total time from ~35s to ~20s.
-  - **Why**: Sequential test execution wastes time when both suites are independent.
-
-- [s] **Conditional npm install in build scripts**
-  - **How**: In `build.sh` and `build-debug.sh`, skip `npm install` if `node_modules/` is newer than `package-lock.json`. Add check: `if [ package-lock.json -nt node_modules/.package-lock.json ]; then npm ci; fi`. Same for fe/ and be/ directories.
-  - **Why**: Unconditional `npm install` on every build wastes 10-30 seconds when dependencies haven't changed.
-
-- [s] **Backend watch:test script for TDD**
-  - **How**: Add `"watch:test": "vitest --watch"` to `be/package.json` scripts. Frontend already has this via default vitest behavior. This enables fast feedback during test-driven development.
-  - **Why**: Backend developers must manually run `npm test` after each change. A watch mode gives instant feedback.
-
-- [s] **Root type-check script**
-  - **How**: Add `"type-check": "npm --prefix fe run type-check && npm --prefix be run type-check"` to root `package.json`. Add `"type-check": "tsc --noEmit"` to both fe and be package.json. This gives developers a quick type verification command.
-  - **Why**: Type checking is only available via `lint.sh` (which also runs ESLint and Cargo checks). A standalone type-check is faster for quick iteration.
-
-- [s] **Conditional Rust linting in lint.sh**
-  - **How**: In `lint.sh`, only run `cargo fmt --check` and `cargo clippy` if Rust files changed since last commit: `if git diff --name-only HEAD | grep -q "^app/gui/src-tauri/"; then cargo fmt --check && cargo clippy; fi`. Falls back to running always if not in a git context.
-  - **Why**: Cargo fmt + clippy takes 30-60s even with no changes. Skipping when only TS files changed saves significant time.
-
-- [x] **More specific WebKit process cleanup**
-  - **How**: In `run.sh`, the `pkill -u "$USER" -f 'WebKitNetworkProcess'` could kill unrelated WebKit processes. Change to: `lsof -ti:5173 2>/dev/null | xargs -r kill` (kill only processes holding the dev port), or pattern-match the Tauri app: `pgrep -f 'webkit.*veiled' | xargs -r kill`.
-  - **Why**: Users running other WebKit-based apps (GNOME Web, other Tauri apps) get those killed when starting Veiled.
-
-- [x] **Wait for initial TSC compilation before starting Tauri**
-  - **How**: In `run.sh`, after starting `tsc --watch` in background, add a wait: `until [ -f be/dist/index.js ]; do sleep 0.5; done` to ensure the backend is compiled before Tauri tries to spawn Express. Currently, race condition on fresh checkout.
-  - **Why**: If tsc watch hasn't finished its first compilation when Tauri starts, Express fails to launch because `dist/index.js` doesn't exist.
-
-- [x] **Node engine version constraint in package.json**
-  - **How**: Add `"engines": { "node": ">=20.0.0", "npm": ">=10.0.0" }` to fe/package.json and be/package.json. This causes `npm install` to warn if the Node version is incompatible.
-  - **Why**: Code uses Node 20+ features (e.g., `fetch` global). Developers on Node 18 get cryptic runtime errors instead of a clear version mismatch warning.
-
-- [x] **Remove dead tsconfig path alias**
-  - **How**: In `fe/tsconfig.app.json` (lines 24-26), the `@/*` path alias is configured but never used anywhere in the codebase (all imports are relative `../`). Remove it to avoid confusion.
-  - **Why**: Dead configuration misleads developers into thinking path aliases work, then their imports fail at runtime because Vite isn't configured to resolve them.
+- [x] 🟢 **Test timeout configuration**
+  - **How**: In `fe/vite.config.ts` test config, add `testTimeout: 30000` (30s default). For known slow tests (crypto operations), add `// vitest: { timeout: 60000 }` per-file pragma.
+  - **Why**: No test timeout is configured; long-running crypto tests could hang indefinitely without failing.
 
 ---
 
-## 24. Documentation & CI/CD
+## 22. Developer Experience & Tooling
 
-> Key files: `.github/workflows/ci.yml`, `CHANGELOG.md`
+> Key files: `build.sh`, `run.sh`, `check-prereqs.sh`
 
-- [s] **CI coverage threshold enforcement**
-  - **How**: In `.github/workflows/ci.yml`, add `--coverage.thresholdAutoUpdate=false` flag to vitest commands (or check exit code). Currently coverage is generated but thresholds aren't enforced — the job passes even if coverage drops below configured minimums.
-  - **Why**: Coverage thresholds (55% FE, 60% BE) exist in config but aren't gates. Coverage can regress silently.
+- [s] 🟡 **GitHub Actions CI/CD pipeline**
+  - **How**: Create `.github/workflows/ci.yml` with jobs: (1) `lint` — runs `bash lint.sh`, (2) `test-frontend` — `cd fe && npm ci && npm test`, (3) `test-backend` — `cd be && npm ci && npm run build && npm test`. Trigger on push to main and all PRs. Use `ubuntu-latest` with Node 20 and Rust stable. Skip `tauri build` in CI (requires sidecar binaries).
+  - **Why**: No CI pipeline exists; untested code can merge to main without any automated checks.
 
-- [x] **CI version consistency check**
-  - **How**: Add a CI step that verifies all version fields match: `V1=$(jq -r .version app/gui/package.json); V2=$(jq -r .version app/gui/fe/package.json); V3=$(jq -r .version app/gui/be/package.json); if [ "$V1" != "$V2" ] || [ "$V1" != "$V3" ]; then echo "Version mismatch!" && exit 1; fi`. Include `tauri.conf.json` and `Cargo.toml` versions too.
-  - **Why**: Five files must have matching version numbers. It's easy to update some but forget others during a version bump.
-
-- [s] **Upload coverage reports to tracking service**
-  - **How**: Add `- uses: codecov/codecov-action@v4` step after test jobs in CI. This uploads coverage to codecov.io, enabling trend tracking, PR annotations, and coverage delta reporting.
-  - **Why**: Coverage reports are generated but discarded. Without history tracking, it's impossible to know if a PR improves or degrades coverage.
-
-- [s] **PR template with testing checklist**
-  - **How**: Create `.github/PULL_REQUEST_TEMPLATE.md` with sections: Summary (1-3 bullets), Testing (checkbox list: ran tests, tested on Linux, checked linter), Breaking Changes (yes/no), Version Bump (yes/no with checklist of 5 files).
-  - **Why**: PRs lack consistent format. Reviewers must ask the same questions every time. A template standardizes expectations.
-
-- [x] **CI backend build step before tests**
-  - **How**: In `.github/workflows/ci.yml`, add `npm --prefix be run build` step after `npm run install:all` and before running tests. This catches backend TypeScript compilation errors that unit tests alone might miss.
-  - **Why**: Backend `tsc` compilation errors don't fail the unit test job because tests use their own tsconfig. A separate build step catches type errors.
-
-- [s] **CI npm cache for all lockfiles**
-  - **How**: Update the `cache-dependency-path` in CI to include all lockfiles: `cache-dependency-path: | app/gui/package-lock.json app/gui/fe/package-lock.json app/gui/be/package-lock.json`. This ensures cache hits when any sub-project's deps change.
-  - **Why**: Current CI only caches based on root lockfile. Changes to fe/ or be/ deps bust the cache unnecessarily.
+- [x] 🟢 **Backend .env.example file**
+  - **How**: Create `be/.env.example` with documented environment variables: `USE_STUBS=false`, `LOG_LEVEL=info`, `PORT=3001`, `NETWORK=preprod`. Include comments explaining each variable and when to change them (e.g., `# Set USE_STUBS=true to develop without running cardano-node`).
+  - **Why**: New developers don't know about stub mode or configurable options; `.env.example` is the standard way to document environment variables.
 
 ---
 
 ## Priority Guide
 
 ### Must-Have (blocks production readiness)
-- Exact PKH matching instead of substring includes (#20) — correctness/privacy bug
-- Distinguish "not confirmed" vs "unable to check" in confirmations (#20) — UX correctness
-- Delete wallet focus trap and modal stack (#2) — accessibility on destructive action
-- SNARK setup directory validation before proving (#21) — prevents cryptic errors
-- Atomic secret file permissions (#21) — security race condition
-- Seller secret hex validation (#21) — data integrity
+- GitHub Actions CI/CD pipeline (§22)
+- Kupo-specific error codes for frontend messaging (§17)
+- Health endpoint returns 503 for unhealthy status (§19)
+- Serialize SNARK prove calls (§20)
 
 ### Should-Have (significant UX/reliability improvement)
-- Real-time field validation in CreateListingModal (#10) — reduces form friction
-- Balance unavailable indicator (#4) — prevents user panic
-- DecryptModal save failure toast (#18) — prevents silent data loss
-- Group transactions by date (#8) — major UX improvement for History tab
-- Tab component rendering tests (#22) — covers core untested business logic
-- Iagon typed error codes (#21) — enables specific error handling
-- Backend bids/encryptions service tests (#22) — covers untested critical paths
-- CI coverage threshold enforcement (#24) — prevents coverage regression
+- Protocol params cache with fallback (§17)
+- Replace network switch alert() with toast (§12)
+- Image cache cleanup policy (§20)
+- Contextual help tooltips for domain concepts (§1)
+- Service tests: iagonApi, iagonAuth (§21)
+- Component tests: PdfViewer, ImageViewer, VideoPlayer (§21)
 
 ### Nice-to-Have (polish and delight)
-- WCAG AA color contrast fixes (#15) — accessibility polish
-- Bid count badge pulse animation (#16) — engagement micro-interaction
-- Smooth tab transitions (#4) — visual polish
-- Undo after library deletion (#9) — safety net
-- Audio elapsed/remaining toggle (#12) — media player polish
-- Video keyboard shortcuts (#12) — media player completeness
-- Scrollbar styling for dark theme (#15) — visual coherence
-- Settings export/import (#13) — power user feature
+- Character counter on description field (§9)
+- Auto-focus first input on modal open (§9)
+- Eye icon for password toggle (§2)
+- Settings section visual hierarchy (§12)
+- Virtual scrolling for Marketplace tab (§18)
+- Tab data caching with stale-while-revalidate (§18)
+
+### Craft (the details that make users say "this is well built")
+- Focus indicators on all interactive elements (§16)
+- Transaction success celebration animation (§15)
+- Favorite toggle micro-animation (§5)
+- Toast stagger animation (§13)
+- Loading delay masking for spinners (§13)
+- Standardize transition durations to design tokens (§15)
 
 ### Infrastructure (developer productivity)
-- Parallel test execution (#23) — faster CI and local dev
-- Conditional npm install in build scripts (#23) — faster builds
-- CI version consistency check (#24) — prevents release mistakes
-- Stricter Tauri mock defaults (#22) — catches test bugs
-- Wait for TSC compilation in run.sh (#23) — fixes race condition
-- Node engine constraints (#23) — catches version mismatches early
+- Test data factories (§21)
+- Backend .env.example (§22)
+- koios.ts service test (§21)
+- Shared formatDate() utility (§14)

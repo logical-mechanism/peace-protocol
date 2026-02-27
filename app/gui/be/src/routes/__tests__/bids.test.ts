@@ -37,9 +37,13 @@ vi.mock('../../services/encryptions.js', () => ({
   getEncryptionLevels: vi.fn(),
 }));
 
-vi.mock('../../services/kupo.js', () => ({
-  getKupoClient: vi.fn(() => ({ getAddressUtxos: vi.fn() })),
-}));
+vi.mock('../../services/kupo.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/kupo.js')>();
+  return {
+    ...actual,
+    getKupoClient: vi.fn(() => ({ getAddressUtxos: vi.fn() })),
+  };
+});
 
 vi.mock('../../services/koios.js', () => ({
   getKoiosClient: vi.fn(() => ({
@@ -56,6 +60,7 @@ import {
   getBidsByEncryption,
   getBidsByStatus,
 } from '../../services/bids.js';
+import { KupoUnavailableError } from '../../services/kupo.js';
 import { config } from '../../config/index.js';
 
 const app = createApp();
@@ -66,7 +71,7 @@ beforeEach(() => {
 });
 
 describe('GET /api/bids', () => {
-  it('returns bid list with meta', async () => {
+  it('returns bid list with pagination', async () => {
     (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [{ tokenName: 'b1' }],
       warnings: {},
@@ -76,7 +81,7 @@ describe('GET /api/bids', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.meta.total).toBe(1);
+    expect(res.body.pagination.total).toBe(1);
   });
 
   it('returns 500 on service error', async () => {
@@ -84,6 +89,18 @@ describe('GET /api/bids', () => {
 
     const res = await request(app).get('/api/bids');
     expect(res.status).toBe(500);
+  });
+
+  it('returns 503 with KUPO_UNAVAILABLE when Kupo is unreachable', async () => {
+    (getAllBids as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new KupoUnavailableError('Kupo /matches: ECONNREFUSED')
+    );
+
+    const res = await request(app).get('/api/bids');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('KUPO_UNAVAILABLE');
+    expect(res.body.error.message).toBe('UTxO indexer is not reachable');
   });
 
   it('returns stub data when useStubs is true', async () => {
@@ -152,6 +169,7 @@ describe('GET /api/bids/:tokenName', () => {
 
     const res = await request(app).get('/api/bids/aabb');
     expect(res.status).toBe(404);
+    expect(res.body.error.requestId).toBeDefined();
   });
 
   it('passes refresh=true to skip cache', async () => {
@@ -177,7 +195,7 @@ describe('GET /api/bids/user/:pkh', () => {
 
     const res = await request(app).get(`/api/bids/user/${validPkh}`);
     expect(res.status).toBe(200);
-    expect(res.body.meta.total).toBe(0);
+    expect(res.body.pagination.total).toBe(0);
   });
 });
 

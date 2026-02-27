@@ -34,6 +34,7 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../../services/encryptions.js';
+import { KupoUnavailableError } from '../../services/kupo.js';
 import { config } from '../../config/index.js';
 
 const app = createApp();
@@ -45,7 +46,7 @@ beforeEach(() => {
 });
 
 describe('GET /api/encryptions', () => {
-  it('returns encryption list with meta', async () => {
+  it('returns encryption list with pagination', async () => {
     (getAllEncryptions as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [{ tokenName: 'enc1' }, { tokenName: 'enc2' }],
       warnings: {},
@@ -55,7 +56,7 @@ describe('GET /api/encryptions', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.meta.total).toBe(2);
+    expect(res.body.pagination.total).toBe(2);
   });
 
   it('returns 500 on service error', async () => {
@@ -65,6 +66,18 @@ describe('GET /api/encryptions', () => {
 
     expect(res.status).toBe(500);
     expect(res.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('returns 503 with KUPO_UNAVAILABLE when Kupo is unreachable', async () => {
+    (getAllEncryptions as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new KupoUnavailableError('Kupo /matches: ECONNREFUSED')
+    );
+
+    const res = await request(app).get('/api/encryptions');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('KUPO_UNAVAILABLE');
+    expect(res.body.error.message).toBe('UTxO indexer is not reachable');
   });
 
   it('returns stub data when useStubs is true', async () => {
@@ -127,6 +140,7 @@ describe('GET /api/encryptions/:tokenName', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+    expect(res.body.error.requestId).toBeDefined();
   });
 
   it('returns 500 on service error', async () => {
@@ -151,7 +165,7 @@ describe('GET /api/encryptions/user/:pkh', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.meta.total).toBe(1);
+    expect(res.body.pagination.total).toBe(1);
   });
 
   it('returns 500 on service error', async () => {
@@ -215,7 +229,7 @@ describe('GET /api/encryptions/:tokenName/levels', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.meta.total).toBe(1);
+    expect(res.body.pagination.total).toBe(1);
     expect(res.body.pagination).toBeDefined();
     expect(res.body.pagination.total).toBe(1);
     expect(res.body.pagination.hasMore).toBe(false);
@@ -229,7 +243,7 @@ describe('GET /api/encryptions/:tokenName/levels', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.meta.total).toBe(5);
+    expect(res.body.pagination.total).toBe(5);
     expect(res.body.pagination.total).toBe(5);
     expect(res.body.pagination.limit).toBe(2);
     expect(res.body.pagination.offset).toBe(1);

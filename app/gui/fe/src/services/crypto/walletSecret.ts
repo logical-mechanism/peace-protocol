@@ -99,10 +99,10 @@ export async function deriveSecretFromWallet(wallet: IWallet): Promise<bigint> {
   } catch (error) {
     if (error instanceof Error) {
       if (error.message.includes('User') || error.message.includes('reject')) {
-        throw new Error('Signature rejected by user');
+        throw new Error('Signature rejected by user', { cause: error });
       }
     }
-    throw new Error(`Failed to derive secret from wallet: ${error}`);
+    throw new Error(`Failed to derive secret from wallet: ${error}`, { cause: error });
   }
 }
 

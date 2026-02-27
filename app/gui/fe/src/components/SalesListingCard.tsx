@@ -104,7 +104,7 @@ function SalesListingCard({
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-150">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
           <div className="flex items-center justify-between gap-4">
             {/* Left: Token info */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -129,7 +129,7 @@ function SalesListingCard({
                 </div>
                 {encryption.description && (
                   <p
-                    className="text-sm text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
                     onClick={() => setDescriptionModalOpen(true)}
                   >
                     {truncateDescription(encryption.description)}
@@ -224,7 +224,7 @@ function SalesListingCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
@@ -264,7 +264,7 @@ function SalesListingCard({
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm text-[var(--text-secondary)] line-clamp-1"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
               title={encryption.description}
             >
               {truncateDescription(encryption.description)}
@@ -292,7 +292,7 @@ function SalesListingCard({
         {/* Bids Info (for active listings) */}
         {isActive && (
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-            <span className="text-xs text-[var(--text-muted)]">Active Bids</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">Active Bids</span>
             <span
               className={`text-sm font-medium ${
                 bidCount > 0 ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'

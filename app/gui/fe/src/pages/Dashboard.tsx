@@ -80,9 +80,14 @@ export default function Dashboard() {
   const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([getLastActiveTab()]))
   const setActiveTab = useCallback((tab: TabId) => {
     setActiveTabRaw(tab)
     setLastActiveTab(tab)
+    setVisitedTabs(prev => {
+      if (prev.has(tab)) return prev
+      return new Set(prev).add(tab)
+    })
   }, [])
   const tabListRef = useRef<HTMLDivElement>(null)
   const handleTabKeyDown = useCallback((e: ReactKeyboardEvent) => {
@@ -604,7 +609,7 @@ export default function Dashboard() {
     })
   }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
-  const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
+  const handleAcceptBid = useCallback((encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
     if (!wasmReady) {
       toast.warning(
@@ -623,30 +628,40 @@ export default function Dashboard() {
       return
     }
 
-    try {
-      // Step 1: Prepare SNARK inputs (computes V, W0, W1 for the circuit)
-      toast.info('Preparing', 'Computing SNARK proof inputs...')
-      const { inputs, a0, r0, hk } = await prepareSnarkInputs(bid)
+    const label = encryption.tokenName.slice(0, 16) + '...'
+    const bidAda = (bid.amount / 1_000_000).toFixed(1)
+    setConfirmAction({
+      title: 'Accept Bid?',
+      message: `Accept bid of ${bidAda} ADA on "${label}"? The buyer will receive the decryption key and your listing will close. This cannot be undone.`,
+      description: encryption.description,
+      confirmLabel: 'Accept Bid',
+      onConfirm: async () => {
+        try {
+          // Step 1: Prepare SNARK inputs (computes V, W0, W1 for the circuit)
+          toast.info('Preparing', 'Computing SNARK proof inputs...')
+          const { inputs, a0, r0, hk } = await prepareSnarkInputs(bid)
 
-      // Store state for after proof generation
-      setAcceptBidEncryption(encryption)
-      setAcceptBidBid(bid)
-      setAcceptBidA0(a0)
-      setAcceptBidR0(r0)
-      setAcceptBidHk(hk)
-      setSnarkInputs(inputs)
+          // Store state for after proof generation
+          setAcceptBidEncryption(encryption)
+          setAcceptBidBid(bid)
+          setAcceptBidA0(a0)
+          setAcceptBidR0(r0)
+          setAcceptBidHk(hk)
+          setSnarkInputs(inputs)
 
-      // Step 2: Open SNARK proving modal
-      setShowSnarkModal(true)
-    } catch (error) {
-      console.error('Failed to prepare SNARK inputs:', error)
-      toast.error(
-        'Failed to Prepare Proof',
-        error instanceof Error ? error.message : 'Unknown error occurred',
-        0,
-        { label: 'Retry', onClick: () => handleAcceptBid(encryption, bid) }
-      )
-    }
+          // Step 2: Open SNARK proving modal
+          setShowSnarkModal(true)
+        } catch (error) {
+          console.error('Failed to prepare SNARK inputs:', error)
+          toast.error(
+            'Failed to Prepare Proof',
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleAcceptBid(encryption, bid) }
+          )
+        }
+      },
+    })
   }, [toast, wasmReady, wasmLoading, navigate, wallet])
 
   // Called when the SNARK proof is generated (from SnarkProvingModal)
@@ -1081,75 +1096,8 @@ export default function Dashboard() {
 
   const handleOpenCreateListing = useCallback(() => setShowCreateListing(true), [])
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'marketplace':
-        return (
-          <MarketplaceTab
-            refreshSignal={refreshSignal}
-            userPkh={userPkh}
-            lovelace={lovelace}
-            onPlaceBid={handlePlaceBid}
-            onCreateListing={handleOpenCreateListing}
-            filters={marketplaceFilters}
-            dispatch={marketplaceDispatch}
-          />
-        )
-      case 'my-sales':
-        return (
-          <MySalesTab
-            refreshSignal={refreshSignal}
-            userPkh={userPkh}
-            onRemoveListing={handleRemoveListing}
-            onAcceptBid={handleAcceptBid}
-            onCancelPending={handleCancelPending}
-            onCompleteSale={handleCompleteSale}
-            onCreateListing={handleOpenCreateListing}
-            onBidsViewed={bidNotifications.markListingSeen}
-            filters={mySalesFilters}
-            dispatch={mySalesDispatch}
-          />
-        )
-      case 'my-purchases':
-        return (
-          <MyPurchasesTab
-            refreshSignal={refreshSignal}
-            userPkh={userPkh}
-            onCancelBid={handleCancelBid}
-            onDecrypt={handleDecrypt}
-            onDecryptEncryption={handleDecryptEncryption}
-            onSwitchTab={setActiveTab}
-            filters={myPurchasesFilters}
-            dispatch={myPurchasesDispatch}
-            failedDecryptTokens={failedDecryptTokens}
-          />
-        )
-      case 'history':
-        return (
-          <HistoryTab
-            historySignal={historySignal}
-            userPkh={userPkh}
-            transactions={txHistory}
-            onClearHistory={triggerHistoryRefresh}
-            onHistoryUpdated={setTxHistory}
-            onRetryListing={handleRetryListing}
-            filters={historyFilters}
-            dispatch={historyDispatch}
-          />
-        )
-      case 'library':
-        return (
-          <LibraryTab
-            refreshSignal={refreshSignal}
-            onSwitchTab={setActiveTab}
-            filters={libraryFilters}
-            dispatch={libraryDispatch}
-          />
-        )
-      default:
-        return null
-    }
-  }
+  const tabPanelClass = (tabId: TabId) =>
+    activeTab !== tabId ? 'hidden' : undefined
 
   return (
     <div className="min-h-screen">
@@ -1394,7 +1342,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <button
             onClick={() => setActiveTab('my-sales')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-sales'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1412,7 +1360,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('my-purchases')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-purchases'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1425,7 +1373,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('library')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'library'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1438,7 +1386,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'history'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1465,7 +1413,7 @@ export default function Dashboard() {
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 title={`${tab.label} (Ctrl+${index + 1})`}
-                className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
+                className={`pb-3 transition-all duration-[var(--transition-fast)] cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -1498,7 +1446,7 @@ export default function Dashboard() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               title="Refresh data (Ctrl+R)"
               aria-label="Refresh data"
             >
@@ -1520,20 +1468,128 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div
-          key={activeTab}
-          id={`tabpanel-${activeTab}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${activeTab}`}
-          aria-busy={isRefreshing}
-          tabIndex={0}
-          className="tab-transition"
-        >
-          <Suspense fallback={<SkeletonGrid />}>
-            {renderTabContent()}
-          </Suspense>
-        </div>
+        {/* Tab Content — tabs stay mounted once visited for instant switching */}
+        {visitedTabs.has('marketplace') && (
+          <div
+            id="tabpanel-marketplace"
+            role="tabpanel"
+            aria-labelledby="tab-marketplace"
+            aria-hidden={activeTab !== 'marketplace'}
+            aria-busy={activeTab === 'marketplace' && isRefreshing}
+            tabIndex={activeTab === 'marketplace' ? 0 : -1}
+            className={tabPanelClass('marketplace')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <MarketplaceTab
+                refreshSignal={refreshSignal}
+                userPkh={userPkh}
+                lovelace={lovelace}
+                onPlaceBid={handlePlaceBid}
+                onCreateListing={handleOpenCreateListing}
+                filters={marketplaceFilters}
+                dispatch={marketplaceDispatch}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('my-sales') && (
+          <div
+            id="tabpanel-my-sales"
+            role="tabpanel"
+            aria-labelledby="tab-my-sales"
+            aria-hidden={activeTab !== 'my-sales'}
+            aria-busy={activeTab === 'my-sales' && isRefreshing}
+            tabIndex={activeTab === 'my-sales' ? 0 : -1}
+            className={tabPanelClass('my-sales')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <MySalesTab
+                refreshSignal={refreshSignal}
+                userPkh={userPkh}
+                onRemoveListing={handleRemoveListing}
+                onAcceptBid={handleAcceptBid}
+                onCancelPending={handleCancelPending}
+                onCompleteSale={handleCompleteSale}
+                onCreateListing={handleOpenCreateListing}
+                onBidsViewed={bidNotifications.markListingSeen}
+                filters={mySalesFilters}
+                dispatch={mySalesDispatch}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('my-purchases') && (
+          <div
+            id="tabpanel-my-purchases"
+            role="tabpanel"
+            aria-labelledby="tab-my-purchases"
+            aria-hidden={activeTab !== 'my-purchases'}
+            aria-busy={activeTab === 'my-purchases' && isRefreshing}
+            tabIndex={activeTab === 'my-purchases' ? 0 : -1}
+            className={tabPanelClass('my-purchases')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <MyPurchasesTab
+                refreshSignal={refreshSignal}
+                userPkh={userPkh}
+                onCancelBid={handleCancelBid}
+                onDecrypt={handleDecrypt}
+                onDecryptEncryption={handleDecryptEncryption}
+                onSwitchTab={setActiveTab}
+                filters={myPurchasesFilters}
+                dispatch={myPurchasesDispatch}
+                failedDecryptTokens={failedDecryptTokens}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('history') && (
+          <div
+            id="tabpanel-history"
+            role="tabpanel"
+            aria-labelledby="tab-history"
+            aria-hidden={activeTab !== 'history'}
+            aria-busy={activeTab === 'history' && isRefreshing}
+            tabIndex={activeTab === 'history' ? 0 : -1}
+            className={tabPanelClass('history')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <HistoryTab
+                historySignal={historySignal}
+                userPkh={userPkh}
+                transactions={txHistory}
+                onClearHistory={triggerHistoryRefresh}
+                onHistoryUpdated={setTxHistory}
+                onRetryListing={handleRetryListing}
+                filters={historyFilters}
+                dispatch={historyDispatch}
+              />
+            </Suspense>
+          </div>
+        )}
+        {visitedTabs.has('library') && (
+          <div
+            id="tabpanel-library"
+            role="tabpanel"
+            aria-labelledby="tab-library"
+            aria-hidden={activeTab !== 'library'}
+            aria-busy={activeTab === 'library' && isRefreshing}
+            tabIndex={activeTab === 'library' ? 0 : -1}
+            className={tabPanelClass('library')}
+          >
+            <Suspense fallback={<SkeletonGrid />}>
+              <LibraryTab
+                refreshSignal={refreshSignal}
+                onSwitchTab={setActiveTab}
+                filters={libraryFilters}
+                dispatch={libraryDispatch}
+                onBulkDeleteResult={(message, hadErrors) =>
+                  hadErrors ? toast.warning('Bulk Delete', message) : toast.success('Bulk Delete', message)
+                }
+              />
+            </Suspense>
+          </div>
+        )}
       </main>
 
       {/* Scroll to Top Button */}

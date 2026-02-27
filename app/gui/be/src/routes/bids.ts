@@ -11,6 +11,7 @@ import {
   getBidsByEncryption,
   getBidsByStatus,
 } from '../services/bids.js';
+import { KupoUnavailableError } from '../services/kupo.js';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (config.useStubs) {
       const { data, pagination } = paginate(STUB_BIDS, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: STUB_BIDS.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
@@ -36,11 +37,16 @@ router.get('/', async (req: Request, res: Response) => {
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching bids', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching bids', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids', requestId: req.requestId },
@@ -61,7 +67,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       const bid = STUB_BIDS.find(b => b.tokenName === tokenName);
       if (!bid) {
         return res.status(404).json({
-          error: { code: 'NOT_FOUND', message: 'Bid not found' },
+          error: { code: 'NOT_FOUND', message: 'Bid not found', requestId: req.requestId },
         });
       }
       res.set('Cache-Control', CACHE_DATA);
@@ -71,7 +77,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
     const result = await getBidByToken(tokenName, skipCache);
     if (!result.data) {
       return res.status(404).json({
-        error: { code: 'NOT_FOUND', message: 'Bid not found' },
+        error: { code: 'NOT_FOUND', message: 'Bid not found', requestId: req.requestId },
       });
     }
     res.set('Cache-Control', CACHE_DATA);
@@ -80,6 +86,12 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching bid', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching bid', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bid', requestId: req.requestId },
@@ -104,7 +116,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       );
       const { data, pagination } = paginate(userBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: userBids.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getBidsByUser(pkh, skipCache);
@@ -112,11 +124,16 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching user bids', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching user bids', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user bids', requestId: req.requestId },
@@ -141,7 +158,7 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
       );
       const { data, pagination } = paginate(encryptionBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: encryptionBids.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getBidsByEncryption(encryptionToken, skipCache);
@@ -149,11 +166,16 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryption bids', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryption bids', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption bids', requestId: req.requestId },
@@ -176,7 +198,7 @@ router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejec
       const filteredBids = STUB_BIDS.filter(b => b.status === status);
       const { data, pagination } = paginate(filteredBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: filteredBids.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getBidsByStatus(
@@ -187,11 +209,16 @@ router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejec
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching bids by status', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching bids by status', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids by status', requestId: req.requestId },

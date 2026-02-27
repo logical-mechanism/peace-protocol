@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN = 0.25;
@@ -140,7 +140,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     );
   }
 
-  const btnClass = "px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+  const btnClass = "px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
 
   const imageTransform = `scale(${scale}) translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scaleX(${flippedH ? -1 : 1})`;
 
@@ -318,7 +318,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     : 'default';
 
   const zoomIndicator = showZoomIndicator ? (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/70 text-white text-sm font-mono rounded-full pointer-events-none transition-opacity duration-300 z-10">
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/70 text-white text-sm font-mono rounded-full pointer-events-none transition-opacity duration-[var(--transition-slow)] z-10">
       {Math.round(scale * 100)}%
     </div>
   ) : null;
@@ -373,7 +373,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         {zoomIndicator}
         {loading && blobUrl && (
           <div className="py-12 text-center">
-            <LoadingSpinner size="lg" className="mx-auto mb-4" />
+            <DelayedSpinner size="lg" className="mx-auto mb-4" />
             <p className="text-sm text-[var(--text-muted)]">Loading image...</p>
           </div>
         )}

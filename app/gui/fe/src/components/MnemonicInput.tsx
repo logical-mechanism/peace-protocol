@@ -105,7 +105,7 @@ export default function MnemonicInput({
   return (
     <div className="relative">
       <div
-        className="flex items-center gap-2 rounded-lg"
+        className="flex items-center gap-2 rounded-lg focus-within:ring-2 focus-within:ring-[var(--accent)]"
         style={{
           background: 'var(--bg-secondary)',
           border: `1px solid ${

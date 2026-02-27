@@ -11,6 +11,7 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../services/encryptions.js';
+import { KupoUnavailableError } from '../services/kupo.js';
 import type { EncryptionLevel } from '../types/index.js';
 
 const router = Router();
@@ -28,7 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (config.useStubs) {
       const { data, pagination } = paginate(STUB_ENCRYPTIONS, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: STUB_ENCRYPTIONS.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
@@ -37,11 +38,16 @@ router.get('/', async (req: Request, res: Response) => {
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryptions', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions', requestId: req.requestId },
@@ -63,14 +69,20 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
       // Stub: return empty levels (stub decryption doesn't use real levels)
       const { data, pagination } = paginate([] as EncryptionLevel[], paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: 0 }, pagination });
+      return res.json({ data, pagination });
     }
 
     const levels = await getEncryptionLevels(tokenName);
     const { data, pagination } = paginate(levels, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
-    return res.json({ data, meta: { total: levels.length }, pagination });
+    return res.json({ data, pagination });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryption levels', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels', requestId: req.requestId },
@@ -90,7 +102,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       const encryption = STUB_ENCRYPTIONS.find(e => e.tokenName === tokenName);
       if (!encryption) {
         return res.status(404).json({
-          error: { code: 'NOT_FOUND', message: 'Encryption not found' },
+          error: { code: 'NOT_FOUND', message: 'Encryption not found', requestId: req.requestId },
         });
       }
       res.set('Cache-Control', CACHE_DATA);
@@ -100,7 +112,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
     const result = await getEncryptionByToken(tokenName);
     if (!result.data) {
       return res.status(404).json({
-        error: { code: 'NOT_FOUND', message: 'Encryption not found' },
+        error: { code: 'NOT_FOUND', message: 'Encryption not found', requestId: req.requestId },
       });
     }
     res.set('Cache-Control', CACHE_DATA);
@@ -109,6 +121,12 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryption', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryption', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption', requestId: req.requestId },
@@ -132,7 +150,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       );
       const { data, pagination } = paginate(userEncryptions, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: userEncryptions.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getEncryptionsByUser(pkh);
@@ -140,11 +158,16 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching user encryptions', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching user encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user encryptions', requestId: req.requestId },
@@ -168,7 +191,7 @@ router.get('/status/:status', validateStatusParam(['active', 'pending', 'complet
       );
       const { data, pagination } = paginate(filteredEncryptions, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: filteredEncryptions.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getEncryptionsByStatus(
@@ -178,11 +201,16 @@ router.get('/status/:status', validateStatusParam(['active', 'pending', 'complet
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryptions by status', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryptions by status', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions by status', requestId: req.requestId },

@@ -51,8 +51,10 @@ function MySalesTab({
   const [selectedListing, setSelectedListing] = useState<EncryptionDisplay | null>(null);
   const [bidsModalOpen, setBidsModalOpen] = useState(false);
 
+  const hasDataRef = useRef(false);
+
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    if (!hasDataRef.current) setLoading(true);
     setError(null);
     try {
       // Fetch all encryptions and filter by owner PKH from datum
@@ -62,6 +64,7 @@ function MySalesTab({
         : [];
       setEncryptions(userEncryptions);
       setPrevDataCount(userEncryptions.length);
+      hasDataRef.current = true;
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch((err) => {
@@ -91,19 +94,10 @@ function MySalesTab({
     }
   }, [userPkh]);
 
+  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
-
-  // Re-fetch when Dashboard signals a refresh (e.g. after a transaction)
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    fetchData();
-  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSignal, fetchData]);
 
   // Pre-compute pending bid counts per listing and aggregate totals in a single pass
   const bidStats = useMemo(() => {
@@ -386,7 +380,7 @@ function MySalesTab({
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search sales"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
+            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
           />
         </div>
 
@@ -423,7 +417,7 @@ function MySalesTab({
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -443,7 +437,7 @@ function MySalesTab({
             </button>
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'

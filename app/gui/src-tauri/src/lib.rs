@@ -6,7 +6,7 @@ mod process;
 use commands::media::{ContentDir, MediaDir};
 use commands::node::AppDataDir;
 use commands::secrets::SecretsDir;
-use commands::snark::AppTmpDir;
+use commands::snark::{AppTmpDir, SnarkLock};
 use commands::wallet::WalletState;
 use config::AppConfig;
 use crypto::audit::AuditLog;
@@ -127,13 +127,24 @@ pub fn run() {
                 .expect("Failed to set temp directory permissions");
             app.manage(AppTmpDir(app_tmp_dir.clone()));
 
-            // Periodic cleanup: securely delete orphaned SNARK temp files older than 1 hour.
-            // This prevents secret material from persisting if a SNARK proving attempt
-            // fails mid-way and the temp file is not cleaned up until next app restart.
+            // SNARK serialization lock — prevents concurrent sidecar invocations
+            app.manage(SnarkLock(tokio::sync::Mutex::new(())));
+
+            // Pre-compute media images path for background cleanup task
+            let media_images_cleanup_dir = app_data_dir.join("media").join("images");
+
+            // Periodic cleanup (runs every hour):
+            // 1. Securely delete orphaned SNARK temp files older than 1 hour
+            // 2. Evict cached images older than 30 days or exceeding 500 MB total
             tauri::async_runtime::spawn(async move {
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                     cleanup_old_temp_files(&app_tmp_dir);
+                    commands::media::cleanup_image_cache(
+                        &media_images_cleanup_dir,
+                        2_592_000,   // 30 days in seconds
+                        524_288_000, // 500 MB in bytes
+                    );
                 }
             });
 

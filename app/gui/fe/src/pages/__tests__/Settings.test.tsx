@@ -42,6 +42,7 @@ vi.mock('../../contexts/NodeContext', () => ({
       { name: 'ogmios', status: 'running', pid: 1235 },
       { name: 'kupo', status: 'running', pid: 1236 },
     ],
+    stopNode: vi.fn(),
   }),
 }));
 

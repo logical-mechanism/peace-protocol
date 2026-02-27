@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import { downloadImage, getCachedImage, banImage, unbanImage } from '../services/imageCache';
 
 type ImageState = 'no-link' | 'default' | 'loading' | 'loaded' | 'banned';
@@ -163,7 +163,7 @@ export default function ListingImage({
         )}
         {state === 'loading' && (
           <div className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center">
-            <LoadingSpinner size="sm" label="Loading image" />
+            <DelayedSpinner size="sm" label="Loading image" />
           </div>
         )}
         {state === 'loaded' && dataUrl && (
@@ -196,7 +196,7 @@ export default function ListingImage({
           loading="lazy"
           src="/default.png"
           alt="Loading preview"
-          className="w-full h-full object-cover blur-sm cursor-pointer transition-all duration-150 hover:blur-xs"
+          className="w-full h-full object-cover blur-sm cursor-pointer transition-all duration-[var(--transition-fast)] hover:blur-xs"
           onClick={handleClick}
         />
       )}
@@ -210,7 +210,7 @@ export default function ListingImage({
             className="w-full h-full object-cover blur-sm"
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <LoadingSpinner size="lg" label="Downloading image" />
+            <DelayedSpinner size="lg" label="Downloading image" />
           </div>
         </>
       )}
@@ -226,7 +226,7 @@ export default function ListingImage({
           {/* Ban button — visible on hover */}
           <button
             onClick={handleBan}
-            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-[var(--error)] transition-all duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
+            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-[var(--error)] transition-all duration-[var(--transition-fast)] opacity-0 group-hover:opacity-100 cursor-pointer"
             title="Ban this image"
             aria-label="Ban this image"
           >

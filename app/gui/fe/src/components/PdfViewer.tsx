@@ -3,7 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import LoadingSpinner from './LoadingSpinner';
+import { DelayedSpinner } from './LoadingSpinner';
 import { findMatchesInPdf, highlightText } from '../services/pdfSearch';
 import type { SearchMatch } from '../services/pdfSearch';
 
@@ -46,7 +46,7 @@ function LazyThumbnail({
     <button
       ref={containerRef}
       onClick={onClick}
-      className={`flex-shrink-0 cursor-pointer rounded-[var(--radius-sm)] overflow-hidden border-2 transition-colors duration-150 ${
+      className={`flex-shrink-0 cursor-pointer rounded-[var(--radius-sm)] overflow-hidden border-2 transition-colors duration-[var(--transition-fast)] ${
         isActive ? 'border-[var(--accent)]' : 'border-transparent hover:border-[var(--border-subtle)]'
       }`}
       style={{ width: THUMBNAIL_WIDTH, minHeight: THUMBNAIL_WIDTH * 1.4 }}
@@ -234,10 +234,21 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
           return;
         }
       }
+      // Arrow key page navigation (disabled when search input is focused)
+      if (!isSearchOpen) {
+        if (e.key === 'ArrowLeft') {
+          setCurrentPage(p => Math.max(1, p - 1));
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          setCurrentPage(p => Math.min(numPages, p + 1));
+          return;
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [isSearchOpen, isFullscreen, closeSearch]);
+  }, [isSearchOpen, isFullscreen, closeSearch, numPages]);
 
   if (error) {
     return (
@@ -247,7 +258,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     );
   }
 
-  const btnClass = "px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+  const btnClass = "px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
 
   const toolbar = (
     <div className="flex items-center justify-between">
@@ -280,7 +291,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
                     pageInputRef.current?.blur();
                   }
                 }}
-                className={`w-12 text-center text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none transition-colors duration-200 ${pageInputInvalid ? 'border-[var(--error)] ring-1 ring-[var(--error)]' : 'border-[var(--border-subtle)] focus:border-[var(--accent)]'}`}
+                className={`w-12 text-center text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none transition-colors duration-[var(--transition-base)] ${pageInputInvalid ? 'border-[var(--error)] ring-1 ring-[var(--error)]' : 'border-[var(--border-subtle)] focus:border-[var(--accent)]'}`}
                 aria-label="Page number"
                 aria-invalid={pageInputInvalid || undefined}
               />
@@ -488,7 +499,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
 
   const pdfLoading = (
     <div className="py-12 text-center">
-      <LoadingSpinner size="lg" className="mx-auto mb-4" />
+      <DelayedSpinner size="lg" className="mx-auto mb-4" />
       <p className="text-sm text-[var(--text-muted)]">Loading PDF...</p>
     </div>
   );
@@ -499,7 +510,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
       scale={scale}
       loading={
         <div className="py-8 text-center">
-          <LoadingSpinner size="sm" className="mx-auto" />
+          <DelayedSpinner size="sm" className="mx-auto" />
         </div>
       }
       renderTextLayer={true}

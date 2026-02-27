@@ -28,6 +28,7 @@ import { getLogLineClass } from '../utils/logClassification'
 import { formatBytes } from '../utils/formatBytes'
 import { formatAdaDisplay } from '../utils/formatAda'
 import ConfirmModal from '../components/ConfirmModal'
+import InfoTooltip from '../components/InfoTooltip'
 import { useToast, ToastContainer } from '../components/Toast'
 import { useWalletHealth } from '../hooks/useWalletHealth'
 import { createCollateral, defragWallet, previewDefrag, type DefragPreview } from '../services/walletManagement'
@@ -50,7 +51,7 @@ export default function Settings() {
   const { walletState, lock, wallet } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
-  const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes } = useNode()
+  const { stage, syncProgress, kupoSyncProgress, tipSlot, tipHeight, network, processes, stopNode } = useNode()
 
   // Settings state
   const [currentNetwork, setCurrentNetwork] = useState<string>('')
@@ -196,18 +197,34 @@ export default function Settings() {
   const handleDeleteAllOrphans = useCallback(async () => {
     if (!confirm('Delete all orphaned files from Iagon? This cannot be undone.')) return
     const apiKey = await getStoredApiKey()
+    const total = orphanedDrafts.length
+    const succeededIds: string[] = []
+    let failedCount = 0
+
     for (const draft of orphanedDrafts) {
       try {
         if (apiKey && draft.iagonFileId) {
           await iagonDeleteFile(apiKey, draft.iagonFileId)
         }
         await removeListingDraft(draft.id)
-      } catch {
-        // continue with others
+        succeededIds.push(draft.id)
+      } catch (err) {
+        console.error(`Failed to delete orphaned file ${draft.id}:`, err)
+        failedCount++
       }
     }
-    setOrphanedDrafts([])
-  }, [orphanedDrafts])
+
+    const successSet = new Set(succeededIds)
+    setOrphanedDrafts(prev => prev.filter(d => !successSet.has(d.id)))
+
+    if (failedCount === 0) {
+      toast.success('Cleanup Complete', `Deleted ${total} orphaned file${total === 1 ? '' : 's'}.`)
+    } else if (succeededIds.length > 0) {
+      toast.warning('Partial Cleanup', `Deleted ${succeededIds.length} of ${total} files. ${failedCount} could not be removed.`)
+    } else {
+      toast.error('Cleanup Failed', 'Could not delete any orphaned files. Check your internet connection.')
+    }
+  }, [orphanedDrafts, toast])
 
   const handleDeleteCachedImage = useCallback(async (tokenName: string) => {
     setCacheDeleting(tokenName)
@@ -246,14 +263,19 @@ export default function Settings() {
       await invoke('set_network', { network: networkConfirmTarget })
       setCurrentNetwork(networkConfirmTarget)
       setNetworkConfirmTarget(null)
-      alert(`Network switched to ${networkConfirmTarget}. Please restart the application for changes to take effect.`)
+      toast.success(
+        `Network switched to ${networkConfirmTarget}`,
+        'Please restart the application for changes to take effect.',
+        0,
+        { label: 'Stop Node', onClick: () => { stopNode() } }
+      )
     } catch (error) {
       console.error('Failed to switch network:', error)
-      alert(`Failed to switch network: ${error}`)
+      toast.error('Network switch failed', `${error}`)
     } finally {
       setNetworkSwitching(false)
     }
-  }, [currentNetwork, networkConfirmTarget])
+  }, [currentNetwork, networkConfirmTarget, toast, stopNode])
 
   const handleRevealMnemonic = useCallback(async () => {
     if (!mnemonicPassword) {
@@ -363,37 +385,43 @@ export default function Settings() {
     }
   }
 
-  const sections = [
-    { id: 'node', label: 'Node Status', icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-      </svg>
-    )},
-    { id: 'wallet', label: 'Wallet', icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 110-6h5.25A2.25 2.25 0 0121 6v6zm0 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V6a2.25 2.25 0 012.25-2.25h13.5" />
-      </svg>
-    )},
-    { id: 'network', label: 'Network', icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9 9 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-      </svg>
-    )},
-    { id: 'datalayer', label: 'Data Layer', icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
-      </svg>
-    )},
-    { id: 'storage', label: 'Storage', icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
-      </svg>
-    )},
-    { id: 'logs', label: 'Logs', icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
-      </svg>
-    )},
+  const sectionGroups = [
+    { label: 'Node & Network', sections: [
+      { id: 'node', label: 'Node Status', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+        </svg>
+      )},
+      { id: 'network', label: 'Network', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9 9 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+        </svg>
+      )},
+      { id: 'logs', label: 'Logs', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      )},
+    ]},
+    { label: 'Wallet & Security', sections: [
+      { id: 'wallet', label: 'Wallet', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 110-6h5.25A2.25 2.25 0 0121 6v6zm0 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V6a2.25 2.25 0 012.25-2.25h13.5" />
+        </svg>
+      )},
+    ]},
+    { label: 'Storage & Data', sections: [
+      { id: 'datalayer', label: 'Data Layer', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+        </svg>
+      )},
+      { id: 'storage', label: 'Storage', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+        </svg>
+      )},
+    ]},
   ]
 
   const searchableSections = useMemo(() => [
@@ -601,20 +629,29 @@ export default function Settings() {
       <div className="flex min-h-[calc(100vh-4rem)]">
         {/* Sidebar */}
         <aside className="w-52 shrink-0 border-r border-[var(--border-subtle)] px-3 py-6 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
-          <nav className="space-y-1">
-            {sections.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setActiveSection(s.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
-                  activeSection === s.id
-                    ? 'bg-[var(--accent-muted)] text-[var(--text-primary)] border-l-2 border-[var(--accent)] ml-[-1px]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
-                }`}
-              >
-                {s.icon}
-                {s.label}
-              </button>
+          <nav>
+            {sectionGroups.map((group, groupIndex) => (
+              <div key={group.label} className={groupIndex > 0 ? 'mt-6' : ''}>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 px-3">
+                  {group.label}
+                </h3>
+                <div className="space-y-1">
+                  {group.sections.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setActiveSection(s.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                        activeSection === s.id
+                          ? 'bg-[var(--accent-muted)] text-[var(--text-primary)] border-l-2 border-[var(--accent)] ml-[-1px]'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+                      }`}
+                    >
+                      {s.icon}
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
         </aside>
@@ -803,7 +840,10 @@ export default function Settings() {
                   {/* Status Grid */}
                   <div className="grid grid-cols-2 gap-4 p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
                     <div>
-                      <span className="text-sm text-[var(--text-muted)]">Collateral</span>
+                      <span className="text-sm text-[var(--text-muted)] inline-flex items-center gap-1">
+                        Collateral
+                        <InfoTooltip text="A dedicated 5 ADA UTxO required by Cardano for Plutus script transactions. It is returned to you if the transaction succeeds." />
+                      </span>
                       <p className={`text-sm font-medium flex items-center gap-2 ${walletHealth.hasCollateral ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`}>
                         <span className={`w-2 h-2 rounded-full ${walletHealth.hasCollateral ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`} />
                         {walletHealth.hasCollateral ? 'Set (5 ADA)' : 'Not Set'}
@@ -864,24 +904,35 @@ export default function Settings() {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="space-y-3">
                     {!walletHealth.hasCollateral && (
-                      <button
-                        onClick={() => setWalletConfirmAction('collateral')}
-                        disabled={collateralLoading || defragLoading}
-                        className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-                      >
-                        {collateralLoading ? 'Creating...' : 'Set Collateral (5 ADA)'}
-                      </button>
+                      <p className="text-sm text-[var(--text-muted)]">
+                        Collateral is a small ADA deposit (5 ADA) required by Cardano smart contracts for transaction validation.
+                      </p>
                     )}
-                    <button
-                      onClick={() => setWalletConfirmAction('defrag')}
-                      disabled={defragLoading || collateralLoading || walletHealth.utxoCount <= 1 || (defragPreview !== null && !defragPreview.isFeasible)}
-                      className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
-                      title={defragPreview && !defragPreview.isFeasible ? defragPreview.infeasibleReason : undefined}
-                    >
-                      {defragLoading ? 'Optimizing...' : 'Optimize Wallet'}
-                    </button>
+                    <div className="flex gap-3">
+                      {!walletHealth.hasCollateral && (
+                        <button
+                          onClick={() => setWalletConfirmAction('collateral')}
+                          disabled={collateralLoading || defragLoading}
+                          className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                        >
+                          {collateralLoading ? 'Creating...' : 'Set Collateral (5 ADA)'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setWalletConfirmAction('defrag')}
+                        disabled={defragLoading || collateralLoading || walletHealth.utxoCount <= 1 || (defragPreview !== null && !defragPreview.isFeasible)}
+                        className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+                        title={defragPreview && !defragPreview.isFeasible ? defragPreview.infeasibleReason : undefined}
+                      >
+                        {defragLoading ? 'Optimizing...' : 'Optimize Wallet'}
+                      </button>
+                      <InfoTooltip text="Combines multiple small UTxOs into fewer, larger ones. This reduces transaction complexity and fees." />
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Optimization combines small UTxOs into fewer, larger ones to reduce transaction fees.
+                    </p>
                   </div>
                 </div>
               )}
@@ -961,7 +1012,7 @@ export default function Settings() {
                       setTheme(option.value)
                       applyTheme(option.value)
                     }}
-                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                       currentTheme === option.value
                         ? 'bg-[var(--accent)] text-white'
                         : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
@@ -994,7 +1045,7 @@ export default function Settings() {
                       setAutolockValue(preset.value)
                       setAutolockMinutes(preset.value)
                     }}
-                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                       autolockValue === preset.value
                         ? 'bg-[var(--accent)] text-white'
                         : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
@@ -1666,9 +1717,17 @@ export default function Settings() {
                       {line}
                     </div>
                   ))
+                ) : logsLoading ? (
+                  <div className="space-y-2">
+                    <div className="h-3 w-4/5 rounded skeleton-shimmer" />
+                    <div className="h-3 w-3/5 rounded skeleton-shimmer" />
+                    <div className="h-3 w-full rounded skeleton-shimmer" />
+                    <div className="h-3 w-2/3 rounded skeleton-shimmer" />
+                    <div className="h-3 w-3/4 rounded skeleton-shimmer" />
+                  </div>
                 ) : (
                   <p className="text-[var(--text-muted)]">
-                    {logsLoading ? 'Loading logs...' : logSearchQuery ? 'No matching lines' : 'No logs available'}
+                    {logSearchQuery ? 'No matching lines' : 'No logs available'}
                   </p>
                 )}
               </div>
