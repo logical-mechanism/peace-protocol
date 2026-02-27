@@ -722,6 +722,7 @@ export default function CreateListingModal({
                 <div className="relative">
                   <input
                     type="text"
+                    inputMode="decimal"
                     id="suggestedPrice"
                     name="suggestedPrice"
                     value={displayPrice}

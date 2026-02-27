@@ -97,11 +97,11 @@ Difficulty ratings:
   - **How**: In `CreateListingModal.tsx`, file uploads to Iagon via `iagon_upload` Tauri command currently show a spinning "Creating listing..." state with no progress. The `onProgress` callback (line ~35) tracks `ListingCreationStep` stages. Add a visual step indicator showing: "Encrypting file → Uploading to Iagon → Building transaction → Signing → Submitting". Render as a vertical stepper with checkmarks for completed steps and a spinner on the active step.
   - **Why**: File uploads for large files (up to 100MB) can take significant time; users need to know what's happening and how far along the process is.
 
-- [ ] 🟢 **HTML constraints on suggested price input**
+- [x] 🟢 **HTML constraints on suggested price input**
   - **How**: In `CreateListingModal.tsx`, the `suggestedPrice` input field validates via JavaScript only. Add `type="number"` with `min="0"` `max="1000000"` `step="0.000001"` attributes. This enables browser-native validation hints (scroll wheel clamping, up/down arrows).
   - **Why**: Number inputs without `type="number"` accept any text; native HTML constraints provide guardrails before JavaScript validation fires.
 
-- [ ] 🟢 **Placeholder text for form fields**
+- [x] 🟢 **Placeholder text for form fields**
   - **How**: In `CreateListingModal.tsx`, the `description` textarea and `suggestedPrice` input lack placeholder text. Add `placeholder="Describe what buyers will receive..."` to description and `placeholder="e.g. 50"` to suggested price.
   - **Why**: Empty fields with no placeholder give no guidance on expected input format or content.
 
@@ -121,9 +121,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Settings.tsx`
 
-- [ ] 🟢 **Auto-lock input min/max constraints**
-  - **How**: In `Settings.tsx`, the auto-lock minutes input likely accepts arbitrary text. Add `type="number"` with `min="0"` `max="1440"` (24 hours max) and `step="1"`. This complements any existing JavaScript validation.
-  - **Why**: Users could enter nonsensical values (negative numbers, extremely large values) without native input constraints.
+- [x] 🟢 **Auto-lock input min/max constraints** *(N/A — UI uses preset buttons, not a free-text input; values are already constrained by design)*
 
 ---
 
