@@ -34,6 +34,7 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../../services/encryptions.js';
+import { KupoUnavailableError } from '../../services/kupo.js';
 import { config } from '../../config/index.js';
 
 const app = createApp();
@@ -65,6 +66,18 @@ describe('GET /api/encryptions', () => {
 
     expect(res.status).toBe(500);
     expect(res.body.error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('returns 503 with KUPO_UNAVAILABLE when Kupo is unreachable', async () => {
+    (getAllEncryptions as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new KupoUnavailableError('Kupo /matches: ECONNREFUSED')
+    );
+
+    const res = await request(app).get('/api/encryptions');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('KUPO_UNAVAILABLE');
+    expect(res.body.error.message).toBe('UTxO indexer is not reachable');
   });
 
   it('returns stub data when useStubs is true', async () => {

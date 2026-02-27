@@ -11,6 +11,7 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../services/encryptions.js';
+import { KupoUnavailableError } from '../services/kupo.js';
 import type { EncryptionLevel } from '../types/index.js';
 
 const router = Router();
@@ -42,6 +43,12 @@ router.get('/', async (req: Request, res: Response) => {
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryptions', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions', requestId: req.requestId },
@@ -71,6 +78,12 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
     res.set('Cache-Control', CACHE_DATA);
     return res.json({ data, meta: { total: levels.length }, pagination });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryption levels', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels', requestId: req.requestId },
@@ -109,6 +122,12 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryption', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryption', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption', requestId: req.requestId },
@@ -145,6 +164,12 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching user encryptions', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching user encryptions', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user encryptions', requestId: req.requestId },
@@ -183,6 +208,12 @@ router.get('/status/:status', validateStatusParam(['active', 'pending', 'complet
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
   } catch (error) {
+    if (error instanceof KupoUnavailableError) {
+      logger.warn('Kupo unavailable while fetching encryptions by status', { error: String(error), requestId: req.requestId });
+      return res.status(503).json({
+        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
+      });
+    }
     logger.error('Error fetching encryptions by status', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
       error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryptions by status', requestId: req.requestId },

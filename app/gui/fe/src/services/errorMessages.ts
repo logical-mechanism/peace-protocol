@@ -18,6 +18,16 @@ interface ErrorPattern {
 }
 
 const ERROR_PATTERNS: ErrorPattern[] = [
+  // Kupo unavailable (specific error code from backend) — must be before generic patterns
+  {
+    test: (e) => /KUPO_UNAVAILABLE/i.test(e),
+    result: {
+      title: 'Kupo Unavailable',
+      message: 'The UTxO indexer is starting up or unreachable.',
+      action: 'Wait for the node to finish syncing, then try again.',
+      recoverable: true,
+    },
+  },
   // Kupo (local UTxO indexer) — must be before generic network
   {
     test: (e) => /1442|kupo/i.test(e),

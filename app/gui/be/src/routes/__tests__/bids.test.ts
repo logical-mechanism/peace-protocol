@@ -37,9 +37,13 @@ vi.mock('../../services/encryptions.js', () => ({
   getEncryptionLevels: vi.fn(),
 }));
 
-vi.mock('../../services/kupo.js', () => ({
-  getKupoClient: vi.fn(() => ({ getAddressUtxos: vi.fn() })),
-}));
+vi.mock('../../services/kupo.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/kupo.js')>();
+  return {
+    ...actual,
+    getKupoClient: vi.fn(() => ({ getAddressUtxos: vi.fn() })),
+  };
+});
 
 vi.mock('../../services/koios.js', () => ({
   getKoiosClient: vi.fn(() => ({
@@ -56,6 +60,7 @@ import {
   getBidsByEncryption,
   getBidsByStatus,
 } from '../../services/bids.js';
+import { KupoUnavailableError } from '../../services/kupo.js';
 import { config } from '../../config/index.js';
 
 const app = createApp();
@@ -84,6 +89,18 @@ describe('GET /api/bids', () => {
 
     const res = await request(app).get('/api/bids');
     expect(res.status).toBe(500);
+  });
+
+  it('returns 503 with KUPO_UNAVAILABLE when Kupo is unreachable', async () => {
+    (getAllBids as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new KupoUnavailableError('Kupo /matches: ECONNREFUSED')
+    );
+
+    const res = await request(app).get('/api/bids');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('KUPO_UNAVAILABLE');
+    expect(res.body.error.message).toBe('UTxO indexer is not reachable');
   });
 
   it('returns stub data when useStubs is true', async () => {
