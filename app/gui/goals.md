@@ -65,15 +65,15 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Dashboard.tsx`, `fe/src/pages/Settings.tsx`
 
-- [ ] 🟢 **Dashboard tab `aria-selected` attribute**
+- [x] 🟢 **Dashboard tab `aria-selected` attribute**
   - **How**: In `Dashboard.tsx`, add `aria-selected={activeTab === tab.id}` to each tab button in the tab bar. The buttons already have `role="tab"` styling but lack the ARIA attribute.
   - **Why**: Screen readers cannot distinguish the active tab from inactive ones without `aria-selected`.
 
-- [ ] 🟡 **HistoryTab filter-empty state**
+- [x] 🟡 **HistoryTab filter-empty state**
   - **How**: In `HistoryTab.tsx`, when filters produce zero results but unfiltered data exists, show a distinct EmptyState: `<EmptyState title="No transactions match filters" description="Try adjusting your filters or date range." action={<button onClick={clearFilters}>Clear Filters</button>} />`. This is separate from the "no history at all" empty state.
   - **Why**: Users filtering by date/type who get zero results need guidance to clear filters rather than thinking they have no transactions.
 
-- [ ] 🟡 **Settings page active section highlight**
+- [x] 🟡 **Settings page active section highlight**
   - **How**: In `Settings.tsx`, the `activeSection` state tracks which section is displayed, but the section nav buttons have no visual active indicator. Add `bg-[var(--accent-muted)] border-l-2 border-[var(--accent)]` to the active section's button, and `text-[var(--text-muted)]` to inactive ones.
   - **Why**: Users lose context about which settings section they're viewing, especially after scrolling.
 
