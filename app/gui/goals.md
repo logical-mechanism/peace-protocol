@@ -207,7 +207,7 @@ Difficulty ratings:
   - **How**: In `Settings.tsx` (line ~241-250), replace `window.alert()` after network switch with `toast.success("Network switched to preprod. Restart required.")`. Wrap the switch in try-catch and show `toast.error()` with the specific failure reason on error. Add a "Restart Now" action button in the success toast that calls `invoke('stop_node')`.
   - **Why**: `alert()` is jarring, blocks the UI, and provides no error recovery path. Toast is consistent with the rest of the app.
 
-- [ ] 🟢 **Image cache empty state message**
+- [x] 🟢 **Image cache empty state message**
   - **How**: In `Settings.tsx`, when `imageCacheStatus.cached.length === 0`, show "No cached images" text below the header instead of just a disabled "Clear All" button. Use `text-sm text-[var(--text-muted)]`.
   - **Why**: A disabled button with no explanation looks like a bug; explicit empty state communicates intent.
 
