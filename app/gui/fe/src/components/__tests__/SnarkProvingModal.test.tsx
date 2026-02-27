@@ -150,18 +150,39 @@ describe('SnarkProvingModal', () => {
   });
 
   describe('error state', () => {
-    it('shows error message on proof failure', async () => {
+    it('shows classified error for SNARK failures', async () => {
       mockGenerateProof.mockRejectedValue(new Error('SNARK binary crashed'));
       renderModal();
 
       await waitFor(() => {
-        expect(screen.getByText('Proof Generation Failed')).toBeInTheDocument();
-        expect(screen.getByText('SNARK binary crashed')).toBeInTheDocument();
+        // getFriendlyError classifies "SNARK binary crashed" as Proof Generation Error
+        expect(screen.getByText('Proof Generation Error')).toBeInTheDocument();
+        expect(screen.getByText('The SNARK prover encountered an error.')).toBeInTheDocument();
+      });
+    });
+
+    it('shows memory-specific error for OOM failures', async () => {
+      mockGenerateProof.mockRejectedValue(new Error('out of memory during computation'));
+      renderModal();
+
+      await waitFor(() => {
+        expect(screen.getByText('Not Enough Memory')).toBeInTheDocument();
+        expect(screen.getByText(/Close other applications/)).toBeInTheDocument();
+      });
+    });
+
+    it('shows setup-specific error for missing files', async () => {
+      mockGenerateProof.mockRejectedValue(new Error('setup files not found'));
+      renderModal();
+
+      await waitFor(() => {
+        expect(screen.getByText('SNARK Setup Files Missing')).toBeInTheDocument();
+        expect(screen.getByText(/Settings/)).toBeInTheDocument();
       });
     });
 
     it('shows Retry and Cancel buttons on error', async () => {
-      mockGenerateProof.mockRejectedValue(new Error('fail'));
+      mockGenerateProof.mockRejectedValue(new Error('SNARK fail'));
       renderModal();
 
       await waitFor(() => {
@@ -172,7 +193,7 @@ describe('SnarkProvingModal', () => {
 
     it('retries proof generation on Retry click', async () => {
       mockGenerateProof
-        .mockRejectedValueOnce(new Error('fail'))
+        .mockRejectedValueOnce(new Error('SNARK fail'))
         .mockResolvedValueOnce(mockProof);
       renderModal();
 
@@ -188,11 +209,13 @@ describe('SnarkProvingModal', () => {
       expect(mockGenerateProof).toHaveBeenCalledTimes(2);
     });
 
-    it('handles non-Error rejection gracefully', async () => {
+    it('handles non-Error rejection with fallback message', async () => {
       mockGenerateProof.mockRejectedValue('string error');
       renderModal();
 
       await waitFor(() => {
+        // Raw string falls through to default: title "Something Went Wrong", message is the raw string
+        expect(screen.getByText('Something Went Wrong')).toBeInTheDocument();
         expect(screen.getByText('string error')).toBeInTheDocument();
       });
     });
