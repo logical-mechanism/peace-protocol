@@ -528,7 +528,7 @@ Each item has:
   - **How**: Add assertion patterns to existing tests: `expect(invoke).toHaveBeenCalledWith('store_seller_secrets', expect.objectContaining({ tokenName: 'abc', a: '...', r: '...' }))`. Priority: secrets storage, wallet operations, SNARK commands.
   - **Why**: Many tests mock `invoke` return values but never verify the arguments passed. A renamed parameter would silently pass tests.
 
-- [ ] **Error path test coverage**
+- [x] **Error path test coverage**
   - **How**: For each test file, add at least one error-path test: `it('handles API failure gracefully', ...)`. Priority: transactionBuilder (invalid inputs, network errors), apiCache (fetch failure), walletManagement (insufficient UTxOs).
   - **Why**: Most tests only cover happy paths. Error paths are where users actually encounter bugs.
 

@@ -496,6 +496,49 @@ describe('createCollateral', () => {
     expect(result.error).toMatch(/insufficient funds/i)
     expect(result.error).toMatch(/6\.5/i)
   })
+
+  it('catches and wraps getChangeAddress failure', async () => {
+    const wallet = {
+      getUtxos: vi.fn().mockResolvedValue([
+        pureAdaUtxo(50_000_000, 'a'.repeat(64), 0),
+        pureAdaUtxo(10_000_000, 'a'.repeat(64), 1),
+      ]),
+      getChangeAddress: vi.fn().mockRejectedValue(new Error('wallet locked')),
+      signTx: vi.fn(),
+      submitTx: vi.fn(),
+    } as unknown as IWallet
+    const result = await createCollateral(wallet)
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/wallet locked/)
+  })
+
+  it('catches tx builder failure when MeshTxBuilder is unavailable', async () => {
+    // MeshTxBuilder is mocked as vi.fn(), so .txOut() is undefined → error caught
+    const wallet = {
+      getUtxos: vi.fn().mockResolvedValue([
+        pureAdaUtxo(50_000_000, 'a'.repeat(64), 0),
+        pureAdaUtxo(10_000_000, 'a'.repeat(64), 1),
+      ]),
+      getChangeAddress: vi.fn().mockResolvedValue('addr_test1qz'),
+      signTx: vi.fn().mockResolvedValue('signed_hex'),
+      submitTx: vi.fn().mockResolvedValue('tx_hash'),
+    } as unknown as IWallet
+    const result = await createCollateral(wallet)
+    expect(result.success).toBe(false)
+    expect(result.error).toBeTruthy()
+  })
+
+  it('wraps non-Error exceptions as strings', async () => {
+    const wallet = {
+      getUtxos: vi.fn().mockRejectedValue('string error'),
+      getChangeAddress: vi.fn(),
+      signTx: vi.fn(),
+      submitTx: vi.fn(),
+    } as unknown as IWallet
+    const result = await createCollateral(wallet)
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('string error')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -522,6 +565,18 @@ describe('defragWallet', () => {
     const result = await defragWallet(mockWallet([pureAdaUtxo(50_000_000)]))
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/1 utxo/i)
+  })
+
+  it('catches getUtxos failure', async () => {
+    const wallet = {
+      getUtxos: vi.fn().mockRejectedValue(new Error('fetch failed')),
+      getChangeAddress: vi.fn(),
+      signTx: vi.fn(),
+      submitTx: vi.fn(),
+    } as unknown as IWallet
+    const result = await defragWallet(wallet)
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/fetch failed/)
   })
 })
 

@@ -73,4 +73,33 @@ describe('ApiCache', () => {
     cache.get('key'); // triggers cleanup
     expect(cache.size).toBe(0);
   });
+
+  // ── Error path / edge case tests ────────────────────────────────
+
+  it('handles zero TTL (expires immediately on next tick)', () => {
+    cache.set('key', 'val', 0);
+    vi.advanceTimersByTime(1);
+    expect(cache.get('key')).toBeUndefined();
+  });
+
+  it('stores null values without confusing them with missing', () => {
+    cache.set('null-key', null);
+    expect(cache.get('null-key')).toBeNull();
+    expect(cache.size).toBe(1);
+  });
+
+  it('handles rapid set/get cycles without corruption', () => {
+    for (let i = 0; i < 1000; i++) {
+      cache.set(`k${i}`, i);
+    }
+    expect(cache.size).toBe(1000);
+    expect(cache.get('k999')).toBe(999);
+  });
+
+  it('invalidate on non-existent key is a no-op', () => {
+    cache.set('a', 1);
+    cache.invalidate('nonexistent');
+    expect(cache.size).toBe(1);
+    expect(cache.get('a')).toBe(1);
+  });
 });
