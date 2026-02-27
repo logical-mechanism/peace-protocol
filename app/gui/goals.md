@@ -409,7 +409,7 @@ Difficulty ratings:
   - **How**: Create `be/src/services/__tests__/koios.test.ts`. Mock `fetch`. Test: circuit breaker integration (5 failures → open → 30s → half-open → probe), TTL cache stale fallback, fetchWithRetry exponential backoff. Test the interaction between all three resilience layers.
   - **Why**: Koios combines three resilience patterns (circuit breaker + cache + retry) that are tested individually but never together; integration bugs could cause silent data staleness.
 
-- [ ] 🟢 **Backend: requestLogger middleware test**
+- [x] 🟢 **Backend: requestLogger middleware test**
   - **How**: Create `be/src/middleware/__tests__/requestLogger.test.ts`. Test: assigns 8-char requestId, logs method/path/status/duration, handles errors gracefully. Mock the logger and verify call arguments.
   - **Why**: RequestLogger middleware is untested; broken request ID generation or logging format would hinder debugging.
 
