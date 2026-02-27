@@ -133,7 +133,7 @@ Difficulty ratings:
   - **How**: Audit components that use hardcoded Tailwind spacing (`p-6`, `gap-3`, `mt-8`) instead of CSS variable tokens (`p-[var(--space-lg)]`). Key offenders identified by the audit: `NodeSync.tsx` uses `mx-3 mb-5`, `px-3 py-1`; `WalletSetup.tsx` uses `p-6 rounded-xl`; card components mix `p-4` and `p-6` without clear rules. Establish a rule: card inner padding = `--space-md` (16px), section spacing = `--space-lg` (24px), page padding = `--space-xl` (32px). Update components to use `p-[var(--space-md)]` etc.
   - **Why**: Mixing hardcoded Tailwind values with design tokens creates subtle spacing inconsistencies and makes system-wide adjustments impossible.
 
-- [ ] 🟡 **Define modal entrance/exit animations**
+- [x] 🟡 **Define modal entrance/exit animations**
   - **How**: In `index.css`, add `@keyframes modal-enter` (opacity 0→1 + translateY(8px→0), 200ms ease-out) and `@keyframes modal-exit` (reverse). Create `.modal-enter` class. Apply in modal components' backdrop/dialog containers. Currently modals appear/disappear instantly with no transition.
   - **Why**: Instant modal appearance feels abrupt and disorienting; a subtle slide-up + fade creates spatial context.
 
@@ -177,7 +177,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Dashboard.tsx`
 
-- [ ] 🟡 **Preload adjacent Dashboard tabs**
+- [x] 🟡 **Preload adjacent Dashboard tabs**
   - **How**: In `Dashboard.tsx`, tab components are lazy-loaded via `React.lazy()`. When a user is on the Marketplace tab, prefetch the MySales and MyPurchases tab chunks in the background using `import()` after a 2s idle timeout. Use `requestIdleCallback` or a simple `setTimeout`. This eliminates the loading flash on first tab switch.
   - **Why**: First-time tab switches trigger lazy chunk loading which briefly shows the Suspense fallback; preloading eliminates this jank for commonly-used adjacent tabs.
 
