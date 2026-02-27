@@ -217,7 +217,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/components/__tests__/PriceRangeSlider.test.tsx`. Test: renders min/max labels, fires `onChange` with updated range on input change, clamps values within bounds. Follow existing input component test patterns.
   - **Why**: PriceRangeSlider is a filter control used in MarketplaceTab; incorrect onChange behavior silently breaks filtering.
 
-- [ ] 🟢 **Component tests: presentational primitives (Badge, EmptyState, LoadingSpinner, SkeletonCard, TransactionLink, ScrollToTop)**
+- [x] 🟢 **Component tests: presentational primitives (Badge, EmptyState, LoadingSpinner, SkeletonCard, TransactionLink, ScrollToTop)**
   - **How**: Create test files for each in `fe/src/components/__tests__/`. These are simple render tests: Badge renders variant classes correctly, EmptyState renders illustration + message + CTA, LoadingSpinner renders with/without label, SkeletonCard renders all 5 layout variants, TransactionLink renders CardanoScan link with truncated hash, ScrollToTop appears on scroll. Group simple tests efficiently — can be ~10-15 lines each.
   - **Why**: Presentational primitives are used across the entire app; render tests catch Tailwind class typos and prop mishandling.
 
