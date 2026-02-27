@@ -6,7 +6,7 @@ mod process;
 use commands::media::{ContentDir, MediaDir};
 use commands::node::AppDataDir;
 use commands::secrets::SecretsDir;
-use commands::snark::AppTmpDir;
+use commands::snark::{AppTmpDir, SnarkLock};
 use commands::wallet::WalletState;
 use config::AppConfig;
 use crypto::audit::AuditLog;
@@ -126,6 +126,9 @@ pub fn run() {
             crypto::wallet::set_owner_only_dir(&app_tmp_dir)
                 .expect("Failed to set temp directory permissions");
             app.manage(AppTmpDir(app_tmp_dir.clone()));
+
+            // SNARK serialization lock — prevents concurrent sidecar invocations
+            app.manage(SnarkLock(tokio::sync::Mutex::new(())));
 
             // Periodic cleanup: securely delete orphaned SNARK temp files older than 1 hour.
             // This prevents secret material from persisting if a SNARK proving attempt

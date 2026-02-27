@@ -9,6 +9,11 @@ use tauri_plugin_shell::ShellExt;
 /// Created at startup, wiped on each launch to clean up crash orphans.
 pub struct AppTmpDir(pub PathBuf);
 
+/// Serialization lock for SNARK sidecar invocations.
+/// Prevents concurrent snark binary spawns that would compete for disk I/O
+/// on shared setup files (pk.bin, ccs.bin).
+pub struct SnarkLock(pub tokio::sync::Mutex<()>);
+
 /// Write a JSON object to a temporary file for passing secrets to the snark sidecar.
 /// Returns the NamedTempFile (must be kept alive until the sidecar reads it).
 /// Files are created in the app-specific temp directory, not the OS temp dir.
@@ -231,8 +236,10 @@ pub async fn snark_decompress_setup(app: tauri::AppHandle) -> Result<(), String>
 pub async fn snark_gt_to_hash(
     app: tauri::AppHandle,
     tmp_dir_state: tauri::State<'_, AppTmpDir>,
+    lock: tauri::State<'_, SnarkLock>,
     a: String,
 ) -> Result<String, String> {
+    let _guard = lock.0.lock().await;
     let secrets_file = write_secrets_file(&tmp_dir_state.0, serde_json::json!({ "a": a }))?;
     let args = vec![
         "hash".to_string(),
@@ -251,11 +258,13 @@ pub async fn snark_gt_to_hash(
 pub async fn snark_decrypt_to_hash(
     app: tauri::AppHandle,
     tmp_dir_state: tauri::State<'_, AppTmpDir>,
+    lock: tauri::State<'_, SnarkLock>,
     g1b: String,
     r1: String,
     shared: String,
     g2b: String,
 ) -> Result<String, String> {
+    let _guard = lock.0.lock().await;
     let secrets_file = write_secrets_file(
         &tmp_dir_state.0,
         serde_json::json!({
@@ -284,12 +293,14 @@ pub async fn snark_decrypt_to_hash(
 pub async fn snark_prove(
     app: tauri::AppHandle,
     tmp_dir_state: tauri::State<'_, AppTmpDir>,
+    lock: tauri::State<'_, SnarkLock>,
     a: String,
     r: String,
     v: String,
     w0: String,
     w1: String,
 ) -> Result<SnarkProofResult, String> {
+    let _guard = lock.0.lock().await;
     let snark_dir = setup_dir(&app)?;
 
     // Verify setup files exist before spawning the sidecar

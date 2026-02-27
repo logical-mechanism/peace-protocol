@@ -333,7 +333,7 @@ Difficulty ratings:
   - **How**: In `be/src/routes/protocol.ts` (line ~155-184), after fetching params from Koios, validate key fields: `minFeeA > 0`, `minFeeB > 0`, `maxTxSize > 0 && maxTxSize <= 32768`, `maxValSize > 0`. If any field is out of bounds, log a warning and return the previous cached value (or hardcoded defaults). This prevents a compromised/buggy Koios from sending invalid params that break transaction building.
   - **Why**: Protocol params are accepted as-is from Koios with no sanity checks; malformed values would cause all transaction building to fail.
 
-- [ ] 🟢 **Health endpoint returns 503 for unhealthy status**
+- [x] 🟢 **Health endpoint returns 503 for unhealthy status**
   - **How**: In `be/src/app.ts` (line ~28-63), change the `/health` endpoint to return HTTP 503 (not 200) when `status === 'unhealthy'`. The `/health/ready` endpoint already does this correctly; align `/health` to match.
   - **Why**: Load balancers and monitoring tools expect non-200 status codes for unhealthy services; returning 200 with `"status": "unhealthy"` in the body misleads automated health checks.
 
@@ -351,7 +351,7 @@ Difficulty ratings:
 
 > Key files: `src-tauri/src/commands/snark.rs`, `src-tauri/src/commands/iagon.rs`, `src-tauri/src/commands/media.rs`
 
-- [ ] 🟡 **Serialize SNARK prove calls**
+- [x] 🟡 **Serialize SNARK prove calls**
   - **How**: In `src-tauri/src/commands/snark.rs`, add a `tokio::sync::Mutex<()>` to the SNARK prove command's state (or use the existing NodeManager). Acquire the lock at the start of `snark_prove` and release on completion. This prevents two concurrent prove calls from reading/writing the same setup directory simultaneously.
   - **Why**: Two concurrent prove calls could corrupt shared state; proving takes minutes so the risk window is significant.
 
