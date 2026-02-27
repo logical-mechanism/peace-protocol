@@ -100,11 +100,13 @@ function EncryptionCard({
                   </svg>
                 </button>
               )}
-              <HighlightText
-                text={truncateHex(encryption.tokenName, 8, 4)}
-                query={searchQuery}
-                className="text-xs font-mono text-[var(--text-muted)]"
-              />
+              <span title={encryption.tokenName}>
+                <HighlightText
+                  text={truncateHex(encryption.tokenName, 8, 4)}
+                  query={searchQuery}
+                  className="text-xs font-mono text-[var(--text-muted)]"
+                />
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
@@ -134,14 +136,19 @@ function EncryptionCard({
               {formatPrice(encryption.suggestedPrice)}
             </span>
             {canBid && onPlaceBid && (
-              <button
-                onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
-                disabled={hasLowBalance}
-                title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
-                className={`px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
-              >
-                Bid
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+                  disabled={hasLowBalance}
+                  title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
+                >
+                  Bid
+                </button>
+                {hasLowBalance && (
+                  <span className="text-xs text-[var(--error)]">Insufficient balance</span>
+                )}
+              </div>
             )}
             {hasBid && encryption.status === 'active' && !isOwnListing && (
               <span className="px-3 py-1.5 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
@@ -181,11 +188,13 @@ function EncryptionCard({
                   </svg>
                 </button>
               )}
-              <HighlightText
-                text={truncateHex(encryption.tokenName, 8, 4)}
-                query={searchQuery}
-                className="text-xs font-mono text-[var(--text-muted)] truncate"
-              />
+              <span title={encryption.tokenName}>
+                <HighlightText
+                  text={truncateHex(encryption.tokenName, 8, 4)}
+                  query={searchQuery}
+                  className="text-xs font-mono text-[var(--text-muted)] truncate"
+                />
+              </span>
               <EncryptionStatusBadge status={encryption.status} />
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
                 {getCategoryLabel(encryption.category)}
@@ -265,14 +274,19 @@ function EncryptionCard({
 
         {/* Action Button */}
         {canBid && onPlaceBid && (
-          <button
-            onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
-            disabled={hasLowBalance}
-            title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
-            className={`w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
-          >
-            {hasLowBalance ? 'Insufficient Balance' : 'Place Bid'}
-          </button>
+          <>
+            <button
+              onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+              disabled={hasLowBalance}
+              title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+              className={`w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
+            >
+              {hasLowBalance ? 'Insufficient Balance' : 'Place Bid'}
+            </button>
+            {hasLowBalance && (
+              <p className="mt-1 text-center text-xs text-[var(--error)]">Insufficient balance</p>
+            )}
+          </>
         )}
 
         {hasBid && encryption.status === 'active' && !isOwnListing && (
