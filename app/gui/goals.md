@@ -201,7 +201,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/components/__tests__/EncryptionCard.test.tsx`. Test: renders token name and price, compact vs standard modes, favorite toggle calls `onToggleFavorite`, bid button disabled when `hasLowBalance`, "Bid Placed" badge shows when `hasBid`, copy seller address triggers clipboard. Mock `copyToClipboard` from utils. Follow `SalesListingCard.test.tsx` patterns.
   - **Why**: EncryptionCard is the primary marketplace component — every listing in the Marketplace tab renders through it. Zero test coverage.
 
-- [ ] 🟡 **Component tests: LibraryContentModal**
+- [x] 🟡 **Component tests: LibraryContentModal**
   - **How**: Create `fe/src/components/__tests__/LibraryContentModal.test.tsx`. Test: renders with text content, lazy-loads PdfViewer/ImageViewer/AudioPlayer/VideoPlayer based on view mode, handles loading state, export button calls export function. Mock `React.lazy` components and Tauri `invoke` calls. Use `@vitest-environment jsdom`.
   - **Why**: LibraryContentModal is the gateway to all media viewing; bugs here block access to purchased content.
 
