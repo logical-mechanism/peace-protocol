@@ -28,5 +28,15 @@ npm --prefix be run watch &
 TSC_PID=$!
 trap "kill $TSC_PID 2>/dev/null; wait $TSC_PID 2>/dev/null" EXIT
 
+echo "Waiting for initial backend compilation..."
+for i in $(seq 1 60); do
+  [ -f be/dist/index.js ] && break
+  sleep 0.5
+done
+if [ ! -f be/dist/index.js ]; then
+  echo "ERROR: Backend compilation timed out (30s). Check for TypeScript errors."
+  exit 1
+fi
+
 echo "Starting development version..."
 npx tauri dev

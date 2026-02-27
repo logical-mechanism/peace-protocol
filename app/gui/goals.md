@@ -566,7 +566,7 @@ Each item has:
   - **How**: In `run.sh`, the `pkill -u "$USER" -f 'WebKitNetworkProcess'` could kill unrelated WebKit processes. Change to: `lsof -ti:5173 2>/dev/null | xargs -r kill` (kill only processes holding the dev port), or pattern-match the Tauri app: `pgrep -f 'webkit.*veiled' | xargs -r kill`.
   - **Why**: Users running other WebKit-based apps (GNOME Web, other Tauri apps) get those killed when starting Veiled.
 
-- [ ] **Wait for initial TSC compilation before starting Tauri**
+- [x] **Wait for initial TSC compilation before starting Tauri**
   - **How**: In `run.sh`, after starting `tsc --watch` in background, add a wait: `until [ -f be/dist/index.js ]; do sleep 0.5; done` to ensure the backend is compiled before Tauri tries to spawn Express. Currently, race condition on fresh checkout.
   - **Why**: If tsc watch hasn't finished its first compilation when Tauri starts, Express fails to launch because `dist/index.js` doesn't exist.
 
