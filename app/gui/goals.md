@@ -570,7 +570,7 @@ Each item has:
   - **How**: In `run.sh`, after starting `tsc --watch` in background, add a wait: `until [ -f be/dist/index.js ]; do sleep 0.5; done` to ensure the backend is compiled before Tauri tries to spawn Express. Currently, race condition on fresh checkout.
   - **Why**: If tsc watch hasn't finished its first compilation when Tauri starts, Express fails to launch because `dist/index.js` doesn't exist.
 
-- [ ] **Node engine version constraint in package.json**
+- [x] **Node engine version constraint in package.json**
   - **How**: Add `"engines": { "node": ">=20.0.0", "npm": ">=10.0.0" }` to fe/package.json and be/package.json. This causes `npm install` to warn if the Node version is incompatible.
   - **Why**: Code uses Node 20+ features (e.g., `fetch` global). Developers on Node 18 get cryptic runtime errors instead of a clear version mismatch warning.
 
