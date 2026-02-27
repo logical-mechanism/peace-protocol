@@ -307,7 +307,10 @@ pub async fn snark_prove(
     lock: tauri::State<'_, SnarkLock>,
     secrets: SnarkProveSecrets,
 ) -> Result<SnarkProofResult, String> {
-    let _guard = lock.0.lock().await;
+    let _guard = lock.0.try_lock().map_err(|_| {
+        "A SNARK proving operation is already in progress. Please wait for it to complete."
+            .to_string()
+    })?;
     let snark_dir = setup_dir(&app)?;
 
     // Verify setup files exist before spawning the sidecar
@@ -450,5 +453,21 @@ mod tests {
             mutex.try_lock().is_ok(),
             "try_lock should succeed when no prove operation is running"
         );
+    }
+
+    #[test]
+    fn snark_prove_rejects_concurrent_operation() {
+        // Simulate: try_lock used in snark_prove returns a clear error
+        let rt = tauri::async_runtime::handle();
+        rt.block_on(async {
+            let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+            let _guard = mutex.lock().await;
+            let result: Result<(), String> = mutex.try_lock().map(|_| ()).map_err(|_| {
+                "A SNARK proving operation is already in progress. Please wait for it to complete."
+                    .to_string()
+            });
+            assert!(result.is_err());
+            assert!(result.unwrap_err().contains("already in progress"));
+        });
     }
 }

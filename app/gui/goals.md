@@ -251,7 +251,7 @@ Difficulty ratings:
   - **How**: In `manager.rs`, `kill_orphans_on_ports()` uses `fuser` to find PIDs on ports 3001/1337/1442 and kills them. But if a new, unrelated process has taken the same port, it gets killed. Before sending SIGTERM, read `/proc/{pid}/cmdline` and verify it contains an expected binary name (e.g., "node", "ogmios", "kupo", "cardano-node"). Skip killing if the process doesn't match.
   - **Why**: On a developer machine running other services, orphan cleanup could kill an unrelated process using port 3001 (e.g., another Express app).
 
-- [ ] 🔴 **SNARK lock — guard temp directory creation**
+- [x] 🔴 **SNARK lock — guard temp directory creation**
   - **How**: In `snark.rs`, verify that temp directory creation and the SNARK sidecar invocation are both under the `SnarkLock` mutex. If two concurrent `snark_prove` calls arrive, only one should proceed; the other should wait or return an error ("SNARK operation already in progress"). Check that the lock is acquired before `NamedTempFile` creation, not just before the sidecar spawn.
   - **Why**: Concurrent prove operations could race on temp directories, causing file conflicts or corrupt output.
 

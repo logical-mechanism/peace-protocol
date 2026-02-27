@@ -198,6 +198,16 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
+  // SNARK already in progress — must be before generic SNARK pattern
+  {
+    test: (e) => /already in progress/i.test(e),
+    result: {
+      title: 'Proof Already Running',
+      message: 'A zero-knowledge proof is already being generated.',
+      action: 'Wait for the current proof to finish before starting another.',
+      recoverable: true,
+    },
+  },
   // SNARK prover (generic fallback)
   {
     test: (e) => /snark|proof|prover|proving/i.test(e),
