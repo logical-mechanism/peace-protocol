@@ -604,7 +604,7 @@ export default function Dashboard() {
     })
   }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
-  const handleAcceptBid = useCallback(async (encryption: EncryptionDisplay, bid: BidDisplay) => {
+  const handleAcceptBid = useCallback((encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
     if (!wasmReady) {
       toast.warning(
@@ -623,30 +623,40 @@ export default function Dashboard() {
       return
     }
 
-    try {
-      // Step 1: Prepare SNARK inputs (computes V, W0, W1 for the circuit)
-      toast.info('Preparing', 'Computing SNARK proof inputs...')
-      const { inputs, a0, r0, hk } = await prepareSnarkInputs(bid)
+    const label = encryption.tokenName.slice(0, 16) + '...'
+    const bidAda = (bid.amount / 1_000_000).toFixed(1)
+    setConfirmAction({
+      title: 'Accept Bid?',
+      message: `Accept bid of ${bidAda} ADA on "${label}"? The buyer will receive the decryption key and your listing will close. This cannot be undone.`,
+      description: encryption.description,
+      confirmLabel: 'Accept Bid',
+      onConfirm: async () => {
+        try {
+          // Step 1: Prepare SNARK inputs (computes V, W0, W1 for the circuit)
+          toast.info('Preparing', 'Computing SNARK proof inputs...')
+          const { inputs, a0, r0, hk } = await prepareSnarkInputs(bid)
 
-      // Store state for after proof generation
-      setAcceptBidEncryption(encryption)
-      setAcceptBidBid(bid)
-      setAcceptBidA0(a0)
-      setAcceptBidR0(r0)
-      setAcceptBidHk(hk)
-      setSnarkInputs(inputs)
+          // Store state for after proof generation
+          setAcceptBidEncryption(encryption)
+          setAcceptBidBid(bid)
+          setAcceptBidA0(a0)
+          setAcceptBidR0(r0)
+          setAcceptBidHk(hk)
+          setSnarkInputs(inputs)
 
-      // Step 2: Open SNARK proving modal
-      setShowSnarkModal(true)
-    } catch (error) {
-      console.error('Failed to prepare SNARK inputs:', error)
-      toast.error(
-        'Failed to Prepare Proof',
-        error instanceof Error ? error.message : 'Unknown error occurred',
-        0,
-        { label: 'Retry', onClick: () => handleAcceptBid(encryption, bid) }
-      )
-    }
+          // Step 2: Open SNARK proving modal
+          setShowSnarkModal(true)
+        } catch (error) {
+          console.error('Failed to prepare SNARK inputs:', error)
+          toast.error(
+            'Failed to Prepare Proof',
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleAcceptBid(encryption, bid) }
+          )
+        }
+      },
+    })
   }, [toast, wasmReady, wasmLoading, navigate, wallet])
 
   // Called when the SNARK proof is generated (from SnarkProvingModal)
