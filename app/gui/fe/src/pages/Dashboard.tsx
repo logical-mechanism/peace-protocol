@@ -1154,6 +1154,9 @@ export default function Dashboard() {
             onSwitchTab={setActiveTab}
             filters={libraryFilters}
             dispatch={libraryDispatch}
+            onBulkDeleteResult={(message, hadErrors) =>
+              hadErrors ? toast.warning('Bulk Delete', message) : toast.success('Bulk Delete', message)
+            }
           />
         )
       default:

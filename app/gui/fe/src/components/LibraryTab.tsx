@@ -17,9 +17,10 @@ interface LibraryTabProps {
   onSwitchTab?: (tab: string) => void;
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
+  onBulkDeleteResult?: (message: string, hadErrors: boolean) => void;
 }
 
-function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTabProps) {
+function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDeleteResult }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +44,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState<{ completed: number; failed: number; total: number } | null>(null);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -212,21 +214,52 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
 
   const handleBulkDelete = useCallback(async () => {
     setBulkDeleting(true);
-    try {
-      const toDelete = items.filter(i => selectedItems.has(i.tokenName));
-      for (const item of toDelete) {
+    const toDelete = items.filter(i => selectedItems.has(i.tokenName));
+    const total = toDelete.length;
+    setDeleteProgress({ completed: 0, failed: 0, total });
+
+    const succeededTokens: string[] = [];
+    const failedCount = { value: 0 };
+
+    for (let idx = 0; idx < toDelete.length; idx++) {
+      const item = toDelete[idx];
+      try {
         await deleteLibraryItem(item.tokenName, item.category);
+        succeededTokens.push(item.tokenName);
+      } catch (err) {
+        console.error(`Failed to delete ${item.tokenName}:`, err);
+        failedCount.value++;
       }
-      setItems(prev => prev.filter(i => !selectedItems.has(i.tokenName)));
-      setSelectedItems(new Set());
-      setSelectMode(false);
-      setShowBulkDeleteConfirm(false);
-    } catch (err) {
-      console.error('Bulk delete failed:', err);
-    } finally {
-      setBulkDeleting(false);
+      setDeleteProgress({ completed: idx + 1, failed: failedCount.value, total });
     }
-  }, [selectedItems, items]);
+
+    // Remove only successfully deleted items from the list
+    const successSet = new Set(succeededTokens);
+    setItems(prev => prev.filter(i => !successSet.has(i.tokenName)));
+
+    // Clean up state
+    setSelectedItems(new Set());
+    setSelectMode(false);
+    setDeleteProgress(null);
+    setShowBulkDeleteConfirm(false);
+    setBulkDeleting(false);
+
+    // Notify parent with summary
+    if (onBulkDeleteResult) {
+      if (failedCount.value === 0) {
+        onBulkDeleteResult(`Deleted ${total} ${total === 1 ? 'item' : 'items'} from library`, false);
+      } else {
+        onBulkDeleteResult(
+          `Deleted ${succeededTokens.length} of ${total} items. ${failedCount.value} ${failedCount.value === 1 ? 'item' : 'items'} could not be removed.`,
+          true
+        );
+      }
+    }
+  }, [selectedItems, items, onBulkDeleteResult]);
+
+  const bulkDeleteMessage = deleteProgress
+    ? `Deleting ${deleteProgress.completed} of ${deleteProgress.total}...${deleteProgress.failed > 0 ? ` (${deleteProgress.failed} failed)` : ''}`
+    : `This will permanently remove ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'} from your local library. You can re-download them by decrypting again.`;
 
   const screenReaderMessage = loading
     ? 'Loading your library…'
@@ -579,8 +612,8 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTa
         onClose={() => setShowBulkDeleteConfirm(false)}
         onConfirm={handleBulkDelete}
         title={`Delete ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'}`}
-        message={`This will permanently remove ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'} from your local library. You can re-download them by decrypting again.`}
-        confirmLabel={`Delete ${selectedItems.size}`}
+        message={bulkDeleteMessage}
+        confirmLabel={bulkDeleting ? 'Deleting...' : `Delete ${selectedItems.size}`}
         confirmVariant="danger"
         loading={bulkDeleting}
       />

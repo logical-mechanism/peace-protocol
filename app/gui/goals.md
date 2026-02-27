@@ -139,7 +139,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/LibraryTab.tsx`, `fe/src/components/LibraryContentModal.tsx`
 
-- [ ] 🟡 **Bulk delete per-item status feedback**
+- [x] 🟡 **Bulk delete per-item status feedback**
   - **How**: In `LibraryTab.tsx` (line ~213-229), when bulk deleting, track a `Map<string, 'pending' | 'success' | 'error'>` of per-item results. Show a progress indicator ("Deleting 3 of 10...") in the confirmation modal. After completion, if any failed, show a toast with count: "Deleted 8 of 10 items. 2 items could not be removed."
   - **Why**: Currently bulk delete only logs errors to console; users can't see which items failed or why.
 
@@ -153,15 +153,15 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/CreateListingModal.tsx`
 
-- [ ] 🟢 **Character counter on description field**
+- [x] 🟢 **Character counter on description field**
   - **How**: In `CreateListingModal.tsx` (line ~166), below the description textarea, add `<span className="text-xs text-[var(--text-muted)]">{description.length}/500</span>`. Change color to `--warning` when >400 and `--error` when =500.
   - **Why**: Users don't know the 500-char limit until they exceed it and see an error; a live counter prevents this.
 
-- [ ] 🟢 **Auto-focus first input on modal open**
+- [x] 🟢 **Auto-focus first input on modal open**
   - **How**: In `CreateListingModal.tsx`, in the Effect 1 `[isOpen]` block, after resetting form state, add `setTimeout(() => firstInputRef.current?.focus(), 50)`. Add a `ref` to the first form field (title/description). Same pattern should apply to `PlaceBidModal.tsx`.
   - **Why**: Users must Tab through the modal to reach the first input; auto-focus is standard modal UX.
 
-- [ ] 🟢 **Help text for "Future Price" option**
+- [x] 🟢 **Help text for "Future Price" option**
   - **How**: Next to the "Future Price" checkbox in `CreateListingModal.tsx`, add a brief inline note: "Set a suggested resale price. Buyers see this before bidding." Use `text-xs text-[var(--text-muted)]` below the checkbox label.
   - **Why**: "Future Price" is a marketplace concept that's unclear to new users; it's only explained in the error message after invalid input.
 
