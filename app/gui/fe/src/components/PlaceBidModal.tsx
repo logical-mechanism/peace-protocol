@@ -375,7 +375,7 @@ export default function PlaceBidModal({
                   </span>{' '}
                   Your bid will be locked until the seller accepts or you cancel.
                 </p>
-                {balanceAda !== undefined && (
+                {balanceAda !== undefined ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--text-secondary)]">
                       Balance: {balanceAda.toLocaleString(undefined, { maximumFractionDigits: 2 })} ADA
@@ -399,6 +399,10 @@ export default function PlaceBidModal({
                       Max
                     </button>
                   </div>
+                ) : (
+                  <span className="text-xs text-[var(--text-muted)]">
+                    Balance: loading...
+                  </span>
                 )}
               </div>
             </div>

@@ -250,9 +250,10 @@ describe('PlaceBidModal', () => {
     expect(screen.getByText(/Balance: 1,234/)).toBeInTheDocument();
   });
 
-  it('does not show balance when balanceLovelace is undefined', () => {
+  it('shows "Balance: loading..." when balanceLovelace is undefined', () => {
     renderModal({ balanceLovelace: undefined });
-    expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
+    expect(screen.getByText('Balance: loading...')).toBeInTheDocument();
+    expect(screen.queryByText(/Balance: \d/)).not.toBeInTheDocument();
   });
 
   it('Max button fills input with balance minus fee reserve', () => {
@@ -278,13 +279,13 @@ describe('PlaceBidModal', () => {
 
   // --- Balance parsing safety ---
 
-  it('hides balance when balanceLovelace is empty string (NaN safety)', () => {
+  it('shows loading when balanceLovelace is empty string (NaN safety)', () => {
     renderModal({ balanceLovelace: '' });
-    expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
+    expect(screen.getByText('Balance: loading...')).toBeInTheDocument();
   });
 
-  it('hides balance when balanceLovelace is non-numeric (NaN safety)', () => {
+  it('shows loading when balanceLovelace is non-numeric (NaN safety)', () => {
     renderModal({ balanceLovelace: 'abc' });
-    expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
+    expect(screen.getByText('Balance: loading...')).toBeInTheDocument();
   });
 });
