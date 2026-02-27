@@ -209,11 +209,11 @@ Difficulty ratings:
   - **How**: Create `fe/src/components/__tests__/OnboardingOverlay.test.tsx`. Test: renders first step on initial launch, advances through 4 steps, marks complete on finish, doesn't render when onboarding is complete. Mock `onboardingStorage`. Follow `ShutdownOverlay.test.tsx` patterns.
   - **Why**: First-run experience sets user expectations; a broken onboarding overlay is the first impression.
 
-- [ ] 🟢 **Component tests: PasswordStrengthIndicator**
+- [x] 🟢 **Component tests: PasswordStrengthIndicator**
   - **How**: Create `fe/src/components/__tests__/PasswordStrengthIndicator.test.tsx`. Test: renders 3 strength segments, shows "Weak"/"Fair"/"Strong" labels correctly, requirement checklist items check/uncheck based on password prop (length ≥ 12, uppercase, lowercase, number, special char). Pure rendering test — no mocking needed.
   - **Why**: Password strength logic affects wallet security UX; rendering bugs could mislead users about password quality.
 
-- [ ] 🟢 **Component tests: PriceRangeSlider**
+- [x] 🟢 **Component tests: PriceRangeSlider**
   - **How**: Create `fe/src/components/__tests__/PriceRangeSlider.test.tsx`. Test: renders min/max labels, fires `onChange` with updated range on input change, clamps values within bounds. Follow existing input component test patterns.
   - **Why**: PriceRangeSlider is a filter control used in MarketplaceTab; incorrect onChange behavior silently breaks filtering.
 
