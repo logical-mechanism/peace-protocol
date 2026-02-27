@@ -146,16 +146,50 @@ describe('WalletUnlock', () => {
     expect(screen.getByText('Delete Wallet')).toBeInTheDocument();
   });
 
-  it('deletes wallet and navigates to setup', async () => {
+  it('delete button is disabled until backup checkbox is checked', () => {
     renderPage();
 
     fireEvent.click(screen.getByText('Forgot password?'));
+
+    const deleteBtn = screen.getByText('Delete Wallet');
+    expect(deleteBtn).toBeDisabled();
+
+    // Check the acknowledgment checkbox
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+
+    expect(deleteBtn).not.toBeDisabled();
+  });
+
+  it('deletes wallet and navigates to setup after checkbox acknowledgment', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByText('Forgot password?'));
+
+    // Must check the checkbox first
+    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByText('Delete Wallet'));
 
     await waitFor(() => {
       expect(mockDeleteWallet).toHaveBeenCalledTimes(1);
       expect(mockNavigate).toHaveBeenCalledWith('/wallet-setup');
     });
+  });
+
+  it('resets backup checkbox when delete dialog is closed', () => {
+    renderPage();
+
+    // Open dialog and check the checkbox
+    fireEvent.click(screen.getByText('Forgot password?'));
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(screen.getByRole('checkbox')).toBeChecked();
+
+    // Close dialog
+    fireEvent.click(screen.getByText('Cancel'));
+
+    // Re-open — checkbox should be unchecked
+    fireEvent.click(screen.getByText('Forgot password?'));
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
   });
 
   it('closes delete confirmation on Cancel', () => {

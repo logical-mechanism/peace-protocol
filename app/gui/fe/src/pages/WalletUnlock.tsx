@@ -21,7 +21,11 @@ export default function WalletUnlock() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [copiedError, setCopiedError] = useState(false)
   const [capsLockOn, setCapsLockOn] = useState(false)
-  const onCloseDelete = useCallback(() => setShowDeleteConfirm(false), [])
+  const [backupAcknowledged, setBackupAcknowledged] = useState(false)
+  const onCloseDelete = useCallback(() => {
+    setShowDeleteConfirm(false)
+    setBackupAcknowledged(false)
+  }, [])
   const { zIndex: deleteZIndex, shouldRender: deleteRender, animationState: deleteAnim } =
     useModalStack('DeleteWalletConfirm', showDeleteConfirm, onCloseDelete)
   const deleteDialogRef = useRef<HTMLDivElement>(null)
@@ -281,6 +285,18 @@ export default function WalletUnlock() {
               >
                 Without your recovery phrase, your funds will be permanently lost.
               </div>
+              <label
+                className="flex items-start gap-2 mb-4 text-sm cursor-pointer"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={backupAcknowledged}
+                  onChange={(e) => setBackupAcknowledged(e.target.checked)}
+                  className="mt-0.5 accent-[var(--accent)]"
+                />
+                I have backed up my 24-word recovery phrase
+              </label>
               <div className="flex gap-3">
                 <button
                   onClick={onCloseDelete}
@@ -291,8 +307,8 @@ export default function WalletUnlock() {
                 </button>
                 <button
                   onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--error)] text-white btn-base flex items-center justify-center gap-2"
+                  disabled={!backupAcknowledged || isDeleting}
+                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--error)] text-white btn-base flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {isDeleting && <LoadingSpinner size="sm" className="text-white" />}
                   {isDeleting ? 'Deleting...' : 'Delete Wallet'}
