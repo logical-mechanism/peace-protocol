@@ -59,11 +59,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/WalletUnlock.tsx`, `fe/src/pages/WalletSetup.tsx`, `fe/src/contexts/WalletContext.tsx`
 
-- [ ] 🟢 **Eye icon for password show/hide toggle**
+- [x] 🟢 **Eye icon for password show/hide toggle**
   - **How**: In `WalletUnlock.tsx` (line ~108-114), replace the "Show"/"Hide" text button with an inline SVG eye/eye-off icon (w-4 h-4, stroke-based, matching existing icon style). Add `aria-label="Toggle password visibility"`.
   - **Why**: Text toggle looks inconsistent with the icon-based UI elsewhere; eye icon is universally understood.
 
-- [ ] 🟢 **Delete wallet button loading state**
+- [x] 🟢 **Delete wallet button loading state**
   - **How**: In `WalletUnlock.tsx` (line ~178), add `isDeleting` state. Set true before `invoke('delete_wallet')`, false after. Disable both confirm/cancel buttons, show `LoadingSpinner` in confirm button while `isDeleting`.
   - **Why**: Deletion involves Tauri file I/O; without loading state the button appears to hang briefly.
 
@@ -77,11 +77,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/NodeSync.tsx`, `fe/src/pages/Settings.tsx`, `fe/src/contexts/NodeContext.tsx`
 
-- [ ] 🟢 **Skeleton placeholder for node sync console logs**
+- [x] 🟢 **Skeleton placeholder for node sync console logs**
   - **How**: In `NodeSync.tsx` (line ~82), when logs are empty and node is starting, render 4-5 skeleton text lines (thin gray bars, shimmer animation matching `SkeletonCard` pattern) instead of "Waiting for logs..." text. Reuse the shimmer from `index.css`.
   - **Why**: The "Waiting for logs..." text looks unfinished; skeleton lines set the visual expectation of log output arriving.
 
-- [ ] 🟢 **Settings process log loading skeleton**
+- [x] 🟢 **Settings process log loading skeleton**
   - **How**: In `Settings.tsx` where `logsLoading` is true, render skeleton text lines (same pattern as above) instead of an empty area while process logs load after switching processes.
   - **Why**: Switching processes in Settings shows a blank space during log fetch — skeleton communicates loading.
 
@@ -95,7 +95,7 @@ Difficulty ratings:
   - **How**: In `MarketplaceTab.tsx` (line ~298+), increase the search input prominence: wider default width, subtle left-aligned search icon inside the input, `text-sm` placeholder "Search listings by name or seller...". Move filter/sort controls into a collapsible "Filters" dropdown button that sits secondary (btn-tertiary style) next to search.
   - **Why**: Search, filters, and sort currently have equal visual weight; primary action (search) should be immediately obvious.
 
-- [ ] 🟢 **"Clear filters" button on empty search results**
+- [x] 🟢 **"Clear filters" button on empty search results**
   - **How**: In `MarketplaceTab.tsx` (line ~161-169), when `NoResultsIllustration` renders, add a "Clear filters" button below the illustration that calls `resetFilters()` / clears search query. Use `btn-tertiary` styling.
   - **Why**: Users who search and get 0 results must manually clear the input; a one-click reset reduces friction.
 

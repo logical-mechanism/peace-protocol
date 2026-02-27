@@ -1666,9 +1666,17 @@ export default function Settings() {
                       {line}
                     </div>
                   ))
+                ) : logsLoading ? (
+                  <div className="space-y-2">
+                    <div className="h-3 w-4/5 rounded skeleton-shimmer" />
+                    <div className="h-3 w-3/5 rounded skeleton-shimmer" />
+                    <div className="h-3 w-full rounded skeleton-shimmer" />
+                    <div className="h-3 w-2/3 rounded skeleton-shimmer" />
+                    <div className="h-3 w-3/4 rounded skeleton-shimmer" />
+                  </div>
                 ) : (
                   <p className="text-[var(--text-muted)]">
-                    {logsLoading ? 'Loading logs...' : logSearchQuery ? 'No matching lines' : 'No logs available'}
+                    {logSearchQuery ? 'No matching lines' : 'No logs available'}
                   </p>
                 )}
               </div>
