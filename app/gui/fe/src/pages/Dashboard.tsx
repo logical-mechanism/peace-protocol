@@ -1407,7 +1407,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <button
             onClick={() => setActiveTab('my-sales')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-sales'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1425,7 +1425,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('my-purchases')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-purchases'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1438,7 +1438,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('library')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'library'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1451,7 +1451,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-150 cursor-pointer ${
+            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'history'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -1478,7 +1478,7 @@ export default function Dashboard() {
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 title={`${tab.label} (Ctrl+${index + 1})`}
-                className={`pb-3 transition-all duration-150 cursor-pointer flex items-center gap-2 ${
+                className={`pb-3 transition-all duration-[var(--transition-fast)] cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -1511,7 +1511,7 @@ export default function Dashboard() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               title="Refresh data (Ctrl+R)"
               aria-label="Refresh data"
             >

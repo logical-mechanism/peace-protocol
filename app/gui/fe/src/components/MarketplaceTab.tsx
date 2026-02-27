@@ -333,7 +333,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
               value={searchQuery}
               onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
               aria-label="Search listings"
-              className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
+              className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
             />
           </div>
 
@@ -361,7 +361,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -381,7 +381,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
             </button>
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -474,7 +474,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
             {/* Favorites Toggle */}
             <button
               onClick={() => dispatch({ type: 'SET_FAVORITES_ONLY', payload: !showFavoritesOnly })}
-              className={`px-3 py-2 border rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 showFavoritesOnly
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
                   : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -499,7 +499,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
         {activeFilterCount > 0 && (
           <button
             onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
-            className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors duration-150 cursor-pointer"
+            className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
           >
             {activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active &mdash; Clear
           </button>

@@ -463,7 +463,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         onClick={handleSeek}
       >
         <div
-          className="absolute inset-y-0 left-0 bg-[var(--accent)] rounded-full transition-[width] duration-150"
+          className="absolute inset-y-0 left-0 bg-[var(--accent)] rounded-full transition-[width] duration-[var(--transition-fast)]"
           style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
         />
       </div>
@@ -550,7 +550,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   );
 
   const keyHintsOverlay = showKeyHints ? (
-    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-300">
+    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-[var(--transition-slow)]">
       <div className="grid grid-cols-2 gap-x-6 gap-y-1">
         <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
         <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">F</kbd> Fullscreen</span>

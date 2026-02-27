@@ -640,7 +640,7 @@ export default function Settings() {
                     <button
                       key={s.id}
                       onClick={() => setActiveSection(s.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                         activeSection === s.id
                           ? 'bg-[var(--accent-muted)] text-[var(--text-primary)] border-l-2 border-[var(--accent)] ml-[-1px]'
                           : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
@@ -1012,7 +1012,7 @@ export default function Settings() {
                       setTheme(option.value)
                       applyTheme(option.value)
                     }}
-                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                       currentTheme === option.value
                         ? 'bg-[var(--accent)] text-white'
                         : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
@@ -1045,7 +1045,7 @@ export default function Settings() {
                       setAutolockValue(preset.value)
                       setAutolockMinutes(preset.value)
                     }}
-                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-150 cursor-pointer ${
+                    className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                       autolockValue === preset.value
                         ? 'bg-[var(--accent)] text-white'
                         : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'

@@ -202,7 +202,7 @@ function BidCard({
   formatLovelace,
 }: BidCardProps) {
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:border-[var(--border-default)] transition-all duration-150">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {/* Bidder Address */}

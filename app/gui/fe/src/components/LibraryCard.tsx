@@ -91,7 +91,7 @@ function LibraryCard({
     return (
       <>
         <div
-          className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-4 transition-all duration-150 ${
+          className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-4 transition-all duration-[var(--transition-fast)] ${
             selected
               ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
               : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)]'
@@ -188,7 +188,7 @@ function LibraryCard({
   return (
     <>
       <div
-        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-150 ${
+        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-[var(--transition-fast)] ${
           selected
             ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
             : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]'

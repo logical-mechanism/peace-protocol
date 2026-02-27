@@ -46,7 +46,7 @@ function LazyThumbnail({
     <button
       ref={containerRef}
       onClick={onClick}
-      className={`flex-shrink-0 cursor-pointer rounded-[var(--radius-sm)] overflow-hidden border-2 transition-colors duration-150 ${
+      className={`flex-shrink-0 cursor-pointer rounded-[var(--radius-sm)] overflow-hidden border-2 transition-colors duration-[var(--transition-fast)] ${
         isActive ? 'border-[var(--accent)]' : 'border-transparent hover:border-[var(--border-subtle)]'
       }`}
       style={{ width: THUMBNAIL_WIDTH, minHeight: THUMBNAIL_WIDTH * 1.4 }}
@@ -258,7 +258,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     );
   }
 
-  const btnClass = "px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+  const btnClass = "px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
 
   const toolbar = (
     <div className="flex items-center justify-between">
@@ -291,7 +291,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
                     pageInputRef.current?.blur();
                   }
                 }}
-                className={`w-12 text-center text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none transition-colors duration-200 ${pageInputInvalid ? 'border-[var(--error)] ring-1 ring-[var(--error)]' : 'border-[var(--border-subtle)] focus:border-[var(--accent)]'}`}
+                className={`w-12 text-center text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none transition-colors duration-[var(--transition-base)] ${pageInputInvalid ? 'border-[var(--error)] ring-1 ring-[var(--error)]' : 'border-[var(--border-subtle)] focus:border-[var(--accent)]'}`}
                 aria-label="Page number"
                 aria-invalid={pageInputInvalid || undefined}
               />

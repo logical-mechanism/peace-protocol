@@ -386,7 +386,7 @@ function MySalesTab({
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search sales"
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-150"
+            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
           />
         </div>
 
@@ -423,7 +423,7 @@ function MySalesTab({
           <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
@@ -443,7 +443,7 @@ function MySalesTab({
             </button>
             <button
               onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-150 cursor-pointer ${
+              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'

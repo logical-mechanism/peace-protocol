@@ -475,7 +475,7 @@ export default function CreateListingModal({
                   type="button"
                   onClick={() => handleModeToggle('text')}
                   disabled={isSubmitting}
-                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-[var(--radius-md)] border text-sm transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-[var(--radius-md)] border text-sm transition-all duration-[var(--transition-fast)] cursor-pointer disabled:cursor-not-allowed ${
                     !isFileMode
                       ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
                       : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -490,7 +490,7 @@ export default function CreateListingModal({
                   type="button"
                   onClick={() => handleModeToggle('file')}
                   disabled={isSubmitting}
-                  className={`relative flex items-center justify-center gap-2 px-3 py-2.5 rounded-[var(--radius-md)] border text-sm transition-all duration-150 cursor-pointer disabled:cursor-not-allowed ${
+                  className={`relative flex items-center justify-center gap-2 px-3 py-2.5 rounded-[var(--radius-md)] border text-sm transition-all duration-[var(--transition-fast)] cursor-pointer disabled:cursor-not-allowed ${
                     isFileMode
                       ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
                       : isIagonConnected
@@ -539,7 +539,7 @@ export default function CreateListingModal({
                   placeholder="Enter the secret data you want to sell..."
                   aria-invalid={!!errors.secretMessage}
                   aria-describedby={errors.secretMessage ? 'secretMessage-error' : undefined}
-                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 resize-none disabled:opacity-50 ${
+                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] resize-none disabled:opacity-50 ${
                     errors.secretMessage ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
                 />
@@ -597,7 +597,7 @@ export default function CreateListingModal({
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-150 ${
+                    className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-[var(--transition-fast)] ${
                       isDragging
                         ? 'border-[var(--accent)] bg-[var(--accent)]/10'
                         : errors.file
@@ -691,7 +691,7 @@ export default function CreateListingModal({
                 placeholder="Brief description of what you're selling (visible to buyers)"
                 aria-invalid={!!errors.description}
                 aria-describedby={errors.description ? 'description-error' : undefined}
-                className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 resize-none disabled:opacity-50 ${
+                className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] resize-none disabled:opacity-50 ${
                   errors.description ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                 }`}
               />
@@ -732,7 +732,7 @@ export default function CreateListingModal({
                     placeholder="0.00"
                     aria-invalid={!!errors.suggestedPrice}
                     aria-describedby={errors.suggestedPrice ? 'suggestedPrice-error' : undefined}
-                    className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
+                    className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
                       errors.suggestedPrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                     }`}
                   />
@@ -767,7 +767,7 @@ export default function CreateListingModal({
                   placeholder="https://example.com/preview.png"
                   aria-invalid={!!errors.imageLink}
                   aria-describedby={errors.imageLink ? 'imageLink-error' : undefined}
-                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 ${
+                  className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 ${
                     errors.imageLink ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
                 />

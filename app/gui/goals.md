@@ -261,7 +261,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/index.css`, various components
 
-- [ ] 🟡 **Standardize transition durations to design tokens**
+- [x] 🟡 **Standardize transition durations to design tokens**
   - **How**: Grep for hardcoded `duration-150`, `duration-200`, `duration-300` across components. Replace with references to `--transition-fast` (150ms), `--transition-base` (200ms), or `--transition-slow` (300ms) as appropriate. Key files: `PlaceBidModal.tsx`, `Toast.tsx`, `TransactionLink.tsx`. Use Tailwind arbitrary values: `duration-[var(--transition-base)]` or switch to CSS `transition` property referencing the variable.
   - **Why**: Mixing hardcoded durations with design tokens creates inconsistency; animations should feel uniform.
 

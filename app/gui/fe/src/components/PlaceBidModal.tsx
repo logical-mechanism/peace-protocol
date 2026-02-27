@@ -362,7 +362,7 @@ export default function PlaceBidModal({
                   max={balanceAda !== undefined ? Math.floor(balanceAda) : undefined}
                   aria-invalid={!!errors.bidAmount}
                   aria-describedby={errors.bidAmount ? 'bidAmount-error' : 'bidAmount-hint'}
-                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
+                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
                     errors.bidAmount ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
                 />
@@ -431,7 +431,7 @@ export default function PlaceBidModal({
               >
                 <span>Set Future Listing Price</span>
                 <svg
-                  className={`w-4 h-4 transition-transform duration-150 ${showFuturePrice ? 'rotate-180' : ''}`}
+                  className={`w-4 h-4 transition-transform duration-[var(--transition-fast)] ${showFuturePrice ? 'rotate-180' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -501,7 +501,7 @@ export default function PlaceBidModal({
                       placeholder="0.00"
                       aria-invalid={!!errors.futurePrice}
                       aria-describedby={errors.futurePrice ? 'futurePrice-error' : undefined}
-                      className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
+                      className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
                         errors.futurePrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                       }`}
                     />

@@ -151,7 +151,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg ${closing ? 'toast-exit' : 'animate-in slide-in-from-right-full duration-300'}`}
+      className={`flex items-start gap-3 p-4 ${colors.bg} border ${colors.border} rounded-[var(--radius-lg)] shadow-lg ${closing ? 'toast-exit' : 'animate-in slide-in-from-right-full duration-[var(--transition-slow)]'}`}
       style={!closing && index > 0 ? { animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' } : undefined}
       onAnimationEnd={handleAnimationEnd}
       role="alert"

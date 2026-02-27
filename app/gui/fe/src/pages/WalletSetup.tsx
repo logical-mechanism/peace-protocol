@@ -61,7 +61,7 @@ function StepIndicator({ steps, currentIndex }: { steps: StepInfo[]; currentInde
                 style={{
                   width: '3rem',
                   background: i < currentIndex ? 'var(--success)' : 'var(--border-subtle)',
-                  transition: 'background 0.2s ease',
+                  transition: 'background var(--transition-base)',
                 }}
               />
             )}

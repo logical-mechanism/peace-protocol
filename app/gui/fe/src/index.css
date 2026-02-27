@@ -74,9 +74,9 @@
   --focus-ring: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
 
   /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-base: 200ms ease;
-  --transition-slow: 300ms ease;
+  --transition-fast: 150ms;
+  --transition-base: 200ms;
+  --transition-slow: 300ms;
 }
 
 /* Light theme overrides */
