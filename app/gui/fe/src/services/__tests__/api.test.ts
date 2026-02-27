@@ -243,6 +243,27 @@ describe('checkHealth', () => {
     expect(result.kupo.reachable).toBe(true);
     expect(result.koios.reachable).toBe(true);
   });
+
+  it('returns health status even on 503 (unhealthy)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({
+        status: 'unhealthy',
+        uptimeSeconds: 0,
+        kupo: { reachable: false, latencyMs: 0, lastSuccess: null },
+        koios: { reachable: false, latencyMs: 0, lastSuccess: null },
+        network: 'preprod',
+        useStubs: false,
+        timestamp: '2025-01-01',
+      }),
+    });
+    const { checkHealth } = await loadApi();
+
+    const result = await checkHealth();
+    expect(result.status).toBe('unhealthy');
+    expect(result.uptimeSeconds).toBe(0);
+  });
 });
 
 describe('error handling', () => {

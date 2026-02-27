@@ -356,5 +356,11 @@ export interface HealthStatus {
 }
 
 export async function checkHealth(): Promise<HealthStatus> {
-  return apiFetch('/health');
+  // /health returns 503 for unhealthy status — fetch directly instead of apiFetch
+  // which would throw on non-2xx responses
+  const url = `${API_URL}/health`;
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return response.json();
 }

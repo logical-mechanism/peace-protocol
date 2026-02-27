@@ -27,10 +27,12 @@ pub async fn start_express(
 }
 
 /// Health check: GET http://127.0.0.1:3001/health
-/// Returns true if Express responds with a 200 status.
+/// Returns true if Express responds (any HTTP status — connection success means alive).
+/// The /health endpoint may return 503 when dependencies (Kupo/Koios) are unhealthy,
+/// but Express itself is running and accepting requests.
 pub async fn health_check() -> bool {
     match reqwest::get("http://127.0.0.1:3001/health").await {
-        Ok(resp) => resp.status().is_success(),
+        Ok(_) => true,
         Err(_) => false,
     }
 }

@@ -101,12 +101,29 @@ describe('GET /health', () => {
     expect(res.body.koios.reachable).toBe(true);
   });
 
-  it('returns 200 even when health service throws', async () => {
+  it('returns 503 when unhealthy', async () => {
+    (getHealthStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: 'unhealthy',
+      uptimeSeconds: 10,
+      kupo: { reachable: false, latencyMs: 0, lastSuccess: null, error: 'ECONNREFUSED' },
+      koios: { reachable: false, latencyMs: 0, lastSuccess: null, error: 'ECONNREFUSED' },
+      network: 'preprod',
+      useStubs: false,
+      timestamp: '2025-01-01T00:00:00.000Z',
+    });
+
+    const res = await request(app).get('/health');
+
+    expect(res.status).toBe(503);
+    expect(res.body.status).toBe('unhealthy');
+  });
+
+  it('returns 503 when health service throws', async () => {
     (getHealthStatus as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('crash'));
 
     const res = await request(app).get('/health');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
     expect(res.body.status).toBe('unhealthy');
   });
 });

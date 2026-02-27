@@ -25,13 +25,14 @@ export function createApp() {
     })
   );
 
-  // Health check endpoint — always returns 200 (Rust health_check expects 2xx)
+  // Health check endpoint — returns 503 when unhealthy, 200 for healthy/degraded
   app.get('/health', async (_req: Request, res: Response) => {
     try {
       const health = await getHealthStatus(config.network, config.useStubs);
-      res.json(health);
+      const statusCode = health.status === 'unhealthy' ? 503 : 200;
+      res.status(statusCode).json(health);
     } catch {
-      res.json({
+      res.status(503).json({
         status: 'unhealthy',
         uptimeSeconds: 0,
         kupo: { reachable: false, latencyMs: 0, lastSuccess: null },
