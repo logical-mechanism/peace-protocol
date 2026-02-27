@@ -277,7 +277,7 @@ Difficulty ratings:
   - **How**: In existing test files for `imageCache.test.ts`, `iagonApi.test.ts`, `iagonAuth.test.ts`, `libraryService.test.ts`, and `snarkProver.test.ts`, add test cases for: `invoke()` rejecting with "wallet locked" error, `invoke()` rejecting with "file not found", `invoke()` rejecting with permission denied, `invoke()` timing out. Mock `invoke` to throw and verify the service either re-throws with a meaningful error or returns a failure result.
   - **Why**: All Tauri IPC services only test happy paths; invoke failures (locked wallet, missing files, process crash) are real production scenarios that could crash the UI.
 
-- [ ] 🟡 **Raise frontend coverage thresholds**
+- [x] 🟡 **Raise frontend coverage thresholds**
   - **How**: In `fe/vite.config.ts`, update coverage thresholds from `lines: 55, statements: 55` to `lines: 80, statements: 80`. Run `npm test -- --coverage` to verify current coverage meets the threshold, or incrementally raise (e.g., 65 → 75 → 80) over multiple PRs.
   - **Why**: 55% line coverage is too low for a financial application handling real ADA; higher thresholds prevent regression.
 
