@@ -175,7 +175,7 @@ Difficulty ratings:
   - **How**: In `fe/src/utils/formatAda.ts`, `formatAda()` (line 5) trims trailing zeros ("1.5 ADA") while `formatAdaDisplay()` (line 17) forces 2 decimal places ("1.50 ADA"). These appear side-by-side in marketplace cards (listing price vs wallet balance). Either: (a) add a JSDoc comment explaining the intentional distinction, or (b) unify to always show 2 decimals for consistency. If unifying, update `formatAda()` to use `minimumFractionDigits: 2`.
   - **Why**: "50 ADA" next to "1,234.50 ADA" looks inconsistent and erodes confidence in the app's attention to detail.
 
-- [ ] 🟢 **SessionWarningBanner copy improvement**
+- [x] 🟢 **SessionWarningBanner copy improvement**
   - **How**: In `SessionWarningBanner.tsx` (line 45), change `"move mouse or press a key to stay active"` to `"click Stay Active or press any key to continue"`. The current copy mentions mouse movement but doesn't reference the actual "Stay Active" button prominently.
   - **Why**: Users should focus on the button (the clearest action) rather than vague mouse movement instructions.
 
@@ -233,7 +233,7 @@ Difficulty ratings:
   - **How**: In `health.ts`, `lastKupoSuccess` and `lastKoiosSuccess` persist indefinitely. Add a staleness check: if `Date.now() - lastSuccess > 5 * 60 * 1000` (5 minutes), report the dependency as "stale" rather than "reachable" in the health response.
   - **Why**: A health endpoint reporting Kupo as "reachable" based on a success from 2 hours ago is misleading for monitoring.
 
-- [ ] 🟢 **Validate numeric environment variable ranges**
+- [x] 🟢 **Validate numeric environment variable ranges**
   - **How**: In `be/src/config/index.ts`, after `parseInt()` for reference output indices, add range validation: `if (val < 0 || val > 255) throw new Error('Invalid output index')`. Negative indices parse successfully but are invalid on-chain.
   - **Why**: A misconfigured env var like `ENCRYPTION_REF_OUTPUT_INDEX_PREPROD="-1"` silently becomes -1, causing cryptic transaction build failures.
 
