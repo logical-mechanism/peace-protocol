@@ -244,7 +244,7 @@ export default function PlaceBidModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+        <form onSubmit={handleSubmit} noValidate className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
             {/* Listing Info */}
             <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
@@ -350,7 +350,7 @@ export default function PlaceBidModal({
               <div className="relative">
                 <input
                   ref={bidAmountRef}
-                  type="text"
+                  type="number"
                   inputMode="decimal"
                   id="bidAmount"
                   name="bidAmount"
@@ -359,7 +359,9 @@ export default function PlaceBidModal({
                   onBlur={handleBidAmountBlur}
                   disabled={isSubmitting}
                   placeholder="0.00"
-                  max={balanceAda !== undefined ? Math.floor(balanceAda) : undefined}
+                  min={MIN_BID_ADA}
+                  max={balanceAda !== undefined ? balanceAda - FEE_RESERVE_ADA : undefined}
+                  step="0.1"
                   aria-invalid={!!errors.bidAmount}
                   aria-describedby={errors.bidAmount ? 'bidAmount-error' : 'bidAmount-hint'}
                   className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${

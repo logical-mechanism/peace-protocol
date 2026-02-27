@@ -111,7 +111,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] 🟢 **HTML min/max/step attributes on bid amount input**
+- [x] 🟢 **HTML min/max/step attributes on bid amount input**
   - **How**: In `PlaceBidModal.tsx`, the bid amount input validates via JavaScript (line ~113-121 checks `MIN_BID_ADA`). Add `type="number"` with `min={MIN_BID_ADA}` `step="0.1"` attributes to the `<input>`. If `balanceLovelace` is available, compute `max={(parseInt(balanceLovelace) / 1_000_000) - FEE_RESERVE_ADA}`.
   - **Why**: Native number input constraints enable browser scroll-wheel clamping and up/down arrow increments alongside existing JavaScript validation.
 
