@@ -112,3 +112,52 @@ describe('getStorageLayerUri', () => {
     }
   });
 });
+
+// ── Error path tests ─────────────────────────────────────────────────
+
+describe('computeTokenName — edge cases', () => {
+  it('handles txHash shorter than 64 chars (truncated hash)', () => {
+    // Should not throw — result may be shorter but function doesn't validate
+    const result = computeTokenName('abcd', 0);
+    expect(typeof result).toBe('string');
+  });
+
+  it('handles very large index values', () => {
+    const txHash = 'a'.repeat(64);
+    const result = computeTokenName(txHash, 100_000);
+    expect(result).toHaveLength(64);
+    expect(result).toMatch(/^[0-9a-f]+$/);
+  });
+});
+
+describe('estimateMinLovelace — edge cases', () => {
+  it('handles empty datum (no fields)', () => {
+    const result = estimateMinLovelace({ constructor: 0, fields: [] });
+    expect(parseInt(result, 10)).toBeGreaterThanOrEqual(2_000_000);
+  });
+
+  it('handles deeply nested datum without crashing', () => {
+    const nested = {
+      constructor: 0,
+      fields: [
+        { constructor: 1, fields: [
+          { constructor: 2, fields: [
+            { bytes: 'aa'.repeat(48) },
+            { int: 999 },
+          ] },
+        ] },
+      ],
+    };
+    const result = estimateMinLovelace(nested);
+    expect(parseInt(result, 10)).toBeGreaterThanOrEqual(2_000_000);
+  });
+
+  it('handles datum with no hex bytes (all ints)', () => {
+    const datum = {
+      constructor: 0,
+      fields: [{ int: 1 }, { int: 2 }, { int: 3 }],
+    };
+    const result = estimateMinLovelace(datum);
+    expect(parseInt(result, 10)).toBeGreaterThanOrEqual(2_000_000);
+  });
+});

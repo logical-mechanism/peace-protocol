@@ -33,7 +33,7 @@ function ProgressBar({ percent }: { percent: number }) {
       aria-label="Sync progress"
     >
       <div
-        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-all duration-300"
+        className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-[width] duration-500 ease-out"
         style={{ width: `${Math.min(percent, 100)}%` }}
       />
     </div>
@@ -234,7 +234,9 @@ export default function NodeSync() {
           setDiskSpaceWarning(null)
         }
       } catch {
-        // Silently skip — not critical
+        setDiskSpaceWarning(
+          'Could not verify disk space. Ensure you have at least 10 GB free before syncing.'
+        )
       }
     }
     checkSpace()
@@ -255,6 +257,7 @@ export default function NodeSync() {
   // Network tip from Koios
   const [networkTip, setNetworkTip] = useState<number | null>(null)
   const networkTipTimerRef = useRef<number | null>(null)
+  const [tipFetchFailed, setTipFetchFailed] = useState(false)
 
   // Mithril download speed/ETA tracking
   const mithrilSamplesRef = useRef<{ time: number; bytes: number }[]>([])
@@ -282,6 +285,7 @@ export default function NodeSync() {
     // Reset state-based tracking
     setSyncEta(null)
     setNetworkTip(null)
+    setTipFetchFailed(false)
     setMithrilEta(null)
     setMithrilSpeed(null)
     setShowStuckMessage(false)
@@ -335,7 +339,7 @@ export default function NodeSync() {
       if (progress.length === 0 || progress[progress.length - 1].progress !== lastProgress) {
         // No new data yet, skip
       }
-      if (progress.length >= 2) {
+      if (progress.length >= 3) {
         const oldest = progress[0]
         const newest = progress[progress.length - 1]
         const timeDelta = newest.time - oldest.time
@@ -344,7 +348,7 @@ export default function NodeSync() {
           const rate = progressDelta / timeDelta
           const remaining = 100 - newest.progress
           const etaSeconds = remaining / rate
-          setSyncEta(etaSeconds < 86400 ? formatEta(etaSeconds) : 'estimating...')
+          setSyncEta(etaSeconds < 172800 ? formatEta(etaSeconds) : 'estimating...')
         }
       }
     }, 5000)
@@ -373,9 +377,12 @@ export default function NodeSync() {
     const fetchTip = async () => {
       try {
         const tip = await invoke<{ block_no: number }>('get_network_tip')
-        if (tip) setNetworkTip(tip.block_no)
+        if (tip) {
+          setNetworkTip(tip.block_no)
+          setTipFetchFailed(false)
+        }
       } catch {
-        // Koios may be unreachable; silently skip
+        setTipFetchFailed(true)
       }
     }
 
@@ -401,7 +408,7 @@ export default function NodeSync() {
       }
 
       const samples = mithrilSamplesRef.current
-      if (samples.length >= 2) {
+      if (samples.length >= 3) {
         const oldest = samples[0]
         const newest = samples[samples.length - 1]
         const timeDelta = newest.time - oldest.time
@@ -411,7 +418,8 @@ export default function NodeSync() {
           setMithrilSpeed(formatSpeed(speed))
           const remaining = total_bytes - newest.bytes
           if (remaining > 0) {
-            setMithrilEta(formatEta(remaining / speed))
+            const etaSeconds = remaining / speed
+            setMithrilEta(etaSeconds < 172800 ? formatEta(etaSeconds) : 'estimating...')
           } else {
             setMithrilEta(null)
           }
@@ -618,6 +626,12 @@ export default function NodeSync() {
                       {(networkTip - tipHeight).toLocaleString()} blocks remaining.
                     </span>
                   )}
+                </div>
+              )}
+
+              {tipFetchFailed && !networkTip && (
+                <div className="mt-3 p-3 bg-[var(--warning-muted)] border border-[var(--warning)]/20 rounded-[var(--radius-md)] text-xs text-[var(--warning)]">
+                  Could not fetch network tip — sync percentage may be approximate.
                 </div>
               )}
             </div>

@@ -6,6 +6,7 @@ import { useNode } from '../contexts/NodeContext'
 import { useModal } from '../contexts/ModalContext'
 import { copyToClipboard } from '../utils/clipboard'
 import { truncateHex } from '../utils/truncate'
+import { formatAdaDisplay } from '../utils/formatAda'
 const MarketplaceTab = lazy(() => import('../components/MarketplaceTab'))
 const MySalesTab = lazy(() => import('../components/MySalesTab'))
 const MyPurchasesTab = lazy(() => import('../components/MyPurchasesTab'))
@@ -17,7 +18,7 @@ import KeyboardShortcutsOverlay from '../components/KeyboardShortcutsOverlay'
 import CreateListingModal from '../components/CreateListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
-import SnarkProvingModal from '../components/SnarkProvingModal'
+const SnarkProvingModal = lazy(() => import('../components/SnarkProvingModal'))
 import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
@@ -231,7 +232,7 @@ export default function Dashboard() {
         // Show the most recent recoverable draft
         setRecoverableDraft(drafts[0])
       })
-      .catch(() => {}) // best-effort
+      .catch((err) => console.warn('Draft recovery check failed:', err))
     return () => { cancelled = true }
   }, [])
 
@@ -281,25 +282,50 @@ export default function Dashboard() {
   const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
 
   // Fire toast when new bids arrive mid-session (not on initial load).
+  // Groups multiple bid arrivals within a 5-second window into a single notification.
   // toast is excluded from deps: its methods are stable useCallbacks but the
   // object reference is recreated each render (no useMemo in useToast).
   const isInitialBidCheck = useRef(true)
+  const lastNotifiedCountRef = useRef(0)
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (!bidNotifications.isReady) return
     if (isInitialBidCheck.current) {
       isInitialBidCheck.current = false
+      lastNotifiedCountRef.current = bidNotifications.unseenBidCount
       return
     }
-    if (bidNotifications.unseenBidCount > 0) {
+
+    const newCount = bidNotifications.unseenBidCount
+
+    // Count dropped (user viewed My Sales) or unchanged — sync ref, skip notification
+    if (newCount <= lastNotifiedCountRef.current) {
+      lastNotifiedCountRef.current = newCount
+      return
+    }
+
+    // Debounce: clear any pending timer and wait 5s for more bids to arrive
+    if (notificationTimerRef.current) {
+      clearTimeout(notificationTimerRef.current)
+    }
+
+    notificationTimerRef.current = setTimeout(() => {
+      const delta = newCount - lastNotifiedCountRef.current
+      lastNotifiedCountRef.current = newCount
+      if (delta <= 0) return
+
+      const label = delta === 1 ? 'bid' : 'bids'
       toast.info(
         'New Bids Received',
-        `You have ${bidNotifications.unseenBidCount} new ${bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'} on your listings`,
+        `You have ${delta} new ${label} on your listings`,
         8000
       )
       playNotificationSound()
-      const count = bidNotifications.unseenBidCount
-      const label = count === 1 ? 'bid' : 'bids'
-      sendDesktopNotification('New Bids Received', `You have ${count} new ${label} on your listings`)
+      sendDesktopNotification('New Bids Received', `You have ${delta} new ${label} on your listings`)
+    }, 5000)
+
+    return () => {
+      if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
@@ -434,20 +460,16 @@ export default function Dashboard() {
     [txHistory]
   )
 
-  const formatAda = (lovelaceAmount: string | undefined) => {
-    if (!lovelaceAmount) return '...'
-    const ada = parseInt(lovelaceAmount) / 1_000_000
-    return ada.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  }
-
   const handleCopy = useCallback(async () => {
     if (!address) return
     const success = await copyToClipboard(address)
     if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    } else {
+      toast.warning('Copy failed', 'Could not copy address to clipboard.')
     }
-  }, [address])
+  }, [address, toast])
 
   const handleDisconnect = useCallback(() => {
     clearLastActiveTab()
@@ -455,10 +477,14 @@ export default function Dashboard() {
   }, [disconnect])
 
   const handlePlaceBid = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
+    if (!navigator.onLine) {
+      toast.warning('You\'re offline', 'Bids require a network connection. Please reconnect and try again.')
+      return
+    }
     setSelectedEncryption(encryption)
     setSelectedBidCount(bidCount)
     setShowPlaceBid(true)
-  }, [])
+  }, [toast])
 
   const handlePlaceBidSubmit = useCallback(async (
     encryptionTokenName: string,
@@ -569,7 +595,9 @@ export default function Dashboard() {
           console.error('Failed to remove listing:', error)
           toast.error(
             'Failed to Remove Listing',
-            error instanceof Error ? error.message : 'Unknown error occurred'
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleRemoveListing(encryption) }
           )
         }
       },
@@ -614,7 +642,9 @@ export default function Dashboard() {
       console.error('Failed to prepare SNARK inputs:', error)
       toast.error(
         'Failed to Prepare Proof',
-        error instanceof Error ? error.message : 'Unknown error occurred'
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        0,
+        { label: 'Retry', onClick: () => handleAcceptBid(encryption, bid) }
       )
     }
   }, [toast, wasmReady, wasmLoading, navigate, wallet])
@@ -625,6 +655,10 @@ export default function Dashboard() {
       toast.error('Error', 'Missing accept-bid state')
       return
     }
+
+    // Capture state before finally clears it, so the retry closure can reference them
+    const savedEncryption = acceptBidEncryption
+    const savedBid = acceptBidBid
 
     try {
       // Step 3: Submit SNARK transaction (Phase 12e)
@@ -675,7 +709,9 @@ export default function Dashboard() {
       console.error('Failed to submit SNARK transaction:', error)
       toast.error(
         'Failed to Accept Bid',
-        error instanceof Error ? error.message : 'Unknown error occurred'
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        0,
+        { label: 'Retry', onClick: () => handleAcceptBid(savedEncryption, savedBid) }
       )
     } finally {
       // Clean up state
@@ -687,7 +723,7 @@ export default function Dashboard() {
       setSnarkInputs(null)
       setShowSnarkModal(false)
     }
-  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, handleAcceptBid])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -735,7 +771,9 @@ export default function Dashboard() {
           console.error('Failed to cancel pending listing:', error)
           toast.error(
             'Failed to Cancel Pending',
-            error instanceof Error ? error.message : 'Unknown error occurred'
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleCancelPending(encryption) }
           )
         }
       },
@@ -809,7 +847,9 @@ export default function Dashboard() {
       console.error('Failed to complete sale:', error)
       toast.error(
         'Failed to Complete Sale',
-        error instanceof Error ? error.message : 'Unknown error occurred'
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        0,
+        { label: 'Retry', onClick: () => handleCompleteSale(encryption) }
       )
     }
   }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
@@ -872,7 +912,9 @@ export default function Dashboard() {
           console.error('Failed to cancel bid:', error)
           toast.error(
             'Failed to Cancel Bid',
-            error instanceof Error ? error.message : 'Unknown error occurred'
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            0,
+            { label: 'Retry', onClick: () => handleCancelBid(bid) }
           )
         }
       },
@@ -1017,7 +1059,7 @@ export default function Dashboard() {
         setAcceptedBidCount(accepted.length)
 
         // Best-effort cleanup of stale secrets after confirmed ownership changes
-        cleanupStaleSecrets(userPkh, encryptions).catch(() => {})
+        cleanupStaleSecrets(userPkh, encryptions).catch((err) => console.warn('Stale secret cleanup failed:', err))
       } catch (error) {
         console.error('Failed to fetch stats:', error)
         setMyListingsCount(0)
@@ -1046,7 +1088,9 @@ export default function Dashboard() {
           <MarketplaceTab
             refreshSignal={refreshSignal}
             userPkh={userPkh}
+            lovelace={lovelace}
             onPlaceBid={handlePlaceBid}
+            onCreateListing={handleOpenCreateListing}
             filters={marketplaceFilters}
             dispatch={marketplaceDispatch}
           />
@@ -1074,6 +1118,7 @@ export default function Dashboard() {
             onCancelBid={handleCancelBid}
             onDecrypt={handleDecrypt}
             onDecryptEncryption={handleDecryptEncryption}
+            onSwitchTab={setActiveTab}
             filters={myPurchasesFilters}
             dispatch={myPurchasesDispatch}
             failedDecryptTokens={failedDecryptTokens}
@@ -1096,6 +1141,7 @@ export default function Dashboard() {
         return (
           <LibraryTab
             refreshSignal={refreshSignal}
+            onSwitchTab={setActiveTab}
             filters={libraryFilters}
             dispatch={libraryDispatch}
           />
@@ -1228,9 +1274,21 @@ export default function Dashboard() {
           </button>
 
           {/* ADA Balance */}
-          <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
-            {formatAda(lovelace)} ADA
-          </div>
+          {lovelace ? (
+            <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
+              {formatAdaDisplay(lovelace)} ADA
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
+              title="Waiting for Kupo to start. Your funds are safe."
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Balance unavailable
+            </div>
+          )}
 
           {/* Address with copy button */}
           <button
@@ -1464,11 +1522,13 @@ export default function Dashboard() {
 
         {/* Tab Content */}
         <div
+          key={activeTab}
           id={`tabpanel-${activeTab}`}
           role="tabpanel"
           aria-labelledby={`tab-${activeTab}`}
           aria-busy={isRefreshing}
           tabIndex={0}
+          className="tab-transition"
         >
           <Suspense fallback={<SkeletonGrid />}>
             {renderTabContent()}
@@ -1513,6 +1573,7 @@ export default function Dashboard() {
         encryption={selectedEncryption}
         isIagonConnected={iagonConnected}
         onDecryptResult={handleDecryptResult}
+        onSaveWarning={(msg) => toast.warning('Save failed', msg)}
       />
 
       {/* Confirmation Modal (destructive actions) */}
@@ -1542,20 +1603,22 @@ export default function Dashboard() {
       />
 
       {/* SNARK Proving Modal (Accept Bid Step 1) */}
-      <SnarkProvingModal
-        isOpen={showSnarkModal}
-        onClose={() => {
-          setShowSnarkModal(false)
-          setSnarkInputs(null)
-          setAcceptBidEncryption(null)
-          setAcceptBidBid(null)
-          setAcceptBidA0(null)
-          setAcceptBidR0(null)
-          setAcceptBidHk(null)
-        }}
-        onProofGenerated={handleProofGenerated}
-        inputs={snarkInputs}
-      />
+      <Suspense fallback={null}>
+        <SnarkProvingModal
+          isOpen={showSnarkModal}
+          onClose={() => {
+            setShowSnarkModal(false)
+            setSnarkInputs(null)
+            setAcceptBidEncryption(null)
+            setAcceptBidBid(null)
+            setAcceptBidA0(null)
+            setAcceptBidR0(null)
+            setAcceptBidHk(null)
+          }}
+          onProofGenerated={handleProofGenerated}
+          inputs={snarkInputs}
+        />
+      </Suspense>
 
       {/* Toast Notifications */}
       <KeyboardShortcutsOverlay isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -22,7 +22,7 @@ interface SalesListingCardProps {
   initialBanned?: boolean;
 }
 
-export default function SalesListingCard({
+function SalesListingCard({
   encryption,
   bidCount,
   onViewBids,
@@ -34,6 +34,13 @@ export default function SalesListingCard({
   initialBanned = false,
 }: SalesListingCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+  const [prevBidCount, setPrevBidCount] = useState(bidCount);
+  const [bidPulseKey, setBidPulseKey] = useState(0);
+
+  if (bidCount > prevBidCount) {
+    setPrevBidCount(bidCount);
+    setBidPulseKey(k => k + 1);
+  }
 
   // Format price with fallback to 1 ADA if undefined, null, NaN, or invalid
   const formatPrice = (price?: number): string => {
@@ -166,7 +173,10 @@ export default function SalesListingCard({
                     >
                       View Bids
                       {bidCount > 0 && (
-                        <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-white/20 rounded">
+                        <span
+                          key={bidPulseKey}
+                          className={`ml-1.5 px-1.5 py-0.5 text-xs bg-white/20 rounded${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                        >
                           {bidCount}
                         </span>
                       )}
@@ -325,7 +335,10 @@ export default function SalesListingCard({
               >
                 <span>View Bids</span>
                 {bidCount > 0 && (
-                  <span className="px-2 py-0.5 text-xs bg-white/20 rounded-full">
+                  <span
+                    key={bidPulseKey}
+                    className={`px-2 py-0.5 text-xs bg-white/20 rounded-full${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                  >
                     {bidCount}
                   </span>
                 )}
@@ -367,3 +380,27 @@ export default function SalesListingCard({
     </>
   );
 }
+
+function arePropsEqual(prev: SalesListingCardProps, next: SalesListingCardProps): boolean {
+  return (
+    prev.encryption.tokenName === next.encryption.tokenName &&
+    prev.encryption.status === next.encryption.status &&
+    prev.encryption.suggestedPrice === next.encryption.suggestedPrice &&
+    prev.encryption.imageLink === next.encryption.imageLink &&
+    prev.encryption.description === next.encryption.description &&
+    prev.encryption.category === next.encryption.category &&
+    prev.encryption.storageLayer === next.encryption.storageLayer &&
+    prev.encryption.createdAt === next.encryption.createdAt &&
+    prev.encryption.datum?.status?.type === next.encryption.datum?.status?.type &&
+    prev.bidCount === next.bidCount &&
+    prev.compact === next.compact &&
+    prev.initialCached === next.initialCached &&
+    prev.initialBanned === next.initialBanned &&
+    prev.onViewBids === next.onViewBids &&
+    prev.onRemove === next.onRemove &&
+    prev.onCancelPending === next.onCancelPending &&
+    prev.onCompleteSale === next.onCompleteSale
+  );
+}
+
+export default memo(SalesListingCard, arePropsEqual);

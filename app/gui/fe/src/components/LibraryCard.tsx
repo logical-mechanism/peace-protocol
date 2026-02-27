@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { LibraryItem } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
 import { formatBytes } from '../utils/formatBytes';
 import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
+import { getContentType } from '../utils/contentType';
 
 interface LibraryCardProps {
   item: LibraryItem;
@@ -32,14 +33,22 @@ const getCategoryLabel = (category: string): string => {
 };
 
 
-function CategoryIcon({ category, size = 'md' }: { category: string; size?: 'sm' | 'md' }) {
+function CategoryIcon({ category, fileExtension, size = 'md' }: { category: string; fileExtension?: string; size?: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
+  const contentType = getContentType(category, fileExtension);
 
-  switch (category) {
+  switch (contentType) {
     case 'text':
       return (
         <svg className={sizeClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        </svg>
+      );
+    case 'pdf':
+      return (
+        <svg className={sizeClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          <text x="12" y="17.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="5.5" fontWeight="bold" fontFamily="sans-serif">PDF</text>
         </svg>
       );
     case 'document':
@@ -75,7 +84,7 @@ function CategoryIcon({ category, size = 'md' }: { category: string; size?: 'sm'
   }
 }
 
-export default function LibraryCard({
+function LibraryCard({
   item,
   onView,
   onDelete,
@@ -111,7 +120,7 @@ export default function LibraryCard({
                 />
               )}
               <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
-                <CategoryIcon category={item.category} size="sm" />
+                <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
               </div>
 
               <div className="min-w-0">
@@ -245,7 +254,7 @@ export default function LibraryCard({
         {/* Category Icon */}
         <div className="flex items-center justify-center py-6 mb-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
           <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
-            <CategoryIcon category={item.category} size="md" />
+            <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
           </div>
         </div>
 
@@ -287,3 +296,24 @@ export default function LibraryCard({
     </>
   );
 }
+
+function arePropsEqual(prev: LibraryCardProps, next: LibraryCardProps): boolean {
+  return (
+    prev.item.tokenName === next.item.tokenName &&
+    prev.item.category === next.item.category &&
+    prev.item.description === next.item.description &&
+    prev.item.contentMissing === next.item.contentMissing &&
+    prev.item.fileSize === next.item.fileSize &&
+    prev.item.fileExtension === next.item.fileExtension &&
+    prev.item.seller === next.item.seller &&
+    prev.item.decryptedAt === next.item.decryptedAt &&
+    prev.compact === next.compact &&
+    prev.selectMode === next.selectMode &&
+    prev.selected === next.selected &&
+    prev.onView === next.onView &&
+    prev.onDelete === next.onDelete &&
+    prev.onToggleSelect === next.onToggleSelect
+  );
+}
+
+export default memo(LibraryCard, arePropsEqual);

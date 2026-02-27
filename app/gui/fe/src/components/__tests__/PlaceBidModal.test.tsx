@@ -250,9 +250,10 @@ describe('PlaceBidModal', () => {
     expect(screen.getByText(/Balance: 1,234/)).toBeInTheDocument();
   });
 
-  it('does not show balance when balanceLovelace is undefined', () => {
+  it('shows "Balance: loading..." when balanceLovelace is undefined', () => {
     renderModal({ balanceLovelace: undefined });
-    expect(screen.queryByText(/Balance:/)).not.toBeInTheDocument();
+    expect(screen.getByText('Balance: loading...')).toBeInTheDocument();
+    expect(screen.queryByText(/Balance: \d/)).not.toBeInTheDocument();
   });
 
   it('Max button fills input with balance minus fee reserve', () => {
@@ -274,5 +275,17 @@ describe('PlaceBidModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
     expect(await screen.findByText('Bid exceeds your wallet balance')).toBeInTheDocument();
     expect(mockOnSubmit).not.toHaveBeenCalled();
+  });
+
+  // --- Balance parsing safety ---
+
+  it('shows loading when balanceLovelace is empty string (NaN safety)', () => {
+    renderModal({ balanceLovelace: '' });
+    expect(screen.getByText('Balance: loading...')).toBeInTheDocument();
+  });
+
+  it('shows loading when balanceLovelace is non-numeric (NaN safety)', () => {
+    renderModal({ balanceLovelace: 'abc' });
+    expect(screen.getByText('Balance: loading...')).toBeInTheDocument();
   });
 });

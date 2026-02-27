@@ -165,6 +165,74 @@ describe('useToast', () => {
     expect(result.current.toasts[2].type).toBe('warning')
   })
 
+  it('error() passes action through to the toast', () => {
+    const { result } = renderHook(() => useToast())
+    const onClick = vi.fn()
+
+    act(() => {
+      result.current.error('Tx Failed', 'Insufficient funds', 0, { label: 'Retry', onClick })
+    })
+
+    expect(result.current.toasts).toHaveLength(1)
+    const toast = result.current.toasts[0]
+    expect(toast.type).toBe('error')
+    expect(toast.duration).toBe(0)
+    expect(toast.action).toBeDefined()
+    expect(toast.action?.label).toBe('Retry')
+    expect(toast.action?.onClick).toBe(onClick)
+  })
+
+  it('warning() passes action through to the toast', () => {
+    const { result } = renderHook(() => useToast())
+    const onClick = vi.fn()
+
+    act(() => {
+      result.current.warning('Caution', 'Check something', undefined, { label: 'Fix', onClick })
+    })
+
+    expect(result.current.toasts).toHaveLength(1)
+    const toast = result.current.toasts[0]
+    expect(toast.type).toBe('warning')
+    expect(toast.action?.label).toBe('Fix')
+    expect(toast.action?.onClick).toBe(onClick)
+  })
+
+  it('success() passes action through to the toast', () => {
+    const { result } = renderHook(() => useToast())
+
+    act(() => {
+      result.current.success('Done', 'All good', undefined, { label: 'View', href: 'https://example.com' })
+    })
+
+    expect(result.current.toasts[0].action?.label).toBe('View')
+    expect(result.current.toasts[0].action?.href).toBe('https://example.com')
+  })
+
+  it('info() passes action through to the toast', () => {
+    const { result } = renderHook(() => useToast())
+    const onClick = vi.fn()
+
+    act(() => {
+      result.current.info('Note', 'FYI', undefined, { label: 'Details', onClick })
+    })
+
+    expect(result.current.toasts[0].action?.label).toBe('Details')
+  })
+
+  it('convenience methods work without action (backward compat)', () => {
+    const { result } = renderHook(() => useToast())
+
+    act(() => {
+      result.current.error('Fail')
+      result.current.warning('Warn')
+      result.current.success('OK')
+    })
+
+    expect(result.current.toasts[0].action).toBeUndefined()
+    expect(result.current.toasts[1].action).toBeUndefined()
+    expect(result.current.toasts[2].action).toBeUndefined()
+  })
+
   it('info toast goes to queue when at capacity', () => {
     const { result } = renderHook(() => useToast())
 

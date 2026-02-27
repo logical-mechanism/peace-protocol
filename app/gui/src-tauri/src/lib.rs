@@ -4,6 +4,7 @@ mod crypto;
 mod process;
 
 use commands::media::{ContentDir, MediaDir};
+use commands::node::AppDataDir;
 use commands::secrets::SecretsDir;
 use commands::snark::AppTmpDir;
 use commands::wallet::WalletState;
@@ -17,6 +18,50 @@ use tauri::{Emitter, Manager};
 
 /// Global flag to prevent duplicate shutdown attempts.
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
+
+/// Securely delete files in the temp directory that are older than 1 hour.
+/// Overwrites file contents with zeros before removing (SNARK temp files
+/// contain secret cryptographic scalars).
+fn cleanup_old_temp_files(tmp_dir: &std::path::Path) {
+    let one_hour = std::time::Duration::from_secs(3600);
+    let entries = match std::fs::read_dir(tmp_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        // Recurse into subdirectories (temp proof output dirs)
+        if path.is_dir() {
+            cleanup_old_temp_files(&path);
+            // Remove empty dirs
+            let _ = std::fs::remove_dir(&path);
+            continue;
+        }
+
+        let modified = match std::fs::metadata(&path).and_then(|m| m.modified()) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+
+        let age = std::time::SystemTime::now()
+            .duration_since(modified)
+            .unwrap_or_default();
+
+        if age > one_hour {
+            // Secure delete: overwrite with zeros, flush, then remove
+            if let Ok(size) = std::fs::metadata(&path).map(|m| m.len() as usize) {
+                if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(&path) {
+                    use std::io::Write;
+                    let zeros = vec![0u8; size];
+                    let _ = file.write_all(&zeros);
+                    let _ = file.sync_all();
+                }
+            }
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,6 +82,9 @@ pub fn run() {
                 .app_data_dir()
                 .expect("Failed to resolve app data directory");
 
+            // Cache app_data_dir for hot-path commands (get_node_status polled every 5s)
+            app.manage(AppDataDir(app_data_dir.clone()));
+
             // Wallet state (Phase 1)
             let wallet_path = app_data_dir.join("wallet.json");
             app.manage(WalletState { wallet_path });
@@ -46,7 +94,7 @@ pub fn run() {
                 .path()
                 .resource_dir()
                 .unwrap_or_else(|_| app_data_dir.clone());
-            let app_config = AppConfig::load(&resource_dir);
+            let (app_config, config_used_defaults) = AppConfig::load(&resource_dir);
             if let Err(msg) = app_config.validate() {
                 eprintln!("Config validation failed: {msg}");
                 use tauri_plugin_dialog::DialogExt;
@@ -77,7 +125,17 @@ pub fn run() {
             std::fs::create_dir_all(&app_tmp_dir).expect("Failed to create app temp directory");
             crypto::wallet::set_owner_only_dir(&app_tmp_dir)
                 .expect("Failed to set temp directory permissions");
-            app.manage(AppTmpDir(app_tmp_dir));
+            app.manage(AppTmpDir(app_tmp_dir.clone()));
+
+            // Periodic cleanup: securely delete orphaned SNARK temp files older than 1 hour.
+            // This prevents secret material from persisting if a SNARK proving attempt
+            // fails mid-way and the temp file is not cleaned up until next app restart.
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+                    cleanup_old_temp_files(&app_tmp_dir);
+                }
+            });
 
             // Secret storage directory (filesystem-backed, survives WebView resets)
             let secrets_dir = app_data_dir.join("secrets");
@@ -107,6 +165,14 @@ pub fn run() {
             crypto::wallet::set_owner_only_dir(&content_dir)
                 .expect("Failed to set content directory permissions");
             app.manage(ContentDir(content_dir));
+
+            // Warn frontend if config fell back to defaults
+            if config_used_defaults {
+                let _ = app.emit(
+                    "config-warning",
+                    "Config file not found — using default values. Contract addresses may be incorrect.",
+                );
+            }
 
             Ok(())
         })

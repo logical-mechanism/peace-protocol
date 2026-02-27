@@ -2,6 +2,10 @@
   "name": "veiled-be",
   "version": "0.3.0",
   "description": "Veiled Backend API",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "main": "dist/index.js",
   "type": "module",
   "scripts": {

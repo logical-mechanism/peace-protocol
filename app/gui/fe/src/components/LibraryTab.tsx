@@ -14,14 +14,16 @@ import { useDebounce } from '../hooks/useDebounce';
 
 interface LibraryTabProps {
   refreshSignal?: number;
+  onSwitchTab?: (tab: string) => void;
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
 }
 
-function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
+function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, categoryFilter, searchQuery } = filters;
@@ -48,6 +50,7 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
     try {
       const result = await listLibraryItems();
       setItems(result);
+      setPrevDataCount(result.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load library');
     } finally {
@@ -225,39 +228,66 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
     }
   }, [selectedItems, items]);
 
+  const screenReaderMessage = loading
+    ? 'Loading your library…'
+    : error
+    ? 'Error loading your library'
+    : `${items.length} ${items.length === 1 ? 'item' : 'items'} loaded`;
+
   if (loading) {
-    return <SkeletonGrid />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState
-        icon={<PackageIcon />}
-        title="Failed to load your library"
-        description={error}
-        action={
-          <button
-            onClick={fetchItems}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Try Again
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          icon={<PackageIcon />}
+          title="Failed to load your library"
+          description={error}
+          action={
+            <button
+              onClick={fetchItems}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Try Again
+            </button>
+          }
+        />
+      </>
     );
   }
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        illustration={<LibraryEmptyIllustration />}
-        title="Your library is empty"
-        description="Decrypted content will appear here after successful purchases"
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          illustration={<LibraryEmptyIllustration />}
+          title="Your library is empty"
+          description="Purchase and decrypt a listing to see it here"
+          action={onSwitchTab && (
+            <button
+              onClick={() => onSwitchTab('marketplace')}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Browse Marketplace
+            </button>
+          )}
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Storage Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -429,7 +459,7 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
       </div>
 
       {/* Results Count */}
-      <div className="mb-4 text-sm text-[var(--text-muted)]">
+      <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'item' : 'items'}
         {categoryFilter !== 'all' && ` (${categoryFilter})`}
       </div>
@@ -555,6 +585,7 @@ function LibraryTab({ refreshSignal, filters, dispatch }: LibraryTabProps) {
         loading={bulkDeleting}
       />
     </div>
+    </>
   );
 }
 

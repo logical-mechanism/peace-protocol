@@ -135,6 +135,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const [error, setError] = useState<string | null>(null);
   const [isLooping, setIsLooping] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
+  const [showRemaining, setShowRemaining] = useState(false);
   const [metadata, setMetadata] = useState<AudioMetadata | null>(null);
 
   // Native <audio> element for playback — no Web Audio API in the output path
@@ -694,13 +695,20 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
       {/* LED Display Row */}
       <div className="flex items-center justify-between px-3 py-2">
-        <div className="winamp-groove px-3 py-1 bg-[var(--winamp-bg-dark)]">
+        <div
+          className="winamp-groove px-3 py-1 bg-[var(--winamp-bg-dark)] cursor-pointer select-none"
+          onClick={() => setShowRemaining(r => !r)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowRemaining(r => !r); } }}
+          role="button"
+          tabIndex={0}
+          title="Click to toggle remaining time"
+        >
           <span className="winamp-led-text text-lg font-medium">
             {formatTime(currentTime)}
           </span>
           <span className="text-[var(--text-muted)] text-xs mx-1">/</span>
           <span className="winamp-led-text text-sm opacity-60">
-            {formatTime(duration)}
+            {showRemaining ? `\u2212${formatTime(Math.max(0, duration - currentTime))}` : formatTime(duration)}
           </span>
         </div>
         <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase">

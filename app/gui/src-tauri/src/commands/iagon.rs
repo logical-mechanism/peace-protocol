@@ -52,31 +52,49 @@ fn build_client() -> Result<reqwest::Client, String> {
         .map_err(|e| format!("Failed to create HTTP client: {e}"))
 }
 
-/// Map a reqwest error or non-2xx status into a user-friendly message.
+/// Build a structured JSON error string with code and message.
+/// Frontend can parse the code for specific handling (e.g. re-auth on AUTH_FAILED).
+fn iagon_error_json(code: &str, message: &str) -> String {
+    serde_json::json!({ "code": code, "message": message }).to_string()
+}
+
+/// Map a non-2xx HTTP status into a structured JSON error.
 fn map_iagon_error(status: reqwest::StatusCode, body: &str) -> String {
     match status.as_u16() {
-        401 | 403 => "Authentication failed. Your API key may be expired or invalid.".to_string(),
-        404 => "Iagon endpoint not found. The API may have changed.".to_string(),
-        500..=599 => format!("Iagon server error ({status}). Try again later."),
+        401 | 403 => iagon_error_json(
+            "AUTH_FAILED",
+            "Authentication failed. Your API key may be expired or invalid.",
+        ),
+        404 => iagon_error_json(
+            "NOT_FOUND",
+            "Iagon endpoint not found. The API may have changed.",
+        ),
+        500..=599 => iagon_error_json(
+            "SERVER_ERROR",
+            &format!("Iagon server error ({status}). Try again later."),
+        ),
         _ => {
             // Try to extract a message from JSON body
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(body) {
-                if let Some(msg) = v.get("message").and_then(|m| m.as_str()) {
-                    return format!("Iagon: {msg}");
-                }
-            }
-            format!("Iagon request failed ({status})")
+            let msg = serde_json::from_str::<serde_json::Value>(body)
+                .ok()
+                .and_then(|v| v.get("message").and_then(|m| m.as_str()).map(String::from));
+            let message = msg.unwrap_or_else(|| format!("Iagon request failed ({status})"));
+            iagon_error_json("UNKNOWN", &message)
         }
     }
 }
 
+/// Map a reqwest transport error into a structured JSON error.
 fn map_reqwest_error(e: reqwest::Error) -> String {
     if e.is_timeout() {
-        "Cannot reach Iagon servers. Request timed out.".to_string()
+        iagon_error_json("TIMEOUT", "Cannot reach Iagon servers. Request timed out.")
     } else if e.is_connect() {
-        "Cannot reach Iagon servers. Check your internet connection.".to_string()
+        iagon_error_json(
+            "CONNECTION",
+            "Cannot reach Iagon servers. Check your internet connection.",
+        )
     } else {
-        format!("Iagon request failed: {e}")
+        iagon_error_json("UNKNOWN", &format!("Iagon request failed: {e}"))
     }
 }
 

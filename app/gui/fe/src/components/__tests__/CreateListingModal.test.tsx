@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import CreateListingModal from '../CreateListingModal';
 import { ModalProvider } from '../../contexts/ModalContext';
@@ -477,5 +477,177 @@ describe('CreateListingModal', () => {
     renderModal();
     fireEvent.click(screen.getByText('File'));
     expect(screen.getByText(/Files are encrypted and uploaded to Iagon/)).toBeInTheDocument();
+  });
+
+  // --- maxLength attributes ---
+
+  it('secretMessage textarea has maxLength=280', () => {
+    renderModal();
+    expect(screen.getByLabelText(/Secret Message/)).toHaveAttribute('maxLength', '280');
+  });
+
+  it('description textarea has maxLength=500', () => {
+    renderModal();
+    expect(screen.getByLabelText(/Description/)).toHaveAttribute('maxLength', '500');
+  });
+
+  // --- Blur validation ---
+
+  it('shows error on secretMessage blur when empty', () => {
+    renderModal();
+    fireEvent.blur(screen.getByLabelText(/Secret Message/));
+    expect(screen.getByText('Secret message is required')).toBeInTheDocument();
+  });
+
+  it('shows error on description blur when empty', () => {
+    renderModal();
+    fireEvent.blur(screen.getByLabelText(/Description/));
+    expect(screen.getByText('Description is required')).toBeInTheDocument();
+  });
+
+  it('shows error on imageLink blur with invalid URL', () => {
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/Image Link/), {
+      target: { value: 'not-a-url', name: 'imageLink' },
+    });
+    fireEvent.blur(screen.getByLabelText(/Image Link/));
+    expect(screen.getByText('Invalid URL format')).toBeInTheDocument();
+  });
+
+  it('shows error on price blur with invalid value', () => {
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/Suggested Price/), {
+      target: { value: '-5', name: 'suggestedPrice' },
+    });
+    fireEvent.blur(screen.getByLabelText(/Suggested Price/));
+    expect(screen.getByText('Price must be a positive number')).toBeInTheDocument();
+  });
+
+  it('clears error on blur when field becomes valid', () => {
+    renderModal();
+    // Trigger error
+    fireEvent.blur(screen.getByLabelText(/Description/));
+    expect(screen.getByText('Description is required')).toBeInTheDocument();
+
+    // Fix the field and blur again
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'Valid description', name: 'description' },
+    });
+    fireEvent.blur(screen.getByLabelText(/Description/));
+    expect(screen.queryByText('Description is required')).not.toBeInTheDocument();
+  });
+
+  // --- Draft saved indicator ---
+
+  it('shows draft saved indicator after auto-save', () => {
+    vi.useFakeTimers();
+    try {
+      renderModal();
+      // Type in description to trigger auto-save
+      fireEvent.change(screen.getByLabelText(/Description/), {
+        target: { value: 'Test description', name: 'description' },
+      });
+
+      // Advance past debounce (500ms) — wrapped in act since it triggers state updates
+      act(() => { vi.advanceTimersByTime(500); });
+
+      expect(mockSaveDraft).toHaveBeenCalled();
+      expect(screen.getByText('Draft saved')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides draft saved indicator after 1.5s', () => {
+    vi.useFakeTimers();
+    try {
+      renderModal();
+      fireEvent.change(screen.getByLabelText(/Description/), {
+        target: { value: 'Test description', name: 'description' },
+      });
+
+      act(() => { vi.advanceTimersByTime(500); }); // debounce fires, "Draft saved" appears
+      expect(screen.getByText('Draft saved')).toBeInTheDocument();
+
+      act(() => { vi.advanceTimersByTime(1500); }); // auto-clear fires
+      expect(screen.queryByText('Draft saved')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // --- Unsaved changes warning ---
+
+  it('shows confirm when closing dirty form via Cancel', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    try {
+      renderModal();
+      // Make the form dirty
+      fireEvent.change(screen.getByLabelText(/Description/), {
+        target: { value: 'Some text', name: 'description' },
+      });
+
+      fireEvent.click(screen.getByText('Cancel'));
+
+      expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes. Are you sure you want to close?');
+      expect(mockOnClose).not.toHaveBeenCalled();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('closes when confirm is accepted on dirty form', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      renderModal();
+      fireEvent.change(screen.getByLabelText(/Description/), {
+        target: { value: 'Some text', name: 'description' },
+      });
+
+      fireEvent.click(screen.getByText('Cancel'));
+
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(mockOnClose).toHaveBeenCalled();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('closes without confirm when form is clean', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    try {
+      renderModal();
+      fireEvent.click(screen.getByText('Cancel'));
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(mockOnClose).toHaveBeenCalled();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('does not show confirm after successful submit', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    try {
+      renderModal();
+      fireEvent.change(screen.getByLabelText(/Secret Message/), {
+        target: { value: 'my secret', name: 'secretMessage' },
+      });
+      fireEvent.change(screen.getByLabelText(/Description/), {
+        target: { value: 'A test listing', name: 'description' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled();
+      });
+
+      // onClose was called directly without confirm
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(mockOnClose).toHaveBeenCalled();
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 });

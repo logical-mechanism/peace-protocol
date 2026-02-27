@@ -16,10 +16,10 @@
   --border-default: #333333;
   --border-focus: #444444;
 
-  /* Text - high contrast for readability */
+  /* Text - high contrast for readability (WCAG AA 4.5:1 on all bg-* surfaces) */
   --text-primary: #fafafa;
   --text-secondary: #a1a1a1;
-  --text-muted: #8a8a8a;
+  --text-muted: #9ca3af;
 
   /* Accent - single accent color, used sparingly */
   --accent: #6366f1;
@@ -89,10 +89,10 @@
   --border-default: #d0d0d0;
   --border-focus: #bfbfbf;
 
-  /* Text */
+  /* Text (WCAG AA 4.5:1 on all bg-* surfaces) */
   --text-primary: #171717;
   --text-secondary: #525252;
-  --text-muted: #737373;
+  --text-muted: #6b7280;
 
   /* Accent — slightly darker indigo for light bg contrast */
   --accent: #4f46e5;
@@ -144,6 +144,29 @@ body {
 :focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
+}
+
+/* Custom scrollbar styling for WebKitGTK */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-secondary);
 }
 
 /* Line clamp utilities for text truncation */
@@ -324,6 +347,16 @@ select option {
   animation: page-fade-in 200ms ease-out;
 }
 
+/* Tab content fade-in (GPU-accelerated) */
+@keyframes tab-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tab-transition {
+  animation: tab-fade-in 150ms ease-out;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -405,6 +438,18 @@ select option {
   animation: copy-check 300ms ease-out;
 }
 
+/* Draft saved indicator — fade in, hold, fade out */
+@keyframes draft-saved {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.draft-saved-indicator {
+  animation: draft-saved 1.5s ease-in-out forwards;
+}
+
 /* Toast exit — slides out right and fades */
 @keyframes toast-exit {
   from {
@@ -419,6 +464,17 @@ select option {
 
 .toast-exit {
   animation: toast-exit 300ms ease-in forwards;
+}
+
+/* Bid count badge pulse — draws attention when bid count increases */
+@keyframes bid-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.bid-pulse {
+  animation: bid-pulse 400ms ease-out;
 }
 
 /* Reduced motion: respect OS accessibility setting */

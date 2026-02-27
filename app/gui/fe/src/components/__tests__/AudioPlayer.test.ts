@@ -116,6 +116,34 @@ describe('getConversionHint', () => {
   });
 });
 
+describe('remaining time display', () => {
+  // Mirrors the logic: showRemaining ? `−${formatTime(Math.max(0, duration - currentTime))}` : formatTime(duration)
+  function remainingTimeDisplay(duration: number, currentTime: number): string {
+    return `\u2212${formatTime(Math.max(0, duration - currentTime))}`;
+  }
+
+  it('shows remaining time correctly mid-track', () => {
+    expect(remainingTimeDisplay(300, 120)).toBe('\u221203:00'); // 5min track, 2min in → 3:00 remaining
+  });
+
+  it('shows 00:00 remaining at end of track', () => {
+    expect(remainingTimeDisplay(300, 300)).toBe('\u221200:00');
+  });
+
+  it('clamps to 00:00 when currentTime exceeds duration', () => {
+    // Can happen briefly when seeking near the end
+    expect(remainingTimeDisplay(300, 305)).toBe('\u221200:00');
+  });
+
+  it('shows full duration when currentTime is 0', () => {
+    expect(remainingTimeDisplay(185, 0)).toBe('\u221203:05');
+  });
+
+  it('handles both duration and currentTime at 0', () => {
+    expect(remainingTimeDisplay(0, 0)).toBe('\u221200:00');
+  });
+});
+
 describe('computeWaveformSummary', () => {
   it('computes peak values per bucket', () => {
     // 8 samples, 2 buckets → 4 samples per bucket

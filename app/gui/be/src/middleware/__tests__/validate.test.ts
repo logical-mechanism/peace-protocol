@@ -6,6 +6,7 @@ import {
   isValidTokenName,
   isValidTxHash,
   validateParam,
+  validateStatusParam,
 } from '../validate.js';
 
 describe('isValidHex', () => {
@@ -172,5 +173,88 @@ describe('validateParam', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+describe('validateStatusParam', () => {
+  function mockReq(params: Record<string, string>): Request {
+    return { params } as unknown as Request;
+  }
+
+  function mockRes(): Response {
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    };
+    return res as unknown as Response;
+  }
+
+  const validStatuses = ['active', 'pending', 'completed'];
+
+  it('calls next() for a valid status', () => {
+    const middleware = validateStatusParam(validStatuses);
+    const req = mockReq({ status: 'active' });
+    const res = mockRes();
+    const next = vi.fn();
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('calls next() for each valid status', () => {
+    for (const status of validStatuses) {
+      const middleware = validateStatusParam(validStatuses);
+      const req = mockReq({ status });
+      const res = mockRes();
+      const next = vi.fn();
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalledOnce();
+    }
+  });
+
+  it('returns 400 INVALID_STATUS for unknown status', () => {
+    const middleware = validateStatusParam(validStatuses);
+    const req = mockReq({ status: 'unknown' });
+    const res = mockRes();
+    const next = vi.fn();
+
+    middleware(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: {
+        code: 'INVALID_STATUS',
+        message: 'Status must be active, pending, completed',
+      },
+    });
+  });
+
+  it('returns 400 when status param is missing', () => {
+    const middleware = validateStatusParam(validStatuses);
+    const req = mockReq({});
+    const res = mockRes();
+    const next = vi.fn();
+
+    middleware(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('works with different status sets', () => {
+    const bidStatuses = ['pending', 'accepted', 'rejected', 'cancelled'];
+    const middleware = validateStatusParam(bidStatuses);
+    const req = mockReq({ status: 'accepted' });
+    const res = mockRes();
+    const next = vi.fn();
+
+    middleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
   });
 });

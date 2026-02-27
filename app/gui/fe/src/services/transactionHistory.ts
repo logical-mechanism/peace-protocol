@@ -118,29 +118,44 @@ export function clearFailed(walletPkh: string): number {
   return removed;
 }
 
+export interface ReconciliationDiscrepancy {
+  txHash: string;
+  localStatus: TransactionStatus;
+  resolvedStatus: TransactionStatus;
+}
+
+export interface ReconciliationResult {
+  records: TransactionRecord[];
+  discrepancies: ReconciliationDiscrepancy[];
+}
+
 /**
  * Reconcile local history with on-chain records and persist changes.
  *
+ * - Local pending/failed records matched by txHash to on-chain are promoted to confirmed
  * - On-chain records not in local storage are added (so they persist after UTxO removal)
- * - Local pending records matched by txHash to on-chain are promoted to confirmed
- * - Returns the updated list
+ * - Returns the updated list and any discrepancies found
  */
 export function reconcileWithOnChain(
   walletPkh: string,
   onChainRecords: TransactionRecord[]
-): TransactionRecord[] {
+): ReconciliationResult {
   const records = getTransactions(walletPkh);
+  const onChainHashSet = new Set(onChainRecords.map(o => o.txHash));
   const existingHashes = new Set(records.map(r => r.txHash));
   let changed = false;
+  const discrepancies: ReconciliationDiscrepancy[] = [];
 
-  // Promote pending -> confirmed if found on-chain
+  // Promote pending/failed -> confirmed if found on-chain (on-chain is source of truth)
   for (const rec of records) {
-    if (rec.status === 'pending') {
-      const onChain = onChainRecords.find(o => o.txHash === rec.txHash);
-      if (onChain) {
-        rec.status = 'confirmed';
-        changed = true;
-      }
+    if ((rec.status === 'pending' || rec.status === 'failed') && onChainHashSet.has(rec.txHash)) {
+      discrepancies.push({
+        txHash: rec.txHash,
+        localStatus: rec.status,
+        resolvedStatus: 'confirmed',
+      });
+      rec.status = 'confirmed';
+      changed = true;
     }
   }
 
@@ -159,7 +174,7 @@ export function reconcileWithOnChain(
     localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(records));
   }
 
-  return records;
+  return { records, discrepancies };
 }
 
 /**

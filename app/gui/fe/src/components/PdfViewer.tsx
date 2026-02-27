@@ -86,6 +86,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showThumbnails, setShowThumbnails] = useState(false);
+  const [pageInputInvalid, setPageInputInvalid] = useState(false);
   const pageInputRef = useRef<HTMLInputElement>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
 
@@ -132,6 +133,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     const parsed = parseInt(pageInputValue, 10);
     if (isNaN(parsed) || parsed < 1 || parsed > numPages) {
       setPageInputValue(String(currentPage));
+      setPageInputInvalid(true);
+      setTimeout(() => setPageInputInvalid(false), 600);
       return;
     }
     setCurrentPage(parsed);
@@ -268,7 +271,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
                 type="text"
                 inputMode="numeric"
                 value={pageInputValue}
-                onChange={(e) => setPageInputValue(e.target.value)}
+                onChange={(e) => { setPageInputValue(e.target.value); setPageInputInvalid(false); }}
                 onBlur={commitPageJump}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -277,8 +280,9 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
                     pageInputRef.current?.blur();
                   }
                 }}
-                className="w-12 text-center text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none focus:border-[var(--accent)]"
+                className={`w-12 text-center text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none transition-colors duration-200 ${pageInputInvalid ? 'border-[var(--error)] ring-1 ring-[var(--error)]' : 'border-[var(--border-subtle)] focus:border-[var(--accent)]'}`}
                 aria-label="Page number"
+                aria-invalid={pageInputInvalid || undefined}
               />
               <span>/ {numPages}</span>
             </div>

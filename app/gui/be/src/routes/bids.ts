@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
-import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam } from '../middleware/validate.js';
+import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam, validateStatusParam } from '../middleware/validate.js';
 import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_BIDS } from '../stubs/index.js';
 import {
@@ -55,6 +55,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
+    const skipCache = req.query.refresh === 'true';
 
     if (config.useStubs) {
       const bid = STUB_BIDS.find(b => b.tokenName === tokenName);
@@ -67,7 +68,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       return res.json({ data: bid });
     }
 
-    const result = await getBidByToken(tokenName);
+    const result = await getBidByToken(tokenName, skipCache);
     if (!result.data) {
       return res.status(404).json({
         error: { code: 'NOT_FOUND', message: 'Bid not found' },
@@ -93,19 +94,20 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
 router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, res: Response) => {
   try {
     const { pkh } = req.params;
+    const skipCache = req.query.refresh === 'true';
 
     const paginationParams = parsePagination(req);
 
     if (config.useStubs) {
       const userBids = STUB_BIDS.filter(b =>
-        b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())
+        b.bidderPkh.toLowerCase() === pkh.toLowerCase()
       );
       const { data, pagination } = paginate(userBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
       return res.json({ data, meta: { total: userBids.length }, pagination });
     }
 
-    const result = await getBidsByUser(pkh);
+    const result = await getBidsByUser(pkh, skipCache);
     const { data, pagination } = paginate(result.data, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
@@ -129,6 +131,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
 router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (req: Request<{encryptionToken: string}>, res: Response) => {
   try {
     const { encryptionToken } = req.params;
+    const skipCache = req.query.refresh === 'true';
 
     const paginationParams = parsePagination(req);
 
@@ -141,7 +144,7 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
       return res.json({ data, meta: { total: encryptionBids.length }, pagination });
     }
 
-    const result = await getBidsByEncryption(encryptionToken);
+    const result = await getBidsByEncryption(encryptionToken, skipCache);
     const { data, pagination } = paginate(result.data, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
@@ -162,19 +165,10 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
  * GET /api/bids/status/:status
  * Get bids by status (pending, accepted, rejected, cancelled)
  */
-router.get('/status/:status', async (req: Request<{status: string}>, res: Response) => {
+router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejected', 'cancelled']), async (req: Request<{status: string}>, res: Response) => {
   try {
     const { status } = req.params;
-
-    if (!['pending', 'accepted', 'rejected', 'cancelled'].includes(status)) {
-      return res.status(400).json({
-        error: {
-          code: 'INVALID_STATUS',
-          message: 'Status must be pending, accepted, rejected, or cancelled',
-          requestId: req.requestId,
-        },
-      });
-    }
+    const skipCache = req.query.refresh === 'true';
 
     const paginationParams = parsePagination(req);
 
@@ -186,7 +180,8 @@ router.get('/status/:status', async (req: Request<{status: string}>, res: Respon
     }
 
     const result = await getBidsByStatus(
-      status as 'pending' | 'accepted' | 'rejected' | 'cancelled'
+      status as 'pending' | 'accepted' | 'rejected' | 'cancelled',
+      skipCache,
     );
     const { data, pagination } = paginate(result.data, paginationParams);
     res.set('Cache-Control', CACHE_DATA);

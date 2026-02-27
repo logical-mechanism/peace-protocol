@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../services/logger.js';
-import { validateTokenNameParam, validatePkhParam } from '../middleware/validate.js';
+import { validateTokenNameParam, validatePkhParam, validateStatusParam } from '../middleware/validate.js';
 import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_ENCRYPTIONS } from '../stubs/index.js';
 import {
@@ -11,7 +11,7 @@ import {
   getEncryptionsByStatus,
   getEncryptionLevels,
 } from '../services/encryptions.js';
-import type { ApiResponse, EncryptionLevel } from '../types/index.js';
+import type { EncryptionLevel } from '../types/index.js';
 
 const router = Router();
 
@@ -57,24 +57,19 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
+    const paginationParams = parsePagination(req);
 
     if (config.useStubs) {
       // Stub: return empty levels (stub decryption doesn't use real levels)
-      const response: ApiResponse<EncryptionLevel[]> = {
-        data: [],
-        meta: { total: 0 },
-      };
+      const { data, pagination } = paginate([] as EncryptionLevel[], paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json(response);
+      return res.json({ data, meta: { total: 0 }, pagination });
     }
 
     const levels = await getEncryptionLevels(tokenName);
-    const response: ApiResponse<EncryptionLevel[]> = {
-      data: levels,
-      meta: { total: levels.length },
-    };
+    const { data, pagination } = paginate(levels, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
-    return res.json(response);
+    return res.json({ data, meta: { total: levels.length }, pagination });
   } catch (error) {
     logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
     return res.status(500).json({
@@ -133,7 +128,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
 
     if (config.useStubs) {
       const userEncryptions = STUB_ENCRYPTIONS.filter(e =>
-        e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())
+        e.sellerPkh.toLowerCase() === pkh.toLowerCase()
       );
       const { data, pagination } = paginate(userEncryptions, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
@@ -161,15 +156,9 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
  * GET /api/encryptions/status/:status
  * Get encryptions by status (active, pending, completed)
  */
-router.get('/status/:status', async (req: Request<{status: string}>, res: Response) => {
+router.get('/status/:status', validateStatusParam(['active', 'pending', 'completed']), async (req: Request<{status: string}>, res: Response) => {
   try {
     const { status } = req.params;
-
-    if (!['active', 'pending', 'completed'].includes(status)) {
-      return res.status(400).json({
-        error: { code: 'INVALID_STATUS', message: 'Status must be active, pending, or completed', requestId: req.requestId },
-      });
-    }
 
     const paginationParams = parsePagination(req);
 

@@ -114,15 +114,19 @@ class KupoClient {
   }
 
   private async request<T>(path: string): Promise<T> {
-    return this.circuitBreaker.execute(async () => {
-      const url = `${this.baseUrl}${path}`;
-      const response = await fetchWithRetry(url);
-      if (!response.ok) {
-        const body = await response.text().catch(() => '');
-        throw new Error(`Kupo API error: ${response.status} ${response.statusText} - ${body}`);
-      }
-      return response.json();
-    });
+    try {
+      return await this.circuitBreaker.execute(async () => {
+        const url = `${this.baseUrl}${path}`;
+        const response = await fetchWithRetry(url);
+        if (!response.ok) {
+          const body = await response.text().catch(() => '');
+          throw new Error(`Kupo API error: ${response.status} ${response.statusText} - ${body}`);
+        }
+        return response.json();
+      });
+    } catch (err) {
+      throw new Error(`Kupo ${path}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
   }
 
   /**
@@ -148,6 +152,13 @@ class KupoClient {
     }
     const matches = await this.request<KupoMatch[]>(path);
     return matches.map((m) => this.matchToKoiosUtxo(m));
+  }
+
+  getCircuitBreakerState() {
+    return {
+      state: this.circuitBreaker.currentState,
+      failureCount: this.circuitBreaker.consecutiveFailures,
+    };
   }
 
   private matchToKoiosUtxo(match: KupoMatch): KoiosUtxo {

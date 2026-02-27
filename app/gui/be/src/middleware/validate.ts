@@ -59,3 +59,21 @@ export const validateEncryptionTokenParam = validateParam(
   'encryptionToken', isValidTokenName,
   'Encryption token must be 1-64 hex characters',
 );
+
+export function validateStatusParam(validStatuses: string[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const raw = req.params.status;
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (!value || !validStatuses.includes(value)) {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_STATUS',
+          message: `Status must be ${validStatuses.join(', ')}`,
+          requestId: req.requestId,
+        },
+      });
+      return;
+    }
+    next();
+  };
+}

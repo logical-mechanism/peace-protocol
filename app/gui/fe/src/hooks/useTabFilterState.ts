@@ -126,6 +126,7 @@ export type HistoryAction =
   | { type: 'SET_STATUS'; payload: HistoryFilters['statusFilter'] }
   | { type: 'SET_TYPE'; payload: HistoryFilters['typeFilter'] }
   | { type: 'SET_DATE_RANGE'; payload: HistoryFilters['dateRange'] }
+  | { type: 'CLEAR_FILTERS' }
 
 export const HISTORY_INITIAL: HistoryFilters = {
   searchQuery: '', statusFilter: 'all', typeFilter: 'all', dateRange: 'all',
@@ -137,6 +138,7 @@ export function historyReducer(state: HistoryFilters, action: HistoryAction): Hi
     case 'SET_STATUS': return { ...state, statusFilter: action.payload }
     case 'SET_TYPE': return { ...state, typeFilter: action.payload }
     case 'SET_DATE_RANGE': return { ...state, dateRange: action.payload }
+    case 'CLEAR_FILTERS': return { ...HISTORY_INITIAL }
     default: return state
   }
 }

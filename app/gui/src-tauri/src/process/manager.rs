@@ -72,14 +72,21 @@ enum LaunchInfo {
     },
 }
 
-/// Per-process graceful shutdown timeout.
+/// Per-process graceful shutdown timeout (seconds).
 /// cardano-node needs extra time to flush its in-memory ledger to disk.
+///
+/// Overridable via environment variables for users with slow storage:
+///   SHUTDOWN_TIMEOUT_CARDANO, SHUTDOWN_TIMEOUT_MITHRIL, SHUTDOWN_TIMEOUT_DEFAULT
 fn default_shutdown_timeout(name: &str) -> u64 {
-    match name {
-        "cardano-node" => 45,
-        "mithril-client" => 30,
-        _ => 10, // express, ogmios, kupo
-    }
+    let (env_key, fallback) = match name {
+        "cardano-node" => ("SHUTDOWN_TIMEOUT_CARDANO", 45),
+        "mithril-client" => ("SHUTDOWN_TIMEOUT_MITHRIL", 30),
+        _ => ("SHUTDOWN_TIMEOUT_DEFAULT", 10),
+    };
+    std::env::var(env_key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(fallback)
 }
 
 /// A single managed child process with its metadata
@@ -96,6 +103,8 @@ struct ManagedProcess {
     shutdown_timeout_secs: u64,
     /// Consecutive HTTP health check failures (for services with health endpoints)
     health_check_failures: u32,
+    /// Number of log lines dropped due to buffer eviction
+    dropped_log_count: u64,
 }
 
 impl ManagedProcess {
@@ -104,6 +113,7 @@ impl ManagedProcess {
         self.log_buffer.push(line);
         if self.log_buffer.len() > LOG_BUFFER_SIZE {
             self.log_buffer.remove(0);
+            self.dropped_log_count += 1;
         }
     }
 }
@@ -119,7 +129,15 @@ fn apply_jitter(delay_ms: f64) -> f64 {
 /// Using libc avoids spawning external `/usr/bin/kill` which can fail inside AppImage.
 fn send_signal(pid: u32, signal: i32) -> bool {
     // SAFETY: libc::kill is a POSIX syscall; invalid pid/signal returns -1 (not UB).
-    unsafe { libc::kill(pid as i32, signal) == 0 }
+    let ok = unsafe { libc::kill(pid as i32, signal) == 0 };
+    if !ok && signal != 0 {
+        let err = std::io::Error::last_os_error();
+        eprintln!(
+            "[NodeManager] Failed to send signal {} to PID {}: {}",
+            signal, pid, err
+        );
+    }
+    ok
 }
 
 /// The central process manager, held in Tauri state.
@@ -381,6 +399,7 @@ impl NodeManager {
                         user_stopped: false,
                         shutdown_timeout_secs: default_shutdown_timeout(name),
                         health_check_failures: 0,
+                        dropped_log_count: 0,
                     },
                 );
             }
@@ -808,6 +827,7 @@ impl NodeManager {
                         user_stopped: false,
                         shutdown_timeout_secs: default_shutdown_timeout(name),
                         health_check_failures: 0,
+                        dropped_log_count: 0,
                     },
                 );
             }
@@ -1033,12 +1053,24 @@ impl NodeManager {
         procs.values().map(|p| p.info.clone()).collect()
     }
 
-    /// Get recent log lines for a process
+    /// Get recent log lines for a process.
+    /// If lines were evicted from the circular buffer, a marker is prepended.
     pub async fn get_logs(&self, name: &str, lines: usize) -> Vec<String> {
         let procs = self.processes.lock().await;
         if let Some(proc) = procs.get(name) {
             let start = proc.log_buffer.len().saturating_sub(lines);
-            proc.log_buffer[start..].to_vec()
+            let mut result = proc.log_buffer[start..].to_vec();
+            if proc.dropped_log_count > 0 && start == 0 {
+                result.insert(
+                    0,
+                    format!(
+                        "... [{} earlier line{} dropped] ...",
+                        proc.dropped_log_count,
+                        if proc.dropped_log_count == 1 { "" } else { "s" }
+                    ),
+                );
+            }
+            result
         } else {
             Vec::new()
         }
@@ -1530,6 +1562,7 @@ mod tests {
             user_stopped: false,
             shutdown_timeout_secs: 10,
             health_check_failures: 0,
+            dropped_log_count: 0,
         };
 
         proc.append_log("line 1".to_string());
@@ -1557,6 +1590,7 @@ mod tests {
             user_stopped: false,
             shutdown_timeout_secs: 10,
             health_check_failures: 0,
+            dropped_log_count: 0,
         };
 
         // Fill to LOG_BUFFER_SIZE + 1
@@ -1565,11 +1599,46 @@ mod tests {
         }
 
         assert_eq!(proc.log_buffer.len(), LOG_BUFFER_SIZE);
-        // First entry should be "line 1" (line 0 was evicted)
+        // "line 0" was evicted; buffer starts at "line 1"
         assert_eq!(proc.log_buffer[0], "line 1");
         assert_eq!(
             proc.log_buffer[LOG_BUFFER_SIZE - 1],
             format!("line {}", LOG_BUFFER_SIZE)
+        );
+        assert_eq!(proc.dropped_log_count, 1);
+    }
+
+    #[test]
+    fn append_log_dropped_count_tracks_evictions() {
+        let mut proc = ManagedProcess {
+            child: None,
+            info: ProcessInfo {
+                name: "test".to_string(),
+                status: ProcessStatus::Stopped,
+                pid: None,
+                restart_count: 0,
+                last_error: None,
+            },
+            restart_policy: RestartPolicy::default(),
+            log_buffer: Vec::new(),
+            launch_info: None,
+            user_stopped: false,
+            shutdown_timeout_secs: 10,
+            health_check_failures: 0,
+            dropped_log_count: 0,
+        };
+
+        // Fill to LOG_BUFFER_SIZE + 5 to cause 5 evictions
+        for i in 0..(LOG_BUFFER_SIZE + 5) {
+            proc.append_log(format!("line {}", i));
+        }
+
+        assert_eq!(proc.dropped_log_count, 5);
+        assert_eq!(proc.log_buffer.len(), LOG_BUFFER_SIZE);
+        // Last entry is correct
+        assert_eq!(
+            proc.log_buffer[proc.log_buffer.len() - 1],
+            format!("line {}", LOG_BUFFER_SIZE + 4)
         );
     }
 
@@ -1613,10 +1682,35 @@ mod tests {
 
     #[test]
     fn default_shutdown_timeout_per_process() {
+        // Clean env to ensure defaults (in case another test set them)
+        std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
+        std::env::remove_var("SHUTDOWN_TIMEOUT_MITHRIL");
+        std::env::remove_var("SHUTDOWN_TIMEOUT_DEFAULT");
+
         assert_eq!(default_shutdown_timeout("cardano-node"), 45);
         assert_eq!(default_shutdown_timeout("mithril-client"), 30);
         assert_eq!(default_shutdown_timeout("ogmios"), 10);
         assert_eq!(default_shutdown_timeout("kupo"), 10);
         assert_eq!(default_shutdown_timeout("express"), 10);
+    }
+
+    #[test]
+    fn shutdown_timeout_env_override() {
+        std::env::set_var("SHUTDOWN_TIMEOUT_CARDANO", "90");
+        assert_eq!(default_shutdown_timeout("cardano-node"), 90);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
+
+        std::env::set_var("SHUTDOWN_TIMEOUT_MITHRIL", "60");
+        assert_eq!(default_shutdown_timeout("mithril-client"), 60);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_MITHRIL");
+
+        std::env::set_var("SHUTDOWN_TIMEOUT_DEFAULT", "20");
+        assert_eq!(default_shutdown_timeout("ogmios"), 20);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_DEFAULT");
+
+        // Invalid value falls back to default
+        std::env::set_var("SHUTDOWN_TIMEOUT_CARDANO", "not_a_number");
+        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
     }
 }

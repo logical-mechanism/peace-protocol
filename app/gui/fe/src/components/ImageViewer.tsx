@@ -269,6 +269,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
       return {
         transform: imageTransform,
         transformOrigin: 'center',
+        imageOrientation: 'from-image' as const,
         width: naturalSize.w,
         height: naturalSize.h,
       };
@@ -277,6 +278,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
       return {
         transform: imageTransform,
         transformOrigin: 'center',
+        imageOrientation: 'from-image' as const,
         maxWidth: '100%',
         maxHeight: !isFullscreen ? '500px' : '100%',
         objectFit: 'contain',
@@ -286,6 +288,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
     return {
       transform: imageTransform,
       transformOrigin: 'center',
+      imageOrientation: 'from-image' as const,
       maxWidth: 'none',
       maxHeight: 'none',
     };

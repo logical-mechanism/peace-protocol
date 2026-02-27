@@ -311,31 +311,31 @@ export function useToast() {
   }, []);
 
   const success = useCallback(
-    (title: string, message?: string, duration?: number) => {
-      return addToast('success', title, message, duration ?? getToastDurationMs());
+    (title: string, message?: string, duration?: number, action?: ToastAction) => {
+      return addToast('success', title, message, duration ?? getToastDurationMs(), action);
     },
     [addToast]
   );
 
   const error = useCallback(
-    (title: string, message?: string, duration?: number) => {
+    (title: string, message?: string, duration?: number, action?: ToastAction) => {
       const base = getToastDurationMs();
-      return addToast('error', title, message, duration ?? (base === 0 ? 0 : Math.max(base, 8000)));
+      return addToast('error', title, message, duration ?? (base === 0 ? 0 : Math.max(base, 8000)), action);
     },
     [addToast]
   );
 
   const warning = useCallback(
-    (title: string, message?: string, duration?: number) => {
+    (title: string, message?: string, duration?: number, action?: ToastAction) => {
       const base = getToastDurationMs();
-      return addToast('warning', title, message, duration ?? (base === 0 ? 0 : Math.max(base, 6000)));
+      return addToast('warning', title, message, duration ?? (base === 0 ? 0 : Math.max(base, 6000)), action);
     },
     [addToast]
   );
 
   const info = useCallback(
-    (title: string, message?: string, duration?: number) => {
-      return addToast('info', title, message, duration ?? getToastDurationMs());
+    (title: string, message?: string, duration?: number, action?: ToastAction) => {
+      return addToast('info', title, message, duration ?? getToastDurationMs(), action);
     },
     [addToast]
   );

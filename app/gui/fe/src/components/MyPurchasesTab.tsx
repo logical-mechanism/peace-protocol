@@ -19,6 +19,7 @@ interface MyPurchasesTabProps {
   onCancelBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
   onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
+  onSwitchTab?: (tab: string) => void;
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
@@ -30,6 +31,7 @@ function MyPurchasesTab({
   onCancelBid,
   onDecrypt,
   onDecryptEncryption,
+  onSwitchTab,
   refreshSignal,
   filters,
   dispatch,
@@ -40,7 +42,9 @@ function MyPurchasesTab({
   const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevDataCount, setPrevDataCount] = useState(0);
   const [completedTokens, setCompletedTokens] = useState<Set<string>>(new Set());
+  const [secretsLoadErrors, setSecretsLoadErrors] = useState<Set<string>>(new Set());
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
@@ -59,6 +63,7 @@ function MyPurchasesTab({
         ? allBids.filter((b) => b.bidderPkh === userPkh)
         : [];
       setBids(userBids);
+      setPrevDataCount(userBids.length);
 
       // Fetch all encryptions (needed for both bids and purchased encryptions)
       const allEncryptions = await encryptionsApi.getAll();
@@ -82,17 +87,21 @@ function MyPurchasesTab({
         );
 
         const purchased: EncryptionDisplay[] = [];
+        const failedTokens = new Set<string>();
         for (const enc of userOwnedEncryptions) {
           try {
             const secrets = await getBidSecretsForEncryption(enc.tokenName);
             if (secrets.length > 0) {
               purchased.push(enc);
             }
-          } catch {
-            // Skip if IndexedDB lookup fails
+          } catch (err) {
+            console.warn(`Failed to load bid secrets for ${enc.tokenName}:`, err);
+            failedTokens.add(enc.tokenName);
+            purchased.push(enc);
           }
         }
         setPurchasedEncryptions(purchased);
+        setSecretsLoadErrors(failedTokens);
       } else {
         setPurchasedEncryptions([]);
       }
@@ -239,53 +248,67 @@ function MyPurchasesTab({
     [onDecrypt]
   );
 
+  const screenReaderMessage = loading
+    ? 'Loading your purchases…'
+    : error
+    ? 'Error loading your purchases'
+    : `${bids.length} ${bids.length === 1 ? 'bid' : 'bids'} loaded`;
+
   if (loading) {
-    return <SkeletonGrid />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState
-        icon={<PackageIcon />}
-        title="Failed to load your bids"
-        description={error}
-        action={
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Try Again
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          icon={<PackageIcon />}
+          title="Failed to load your bids"
+          description={error}
+          action={
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Try Again
+            </button>
+          }
+        />
+      </>
     );
   }
 
   // If user has no bids and no purchased encryptions
   if (bids.length === 0 && purchasedEncryptions.length === 0) {
     return (
-      <EmptyState
-        illustration={<NoPurchasesIllustration />}
-        title="No purchases yet"
-        description="Bids you place and encryptions you purchase will appear here"
-        action={
-          <button
-            onClick={() => {
-              // Placeholder - navigate to marketplace
-              alert(
-                'Browse the Marketplace tab to find encryptions to bid on!'
-              );
-            }}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Browse Marketplace
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          illustration={<NoPurchasesIllustration />}
+          title="No purchases yet"
+          description="Bids you place and encryptions you purchase will appear here"
+          action={
+            <button
+              onClick={() => onSwitchTab?.('marketplace')}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Browse Marketplace
+            </button>
+          }
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Purchased Encryptions Section */}
       {purchasedEncryptions.length > 0 && (
@@ -293,17 +316,36 @@ function MyPurchasesTab({
           <h3 className="text-lg font-medium text-[var(--text-primary)] mb-4">
             Purchased Encryptions
           </h3>
+          {secretsLoadErrors.size > 0 && (
+            <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-[var(--warning-muted)] border border-[var(--warning)]/30 rounded-[var(--radius-md)] text-sm text-[var(--warning)]">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Some bid data could not be loaded. Decryption may not be available for affected items.
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {purchasedEncryptions.map((enc) => (
+            {purchasedEncryptions.map((enc) => {
+              const hasSecretError = secretsLoadErrors.has(enc.tokenName);
+              return (
               <div
                 key={enc.tokenName}
                 className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-150"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-                    Purchased
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                      Purchased
+                    </span>
+                    {hasSecretError && (
+                      <span title="Bid secrets could not be loaded. Decryption may not be available.">
+                        <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-[var(--text-muted)] font-mono">
                     {truncateHex(enc.tokenName, 12, 8)}
                   </span>
@@ -342,7 +384,8 @@ function MyPurchasesTab({
                   Decrypt
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -476,7 +519,7 @@ function MyPurchasesTab({
       </div>
 
       {/* Results Count */}
-      <div className="mb-4 text-sm text-[var(--text-muted)]">
+      <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'bid' : 'bids'}
         {statusFilter !== 'all' && ` (${statusFilter})`}
       </div>
@@ -548,6 +591,7 @@ function MyPurchasesTab({
         tokenName={descModalToken}
       />
     </div>
+    </>
   );
 }
 

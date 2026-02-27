@@ -41,6 +41,7 @@ function MySalesTab({
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery } = filters;
@@ -60,9 +61,12 @@ function MySalesTab({
         ? allEncryptions.filter((e) => e.sellerPkh === userPkh)
         : [];
       setEncryptions(userEncryptions);
+      setPrevDataCount(userEncryptions.length);
 
       // Fetch image cache status for all listings
-      listCachedImages().then(setImageCacheStatus).catch(() => {});
+      listCachedImages().then(setImageCacheStatus).catch((err) => {
+        console.warn('Image cache refresh failed:', err);
+      });
 
       // Fetch bids for all user listings
       if (userEncryptions.length > 0) {
@@ -101,36 +105,42 @@ function MySalesTab({
     fetchData();
   }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pre-compute pending bid counts per listing
-  const bidCountMap = useMemo(() => {
+  // Pre-compute pending bid counts per listing and aggregate totals in a single pass
+  const bidStats = useMemo(() => {
     const map = new Map<string, number>();
+    let totalBidCount = 0;
+    let totalBidValue = 0;
     for (const [tokenName, bids] of bidsMap) {
-      const count = bids.filter((b) => b.status === 'pending').length;
+      let count = 0;
+      for (const b of bids) {
+        if (b.status === 'pending') {
+          count++;
+          totalBidValue += b.amount;
+        }
+      }
       if (count > 0) map.set(tokenName, count);
+      totalBidCount += count;
     }
-    return map;
+    return { map, totalBidCount, totalBidValue };
   }, [bidsMap]);
 
   const getBidCount = useCallback(
-    (tokenName: string): number => bidCountMap.get(tokenName) ?? 0,
-    [bidCountMap]
+    (tokenName: string): number => bidStats.map.get(tokenName) ?? 0,
+    [bidStats.map]
   );
 
   // Compute sales stats for summary banner
   const salesStats = useMemo(() => {
-    const activeCount = encryptions.filter(e => e.status === 'active').length;
-    const pendingCount = encryptions.filter(e => e.status === 'pending').length;
-
-    const listedValue = encryptions
-      .filter(e => e.status === 'active')
-      .reduce((sum, e) => sum + (e.suggestedPrice ?? 0), 0);
-
-    let totalBidCount = 0;
-    let totalBidValue = 0;
-    for (const [, bids] of bidsMap) {
-      const pendingBids = bids.filter(b => b.status === 'pending');
-      totalBidCount += pendingBids.length;
-      totalBidValue += pendingBids.reduce((sum, b) => sum + b.amount, 0);
+    let activeCount = 0;
+    let pendingCount = 0;
+    let listedValue = 0;
+    for (const e of encryptions) {
+      if (e.status === 'active') {
+        activeCount++;
+        listedValue += e.suggestedPrice ?? 0;
+      } else if (e.status === 'pending') {
+        pendingCount++;
+      }
     }
 
     const completedSales = userPkh
@@ -139,8 +149,8 @@ function MySalesTab({
         ).length
       : 0;
 
-    return { activeCount, pendingCount, completedSales, listedValue, totalBidCount, totalBidValue };
-  }, [encryptions, bidsMap, userPkh]);
+    return { activeCount, pendingCount, completedSales, listedValue, totalBidCount: bidStats.totalBidCount, totalBidValue: bidStats.totalBidValue };
+  }, [encryptions, userPkh, bidStats.totalBidCount, bidStats.totalBidValue]);
 
   // Filter encryptions (separate from sort so sort changes don't re-filter)
   const filtered = useMemo(() => {
@@ -162,31 +172,37 @@ function MySalesTab({
   }, [encryptions, statusFilter, debouncedSearch]);
 
   // Sort filtered results (only reruns when sort order or bid counts change)
+  // Null-safe: missing prices sort last; missing dates sort to epoch 0
   const filteredAndSorted = useMemo(() => {
     const result = [...filtered];
+    const safeTime = (d: string) => {
+      const t = new Date(d ?? '').getTime();
+      return isNaN(t) ? 0 : t;
+    };
+    const safePrice = (p: number | undefined | null, fallback: number) => {
+      if (p == null) return fallback;
+      const n = Number(p);
+      return isNaN(n) ? fallback : n;
+    };
     switch (sortBy) {
       case 'newest':
-        result.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        result.sort((a, b) => safeTime(b.createdAt) - safeTime(a.createdAt));
         break;
       case 'oldest':
-        result.sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
+        result.sort((a, b) => safeTime(a.createdAt) - safeTime(b.createdAt));
         break;
       case 'price-high':
-        result.sort((a, b) => (b.suggestedPrice ?? 0) - (a.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(b.suggestedPrice, -Infinity) - safePrice(a.suggestedPrice, -Infinity));
         break;
       case 'price-low':
-        result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(a.suggestedPrice, Infinity) - safePrice(b.suggestedPrice, Infinity));
         break;
       case 'most-bids':
-        result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
+        result.sort((a, b) => (bidStats.map.get(b.tokenName) ?? 0) - (bidStats.map.get(a.tokenName) ?? 0));
         break;
     }
     return result;
-  }, [filtered, sortBy, bidCountMap]);
+  }, [filtered, sortBy, bidStats.map]);
 
   // Handlers
   const handleViewBids = useCallback((encryption: EncryptionDisplay) => {
@@ -203,7 +219,7 @@ function MySalesTab({
   const handleRemoveListing = useCallback(
     (encryption: EncryptionDisplay) => {
       // Optimistic cleanup — user can re-download if the tx fails
-      deleteCachedImage(encryption.tokenName).catch(() => {});
+      deleteCachedImage(encryption.tokenName).catch((err) => console.warn('Failed to delete cached image:', err));
 
       if (onRemoveListing) {
         onRemoveListing(encryption);
@@ -246,48 +262,67 @@ function MySalesTab({
     [onCancelPending]
   );
 
+  const screenReaderMessage = loading
+    ? 'Loading your listings…'
+    : error
+    ? 'Error loading your listings'
+    : `${encryptions.length} ${encryptions.length === 1 ? 'listing' : 'listings'} loaded`;
+
   if (loading) {
-    return <SkeletonGrid />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState
-        icon={<PackageIcon />}
-        title="Failed to load your listings"
-        description={error}
-        action={
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Try Again
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          icon={<PackageIcon />}
+          title="Failed to load your listings"
+          description={error}
+          action={
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Try Again
+            </button>
+          }
+        />
+      </>
     );
   }
 
   // If user has no listings at all
   if (encryptions.length === 0) {
     return (
-      <EmptyState
-        illustration={<NoSalesIllustration />}
-        title="No listings yet"
-        description="Create your first encryption listing to start selling on the marketplace"
-        action={
-          <button
-            onClick={onCreateListing}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Create Listing
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          illustration={<NoSalesIllustration />}
+          title="No listings yet"
+          description="Create your first encryption listing to start selling on the marketplace"
+          action={
+            <button
+              onClick={onCreateListing}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Create Listing
+            </button>
+          }
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Earnings Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -448,7 +483,7 @@ function MySalesTab({
       </div>
 
       {/* Results Count */}
-      <div className="mb-4 text-sm text-[var(--text-muted)]">
+      <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'}
         {statusFilter !== 'all' && ` (${statusFilter})`}
       </div>
@@ -526,6 +561,7 @@ function MySalesTab({
         />
       )}
     </div>
+    </>
   );
 }
 

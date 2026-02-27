@@ -2,6 +2,7 @@ use crate::crypto::audit::AuditLog;
 use crate::crypto::secrets::{
     decrypt_secret, encrypt_secret, secure_delete, EncryptedSecret, SecretsKey,
 };
+#[cfg(not(unix))]
 use crate::crypto::wallet::set_owner_only_file;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -27,8 +28,30 @@ fn encrypt_and_write(key: &[u8; 32], path: &std::path::Path, data: &[u8]) -> Res
     let encrypted = encrypt_secret(key, data)?;
     let json = serde_json::to_string_pretty(&encrypted)
         .map_err(|e| format!("Failed to serialize encrypted secret: {e}"))?;
-    std::fs::write(path, json).map_err(|e| format!("Failed to write secret: {e}"))?;
-    set_owner_only_file(path)?;
+
+    // On Unix, create the file with 0o600 atomically (no race window where
+    // the file exists with default permissions before chmod).
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+            .map_err(|e| format!("Failed to write secret: {e}"))?;
+        file.write_all(json.as_bytes())
+            .map_err(|e| format!("Failed to write secret: {e}"))?;
+    }
+
+    #[cfg(not(unix))]
+    {
+        std::fs::write(path, json).map_err(|e| format!("Failed to write secret: {e}"))?;
+        set_owner_only_file(path)?;
+    }
+
     Ok(())
 }
 
@@ -44,6 +67,23 @@ fn chrono_now() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
     format!("{}", dur.as_secs())
+}
+
+/// Validate that a hex scalar string is non-empty, at most 128 hex chars, and all hex digits.
+fn validate_hex_scalar(name: &str, value: &str) -> Result<(), String> {
+    if value.is_empty() {
+        return Err(format!("Seller secret '{name}' cannot be empty"));
+    }
+    if value.len() > 128 {
+        return Err(format!(
+            "Seller secret '{name}' too long ({} chars, max 128)",
+            value.len()
+        ));
+    }
+    if !value.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(format!("Seller secret '{name}' must be valid hex"));
+    }
+    Ok(())
 }
 
 // ── Seller secrets ──────────────────────────────────────────────────────
@@ -75,6 +115,9 @@ pub fn store_seller_secrets(
     a: String,
     r: String,
 ) -> Result<(), String> {
+    validate_hex_scalar("a", &a)?;
+    validate_hex_scalar("r", &r)?;
+
     let key = get_secrets_key(&key_state)?;
     let dir = seller_dir(&state.0);
     std::fs::create_dir_all(&dir)

@@ -94,6 +94,77 @@ describe('TtlCache', () => {
     expect(cache.getStale('key')).toBe('value');
   });
 
+  describe('cleanupExpired', () => {
+    it('removes entries past their TTL', () => {
+      const cache = new TtlCache(100);
+      cache.set('expired1', 'a');
+      cache.set('expired2', 'b');
+      cache.set('fresh', 'c', 10_000);
+
+      vi.advanceTimersByTime(200);
+      const removed = cache.cleanupExpired();
+
+      expect(removed).toBe(2);
+      expect(cache.size).toBe(1);
+      expect(cache.get('fresh')).toBe('c');
+      expect(cache.getStale('expired1')).toBeUndefined();
+      expect(cache.getStale('expired2')).toBeUndefined();
+    });
+
+    it('returns 0 when no entries are expired', () => {
+      const cache = new TtlCache(10_000);
+      cache.set('a', 1);
+      cache.set('b', 2);
+
+      expect(cache.cleanupExpired()).toBe(0);
+      expect(cache.size).toBe(2);
+    });
+
+    it('returns 0 on empty cache', () => {
+      const cache = new TtlCache(1000);
+      expect(cache.cleanupExpired()).toBe(0);
+    });
+
+    it('stale entries survive until cleanup runs', () => {
+      const cache = new TtlCache(100);
+      cache.set('key', 'value');
+
+      vi.advanceTimersByTime(200);
+      // Stale fallback still works before cleanup
+      expect(cache.getStale('key')).toBe('value');
+
+      cache.cleanupExpired();
+      // After cleanup, stale fallback no longer works
+      expect(cache.getStale('key')).toBeUndefined();
+    });
+  });
+
+  describe('auto-cleanup', () => {
+    it('runs cleanup on the configured interval', () => {
+      const cache = new TtlCache(100, 1000);
+      cache.set('a', 1);
+
+      vi.advanceTimersByTime(200); // entries expire
+      expect(cache.size).toBe(1); // still in store
+
+      vi.advanceTimersByTime(800); // cleanup fires at 1000ms
+      expect(cache.size).toBe(0); // cleaned up
+
+      cache.destroy();
+    });
+
+    it('destroy stops the interval and clears entries', () => {
+      const cache = new TtlCache(100, 500);
+      cache.set('a', 1);
+
+      cache.destroy();
+      expect(cache.size).toBe(0);
+
+      // Further interval ticks don't cause errors
+      vi.advanceTimersByTime(1000);
+    });
+  });
+
   describe('getStale', () => {
     it('returns value even after TTL expires', () => {
       const cache = new TtlCache(100);

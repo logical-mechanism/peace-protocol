@@ -96,7 +96,12 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
         parsed.push({ utxo, datum });
       } catch (err) {
         skippedDatums++;
-        logger.warn('Failed to parse bid datum', { txHash: utxo.tx_hash, txIndex: utxo.tx_index, error: String(err) });
+        logger.warn('Failed to parse bid datum', {
+          txHash: utxo.tx_hash,
+          txIndex: utxo.tx_index,
+          error: String(err),
+          datumPreview: JSON.stringify(utxo.inline_datum)?.slice(0, 200),
+        });
       }
     }
 
@@ -131,8 +136,8 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
 }
 
 /** Find a single bid by its token name, or null if not found. */
-export async function getBidByToken(tokenName: string): Promise<ServiceResult<BidDisplay | null>> {
-  const result = await getAllBids();
+export async function getBidByToken(tokenName: string, skipCache = false): Promise<ServiceResult<BidDisplay | null>> {
+  const result = await getAllBids(skipCache);
   return {
     data: result.data.find(b => b.tokenName === tokenName) || null,
     warnings: result.warnings,
@@ -140,8 +145,8 @@ export async function getBidByToken(tokenName: string): Promise<ServiceResult<Bi
 }
 
 /** Filter bids by bidder payment key hash (case-insensitive substring match). */
-export async function getBidsByUser(pkh: string): Promise<ServiceResult<BidDisplay[]>> {
-  const result = await getAllBids();
+export async function getBidsByUser(pkh: string, skipCache = false): Promise<ServiceResult<BidDisplay[]>> {
+  const result = await getAllBids(skipCache);
   return {
     data: result.data.filter(b => b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())),
     warnings: result.warnings,
@@ -149,8 +154,8 @@ export async function getBidsByUser(pkh: string): Promise<ServiceResult<BidDispl
 }
 
 /** Filter bids by the encryption token they target. */
-export async function getBidsByEncryption(encryptionToken: string): Promise<ServiceResult<BidDisplay[]>> {
-  const result = await getAllBids();
+export async function getBidsByEncryption(encryptionToken: string, skipCache = false): Promise<ServiceResult<BidDisplay[]>> {
+  const result = await getAllBids(skipCache);
   return {
     data: result.data.filter(b => b.encryptionToken === encryptionToken),
     warnings: result.warnings,
@@ -159,9 +164,10 @@ export async function getBidsByEncryption(encryptionToken: string): Promise<Serv
 
 /** Filter bids by display status (pending, accepted, rejected, or cancelled). */
 export async function getBidsByStatus(
-  status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled',
+  skipCache = false,
 ): Promise<ServiceResult<BidDisplay[]>> {
-  const result = await getAllBids();
+  const result = await getAllBids(skipCache);
   return {
     data: result.data.filter(b => b.status === status),
     warnings: result.warnings,

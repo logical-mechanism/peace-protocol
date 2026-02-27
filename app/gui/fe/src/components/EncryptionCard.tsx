@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -7,8 +7,6 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 
-// Default fallback price when suggested price can't be parsed
-const DEFAULT_FALLBACK_PRICE = 1;
 
 interface EncryptionCardProps {
   encryption: EncryptionDisplay;
@@ -19,12 +17,13 @@ interface EncryptionCardProps {
   initialCached?: boolean;
   initialBanned?: boolean;
   bidCount?: number;
+  lovelace?: string | null;
   isFavorite?: boolean;
   onToggleFavorite?: (tokenName: string) => void;
   searchQuery?: string;
 }
 
-export default function EncryptionCard({
+function EncryptionCard({
   encryption,
   onPlaceBid,
   isOwnListing = false,
@@ -33,11 +32,19 @@ export default function EncryptionCard({
   initialCached = false,
   initialBanned = false,
   bidCount = 0,
+  lovelace,
   isFavorite = false,
   onToggleFavorite,
   searchQuery = '',
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+  const [prevBidCount, setPrevBidCount] = useState(bidCount);
+  const [bidPulseKey, setBidPulseKey] = useState(0);
+
+  if (bidCount > prevBidCount) {
+    setPrevBidCount(bidCount);
+    setBidPulseKey(k => k + 1);
+  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -48,14 +55,15 @@ export default function EncryptionCard({
     });
   };
 
-  // Format price with fallback to 1 ADA if undefined, null, NaN, or invalid
+  // Format price with "No suggested price" fallback for missing/invalid values
   const formatPrice = (price?: number): string => {
     if (price === undefined || price === null || isNaN(price) || price < 0) {
-      return `${DEFAULT_FALLBACK_PRICE} ADA`;
+      return 'No suggested price';
     }
     return `${price.toLocaleString()} ADA`;
   };
 
+  const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);
   const canBid = encryption.status === 'active' && !isOwnListing && !hasBid;
 
   // Get category label, defaulting to "Text" for backward compatibility
@@ -94,7 +102,10 @@ export default function EncryptionCard({
               </span>
               <EncryptionStatusBadge status={encryption.status} />
               {bidCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium">
+                <span
+                  key={bidPulseKey}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                >
                   {bidCount}
                 </span>
               )}
@@ -114,8 +125,10 @@ export default function EncryptionCard({
             </span>
             {canBid && onPlaceBid && (
               <button
-                onClick={() => onPlaceBid(encryption, bidCount)}
-                className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+                onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+                disabled={hasLowBalance}
+                title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+                className={`px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
               >
                 Bid
               </button>
@@ -168,7 +181,10 @@ export default function EncryptionCard({
                 {getCategoryLabel(encryption.category)}
               </span>
               {bidCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium">
+                <span
+                  key={bidPulseKey}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                >
                   {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
                 </span>
               )}
@@ -222,10 +238,12 @@ export default function EncryptionCard({
         {/* Action Button */}
         {canBid && onPlaceBid && (
           <button
-            onClick={() => onPlaceBid(encryption, bidCount)}
-            className="w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+            disabled={hasLowBalance}
+            title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+            className={`w-full mt-4 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'opacity-50 cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
           >
-            Place Bid
+            {hasLowBalance ? 'Insufficient Balance' : 'Place Bid'}
           </button>
         )}
 
@@ -264,3 +282,28 @@ export default function EncryptionCard({
     </>
   );
 }
+
+function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): boolean {
+  return (
+    prev.encryption.tokenName === next.encryption.tokenName &&
+    prev.encryption.status === next.encryption.status &&
+    prev.encryption.suggestedPrice === next.encryption.suggestedPrice &&
+    prev.encryption.imageLink === next.encryption.imageLink &&
+    prev.encryption.description === next.encryption.description &&
+    prev.encryption.category === next.encryption.category &&
+    prev.encryption.createdAt === next.encryption.createdAt &&
+    prev.bidCount === next.bidCount &&
+    prev.compact === next.compact &&
+    prev.isOwnListing === next.isOwnListing &&
+    prev.hasBid === next.hasBid &&
+    prev.isFavorite === next.isFavorite &&
+    prev.searchQuery === next.searchQuery &&
+    prev.lovelace === next.lovelace &&
+    prev.initialCached === next.initialCached &&
+    prev.initialBanned === next.initialBanned &&
+    prev.onPlaceBid === next.onPlaceBid &&
+    prev.onToggleFavorite === next.onToggleFavorite
+  );
+}
+
+export default memo(EncryptionCard, arePropsEqual);

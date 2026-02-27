@@ -26,6 +26,7 @@ describe('WasmContext', () => {
 
     expect(result.current.stage).toBe('ready');
     expect(result.current.progress).toBe(100);
+    expect(invoke).toHaveBeenCalledWith('snark_check_setup');
   });
 
   it('transitions through decompressing when setup does not exist', async () => {
@@ -40,6 +41,8 @@ describe('WasmContext', () => {
     });
 
     expect(result.current.isReady).toBe(true);
+    expect(invoke).toHaveBeenCalledWith('snark_check_setup');
+    expect(invoke).toHaveBeenCalledWith('snark_decompress_setup');
   });
 
   it('sets error state on invoke failure', async () => {

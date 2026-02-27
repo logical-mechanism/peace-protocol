@@ -7,6 +7,7 @@ import MnemonicInput, { validateMnemonicWords } from '../components/MnemonicInpu
 import { usePasswordStrength } from '../hooks/usePasswordStrength'
 import type { PasswordStrength } from '../hooks/usePasswordStrength'
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
+import { useToast, ToastContainer } from '../components/Toast'
 
 type Mode = 'choose' | 'create' | 'import'
 type CreateStep = 'generate' | 'verify' | 'password'
@@ -85,6 +86,7 @@ const IMPORT_STEPS: StepInfo[] = [
 export default function WalletSetup() {
   const { createWallet } = useWalletContext()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [mode, setMode] = useState<Mode>('choose')
   const [mnemonic, setMnemonic] = useState<string[]>([])
@@ -136,11 +138,15 @@ export default function WalletSetup() {
   const passwordValid =
     strength.allMet && password === confirmPassword
 
-  const handleCopyMnemonic = useCallback(() => {
-    copyToClipboard(mnemonic.join(' '))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }, [mnemonic])
+  const handleCopyMnemonic = useCallback(async () => {
+    const success = await copyToClipboard(mnemonic.join(' '))
+    if (success) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } else {
+      toast.warning('Copy failed', 'Could not copy mnemonic to clipboard.')
+    }
+  }, [mnemonic, toast])
 
   const handleImportWordChange = useCallback((index: number, value: string) => {
     setImportWords((prev) => {
@@ -194,9 +200,9 @@ export default function WalletSetup() {
         setImportWords(padded)
       }
     } catch {
-      // Clipboard access denied — user can still paste manually into any field
+      toast.warning('Clipboard unavailable', 'Could not access clipboard. Try pasting directly into the word fields with Ctrl+V.')
     }
-  }, [])
+  }, [toast])
 
   const handleSubmit = useCallback(async () => {
     const words = mode === 'create' ? mnemonic : importWords
@@ -626,6 +632,7 @@ export default function WalletSetup() {
           />
         )}
       </div>
+      <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </main>
   )
 }

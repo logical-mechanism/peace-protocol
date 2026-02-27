@@ -47,7 +47,7 @@ pub fn derive_secrets_key_v1(mnemonic: &str) -> Result<Zeroizing<[u8; 32]>, Stri
     Ok(key)
 }
 
-/// Derive secrets key using KDF version 2 (current).
+/// Derive secrets key using KDF version 2 (legacy, retained for migration only).
 /// 32 MiB, 2 iterations, 1 parallelism, random per-user salt.
 pub fn derive_secrets_key_v2(mnemonic: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, String> {
     let params = Params::new(32768, 2, 1, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
@@ -59,16 +59,32 @@ pub fn derive_secrets_key_v2(mnemonic: &str, salt: &[u8]) -> Result<Zeroizing<[u
     Ok(key)
 }
 
-/// Generate a random 16-byte salt for KDF v2.
+/// Derive secrets key using KDF version 3 (current).
+/// 64 MiB, 3 iterations, 2 parallelism — matches wallet KDF memory/iterations,
+/// with parallelism 2 (vs wallet's 4) to keep it faster.
+pub fn derive_secrets_key_v3(mnemonic: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, String> {
+    let params = Params::new(65536, 3, 2, Some(32)).map_err(|e| format!("Argon2 params: {e}"))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut key = Zeroizing::new([0u8; 32]);
+    argon2
+        .hash_password_into(mnemonic.as_bytes(), salt, &mut *key)
+        .map_err(|e| format!("Secrets key derivation failed: {e}"))?;
+    Ok(key)
+}
+
+/// Generate a random 16-byte salt for secrets KDF.
 pub fn generate_kdf_salt() -> [u8; 16] {
     let mut salt = [0u8; 16];
     rand::rngs::OsRng.fill_bytes(&mut salt);
     salt
 }
 
+/// Current KDF version. Secrets are migrated on unlock when meta version is lower.
+const CURRENT_KDF_VERSION: u32 = 3;
+
 /// Load KDF metadata from the secrets directory.
-/// Returns `(meta, needs_migration)`. If no `kdf_meta.json` exists, returns
-/// a v1 placeholder with `needs_migration = true`.
+/// Returns `(meta, needs_migration)`. Migration is needed when the stored version
+/// is older than CURRENT_KDF_VERSION, or when no metadata file exists (v1 legacy).
 pub fn load_kdf_meta(secrets_dir: &std::path::Path) -> Result<(KdfMeta, bool), String> {
     let path = secrets_dir.join("kdf_meta.json");
     if path.exists() {
@@ -76,7 +92,8 @@ pub fn load_kdf_meta(secrets_dir: &std::path::Path) -> Result<(KdfMeta, bool), S
             .map_err(|e| format!("Failed to read kdf_meta.json: {e}"))?;
         let meta: KdfMeta =
             serde_json::from_str(&json).map_err(|e| format!("Invalid kdf_meta.json: {e}"))?;
-        Ok((meta, false))
+        let needs_migration = meta.version < CURRENT_KDF_VERSION;
+        Ok((meta, needs_migration))
     } else {
         Ok((
             KdfMeta {
@@ -255,17 +272,25 @@ mod tests {
         assert_eq!(meta.version, 1);
         assert!(needs);
 
-        // Save v2 meta
+        // Save v2 meta → still needs migration (v2 < v3)
         let salt = generate_kdf_salt();
-        let meta = KdfMeta {
+        let meta_v2 = KdfMeta {
             version: 2,
             salt: to_hex(&salt),
         };
-        save_kdf_meta(&dir, &meta).unwrap();
-
-        // Load back → no migration
+        save_kdf_meta(&dir, &meta_v2).unwrap();
         let (loaded, needs) = load_kdf_meta(&dir).unwrap();
         assert_eq!(loaded.version, 2);
+        assert!(needs); // v2 < CURRENT_KDF_VERSION (3)
+
+        // Save v3 meta → no migration needed
+        let meta_v3 = KdfMeta {
+            version: 3,
+            salt: to_hex(&salt),
+        };
+        save_kdf_meta(&dir, &meta_v3).unwrap();
+        let (loaded, needs) = load_kdf_meta(&dir).unwrap();
+        assert_eq!(loaded.version, 3);
         assert!(!needs);
         assert_eq!(loaded.salt, to_hex(&salt));
 

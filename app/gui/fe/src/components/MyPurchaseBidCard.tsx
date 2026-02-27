@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
+import { formatAda } from '../utils/formatAda';
 import { BidStatusBadge } from './Badge';
 import BidTimeline from './BidTimeline';
 import type { PurchaseStage } from './BidTimeline';
@@ -17,7 +18,7 @@ interface MyPurchaseBidCardProps {
   decryptFailed?: boolean;
 }
 
-export default function MyPurchaseBidCard({
+function MyPurchaseBidCard({
   bid,
   encryption,
   onCancel,
@@ -34,14 +35,6 @@ export default function MyPurchaseBidCard({
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-    });
-  };
-
-  const formatAda = (lovelace: number): string => {
-    const ada = lovelace / 1_000_000;
-    return ada.toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 6,
     });
   };
 
@@ -357,3 +350,25 @@ export default function MyPurchaseBidCard({
     </>
   );
 }
+
+function arePropsEqual(prev: MyPurchaseBidCardProps, next: MyPurchaseBidCardProps): boolean {
+  return (
+    prev.bid.tokenName === next.bid.tokenName &&
+    prev.bid.status === next.bid.status &&
+    prev.bid.amount === next.bid.amount &&
+    prev.bid.encryptionToken === next.bid.encryptionToken &&
+    prev.bid.createdAt === next.bid.createdAt &&
+    prev.encryption?.tokenName === next.encryption?.tokenName &&
+    prev.encryption?.status === next.encryption?.status &&
+    prev.encryption?.description === next.encryption?.description &&
+    prev.encryption?.seller === next.encryption?.seller &&
+    prev.encryption?.suggestedPrice === next.encryption?.suggestedPrice &&
+    prev.compact === next.compact &&
+    prev.purchaseStage === next.purchaseStage &&
+    prev.decryptFailed === next.decryptFailed &&
+    prev.onCancel === next.onCancel &&
+    prev.onDecrypt === next.onDecrypt
+  );
+}
+
+export default memo(MyPurchaseBidCard, arePropsEqual);

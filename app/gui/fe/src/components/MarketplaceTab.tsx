@@ -14,13 +14,15 @@ import { useDebounce } from '../hooks/useDebounce';
 
 interface MarketplaceTabProps {
   userPkh?: string;
+  lovelace?: string | null;
   onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
+  onCreateListing?: () => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
@@ -28,6 +30,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
@@ -43,9 +46,12 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
       ]);
       setEncryptions(data);
       setAllBids(allBids);
+      setPrevDataCount(data.length);
 
       // Fetch image cache status for all listings
-      listCachedImages().then(setImageCacheStatus).catch(() => {});
+      listCachedImages().then(setImageCacheStatus).catch((err) => {
+        console.warn('Image cache refresh failed:', err);
+      });
 
       // Build set of encryption tokens the user has pending bids on
       if (userPkh) {
@@ -121,8 +127,9 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
   const priceRange = useMemo(() => {
     let maxPrice = 0;
     for (const e of encryptions) {
-      if (e.suggestedPrice != null && e.suggestedPrice > maxPrice) {
-        maxPrice = e.suggestedPrice;
+      const price = Number(e.suggestedPrice);
+      if (!isNaN(price) && price > maxPrice) {
+        maxPrice = price;
       }
     }
     return { min: 0, max: Math.max(maxPrice, 1) };
@@ -165,20 +172,30 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
   }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch]);
 
   // Sort filtered results (only reruns when sort order or bid counts change)
+  // Null-safe: missing prices sort last; missing dates sort to epoch 0
   const filteredAndSorted = useMemo(() => {
     const result = [...filtered];
+    const safeTime = (d: string) => {
+      const t = new Date(d ?? '').getTime();
+      return isNaN(t) ? 0 : t;
+    };
+    const safePrice = (p: number | undefined | null, fallback: number) => {
+      if (p == null) return fallback;
+      const n = Number(p);
+      return isNaN(n) ? fallback : n;
+    };
     switch (sortBy) {
       case 'newest':
-        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        result.sort((a, b) => safeTime(b.createdAt) - safeTime(a.createdAt));
         break;
       case 'oldest':
-        result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        result.sort((a, b) => safeTime(a.createdAt) - safeTime(b.createdAt));
         break;
       case 'price-high':
-        result.sort((a, b) => (b.suggestedPrice ?? 0) - (a.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(b.suggestedPrice, -Infinity) - safePrice(a.suggestedPrice, -Infinity));
         break;
       case 'price-low':
-        result.sort((a, b) => (a.suggestedPrice ?? 0) - (b.suggestedPrice ?? 0));
+        result.sort((a, b) => safePrice(a.suggestedPrice, Infinity) - safePrice(b.suggestedPrice, Infinity));
         break;
       case 'most-bids':
         result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
@@ -237,29 +254,45 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
     return () => observer.disconnect();
   }, [hasMore, currentPage, dispatch]);
 
+  const screenReaderMessage = loading
+    ? 'Loading marketplace listings…'
+    : error
+    ? 'Error loading marketplace listings'
+    : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'} loaded`;
+
   if (loading) {
-    return <SkeletonGrid />;
+    return (
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <SkeletonGrid count={Math.max(1, Math.min(prevDataCount || 8, 20))} />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState
-        icon={<PackageIcon />}
-        title="Failed to load listings"
-        description={error}
-        action={
-          <button
-            onClick={fetchEncryptions}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            Try Again
-          </button>
-        }
-      />
+      <>
+        <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        <EmptyState
+          icon={<PackageIcon />}
+          title="Failed to load listings"
+          description={error}
+          action={
+            <button
+              onClick={fetchEncryptions}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Try Again
+            </button>
+          }
+        />
+      </>
     );
   }
 
   return (
+    <>
+    <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -421,7 +454,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
       </div>
 
       {/* Results Count + Clear Filters */}
-      <div className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
+      <div role="status" className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
         <span>
           {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
         </span>
@@ -456,6 +489,14 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
             illustration={<MarketplaceEmptyIllustration />}
             title="No listings available"
             description="Listings will appear here once sellers create encryptions"
+            action={onCreateListing && (
+              <button
+                onClick={onCreateListing}
+                className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+              >
+                Create Listing
+              </button>
+            )}
           />
         )
       ) : viewMode === 'grid' ? (
@@ -470,6 +511,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
                 bidCount={getBidCount(encryption.tokenName)}
+                lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}
@@ -490,6 +532,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
                 bidCount={getBidCount(encryption.tokenName)}
+                lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}
@@ -515,6 +558,7 @@ function MarketplaceTab({ userPkh, onPlaceBid, refreshSignal, filters, dispatch 
         </div>
       )}
     </div>
+    </>
   );
 }
 

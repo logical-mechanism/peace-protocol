@@ -19,6 +19,7 @@ export default function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
+      role="status"
       className={`bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-12 text-center ${className}`}
     >
       {illustration ? (

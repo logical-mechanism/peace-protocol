@@ -92,6 +92,23 @@ jobs:
         working-directory: app/gui
     steps:
       - uses: actions/checkout@v4
+      - name: Check version consistency
+        run: |
+          V_ROOT=$(jq -r .version package.json)
+          V_FE=$(jq -r .version fe/package.json)
+          V_BE=$(jq -r .version be/package.json)
+          V_TAURI=$(jq -r .version src-tauri/tauri.conf.json)
+          V_CARGO=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "root:  $V_ROOT"
+          echo "fe:    $V_FE"
+          echo "be:    $V_BE"
+          echo "tauri: $V_TAURI"
+          echo "cargo: $V_CARGO"
+          if [ "$V_ROOT" != "$V_FE" ] || [ "$V_ROOT" != "$V_BE" ] || [ "$V_ROOT" != "$V_TAURI" ] || [ "$V_ROOT" != "$V_CARGO" ]; then
+            echo "::error::Version mismatch detected! All 5 version fields must match."
+            exit 1
+          fi
+          echo "All versions match: $V_ROOT"
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -112,6 +129,8 @@ jobs:
         with:
           workspaces: app/gui/src-tauri
       - run: npm run install:all
+      - name: Build backend
+        run: npm --prefix be run build
       - name: Create stub sidecar binaries
         run: |
           mkdir -p src-tauri/binaries
@@ -125,3 +144,12 @@ jobs:
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
       - run: npm --prefix fe run test:coverage
       - run: npm --prefix be run test:coverage
+      - name: Check for stale or missing snapshots
+        working-directory: app/gui
+        run: |
+          SNAP_FILES=$(git status --porcelain -- '*.snap' 2>/dev/null)
+          if [ -n "$SNAP_FILES" ]; then
+            echo "::error::Snapshot files were created or modified during CI! Run tests locally and commit .snap files."
+            echo "$SNAP_FILES"
+            exit 1
+          fi

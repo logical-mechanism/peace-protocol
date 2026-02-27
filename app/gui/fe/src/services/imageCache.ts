@@ -8,6 +8,7 @@ export interface ImageResult {
 export interface ImageCacheStatus {
   cached: string[];
   banned: string[];
+  total_bytes: number;
 }
 
 export async function downloadImage(

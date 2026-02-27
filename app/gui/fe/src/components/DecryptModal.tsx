@@ -6,6 +6,7 @@ import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, ty
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
+import { formatAda } from '../utils/formatAda';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -17,6 +18,7 @@ interface DecryptModalProps {
   encryption: EncryptionDisplay | null;
   isIagonConnected?: boolean;
   onDecryptResult?: (result: { success: boolean; encryptionToken: string }) => void;
+  onSaveWarning?: (message: string) => void;
 }
 
 type DecryptState = 'idle' | 'decrypting' | 'success' | 'error';
@@ -28,6 +30,7 @@ export default function DecryptModal({
   encryption,
   isIagonConnected = false,
   onDecryptResult,
+  onSaveWarning,
 }: DecryptModalProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletContext();
@@ -102,6 +105,7 @@ export default function DecryptModal({
           });
         } catch (err) {
           console.warn('Failed to save decrypted content:', err);
+          onSaveWarning?.('Decryption succeeded but file could not be saved to library. Try again from My Purchases.');
         }
 
         setState('success');
@@ -124,7 +128,7 @@ export default function DecryptModal({
         onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
       }
     }
-  }, [wallet, bid, encryption, onDecryptResult]);
+  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning]);
 
   const handleCopy = useCallback(async () => {
     if (!decryptedMessage) return;
@@ -132,6 +136,8 @@ export default function DecryptModal({
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } else {
+      console.warn('Clipboard copy failed for decrypted content');
     }
   }, [decryptedMessage]);
 
@@ -144,14 +150,6 @@ export default function DecryptModal({
     setSavedPath(null);
     onClose();
   }, [onClose]);
-
-  const formatAda = (lovelace: number): string => {
-    const ada = lovelace / 1_000_000;
-    return ada.toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 6,
-    });
-  };
 
   if (!shouldRender) return null;
 
