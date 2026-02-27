@@ -142,7 +142,7 @@ export default function Settings() {
   // Load orphaned drafts when datalayer section is active
   useEffect(() => {
     if (activeSection !== 'datalayer') return
-    getOrphanedDrafts().then(setOrphanedDrafts).catch(() => {})
+    getOrphanedDrafts().then(setOrphanedDrafts).catch((err) => console.warn('Failed to load orphaned drafts:', err))
   }, [activeSection])
 
   // Load image cache status, API cache size, and transaction history count when storage section is active
@@ -436,7 +436,7 @@ export default function Settings() {
     setDefragPreviewLoading(true)
     previewDefrag(wallet)
       .then((preview) => { if (!cancelled) setDefragPreview(preview) })
-      .catch(() => {})
+      .catch((err) => console.warn('Defrag preview failed:', err))
       .finally(() => { if (!cancelled) setDefragPreviewLoading(false) })
     return () => { cancelled = true }
   }, [activeSection, stage, wallet])

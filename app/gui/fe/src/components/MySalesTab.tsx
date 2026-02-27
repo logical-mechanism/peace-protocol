@@ -218,7 +218,7 @@ function MySalesTab({
   const handleRemoveListing = useCallback(
     (encryption: EncryptionDisplay) => {
       // Optimistic cleanup — user can re-download if the tx fails
-      deleteCachedImage(encryption.tokenName).catch(() => {});
+      deleteCachedImage(encryption.tokenName).catch((err) => console.warn('Failed to delete cached image:', err));
 
       if (onRemoveListing) {
         onRemoveListing(encryption);

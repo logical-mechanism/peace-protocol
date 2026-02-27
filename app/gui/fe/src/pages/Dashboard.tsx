@@ -231,7 +231,7 @@ export default function Dashboard() {
         // Show the most recent recoverable draft
         setRecoverableDraft(drafts[0])
       })
-      .catch(() => {}) // best-effort
+      .catch((err) => console.warn('Draft recovery check failed:', err))
     return () => { cancelled = true }
   }, [])
 
@@ -1062,7 +1062,7 @@ export default function Dashboard() {
         setAcceptedBidCount(accepted.length)
 
         // Best-effort cleanup of stale secrets after confirmed ownership changes
-        cleanupStaleSecrets(userPkh, encryptions).catch(() => {})
+        cleanupStaleSecrets(userPkh, encryptions).catch((err) => console.warn('Stale secret cleanup failed:', err))
       } catch (error) {
         console.error('Failed to fetch stats:', error)
         setMyListingsCount(0)

@@ -376,7 +376,7 @@ Each item has:
   - **How**: In `DecryptModal.tsx` (lines 83-105), when `save_content` invoke fails, the error is only logged as a warning. Add `toast.warning('Decryption succeeded but file could not be saved to library. Try again from My Purchases.')` so the user knows the file isn't persisted.
   - **Why**: Users see "Decryption complete!" but the file isn't in their library. They think it worked and can't find the content later.
 
-- [ ] **Silent API failure logging throughout**
+- [x] **Silent API failure logging throughout**
   - **How**: Search all `.catch(() => {})` and `.catch(() => undefined)` patterns in the frontend. Replace with `.catch(err => console.warn('Operation failed:', err))` at minimum. Affected files: MarketplaceTab, MySalesTab, MyPurchasesTab, image cache fetches.
   - **Why**: Empty catch blocks make debugging impossible. Even console warnings provide diagnostic value when users share logs.
 
