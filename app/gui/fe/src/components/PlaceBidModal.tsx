@@ -346,18 +346,22 @@ export default function PlaceBidModal({
                   </div>
                 )}
               </div>
+              <p className="text-xs text-[var(--text-muted)] mb-1.5">Minimum bid: {MIN_BID_ADA} ADA</p>
               <div className="relative">
                 <input
                   ref={bidAmountRef}
                   type="text"
+                  inputMode="decimal"
                   id="bidAmount"
                   name="bidAmount"
                   value={formData.bidAmount}
                   onChange={handleInputChange}
+                  onBlur={handleBidAmountBlur}
                   disabled={isSubmitting}
                   placeholder="0.00"
+                  max={balanceAda !== undefined ? Math.floor(balanceAda) : undefined}
                   aria-invalid={!!errors.bidAmount}
-                  aria-describedby={errors.bidAmount ? 'bidAmount-error' : undefined}
+                  aria-describedby={errors.bidAmount ? 'bidAmount-error' : 'bidAmount-hint'}
                   className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-150 disabled:opacity-50 pr-12 ${
                     errors.bidAmount ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                   }`}
@@ -376,15 +380,14 @@ export default function PlaceBidModal({
                 </p>
               )}
               <div className="mt-1 space-y-1">
-                <p className="text-xs text-[var(--text-muted)]">
-                  Minimum bid: {MIN_BID_ADA} ADA.{' '}
+                <p id="bidAmount-hint" className="text-xs text-[var(--text-muted)]">
+                  Your bid will be locked until the seller accepts or you cancel.{' '}
                   <span
                     title="The Cardano network requires each piece of on-chain data (UTxO) to hold a minimum amount of ADA. Your bid is stored on-chain, so it must meet this minimum."
                     className="underline decoration-dotted cursor-help"
                   >
-                    Why?
-                  </span>{' '}
-                  Your bid will be locked until the seller accepts or you cancel.
+                    Why {MIN_BID_ADA} ADA minimum?
+                  </span>
                 </p>
                 {balanceAda !== undefined ? (
                   <div className="flex items-center gap-2">

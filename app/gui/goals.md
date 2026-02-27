@@ -171,15 +171,15 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] 🟢 **Show min bid constraint before user input**
+- [x] 🟢 **Show min bid constraint before user input**
   - **How**: In `PlaceBidModal.tsx`, below the amount input label, add helper text: "Minimum bid: 2 ADA" in `text-xs text-[var(--text-muted)]`. Currently this only appears as a validation error after the user types a value below 2.
   - **Why**: Constraints should be visible before the user encounters them, not after they fail validation.
 
-- [ ] 🟢 **Validate bid amount on blur**
+- [x] 🟢 **Validate bid amount on blur**
   - **How**: In `PlaceBidModal.tsx` (line ~139), add an `onBlur` handler to the amount input that runs `validateForm()` and displays field-level errors. Currently validation only fires on submit; blur validation gives immediate feedback.
   - **Why**: Users enter an invalid value, tab away, and see nothing until they hit Submit — blur validation catches errors early.
 
-- [ ] 🟢 **Set HTML max attribute on bid amount input**
+- [x] 🟢 **Set HTML max attribute on bid amount input**
   - **How**: In `PlaceBidModal.tsx`, add `max={maxBidAda}` attribute to the amount input element where `maxBidAda = (lovelace ?? 0) / 1_000_000`. This enables browser-native constraint feedback alongside the JS validation.
   - **Why**: HTML constraints provide native browser hints (e.g., scroll wheel clamping on number inputs) without relying solely on JS validation.
 
