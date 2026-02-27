@@ -14,6 +14,7 @@ export interface PaginationMeta {
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const MAX_OFFSET = 1_000_000;
 
 export function parsePagination(req: Request): PaginationParams {
   const rawLimit = req.query.limit;
@@ -31,7 +32,7 @@ export function parsePagination(req: Request): PaginationParams {
   if (typeof rawOffset === 'string') {
     const parsed = parseInt(rawOffset, 10);
     if (!isNaN(parsed) && parsed >= 0) {
-      offset = parsed;
+      offset = Math.min(parsed, MAX_OFFSET);
     }
   }
 

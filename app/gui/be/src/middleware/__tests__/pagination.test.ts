@@ -51,6 +51,21 @@ describe('parsePagination', () => {
     const result = parsePagination(mockReq({ offset: '0' }));
     expect(result.offset).toBe(0);
   });
+
+  it('caps offset at 1,000,000', () => {
+    const result = parsePagination(mockReq({ offset: '9999999999' }));
+    expect(result.offset).toBe(1_000_000);
+  });
+
+  it('accepts offset exactly at 1,000,000', () => {
+    const result = parsePagination(mockReq({ offset: '1000000' }));
+    expect(result.offset).toBe(1_000_000);
+  });
+
+  it('caps offset just above 1,000,000', () => {
+    const result = parsePagination(mockReq({ offset: '1000001' }));
+    expect(result.offset).toBe(1_000_000);
+  });
 });
 
 describe('paginate', () => {

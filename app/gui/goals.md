@@ -171,7 +171,7 @@ Difficulty ratings:
   - **How**: In `index.css`, add a `.btn-danger` class alongside the existing `.btn-primary`, `.btn-error` classes: `.btn-danger { background: var(--error); color: white; } .btn-danger:hover { opacity: 0.8; }`. Update `ConfirmModal.tsx` (line 39) to use `btn-base btn-danger` instead of inline `bg-[var(--error)] hover:bg-[var(--error)]/80 text-white`. Search for other inline danger button styles across the codebase.
   - **Why**: Inline danger button styling is duplicated and won't update if the error color changes; a CSS class ensures consistency.
 
-- [ ] 🟡 **Document or unify ADA formatting functions**
+- [x] 🟡 **Document or unify ADA formatting functions**
   - **How**: In `fe/src/utils/formatAda.ts`, `formatAda()` (line 5) trims trailing zeros ("1.5 ADA") while `formatAdaDisplay()` (line 17) forces 2 decimal places ("1.50 ADA"). These appear side-by-side in marketplace cards (listing price vs wallet balance). Either: (a) add a JSDoc comment explaining the intentional distinction, or (b) unify to always show 2 decimals for consistency. If unifying, update `formatAda()` to use `minimumFractionDigits: 2`.
   - **Why**: "50 ADA" next to "1,234.50 ADA" looks inconsistent and erodes confidence in the app's attention to detail.
 
@@ -225,7 +225,7 @@ Difficulty ratings:
   - **How**: In `timeout.ts`, create an `AbortController` per request, attach it to `req` (e.g., `req.abortSignal = controller.signal`), and call `controller.abort()` when the timeout fires. Thread this signal through service calls: `kupo.ts` and `koios.ts` should pass it to `fetch()`. Requires updating all `fetch` calls in `fetchWithRetry.ts` to accept and forward the signal.
   - **Why**: Timed-out requests continue consuming resources (HTTP connections, CPU for CBOR parsing) even after the client has received 504.
 
-- [ ] 🟢 **Pagination integer overflow bounds check**
+- [x] 🟢 **Pagination integer overflow bounds check**
   - **How**: In `pagination.ts` (line ~44), add a guard before computing `hasMore`: `if (offset > Number.MAX_SAFE_INTEGER - limit) return { ...result, hasMore: false }`. Also cap `offset` to a reasonable maximum (e.g., 1,000,000) in the query param parsing to prevent abuse.
   - **Why**: Extremely large offset values could cause incorrect pagination behavior or be used for denial-of-service.
 
