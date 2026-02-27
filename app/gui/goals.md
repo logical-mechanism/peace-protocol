@@ -156,11 +156,11 @@ Each item has:
   - **How**: Add a "Select" mode toggle that shows checkboxes on each SalesListingCard. When items are selected, show a floating action bar: "3 selected — Cancel All". Each cancel calls `removeListing()` sequentially (batch tx not possible on Cardano). Disable select mode while cancellations are in progress.
   - **Why**: Sellers with many expired or unwanted listings must cancel them one by one. Bulk select speeds this up.
 
-- [ ] **Image cache error handling in MySalesTab**
+- [x] **Image cache error handling in MySalesTab**
   - **How**: In `MySalesTab.tsx` (line 65-66), the image cache fetch is fire-and-forget with `.catch(() => {})`. Add `console.warn` at minimum for diagnostic logging, matching MarketplaceTab improvements.
   - **Why**: Same silent failure issue as MarketplaceTab — broken image cache is invisible.
 
-- [ ] **Combined bid iteration for stats calculation**
+- [x] **Combined bid iteration for stats calculation**
   - **How**: In `MySalesTab.tsx` (lines 119-143), the code iterates through bids twice — once in `useMemo` for counts and once for separate logic. Merge into a single pass that computes all stats (total bids, pending count, total earned) in one loop.
   - **Why**: Double iteration is wasteful when the marketplace has hundreds of bids.
 
@@ -238,11 +238,11 @@ Each item has:
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] **Min bid explanation in plain language**
+- [x] **Min bid explanation in plain language**
   - **How**: In `PlaceBidModal.tsx` (lines 99-105), the minimum 2 ADA message mentions "UTxO minimum" which is technical jargon. Replace with: "Minimum bid is 2 ADA (required by the Cardano network to hold bid data on-chain)." Add a small "Why?" link/tooltip that explains UTxO minimums briefly.
   - **Why**: Non-technical users don't understand why they can't bid 0.5 ADA. A clear explanation prevents confusion and support requests.
 
-- [ ] **Balance parsing safety check**
+- [x] **Balance parsing safety check**
   - **How**: In `PlaceBidModal.tsx` (lines 85-87), `balanceLovelace` is parsed with `parseInt()` without validating the input. Add: `const parsed = parseInt(balanceLovelace ?? '0', 10); const balanceAda = isNaN(parsed) ? undefined : parsed / 1_000_000;`. When `undefined`, show "Balance: loading..." instead of "0 ADA".
   - **Why**: If Kupo is slow to respond, `balanceLovelace` could be `undefined` or empty string, causing NaN display.
 

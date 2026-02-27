@@ -105,19 +105,28 @@ function MySalesTab({
     fetchData();
   }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pre-compute pending bid counts per listing
-  const bidCountMap = useMemo(() => {
+  // Pre-compute pending bid counts per listing and aggregate totals in a single pass
+  const bidStats = useMemo(() => {
     const map = new Map<string, number>();
+    let totalBidCount = 0;
+    let totalBidValue = 0;
     for (const [tokenName, bids] of bidsMap) {
-      const count = bids.filter((b) => b.status === 'pending').length;
+      let count = 0;
+      for (const b of bids) {
+        if (b.status === 'pending') {
+          count++;
+          totalBidValue += b.amount;
+        }
+      }
       if (count > 0) map.set(tokenName, count);
+      totalBidCount += count;
     }
-    return map;
+    return { map, totalBidCount, totalBidValue };
   }, [bidsMap]);
 
   const getBidCount = useCallback(
-    (tokenName: string): number => bidCountMap.get(tokenName) ?? 0,
-    [bidCountMap]
+    (tokenName: string): number => bidStats.map.get(tokenName) ?? 0,
+    [bidStats.map]
   );
 
   // Compute sales stats for summary banner
@@ -134,22 +143,14 @@ function MySalesTab({
       }
     }
 
-    let totalBidCount = 0;
-    let totalBidValue = 0;
-    for (const [, bids] of bidsMap) {
-      const pendingBids = bids.filter(b => b.status === 'pending');
-      totalBidCount += pendingBids.length;
-      totalBidValue += pendingBids.reduce((sum, b) => sum + b.amount, 0);
-    }
-
     const completedSales = userPkh
       ? getTransactions(userPkh).filter(
           tx => (tx.type === 'accept-bid' || tx.type === 'complete-sale') && tx.status === 'confirmed'
         ).length
       : 0;
 
-    return { activeCount, pendingCount, completedSales, listedValue, totalBidCount, totalBidValue };
-  }, [encryptions, bidsMap, userPkh]);
+    return { activeCount, pendingCount, completedSales, listedValue, totalBidCount: bidStats.totalBidCount, totalBidValue: bidStats.totalBidValue };
+  }, [encryptions, userPkh, bidStats.totalBidCount, bidStats.totalBidValue]);
 
   // Filter encryptions (separate from sort so sort changes don't re-filter)
   const filtered = useMemo(() => {
@@ -197,11 +198,11 @@ function MySalesTab({
         result.sort((a, b) => safePrice(a.suggestedPrice, Infinity) - safePrice(b.suggestedPrice, Infinity));
         break;
       case 'most-bids':
-        result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
+        result.sort((a, b) => (bidStats.map.get(b.tokenName) ?? 0) - (bidStats.map.get(a.tokenName) ?? 0));
         break;
     }
     return result;
-  }, [filtered, sortBy, bidCountMap]);
+  }, [filtered, sortBy, bidStats.map]);
 
   // Handlers
   const handleViewBids = useCallback((encryption: EncryptionDisplay) => {
