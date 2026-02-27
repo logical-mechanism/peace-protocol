@@ -393,7 +393,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/services/__tests__/iagonApi.test.ts` and `iagonAuth.test.ts`. Mock `invoke` from `@tauri-apps/api/core`. Test: upload returns file ID, download returns bytes, auth flow (getNonce → verify → generateApiKey), error handling for network failures and invalid responses.
   - **Why**: Iagon services are completely untested; they handle file upload/download/auth for all non-text listings. A broken wrapper silently blocks file marketplace features.
 
-- [ ] 🟡 **Service tests: libraryService.ts, snark/index.ts, snark/prover.ts**
+- [x] 🟡 **Service tests: libraryService.ts, snark/index.ts, snark/prover.ts**
   - **How**: Create test files mocking Tauri `invoke`. Test: libraryService list/read/delete operations, SNARK setup decompression progress events, prover invocation and result parsing. Follow `imageCache` test patterns for Tauri IPC mocking.
   - **Why**: Library and SNARK services are untested Tauri IPC wrappers; invoke argument errors or response parsing bugs would be invisible until runtime.
 
