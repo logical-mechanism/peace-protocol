@@ -516,7 +516,7 @@ Each item has:
   - **How**: Add `fe/src/components/__tests__/ErrorBoundary.test.tsx` — test that render errors are caught and recovery UI shown. `SessionWarningBanner.test.tsx` — test countdown display and dismiss. `ShutdownOverlay.test.tsx` — test Tauri event listener and overlay rendering.
   - **Why**: These are safety-critical components (error recovery, session management, shutdown) that have no tests.
 
-- [ ] **Backend bids and encryptions service tests**
+- [x] **Backend bids and encryptions service tests**
   - **How**: Create `be/src/services/__tests__/bids.test.ts` and `be/src/services/__tests__/encryptions.test.ts`. Mock Kupo HTTP responses with various datum shapes (valid, malformed, missing fields). Test: datum parsing, CIP-20 metadata extraction, status filtering, pagination.
   - **Why**: The core business logic for transforming raw blockchain data into display models is untested. A CBOR change could silently break bid/encryption parsing.
 
