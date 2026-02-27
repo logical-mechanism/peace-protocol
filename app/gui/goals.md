@@ -225,11 +225,11 @@ Difficulty ratings:
   - **How**: Create test files in `fe/src/services/__tests__/`. Mock Tauri `invoke` from `@tauri-apps/api/core`. Test: store/get/remove operations, list operations, error handling when invoke rejects (wallet locked, file not found). These services wrap `store_seller_secrets`, `store_bid_secrets`, `store_accept_bid_secrets` Tauri commands. Follow `listingDraftStorage.test.ts` patterns.
   - **Why**: Secret storage services manage encryption keys critical to the marketplace — silent failures could cause permanent data loss.
 
-- [ ] 🟡 **Service tests: imageCache**
+- [x] 🟡 **Service tests: imageCache**
   - **How**: Create `fe/src/services/__tests__/imageCache.test.ts`. Mock Tauri `invoke`. Test: `downloadImage` calls `download_image`, `getCachedImage` returns cached data, `banImage`/`unbanImage` toggle ban state, `deleteCachedImage` calls removal. Follow `libraryService.test.ts` patterns for Tauri IPC mocking.
   - **Why**: Image cache is used by every listing card with images; untested invoke wrappers could silently fail.
 
-- [ ] 🟢 **Service tests: fileExport**
+- [x] 🟢 **Service tests: fileExport**
   - **How**: Create `fe/src/services/__tests__/fileExport.test.ts`. Mock Tauri `invoke` (`export_text_file` command). Test: exports text content successfully, handles invoke rejection gracefully. Small service — likely 5-10 test cases.
   - **Why**: File export is the only way users can save content outside the app; an untested wrapper risks silent failures.
 
