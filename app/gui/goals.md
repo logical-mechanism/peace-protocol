@@ -247,7 +247,7 @@ Difficulty ratings:
   - **How**: In `lib.rs` (line ~142), the hourly cleanup task deletes SNARK temp files older than 1 hour. But if a prove operation takes >1 hour (rare but possible on slow hardware), cleanup could delete files mid-operation. Solution: before deleting, check if the `SnarkLock` mutex is held (i.e., a prove is in progress). If locked, skip cleanup for that cycle. Alternatively, track active temp directories in a `HashSet<PathBuf>` behind the `SnarkLock` and exclude them from cleanup.
   - **Why**: Deleting temp files during an active SNARK proof would cause the proof to fail silently or produce corrupt output, wasting 3+ minutes of computation.
 
-- [ ] 🔴 **Process manager orphan detection — validate process identity**
+- [x] 🔴 **Process manager orphan detection — validate process identity**
   - **How**: In `manager.rs`, `kill_orphans_on_ports()` uses `fuser` to find PIDs on ports 3001/1337/1442 and kills them. But if a new, unrelated process has taken the same port, it gets killed. Before sending SIGTERM, read `/proc/{pid}/cmdline` and verify it contains an expected binary name (e.g., "node", "ogmios", "kupo", "cardano-node"). Skip killing if the process doesn't match.
   - **Why**: On a developer machine running other services, orphan cleanup could kill an unrelated process using port 3001 (e.g., another Express app).
 
