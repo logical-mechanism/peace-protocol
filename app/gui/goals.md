@@ -384,7 +384,7 @@ Each item has:
   - **How**: In all clipboard operations (CreateListingModal paste, address copy, txHash copy), add a catch handler that shows `toast.warning('Could not access clipboard')` instead of failing silently. Check `navigator.clipboard` availability first on WebKitGTK.
   - **Why**: WebKitGTK has inconsistent clipboard API support. Users clicking "Copy" see the success animation but nothing is actually copied.
 
-- [ ] **ModalContext error boundary and stack corruption guard**
+- [x] **ModalContext error boundary and stack corruption guard**
   - **How**: In `ModalContext.tsx` (lines 36-75), add a guard in `closeModal()`: if the modal being closed isn't in the stack, log a warning instead of corrupting the stack. Add `if (!stack.includes(modalId)) { console.warn('Attempted to close unregistered modal:', modalId); return; }`.
   - **Why**: Double-closing a modal (e.g., from both Escape and onClose callback) can corrupt the stack, causing z-index issues for subsequent modals.
 

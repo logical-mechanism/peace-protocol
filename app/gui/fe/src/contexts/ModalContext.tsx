@@ -45,8 +45,11 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
 
   const closeModal = useCallback((id: string) => {
     setStack((prev) => {
-      const next = prev.filter((m) => m !== id);
-      return next.length === prev.length ? prev : next;
+      if (!prev.includes(id)) {
+        console.warn('Attempted to close unregistered modal:', id);
+        return prev;
+      }
+      return prev.filter((m) => m !== id);
     });
   }, []);
 
