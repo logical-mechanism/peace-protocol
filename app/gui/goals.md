@@ -239,11 +239,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/index.css`, `fe/src/fonts.css`
 
-- [ ] 🟢 **Add line-height tokens to design system**
+- [x] 🟢 **Add line-height tokens to design system**
   - **How**: In `index.css`, add to the `:root` variables: `--line-height-tight: 1.2; --line-height-normal: 1.5; --line-height-relaxed: 1.75;`. These complement the existing typography scale and can be referenced in component styles for consistency.
   - **Why**: Components currently inherit browser default line-heights; explicit tokens ensure consistent vertical rhythm.
 
-- [ ] 🟢 **Add larger space tokens**
+- [x] 🟢 **Add larger space tokens**
   - **How**: In `index.css`, add `--space-24: 6rem; --space-32: 8rem;` to the spacing scale. Update `EmptyState.tsx` from `p-12` (48px, not in token list) to use the new token or fall back to `p-8` (--space-8).
   - **Why**: EmptyState uses arbitrary `p-12` padding that doesn't map to any design token; larger tokens formalize these values.
 
