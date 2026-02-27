@@ -524,7 +524,7 @@ Each item has:
   - **How**: In `fe/src/test/__mocks__/tauri.ts`, change the default `invoke` mock from resolving to `undefined` to throwing: `vi.fn().mockRejectedValue(new Error('invoke() not mocked for this command'))`. Tests must explicitly mock each command they use.
   - **Why**: Tests that forget to mock a Tauri command silently succeed with `undefined`, hiding real bugs. Strict mocks force explicit setup.
 
-- [ ] **Verify invoke call arguments in tests**
+- [x] **Verify invoke call arguments in tests**
   - **How**: Add assertion patterns to existing tests: `expect(invoke).toHaveBeenCalledWith('store_seller_secrets', expect.objectContaining({ tokenName: 'abc', a: '...', r: '...' }))`. Priority: secrets storage, wallet operations, SNARK commands.
   - **Why**: Many tests mock `invoke` return values but never verify the arguments passed. A renamed parameter would silently pass tests.
 

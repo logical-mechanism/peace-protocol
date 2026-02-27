@@ -51,6 +51,8 @@ describe('WalletContext', () => {
     await waitFor(() => {
       expect(result.current.walletState).toBe('locked');
     });
+
+    expect(invoke).toHaveBeenCalledWith('wallet_exists');
   });
 
   it('transitions from loading to no_wallet when wallet does not exist', async () => {
@@ -93,6 +95,7 @@ describe('WalletContext', () => {
     expect(result.current.walletState).toBe('unlocked');
     expect(result.current.address).toBe('addr_test1qz...');
     expect(result.current.connected).toBe(true);
+    expect(invoke).toHaveBeenCalledWith('unlock_wallet', { password: 'password123' });
   });
 
   it('lock clears state and transitions to locked', async () => {
@@ -121,6 +124,7 @@ describe('WalletContext', () => {
     expect(result.current.address).toBeNull();
     expect(result.current.lovelace).toBeNull();
     expect(result.current.connected).toBe(false);
+    expect(invoke).toHaveBeenCalledWith('lock_wallet');
   });
 
   it('deleteWallet transitions to no_wallet', async () => {
@@ -139,6 +143,7 @@ describe('WalletContext', () => {
     });
 
     expect(result.current.walletState).toBe('no_wallet');
+    expect(invoke).toHaveBeenCalledWith('delete_wallet');
   });
 
   it('throws when used outside WalletProvider', () => {
