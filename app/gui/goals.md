@@ -189,7 +189,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/PdfViewer.tsx`, `fe/src/components/ImageViewer.tsx`, `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **PdfViewer arrow key page navigation**
+- [x] 🟢 **PdfViewer arrow key page navigation**
   - **How**: In `PdfViewer.tsx` (line ~216-240), add `ArrowLeft` → previous page and `ArrowRight` → next page to the existing keydown handler. Guard with `!isSearchOpen` to avoid conflicts with search input navigation.
   - **Why**: PDF viewers universally support arrow key navigation; users expect this keyboard shortcut.
 
@@ -301,7 +301,7 @@ Difficulty ratings:
   - **How**: In `be/src/services/kupo.ts`, catch connection errors and return a structured error with code `KUPO_UNAVAILABLE`. In route handlers (`encryptions.ts`, `bids.ts`), detect this code and return 503 with `{ error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable' } }`. In `fe/src/services/errorMessages.ts`, add a pattern for this code: title "Kupo Unavailable", message "The UTxO indexer is starting up or unreachable", action "Wait for the node to finish syncing, then try again."
   - **Why**: Kupo failures currently return generic 500 "Failed to fetch encryptions"; users can't distinguish between a bug and a service starting up.
 
-- [ ] 🟡 **Protocol params cache with fallback**
+- [s] 🟡 **Protocol params cache with fallback**
   - **How**: In `be/src/routes/protocol.ts` (line ~155-184), wrap the Koios params call in the existing TTL cache with a long TTL (300s — params rarely change). If both cache and Koios fail, return hardcoded Cardano defaults (minFeeA=44, maxTxSize=16384, etc.) with a `warnings: ['Using fallback protocol parameters']` field.
   - **Why**: When Koios is down, `/api/protocol/params` returns 500 and transaction building fails entirely; cached/fallback params keep the app functional.
 

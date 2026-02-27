@@ -234,10 +234,21 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
           return;
         }
       }
+      // Arrow key page navigation (disabled when search input is focused)
+      if (!isSearchOpen) {
+        if (e.key === 'ArrowLeft') {
+          setCurrentPage(p => Math.max(1, p - 1));
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          setCurrentPage(p => Math.min(numPages, p + 1));
+          return;
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [isSearchOpen, isFullscreen, closeSearch]);
+  }, [isSearchOpen, isFullscreen, closeSearch, numPages]);
 
   if (error) {
     return (
