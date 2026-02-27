@@ -29,7 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (config.useStubs) {
       const { data, pagination } = paginate(STUB_ENCRYPTIONS, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: STUB_ENCRYPTIONS.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
@@ -38,7 +38,6 @@ router.get('/', async (req: Request, res: Response) => {
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
@@ -70,13 +69,13 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
       // Stub: return empty levels (stub decryption doesn't use real levels)
       const { data, pagination } = paginate([] as EncryptionLevel[], paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: 0 }, pagination });
+      return res.json({ data, pagination });
     }
 
     const levels = await getEncryptionLevels(tokenName);
     const { data, pagination } = paginate(levels, paginationParams);
     res.set('Cache-Control', CACHE_DATA);
-    return res.json({ data, meta: { total: levels.length }, pagination });
+    return res.json({ data, pagination });
   } catch (error) {
     if (error instanceof KupoUnavailableError) {
       logger.warn('Kupo unavailable while fetching encryption levels', { error: String(error), requestId: req.requestId });
@@ -151,7 +150,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       );
       const { data, pagination } = paginate(userEncryptions, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: userEncryptions.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getEncryptionsByUser(pkh);
@@ -159,7 +158,6 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
@@ -193,7 +191,7 @@ router.get('/status/:status', validateStatusParam(['active', 'pending', 'complet
       );
       const { data, pagination } = paginate(filteredEncryptions, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: filteredEncryptions.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getEncryptionsByStatus(
@@ -203,7 +201,6 @@ router.get('/status/:status', validateStatusParam(['active', 'pending', 'complet
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });

@@ -28,7 +28,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (config.useStubs) {
       const { data, pagination } = paginate(STUB_BIDS, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: STUB_BIDS.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
@@ -37,7 +37,6 @@ router.get('/', async (req: Request, res: Response) => {
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
@@ -117,7 +116,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       );
       const { data, pagination } = paginate(userBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: userBids.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getBidsByUser(pkh, skipCache);
@@ -125,7 +124,6 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
@@ -160,7 +158,7 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
       );
       const { data, pagination } = paginate(encryptionBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: encryptionBids.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getBidsByEncryption(encryptionToken, skipCache);
@@ -168,7 +166,6 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });
@@ -201,7 +198,7 @@ router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejec
       const filteredBids = STUB_BIDS.filter(b => b.status === status);
       const { data, pagination } = paginate(filteredBids, paginationParams);
       res.set('Cache-Control', CACHE_DATA);
-      return res.json({ data, meta: { total: filteredBids.length }, pagination });
+      return res.json({ data, pagination });
     }
 
     const result = await getBidsByStatus(
@@ -212,7 +209,6 @@ router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejec
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data,
-      meta: { total: result.data.length },
       pagination,
       ...(result.warnings.skippedDatums && { warnings: result.warnings }),
     });

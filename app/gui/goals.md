@@ -337,7 +337,7 @@ Difficulty ratings:
   - **How**: In `be/src/app.ts` (line ~28-63), change the `/health` endpoint to return HTTP 503 (not 200) when `status === 'unhealthy'`. The `/health/ready` endpoint already does this correctly; align `/health` to match.
   - **Why**: Load balancers and monitoring tools expect non-200 status codes for unhealthy services; returning 200 with `"status": "unhealthy"` in the body misleads automated health checks.
 
-- [ ] 🟢 **Deduplicate pagination response structure**
+- [x] 🟢 **Deduplicate pagination response structure**
   - **How**: In all paginated route handlers (`encryptions.ts`, `bids.ts`), remove the redundant `meta: { total }` field from responses. The `pagination: { total, limit, offset, hasMore }` field already contains the total count. Update frontend `api.ts` to read from `pagination` only.
   - **Why**: Having `total` in both `meta` and `pagination` is confusing for consumers; single source of truth prevents inconsistency.
 

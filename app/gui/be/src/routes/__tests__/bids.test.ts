@@ -71,7 +71,7 @@ beforeEach(() => {
 });
 
 describe('GET /api/bids', () => {
-  it('returns bid list with meta', async () => {
+  it('returns bid list with pagination', async () => {
     (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [{ tokenName: 'b1' }],
       warnings: {},
@@ -81,7 +81,7 @@ describe('GET /api/bids', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.meta.total).toBe(1);
+    expect(res.body.pagination.total).toBe(1);
   });
 
   it('returns 500 on service error', async () => {
@@ -195,7 +195,7 @@ describe('GET /api/bids/user/:pkh', () => {
 
     const res = await request(app).get(`/api/bids/user/${validPkh}`);
     expect(res.status).toBe(200);
-    expect(res.body.meta.total).toBe(0);
+    expect(res.body.pagination.total).toBe(0);
   });
 });
 

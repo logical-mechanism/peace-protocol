@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 
 describe('GET /api/encryptions', () => {
-  it('returns encryption list with meta', async () => {
+  it('returns encryption list with pagination', async () => {
     (getAllEncryptions as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [{ tokenName: 'enc1' }, { tokenName: 'enc2' }],
       warnings: {},
@@ -56,7 +56,7 @@ describe('GET /api/encryptions', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.meta.total).toBe(2);
+    expect(res.body.pagination.total).toBe(2);
   });
 
   it('returns 500 on service error', async () => {
@@ -165,7 +165,7 @@ describe('GET /api/encryptions/user/:pkh', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.meta.total).toBe(1);
+    expect(res.body.pagination.total).toBe(1);
   });
 
   it('returns 500 on service error', async () => {
@@ -229,7 +229,7 @@ describe('GET /api/encryptions/:tokenName/levels', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.meta.total).toBe(1);
+    expect(res.body.pagination.total).toBe(1);
     expect(res.body.pagination).toBeDefined();
     expect(res.body.pagination.total).toBe(1);
     expect(res.body.pagination.hasMore).toBe(false);
@@ -243,7 +243,7 @@ describe('GET /api/encryptions/:tokenName/levels', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.meta.total).toBe(5);
+    expect(res.body.pagination.total).toBe(5);
     expect(res.body.pagination.total).toBe(5);
     expect(res.body.pagination.limit).toBe(2);
     expect(res.body.pagination.offset).toBe(1);
