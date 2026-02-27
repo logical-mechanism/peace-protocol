@@ -13,29 +13,19 @@ const mockObjectUrl = 'blob:mock-video-url';
 globalThis.URL.createObjectURL = vi.fn().mockReturnValue(mockObjectUrl);
 globalThis.URL.revokeObjectURL = vi.fn();
 
-// Mock document.createElement('video') for the probe
-const mockProbeVideo = {
-  preload: '',
-  muted: false,
-  src: '',
-  load: vi.fn(),
-  removeAttribute: vi.fn(),
-  addEventListener: vi.fn(),
-};
-
+// Mock document.createElement to auto-resolve the format probe for the first
+// <video> created (the probe), while returning real DOM elements so React
+// rendering works correctly for subsequent <video> elements.
+let isProbe = true;
 const originalCreateElement = document.createElement.bind(document);
 vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-  if (tag === 'video') {
-    // Schedule loadedmetadata event on next tick
-    setTimeout(() => {
-      const handler = mockProbeVideo.addEventListener.mock.calls.find(
-        ([event]: [string]) => event === 'loadedmetadata'
-      );
-      if (handler) handler[1]();
-    }, 0);
-    return mockProbeVideo as unknown as HTMLElement;
+  const el = originalCreateElement(tag);
+  if (tag === 'video' && isProbe) {
+    isProbe = false;
+    // Fire loadedmetadata on next tick so the probe resolves as "can play"
+    setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
   }
-  return originalCreateElement(tag);
+  return el;
 });
 
 import VideoPlayer from '../VideoPlayer';
@@ -63,7 +53,7 @@ function renderPlayer(overrides: Partial<{
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockProbeVideo.addEventListener.mockReset();
+  isProbe = true;
 });
 
 // ── Tests ───────────────────────────────────────────────────────────

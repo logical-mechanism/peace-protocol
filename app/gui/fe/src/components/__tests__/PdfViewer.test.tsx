@@ -4,11 +4,12 @@ import '@testing-library/jest-dom/vitest';
 
 // ── Mocks ───────────────────────────────────────────────────────────
 
-let capturedOnLoadSuccess: ((doc: { numPages: number }) => void) | null = null;
+const capturedOnLoadSuccessRef = { current: null as ((doc: { numPages: number }) => void) | null };
 
 vi.mock('react-pdf', () => {
   const DocumentMock = ({ onLoadSuccess, children }: { onLoadSuccess?: (doc: { numPages: number }) => void; children: React.ReactNode }) => {
-    capturedOnLoadSuccess = onLoadSuccess ?? null;
+    // eslint-disable-next-line react-hooks/immutability -- test mock, not a real component
+    capturedOnLoadSuccessRef.current = onLoadSuccess ?? null;
     return <div data-testid="pdf-document">{children}</div>;
   };
   const PageMock = ({ pageNumber }: { pageNumber: number }) => (
@@ -44,22 +45,22 @@ import PdfViewer from '../PdfViewer';
 const testPdfData = new Uint8Array([37, 80, 68, 70]);
 
 function renderViewer(overrides: Partial<{ data: Uint8Array; onExport: () => void }> = {}) {
-  capturedOnLoadSuccess = null;
+  capturedOnLoadSuccessRef.current = null;
   return render(<PdfViewer data={testPdfData} {...overrides} />);
 }
 
 /** Simulate the PDF document loading successfully with the given number of pages. */
 function simulateDocumentLoad(numPages: number) {
   act(() => {
-    if (capturedOnLoadSuccess) {
-      capturedOnLoadSuccess({ numPages });
+    if (capturedOnLoadSuccessRef.current) {
+      capturedOnLoadSuccessRef.current({ numPages });
     }
   });
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  capturedOnLoadSuccess = null;
+  capturedOnLoadSuccessRef.current = null;
 });
 
 // ── Tests ───────────────────────────────────────────────────────────

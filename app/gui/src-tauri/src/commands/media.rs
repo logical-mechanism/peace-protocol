@@ -206,7 +206,10 @@ pub fn cleanup_image_cache(images_dir: &Path, max_age_secs: u64, max_size_bytes:
     }
 
     if deleted_age > 0 {
-        eprintln!("Image cache cleanup: deleted {deleted_age} images older than {} days", max_age_secs / 86400);
+        eprintln!(
+            "Image cache cleanup: deleted {deleted_age} images older than {} days",
+            max_age_secs / 86400
+        );
     }
 }
 

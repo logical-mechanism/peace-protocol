@@ -7,7 +7,7 @@ import { ModalProvider } from '../../contexts/ModalContext';
 // ── Mocks ───────────────────────────────────────────────────────────
 
 vi.mock('../../hooks/useModalStack', () => ({
-  useModalStack: (_name: string, isOpen: boolean, onClose: () => void) => ({
+  useModalStack: (_name: string, isOpen: boolean, _onClose: () => void) => ({
     zIndex: 50,
     shouldRender: isOpen,
     animationState: isOpen ? 'entered' : 'exiting',

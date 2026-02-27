@@ -31,8 +31,5 @@ pub async fn start_express(
 /// The /health endpoint may return 503 when dependencies (Kupo/Koios) are unhealthy,
 /// but Express itself is running and accepting requests.
 pub async fn health_check() -> bool {
-    match reqwest::get("http://127.0.0.1:3001/health").await {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    reqwest::get("http://127.0.0.1:3001/health").await.is_ok()
 }

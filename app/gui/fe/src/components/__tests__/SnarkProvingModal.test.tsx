@@ -16,7 +16,7 @@ vi.mock('../../services/snark', () => ({
 }));
 
 vi.mock('../../hooks/useModalStack', () => ({
-  useModalStack: (_name: string, isOpen: boolean, onClose: () => void, _blocked?: boolean) => ({
+  useModalStack: (_name: string, isOpen: boolean, _onClose: () => void, _blocked?: boolean) => ({
     zIndex: 50,
     shouldRender: isOpen,
     animationState: isOpen ? 'entered' : 'exiting',

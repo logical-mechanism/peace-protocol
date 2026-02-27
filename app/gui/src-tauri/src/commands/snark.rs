@@ -1,5 +1,5 @@
 use crate::process::manager::NodeManager;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::Manager;
 use tauri_plugin_shell::process::CommandEvent;
@@ -37,6 +37,16 @@ fn write_secrets_file(
     serde_json::to_writer(&file, &secrets)
         .map_err(|e| format!("Failed to write secrets temp file: {e}"))?;
     Ok(file)
+}
+
+/// Secret scalars for SNARK proof generation, passed from frontend as a single object.
+#[derive(Debug, Deserialize)]
+pub struct SnarkProveSecrets {
+    pub a: String,
+    pub r: String,
+    pub v: String,
+    pub w0: String,
+    pub w1: String,
 }
 
 /// Result of a SNARK proof generation
@@ -294,11 +304,7 @@ pub async fn snark_prove(
     app: tauri::AppHandle,
     tmp_dir_state: tauri::State<'_, AppTmpDir>,
     lock: tauri::State<'_, SnarkLock>,
-    a: String,
-    r: String,
-    v: String,
-    w0: String,
-    w1: String,
+    secrets: SnarkProveSecrets,
 ) -> Result<SnarkProofResult, String> {
     let _guard = lock.0.lock().await;
     let snark_dir = setup_dir(&app)?;
@@ -321,11 +327,11 @@ pub async fn snark_prove(
     let secrets_file = write_secrets_file(
         &tmp_dir_state.0,
         serde_json::json!({
-            "a": a,
-            "r": r,
-            "v": v,
-            "w0": w0,
-            "w1": w1,
+            "a": secrets.a,
+            "r": secrets.r,
+            "v": secrets.v,
+            "w0": secrets.w0,
+            "w1": secrets.w1,
         }),
     )?;
 
