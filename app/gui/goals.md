@@ -41,7 +41,7 @@ Difficulty ratings:
   - **How**: In `WalletUnlock.tsx` and `WalletSetup.tsx` password inputs, add an `onKeyDown` handler that checks `event.getModifierState('CapsLock')`. When true, show a small warning below the input: `<p className="text-xs text-[var(--warning)] mt-1">Caps Lock is on</p>`. Store in component state (`capsLockOn`), clear when Caps Lock is toggled off.
   - **Why**: Users accidentally entering passwords with Caps Lock on waste time and get frustrated by repeated "incorrect password" errors.
 
-- [ ] 🟡 **Delete wallet confirmation checkbox**
+- [x] 🟡 **Delete wallet confirmation checkbox**
   - **How**: In the delete wallet flow (triggered from `WalletUnlock.tsx`), the ConfirmModal currently shows a warning message but no explicit acknowledgment. Add a checkbox: `<label><input type="checkbox" /> I have backed up my 24-word recovery phrase</label>` and disable the delete button until checked. Pass a custom `children` or `description` prop to ConfirmModal, or create a specialized `DeleteWalletModal` component.
   - **Why**: Wallet deletion is irreversible without the recovery phrase; a checkbox forces users to consciously acknowledge the risk before proceeding.
 
@@ -153,7 +153,7 @@ Difficulty ratings:
   - **How**: In `Settings.tsx`, disable the network toggle when `nodeStage` is not `'stopped'` or `'synced'`. Show: `<p className="text-xs text-[var(--text-muted)]">Stop the node before switching networks.</p>` when disabled. Switching mid-sync could leave the node in an inconsistent state.
   - **Why**: Users switching networks while syncing may corrupt chain data or cause the node to crash.
 
-- [ ] 🟢 **Iagon API key removal — re-authentication guidance**
+- [x] 🟢 **Iagon API key removal — re-authentication guidance**
   - **How**: In `Settings.tsx`, when the "Remove Iagon API Key" confirm dialog appears, set the ConfirmModal `description` prop to: `"You'll need to re-authenticate with your wallet before uploading files again."`.
   - **Why**: Users may not realize removing the key means they need to re-authenticate, not just click a button.
 
