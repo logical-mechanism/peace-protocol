@@ -502,3 +502,44 @@ describe('Toast copy button', () => {
     })
   })
 })
+
+describe('Toast transaction celebration', () => {
+  it('transactionSuccess sets variant to transaction', () => {
+    const { result } = renderHook(() => useToast())
+    const validHash = 'c'.repeat(64)
+
+    act(() => {
+      result.current.transactionSuccess('Sale Complete!', validHash)
+    })
+
+    expect(result.current.toasts[0].variant).toBe('transaction')
+  })
+
+  it('regular success does not set variant', () => {
+    const { result } = renderHook(() => useToast())
+
+    act(() => {
+      result.current.success('Done')
+    })
+
+    expect(result.current.toasts[0].variant).toBeUndefined()
+  })
+
+  it('applies tx-celebration class to transaction success icon', () => {
+    const toasts: ToastMessage[] = [
+      { id: '1', type: 'success', title: 'Sale!', duration: 0, variant: 'transaction' },
+    ]
+    render(<ToastContainer toasts={toasts} onClose={vi.fn()} />)
+    const alert = screen.getByRole('alert')
+    expect(alert.querySelector('.tx-celebration')).toBeInTheDocument()
+  })
+
+  it('does not apply tx-celebration class to regular success', () => {
+    const toasts: ToastMessage[] = [
+      { id: '1', type: 'success', title: 'OK', duration: 0 },
+    ]
+    render(<ToastContainer toasts={toasts} onClose={vi.fn()} />)
+    const alert = screen.getByRole('alert')
+    expect(alert.querySelector('.tx-celebration')).not.toBeInTheDocument()
+  })
+})

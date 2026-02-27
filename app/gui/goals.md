@@ -265,7 +265,7 @@ Difficulty ratings:
   - **How**: Grep for hardcoded `duration-150`, `duration-200`, `duration-300` across components. Replace with references to `--transition-fast` (150ms), `--transition-base` (200ms), or `--transition-slow` (300ms) as appropriate. Key files: `PlaceBidModal.tsx`, `Toast.tsx`, `TransactionLink.tsx`. Use Tailwind arbitrary values: `duration-[var(--transition-base)]` or switch to CSS `transition` property referencing the variable.
   - **Why**: Mixing hardcoded durations with design tokens creates inconsistency; animations should feel uniform.
 
-- [ ] 🟢 **Transaction success toast celebration**
+- [x] 🟢 **Transaction success toast celebration**
   - **How**: In `Toast.tsx`, for `transactionSuccess` variant, add a subtle shine/glow animation on the checkmark icon: a CSS `@keyframes` that briefly scales the icon to 1.1x and adds a faint `box-shadow` glow in `--success` color, then settles back. Duration 600ms, ease-out.
   - **Why**: Successful transactions are the app's primary accomplishment moment; a brief celebration rewards the user's effort.
 

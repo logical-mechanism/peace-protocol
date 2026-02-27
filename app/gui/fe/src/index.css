@@ -503,6 +503,19 @@ select option {
   animation: tooltip-enter 150ms ease-out;
 }
 
+/* Transaction success celebration — subtle bounce on checkmark icon */
+@keyframes tx-celebration {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.2); }
+  55%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.tx-celebration {
+  animation: tx-celebration 500ms ease-out;
+  filter: drop-shadow(0 0 4px var(--success));
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,

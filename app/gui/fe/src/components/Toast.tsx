@@ -27,6 +27,7 @@ export interface ToastMessage {
   message?: string;
   duration?: number;
   action?: ToastAction;
+  variant?: string;
 }
 
 interface ToastProps {
@@ -157,7 +158,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
       role="alert"
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
-      <div className={`flex-shrink-0 ${colors.icon}`}>{getIcon()}</div>
+      <div className={`flex-shrink-0 ${colors.icon}${toast.variant === 'transaction' ? ' tx-celebration' : ''}`}>{getIcon()}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[var(--text-primary)]">{toast.title}</p>
         {toast.message && (
@@ -277,10 +278,11 @@ export function useToast() {
       title: string,
       message?: string,
       duration?: number,
-      action?: ToastAction
+      action?: ToastAction,
+      variant?: string
     ) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newToast: ToastMessage = { id, type, title, message, duration, action };
+      const newToast: ToastMessage = { id, type, title, message, duration, action, variant };
       setVisibleToasts((prev) => {
         if (prev.length < MAX_VISIBLE_TOASTS) {
           return [...prev, newToast];
@@ -379,7 +381,7 @@ export function useToast() {
         message = `Transaction: ${txHash.slice(0, 16)}...`;
       }
 
-      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action);
+      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action, 'transaction');
     },
     [addToast]
   );
