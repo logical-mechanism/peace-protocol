@@ -197,7 +197,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/__tests__/`, `fe/src/services/__tests__/`, `fe/src/services/crypto/__tests__/`
 
-- [ ] 🟡 **Component tests: EncryptionCard**
+- [x] 🟡 **Component tests: EncryptionCard**
   - **How**: Create `fe/src/components/__tests__/EncryptionCard.test.tsx`. Test: renders token name and price, compact vs standard modes, favorite toggle calls `onToggleFavorite`, bid button disabled when `hasLowBalance`, "Bid Placed" badge shows when `hasBid`, copy seller address triggers clipboard. Mock `copyToClipboard` from utils. Follow `SalesListingCard.test.tsx` patterns.
   - **Why**: EncryptionCard is the primary marketplace component — every listing in the Marketplace tab renders through it. Zero test coverage.
 
