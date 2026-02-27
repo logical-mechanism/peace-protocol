@@ -233,7 +233,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/services/__tests__/fileExport.test.ts`. Mock Tauri `invoke` (`export_text_file` command). Test: exports text content successfully, handles invoke rejection gracefully. Small service — likely 5-10 test cases.
   - **Why**: File export is the only way users can save content outside the app; an untested wrapper risks silent failures.
 
-- [ ] 🟡 **Crypto tests: fileEncryption.ts**
+- [x] 🟡 **Crypto tests: fileEncryption.ts**
   - **How**: Create `fe/src/services/crypto/__tests__/fileEncryption.test.ts`. Use `// @vitest-environment node` pragma for WebCrypto API. Test: `encryptFileForUpload` returns encrypted blob + key + nonce + digest, `decryptDownloadedFile` with matching key/nonce recovers original bytes, `verifyFileDigest` passes for correct data and fails for tampered data. Test round-trip: encrypt → decrypt → verify.
   - **Why**: File encryption is the security boundary for all non-text listings; incorrect encryption or decryption means permanent data loss or exposure.
 
