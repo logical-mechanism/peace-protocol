@@ -401,7 +401,7 @@ Difficulty ratings:
   - **How**: Create `fe/src/hooks/__tests__/useVisibility.test.ts`. Test: returns true when document is visible, returns false when hidden, fires callback on visibility change. Mock `document.visibilityState` and `visibilitychange` event.
   - **Why**: Only untested hook (10/11 tested); completes hook coverage.
 
-- [ ] 🟢 **Utility tests: contentType.ts, logClassification.ts, walletErrors.ts**
+- [x] 🟢 **Utility tests: contentType.ts, logClassification.ts, walletErrors.ts**
   - **How**: Create test files in `fe/src/utils/`. contentType: test MIME type detection for various extensions. logClassification: test log line categorization (error, warning, info). walletErrors: test error message mapping patterns. Pure function tests — no mocking needed.
   - **Why**: Three untested utilities; pure functions are the easiest to test and provide the highest confidence per line of test code.
 
@@ -413,11 +413,11 @@ Difficulty ratings:
   - **How**: Create `be/src/middleware/__tests__/requestLogger.test.ts`. Test: assigns 8-char requestId, logs method/path/status/duration, handles errors gracefully. Mock the logger and verify call arguments.
   - **Why**: RequestLogger middleware is untested; broken request ID generation or logging format would hinder debugging.
 
-- [ ] 🟡 **Test data factories to reduce mock duplication**
+- [x] 🟡 **Test data factories to reduce mock duplication**
   - **How**: Create `fe/src/test/factories.ts` with factory functions: `createEncryption()`, `createBid()`, `createWalletState()`, `createNodeState()` that return valid mock objects with sensible defaults and optional overrides. Replace inline mock objects in test files (currently duplicated across 40+ files).
   - **Why**: Duplicated mock setup across tests is fragile — changing a type requires updating mocks in 20+ files. Factories centralize mock construction.
 
-- [ ] 🟢 **Test timeout configuration**
+- [x] 🟢 **Test timeout configuration**
   - **How**: In `fe/vite.config.ts` test config, add `testTimeout: 30000` (30s default). For known slow tests (crypto operations), add `// vitest: { timeout: 60000 }` per-file pragma.
   - **Why**: No test timeout is configured; long-running crypto tests could hang indefinitely without failing.
 
