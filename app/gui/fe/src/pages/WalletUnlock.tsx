@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useWalletContext } from '../contexts/WalletContext'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -24,8 +25,13 @@ export default function WalletUnlock() {
 
   const handleUnlock = useCallback(async () => {
     if (!password || isUnlocking) return
-    setIsUnlocking(true)
-    setError(null)
+    // Force synchronous render so the button disables before the expensive IPC call
+    flushSync(() => {
+      setIsUnlocking(true)
+      setError(null)
+    })
+    // Wait for the browser to paint the disabled state
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
     try {
       await unlockWallet(password)
       navigate('/dashboard')
@@ -153,6 +159,7 @@ export default function WalletUnlock() {
             style={{
               background:
                 password && !isUnlocking ? undefined : 'var(--bg-elevated)',
+              transition: isUnlocking ? 'none' : undefined,
             }}
           >
             {isUnlocking && <LoadingSpinner size="sm" className="text-white" />}
