@@ -252,15 +252,15 @@ Each item has:
 
 > Key files: `fe/src/components/PdfViewer.tsx`, `fe/src/components/ImageViewer.tsx`, `fe/src/components/AudioPlayer.tsx`, `fe/src/components/VideoPlayer.tsx`
 
-- [ ] **PDF page jump invalid input feedback**
+- [x] **PDF page jump invalid input feedback**
   - **How**: In `PdfViewer.tsx` (lines 131-138), entering an invalid page number silently resets to the current page. Show a brief red border flash (200ms) on the page number input and set `aria-invalid="true"` temporarily when the entered page is out of range.
   - **Why**: Users typing page "200" in a 50-page PDF see the input reset with no explanation. A visual cue indicates the page doesn't exist.
 
-- [ ] **Image viewer EXIF orientation handling**
+- [x] **Image viewer EXIF orientation handling**
   - **How**: In `ImageViewer.tsx`, some JPEG images have EXIF orientation metadata that causes them to display rotated. Before creating the Blob URL, check for EXIF orientation tag using a lightweight parser (e.g., read the first 64KB of JPEG for APP1 marker) and apply CSS `image-orientation: from-image` or transform accordingly.
   - **Why**: Photos taken on phones often have EXIF rotation. Displaying them sideways makes the viewer feel broken.
 
-- [ ] **Audio player elapsed/remaining time toggle**
+- [x] **Audio player elapsed/remaining time toggle**
   - **How**: In `AudioPlayer.tsx`, clicking the time display toggles between "elapsed / total" and "elapsed / -remaining" format. Store preference in a local `showRemaining` state. Update display in the existing time render logic.
   - **Why**: Standard media player feature. Some users prefer seeing how much time is left rather than total duration.
 
