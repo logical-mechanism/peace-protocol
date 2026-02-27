@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, createEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
 import WalletUnlock from '../WalletUnlock';
@@ -194,6 +194,37 @@ describe('WalletUnlock', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog).toHaveAttribute('aria-labelledby', 'delete-wallet-title');
+  });
+
+  it('shows Caps Lock warning when Caps Lock is on', () => {
+    renderPage();
+
+    const input = screen.getByAutoComplete('current-password');
+
+    // createEvent + override getModifierState (jsdom doesn't support modifierCapsLock init)
+    const event = createEvent.keyDown(input, { key: 'A' });
+    Object.defineProperty(event, 'getModifierState', { value: () => true });
+    fireEvent(input, event);
+
+    expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
+  });
+
+  it('hides Caps Lock warning when Caps Lock is toggled off', () => {
+    renderPage();
+
+    const input = screen.getByAutoComplete('current-password');
+
+    // Turn on
+    const onEvent = createEvent.keyDown(input, { key: 'A' });
+    Object.defineProperty(onEvent, 'getModifierState', { value: () => true });
+    fireEvent(input, onEvent);
+    expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
+
+    // Turn off
+    const offEvent = createEvent.keyDown(input, { key: 'a' });
+    Object.defineProperty(offEvent, 'getModifierState', { value: () => false });
+    fireEvent(input, offEvent);
+    expect(screen.queryByText('Caps Lock is on')).not.toBeInTheDocument();
   });
 
   it('shows copy button in error details and copies raw error on click', async () => {

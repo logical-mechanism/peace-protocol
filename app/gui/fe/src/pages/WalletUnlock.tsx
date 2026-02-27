@@ -20,6 +20,7 @@ export default function WalletUnlock() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [copiedError, setCopiedError] = useState(false)
+  const [capsLockOn, setCapsLockOn] = useState(false)
   const onCloseDelete = useCallback(() => setShowDeleteConfirm(false), [])
   const { zIndex: deleteZIndex, shouldRender: deleteRender, animationState: deleteAnim } =
     useModalStack('DeleteWalletConfirm', showDeleteConfirm, onCloseDelete)
@@ -109,6 +110,7 @@ export default function WalletUnlock() {
                   setPassword(e.target.value)
                   setError(null)
                 }}
+                onKeyDown={(e) => setCapsLockOn(e.getModifierState('CapsLock'))}
                 className="w-full px-4 py-2 rounded-lg text-sm pr-16"
                 style={{
                   background: 'var(--bg-secondary)',
@@ -144,6 +146,11 @@ export default function WalletUnlock() {
                 )}
               </button>
             </div>
+            {capsLockOn && (
+              <p className="text-xs mt-1" style={{ color: 'var(--warning)' }}>
+                Caps Lock is on
+              </p>
+            )}
           </div>
 
           {error && (

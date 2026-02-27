@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, createEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router-dom';
 import WalletSetup from '../WalletSetup';
@@ -115,6 +115,66 @@ describe('WalletSetup — create mode', () => {
     fireEvent.click(screen.getByText('Back'));
 
     expect(screen.getByText('Create New Wallet')).toBeInTheDocument();
+  });
+});
+
+describe('WalletSetup — password form', () => {
+  function navigateToImportPasswordStep() {
+    renderPage();
+    fireEvent.click(screen.getByText('Import Existing Wallet'));
+
+    // Fill all 24 mnemonic inputs with valid BIP-39 words
+    const inputs = document.querySelectorAll('input[type="text"]');
+    inputs.forEach((input) => {
+      fireEvent.change(input, { target: { value: 'abandon' } });
+    });
+
+    // Click Continue to reach the password step
+    fireEvent.click(screen.getByText('Continue'));
+  }
+
+  it('shows Caps Lock warning when Caps Lock is on during password entry', () => {
+    navigateToImportPasswordStep();
+
+    const passwordInput = document.querySelector('input[autocomplete="new-password"]') as HTMLElement;
+    expect(passwordInput).toBeTruthy();
+
+    const event = createEvent.keyDown(passwordInput, { key: 'A' });
+    Object.defineProperty(event, 'getModifierState', { value: () => true });
+    fireEvent(passwordInput, event);
+
+    expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
+  });
+
+  it('hides Caps Lock warning when Caps Lock is toggled off', () => {
+    navigateToImportPasswordStep();
+
+    const passwordInput = document.querySelector('input[autocomplete="new-password"]') as HTMLElement;
+
+    // Turn on
+    const onEvent = createEvent.keyDown(passwordInput, { key: 'A' });
+    Object.defineProperty(onEvent, 'getModifierState', { value: () => true });
+    fireEvent(passwordInput, onEvent);
+    expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
+
+    // Turn off
+    const offEvent = createEvent.keyDown(passwordInput, { key: 'a' });
+    Object.defineProperty(offEvent, 'getModifierState', { value: () => false });
+    fireEvent(passwordInput, offEvent);
+    expect(screen.queryByText('Caps Lock is on')).not.toBeInTheDocument();
+  });
+
+  it('detects Caps Lock on confirm password field too', () => {
+    navigateToImportPasswordStep();
+
+    const confirmInput = document.querySelectorAll('input[autocomplete="new-password"]')[1] as HTMLElement;
+    expect(confirmInput).toBeTruthy();
+
+    const event = createEvent.keyDown(confirmInput, { key: 'A' });
+    Object.defineProperty(event, 'getModifierState', { value: () => true });
+    fireEvent(confirmInput, event);
+
+    expect(screen.getByText('Caps Lock is on')).toBeInTheDocument();
   });
 });
 

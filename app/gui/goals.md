@@ -37,7 +37,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/WalletSetup.tsx`, `fe/src/pages/WalletUnlock.tsx`
 
-- [ ] 🟡 **Caps Lock warning on password fields**
+- [x] 🟡 **Caps Lock warning on password fields**
   - **How**: In `WalletUnlock.tsx` and `WalletSetup.tsx` password inputs, add an `onKeyDown` handler that checks `event.getModifierState('CapsLock')`. When true, show a small warning below the input: `<p className="text-xs text-[var(--warning)] mt-1">Caps Lock is on</p>`. Store in component state (`capsLockOn`), clear when Caps Lock is toggled off.
   - **Why**: Users accidentally entering passwords with Caps Lock on waste time and get frustrated by repeated "incorrect password" errors.
 
@@ -93,19 +93,19 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/CreateListingModal.tsx`
 
-- [ ] 🟡 **Iagon disconnected state shown before upload attempt**
+- [x] 🟡 **Iagon disconnected state shown before upload attempt**
   - **How**: In `CreateListingModal.tsx`, when `isFileMode && !isIagonConnected`, the file upload button is disabled but no explanation is shown. Add an inline message: `<p className="text-xs text-[var(--error)] mt-2">Iagon connection required for file uploads. Connect in Settings → Data Layer.</p>` below the file input area when `!isIagonConnected`.
   - **Why**: Users selecting a file category see a disabled button with no explanation, leading to confusion about why they can't create a listing.
 
-- [ ] 🟡 **Image preview error state visible to user**
+- [x] 🟡 **Image preview error state visible to user**
   - **How**: In `CreateListingModal.tsx`, `imagePreviewState` can be `'error'` (line 103) but no error UI is rendered. When `imagePreviewState === 'error'`, display: `<p className="text-xs text-[var(--error)]">Failed to load image from URL. Check the link and try again.</p>` in the image preview area.
   - **Why**: Users enter an invalid image URL and see nothing — no feedback that the preview failed.
 
-- [ ] 🟢 **Image preview loading spinner**
+- [x] 🟢 **Image preview loading spinner**
   - **How**: In `CreateListingModal.tsx`, when `imagePreviewState === 'loading'`, show a `<LoadingSpinner size="sm" />` in the preview area. Currently the area is blank while the image loads.
   - **Why**: Slow-loading images from external URLs leave users wondering if anything is happening.
 
-- [ ] 🟢 **Description character counter**
+- [x] 🟢 **Description character counter**
   - **How**: In `CreateListingModal.tsx`, below the description `<textarea>`, add: `<span className="text-xs text-[var(--text-muted)]">{formData.description.length} / 500</span>`. The 500-char limit is already enforced in validation; this makes it visible while typing.
   - **Why**: Users don't know the character limit until they exceed it and see an error on submit.
 
