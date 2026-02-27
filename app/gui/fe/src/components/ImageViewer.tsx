@@ -315,7 +315,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
 
   const containerCursor = scale > 1
     ? (isDragging ? 'grabbing' : 'grab')
-    : 'default';
+    : (isFullscreen ? 'default' : 'zoom-in');
 
   const zoomIndicator = showZoomIndicator ? (
     <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/70 text-white text-sm font-mono rounded-full pointer-events-none transition-opacity duration-[var(--transition-slow)] z-10">
@@ -364,6 +364,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
       <div
         className={`flex items-center justify-center max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative ${fitMode === 'actual' ? 'overflow-auto' : 'overflow-hidden'}`}
         style={{ cursor: containerCursor }}
+        onClick={() => { if (scale <= 1) setIsFullscreen(true); }}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
