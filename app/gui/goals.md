@@ -119,7 +119,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/MySalesTab.tsx`, `fe/src/components/SalesListingCard.tsx`
 
-- [ ] 🟢 **Explain bid acceptance consequence in confirm dialog**
+- [x] 🟢 **Explain bid acceptance consequence in confirm dialog**
   - **How**: When accepting a bid via `ConfirmModal` in the sales flow, include a brief explanation line: "The buyer will receive the decryption key and your listing will close." Currently the confirm dialog states the action but not the consequence for non-expert users.
   - **Why**: First-time sellers may not understand that accepting a bid is irreversible and reveals the secret.
 
@@ -129,7 +129,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/MyPurchasesTab.tsx`, `fe/src/components/MyPurchaseBidCard.tsx`
 
-- [ ] 🟢 **Bid status explanation tooltips**
+- [x] 🟢 **Bid status explanation tooltips**
   - **How**: In `MyPurchaseBidCard.tsx`, add a small `InfoTooltip` (from the reusable component proposed in §1) next to bid status badges (Pending, Accepted, etc.) explaining what each status means: "Pending: Waiting for the seller to accept or reject", "Accepted: Seller accepted — decrypt to claim content."
   - **Why**: Purchase status labels are technical; buyers need to know what action (if any) they should take.
 

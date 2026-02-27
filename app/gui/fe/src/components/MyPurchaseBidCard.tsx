@@ -4,6 +4,7 @@ import { truncateHex } from '../utils/truncate';
 import { formatAda } from '../utils/formatAda';
 import { BidStatusBadge } from './Badge';
 import BidTimeline from './BidTimeline';
+import InfoTooltip from './InfoTooltip';
 import type { PurchaseStage } from './BidTimeline';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -52,6 +53,14 @@ function MyPurchaseBidCard({
     return null;
   };
 
+  const getStatusTooltip = () => {
+    if (isPending) return 'Waiting for the seller to accept or reject your bid. You can cancel at any time.';
+    if (isAccepted) return 'The seller accepted your bid. Decrypt to claim the content.';
+    if (isRejected) return 'The seller did not accept your bid.';
+    if (isCancelled) return 'You cancelled this bid.';
+    return '';
+  };
+
   const statusMessage = getStatusMessage();
 
   if (compact) {
@@ -96,6 +105,7 @@ function MyPurchaseBidCard({
                   Bid on {truncateHex(bid.encryptionToken, 8, 4)}
                 </span>
                 <BidStatusBadge status={bid.status} />
+                <InfoTooltip text={getStatusTooltip()} position="bottom" />
               </div>
               {encryption?.description && (
                 <p
@@ -184,6 +194,7 @@ function MyPurchaseBidCard({
               {truncateHex(bid.encryptionToken, 8, 4)}
             </span>
             <BidStatusBadge status={bid.status} />
+            <InfoTooltip text={getStatusTooltip()} position="bottom" />
           </div>
           <p className="text-xs text-[var(--text-muted)]">
             {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
