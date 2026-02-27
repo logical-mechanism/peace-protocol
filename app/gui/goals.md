@@ -380,7 +380,7 @@ Each item has:
   - **How**: Search all `.catch(() => {})` and `.catch(() => undefined)` patterns in the frontend. Replace with `.catch(err => console.warn('Operation failed:', err))` at minimum. Affected files: MarketplaceTab, MySalesTab, MyPurchasesTab, image cache fetches.
   - **Why**: Empty catch blocks make debugging impossible. Even console warnings provide diagnostic value when users share logs.
 
-- [ ] **Clipboard access failure feedback**
+- [x] **Clipboard access failure feedback**
   - **How**: In all clipboard operations (CreateListingModal paste, address copy, txHash copy), add a catch handler that shows `toast.warning('Could not access clipboard')` instead of failing silently. Check `navigator.clipboard` availability first on WebKitGTK.
   - **Why**: WebKitGTK has inconsistent clipboard API support. Users clicking "Copy" see the success animation but nothing is actually copied.
 

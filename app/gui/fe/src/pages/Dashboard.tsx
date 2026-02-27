@@ -471,8 +471,10 @@ export default function Dashboard() {
     if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    } else {
+      toast.warning('Copy failed', 'Could not copy address to clipboard.')
     }
-  }, [address])
+  }, [address, toast])
 
   const handleDisconnect = useCallback(() => {
     clearLastActiveTab()

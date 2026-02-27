@@ -138,11 +138,15 @@ export default function WalletSetup() {
   const passwordValid =
     strength.allMet && password === confirmPassword
 
-  const handleCopyMnemonic = useCallback(() => {
-    copyToClipboard(mnemonic.join(' '))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }, [mnemonic])
+  const handleCopyMnemonic = useCallback(async () => {
+    const success = await copyToClipboard(mnemonic.join(' '))
+    if (success) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } else {
+      toast.warning('Copy failed', 'Could not copy mnemonic to clipboard.')
+    }
+  }, [mnemonic, toast])
 
   const handleImportWordChange = useCallback((index: number, value: string) => {
     setImportWords((prev) => {

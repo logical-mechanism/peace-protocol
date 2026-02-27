@@ -135,6 +135,8 @@ export default function DecryptModal({
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } else {
+      console.warn('Clipboard copy failed for decrypted content');
     }
   }, [decryptedMessage]);
 

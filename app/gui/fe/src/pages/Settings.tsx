@@ -290,8 +290,10 @@ export default function Settings() {
       setTimeout(() => {
         navigator.clipboard.writeText('').catch(() => {})
       }, 30000)
+    } else {
+      toast.warning('Copy failed', 'Could not copy to clipboard.')
     }
-  }, [mnemonicWords])
+  }, [mnemonicWords, toast])
 
   const handleCopyAddress = useCallback(async () => {
     if (!address) return
@@ -299,8 +301,10 @@ export default function Settings() {
     if (success) {
       setAddressCopied(true)
       setTimeout(() => setAddressCopied(false), 2000)
+    } else {
+      toast.warning('Copy failed', 'Could not copy address to clipboard.')
     }
-  }, [address])
+  }, [address, toast])
 
   const handleFetchLogs = useCallback(async (processName: string) => {
     setLogsLoading(true)
