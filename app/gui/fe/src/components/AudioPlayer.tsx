@@ -433,49 +433,6 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     if (audioRef.current) audioRef.current.loop = isLooping;
   }, [isLooping]);
 
-  // --- Keyboard shortcuts ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      switch (e.key) {
-        case ' ':
-          e.preventDefault();
-          if (isPlaying) handlePause();
-          else handlePlay();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          handleSkipBack();
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          handleSkipForward();
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setVolume(v => {
-            const next = Math.min(1, v + 0.05);
-            if (audioRef.current) audioRef.current.volume = next;
-            return next;
-          });
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          setVolume(v => {
-            const next = Math.max(0, v - 0.05);
-            if (audioRef.current) audioRef.current.volume = next;
-            return next;
-          });
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward]);
-
   // --- Transport handlers ---
 
   const handlePlay = useCallback(() => {
@@ -525,6 +482,49 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
     vizTimeRef.current = audio.currentTime;
   }, [isReady]);
+
+  // --- Keyboard shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          if (isPlaying) handlePause();
+          else handlePlay();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          handleSkipBack();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleSkipForward();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setVolume(v => {
+            const next = Math.min(1, v + 0.05);
+            if (audioRef.current) audioRef.current.volume = next;
+            return next;
+          });
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          setVolume(v => {
+            const next = Math.max(0, v - 0.05);
+            if (audioRef.current) audioRef.current.volume = next;
+            return next;
+          });
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward]);
 
   const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;

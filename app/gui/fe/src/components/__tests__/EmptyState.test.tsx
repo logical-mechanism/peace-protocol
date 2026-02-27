@@ -65,6 +65,6 @@ describe('Icon components', () => {
 
   it('PackageIcon accepts custom className', () => {
     const { container } = render(<PackageIcon className="w-8 h-8" />);
-    expect(container.querySelector('svg')!.className).toContain('w-8 h-8');
+    expect(container.querySelector('svg')!.getAttribute('class')).toContain('w-8 h-8');
   });
 });

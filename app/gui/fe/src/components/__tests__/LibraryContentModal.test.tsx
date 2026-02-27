@@ -106,7 +106,7 @@ beforeEach(() => {
 
 describe('LibraryContentModal', () => {
   it('renders nothing when isOpen is false', () => {
-    const { container } = render(
+    render(
       <LibraryContentModal {...defaultProps} isOpen={false} />,
     );
     // useModalStack returns shouldRender=true always in mock, but component
