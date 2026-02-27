@@ -24,6 +24,12 @@ beforeEach(() => {
     network: 'preprod',
     processes: [],
     needs_bootstrap: false,
+    epoch: null,
+    era: null,
+    slot_in_epoch: null,
+    slots_to_epoch_end: null,
+    kupo_connection_status: null,
+    kupo_seconds_since_last_block: null,
   });
 });
 
@@ -53,6 +59,12 @@ describe('NodeContext', () => {
       network: 'preprod',
       processes: [],
       needs_bootstrap: false,
+      epoch: 150,
+      era: 'Conway',
+      slot_in_epoch: 200000,
+      slots_to_epoch_end: 232000,
+      kupo_connection_status: true,
+      kupo_seconds_since_last_block: 5.0,
     });
 
     const { result } = renderHook(() => useNode(), { wrapper });
@@ -77,6 +89,12 @@ describe('NodeContext', () => {
       network: 'preprod',
       processes: [],
       needs_bootstrap: false,
+      epoch: 150,
+      era: 'Conway',
+      slot_in_epoch: 300000,
+      slots_to_epoch_end: 132000,
+      kupo_connection_status: true,
+      kupo_seconds_since_last_block: 2.0,
     });
 
     const { result } = renderHook(() => useNode(), { wrapper });
@@ -112,6 +130,12 @@ describe('NodeContext', () => {
         network: 'preprod',
         processes: [],
         needs_bootstrap: false,
+        epoch: null,
+        era: null,
+        slot_in_epoch: null,
+        slots_to_epoch_end: null,
+        kupo_connection_status: null,
+        kupo_seconds_since_last_block: null,
       };
     });
 

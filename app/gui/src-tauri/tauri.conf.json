@@ -44,7 +44,8 @@
       "binaries/ogmios",
       "binaries/kupo",
       "binaries/mithril-client",
-      "binaries/snark"
+      "binaries/snark",
+      "binaries/cardano-cli"
     ]
   }
 }

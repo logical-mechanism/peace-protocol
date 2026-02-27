@@ -44,6 +44,14 @@ interface NodeStatus {
   network: string
   processes: ProcessInfo[]
   needs_bootstrap: boolean
+  // Extended fields from cardano-cli tip query
+  epoch: number | null
+  era: string | null
+  slot_in_epoch: number | null
+  slots_to_epoch_end: number | null
+  // Kupo health details from /metrics
+  kupo_connection_status: boolean | null
+  kupo_seconds_since_last_block: number | null
 }
 
 interface ProcessEvent {
@@ -64,6 +72,14 @@ export interface NodeContextValue {
   needsBootstrap: boolean
   error: string | null
   logs: string[]
+  // Extended fields from cardano-cli tip query
+  epoch: number | null
+  era: string | null
+  slotInEpoch: number | null
+  slotsToEpochEnd: number | null
+  // Kupo health details
+  kupoConnected: boolean | null
+  kupoSecondsSinceLastBlock: number | null
   startNode: (walletAddress: string) => Promise<void>
   stopNode: () => Promise<void>
   startBootstrap: () => Promise<void>
@@ -92,6 +108,14 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const [needsBootstrap, setNeedsBootstrap] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
+  // Extended fields from cardano-cli
+  const [epoch, setEpoch] = useState<number | null>(null)
+  const [era, setEra] = useState<string | null>(null)
+  const [slotInEpoch, setSlotInEpoch] = useState<number | null>(null)
+  const [slotsToEpochEnd, setSlotsToEpochEnd] = useState<number | null>(null)
+  // Kupo health details
+  const [kupoConnected, setKupoConnected] = useState<boolean | null>(null)
+  const [kupoSecondsSinceLastBlock, setKupoSecondsSinceLastBlock] = useState<number | null>(null)
   const mountedRef = useRef(true)
 
   // Listen for Tauri events from Rust backend
@@ -148,6 +172,12 @@ export function NodeProvider({ children }: { children: ReactNode }) {
       setTipHeight(status.tip_height)
       setProcesses(status.processes)
       setNeedsBootstrap(status.needs_bootstrap)
+      setEpoch(status.epoch)
+      setEra(status.era)
+      setSlotInEpoch(status.slot_in_epoch)
+      setSlotsToEpochEnd(status.slots_to_epoch_end)
+      setKupoConnected(status.kupo_connection_status)
+      setKupoSecondsSinceLastBlock(status.kupo_seconds_since_last_block)
 
       // Map overall state to stage
       const stageMap: Record<string, NodeStage> = {
@@ -217,6 +247,12 @@ export function NodeProvider({ children }: { children: ReactNode }) {
     needsBootstrap,
     error,
     logs,
+    epoch,
+    era,
+    slotInEpoch,
+    slotsToEpochEnd,
+    kupoConnected,
+    kupoSecondsSinceLastBlock,
     startNode,
     stopNode,
     startBootstrap,

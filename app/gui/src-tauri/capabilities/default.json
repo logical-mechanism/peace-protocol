@@ -20,7 +20,8 @@
         { "name": "binaries/kupo", "sidecar": true },
         { "name": "binaries/mithril-client", "sidecar": true },
         { "name": "binaries/snark", "sidecar": true },
-        { "name": "snark", "sidecar": true }
+        { "name": "snark", "sidecar": true },
+        { "name": "binaries/cardano-cli", "sidecar": true }
       ]
     }
   ]

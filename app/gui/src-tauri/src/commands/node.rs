@@ -1,6 +1,6 @@
 use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
-use crate::process::{cardano, express, kupo, mithril, ogmios};
+use crate::process::{cardano, cardano_cli, express, kupo, mithril, ogmios};
 use serde::Serialize;
 use std::path::PathBuf;
 use tauri::Manager;
@@ -31,6 +31,14 @@ pub struct NodeStatus {
     pub network: String,
     pub processes: Vec<ProcessInfo>,
     pub needs_bootstrap: bool,
+    // Extended fields from cardano-cli tip query
+    pub epoch: Option<u64>,
+    pub era: Option<String>,
+    pub slot_in_epoch: Option<u64>,
+    pub slots_to_epoch_end: Option<u64>,
+    // Kupo health details from /metrics
+    pub kupo_connection_status: Option<bool>,
+    pub kupo_seconds_since_last_block: Option<f64>,
 }
 
 /// Get aggregated node status
@@ -52,22 +60,31 @@ pub async fn get_node_status(
     let node_status = manager.get_status("cardano-node").await;
     let ogmios_status = manager.get_status("ogmios").await;
 
+    // Helper: build a NodeStatus with no sync data (early exit states)
+    let empty_status = |overall: OverallNodeState| NodeStatus {
+        overall,
+        sync_progress: 0.0,
+        kupo_sync_progress: 0.0,
+        tip_slot: None,
+        tip_height: None,
+        network: config.network.to_string(),
+        processes: processes.clone(),
+        needs_bootstrap: needs_bootstrap_check,
+        epoch: None,
+        era: None,
+        slot_in_epoch: None,
+        slots_to_epoch_end: None,
+        kupo_connection_status: None,
+        kupo_seconds_since_last_block: None,
+    };
+
     // Check for Mithril bootstrapping
     if let Some(ref ms) = mithril_status {
         if matches!(
             ms.status,
             ProcessStatus::Starting | ProcessStatus::Running | ProcessStatus::Syncing { .. }
         ) {
-            return Ok(NodeStatus {
-                overall: OverallNodeState::Bootstrapping,
-                sync_progress: 0.0,
-                kupo_sync_progress: 0.0,
-                tip_slot: None,
-                tip_height: None,
-                network: config.network.to_string(),
-                processes,
-                needs_bootstrap: needs_bootstrap_check,
-            });
+            return Ok(empty_status(OverallNodeState::Bootstrapping));
         }
     }
 
@@ -76,16 +93,7 @@ pub async fn get_node_status(
         .iter()
         .any(|p| matches!(p.status, ProcessStatus::Error { .. }));
     if has_error {
-        return Ok(NodeStatus {
-            overall: OverallNodeState::Error,
-            sync_progress: 0.0,
-            kupo_sync_progress: 0.0,
-            tip_slot: None,
-            tip_height: None,
-            network: config.network.to_string(),
-            processes,
-            needs_bootstrap: needs_bootstrap_check,
-        });
+        return Ok(empty_status(OverallNodeState::Error));
     }
 
     // Check if node process is active (starting or running)
@@ -104,35 +112,62 @@ pub async fn get_node_status(
         .unwrap_or(false);
 
     if !node_starting && !node_running {
-        return Ok(NodeStatus {
-            overall: OverallNodeState::Stopped,
-            sync_progress: 0.0,
-            kupo_sync_progress: 0.0,
-            tip_slot: None,
-            tip_height: None,
-            network: config.network.to_string(),
-            processes,
-            needs_bootstrap: needs_bootstrap_check,
-        });
+        return Ok(empty_status(OverallNodeState::Stopped));
     }
 
     // Node process is spawning but not Running yet
     if node_starting && !node_running {
+        return Ok(empty_status(OverallNodeState::Starting));
+    }
+
+    // --- Node is Running: query sync data ---
+
+    // Query Kupo metrics (independent of node sync source)
+    let kupo_status = manager.get_status("kupo").await;
+    let kupo_running = kupo_status
+        .as_ref()
+        .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
+        .unwrap_or(false);
+
+    let kupo_result = if kupo_running {
+        kupo::get_metrics(config.kupo_port).await.ok()
+    } else {
+        None
+    };
+
+    let kupo_sync = kupo_result.as_ref().map(|m| m.sync_progress).unwrap_or(0.0);
+    let kupo_connection = kupo_result.as_ref().map(|m| m.connected);
+    let kupo_last_block = kupo_result.as_ref().map(|m| m.seconds_since_last_block);
+
+    // Primary sync source: cardano-cli query tip (works as soon as socket exists)
+    if let Ok(cli_tip) = cardano_cli::query_tip(&app_handle, &config, app_data_dir).await {
+        let sync = cli_tip.sync_progress_f64();
+
+        let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
+            OverallNodeState::Synced
+        } else {
+            OverallNodeState::Syncing
+        };
+
         return Ok(NodeStatus {
-            overall: OverallNodeState::Starting,
-            sync_progress: 0.0,
-            kupo_sync_progress: 0.0,
-            tip_slot: None,
-            tip_height: None,
+            overall,
+            sync_progress: sync,
+            kupo_sync_progress: kupo_sync,
+            tip_slot: Some(cli_tip.slot),
+            tip_height: Some(cli_tip.block),
             network: config.network.to_string(),
             processes,
             needs_bootstrap: needs_bootstrap_check,
+            epoch: Some(cli_tip.epoch),
+            era: Some(cli_tip.era),
+            slot_in_epoch: Some(cli_tip.slot_in_epoch),
+            slots_to_epoch_end: Some(cli_tip.slots_to_epoch_end),
+            kupo_connection_status: kupo_connection,
+            kupo_seconds_since_last_block: kupo_last_block,
         });
     }
 
-    // Try to get sync progress from Ogmios if it's in any active state.
-    // Query even during Starting — the HTTP request will simply fail if
-    // Ogmios isn't ready yet, which is handled gracefully below.
+    // Fallback: try Ogmios if cardano-cli failed (e.g. socket busy, CLI not available)
     let ogmios_active = ogmios_status
         .as_ref()
         .map(|s| {
@@ -149,26 +184,6 @@ pub async fn get_node_status(
                 .await
                 .unwrap_or((0, 0));
 
-            // Query Kupo sync progress (if Kupo is running)
-            let kupo_status = manager.get_status("kupo").await;
-            let kupo_running = kupo_status
-                .as_ref()
-                .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
-                .unwrap_or(false);
-
-            let kupo_sync = if kupo_running {
-                match kupo::get_sync_progress(config.kupo_port).await {
-                    Ok(progress) => progress,
-                    Err(e) => {
-                        eprintln!("[NodeManager] Kupo sync progress query failed: {e}");
-                        0.0
-                    }
-                }
-            } else {
-                0.0
-            };
-
-            // Only mark as Synced when BOTH node and Kupo are synced
             let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
                 OverallNodeState::Synced
             } else {
@@ -184,22 +199,18 @@ pub async fn get_node_status(
                 network: config.network.to_string(),
                 processes,
                 needs_bootstrap: needs_bootstrap_check,
+                epoch: None,
+                era: None,
+                slot_in_epoch: None,
+                slots_to_epoch_end: None,
+                kupo_connection_status: kupo_connection,
+                kupo_seconds_since_last_block: kupo_last_block,
             });
         }
     }
 
-    // Node running but Ogmios not ready yet — report as Starting so the
-    // frontend shows the service checklist instead of empty progress bars.
-    Ok(NodeStatus {
-        overall: OverallNodeState::Starting,
-        sync_progress: 0.0,
-        kupo_sync_progress: 0.0,
-        tip_slot: None,
-        tip_height: None,
-        network: config.network.to_string(),
-        processes,
-        needs_bootstrap: needs_bootstrap_check,
-    })
+    // Both cardano-cli and Ogmios failed — report as Starting
+    Ok(empty_status(OverallNodeState::Starting))
 }
 
 /// Get status of individual processes

@@ -9,7 +9,7 @@ React Frontend (fe/)          ← UI, crypto, tx building
     ↕ REST (localhost:3001)       ↕ Tauri IPC (invoke/listen)
 Express Backend (be/)         Rust Core (src-tauri/)
     ↕ HTTP                        ↕ child processes
-Kupo (UTxOs) + Koios (history)    cardano-node, Ogmios, Kupo, Mithril, snark
+Kupo (UTxOs) + Koios (history)    cardano-node, cardano-cli, Ogmios, Kupo, Mithril, snark
 ```
 
 **Process startup order:** Mithril bootstrap (first run) → cardano-node → Ogmios → Kupo → Express
@@ -112,8 +112,9 @@ app/gui/
 │   │   ├── process/
 │   │   │   ├── manager.rs           # Generic process lifecycle + restart policy
 │   │   │   ├── cardano.rs           # cardano-node config & lifecycle
+│   │   │   ├── cardano_cli.rs       # cardano-cli tip query (primary sync source)
 │   │   │   ├── ogmios.rs            # Ogmios (port 1337)
-│   │   │   ├── kupo.rs              # Kupo (port 1442)
+│   │   │   ├── kupo.rs              # Kupo (port 1442, /metrics for sync + stall detection)
 │   │   │   ├── mithril.rs           # Mithril snapshot bootstrap
 │   │   │   └── express.rs           # Express backend (port 3001)
 │   │   └── commands/
@@ -148,7 +149,7 @@ app/gui/
 
 **State management — 4 React Contexts** (nested in main.tsx):
 - `WalletContext` — lifecycle (`loading`→`no_wallet`→`locked`→`unlocked`), MeshWallet instance, address, balance, payment key hex
-- `NodeContext` — stage (`stopped`→`bootstrapping`→`starting`→`syncing`→`synced`→`error`), sync progress, tip slot/height, process info
+- `NodeContext` — stage (`stopped`→`bootstrapping`→`starting`→`syncing`→`synced`→`error`), sync progress, tip slot/height, epoch/era/slot-in-epoch, kupo connection status + stall detection, process info
 - `WasmContext` — SNARK setup files (`idle`→`checking-cache`→`decompressing`→`ready`→`error`)
 - `ModalContext` — Stack-based modal management, tracks open modals so only topmost handles Escape; provides z-index stacking (base 50, +2 per level)
 
@@ -312,6 +313,7 @@ app/gui/
 - Linux: uses `libc::kill` directly (avoids AppImage /usr/bin/kill issues)
 - Orphan cleanup on startup: reads `managed_pids.json` from previous session → SIGTERM → 30s → SIGKILL; also port-scans 3001/1337/1442
 - Health check: only Express has one (`GET /health`); no built-in checks for cardano-node/Ogmios/Kupo
+- `cardano_cli.rs` — short-lived sidecar query (not a long-running process); spawns `cardano-cli conway query tip` with 10s timeout to get sync data from the node socket
 
 **Wallet** (src-tauri/src/crypto/wallet.rs):
 - AES-256-GCM encryption with Argon2id KDF (m=64MiB, t=3, p=4)
@@ -389,6 +391,7 @@ app/gui/
 - `snark-setup-progress` — decompression progress for setup files
 - `config-warning` — warning if config.json not found (using defaults)
 - `app-shutting-down` — signal to show shutdown overlay before exit
+- `shutdown-progress` — elapsed time + remaining process count during shutdown
 
 ## Development Workflow
 
@@ -410,7 +413,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (34 files)
+  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (35 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
@@ -540,8 +543,8 @@ const json: ApiResponse<YourType> = await res.json();
 - **Toast settings** — `toastSettings.ts` allows users to configure toast auto-dismiss duration (3s/5s/8s/never) stored in localStorage
 - **Resilient Koios** — Koios requests go through a circuit breaker (5 failures → 30s cooldown) with TTL cache stale fallback and fetch retry (3 attempts, exponential backoff). Prevents cascading failures when Koios is temporarily unavailable
 - **Backend structured logging** — All backend logging goes through `logger.ts` which outputs JSON entries with level, timestamp, message, and arbitrary context. Log level configurable via `LOG_LEVEL` env var (default: info)
-- **Prerequisite checks** — `check-prereqs.sh` validates Node 20+, npm, Rust toolchain, sidecar binaries (cardano-node, ogmios, kupo, mithril-client, snark), and WebKitGTK (Linux). Sourced by run.sh, build.sh, build-debug.sh
-- **ShutdownOverlay** — Full-screen overlay shown during app shutdown; listens to Tauri `app-shutting-down` events, rendered above all other content in main.tsx
+- **Prerequisite checks** — `check-prereqs.sh` validates Node 20+, npm, Rust toolchain, sidecar binaries (cardano-node, ogmios, kupo, mithril-client, snark, cardano-cli), and WebKitGTK (Linux). Sourced by run.sh, build.sh, build-debug.sh
+- **ShutdownOverlay** — Full-screen overlay shown during app shutdown; listens to Tauri `app-shutting-down` and `shutdown-progress` events, rendered above all other content in main.tsx
 - **Onboarding system** — `OnboardingOverlay` + `onboardingStorage.ts` provide a multi-step guided tour on first launch (4 steps); state persisted in localStorage
 - **Desktop notifications** — `desktopNotifications.ts` uses `@tauri-apps/plugin-notification` for OS-level notifications; `notificationSound.ts` generates programmatic WAV notification pings
 - **Wallet management** — `walletManagement.ts` provides collateral creation + UTxO defragmentation via MeshTxBuilder; `useWalletHealth` hook monitors UTxO health (collateral presence, fragmentation)
@@ -550,4 +553,5 @@ const json: ApiResponse<YourType> = await res.json();
 - **Focus traps** — `useFocusTrap` hook manages Tab key focus wrapping + focus restoration within modal/overlay containers (accessibility)
 - **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout
 - **Pagination** — Backend `pagination.ts` middleware provides offset-based pagination (default 50, max 200 items) with `{ total, limit, offset, hasMore }` meta
+- **cardano-cli as primary sync source** — `cardano-cli conway query tip` is the primary sync data source (runs as sidecar every 5s poll). Works as soon as the node socket exists (~10-60s before Ogmios connects). Provides exact `syncProgress`, `epoch`, `era`, `slotInEpoch`, `slotsToEpochEnd`. Ogmios is fallback only. Kupo metrics (`/metrics`) provide indexing progress + `kupo_connection_status` + `kupo_seconds_since_last_block` for stall/disconnect detection
 - **Background cleanup** — Hourly async task in lib.rs: securely deletes orphaned SNARK temp files older than 1 hour, evicts cached images older than 30 days or exceeding 500MB total

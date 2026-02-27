@@ -43,6 +43,12 @@ vi.mock('../../contexts/NodeContext', () => ({
       { name: 'kupo', status: 'running', pid: 1236 },
     ],
     stopNode: vi.fn(),
+    epoch: 150,
+    era: 'Conway',
+    slotInEpoch: 200000,
+    slotsToEpochEnd: 232000,
+    kupoConnected: true,
+    kupoSecondsSinceLastBlock: 2.0,
   }),
 }));
 
