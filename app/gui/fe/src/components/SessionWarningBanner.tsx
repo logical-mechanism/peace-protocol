@@ -42,7 +42,7 @@ export default function SessionWarningBanner() {
         <span>
           Session will lock in{' '}
           <strong className="font-mono">{timeDisplay}</strong>
-          {' '}&mdash; move mouse or press a key to stay active
+          {' '}&mdash; click Stay Active or press any key to continue
         </span>
         <button
           onClick={extendSession}
