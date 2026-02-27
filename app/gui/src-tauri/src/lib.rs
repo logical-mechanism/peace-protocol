@@ -130,7 +130,7 @@ pub fn run() {
             // Periodic cleanup: securely delete orphaned SNARK temp files older than 1 hour.
             // This prevents secret material from persisting if a SNARK proving attempt
             // fails mid-way and the temp file is not cleaned up until next app restart.
-            tokio::spawn(async move {
+            tauri::async_runtime::spawn(async move {
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
                     cleanup_old_temp_files(&app_tmp_dir);
