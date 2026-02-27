@@ -512,7 +512,7 @@ Each item has:
   - **How**: Create tests for `MarketplaceTab`, `MySalesTab`, `MyPurchasesTab`, `HistoryTab`, `LibraryTab`. Test: empty states, loading states, filter interactions, card rendering with mock data, error states. Mock API calls and Tauri invokes.
   - **Why**: Tab components contain the core business logic (filtering, sorting, data display) with zero test coverage.
 
-- [ ] **Untested component coverage: ErrorBoundary, SessionWarningBanner, ShutdownOverlay**
+- [x] **Untested component coverage: ErrorBoundary, SessionWarningBanner, ShutdownOverlay**
   - **How**: Add `fe/src/components/__tests__/ErrorBoundary.test.tsx` — test that render errors are caught and recovery UI shown. `SessionWarningBanner.test.tsx` — test countdown display and dismiss. `ShutdownOverlay.test.tsx` — test Tauri event listener and overlay rendering.
   - **Why**: These are safety-critical components (error recovery, session management, shutdown) that have no tests.
 
