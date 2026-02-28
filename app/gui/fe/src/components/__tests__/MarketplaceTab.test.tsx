@@ -76,7 +76,7 @@ describe('MarketplaceTab', () => {
     renderTab();
 
     await waitFor(() => {
-      expect(screen.getByText('No listings available')).toBeInTheDocument();
+      expect(screen.getByText('No listings available yet')).toBeInTheDocument();
     });
   });
 
@@ -176,6 +176,38 @@ describe('MarketplaceTab', () => {
 
     await waitFor(() => {
       expect(encryptionsApi.getAll).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('closes filters panel on Escape key', async () => {
+    const enc = makeEncryption({ description: 'Escape test listing' });
+    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+
+    renderTab();
+
+    // Wait for data to load so the toolbar renders
+    await waitFor(() => {
+      expect(screen.getByText('Escape test listing')).toBeInTheDocument();
+    });
+
+    // Open filters
+    const filtersButton = screen.getByRole('button', { name: /filters/i });
+    fireEvent.click(filtersButton);
+    expect(filtersButton).toHaveAttribute('aria-expanded', 'true');
+
+    // Press Escape to close
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(filtersButton).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows encouraging empty state with Create Listing CTA', async () => {
+    const onCreate = vi.fn();
+    renderTab({ onCreateListing: onCreate });
+
+    await waitFor(() => {
+      expect(screen.getByText('No listings available yet')).toBeInTheDocument();
+      expect(screen.getByText('Be the first to create one!')).toBeInTheDocument();
+      expect(screen.getByText('Create Listing')).toBeInTheDocument();
     });
   });
 

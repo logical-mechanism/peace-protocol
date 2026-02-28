@@ -37,11 +37,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/MarketplaceTab.tsx`
 
-- [ ] 🟢 **Close filters panel on Escape key**
+- [x] 🟢 **Close filters panel on Escape key**
   - **How**: In `MarketplaceTab.tsx`, add a `useEffect` that listens for `keydown` when `filtersOpen` is true. On Escape, call `setFiltersOpen(false)`. Clean up the listener when `filtersOpen` changes.
   - **Why**: Users who open the filters panel with the keyboard have no way to dismiss it without clicking; Escape is the expected pattern.
 
-- [ ] 🟡 **Distinguish "no listings exist" from "fetch failed"**
+- [x] 🟡 **Distinguish "no listings exist" from "fetch failed"**
   - **How**: In `MarketplaceTab.tsx` (line ~283), the error state shows a generic "Failed to load listings" EmptyState. When `error` is null and `filteredAndSorted.length === 0` with no active filters, show a distinct EmptyState: "No listings available yet — be the first to create one!" with a CTA to create a listing. Currently both cases funnel into the same empty view.
   - **Why**: A new user seeing "no listings" after a successful fetch needs different guidance than one who hit a network error.
 
@@ -51,15 +51,15 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/PlaceBidModal.tsx`
 
-- [ ] 🟢 **Add title tooltip to truncated token/seller in listing details**
+- [x] 🟢 **Add title tooltip to truncated token/seller in listing details**
   - **How**: In `PlaceBidModal.tsx` (lines 261–268), the Token and Seller values use `truncateHex()` but have no `title` attribute. Add `title={encryption.tokenName}` and `title={encryption.seller}` to the respective `<span>` elements so hovering reveals the full value.
   - **Why**: Users inspecting listing details before bidding cannot see the full token name or seller address.
 
-- [ ] 🟢 **Use `type="number"` for future price input**
+- [x] 🟢 **Use `type="number"` for future price input**
   - **How**: In `PlaceBidModal.tsx` (line 498), change `type="text"` to `type="number"` with `min="0"` and `step="0.000001"` on the futurePrice input. This brings numeric keyboard on mobile (future-proofing) and prevents alphabetic input.
   - **Why**: The futurePrice field accepts any text, requiring extra validation. `type="number"` gives native browser constraints for free.
 
-- [ ] 🟡 **Show actionable guidance on submit error**
+- [x] 🟡 **Show actionable guidance on submit error**
   - **How**: In `PlaceBidModal.tsx` (lines 184–186), when `setSubmitError` is called, parse the error via `errorMessages.ts` `mapError()` to get a `FriendlyError` with `action` guidance. Display the `action` field below the error message in a muted text style.
   - **Why**: "Failed to place bid. Please try again." doesn't help users diagnose whether the issue is balance, collateral, network, or something else.
 
@@ -69,11 +69,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/HistoryTab.tsx`
 
-- [ ] 🟢 **Replace native `confirm()` with ConfirmModal for clear history**
+- [x] 🟢 **Replace native `confirm()` with ConfirmModal for clear history**
   - **How**: In `HistoryTab.tsx` (line 241), `confirm()` is used for "Clear locally recorded transaction history?". Replace with a state-driven `ConfirmModal` (same pattern as LibraryTab delete). Add `showClearConfirm` state, render `<ConfirmModal>` with `variant="destructive"`, and wire the confirm callback to `clearHistory()`.
   - **Why**: Native browser `confirm()` dialogs look foreign in a polished desktop app and can't be styled to match the design system.
 
-- [ ] 🟢 **Add InfoTooltip for "confirmations" column**
+- [x] 🟢 **Add InfoTooltip for "confirmations" column**
   - **How**: In `HistoryTab.tsx`, next to the "Confirmations" column header, add `<InfoTooltip text="Number of blocks added after your transaction. 15+ confirmations means the transaction is final." />`.
   - **Why**: Non-blockchain users don't understand what confirmation counts mean or when a transaction is truly finalized.
 

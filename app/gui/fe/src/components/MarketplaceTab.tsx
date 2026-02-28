@@ -35,6 +35,16 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // Close filters panel on Escape key
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFiltersOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [filtersOpen]);
+
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -524,8 +534,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
         ) : (
           <EmptyState
             illustration={<MarketplaceEmptyIllustration />}
-            title="No listings available"
-            description="Listings will appear here once sellers create encryptions"
+            title="No listings available yet"
+            description="Be the first to create one!"
             action={onCreateListing && (
               <button
                 onClick={onCreateListing}
