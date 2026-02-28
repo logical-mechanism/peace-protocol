@@ -165,7 +165,7 @@ Difficulty ratings:
 
 > Key files: `be/src/routes/protocol.ts`, `be/src/services/encryptions.ts`
 
-- [ ] 🟡 **Align stub and production response shapes for `/protocol/reference`**
+- [x] 🟡 **Align stub and production response shapes for `/protocol/reference`**
   - **How**: In `be/src/routes/protocol.ts`, the stub path (line ~77) returns `STUB_PROTOCOL_CONFIG.referenceScripts` while the production path (line ~98) returns a differently shaped `references` object. Align the stub response to match the production shape so frontend code doesn't break when switching between stub and production modes.
   - **Why**: Developers using `USE_STUBS=true` may write frontend code that works against stubs but fails against production data due to different response shapes.
 
@@ -207,7 +207,7 @@ Difficulty ratings:
 
 > Key files: `.github/workflows/ci.yml`
 
-- [ ] 🟢 **Fix broken TypeScript CI job path**
+- [s] 🟢 **Fix broken TypeScript CI job path**
   - **How**: In `.github/workflows/ci.yml` (line 76), the TypeScript job's `working-directory` is `app/ui/fe` — this directory does not exist. Change to `app/gui/fe`. Also update line 83 (`cache-dependency-path`) from `app/ui/fe/package-lock.json` to `app/gui/fe/package-lock.json`.
   - **Why**: The TypeScript CI job has been silently failing (or skipped) due to the wrong path. Frontend tests are not running in CI.
 

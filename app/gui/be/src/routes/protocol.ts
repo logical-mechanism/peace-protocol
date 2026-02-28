@@ -2,7 +2,6 @@ import { Router, type Request, type Response } from 'express';
 import { config, getNetworkConfig } from '../config/index.js';
 import { logger } from '../services/logger.js';
 import { STUB_PROTOCOL_CONFIG } from '../stubs/index.js';
-import { getKupoClient } from '../services/kupo.js';
 import { getKoiosClient } from '../services/koios.js';
 import type { ProtocolConfig } from '../types/index.js';
 
@@ -80,22 +79,21 @@ router.get('/reference', async (_req: Request, res: Response) => {
     }
 
     const { contracts } = getNetworkConfig();
-    const kupo = getKupoClient();
-    const refUtxos = await kupo.getAddressUtxos(contracts.referenceAddress);
 
-    // Return the raw reference UTxOs for the frontend to use
-    const references = refUtxos.map(utxo => ({
-      txHash: utxo.tx_hash,
-      outputIndex: utxo.tx_index,
-      datumHash: utxo.datum_hash,
-      hasReferenceScript: utxo.reference_script !== null,
-      hasInlineDatum: utxo.inline_datum !== null,
-      value: utxo.value,
-      assets: utxo.asset_list,
-    }));
+    const referenceScripts: ProtocolConfig['referenceScripts'] = {
+      encryption: contracts.encryptionRefTxHash
+        ? { txHash: contracts.encryptionRefTxHash, outputIndex: contracts.encryptionRefOutputIndex }
+        : null,
+      bidding: contracts.biddingRefTxHash
+        ? { txHash: contracts.biddingRefTxHash, outputIndex: contracts.biddingRefOutputIndex }
+        : null,
+      groth: contracts.grothRefTxHash
+        ? { txHash: contracts.grothRefTxHash, outputIndex: contracts.grothRefOutputIndex }
+        : null,
+    };
 
     res.set('Cache-Control', CACHE_STATIC);
-    return res.json({ data: references });
+    return res.json({ data: referenceScripts });
   } catch (error) {
     logger.error('Error fetching reference data', { error: String(error), requestId: _req.requestId });
     return res.status(500).json({
