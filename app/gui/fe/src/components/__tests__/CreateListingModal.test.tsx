@@ -678,54 +678,63 @@ describe('CreateListingModal', () => {
     }
   });
 
-  // --- Unsaved changes warning ---
+  // --- Unsaved changes warning (ConfirmModal) ---
 
-  it('shows confirm when closing dirty form via Cancel', () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    try {
-      renderModal();
-      // Make the form dirty
-      fireEvent.change(screen.getByLabelText(/Description/), {
-        target: { value: 'Some text', name: 'description' },
-      });
+  it('shows ConfirmModal when closing dirty form via Cancel', () => {
+    renderModal();
+    // Make the form dirty
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'Some text', name: 'description' },
+    });
 
-      fireEvent.click(screen.getByText('Cancel'));
+    fireEvent.click(screen.getByText('Cancel'));
 
-      expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes. Are you sure you want to close?');
-      expect(mockOnClose).not.toHaveBeenCalled();
-    } finally {
-      confirmSpy.mockRestore();
-    }
+    // ConfirmModal should appear with discard message
+    expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+    expect(screen.getByText('You have unsaved changes that will be lost if you close this form.')).toBeInTheDocument();
+    expect(mockOnClose).not.toHaveBeenCalled();
   });
 
-  it('closes when confirm is accepted on dirty form', () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    try {
-      renderModal();
-      fireEvent.change(screen.getByLabelText(/Description/), {
-        target: { value: 'Some text', name: 'description' },
-      });
+  it('closes when Discard is clicked in ConfirmModal', () => {
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'Some text', name: 'description' },
+    });
 
-      fireEvent.click(screen.getByText('Cancel'));
+    fireEvent.click(screen.getByText('Cancel'));
 
-      expect(confirmSpy).toHaveBeenCalled();
-      expect(mockOnClose).toHaveBeenCalled();
-    } finally {
-      confirmSpy.mockRestore();
-    }
+    // Click the Discard button in the ConfirmModal
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+
+    expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it('closes without confirm when form is clean', () => {
-    const confirmSpy = vi.spyOn(window, 'confirm');
-    try {
-      renderModal();
-      fireEvent.click(screen.getByText('Cancel'));
+  it('keeps form open when ConfirmModal is cancelled', () => {
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'Some text', name: 'description' },
+    });
 
-      expect(confirmSpy).not.toHaveBeenCalled();
-      expect(mockOnClose).toHaveBeenCalled();
-    } finally {
-      confirmSpy.mockRestore();
-    }
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+
+    // Click the Cancel button inside the ConfirmModal (there are two Cancel buttons now)
+    const cancelButtons = screen.getAllByText('Cancel');
+    // The ConfirmModal's cancel button is the last one rendered
+    fireEvent.click(cancelButtons[cancelButtons.length - 1]);
+
+    expect(mockOnClose).not.toHaveBeenCalled();
+    // Form should still be visible with the entered data
+    expect(screen.getByText('Create New Listing')).toBeInTheDocument();
+  });
+
+  it('closes without ConfirmModal when form is clean', () => {
+    renderModal();
+    fireEvent.click(screen.getByText('Cancel'));
+
+    // No ConfirmModal should appear
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(mockOnClose).toHaveBeenCalled();
   });
 
   // --- File size validation ---
@@ -767,28 +776,23 @@ describe('CreateListingModal', () => {
     expect(screen.queryByText('huge.mp4')).not.toBeInTheDocument();
   });
 
-  it('does not show confirm after successful submit', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm');
-    try {
-      renderModal();
-      fireEvent.change(screen.getByLabelText(/Secret Message/), {
-        target: { value: 'my secret', name: 'secretMessage' },
-      });
-      fireEvent.change(screen.getByLabelText(/Description/), {
-        target: { value: 'A test listing', name: 'description' },
-      });
+  it('does not show ConfirmModal after successful submit', async () => {
+    renderModal();
+    fireEvent.change(screen.getByLabelText(/Secret Message/), {
+      target: { value: 'my secret', name: 'secretMessage' },
+    });
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'A test listing', name: 'description' },
+    });
 
-      fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
 
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalled();
-      });
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalled();
+    });
 
-      // onClose was called directly without confirm
-      expect(confirmSpy).not.toHaveBeenCalled();
-      expect(mockOnClose).toHaveBeenCalled();
-    } finally {
-      confirmSpy.mockRestore();
-    }
+    // onClose was called directly without ConfirmModal
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+    expect(mockOnClose).toHaveBeenCalled();
   });
 });

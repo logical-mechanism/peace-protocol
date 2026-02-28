@@ -93,7 +93,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/CreateListingModal.tsx`
 
-- [ ] 🟢 **Replace native `confirm()` with ConfirmModal for unsaved changes**
+- [x] 🟢 **Replace native `confirm()` with ConfirmModal for unsaved changes**
   - **How**: In `CreateListingModal.tsx` (line 170), `window.confirm('You have unsaved changes...')` is used when closing with unsaved state. Replace with a state-driven ConfirmModal (same pattern as delete flows). Add `showCloseConfirm` state, render the modal with "Discard changes?" title, and wire confirm to proceed with close.
   - **Why**: Native confirm dialogs break the visual consistency of the app.
 
