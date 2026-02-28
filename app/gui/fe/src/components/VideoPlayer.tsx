@@ -132,7 +132,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         const probe = document.createElement('video');
         probe.preload = 'metadata';
         probe.muted = true;
+        let resolved = false;
+        const timeout = setTimeout(() => { cleanup(); resolve(false); }, 8000);
         const cleanup = () => {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timeout);
           probe.removeAttribute('src');
           probe.load();
         };
@@ -577,6 +582,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
       onEnded={() => setIsPlaying(false)}
+      onStalled={() => {
+        if (videoRef.current && videoRef.current.readyState < 2) {
+          setLoading(false);
+          setError('Video playback stalled. Your system may be missing required GStreamer plugins.');
+        }
+      }}
       onClick={handlePlayPause}
     >
       {subtitleUrl && (

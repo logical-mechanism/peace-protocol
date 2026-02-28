@@ -65,10 +65,29 @@ fn cleanup_old_temp_files(tmp_dir: &std::path::Path) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Workaround for WebKitGTK DMA-BUF crashes on newer kernels (6.17+)
     #[cfg(target_os = "linux")]
     {
+        // Workaround for WebKitGTK DMA-BUF crashes on newer kernels (6.17+)
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
+        // AppImage's linuxdeploy launcher sets GST_PLUGIN_SYSTEM_PATH_1_0 to
+        // "$APPDIR/usr/lib/gstreamer-1.0:" which overrides GStreamer's compiled-in
+        // default plugin search paths. The AppImage bundles GStreamer libraries but
+        // NOT plugins, so WebKitGTK fails to find appsink/autoaudiosink and crashes.
+        // Append the standard system plugin directories.
+        let system_gst_dirs = [
+            "/usr/lib/x86_64-linux-gnu/gstreamer-1.0",
+            "/usr/lib/gstreamer-1.0",
+            "/usr/lib64/gstreamer-1.0",
+        ];
+        let current = std::env::var("GST_PLUGIN_SYSTEM_PATH_1_0").unwrap_or_default();
+        let mut paths: Vec<&str> = current.split(':').filter(|s| !s.is_empty()).collect();
+        for dir in &system_gst_dirs {
+            if !paths.contains(dir) && std::path::Path::new(dir).is_dir() {
+                paths.push(dir);
+            }
+        }
+        std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", paths.join(":"));
     }
 
     tauri::Builder::default()
