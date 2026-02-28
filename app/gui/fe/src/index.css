@@ -323,6 +323,15 @@ select option {
   --winamp-border-dark: #0a0a14;
   --winamp-led: #22c55e;
   --winamp-led-dim: rgba(34, 197, 94, 0.3);
+  --audio-gradient-start: #6366f1;
+  --audio-gradient-mid: #818cf8;
+  --audio-gradient-end: #a5b4fc;
+}
+
+[data-theme="light"] {
+  --audio-gradient-start: #4f46e5;
+  --audio-gradient-mid: #6366f1;
+  --audio-gradient-end: #818cf8;
 }
 
 .winamp-bevel {

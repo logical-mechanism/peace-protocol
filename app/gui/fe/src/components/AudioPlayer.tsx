@@ -297,6 +297,11 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const { width, height } = canvas;
     ctx.clearRect(0, 0, width, height);
 
+    const styles = getComputedStyle(canvas);
+    const gradStart = styles.getPropertyValue('--audio-gradient-start').trim() || '#6366f1';
+    const gradMid = styles.getPropertyValue('--audio-gradient-mid').trim() || '#818cf8';
+    const gradEnd = styles.getPropertyValue('--audio-gradient-end').trim() || '#a5b4fc';
+
     const buffer = bufferRef.current;
     const audio = audioRef.current;
     const gap = 2;
@@ -346,9 +351,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         const y = height - barHeight;
 
         const gradient = ctx.createLinearGradient(x, height, x, y);
-        gradient.addColorStop(0, '#6366f1');
-        gradient.addColorStop(0.5, '#818cf8');
-        gradient.addColorStop(1, '#a5b4fc');
+        gradient.addColorStop(0, gradStart);
+        gradient.addColorStop(0.5, gradMid);
+        gradient.addColorStop(1, gradEnd);
         ctx.fillStyle = gradient;
 
         const segH = 3, segGap = 1;
@@ -370,9 +375,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         const y = height - barHeight;
 
         const gradient = ctx.createLinearGradient(x, height, x, y);
-        gradient.addColorStop(0, '#6366f1');
-        gradient.addColorStop(0.5, '#818cf8');
-        gradient.addColorStop(1, '#a5b4fc');
+        gradient.addColorStop(0, gradStart);
+        gradient.addColorStop(0.5, gradMid);
+        gradient.addColorStop(1, gradEnd);
         ctx.fillStyle = gradient;
 
         const segH = 3, segGap = 1;
