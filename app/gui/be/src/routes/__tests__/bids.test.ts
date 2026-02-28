@@ -137,6 +137,19 @@ describe('GET /api/bids', () => {
     expect(res.body.warnings).toBeUndefined();
   });
 
+  it('includes stale warning when service returns stale data', async () => {
+    (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'b1' }],
+      warnings: { stale: true },
+    });
+
+    const res = await request(app).get('/api/bids');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.warnings).toEqual({ stale: true });
+  });
+
   it('passes refresh=true to skip cache', async () => {
     (getAllBids as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [],

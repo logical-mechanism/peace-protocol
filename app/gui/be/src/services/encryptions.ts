@@ -171,7 +171,7 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
     const stale = apiCache.getStale<EncryptionDisplay[]>(CACHE_KEY_ALL_ENCRYPTIONS);
     if (stale) {
       logger.warn('Returning stale cache for encryptions', { error: String(err) });
-      return { data: stale, warnings: {} };
+      return { data: stale, warnings: { stale: true } };
     }
     throw err;
   }

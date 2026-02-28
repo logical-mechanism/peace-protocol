@@ -31,6 +31,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -56,14 +57,17 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     else setLoading(true);
     setError(null);
     try {
-      const [data, allBids] = await Promise.all([
-        encryptionsApi.getAll(),
-        bidsApi.getAll(),
+      const [encResult, bidResult] = await Promise.all([
+        encryptionsApi.getAllWithWarnings(),
+        bidsApi.getAllWithWarnings(),
       ]);
-      setEncryptions(data);
-      setAllBids(allBids);
-      setPrevDataCount(data.length);
+      setEncryptions(encResult.data);
+      setAllBids(bidResult.data);
+      setPrevDataCount(encResult.data.length);
       hasDataRef.current = true;
+
+      // Surface backend-detected stale data
+      setIsStale(encResult.stale || bidResult.stale);
 
       // Fetch image cache status for all listings
       listCachedImages().then(setImageCacheStatus).catch((err) => {
@@ -73,14 +77,19 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
       // Build set of encryption tokens the user has pending bids on
       if (userPkh) {
         const userBidTokens = new Set<string>(
-          allBids
+          bidResult.data
             .filter((b) => b.bidderPkh === userPkh && b.status === 'pending')
             .map((b) => b.encryptionToken)
         );
         setUserBidEncryptionTokens(userBidTokens);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch listings');
+      if (hasDataRef.current) {
+        // Keep showing previously loaded data with a stale warning
+        setIsStale(true);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to fetch listings');
+      }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -281,6 +290,56 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     ? 'Error loading marketplace listings'
     : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'} loaded`;
 
+  const staleBanner = isStale ? (
+    <div
+      className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+      style={{
+        background: 'var(--warning-muted)',
+        border: '1px solid var(--warning)',
+        color: 'var(--warning)',
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      <svg
+        className="w-4 h-4 flex-shrink-0"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+        />
+      </svg>
+      <span>Showing cached listings — data may be outdated.</span>
+      <button
+        onClick={fetchEncryptions}
+        className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+        style={{
+          background: 'var(--warning)',
+          color: 'var(--bg-primary)',
+        }}
+        aria-label="Retry loading marketplace listings"
+      >
+        Retry
+      </button>
+      <button
+        onClick={() => setIsStale(false)}
+        className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+        style={{ color: 'var(--warning)' }}
+        aria-label="Dismiss stale data warning"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  ) : null;
+
   if (loading) {
     return (
       <>
@@ -316,6 +375,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       <RefreshIndicator visible={isRefreshing} />
+      {staleBanner}
       {/* Toolbar */}
       <div className="mb-6">
         {/* Primary row: Search + Filters toggle + View toggle + Refresh */}

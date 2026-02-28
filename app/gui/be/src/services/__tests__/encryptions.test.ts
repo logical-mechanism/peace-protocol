@@ -361,7 +361,7 @@ describe('getAllEncryptions', () => {
     expect(result.data).toHaveLength(0);
   });
 
-  it('returns stale cache on Kupo failure', async () => {
+  it('returns stale cache with stale warning on Kupo failure', async () => {
     mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
     await getAllEncryptions();
 
@@ -369,6 +369,7 @@ describe('getAllEncryptions', () => {
 
     const result = await getAllEncryptions(true);
     expect(result.data).toHaveLength(1);
+    expect(result.warnings.stale).toBe(true);
   });
 
   it('throws when Kupo fails and no stale cache', async () => {

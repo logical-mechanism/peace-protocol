@@ -129,7 +129,7 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
     const stale = apiCache.getStale<BidDisplay[]>(CACHE_KEY_ALL_BIDS);
     if (stale) {
       logger.warn('Returning stale cache for bids', { error: String(err) });
-      return { data: stale, warnings: {} };
+      return { data: stale, warnings: { stale: true } };
     }
     throw err;
   }

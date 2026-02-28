@@ -38,7 +38,7 @@ router.get('/', async (req: Request, res: Response) => {
     return res.json({
       data,
       pagination,
-      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+      ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
     if (error instanceof KupoUnavailableError) {
@@ -83,7 +83,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
     res.set('Cache-Control', CACHE_DATA);
     return res.json({
       data: result.data,
-      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+      ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
     if (error instanceof KupoUnavailableError) {
@@ -125,7 +125,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
     return res.json({
       data,
       pagination,
-      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+      ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
     if (error instanceof KupoUnavailableError) {
@@ -167,7 +167,7 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
     return res.json({
       data,
       pagination,
-      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+      ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
     if (error instanceof KupoUnavailableError) {
@@ -210,7 +210,7 @@ router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejec
     return res.json({
       data,
       pagination,
-      ...(result.warnings.skippedDatums && { warnings: result.warnings }),
+      ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
     if (error instanceof KupoUnavailableError) {
