@@ -83,10 +83,18 @@ fn default_shutdown_timeout(name: &str) -> u64 {
         "mithril-client" => ("SHUTDOWN_TIMEOUT_MITHRIL", 30),
         _ => ("SHUTDOWN_TIMEOUT_DEFAULT", 10),
     };
-    std::env::var(env_key)
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(fallback)
+    match std::env::var(env_key) {
+        Ok(val) => match val.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!(
+                    "Warning: invalid value '{val}' for {env_key}, using default {fallback}s"
+                );
+                fallback
+            }
+        },
+        Err(_) => fallback,
+    }
 }
 
 /// A single managed child process with its metadata

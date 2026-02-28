@@ -179,7 +179,7 @@ Difficulty ratings:
   - **How**: In `wallet.rs`, `decrypt_mnemonic()` (line ~112) returns a plain `String`. Rust Strings are not zeroized on drop — the plaintext mnemonic lingers in freed heap memory. Use the `zeroize` crate: change the return type to `Zeroizing<String>` from `zeroize::Zeroizing`, or manually zero the bytes before dropping. Audit all callers to ensure the `Zeroizing` wrapper is held (not `.into()` a bare String).
   - **Why**: An attacker with heap access (e.g., a memory dump) could recover the mnemonic from freed memory. Defense-in-depth for the most sensitive secret in the app.
 
-- [ ] 🟢 **Log warning on invalid shutdown timeout env vars**
+- [x] 🟢 **Log warning on invalid shutdown timeout env vars**
   - **How**: In `manager.rs` (lines 80–90), `default_shutdown_timeout()` reads env vars like `SHUTDOWN_TIMEOUT_CARDANO` and silently falls back on parse failure. Add an `eprintln!("Warning: invalid value for {}, using default {}s", var_name, default)` when `.parse().ok()` returns `None` but the env var is set.
   - **Why**: Developers setting custom timeout values get no feedback that their config was ignored due to a typo.
 
