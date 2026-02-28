@@ -211,6 +211,31 @@ describe('DecryptModal', () => {
     resolveDecrypt!({ success: true, message: 'done' });
   });
 
+  it('shows downloading state when phase switches to downloading', async () => {
+    let resolveDecrypt: (value: unknown) => void;
+    mockDecryptBid.mockImplementation((_w: unknown, _b: unknown, _e: unknown, onProgress: (c: number, t: number, phase?: string) => void) => {
+      // Simulate decryption layers completing then switching to download phase
+      onProgress(3, 3);
+      onProgress(0, 1, 'downloading');
+      return new Promise((resolve) => { resolveDecrypt = resolve; });
+    });
+
+    renderModal();
+    fireEvent.click(screen.getByText('Decrypt Now'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Downloading...')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Downloading file from storage')).toBeInTheDocument();
+    expect(screen.getByText('Do not close this window')).toBeInTheDocument();
+    // Should not show layer progress
+    expect(screen.queryByText(/Layer/)).not.toBeInTheDocument();
+
+    // Resolve to clean up
+    resolveDecrypt!({ success: true, message: 'done' });
+  });
+
   // --- Success state (text) ---
 
   it('shows decrypted text message on success', async () => {

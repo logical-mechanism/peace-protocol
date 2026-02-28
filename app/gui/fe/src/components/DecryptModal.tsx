@@ -40,6 +40,7 @@ export default function DecryptModal({
   const [isStub, setIsStub] = useState(false);
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+  const [phase, setPhase] = useState<'decrypting' | 'downloading'>('decrypting');
   const [savedPath, setSavedPath] = useState<string | null>(null);
 
   // Stack-aware Escape key + body scroll lock + animation
@@ -57,6 +58,7 @@ export default function DecryptModal({
       setIsStub(false);
       setCopied(false);
       setProgress(null);
+      setPhase('decrypting');
       setSavedPath(null);
       /* eslint-enable react-hooks/set-state-in-effect */
     }
@@ -69,8 +71,11 @@ export default function DecryptModal({
     setError(null);
     setProgress(null);
 
-    const onProgress: OnDecryptProgress = (current, total) => {
+    const onProgress: OnDecryptProgress = (current, total, progressPhase) => {
       setProgress({ current, total });
+      if (progressPhase) {
+        setPhase(progressPhase);
+      }
     };
 
     try {
@@ -147,6 +152,7 @@ export default function DecryptModal({
     setError(null);
     setIsStub(false);
     setProgress(null);
+    setPhase('decrypting');
     setSavedPath(null);
     onClose();
   }, [onClose]);
@@ -299,37 +305,58 @@ export default function DecryptModal({
             </div>
           )}
 
-          {/* Decrypting state */}
+          {/* Decrypting / Downloading state */}
           {state === 'decrypting' && (
             <div className="py-12 text-center">
               <LoadingSpinner size="lg" className="mx-auto mb-6" />
-              <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
-                Decrypting...
-              </h3>
-              <p className="text-sm text-[var(--text-muted)] mb-6">
-                Processing encryption layers and deriving keys
-              </p>
 
-              {/* Progress bar */}
-              {progress && progress.total > 0 && (
-                <div className="max-w-sm mx-auto space-y-2">
-                  <div className="h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ease-out ${
-                        progress.current >= progress.total
-                          ? 'bg-[var(--success)]'
-                          : 'bg-[var(--accent)]'
-                      }`}
-                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                    />
+              {phase === 'downloading' ? (
+                <>
+                  <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
+                    Downloading...
+                  </h3>
+                  <p className="text-sm text-[var(--text-muted)] mb-6">
+                    Downloading file from storage
+                  </p>
+
+                  {/* Indeterminate progress bar */}
+                  <div className="max-w-sm mx-auto space-y-2">
+                    <div className="h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                      <div className="h-full w-1/3 rounded-full bg-[var(--accent)] animate-[indeterminate_1.5s_ease-in-out_infinite]" />
+                    </div>
                   </div>
-                  <div className="flex justify-between text-xs text-[var(--text-muted)]">
-                    <span>
-                      Layer {progress.current} of {progress.total}
-                    </span>
-                    <span>{Math.round((progress.current / progress.total) * 100)}%</span>
-                  </div>
-                </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
+                    Decrypting...
+                  </h3>
+                  <p className="text-sm text-[var(--text-muted)] mb-6">
+                    Processing encryption layers and deriving keys
+                  </p>
+
+                  {/* Progress bar */}
+                  {progress && progress.total > 0 && (
+                    <div className="max-w-sm mx-auto space-y-2">
+                      <div className="h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ease-out ${
+                            progress.current >= progress.total
+                              ? 'bg-[var(--success)]'
+                              : 'bg-[var(--accent)]'
+                          }`}
+                          style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-[var(--text-muted)]">
+                        <span>
+                          Layer {progress.current} of {progress.total}
+                        </span>
+                        <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               <p className="text-xs text-[var(--text-muted)] mt-4">

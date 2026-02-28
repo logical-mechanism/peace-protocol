@@ -579,6 +579,12 @@ select option {
   animation: refresh-bar 1.5s ease-in-out infinite;
 }
 
+/* Indeterminate progress bar — sliding bar for unknown-duration operations */
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
 /* Modal entrance/exit — backdrop fade + panel slide-up */
 @keyframes modal-backdrop-enter {
   from { opacity: 0; }
