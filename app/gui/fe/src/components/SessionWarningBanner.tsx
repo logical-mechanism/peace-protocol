@@ -22,21 +22,21 @@ export default function SessionWarningBanner() {
       aria-live="polite"
     >
       {/* Draining progress bar */}
-      <div className="h-0.5" style={{ background: 'var(--warning-muted)' }}>
+      <div className="h-0.5" style={{ background: 'rgba(0, 0, 0, 0.15)' }}>
         <div
           className="h-full transition-all duration-1000 ease-linear"
           style={{
             width: `${progressPercent}%`,
-            background: 'var(--warning)',
+            background: 'var(--bg-primary)',
           }}
         />
       </div>
       <div
         className="flex items-center justify-center gap-4 px-4 py-2 text-sm"
         style={{
-          background: 'var(--warning-muted)',
-          borderBottom: '1px solid var(--warning)',
-          color: 'var(--warning)',
+          background: 'var(--warning)',
+          borderBottom: '1px solid var(--bg-primary)',
+          color: 'var(--bg-primary)',
         }}
       >
         <span>
@@ -48,8 +48,8 @@ export default function SessionWarningBanner() {
           onClick={extendSession}
           className="px-3 py-1 text-xs font-medium rounded cursor-pointer"
           style={{
-            background: 'var(--warning)',
-            color: 'var(--bg-primary)',
+            background: 'var(--bg-primary)',
+            color: 'var(--warning)',
           }}
           aria-label="Extend session"
         >
