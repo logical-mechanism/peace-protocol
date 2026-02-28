@@ -193,7 +193,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/EmptyStateIllustrations.tsx`, `fe/vite.config.ts`, `be/vitest.config.ts`
 
-- [ ] 🟢 **Add test for `EmptyStateIllustrations.tsx`**
+- [x] 🟢 **Add test for `EmptyStateIllustrations.tsx`**
   - **How**: Create `fe/src/components/__tests__/EmptyStateIllustrations.test.tsx`. Test that each exported illustration renders an SVG element with expected `viewBox` and theme CSS variable usage (`var(--text-muted)`, `var(--accent)`). ~6 test cases (one per illustration).
   - **Why**: This is the only untested component file. All other 44 components have tests.
 
