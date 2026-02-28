@@ -103,7 +103,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **Use CSS variables for AudioPlayer FFT gradient colors**
+- [x] 🟢 **Use CSS variables for AudioPlayer FFT gradient colors**
   - **How**: In `AudioPlayer.tsx` (lines 348–351), the gradient hardcodes `#6366f1`, `#818cf8`, `#a5b4fc`. Replace with CSS variables: add `--audio-gradient-start`, `--audio-gradient-mid`, `--audio-gradient-end` to `index.css` (dark: current indigo values; light: theme-appropriate variants). Read them in the canvas via `getComputedStyle()`.
   - **Why**: The hardcoded indigo colors don't adapt to light theme, breaking theme parity. CSS variables ensure the visualization matches whichever theme is active.
 
