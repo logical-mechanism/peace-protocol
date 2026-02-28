@@ -95,6 +95,10 @@ export default function Settings() {
 
   // Transaction history cleanup
   const [txHistoryCount, setTxHistoryCount] = useState(0)
+  const [txClearConfirm, setTxClearConfirm] = useState(false)
+
+  // Orphaned Iagon files
+  const [orphanDeleteAllConfirm, setOrphanDeleteAllConfirm] = useState(false)
 
   // API response cache
   const [apiCacheSize, setApiCacheSize] = useState(0)
@@ -196,7 +200,6 @@ export default function Settings() {
   }, [])
 
   const handleDeleteAllOrphans = useCallback(async () => {
-    if (!confirm('Delete all orphaned files from Iagon? This cannot be undone.')) return
     const apiKey = await getStoredApiKey()
     const total = orphanedDrafts.length
     const succeededIds: string[] = []
@@ -1377,7 +1380,7 @@ export default function Settings() {
                 </div>
                 {orphanedDrafts.length > 1 && (
                   <button
-                    onClick={handleDeleteAllOrphans}
+                    onClick={() => setOrphanDeleteAllConfirm(true)}
                     className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-destructive"
                   >
                     Delete All
@@ -1627,11 +1630,7 @@ export default function Settings() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => {
-                    if (!userPkh || !confirm('Clear all transaction history?')) return
-                    clearHistory(userPkh)
-                    setTxHistoryCount(0)
-                  }}
+                  onClick={() => setTxClearConfirm(true)}
                   disabled={!userPkh || txHistoryCount === 0}
                   className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                 >
@@ -1879,6 +1878,33 @@ export default function Settings() {
         confirmLabel="Disconnect"
         confirmVariant="danger"
         loading={iagonLoading}
+      />
+
+      {/* Orphaned Iagon Files Delete All Confirmation */}
+      <ConfirmModal
+        isOpen={orphanDeleteAllConfirm}
+        onClose={() => setOrphanDeleteAllConfirm(false)}
+        onConfirm={() => { setOrphanDeleteAllConfirm(false); handleDeleteAllOrphans(); }}
+        title="Delete Orphaned Files"
+        message={`Delete all ${orphanedDrafts.length} orphaned file${orphanedDrafts.length !== 1 ? 's' : ''} from Iagon? This cannot be undone.`}
+        confirmLabel="Delete All"
+        confirmVariant="danger"
+      />
+
+      {/* Transaction History Clear Confirmation */}
+      <ConfirmModal
+        isOpen={txClearConfirm}
+        onClose={() => setTxClearConfirm(false)}
+        onConfirm={() => {
+          if (!userPkh) return
+          setTxClearConfirm(false)
+          clearHistory(userPkh)
+          setTxHistoryCount(0)
+        }}
+        title="Clear Transaction History"
+        message="Clear all locally recorded transaction history? This cannot be undone."
+        confirmLabel="Clear All"
+        confirmVariant="danger"
       />
 
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
