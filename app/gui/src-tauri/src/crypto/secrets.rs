@@ -207,7 +207,7 @@ pub(crate) fn to_hex(bytes: &[u8]) -> String {
 }
 
 pub(crate) fn from_hex(hex: &str) -> Result<Vec<u8>, String> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err("Invalid hex: odd length".to_string());
     }
     (0..hex.len())

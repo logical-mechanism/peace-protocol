@@ -53,7 +53,7 @@ fn to_hex(bytes: &[u8]) -> String {
 }
 
 fn from_hex(hex: &str) -> Result<Vec<u8>, String> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err("Invalid hex: odd length".to_string());
     }
     (0..hex.len())
@@ -113,8 +113,8 @@ pub fn decrypt_mnemonic(
         .decrypt(nonce, ciphertext.as_ref())
         .map_err(|_| "Incorrect password".to_string())?;
 
-    let s =
-        String::from_utf8(plaintext).map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
+    let s = String::from_utf8(plaintext)
+        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
     Ok(Zeroizing::new(s))
 }
 
