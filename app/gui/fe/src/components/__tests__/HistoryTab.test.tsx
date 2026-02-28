@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import HistoryTab from '../HistoryTab';
 import { ModalProvider } from '../../contexts/ModalContext';
@@ -54,7 +54,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 import { encryptionsApi, bidsApi } from '../../services/api';
-import { resolvePendingTxs, reconcileWithOnChain } from '../../services/transactionHistory';
+import { resolvePendingTxs, reconcileWithOnChain, clearHistory } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -176,5 +176,63 @@ describe('HistoryTab', () => {
       expect(screen.getByText('First tx')).toBeInTheDocument();
       expect(screen.getByText('Second tx')).toBeInTheDocument();
     });
+  });
+
+  it('opens ConfirmModal when Clear History is clicked and clears on confirm', async () => {
+    const records = [makeRecord({ description: 'Test tx' })];
+    (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue(records);
+    const onClearHistory = vi.fn();
+
+    renderTab({ transactions: records, onClearHistory });
+
+    // Wait for records to render
+    await waitFor(() => {
+      expect(screen.getByText('Test tx')).toBeInTheDocument();
+    });
+
+    // Click Clear History button
+    fireEvent.click(screen.getByLabelText('Clear transaction history'));
+
+    // ConfirmModal should open with the expected title and message
+    await waitFor(() => {
+      expect(screen.getByText('Clear Transaction History')).toBeInTheDocument();
+      expect(screen.getByText(/permanently remove all locally recorded/i)).toBeInTheDocument();
+    });
+
+    // Click the confirm button inside the modal (the danger-styled "Clear" button)
+    const confirmBtn = screen.getByText('Clear Transaction History')
+      .closest('[role="dialog"]')!
+      .querySelector('.btn-danger') as HTMLElement;
+    fireEvent.click(confirmBtn);
+
+    // clearHistory should have been called and callback triggered
+    await waitFor(() => {
+      expect(clearHistory).toHaveBeenCalledWith(USER_PKH);
+      expect(onClearHistory).toHaveBeenCalled();
+    });
+  });
+
+  it('does not clear history when ConfirmModal is cancelled', async () => {
+    const records = [makeRecord({ description: 'Test tx' })];
+    (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue(records);
+
+    renderTab({ transactions: records });
+
+    await waitFor(() => {
+      expect(screen.getByText('Test tx')).toBeInTheDocument();
+    });
+
+    // Click Clear History to open the modal
+    fireEvent.click(screen.getByLabelText('Clear transaction history'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Clear Transaction History')).toBeInTheDocument();
+    });
+
+    // Click Cancel
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+    // clearHistory should NOT have been called
+    expect(clearHistory).not.toHaveBeenCalled();
   });
 });
