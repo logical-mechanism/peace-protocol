@@ -124,7 +124,7 @@ app/gui/
 │   │       ├── snark.rs             # prove, gt-to-hash, decrypt-to-hash, setup
 │   │       ├── secrets.rs           # store/get/remove seller, bid, accept-bid, listing-draft secrets
 │   │       ├── iagon.rs             # Iagon API key storage + HTTP proxy (reqwest, CORS bypass)
-│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save
+│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save, library CRUD
 │   │       └── chain.rs             # get_network_tip (Koios direct)
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
@@ -136,7 +136,7 @@ app/gui/
 │   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest
 ├── build.sh                         # Sources check-prereqs.sh, installs deps, runs `tauri build`
 ├── build-debug.sh                   # Sources check-prereqs.sh, installs deps, runs `tauri build --debug`
-├── run.sh                           # Sources check-prereqs.sh, kills WebKit orphans, Wayland→X11 fallback, tsc watch for be, runs `tauri dev`
+├── run.sh                           # Sources check-prereqs.sh, kills stale dev-port processes, installs deps, tsc watch for be, runs `tauri dev`
 ├── check-prereqs.sh                 # Prerequisite validator (Node 20+, npm, Rust, sidecar binaries, WebKitGTK)
 ├── lint.sh                          # eslint (fe), tsc + eslint (be), cargo fmt, clippy
 ├── test.sh                          # vitest (fe) + vitest (be)
@@ -162,7 +162,7 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
 **Transaction building** (fe/src/services/transactionBuilder.ts ~2174 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
@@ -420,6 +420,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
   - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (44 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
   - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
+  - `fe/src/utils/__tests__/` — formatDate (1 file)
   - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
   - `fe/src/test/__mocks__/tauri-notification.ts` — Tauri notification plugin mock
