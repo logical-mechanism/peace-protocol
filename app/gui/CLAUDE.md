@@ -133,7 +133,7 @@ app/gui/
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn, notification:default)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
-│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest
+│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest, zeroize
 ├── build.sh                         # Sources check-prereqs.sh, installs deps, runs `tauri build`
 ├── build-debug.sh                   # Sources check-prereqs.sh, installs deps, runs `tauri build --debug`
 ├── run.sh                           # Sources check-prereqs.sh, kills stale dev-port processes, installs deps, tsc watch for be, runs `tauri dev`
@@ -316,15 +316,16 @@ app/gui/
 - `cardano_cli.rs` — short-lived sidecar query (not a long-running process); spawns `cardano-cli conway query tip` with 10s timeout to get sync data from the node socket
 
 **Wallet** (src-tauri/src/crypto/wallet.rs):
-- AES-256-GCM encryption with Argon2id KDF (m=64MiB, t=3, p=4)
+- AES-256-GCM encryption with Argon2id KDF (m=64MiB, t=3, p=4; falls back to m=32MiB on low-memory systems)
+- Key material wrapped in `Zeroizing<[u8; 32]>` (auto-zeroed on drop); `decrypt_mnemonic` returns `Zeroizing<String>`
 - Stored as JSON: `{ version, salt, nonce, ciphertext }` at `app_data_dir/wallet.json`
 - Mnemonic held in memory only while unlocked; zeroed on lock
 
 **Secrets** (src-tauri/src/commands/secrets.rs + iagon.rs):
 - AES key derived from mnemonic via `derive_secrets_key()` — 3 KDF versions with transparent migration on unlock:
   - v1: Argon2id 4 MiB, 1 iter, fixed salt `"PEACE_SECRETS_V1"`
-  - v2: Argon2id 32 MiB, 1 iter, random per-user salt
-  - v3: Argon2id 32 MiB (current); `migration.rs` handles v1→v2→v3 re-encryption
+  - v2: Argon2id 32 MiB, 2 iter, random per-user salt
+  - v3: Argon2id 64 MiB, 3 iter, p=2 (current); `migration.rs` handles v1→v2→v3 re-encryption
 - File format: `{ version: 1, nonce: hex(12 bytes), ciphertext: hex }` (AES-256-GCM); KDF metadata in `kdf_meta.json`
 - Five secret types stored in `app_data_dir/secrets/`:
   - `seller/{token_name}.json` — `{ a, r }` scalars
@@ -332,7 +333,8 @@ app/gui/
   - `accept-bid/{encryption_token}.json` — `{ A0, R0, Hk, proof }` workflow state
   - `listing-drafts/{draftId}.json` — multi-step listing creation state (form data, Iagon file ID, AES key/nonce, tx hash)
   - `iagon/api_key.json` — Iagon persistent API key
-- Secure delete: overwrite zeros → flush → `fs::remove_file()`
+- Advisory file locking: `acquire_file_lock()` in `commands/secrets.rs` — exclusive for writes/deletes, shared for reads (Rust std `File::lock()`, MSRV 1.89.0)
+- Secure delete: acquire exclusive lock → overwrite zeros → flush → `fs::remove_file()` → drop lock → remove `.lock` file
 - All Tauri commands return `Result<T, String>` — no custom error types, all stringified
 
 **SNARK** (src-tauri/src/commands/snark.rs):
@@ -417,7 +419,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (44 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (45 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
   - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
   - `fe/src/utils/__tests__/` — formatDate (1 file)
@@ -512,7 +514,8 @@ const json: ApiResponse<YourType> = await res.json();
 ## Conventions & Gotchas
 
 - **127.0.0.1 not localhost** — WebKitGTK on Linux has DNS resolution issues; all local URLs use 127.0.0.1
-- **WebKitGTK env vars** — `WEBKIT_DISABLE_DMABUF_RENDERER=1` and sandbox disabled (Linux only, set in lib.rs)
+- **WebKitGTK env vars** — `WEBKIT_DISABLE_DMABUF_RENDERER=1` (kernel 6.17+ DMA-BUF crash workaround) and sandbox disabled (Linux only, set in lib.rs)
+- **GStreamer AppImage fix** — AppImage's linuxdeploy sets `GST_PLUGIN_SYSTEM_PATH_1_0` to only its bundled dir (no plugins); lib.rs appends standard system plugin paths so WebKitGTK can find appsink/autoaudiosink
 - **Kupo CBOR chunking** — G2 points (>64 bytes) use indefinite-length CBOR byte strings; parser handles chunk reassembly
 - **Slot-to-time conversion** — Network-specific Shelley era offsets (preprod vs mainnet); implemented in be/src/services/cbor.ts
 - **Sidecar binaries** — gitignored, platform-specific (~600MB total); must be placed in `src-tauri/binaries/` before build
