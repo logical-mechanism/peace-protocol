@@ -210,6 +210,18 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
     setSelectedItems(new Set());
   }, []);
 
+  // Escape key exits select mode
+  useEffect(() => {
+    if (!selectMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleExitSelectMode();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectMode, handleExitSelectMode]);
+
   const handleBulkDelete = useCallback(async () => {
     setBulkDeleting(true);
     const toDelete = items.filter(i => selectedItems.has(i.tokenName));

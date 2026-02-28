@@ -83,7 +83,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/LibraryTab.tsx`
 
-- [ ] 🟢 **Add Escape key to exit select mode**
+- [x] 🟢 **Add Escape key to exit select mode**
   - **How**: In `LibraryTab.tsx`, add a `useEffect` that listens for Escape when `selectMode` is true. On Escape, call `setSelectMode(false)` and `setSelectedItems(new Set())`. This matches the modal Escape pattern users already expect.
   - **Why**: Users entering select mode have no keyboard shortcut to exit; they must click the "Cancel" text button.
 

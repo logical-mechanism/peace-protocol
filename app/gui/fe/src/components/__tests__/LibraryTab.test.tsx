@@ -252,6 +252,55 @@ describe('LibraryTab', () => {
     });
   });
 
+  describe('select mode escape key', () => {
+    it('exits select mode and clears selection on Escape', async () => {
+      const item = makeItem({ tokenName: 'token_esc', description: 'Escapable' });
+      (listLibraryItems as ReturnType<typeof vi.fn>).mockResolvedValue([item]);
+      renderTab();
+
+      await waitFor(() => {
+        expect(screen.getByText('Escapable')).toBeInTheDocument();
+      });
+
+      // Enter select mode
+      fireEvent.click(screen.getByText('Select'));
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
+
+      // Select the item
+      const checkbox = screen.getByRole('checkbox');
+      fireEvent.click(checkbox);
+
+      // Press Escape
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      // Should exit select mode — button reverts to "Select"
+      expect(screen.getByText('Select')).toBeInTheDocument();
+      expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
+
+      // No checkboxes should be visible (select mode exited)
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('does not respond to Escape when select mode is inactive', async () => {
+      const item = makeItem({ tokenName: 'token_noop', description: 'NoOp' });
+      (listLibraryItems as ReturnType<typeof vi.fn>).mockResolvedValue([item]);
+      renderTab();
+
+      await waitFor(() => {
+        expect(screen.getByText('NoOp')).toBeInTheDocument();
+      });
+
+      // Should show "Select" button (not in select mode)
+      expect(screen.getByText('Select')).toBeInTheDocument();
+
+      // Press Escape — nothing should change
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      // Still shows "Select" (not in select mode)
+      expect(screen.getByText('Select')).toBeInTheDocument();
+    });
+  });
+
   it('re-fetches when refreshSignal changes', async () => {
     (listLibraryItems as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
