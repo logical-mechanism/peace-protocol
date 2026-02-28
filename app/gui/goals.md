@@ -113,7 +113,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/pages/Settings.tsx`
 
-- [ ] 🟢 **Replace native `confirm()` dialogs with ConfirmModal**
+- [x] 🟢 **Replace native `confirm()` dialogs with ConfirmModal**
   - **How**: In `Settings.tsx`, `confirm()` is used at lines 199 (orphaned Iagon files) and 1631 (clear transaction history). Replace both with state-driven ConfirmModals, using `variant="destructive"` and descriptive consequence text.
   - **Why**: Three native confirm dialogs across the app (Settings ×2, HistoryTab ×1, CreateListingModal ×1) break visual consistency with the styled ConfirmModal used everywhere else.
 
