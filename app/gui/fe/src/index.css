@@ -594,6 +594,12 @@ select option {
   100% { transform: translateX(300%); }
 }
 
+/* Onboarding overlay — slide up from bottom-right */
+@keyframes onboarding-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Modal entrance/exit — backdrop fade + panel slide-up */
 @keyframes modal-backdrop-enter {
   from { opacity: 0; }

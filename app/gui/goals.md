@@ -137,11 +137,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/index.css`, `fe/src/components/InfoTooltip.tsx`, `fe/src/components/Toast.tsx`, `fe/src/components/OnboardingOverlay.tsx`
 
-- [ ] 🟢 **Unify focus ring styling to use `var(--focus-ring)` token**
+- [x] 🟢 **Unify focus ring styling to use `var(--focus-ring)` token**
   - **How**: `InfoTooltip.tsx` (line 54), `Toast.tsx` (line 174), and `MnemonicInput.tsx` (line 108) define custom focus-visible styles (`ring-2 ring-[var(--accent)]`) instead of using the global `var(--focus-ring)` box-shadow from `index.css` (line 82). Replace these with `focus-visible:shadow-[var(--focus-ring)]` or add a `.focus-ring` utility class in `index.css` that applies `box-shadow: var(--focus-ring)`.
   - **Why**: Three different focus ring implementations create subtle visual inconsistencies and a maintenance burden. The global token already defines the correct dual-ring pattern.
 
-- [ ] 🟢 **Move OnboardingOverlay inline keyframe to index.css**
+- [x] 🟢 **Move OnboardingOverlay inline keyframe to index.css**
   - **How**: In `OnboardingOverlay.tsx` (lines 75–80), the `@keyframes onboarding-slide-up` is defined in an inline `<style>` tag. Move it to `index.css` alongside the other animation keyframes (page-fade-in, modal-entrance, etc.). Reference it with a CSS class.
   - **Why**: All other animations live in `index.css`; this inline style tag is the only exception, creating an inconsistent pattern.
 
@@ -151,11 +151,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/KeyboardShortcutsOverlay.tsx`, `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **`<kbd>` elements — screen reader improvement**
+- [x] 🟢 **`<kbd>` elements — screen reader improvement**
   - **How**: In `KeyboardShortcutsOverlay.tsx` (line 78), `<kbd>` elements style keyboard keys but aren't announced distinctly by screen readers. Wrap each `<kbd>` with `aria-label="Key: {keyName}"` so screen readers say "Key: Escape" instead of just "Escape" in a table context.
   - **Why**: Screen reader users need context that these are keyboard shortcuts, not just text in a table.
 
-- [ ] 🟢 **Add visible focus indicators to AudioPlayer transport buttons**
+- [x] 🟢 **Add visible focus indicators to AudioPlayer transport buttons**
   - **How**: In `AudioPlayer.tsx`, the play/pause/stop/skip buttons (lines 614–617) lack explicit focus ring styling. Add `focus-visible:shadow-[var(--focus-ring)]` to the transport button class string so keyboard users can see which button is focused.
   - **Why**: The AudioPlayer is fully functional via keyboard, but users can't see which transport button is currently focused.
 

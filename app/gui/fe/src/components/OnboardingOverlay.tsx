@@ -72,12 +72,6 @@ export default function OnboardingOverlay() {
         animation: 'onboarding-slide-up 0.3s ease-out',
       }}
     >
-      <style>{`
-        @keyframes onboarding-slide-up {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
       <div
         className="rounded-xl p-5 shadow-lg"
         style={{

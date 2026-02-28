@@ -617,9 +617,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   }
 
   const transportBtn =
-    'w-8 h-8 flex items-center justify-center bg-[var(--winamp-bg-light)] rounded-[2px] winamp-bevel hover:brightness-125 active:winamp-groove transition-all duration-75 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
+    'w-8 h-8 flex items-center justify-center bg-[var(--winamp-bg-light)] rounded-[2px] winamp-bevel hover:brightness-125 active:winamp-groove transition-all duration-75 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)]';
   const transportBtnLg =
-    'w-10 h-10 flex items-center justify-center bg-[var(--winamp-bg-light)] rounded-[2px] winamp-bevel hover:brightness-125 active:winamp-groove transition-all duration-75 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
+    'w-10 h-10 flex items-center justify-center bg-[var(--winamp-bg-light)] rounded-[2px] winamp-bevel hover:brightness-125 active:winamp-groove transition-all duration-75 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] outline-none focus-visible:shadow-[var(--focus-ring)]';
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
