@@ -153,10 +153,28 @@ pub fn decrypt_secret(key: &[u8; 32], encrypted: &EncryptedSecret) -> Result<Vec
 
 /// Securely delete a file by overwriting with zeros, flushing to disk,
 /// then removing. This prevents recovery of secret data from deleted files.
+/// Acquires an exclusive advisory lock to prevent concurrent access.
 pub fn secure_delete(path: &std::path::Path) -> Result<(), String> {
     if !path.exists() {
         return Ok(());
     }
+
+    // Acquire exclusive advisory lock via the .lock sibling file
+    let mut lock_os = path.as_os_str().to_owned();
+    lock_os.push(".lock");
+    let lock_path = std::path::PathBuf::from(lock_os);
+    let _lock = {
+        let lock_file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&lock_path)
+            .map_err(|e| format!("Failed to open lock file: {e}"))?;
+        lock_file
+            .lock()
+            .map_err(|e| format!("Failed to acquire exclusive file lock: {e}"))?;
+        lock_file
+    };
 
     let size = std::fs::metadata(path)
         .map_err(|e| format!("Failed to get file metadata: {e}"))?
@@ -176,6 +194,10 @@ pub fn secure_delete(path: &std::path::Path) -> Result<(), String> {
     }
 
     std::fs::remove_file(path).map_err(|e| format!("Failed to remove secret file: {e}"))?;
+
+    // Best-effort cleanup of the lock file
+    drop(_lock);
+    let _ = std::fs::remove_file(&lock_path);
 
     Ok(())
 }

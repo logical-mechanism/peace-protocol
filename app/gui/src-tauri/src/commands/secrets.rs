@@ -24,10 +24,37 @@ fn get_secrets_key(key_state: &SecretsKey) -> Result<Zeroizing<[u8; 32]>, String
     }
 }
 
+/// Acquire an advisory file lock on a `.lock` sibling of the given path.
+/// Returns the lock file handle — the lock is held until this handle is dropped.
+fn acquire_file_lock(path: &std::path::Path, exclusive: bool) -> Result<std::fs::File, String> {
+    let mut lock_os = path.as_os_str().to_owned();
+    lock_os.push(".lock");
+    let lock_path = std::path::PathBuf::from(lock_os);
+    let lock_file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|e| format!("Failed to open lock file: {e}"))?;
+    if exclusive {
+        lock_file
+            .lock()
+            .map_err(|e| format!("Failed to acquire exclusive file lock: {e}"))?;
+    } else {
+        lock_file
+            .lock_shared()
+            .map_err(|e| format!("Failed to acquire shared file lock: {e}"))?;
+    }
+    Ok(lock_file)
+}
+
 fn encrypt_and_write(key: &[u8; 32], path: &std::path::Path, data: &[u8]) -> Result<(), String> {
     let encrypted = encrypt_secret(key, data)?;
     let json = serde_json::to_string_pretty(&encrypted)
         .map_err(|e| format!("Failed to serialize encrypted secret: {e}"))?;
+
+    // Acquire exclusive lock to prevent concurrent reads/writes
+    let _lock = acquire_file_lock(path, true)?;
 
     // On Unix, create the file with 0o600 atomically (no race window where
     // the file exists with default permissions before chmod).
@@ -56,6 +83,9 @@ fn encrypt_and_write(key: &[u8; 32], path: &std::path::Path, data: &[u8]) -> Res
 }
 
 fn read_and_decrypt(key: &[u8; 32], path: &std::path::Path) -> Result<Vec<u8>, String> {
+    // Acquire shared lock to prevent reading during a concurrent write
+    let _lock = acquire_file_lock(path, false)?;
+
     let json = std::fs::read_to_string(path).map_err(|e| format!("Failed to read secret: {e}"))?;
     let encrypted: EncryptedSecret =
         serde_json::from_str(&json).map_err(|e| format!("Invalid secret file: {e}"))?;

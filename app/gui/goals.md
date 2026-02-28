@@ -183,7 +183,7 @@ Difficulty ratings:
   - **How**: In `manager.rs` (lines 80–90), `default_shutdown_timeout()` reads env vars like `SHUTDOWN_TIMEOUT_CARDANO` and silently falls back on parse failure. Add an `eprintln!("Warning: invalid value for {}, using default {}s", var_name, default)` when `.parse().ok()` returns `None` but the env var is set.
   - **Why**: Developers setting custom timeout values get no feedback that their config was ignored due to a typo.
 
-- [ ] 🟡 **Add file-level advisory locking for secret operations**
+- [x] 🟡 **Add file-level advisory locking for secret operations**
   - **How**: In `secrets.rs`, concurrent calls to `store_seller_secrets` and `get_seller_secrets` for the same token can race. Before writing a secret file, acquire an advisory lock using `fs2::FileExt::lock_exclusive()` (or `flock` on Linux). Release on drop. This prevents partial reads during writes.
   - **Why**: While unlikely in single-user operation, concurrent Tauri IPC calls from React (e.g., rapid retry clicks) could cause a read to return partial or corrupted encrypted data.
 
