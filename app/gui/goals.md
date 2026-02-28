@@ -123,11 +123,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/services/errorMessages.ts`, `fe/src/components/MarketplaceTab.tsx`
 
-- [ ] 🟡 **Add stale-data banner to MarketplaceTab on refresh failure**
+- [x] 🟡 **Add stale-data banner to MarketplaceTab on refresh failure**
   - **How**: In `MarketplaceTab.tsx`, when a background refresh fails (data was previously loaded successfully but refresh returned an error), show a subtle banner like HistoryTab's stale pattern (line 266–314): `"Showing cached data — refresh failed. Retry"`. Track `isStale` state alongside `error` and `loading`.
   - **Why**: HistoryTab correctly warns about stale data; MarketplaceTab silently shows old data after a failed refresh, giving users a false sense of currency.
 
-- [ ] 🟡 **Propagate stale flag from backend cache fallback**
+- [x] 🟡 **Propagate stale flag from backend cache fallback**
   - **How**: In `be/src/services/encryptions.ts` (lines 161–167) and `bids.ts` (lines 128–135), when the circuit breaker returns stale cached data, add a `stale: true` field to the API response metadata. Frontend API client (`fe/src/services/api.ts`) can then surface this to components.
   - **Why**: The backend serves stale data transparently — the frontend has no way to know it's looking at cached data from minutes ago.
 
@@ -175,7 +175,7 @@ Difficulty ratings:
 
 > Key files: `src-tauri/src/crypto/wallet.rs`, `src-tauri/src/process/manager.rs`, `src-tauri/src/commands/secrets.rs`
 
-- [ ] 🟡 **Zeroize mnemonic String after use**
+- [x] 🟡 **Zeroize mnemonic String after use**
   - **How**: In `wallet.rs`, `decrypt_mnemonic()` (line ~112) returns a plain `String`. Rust Strings are not zeroized on drop — the plaintext mnemonic lingers in freed heap memory. Use the `zeroize` crate: change the return type to `Zeroizing<String>` from `zeroize::Zeroizing`, or manually zero the bytes before dropping. Audit all callers to ensure the `Zeroizing` wrapper is held (not `.into()` a bare String).
   - **Why**: An attacker with heap access (e.g., a memory dump) could recover the mnemonic from freed memory. Defense-in-depth for the most sensitive secret in the app.
 
