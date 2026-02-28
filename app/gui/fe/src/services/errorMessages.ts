@@ -98,7 +98,27 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: false,
     },
   },
-  // Iagon storage
+  // Iagon auth failure — must be before generic Iagon pattern
+  {
+    test: (e) => /iagon|gw\.iagon\.com/i.test(e) && /invalid.*api.*key|api.*key.*(?:invalid|expired)|unauthorized|401/i.test(e),
+    result: {
+      title: 'Iagon Authentication Failed',
+      message: 'Your Iagon API key is invalid or expired.',
+      action: 'Go to Settings → Data Layer and re-authenticate.',
+      recoverable: true,
+    },
+  },
+  // Iagon quota / file size — must be before generic Iagon pattern
+  {
+    test: (e) => /iagon|gw\.iagon\.com/i.test(e) && /413|quota|storage.*full|file.*too.*large/i.test(e),
+    result: {
+      title: 'Iagon Storage Limit',
+      message: 'The file exceeds Iagon\'s storage limit, or your account quota is full.',
+      action: 'Try a smaller file or check your Iagon account storage usage.',
+      recoverable: true,
+    },
+  },
+  // Iagon storage (generic fallback)
   {
     test: (e) => /iagon|gw\.iagon\.com/i.test(e),
     result: {
@@ -158,7 +178,37 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
-  // SNARK prover
+  // SNARK memory — must be before generic SNARK pattern
+  {
+    test: (e) => /out of memory|allocation failed|cannot allocate|oom|memory.*exhaust/i.test(e),
+    result: {
+      title: 'Not Enough Memory',
+      message: 'The proof generation ran out of memory.',
+      action: 'Close other applications to free memory and try again.',
+      recoverable: true,
+    },
+  },
+  // SNARK setup files missing — must be before generic SNARK pattern
+  {
+    test: (e) => /setup.*not found|pk\.bin|ccs\.bin|setup files|verification key/i.test(e),
+    result: {
+      title: 'SNARK Setup Files Missing',
+      message: 'Required SNARK setup files could not be found.',
+      action: 'Go to Settings to re-download the SNARK setup files.',
+      recoverable: true,
+    },
+  },
+  // SNARK already in progress — must be before generic SNARK pattern
+  {
+    test: (e) => /already in progress/i.test(e),
+    result: {
+      title: 'Proof Already Running',
+      message: 'A zero-knowledge proof is already being generated.',
+      action: 'Wait for the current proof to finish before starting another.',
+      recoverable: true,
+    },
+  },
+  // SNARK prover (generic fallback)
   {
     test: (e) => /snark|proof|prover|proving/i.test(e),
     result: {

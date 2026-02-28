@@ -28,6 +28,12 @@ let mockNodeState = {
   needsBootstrap: false,
   error: null as string | null,
   logs: [] as string[],
+  epoch: null as number | null,
+  era: null as string | null,
+  slotInEpoch: null as number | null,
+  slotsToEpochEnd: null as number | null,
+  kupoConnected: null as boolean | null,
+  kupoSecondsSinceLastBlock: null as number | null,
 };
 
 vi.mock('../../contexts/NodeContext', () => ({
@@ -73,6 +79,12 @@ beforeEach(() => {
     needsBootstrap: false,
     error: null,
     logs: [],
+    epoch: null,
+    era: null,
+    slotInEpoch: null,
+    slotsToEpochEnd: null,
+    kupoConnected: null,
+    kupoSecondsSinceLastBlock: null,
   };
   (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ available_bytes: 20_000_000_000 });
 });

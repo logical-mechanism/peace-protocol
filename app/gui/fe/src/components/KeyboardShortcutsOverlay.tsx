@@ -75,7 +75,10 @@ export default function KeyboardShortcutsOverlay({
             {SHORTCUTS.map((s) => (
               <tr key={s.keys} className="border-b border-[var(--border-subtle)] last:border-0">
                 <td className="py-2.5 pr-4">
-                  <kbd className="px-2 py-1 text-xs font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)]">
+                  <kbd
+                    aria-label={`Key: ${s.keys}`}
+                    className="px-2 py-1 text-xs font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)]"
+                  >
                     {s.keys}
                   </kbd>
                 </td>

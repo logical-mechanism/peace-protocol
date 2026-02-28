@@ -6,6 +6,8 @@ import EmptyState from './EmptyState';
 import { HistoryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { DelayedSpinner } from './LoadingSpinner';
 import { SkeletonHistoryList } from './SkeletonCard';
+import ConfirmModal from './ConfirmModal';
+import InfoTooltip from './InfoTooltip';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
   getTypeLabel,
@@ -63,6 +65,7 @@ function HistoryTab({
   const [isStale, setIsStale] = useState(false);
   const [confirmations, setConfirmations] = useState<Map<string, number>>(new Map());
   const confirmationsRef = useRef<Map<string, number>>(new Map());
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const hasDataRef = useRef(false);
 
@@ -238,12 +241,17 @@ function HistoryTab({
 
   const handleClear = () => {
     if (!userPkh) return;
-    if (!confirm('Clear locally recorded transaction history?')) return;
+    setShowClearConfirm(true);
+  };
+
+  const handleClearConfirm = () => {
+    if (!userPkh) return;
     clearHistory(userPkh);
     setAllRecords([]);
     confirmationsRef.current = new Map();
     setConfirmations(new Map());
     onClearHistory?.();
+    setShowClearConfirm(false);
   };
 
   const handleExportCsv = async () => {
@@ -492,6 +500,15 @@ function HistoryTab({
         />
       )}
     </div>
+    <ConfirmModal
+      isOpen={showClearConfirm}
+      onClose={() => setShowClearConfirm(false)}
+      onConfirm={handleClearConfirm}
+      title="Clear Transaction History"
+      message="This will permanently remove all locally recorded transaction history. This action cannot be undone."
+      confirmLabel="Clear"
+      confirmVariant="danger"
+    />
     </>
   );
 }
@@ -580,6 +597,9 @@ function VirtualizedHistoryList({
                         ? `pending (${confirmations.get(tx.txHash)} conf.)`
                         : tx.status}
                     </span>
+                    {tx.status === 'pending' && confirmations.has(tx.txHash) && (
+                      <InfoTooltip text="Number of blocks added after your transaction. 15+ confirmations means the transaction is final." />
+                    )}
                   </div>
                   <div className="text-xs text-[var(--text-muted)]">
                     <TransactionLink txHash={tx.txHash} truncate={!hashMatchesSearch} className="text-xs" />

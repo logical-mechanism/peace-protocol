@@ -53,7 +53,7 @@ fn to_hex(bytes: &[u8]) -> String {
 }
 
 fn from_hex(hex: &str) -> Result<Vec<u8>, String> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err("Invalid hex: odd length".to_string());
     }
     (0..hex.len())
@@ -90,9 +90,13 @@ pub fn encrypt_mnemonic(mnemonic: &str, password: &str) -> Result<EncryptedWalle
 
 /// Decrypt a mnemonic phrase from an `EncryptedWallet` using the password.
 ///
-/// Returns the mnemonic as a space-separated word string.
+/// Returns the mnemonic as a `Zeroizing<String>` — the plaintext is automatically
+/// zeroed in memory when the wrapper is dropped, preventing recovery from freed heap.
 /// Returns a user-friendly error on wrong password.
-pub fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<String, String> {
+pub fn decrypt_mnemonic(
+    wallet: &EncryptedWallet,
+    password: &str,
+) -> Result<Zeroizing<String>, String> {
     let salt = from_hex(&wallet.salt)?;
     let nonce_bytes = from_hex(&wallet.nonce)?;
     let ciphertext = from_hex(&wallet.ciphertext)?;
@@ -109,7 +113,9 @@ pub fn decrypt_mnemonic(wallet: &EncryptedWallet, password: &str) -> Result<Stri
         .decrypt(nonce, ciphertext.as_ref())
         .map_err(|_| "Incorrect password".to_string())?;
 
-    String::from_utf8(plaintext).map_err(|_| "Decrypted data is not valid UTF-8".to_string())
+    let s = String::from_utf8(plaintext)
+        .map_err(|_| "Decrypted data is not valid UTF-8".to_string())?;
+    Ok(Zeroizing::new(s))
 }
 
 /// Set restrictive file permissions on Unix systems (owner read/write only).
@@ -151,7 +157,7 @@ mod tests {
         assert_eq!(encrypted.version, 1);
 
         let decrypted = decrypt_mnemonic(&encrypted, password).unwrap();
-        assert_eq!(decrypted, mnemonic);
+        assert_eq!(&*decrypted, mnemonic);
     }
 
     #[test]

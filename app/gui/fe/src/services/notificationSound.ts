@@ -97,7 +97,7 @@ let audioElement: HTMLAudioElement | null = null;
 function getAudioElement(): HTMLAudioElement {
   if (!audioElement) {
     const wav = generatePingWav();
-    const blob = new Blob([wav], { type: 'audio/wav' });
+    const blob = new Blob([wav as BlobPart], { type: 'audio/wav' });
     blobUrl = URL.createObjectURL(blob);
     audioElement = new Audio(blobUrl);
   }

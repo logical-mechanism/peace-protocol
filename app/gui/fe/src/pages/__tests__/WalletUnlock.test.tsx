@@ -44,6 +44,11 @@ function renderPage() {
   );
 }
 
+// Helper: find input by autocomplete attribute
+function getByAutoComplete(attribute: string) {
+  return document.querySelector(`[autocomplete="${attribute}"]`) as HTMLElement;
+}
+
 // ── Tests ───────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -71,7 +76,7 @@ describe('WalletUnlock', () => {
   it('calls unlockWallet with password on form submit', async () => {
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
     fireEvent.change(input, { target: { value: 'mypassword' } });
     fireEvent.click(screen.getByText('Unlock'));
 
@@ -83,7 +88,7 @@ describe('WalletUnlock', () => {
   it('navigates to /dashboard on successful unlock', async () => {
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
     fireEvent.change(input, { target: { value: 'correct' } });
     fireEvent.click(screen.getByText('Unlock'));
 
@@ -97,7 +102,7 @@ describe('WalletUnlock', () => {
 
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
     fireEvent.change(input, { target: { value: 'wrong' } });
     fireEvent.click(screen.getByText('Unlock'));
 
@@ -111,7 +116,7 @@ describe('WalletUnlock', () => {
 
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
     fireEvent.change(input, { target: { value: 'wrong' } });
     fireEvent.click(screen.getByText('Unlock'));
 
@@ -126,7 +131,7 @@ describe('WalletUnlock', () => {
   it('toggles password visibility', () => {
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
     expect(input).toHaveAttribute('type', 'password');
 
     fireEvent.click(screen.getByLabelText('Toggle password visibility'));
@@ -210,7 +215,7 @@ describe('WalletUnlock', () => {
 
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
     expect(input).toHaveAttribute('aria-invalid', 'false');
 
     fireEvent.change(input, { target: { value: 'x' } });
@@ -233,7 +238,7 @@ describe('WalletUnlock', () => {
   it('shows Caps Lock warning when Caps Lock is on', () => {
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
 
     // createEvent + override getModifierState (jsdom doesn't support modifierCapsLock init)
     const event = createEvent.keyDown(input, { key: 'A' });
@@ -246,7 +251,7 @@ describe('WalletUnlock', () => {
   it('hides Caps Lock warning when Caps Lock is toggled off', () => {
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
 
     // Turn on
     const onEvent = createEvent.keyDown(input, { key: 'A' });
@@ -267,7 +272,7 @@ describe('WalletUnlock', () => {
 
     renderPage();
 
-    const input = screen.getByAutoComplete('current-password');
+    const input = getByAutoComplete('current-password');
     fireEvent.change(input, { target: { value: 'test' } });
     fireEvent.click(screen.getByText('Unlock'));
 
@@ -291,14 +296,4 @@ describe('WalletUnlock', () => {
       expect(mockCopyToClipboard).toHaveBeenCalledWith('Invalid wallet file: bad nonce');
     });
   });
-});
-
-// Helper: find input by autocomplete attribute
-function getByAutoComplete(attribute: string) {
-  return document.querySelector(`[autocomplete="${attribute}"]`) as HTMLElement;
-}
-
-// Augment screen with autocomplete helper
-Object.defineProperty(screen, 'getByAutoComplete', {
-  value: (attr: string) => getByAutoComplete(attr),
 });

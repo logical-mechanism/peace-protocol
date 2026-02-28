@@ -12,7 +12,7 @@ const baseEncryption: EncryptionDisplay = {
   tokenName: 'abcdef1234567890abcdef1234567890',
   seller: 'addr_test1qzabcdef1234567890abcdef1234567890abcdef12345678',
   sellerPkh: 'abc123',
-  status: 'Open',
+  status: 'active',
   createdAt: '2024-01-01T00:00:00Z',
   utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
   datum: {} as EncryptionDisplay['datum'],
@@ -66,6 +66,18 @@ describe('PlaceBidModal', () => {
     renderModal();
     expect(screen.getByText('100 ADA')).toBeInTheDocument();
     expect(screen.getByText('Test encrypted data listing')).toBeInTheDocument();
+  });
+
+  it('shows full token name on hover via title attribute', () => {
+    renderModal();
+    const tokenSpan = screen.getByTitle(baseEncryption.tokenName);
+    expect(tokenSpan).toBeInTheDocument();
+  });
+
+  it('shows full seller address on hover via title attribute', () => {
+    renderModal();
+    const sellerSpan = screen.getByTitle(baseEncryption.seller);
+    expect(sellerSpan).toBeInTheDocument();
   });
 
   it('validates empty bid amount on submit', async () => {
@@ -132,13 +144,35 @@ describe('PlaceBidModal', () => {
     });
   });
 
-  it('shows submit error when onSubmit rejects', async () => {
+  it('shows structured error with title and message when onSubmit rejects', async () => {
     mockOnSubmit.mockRejectedValueOnce(new Error('Insufficient funds'));
     renderModal();
 
     fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
 
-    expect(await screen.findByText('Insufficient funds')).toBeInTheDocument();
+    // getFriendlyError maps "Insufficient funds" to the Insufficient Balance pattern
+    expect(await screen.findByText('Insufficient Balance')).toBeInTheDocument();
+    expect(screen.getByText('Your wallet does not have enough ADA for this transaction.')).toBeInTheDocument();
+  });
+
+  it('shows action guidance on submit error', async () => {
+    mockOnSubmit.mockRejectedValueOnce(new Error('Insufficient funds'));
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
+
+    expect(await screen.findByText('Insufficient Balance')).toBeInTheDocument();
+    expect(screen.getByText('Add more ADA to your wallet and try again.')).toBeInTheDocument();
+  });
+
+  it('shows fallback error for unrecognized errors', async () => {
+    mockOnSubmit.mockRejectedValueOnce(new Error('Something completely unexpected'));
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
+
+    expect(await screen.findByText('Something Went Wrong')).toBeInTheDocument();
+    expect(screen.getByText('Something completely unexpected')).toBeInTheDocument();
   });
 
   it('clears field error when user starts typing', async () => {
@@ -368,6 +402,30 @@ describe('PlaceBidModal', () => {
     // Expand the future price section
     fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
     expect(screen.getByText('(optional)')).toBeInTheDocument();
+  });
+
+  // --- Future price input attributes ---
+
+  it('uses type="number" for future price input', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
+    const input = document.getElementById('futurePrice') as HTMLInputElement;
+    expect(input.type).toBe('number');
+  });
+
+  it('sets min=0 and step=0.1 on future price input', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
+    const input = document.getElementById('futurePrice') as HTMLInputElement;
+    expect(input.getAttribute('min')).toBe('0');
+    expect(input.getAttribute('step')).toBe('0.1');
+  });
+
+  it('has inputMode decimal on future price input', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
+    const input = document.getElementById('futurePrice') as HTMLInputElement;
+    expect(input.getAttribute('inputmode')).toBe('decimal');
   });
 
   // --- Minimum bid InfoTooltip ---

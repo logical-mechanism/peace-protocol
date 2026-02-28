@@ -11,6 +11,15 @@ export interface ApiResponse<T> {
     offset: number;
     hasMore: boolean;
   };
+  warnings?: {
+    skippedDatums?: number;
+    stale?: boolean;
+  };
+}
+
+export interface DataWithWarnings<T> {
+  data: T;
+  stale: boolean;
 }
 
 export interface ApiError {
@@ -195,6 +204,11 @@ export const encryptionsApi = {
     return response.data;
   },
 
+  async getAllWithWarnings(): Promise<DataWithWarnings<EncryptionDisplay[]>> {
+    const response = await cachedApiFetch<ApiResponse<EncryptionDisplay[]>>('/api/encryptions', CACHE_TTL_DATA);
+    return { data: response.data, stale: response.warnings?.stale === true };
+  },
+
   /**
    * Get encryption by token name
    */
@@ -236,6 +250,11 @@ export const bidsApi = {
   async getAll(): Promise<BidDisplay[]> {
     const response = await cachedApiFetch<ApiResponse<BidDisplay[]>>('/api/bids', CACHE_TTL_DATA);
     return response.data;
+  },
+
+  async getAllWithWarnings(): Promise<DataWithWarnings<BidDisplay[]>> {
+    const response = await cachedApiFetch<ApiResponse<BidDisplay[]>>('/api/bids', CACHE_TTL_DATA);
+    return { data: response.data, stale: response.warnings?.stale === true };
   },
 
   /**

@@ -98,7 +98,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       const vtt = 'WEBVTT\n\n' + text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
       blob = new Blob([vtt], { type: 'text/vtt' });
     } else {
-      blob = new Blob([subtitleData], { type: 'text/vtt' });
+      blob = new Blob([subtitleData as BlobPart], { type: 'text/vtt' });
     }
     const url = URL.createObjectURL(blob);
     setSubtitleUrl(url);
@@ -132,7 +132,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         const probe = document.createElement('video');
         probe.preload = 'metadata';
         probe.muted = true;
+        let resolved = false;
+        const timeout = setTimeout(() => { cleanup(); resolve(false); }, 8000);
         const cleanup = () => {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timeout);
           probe.removeAttribute('src');
           probe.load();
         };
@@ -577,6 +582,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
       onEnded={() => setIsPlaying(false)}
+      onStalled={() => {
+        if (videoRef.current && videoRef.current.readyState < 2) {
+          setLoading(false);
+          setError('Video playback stalled. Your system may be missing required GStreamer plugins.');
+        }
+      }}
       onClick={handlePlayPause}
     >
       {subtitleUrl && (

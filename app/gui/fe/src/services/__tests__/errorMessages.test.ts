@@ -63,7 +63,32 @@ describe('getFriendlyError', () => {
   });
 
   describe('Iagon errors', () => {
-    it('matches iagon keyword', () => {
+    it('matches iagon auth failure with invalid api key', () => {
+      expectTitle('Iagon: invalid api key', 'Iagon Authentication Failed');
+    });
+
+    it('matches iagon auth failure with unauthorized', () => {
+      expectTitle('gw.iagon.com returned 401 Unauthorized', 'Iagon Authentication Failed');
+    });
+
+    it('matches iagon auth failure with expired key', () => {
+      expectTitle('Iagon API key expired', 'Iagon Authentication Failed');
+      expect(getFriendlyError('Iagon API key expired').action).toContain('Settings');
+    });
+
+    it('matches iagon quota error with 413', () => {
+      expectTitle('Iagon upload returned 413', 'Iagon Storage Limit');
+    });
+
+    it('matches iagon storage full', () => {
+      expectTitle('Iagon: storage full', 'Iagon Storage Limit');
+    });
+
+    it('matches iagon file too large', () => {
+      expectTitle('Iagon: file too large for upload', 'Iagon Storage Limit');
+    });
+
+    it('matches generic iagon keyword', () => {
       expectTitle('Iagon upload failed with status 500', 'Storage Service Error');
     });
 
@@ -116,12 +141,38 @@ describe('getFriendlyError', () => {
   });
 
   describe('SNARK errors', () => {
-    it('matches snark keyword', () => {
+    it('matches out of memory', () => {
+      expectTitle('out of memory during proof generation', 'Not Enough Memory');
+    });
+
+    it('matches allocation failed', () => {
+      expectTitle('allocation failed: cannot allocate 4GB', 'Not Enough Memory');
+    });
+
+    it('matches OOM', () => {
+      expectTitle('Process killed: OOM', 'Not Enough Memory');
+      expect(getFriendlyError('Process killed: OOM').action).toContain('Close other applications');
+    });
+
+    it('matches setup files not found', () => {
+      expectTitle('setup files not found in /path/to/snark', 'SNARK Setup Files Missing');
+    });
+
+    it('matches pk.bin reference', () => {
+      expectTitle('Cannot read pk.bin: file missing', 'SNARK Setup Files Missing');
+    });
+
+    it('matches ccs.bin reference', () => {
+      expectTitle('Failed to load ccs.bin', 'SNARK Setup Files Missing');
+      expect(getFriendlyError('Failed to load ccs.bin').action).toContain('Settings');
+    });
+
+    it('matches generic snark keyword', () => {
       expectTitle('SNARK prove exited with code 1', 'Proof Generation Error');
     });
 
     it('matches prover keyword', () => {
-      expectTitle('Prover setup files not found', 'Proof Generation Error');
+      expectTitle('Prover encountered an unexpected error', 'Proof Generation Error');
     });
   });
 

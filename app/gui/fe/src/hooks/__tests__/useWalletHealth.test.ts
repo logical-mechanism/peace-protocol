@@ -145,7 +145,7 @@ describe('useWalletHealth', () => {
       expect(result.current.hasCollateral).toBe(true)
     })
 
-    const callsAfterFirst = wallet.getUtxos.mock.calls.length
+    const callsAfterFirst = (wallet.getUtxos as ReturnType<typeof vi.fn>).mock.calls.length
 
     // recheck() bypasses throttle and triggers immediately
     await act(async () => {
@@ -176,7 +176,7 @@ describe('useWalletHealth', () => {
 
   it('handles getUtxos error gracefully', async () => {
     const wallet = mockWallet([])
-    wallet.getUtxos.mockRejectedValueOnce(new Error('Kupo unavailable'))
+    ;(wallet.getUtxos as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Kupo unavailable'))
 
     const { result } = renderHook(() =>
       useWalletHealth(wallet, 100, 'synced'),

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
+import ConfirmModal from './ConfirmModal';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
@@ -105,6 +106,7 @@ export default function CreateListingModal({
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,6 +132,7 @@ export default function CreateListingModal({
       setCreationStep(null);
       setDraftSaved(false);
       setIsDirty(false);
+      setShowCloseConfirm(false);
     }
   }, [isOpen]);
 
@@ -167,8 +170,14 @@ export default function CreateListingModal({
   // Close with unsaved changes warning
   const handleClose = () => {
     if (isDirty && !isSubmitting) {
-      if (!window.confirm('You have unsaved changes. Are you sure you want to close?')) return;
+      setShowCloseConfirm(true);
+      return;
     }
+    onClose();
+  };
+
+  const handleConfirmClose = () => {
+    setShowCloseConfirm(false);
     onClose();
   };
 
@@ -427,9 +436,20 @@ export default function CreateListingModal({
     }
   };
 
-  if (!shouldRender) return null;
+  if (!shouldRender) return (
+    <ConfirmModal
+      isOpen={showCloseConfirm}
+      onClose={() => setShowCloseConfirm(false)}
+      onConfirm={handleConfirmClose}
+      title="Discard changes?"
+      message="You have unsaved changes that will be lost if you close this form."
+      confirmLabel="Discard"
+      confirmVariant="danger"
+    />
+  );
 
   return (
+    <>
     <div
       ref={focusTrapRef}
       className="fixed inset-0 flex items-center justify-center"
@@ -982,5 +1002,15 @@ export default function CreateListingModal({
         </form>
       </div>
     </div>
+    <ConfirmModal
+      isOpen={showCloseConfirm}
+      onClose={() => setShowCloseConfirm(false)}
+      onConfirm={handleConfirmClose}
+      title="Discard changes?"
+      message="You have unsaved changes that will be lost if you close this form."
+      confirmLabel="Discard"
+      confirmVariant="danger"
+    />
+    </>
   );
 }

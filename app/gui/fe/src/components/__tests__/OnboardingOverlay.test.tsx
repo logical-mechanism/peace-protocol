@@ -11,9 +11,9 @@ const mockAdvanceOnboardingStep = vi.fn<() => OnboardingState>();
 const mockCompleteOnboarding = vi.fn();
 
 vi.mock('../../services/onboardingStorage', () => ({
-  getOnboardingState: (...args: unknown[]) => mockGetOnboardingState(...args),
-  advanceOnboardingStep: (...args: unknown[]) => mockAdvanceOnboardingStep(...args),
-  completeOnboarding: (...args: unknown[]) => mockCompleteOnboarding(...args),
+  getOnboardingState: () => mockGetOnboardingState(),
+  advanceOnboardingStep: () => mockAdvanceOnboardingStep(),
+  completeOnboarding: () => mockCompleteOnboarding(),
 }));
 
 let mockPathname = '/wallet-setup';

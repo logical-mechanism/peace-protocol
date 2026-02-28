@@ -308,7 +308,7 @@ export default function WalletUnlock() {
                 <button
                   onClick={handleDelete}
                   disabled={!backupAcknowledged || isDeleting}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--error)] text-white btn-base flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
+                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium btn-base btn-danger flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {isDeleting && <LoadingSpinner size="sm" className="text-white" />}
                   {isDeleting ? 'Deleting...' : 'Delete Wallet'}

@@ -15,7 +15,7 @@ import { useDebounce } from '../hooks/useDebounce';
 
 interface LibraryTabProps {
   refreshSignal?: number;
-  onSwitchTab?: (tab: string) => void;
+  onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
   onBulkDeleteResult?: (message: string, hadErrors: boolean) => void;
@@ -209,6 +209,18 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
     setSelectMode(false);
     setSelectedItems(new Set());
   }, []);
+
+  // Escape key exits select mode
+  useEffect(() => {
+    if (!selectMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleExitSelectMode();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectMode, handleExitSelectMode]);
 
   const handleBulkDelete = useCallback(async () => {
     setBulkDeleting(true);
@@ -586,7 +598,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
           </button>
           <button
             onClick={() => setShowBulkDeleteConfirm(true)}
-            className="px-4 py-2 text-sm font-medium bg-[var(--error)] text-white rounded-[var(--radius-md)] hover:opacity-80 btn-base"
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-danger"
           >
             Delete {selectedItems.size}
           </button>

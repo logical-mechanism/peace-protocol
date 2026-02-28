@@ -43,7 +43,7 @@ function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionD
     utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
     datum: {} as EncryptionDisplay['datum'],
     description: 'A test sales listing',
-    suggestedPrice: '200',
+    suggestedPrice: 200,
     ...overrides,
   };
 }

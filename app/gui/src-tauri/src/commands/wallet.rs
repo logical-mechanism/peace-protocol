@@ -7,6 +7,7 @@ use crate::crypto::secrets::{
 use crate::crypto::wallet::{
     decrypt_mnemonic, encrypt_mnemonic, set_owner_only_file, EncryptedWallet,
 };
+use zeroize::Zeroizing;
 
 use super::secrets::SecretsDir;
 
@@ -32,6 +33,8 @@ pub fn create_wallet(
     mnemonic: String,
     password: String,
 ) -> Result<(), String> {
+    // Wrap in Zeroizing so the plaintext mnemonic is zeroed on drop
+    let mnemonic = Zeroizing::new(mnemonic);
     let words: Vec<&str> = mnemonic.split_whitespace().collect();
     if words.len() != 24 {
         return Err(format!(

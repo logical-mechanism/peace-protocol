@@ -115,6 +115,19 @@ describe('GET /api/encryptions', () => {
     expect(res.status).toBe(200);
     expect(res.body.warnings).toBeUndefined();
   });
+
+  it('includes stale warning when service returns stale data', async () => {
+    (getAllEncryptions as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ tokenName: 'enc1' }],
+      warnings: { stale: true },
+    });
+
+    const res = await request(app).get('/api/encryptions');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.warnings).toEqual({ stale: true });
+  });
 });
 
 describe('GET /api/encryptions/:tokenName', () => {

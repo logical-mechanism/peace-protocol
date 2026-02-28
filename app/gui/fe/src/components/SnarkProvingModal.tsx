@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSnarkProver } from '../services/snark'
 import type { SnarkProofInputs, SnarkProof, ProvingProgress } from '../services/snark'
+import { getFriendlyError } from '../services/errorMessages'
 import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import InfoTooltip from './InfoTooltip'
@@ -266,22 +267,28 @@ export default function SnarkProvingModal({
             </div>
           )}
 
-          {state === 'error' && (
-            <>
-              <div className="flex flex-col items-center py-4">
-                <div className="w-20 h-20 bg-[var(--error-muted)] rounded-full flex items-center justify-center mb-4">
-                  <svg className="w-10 h-10 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+          {state === 'error' && (() => {
+            const friendly = error ? getFriendlyError(error) : null;
+            return (
+              <>
+                <div className="flex flex-col items-center py-4">
+                  <div className="w-20 h-20 bg-[var(--error-muted)] rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-10 h-10 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <p className="text-xl font-medium">{friendly?.title ?? 'Proof Generation Failed'}</p>
                 </div>
-                <p className="text-xl font-medium">Proof Generation Failed</p>
-              </div>
 
-              <div className="bg-[var(--error-muted)] text-[var(--error)] rounded-[var(--radius-md)] px-4 py-3 text-sm">
-                {error}
-              </div>
-            </>
-          )}
+                <div className="bg-[var(--error-muted)] text-[var(--error)] rounded-[var(--radius-md)] px-4 py-3 text-sm space-y-1">
+                  <p>{friendly?.message ?? error}</p>
+                  {friendly?.action && (
+                    <p className="text-[var(--text-muted)]">{friendly.action}</p>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Footer */}

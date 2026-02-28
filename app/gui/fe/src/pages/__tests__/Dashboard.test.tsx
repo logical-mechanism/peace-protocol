@@ -38,6 +38,12 @@ vi.mock('../../contexts/NodeContext', () => ({
     syncProgress: 100,
     kupoSyncProgress: 100,
     tipSlot: 12345,
+    epoch: 150,
+    era: 'Conway',
+    slotInEpoch: 200000,
+    slotsToEpochEnd: 232000,
+    kupoConnected: true,
+    kupoSecondsSinceLastBlock: 2.0,
   }),
 }));
 

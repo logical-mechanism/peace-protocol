@@ -266,7 +266,7 @@ describe('getAllBids', () => {
     expect(result.data).toHaveLength(0);
   });
 
-  it('returns stale cache when Kupo fails', async () => {
+  it('returns stale cache with stale warning when Kupo fails', async () => {
     // Prime cache
     mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
     await getAllBids();
@@ -276,6 +276,7 @@ describe('getAllBids', () => {
 
     const result = await getAllBids(true);
     expect(result.data).toHaveLength(1);
+    expect(result.warnings.stale).toBe(true);
     expect(logger.warn).toHaveBeenCalledWith(
       'Returning stale cache for bids',
       expect.any(Object)

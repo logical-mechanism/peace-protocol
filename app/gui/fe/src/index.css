@@ -268,6 +268,16 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   background-color: var(--error-muted);
 }
 
+/* Danger: solid error background, white text (e.g., delete confirmation) */
+.btn-danger {
+  background-color: var(--error);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
 /* Success: solid success background */
 .btn-success {
   background-color: var(--success);
@@ -313,6 +323,15 @@ select option {
   --winamp-border-dark: #0a0a14;
   --winamp-led: #22c55e;
   --winamp-led-dim: rgba(34, 197, 94, 0.3);
+  --audio-gradient-start: #6366f1;
+  --audio-gradient-mid: #818cf8;
+  --audio-gradient-end: #a5b4fc;
+}
+
+[data-theme="light"] {
+  --audio-gradient-start: #4f46e5;
+  --audio-gradient-mid: #6366f1;
+  --audio-gradient-end: #818cf8;
 }
 
 .winamp-bevel {
@@ -567,6 +586,18 @@ select option {
 
 .animate-refresh-bar {
   animation: refresh-bar 1.5s ease-in-out infinite;
+}
+
+/* Indeterminate progress bar — sliding bar for unknown-duration operations */
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* Onboarding overlay — slide up from bottom-right */
+@keyframes onboarding-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Modal entrance/exit — backdrop fade + panel slide-up */

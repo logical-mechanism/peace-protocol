@@ -1,6 +1,7 @@
 // API Response types
 export interface ResponseWarnings {
   skippedDatums?: number;
+  stale?: boolean;
 }
 
 export interface PaginationMeta {

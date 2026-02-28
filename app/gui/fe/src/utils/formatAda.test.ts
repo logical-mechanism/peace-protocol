@@ -2,23 +2,23 @@ import { describe, it, expect } from 'vitest'
 import { formatAda, formatAdaDisplay } from './formatAda'
 
 describe('formatAda', () => {
-  it('formats whole ADA amounts without trailing decimals', () => {
-    expect(formatAda(2_000_000)).toBe('2')
-    expect(formatAda(100_000_000)).toBe('100')
+  it('formats whole ADA amounts with 2 decimal places', () => {
+    expect(formatAda(2_000_000)).toBe('2.00')
+    expect(formatAda(100_000_000)).toBe('100.00')
   })
 
-  it('formats fractional ADA amounts', () => {
-    expect(formatAda(1_500_000)).toBe('1.5')
+  it('formats fractional ADA amounts with at least 2 decimals', () => {
+    expect(formatAda(1_500_000)).toBe('1.50')
     expect(formatAda(2_250_000)).toBe('2.25')
   })
 
   it('formats sub-ADA amounts', () => {
-    expect(formatAda(500_000)).toBe('0.5')
+    expect(formatAda(500_000)).toBe('0.50')
     expect(formatAda(1)).toBe('0.000001')
   })
 
-  it('formats zero', () => {
-    expect(formatAda(0)).toBe('0')
+  it('formats zero with 2 decimal places', () => {
+    expect(formatAda(0)).toBe('0.00')
   })
 
   it('preserves up to 6 decimal places', () => {

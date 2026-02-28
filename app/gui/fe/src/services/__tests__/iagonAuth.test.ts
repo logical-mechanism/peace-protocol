@@ -164,4 +164,80 @@ describe('iagonAuth', () => {
       expect(result).toBeNull();
     });
   });
+
+  // ── Error path tests ─────────────────────────────────────────────
+
+  describe('error handling', () => {
+    it('disconnectIagon propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+      await expect(disconnectIagon()).rejects.toThrow('wallet locked');
+    });
+
+    it('connectIagon throws when getNonce fails', async () => {
+      const mockWallet = { signData: vi.fn() };
+      mockGetNonce.mockRejectedValue(new Error('network error'));
+
+      await expect(
+        connectIagon(mockWallet as never, 'addr_test1abc123'),
+      ).rejects.toThrow('network error');
+
+      expect(mockWallet.signData).not.toHaveBeenCalled();
+    });
+
+    it('connectIagon throws when wallet.signData fails', async () => {
+      const mockWallet = {
+        signData: vi.fn().mockRejectedValue(new Error('user rejected')),
+      };
+      mockGetNonce.mockResolvedValue('nonce-uuid');
+
+      await expect(
+        connectIagon(mockWallet as never, 'addr_test1abc123'),
+      ).rejects.toThrow('user rejected');
+
+      expect(mockVerifySignature).not.toHaveBeenCalled();
+    });
+
+    it('connectIagon throws when verifySignature fails', async () => {
+      const mockWallet = {
+        signData: vi.fn().mockResolvedValue({ signature: 'sig', key: 'key' }),
+      };
+      mockGetNonce.mockResolvedValue('nonce-uuid');
+      mockVerifySignature.mockRejectedValue(new Error('invalid signature'));
+
+      await expect(
+        connectIagon(mockWallet as never, 'addr_test1abc123'),
+      ).rejects.toThrow('invalid signature');
+
+      expect(mockGenerateApiKey).not.toHaveBeenCalled();
+    });
+
+    it('connectIagon throws when generateApiKey fails', async () => {
+      const mockWallet = {
+        signData: vi.fn().mockResolvedValue({ signature: 'sig', key: 'key' }),
+      };
+      mockGetNonce.mockResolvedValue('nonce-uuid');
+      mockVerifySignature.mockResolvedValue({ id: 'user-1', session: 'jwt' });
+      mockGenerateApiKey.mockRejectedValue(new Error('rate limited'));
+
+      await expect(
+        connectIagon(mockWallet as never, 'addr_test1abc123'),
+      ).rejects.toThrow('rate limited');
+
+      expect(mockInvoke).not.toHaveBeenCalledWith('store_iagon_api_key', expect.anything());
+    });
+
+    it('connectIagon throws when store_iagon_api_key invoke fails', async () => {
+      const mockWallet = {
+        signData: vi.fn().mockResolvedValue({ signature: 'sig', key: 'key' }),
+      };
+      mockGetNonce.mockResolvedValue('nonce-uuid');
+      mockVerifySignature.mockResolvedValue({ id: 'user-1', session: 'jwt' });
+      mockGenerateApiKey.mockResolvedValue('new-api-key');
+      mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+
+      await expect(
+        connectIagon(mockWallet as never, 'addr_test1abc123'),
+      ).rejects.toThrow('wallet locked');
+    });
+  });
 });

@@ -108,31 +108,22 @@ describe('GET /api/protocol/config', () => {
 });
 
 describe('GET /api/protocol/reference', () => {
-  it('returns reference UTxOs from Kupo', async () => {
-    mockKupoClient.getAddressUtxos.mockResolvedValue([
-      {
-        tx_hash: 'ref_tx_1',
-        tx_index: 0,
-        datum_hash: null,
-        reference_script: { hash: 'script1' },
-        inline_datum: null,
-        value: '5000000',
-        asset_list: [],
-      },
-    ]);
+  it('returns keyed reference scripts from config', async () => {
+    const res = await request(app).get('/api/protocol/reference');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.encryption).toEqual({ txHash: 'tx_enc_ref', outputIndex: 1 });
+    expect(res.body.data.bidding).toEqual({ txHash: 'tx_bid_ref', outputIndex: 1 });
+    expect(res.body.data.groth).toEqual({ txHash: 'tx_groth_ref', outputIndex: 1 });
+  });
+
+  it('returns stub data when useStubs is true', async () => {
+    (config as Record<string, unknown>).useStubs = true;
 
     const res = await request(app).get('/api/protocol/reference');
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0].txHash).toBe('ref_tx_1');
-  });
-
-  it('returns 500 on Kupo error', async () => {
-    mockKupoClient.getAddressUtxos.mockRejectedValue(new Error('Kupo down'));
-
-    const res = await request(app).get('/api/protocol/reference');
-    expect(res.status).toBe(500);
+    expect(res.body.data).toEqual({ encryption: null, bidding: null, groth: null });
   });
 });
 

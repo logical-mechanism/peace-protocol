@@ -62,7 +62,7 @@ class KoiosClient {
     });
   }
 
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  private async request<T>(endpoint: string, options?: RequestInit, signal?: AbortSignal): Promise<T> {
     return this.circuitBreaker.execute(async () => {
       const url = `${this.baseUrl}${endpoint}`;
       const headers: Record<string, string> = {
@@ -78,6 +78,7 @@ class KoiosClient {
           ...headers,
           ...(options?.headers as Record<string, string>),
         },
+        ...(signal && { signal }),
       });
 
       if (!response.ok) {
@@ -93,37 +94,37 @@ class KoiosClient {
    * Get UTxOs at a specific address with inline datum data.
    * Uses _extended=true to populate inline_datum fields.
    */
-  async getAddressUtxos(address: string): Promise<KoiosUtxo[]> {
+  async getAddressUtxos(address: string, signal?: AbortSignal): Promise<KoiosUtxo[]> {
     return this.request<KoiosUtxo[]>('/address_utxos', {
       method: 'POST',
       body: JSON.stringify({
         _addresses: [address],
         _extended: true,
       }),
-    });
+    }, signal);
   }
 
   /**
    * Get UTxOs containing a specific asset
    */
-  async getAssetUtxos(policyId: string, assetName?: string): Promise<KoiosUtxo[]> {
+  async getAssetUtxos(policyId: string, assetName?: string, signal?: AbortSignal): Promise<KoiosUtxo[]> {
     return this.request<KoiosUtxo[]>('/asset_utxos', {
       method: 'POST',
       body: JSON.stringify({
         _asset_list: [[policyId, assetName || '']],
         _extended: true,
       }),
-    });
+    }, signal);
   }
 
   /**
    * Get transaction info
    */
-  async getTxInfo(txHash: string): Promise<TxInfo> {
+  async getTxInfo(txHash: string, signal?: AbortSignal): Promise<TxInfo> {
     const result = await this.request<TxInfo[]>('/tx_info', {
       method: 'POST',
       body: JSON.stringify({ _tx_hashes: [txHash] }),
-    });
+    }, signal);
 
     if (result.length === 0) {
       throw new Error(`Transaction not found: ${txHash}`);
@@ -134,11 +135,11 @@ class KoiosClient {
   /**
    * Get transaction metadata
    */
-  async getTxMetadata(txHash: string): Promise<Array<{ key: string; json: unknown }>> {
+  async getTxMetadata(txHash: string, signal?: AbortSignal): Promise<Array<{ key: string; json: unknown }>> {
     const result = await this.request<Array<{ tx_hash: string; metadata: Record<string, unknown> | null }>>('/tx_metadata', {
       method: 'POST',
       body: JSON.stringify({ _tx_hashes: [txHash] }),
-    });
+    }, signal);
 
     const rawMetadata = result[0]?.metadata;
     if (!rawMetadata || typeof rawMetadata !== 'object') return [];
@@ -151,7 +152,7 @@ class KoiosClient {
    * Get transaction metadata for multiple tx hashes (batch).
    * Returns a Map of txHash → metadata entries array.
    */
-  async getTxMetadataBatch(txHashes: string[]): Promise<Map<string, Array<{ key: string; json: unknown }>>> {
+  async getTxMetadataBatch(txHashes: string[], signal?: AbortSignal): Promise<Map<string, Array<{ key: string; json: unknown }>>> {
     if (txHashes.length === 0) return new Map();
 
     const results = await this.request<Array<{ tx_hash: string; metadata: Record<string, unknown> | null }>>(
@@ -159,7 +160,8 @@ class KoiosClient {
       {
         method: 'POST',
         body: JSON.stringify({ _tx_hashes: txHashes }),
-      }
+      },
+      signal,
     );
 
     const metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
@@ -181,9 +183,11 @@ class KoiosClient {
    * Get all transaction hashes for an asset (with full history).
    * Used for building decryption levels across re-encryption hops.
    */
-  async getAssetTxs(policyId: string, assetName: string): Promise<Array<{ tx_hash: string; block_height: number }>> {
+  async getAssetTxs(policyId: string, assetName: string, signal?: AbortSignal): Promise<Array<{ tx_hash: string; block_height: number }>> {
     return this.request<Array<{ tx_hash: string; block_height: number }>>(
-      `/asset_txs?_asset_policy=${policyId}&_asset_name=${assetName}&_history=true`
+      `/asset_txs?_asset_policy=${policyId}&_asset_name=${assetName}&_history=true`,
+      undefined,
+      signal,
     );
   }
 
@@ -192,7 +196,7 @@ class KoiosClient {
    * Returns outputs with inline datums for extracting encryption levels.
    * Matches the flags used in commands/08_decryptMessage.sh.
    */
-  async getTxInfoBatch(txHashes: string[]): Promise<TxInfo[]> {
+  async getTxInfoBatch(txHashes: string[], signal?: AbortSignal): Promise<TxInfo[]> {
     if (txHashes.length === 0) return [];
     return this.request<TxInfo[]>('/tx_info', {
       method: 'POST',
@@ -206,14 +210,14 @@ class KoiosClient {
         _scripts: true,
         _bytecode: false,
       }),
-    });
+    }, signal);
   }
 
   /**
    * Get current tip (latest block)
    */
-  async getTip(): Promise<{ block_no: number; block_time: number; epoch_no: number; abs_slot: number }> {
-    const result = await this.request<Array<{ block_no: number; block_time: number; epoch_no: number; abs_slot: number }>>('/tip');
+  async getTip(signal?: AbortSignal): Promise<{ block_no: number; block_time: number; epoch_no: number; abs_slot: number }> {
+    const result = await this.request<Array<{ block_no: number; block_time: number; epoch_no: number; abs_slot: number }>>('/tip', undefined, signal);
     if (result.length === 0) {
       throw new Error('No tip data returned from Koios');
     }
@@ -223,9 +227,9 @@ class KoiosClient {
   /**
    * Get protocol parameters
    */
-  async getProtocolParams(): Promise<Record<string, unknown>> {
+  async getProtocolParams(signal?: AbortSignal): Promise<Record<string, unknown>> {
     // Koios GET /epoch_params returns latest epoch params when no _epoch_no specified
-    const result = await this.request<Record<string, unknown>[]>('/epoch_params');
+    const result = await this.request<Record<string, unknown>[]>('/epoch_params', undefined, signal);
     if (result.length === 0) {
       throw new Error('No protocol parameters returned from Koios');
     }

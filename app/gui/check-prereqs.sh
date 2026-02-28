@@ -44,6 +44,7 @@ check_prerequisites() {
     "kupo"
     "mithril-client"
     "snark"
+    "cardano-cli"
   )
 
   if [[ ! -d "$binaries_dir" ]]; then

@@ -210,6 +210,12 @@ export default function NodeSync() {
     needsBootstrap,
     error,
     logs,
+    epoch,
+    era,
+    slotInEpoch,
+    slotsToEpochEnd,
+    kupoConnected,
+    kupoSecondsSinceLastBlock,
     startNode,
     stopNode,
     startBootstrap,
@@ -254,11 +260,6 @@ export default function NodeSync() {
   const lastSyncProgressRef = useRef<number>(0)
   const [syncEta, setSyncEta] = useState<string | null>(null)
 
-  // Network tip from Koios
-  const [networkTip, setNetworkTip] = useState<number | null>(null)
-  const networkTipTimerRef = useRef<number | null>(null)
-  const [tipFetchFailed, setTipFetchFailed] = useState(false)
-
   // Mithril download speed/ETA tracking
   const mithrilSamplesRef = useRef<{ time: number; bytes: number }[]>([])
   const lastMithrilBytesRef = useRef<number>(0)
@@ -285,8 +286,6 @@ export default function NodeSync() {
     }
     // Reset state-based tracking
     setSyncEta(null)
-    setNetworkTip(null)
-    setTipFetchFailed(false)
     setMithrilEta(null)
     setMithrilSpeed(null)
     setShowStuckMessage(false)
@@ -370,30 +369,6 @@ export default function NodeSync() {
       }
     }
   }, [stage, syncProgress])
-
-  // Fetch network tip every 60s during sync/starting stages
-  useEffect(() => {
-    if (stage !== 'syncing' && stage !== 'starting') return
-
-    const fetchTip = async () => {
-      try {
-        const tip = await invoke<{ block_no: number }>('get_network_tip')
-        if (tip) {
-          setNetworkTip(tip.block_no)
-          setTipFetchFailed(false)
-        }
-      } catch {
-        setTipFetchFailed(true)
-      }
-    }
-
-    fetchTip()
-    networkTipTimerRef.current = window.setInterval(fetchTip, 60_000)
-
-    return () => {
-      if (networkTipTimerRef.current) clearInterval(networkTipTimerRef.current)
-    }
-  }, [stage])
 
   // Track Mithril download speed and ETA
   useEffect(() => {
@@ -592,22 +567,38 @@ export default function NodeSync() {
           {/* Sync status with block info and checklist */}
           {stage === 'syncing' && (
             <div className="mb-[var(--space-md)]">
-              {tipHeight != null && tipHeight > 0 && networkTip && networkTip > 0 ? (
-                <div className="text-center text-sm text-[var(--text-muted)]">
-                  Block {tipHeight.toLocaleString()} / {networkTip.toLocaleString()}
-                  {syncEta && <span className="ml-[var(--space-2)]">— {syncEta}</span>}
-                </div>
-              ) : (
-                <div className="text-center text-sm text-[var(--text-muted)]">
-                  {statusMessage}
+              <div className="text-center text-sm text-[var(--text-muted)]">
+                {tipHeight != null && tipHeight > 0 ? (
+                  <>
+                    Block {tipHeight.toLocaleString()} — {syncProgress.toFixed(2)}%
+                    {syncEta && <span className="ml-[var(--space-2)]">— {syncEta}</span>}
+                  </>
+                ) : (
+                  statusMessage
+                )}
+              </div>
+              {epoch != null && era && (
+                <div className="text-center text-xs text-[var(--text-muted)] mt-[var(--space-1)]">
+                  Epoch {epoch} ({era}){slotInEpoch != null && slotsToEpochEnd != null && (
+                    <> — Slot {slotInEpoch.toLocaleString()} / {(slotInEpoch + slotsToEpochEnd).toLocaleString()}</>
+                  )}
                 </div>
               )}
 
               <div className="space-y-[var(--space-3)] mt-[var(--space-3)] mb-[var(--space-3)]">
                 {[
-                  { label: 'Cardano Node', synced: syncProgress >= 99.9, activeText: 'Syncing...' },
-                  { label: 'Kupo Indexer', synced: kupoSyncProgress >= 99.9, activeText: 'Indexing...' },
-                ].map(({ label, synced, activeText }) => (
+                  { label: 'Cardano Node', synced: syncProgress >= 99.9, activeText: `Syncing ${syncProgress.toFixed(1)}%` },
+                  {
+                    label: 'Kupo Indexer',
+                    synced: kupoSyncProgress >= 99.9,
+                    activeText: kupoConnected === false
+                      ? 'Disconnected'
+                      : kupoSecondsSinceLastBlock != null && kupoSecondsSinceLastBlock > 120
+                      ? 'Stalled'
+                      : `Indexing ${kupoSyncProgress.toFixed(1)}%`,
+                    warning: kupoConnected === false || (kupoSecondsSinceLastBlock != null && kupoSecondsSinceLastBlock > 120),
+                  },
+                ].map(({ label, synced, activeText, warning }) => (
                   <div key={label} className="flex items-center gap-[var(--space-3)]">
                     {synced ? (
                       <span className="w-4 h-4 flex items-center justify-center text-[var(--success)] text-sm">✓</span>
@@ -617,7 +608,11 @@ export default function NodeSync() {
                     <span className={`text-sm ${synced ? 'text-[var(--success)]' : 'text-[var(--text-secondary)]'}`}>
                       {label}
                     </span>
-                    <span className={`text-xs ml-auto ${synced ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`}>
+                    <span className={`text-xs ml-auto ${
+                      synced ? 'text-[var(--success)]'
+                      : warning ? 'text-[var(--warning)]'
+                      : 'text-[var(--text-muted)]'
+                    }`}>
                       {synced ? 'Synced' : activeText}
                     </span>
                   </div>
@@ -630,17 +625,6 @@ export default function NodeSync() {
               {showStuckMessage && (
                 <div className="mt-[var(--space-3)] p-[var(--space-3)] bg-[var(--info-muted)] border border-[var(--info)]/20 rounded-[var(--radius-md)] text-xs text-[var(--info)]">
                   The last few blocks take longer as the node validates recent transactions. This is normal. The last few percent may take 5–15 minutes as the node validates recent blocks.
-                  {tipHeight && networkTip && networkTip > tipHeight && (
-                    <span className="block mt-[var(--space-1)]">
-                      {(networkTip - tipHeight).toLocaleString()} blocks remaining.
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {tipFetchFailed && !networkTip && (
-                <div className="mt-[var(--space-3)] p-[var(--space-3)] bg-[var(--warning-muted)] border border-[var(--warning)]/20 rounded-[var(--radius-md)] text-xs text-[var(--warning)]">
-                  Could not fetch network tip — sync percentage may be approximate.
                 </div>
               )}
             </div>

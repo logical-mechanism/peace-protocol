@@ -36,7 +36,7 @@ export default function ConfirmModal({
 
   const confirmClass =
     confirmVariant === 'danger'
-      ? 'bg-[var(--error)] hover:bg-[var(--error)]/80 text-white btn-base'
+      ? 'btn-base btn-danger'
       : 'btn-base btn-primary';
 
   return (

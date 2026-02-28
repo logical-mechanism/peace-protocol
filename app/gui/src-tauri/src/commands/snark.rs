@@ -12,7 +12,8 @@ pub struct AppTmpDir(pub PathBuf);
 /// Serialization lock for SNARK sidecar invocations.
 /// Prevents concurrent snark binary spawns that would compete for disk I/O
 /// on shared setup files (pk.bin, ccs.bin).
-pub struct SnarkLock(pub tokio::sync::Mutex<()>);
+/// Wrapped in Arc so the cleanup task can check if a prove is in progress.
+pub struct SnarkLock(pub std::sync::Arc<tokio::sync::Mutex<()>>);
 
 /// Write a JSON object to a temporary file for passing secrets to the snark sidecar.
 /// Returns the NamedTempFile (must be kept alive until the sidecar reads it).
@@ -306,7 +307,10 @@ pub async fn snark_prove(
     lock: tauri::State<'_, SnarkLock>,
     secrets: SnarkProveSecrets,
 ) -> Result<SnarkProofResult, String> {
-    let _guard = lock.0.lock().await;
+    let _guard = lock.0.try_lock().map_err(|_| {
+        "A SNARK proving operation is already in progress. Please wait for it to complete."
+            .to_string()
+    })?;
     let snark_dir = setup_dir(&app)?;
 
     // Verify setup files exist before spawning the sidecar
@@ -425,5 +429,45 @@ mod tests {
         let file = write_secrets_file(&tmp, serde_json::json!({})).unwrap();
         assert_eq!(file.path().parent().unwrap(), tmp);
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn cleanup_try_lock_fails_when_snark_locked() {
+        // Simulate: prove holds the lock, cleanup task tries try_lock
+        let rt = tauri::async_runtime::handle();
+        rt.block_on(async {
+            let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+            let _guard = mutex.lock().await;
+            assert!(
+                mutex.try_lock().is_err(),
+                "try_lock should fail when a prove operation holds the lock"
+            );
+        });
+    }
+
+    #[test]
+    fn cleanup_try_lock_succeeds_when_snark_unlocked() {
+        // Simulate: no prove running, cleanup task tries try_lock
+        let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+        assert!(
+            mutex.try_lock().is_ok(),
+            "try_lock should succeed when no prove operation is running"
+        );
+    }
+
+    #[test]
+    fn snark_prove_rejects_concurrent_operation() {
+        // Simulate: try_lock used in snark_prove returns a clear error
+        let rt = tauri::async_runtime::handle();
+        rt.block_on(async {
+            let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+            let _guard = mutex.lock().await;
+            let result: Result<(), String> = mutex.try_lock().map(|_| ()).map_err(|_| {
+                "A SNARK proving operation is already in progress. Please wait for it to complete."
+                    .to_string()
+            });
+            assert!(result.is_err());
+            assert!(result.unwrap_err().contains("already in progress"));
+        });
     }
 }

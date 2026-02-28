@@ -149,4 +149,48 @@ describe('iagonApi', () => {
       expect(result).toEqual([]);
     });
   });
+
+  // ── Error path tests ─────────────────────────────────────────────
+
+  describe('error handling', () => {
+    it('getNonce propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('network error'));
+      await expect(getNonce('addr')).rejects.toThrow('network error');
+    });
+
+    it('verifySignature propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('invalid signature'));
+      await expect(verifySignature('addr', 'sig', 'key')).rejects.toThrow('invalid signature');
+    });
+
+    it('generateApiKey propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('expired session'));
+      await expect(generateApiKey('jwt', 'name')).rejects.toThrow('expired session');
+    });
+
+    it('uploadFile propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('quota exceeded'));
+      await expect(uploadFile('key', new Uint8Array([1]), 'f.enc')).rejects.toThrow('quota exceeded');
+    });
+
+    it('downloadFile propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('file not found'));
+      await expect(downloadFile('key', 'file-1')).rejects.toThrow('file not found');
+    });
+
+    it('deleteFile propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('permission denied'));
+      await expect(deleteFile('key', 'file-1')).rejects.toThrow('permission denied');
+    });
+
+    it('searchFiles propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('timeout'));
+      await expect(searchFiles('key', 'query')).rejects.toThrow('timeout');
+    });
+
+    it('listFiles propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+      await expect(listFiles('key')).rejects.toThrow('wallet locked');
+    });
+  });
 });

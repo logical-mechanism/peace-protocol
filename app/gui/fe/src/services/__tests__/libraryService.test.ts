@@ -108,4 +108,38 @@ describe('libraryService', () => {
       expect(result).toBeNull();
     });
   });
+
+  // ── Error path tests ─────────────────────────────────────────────
+
+  describe('error handling', () => {
+    it('listLibraryItems propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
+      await expect(listLibraryItems()).rejects.toThrow('wallet locked');
+    });
+
+    it('readLibraryContent propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('file not found'));
+      await expect(readLibraryContent('token1', 'text')).rejects.toThrow('file not found');
+    });
+
+    it('deleteLibraryItem propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('permission denied'));
+      await expect(deleteLibraryItem('token1', 'document')).rejects.toThrow('permission denied');
+    });
+
+    it('readSubtitleFile propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('file not found'));
+      await expect(readSubtitleFile('token1', 'video')).rejects.toThrow('file not found');
+    });
+
+    it('openWithSystem propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('no default application'));
+      await expect(openWithSystem('token1', 'image')).rejects.toThrow('no default application');
+    });
+
+    it('exportLibraryContent propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('disk full'));
+      await expect(exportLibraryContent('token1', 'document', 'f.pdf')).rejects.toThrow('disk full');
+    });
+  });
 });

@@ -45,7 +45,8 @@ import { deriveSecretFromWallet } from './walletSecret';
  * original file extension from field 3 (filetype).
  */
 async function resolveIagonPayload(
-  payload: Map<number, Uint8Array>
+  payload: Map<number, Uint8Array>,
+  onProgress?: OnDecryptProgress
 ): Promise<{ rawContent: Uint8Array; message: string; fileExtension?: string }> {
   const locator = payload.get(0)!;
   const secret = payload.get(1)!;
@@ -62,6 +63,9 @@ async function resolveIagonPayload(
     throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
   }
 
+  // Signal downloading phase
+  onProgress?.(0, 1, 'downloading');
+
   // Download encrypted file from Iagon
   const encryptedBlob = await iagonDownload(apiKey, fileId);
 
@@ -72,6 +76,9 @@ async function resolveIagonPayload(
   if (digest) {
     await verifyFileDigest(rawContent, digest);
   }
+
+  // Signal download complete
+  onProgress?.(1, 1, 'downloading');
 
   return {
     rawContent,
@@ -94,7 +101,8 @@ async function resolveIagonPayload(
  */
 async function resolveDecryptedPayload(
   rawBytes: Uint8Array,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onProgress?: OnDecryptProgress
 ): Promise<{
   payload?: Map<number, Uint8Array>;
   rawContent: Uint8Array;
@@ -118,7 +126,7 @@ async function resolveDecryptedPayload(
   if (encryption.storageLayer === 'iagon' && payload.has(1)) {
     // Off-chain file: download from Iagon and decrypt with AES-GCM.
     // Errors here intentionally propagate — caller must handle as failure.
-    const result = await resolveIagonPayload(payload);
+    const result = await resolveIagonPayload(payload, onProgress);
     return { payload, rawContent: result.rawContent, message: result.message, fileExtension: result.fileExtension };
   }
 
@@ -198,8 +206,9 @@ export interface DecryptionResult {
  * Progress callback for decryption operations.
  * @param current - Number of levels processed so far
  * @param total - Total number of encryption levels to process
+ * @param phase - Current phase: 'decrypting' (KEM computation) or 'downloading' (Iagon file fetch)
  */
-export type OnDecryptProgress = (current: number, total: number) => void;
+export type OnDecryptProgress = (current: number, total: number, phase?: 'decrypting' | 'downloading') => void;
 
 /**
  * Encryption history fetched from Koios.
@@ -470,7 +479,7 @@ async function decryptReal(
     // Parse ECIES-decrypted bytes and resolve to final content.
     // parsePayload errors fall back to raw text (backward compat).
     // resolveIagonPayload errors propagate to the outer catch.
-    const resolved = await resolveDecryptedPayload(rawBytes, encryption);
+    const resolved = await resolveDecryptedPayload(rawBytes, encryption, onProgress);
 
     return {
       success: true,
@@ -659,7 +668,7 @@ export async function decryptEncryption(
     // Parse ECIES-decrypted bytes and resolve to final content.
     // parsePayload errors fall back to raw text (backward compat).
     // resolveIagonPayload errors propagate to the outer catch.
-    const resolved = await resolveDecryptedPayload(rawBytes, encryption);
+    const resolved = await resolveDecryptedPayload(rawBytes, encryption, onProgress);
 
     return {
       success: true,

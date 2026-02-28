@@ -7,6 +7,7 @@ import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { saveBidFormDraft, getBidFormDraft, clearBidFormDraft } from '../services/bidFormDraftStorage';
+import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -54,7 +55,7 @@ export default function PlaceBidModal({
   const [formData, setFormData] = useState<PlaceBidFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<FriendlyError | null>(null);
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
@@ -109,7 +110,7 @@ export default function PlaceBidModal({
     if (!formData.bidAmount.trim()) {
       newErrors.bidAmount = 'Bid amount is required';
     } else {
-      const amount = parseFloat(formData.bidAmount);
+      const amount = parseFloat(formData.bidAmount.replace(/,/g, ''));
       if (isNaN(amount) || amount <= 0) {
         newErrors.bidAmount = 'Bid amount must be a positive number';
       } else if (amount < MIN_BID_ADA) {
@@ -123,7 +124,7 @@ export default function PlaceBidModal({
 
     // Future price validation (only if section is open and value provided)
     if (showFuturePrice && formData.futurePrice.trim()) {
-      const price = parseFloat(formData.futurePrice);
+      const price = parseFloat(formData.futurePrice.replace(/,/g, ''));
       if (isNaN(price) || price < 0) {
         newErrors.futurePrice = 'Future price must be a non-negative number';
       } else if (price > 1000000000) {
@@ -137,7 +138,11 @@ export default function PlaceBidModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Strip commas from ADA amounts so "1,000" parses as 1000, not 1
+    const sanitized = (name === 'bidAmount' || name === 'futurePrice')
+      ? value.replace(/,/g, '')
+      : value;
+    setFormData((prev) => ({ ...prev, [name]: sanitized }));
     // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -156,7 +161,7 @@ export default function PlaceBidModal({
     e.preventDefault();
 
     if (!encryption) {
-      setSubmitError('No encryption selected');
+      setSubmitError(getFriendlyError('No encryption selected'));
       return;
     }
 
@@ -168,18 +173,17 @@ export default function PlaceBidModal({
     setSubmitError(null);
 
     try {
-      const bidAmountAda = parseFloat(formData.bidAmount);
+      const bidAmountAda = parseFloat(formData.bidAmount.replace(/,/g, ''));
       const futurePrice = showFuturePrice && formData.futurePrice.trim()
-        ? parseFloat(formData.futurePrice)
+        ? parseFloat(formData.futurePrice.replace(/,/g, ''))
         : encryption?.suggestedPrice ?? bidAmountAda;
       await onSubmit(encryption.tokenName, bidAmountAda, encryption.utxo, futurePrice);
       clearBidFormDraft();
       onClose();
     } catch (error) {
       console.error('Failed to place bid:', error);
-      setSubmitError(
-        error instanceof Error ? error.message : 'Failed to place bid. Please try again.'
-      );
+      const rawMsg = error instanceof Error ? error.message : 'Failed to place bid. Please try again.';
+      setSubmitError(getFriendlyError(rawMsg));
       // Save form state so user can retry without re-entering
       saveBidFormDraft({
         encryptionTokenName: encryption.tokenName,
@@ -254,13 +258,13 @@ export default function PlaceBidModal({
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-xs text-[var(--text-muted)]">Token</span>
-                  <span className="text-xs font-mono text-[var(--text-secondary)]">
+                  <span className="text-xs font-mono text-[var(--text-secondary)]" title={encryption.tokenName}>
                     {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-[var(--text-muted)]">Seller</span>
-                  <span className="text-xs font-mono text-[var(--text-secondary)]">
+                  <span className="text-xs font-mono text-[var(--text-secondary)]" title={encryption.seller}>
                     {truncateHex(encryption.seller, 10, 6)}
                   </span>
                 </div>
@@ -491,13 +495,16 @@ export default function PlaceBidModal({
                   </div>
                   <div className="relative">
                     <input
-                      type="text"
+                      type="number"
+                      inputMode="decimal"
                       id="futurePrice"
                       name="futurePrice"
                       value={formData.futurePrice}
                       onChange={handleInputChange}
                       disabled={isSubmitting}
                       placeholder="0.00"
+                      min={0}
+                      step="0.1"
                       aria-invalid={!!errors.futurePrice}
                       aria-describedby={errors.futurePrice ? 'futurePrice-error' : undefined}
                       className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
@@ -521,10 +528,16 @@ export default function PlaceBidModal({
             {/* Submit Error */}
             {submitError && (
               <div className="flex items-start gap-2 p-3 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-[var(--radius-md)]">
-                <p className="flex-1 text-sm text-[var(--error)]">{submitError}</p>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium text-[var(--error)]">{submitError.title}</p>
+                  <p className="text-sm text-[var(--error)]">{submitError.message}</p>
+                  {submitError.action && (
+                    <p className="text-xs text-[var(--text-muted)]">{submitError.action}</p>
+                  )}
+                </div>
                 <button
                   onClick={async () => {
-                    const ok = await copyToClipboard(submitError);
+                    const ok = await copyToClipboard(`${submitError.title}: ${submitError.message}`);
                     if (ok) { setCopiedError(true); setTimeout(() => setCopiedError(false), 1500); }
                   }}
                   className="flex-shrink-0 p-1 text-[var(--error)]/60 hover:text-[var(--error)] transition-colors cursor-pointer"

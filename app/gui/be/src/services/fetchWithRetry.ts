@@ -34,8 +34,11 @@ export async function fetchWithRetry(
       }
       lastError = new Error(`HTTP ${response.status} ${response.statusText}`);
     } catch (err) {
-      // Network error (ECONNREFUSED, DNS failure, etc.)
       lastError = err instanceof Error ? err : new Error(String(err));
+      // Don't retry aborted requests — the caller cancelled intentionally
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw lastError;
+      }
     }
 
     if (attempt < maxRetries) {

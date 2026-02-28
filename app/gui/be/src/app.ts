@@ -35,8 +35,8 @@ export function createApp() {
       res.status(503).json({
         status: 'unhealthy',
         uptimeSeconds: 0,
-        kupo: { reachable: false, latencyMs: 0, lastSuccess: null },
-        koios: { reachable: false, latencyMs: 0, lastSuccess: null },
+        kupo: { reachable: false, latencyMs: 0, lastSuccess: null, stale: false },
+        koios: { reachable: false, latencyMs: 0, lastSuccess: null, stale: false },
         network: config.network,
         useStubs: config.useStubs,
         timestamp: new Date().toISOString(),
@@ -54,8 +54,8 @@ export function createApp() {
       res.status(503).json({
         status: 'unhealthy',
         uptimeSeconds: 0,
-        kupo: { reachable: false, latencyMs: 0, lastSuccess: null },
-        koios: { reachable: false, latencyMs: 0, lastSuccess: null },
+        kupo: { reachable: false, latencyMs: 0, lastSuccess: null, stale: false },
+        koios: { reachable: false, latencyMs: 0, lastSuccess: null, stale: false },
         network: config.network,
         useStubs: config.useStubs,
         timestamp: new Date().toISOString(),

@@ -9,7 +9,7 @@ React Frontend (fe/)          ← UI, crypto, tx building
     ↕ REST (localhost:3001)       ↕ Tauri IPC (invoke/listen)
 Express Backend (be/)         Rust Core (src-tauri/)
     ↕ HTTP                        ↕ child processes
-Kupo (UTxOs) + Koios (history)    cardano-node, Ogmios, Kupo, Mithril, snark
+Kupo (UTxOs) + Koios (history)    cardano-node, cardano-cli, Ogmios, Kupo, Mithril, snark
 ```
 
 **Process startup order:** Mithril bootstrap (first run) → cardano-node → Ogmios → Kupo → Express
@@ -112,8 +112,9 @@ app/gui/
 │   │   ├── process/
 │   │   │   ├── manager.rs           # Generic process lifecycle + restart policy
 │   │   │   ├── cardano.rs           # cardano-node config & lifecycle
+│   │   │   ├── cardano_cli.rs       # cardano-cli tip query (primary sync source)
 │   │   │   ├── ogmios.rs            # Ogmios (port 1337)
-│   │   │   ├── kupo.rs              # Kupo (port 1442)
+│   │   │   ├── kupo.rs              # Kupo (port 1442, /metrics for sync + stall detection)
 │   │   │   ├── mithril.rs           # Mithril snapshot bootstrap
 │   │   │   └── express.rs           # Express backend (port 3001)
 │   │   └── commands/
@@ -123,7 +124,7 @@ app/gui/
 │   │       ├── snark.rs             # prove, gt-to-hash, decrypt-to-hash, setup
 │   │       ├── secrets.rs           # store/get/remove seller, bid, accept-bid, listing-draft secrets
 │   │       ├── iagon.rs             # Iagon API key storage + HTTP proxy (reqwest, CORS bypass)
-│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save
+│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save, library CRUD
 │   │       └── chain.rs             # get_network_tip (Koios direct)
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
@@ -132,10 +133,10 @@ app/gui/
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn, notification:default)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
-│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest
+│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest, zeroize
 ├── build.sh                         # Sources check-prereqs.sh, installs deps, runs `tauri build`
 ├── build-debug.sh                   # Sources check-prereqs.sh, installs deps, runs `tauri build --debug`
-├── run.sh                           # Sources check-prereqs.sh, kills WebKit orphans, Wayland→X11 fallback, tsc watch for be, runs `tauri dev`
+├── run.sh                           # Sources check-prereqs.sh, kills stale dev-port processes, installs deps, tsc watch for be, runs `tauri dev`
 ├── check-prereqs.sh                 # Prerequisite validator (Node 20+, npm, Rust, sidecar binaries, WebKitGTK)
 ├── lint.sh                          # eslint (fe), tsc + eslint (be), cargo fmt, clippy
 ├── test.sh                          # vitest (fe) + vitest (be)
@@ -148,7 +149,7 @@ app/gui/
 
 **State management — 4 React Contexts** (nested in main.tsx):
 - `WalletContext` — lifecycle (`loading`→`no_wallet`→`locked`→`unlocked`), MeshWallet instance, address, balance, payment key hex
-- `NodeContext` — stage (`stopped`→`bootstrapping`→`starting`→`syncing`→`synced`→`error`), sync progress, tip slot/height, process info
+- `NodeContext` — stage (`stopped`→`bootstrapping`→`starting`→`syncing`→`synced`→`error`), sync progress, tip slot/height, epoch/era/slot-in-epoch, kupo connection status + stall detection, process info
 - `WasmContext` — SNARK setup files (`idle`→`checking-cache`→`decompressing`→`ready`→`error`)
 - `ModalContext` — Stack-based modal management, tracks open modals so only topmost handles Escape; provides z-index stacking (base 50, +2 per level)
 
@@ -161,7 +162,7 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
 **Transaction building** (fe/src/services/transactionBuilder.ts ~2174 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
@@ -312,17 +313,19 @@ app/gui/
 - Linux: uses `libc::kill` directly (avoids AppImage /usr/bin/kill issues)
 - Orphan cleanup on startup: reads `managed_pids.json` from previous session → SIGTERM → 30s → SIGKILL; also port-scans 3001/1337/1442
 - Health check: only Express has one (`GET /health`); no built-in checks for cardano-node/Ogmios/Kupo
+- `cardano_cli.rs` — short-lived sidecar query (not a long-running process); spawns `cardano-cli conway query tip` with 10s timeout to get sync data from the node socket
 
 **Wallet** (src-tauri/src/crypto/wallet.rs):
-- AES-256-GCM encryption with Argon2id KDF (m=64MiB, t=3, p=4)
+- AES-256-GCM encryption with Argon2id KDF (m=64MiB, t=3, p=4; falls back to m=32MiB on low-memory systems)
+- Key material wrapped in `Zeroizing<[u8; 32]>` (auto-zeroed on drop); `decrypt_mnemonic` returns `Zeroizing<String>`
 - Stored as JSON: `{ version, salt, nonce, ciphertext }` at `app_data_dir/wallet.json`
 - Mnemonic held in memory only while unlocked; zeroed on lock
 
 **Secrets** (src-tauri/src/commands/secrets.rs + iagon.rs):
 - AES key derived from mnemonic via `derive_secrets_key()` — 3 KDF versions with transparent migration on unlock:
   - v1: Argon2id 4 MiB, 1 iter, fixed salt `"PEACE_SECRETS_V1"`
-  - v2: Argon2id 32 MiB, 1 iter, random per-user salt
-  - v3: Argon2id 32 MiB (current); `migration.rs` handles v1→v2→v3 re-encryption
+  - v2: Argon2id 32 MiB, 2 iter, random per-user salt
+  - v3: Argon2id 64 MiB, 3 iter, p=2 (current); `migration.rs` handles v1→v2→v3 re-encryption
 - File format: `{ version: 1, nonce: hex(12 bytes), ciphertext: hex }` (AES-256-GCM); KDF metadata in `kdf_meta.json`
 - Five secret types stored in `app_data_dir/secrets/`:
   - `seller/{token_name}.json` — `{ a, r }` scalars
@@ -330,7 +333,8 @@ app/gui/
   - `accept-bid/{encryption_token}.json` — `{ A0, R0, Hk, proof }` workflow state
   - `listing-drafts/{draftId}.json` — multi-step listing creation state (form data, Iagon file ID, AES key/nonce, tx hash)
   - `iagon/api_key.json` — Iagon persistent API key
-- Secure delete: overwrite zeros → flush → `fs::remove_file()`
+- Advisory file locking: `acquire_file_lock()` in `commands/secrets.rs` — exclusive for writes/deletes, shared for reads (Rust std `File::lock()`, MSRV 1.89.0)
+- Secure delete: acquire exclusive lock → overwrite zeros → flush → `fs::remove_file()` → drop lock → remove `.lock` file
 - All Tauri commands return `Result<T, String>` — no custom error types, all stringified
 
 **SNARK** (src-tauri/src/commands/snark.rs):
@@ -389,6 +393,7 @@ app/gui/
 - `snark-setup-progress` — decompression progress for setup files
 - `config-warning` — warning if config.json not found (using defaults)
 - `app-shutting-down` — signal to show shutdown overlay before exit
+- `shutdown-progress` — elapsed time + remaining process count during shutdown
 
 ## Development Workflow
 
@@ -410,20 +415,23 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (34 files)
+  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (35 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (44 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (45 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
-  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, formatDate, logClassification, network, time, truncate, walletErrors (10 files)
+  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
+  - `fe/src/utils/__tests__/` — formatDate (1 file)
   - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
   - `fe/src/test/__mocks__/tauri-notification.ts` — Tauri notification plugin mock
 - Backend test locations:
-  - `be/src/services/__tests__/` — bids, cache, circuitBreaker, encryptions, fetchWithRetry, health, koios, kupo, kupo-cbor, logger, parsers (11 files)
+  - `be/src/services/__tests__/` — bids, cache, cbor, circuitBreaker, encryptions, fetchWithRetry, health, koios, kupo, kupo-cbor, logger, parsers (12 files)
   - `be/src/routes/__tests__/` — encryptions, bids, protocol, chain, health (5 files)
   - `be/src/middleware/__tests__/` — validate, pagination, requestLogger, timeout (4 files)
+  - `be/src/config/__tests__/` — index (1 file)
+  - `be/src/__tests__/` — app (1 file)
 - Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
 - Tests using WebCrypto (ecies) use `// @vitest-environment node` pragma
 - Tests importing transactionBuilder mock `@meshsdk/core`, `@meshsdk/provider`, and Tauri storage modules to avoid libsodium WASM
@@ -506,7 +514,8 @@ const json: ApiResponse<YourType> = await res.json();
 ## Conventions & Gotchas
 
 - **127.0.0.1 not localhost** — WebKitGTK on Linux has DNS resolution issues; all local URLs use 127.0.0.1
-- **WebKitGTK env vars** — `WEBKIT_DISABLE_DMABUF_RENDERER=1` and sandbox disabled (Linux only, set in lib.rs)
+- **WebKitGTK env vars** — `WEBKIT_DISABLE_DMABUF_RENDERER=1` (kernel 6.17+ DMA-BUF crash workaround) and sandbox disabled (Linux only, set in lib.rs)
+- **GStreamer AppImage fix** — AppImage's linuxdeploy sets `GST_PLUGIN_SYSTEM_PATH_1_0` to only its bundled dir (no plugins); lib.rs appends standard system plugin paths so WebKitGTK can find appsink/autoaudiosink
 - **Kupo CBOR chunking** — G2 points (>64 bytes) use indefinite-length CBOR byte strings; parser handles chunk reassembly
 - **Slot-to-time conversion** — Network-specific Shelley era offsets (preprod vs mainnet); implemented in be/src/services/cbor.ts
 - **Sidecar binaries** — gitignored, platform-specific (~600MB total); must be placed in `src-tauri/binaries/` before build
@@ -540,8 +549,8 @@ const json: ApiResponse<YourType> = await res.json();
 - **Toast settings** — `toastSettings.ts` allows users to configure toast auto-dismiss duration (3s/5s/8s/never) stored in localStorage
 - **Resilient Koios** — Koios requests go through a circuit breaker (5 failures → 30s cooldown) with TTL cache stale fallback and fetch retry (3 attempts, exponential backoff). Prevents cascading failures when Koios is temporarily unavailable
 - **Backend structured logging** — All backend logging goes through `logger.ts` which outputs JSON entries with level, timestamp, message, and arbitrary context. Log level configurable via `LOG_LEVEL` env var (default: info)
-- **Prerequisite checks** — `check-prereqs.sh` validates Node 20+, npm, Rust toolchain, sidecar binaries (cardano-node, ogmios, kupo, mithril-client, snark), and WebKitGTK (Linux). Sourced by run.sh, build.sh, build-debug.sh
-- **ShutdownOverlay** — Full-screen overlay shown during app shutdown; listens to Tauri `app-shutting-down` events, rendered above all other content in main.tsx
+- **Prerequisite checks** — `check-prereqs.sh` validates Node 20+, npm, Rust toolchain, sidecar binaries (cardano-node, ogmios, kupo, mithril-client, snark, cardano-cli), and WebKitGTK (Linux). Sourced by run.sh, build.sh, build-debug.sh
+- **ShutdownOverlay** — Full-screen overlay shown during app shutdown; listens to Tauri `app-shutting-down` and `shutdown-progress` events, rendered above all other content in main.tsx
 - **Onboarding system** — `OnboardingOverlay` + `onboardingStorage.ts` provide a multi-step guided tour on first launch (4 steps); state persisted in localStorage
 - **Desktop notifications** — `desktopNotifications.ts` uses `@tauri-apps/plugin-notification` for OS-level notifications; `notificationSound.ts` generates programmatic WAV notification pings
 - **Wallet management** — `walletManagement.ts` provides collateral creation + UTxO defragmentation via MeshTxBuilder; `useWalletHealth` hook monitors UTxO health (collateral presence, fragmentation)
@@ -550,4 +559,5 @@ const json: ApiResponse<YourType> = await res.json();
 - **Focus traps** — `useFocusTrap` hook manages Tab key focus wrapping + focus restoration within modal/overlay containers (accessibility)
 - **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout
 - **Pagination** — Backend `pagination.ts` middleware provides offset-based pagination (default 50, max 200 items) with `{ total, limit, offset, hasMore }` meta
+- **cardano-cli as primary sync source** — `cardano-cli conway query tip` is the primary sync data source (runs as sidecar every 5s poll). Works as soon as the node socket exists (~10-60s before Ogmios connects). Provides exact `syncProgress`, `epoch`, `era`, `slotInEpoch`, `slotsToEpochEnd`. Ogmios is fallback only. Kupo metrics (`/metrics`) provide indexing progress + `kupo_connection_status` + `kupo_seconds_since_last_block` for stall/disconnect detection
 - **Background cleanup** — Hourly async task in lib.rs: securely deletes orphaned SNARK temp files older than 1 hour, evicts cached images older than 30 days or exceeding 500MB total

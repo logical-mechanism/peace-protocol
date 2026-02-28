@@ -9,8 +9,8 @@ import type { EncryptionDisplay } from '../../services/api';
 // ── Mocks ───────────────────────────────────────────────────────────
 
 vi.mock('../../services/api', () => ({
-  encryptionsApi: { getAll: vi.fn() },
-  bidsApi: { getAll: vi.fn() },
+  encryptionsApi: { getAll: vi.fn(), getAllWithWarnings: vi.fn() },
+  bidsApi: { getAll: vi.fn(), getAllWithWarnings: vi.fn() },
 }));
 
 vi.mock('../../services/imageCache', () => ({
@@ -42,7 +42,7 @@ function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionD
     utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
     datum: {} as EncryptionDisplay['datum'],
     description: 'A test encryption listing',
-    suggestedPrice: '100',
+    suggestedPrice: 100,
     ...overrides,
   };
 }
@@ -69,6 +69,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], stale: false });
+  (bidsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], stale: false });
 });
 
 describe('MarketplaceTab', () => {
@@ -76,12 +78,12 @@ describe('MarketplaceTab', () => {
     renderTab();
 
     await waitFor(() => {
-      expect(screen.getByText('No listings available')).toBeInTheDocument();
+      expect(screen.getByText('No listings available yet')).toBeInTheDocument();
     });
   });
 
   it('shows error state when API fails', async () => {
-    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockRejectedValue(
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Network error')
     );
 
@@ -94,18 +96,18 @@ describe('MarketplaceTab', () => {
     expect(screen.getByText('Try Again')).toBeInTheDocument();
   });
 
-  it('calls encryptionsApi.getAll and bidsApi.getAll on mount', async () => {
+  it('calls getAllWithWarnings on mount', async () => {
     renderTab();
 
     await waitFor(() => {
-      expect(encryptionsApi.getAll).toHaveBeenCalledTimes(1);
-      expect(bidsApi.getAll).toHaveBeenCalledTimes(1);
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalledTimes(1);
+      expect(bidsApi.getAllWithWarnings).toHaveBeenCalledTimes(1);
     });
   });
 
   it('renders encryption cards when data is returned', async () => {
     const enc = makeEncryption({ tokenName: 'enc_test_card_01', description: 'Unique Description Here' });
-    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
 
     renderTab();
 
@@ -117,7 +119,7 @@ describe('MarketplaceTab', () => {
   it('renders multiple cards for multiple listings', async () => {
     const enc1 = makeEncryption({ tokenName: 'enc_multi_01', description: 'First listing' });
     const enc2 = makeEncryption({ tokenName: 'enc_multi_02', description: 'Second listing' });
-    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc1, enc2]);
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc1, enc2], stale: false });
 
     renderTab();
 
@@ -128,8 +130,6 @@ describe('MarketplaceTab', () => {
   });
 
   it('re-fetches data when refreshSignal changes', async () => {
-    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-
     const { rerender } = render(
       <ModalProvider>
         <MarketplaceTab
@@ -142,7 +142,7 @@ describe('MarketplaceTab', () => {
     );
 
     await waitFor(() => {
-      expect(encryptionsApi.getAll).toHaveBeenCalledTimes(1);
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalledTimes(1);
     });
 
     rerender(
@@ -157,14 +157,14 @@ describe('MarketplaceTab', () => {
     );
 
     await waitFor(() => {
-      expect(encryptionsApi.getAll).toHaveBeenCalledTimes(2);
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalledTimes(2);
     });
   });
 
   it('retry button refetches data on error', async () => {
-    (encryptionsApi.getAll as ReturnType<typeof vi.fn>)
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>)
       .mockRejectedValueOnce(new Error('fail'))
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce({ data: [], stale: false });
 
     renderTab();
 
@@ -175,7 +175,39 @@ describe('MarketplaceTab', () => {
     fireEvent.click(screen.getByText('Try Again'));
 
     await waitFor(() => {
-      expect(encryptionsApi.getAll).toHaveBeenCalledTimes(2);
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('closes filters panel on Escape key', async () => {
+    const enc = makeEncryption({ description: 'Escape test listing' });
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
+
+    renderTab();
+
+    // Wait for data to load so the toolbar renders
+    await waitFor(() => {
+      expect(screen.getByText('Escape test listing')).toBeInTheDocument();
+    });
+
+    // Open filters
+    const filtersButton = screen.getByRole('button', { name: /filters/i });
+    fireEvent.click(filtersButton);
+    expect(filtersButton).toHaveAttribute('aria-expanded', 'true');
+
+    // Press Escape to close
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(filtersButton).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows encouraging empty state with Create Listing CTA', async () => {
+    const onCreate = vi.fn();
+    renderTab({ onCreateListing: onCreate });
+
+    await waitFor(() => {
+      expect(screen.getByText('No listings available yet')).toBeInTheDocument();
+      expect(screen.getByText('Be the first to create one!')).toBeInTheDocument();
+      expect(screen.getByText('Create Listing')).toBeInTheDocument();
     });
   });
 
@@ -185,6 +217,125 @@ describe('MarketplaceTab', () => {
     await waitFor(() => {
       const srRegion = document.querySelector('[role="status"][aria-live="polite"]');
       expect(srRegion).toBeInTheDocument();
+    });
+  });
+
+  it('shows stale banner when backend returns stale warning', async () => {
+    const enc = makeEncryption({ description: 'Stale listing' });
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [enc],
+      stale: true,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Showing cached listings/)).toBeInTheDocument();
+    });
+    // Data is still rendered
+    expect(screen.getByText('Stale listing')).toBeInTheDocument();
+  });
+
+  it('shows stale banner on refresh failure when data already loaded', async () => {
+    const enc = makeEncryption({ description: 'Previously loaded' });
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ data: [enc], stale: false })
+      .mockRejectedValueOnce(new Error('Network error'));
+    (bidsApi.getAllWithWarnings as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ data: [], stale: false })
+      .mockRejectedValueOnce(new Error('Network error'));
+
+    const { rerender } = render(
+      <ModalProvider>
+        <MarketplaceTab
+          userPkh={USER_PKH}
+          filters={MARKETPLACE_INITIAL}
+          dispatch={noopDispatch}
+          refreshSignal={1}
+        />
+      </ModalProvider>
+    );
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(screen.getByText('Previously loaded')).toBeInTheDocument();
+    });
+
+    // Trigger refresh failure
+    rerender(
+      <ModalProvider>
+        <MarketplaceTab
+          userPkh={USER_PKH}
+          filters={MARKETPLACE_INITIAL}
+          dispatch={noopDispatch}
+          refreshSignal={2}
+        />
+      </ModalProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Showing cached listings/)).toBeInTheDocument();
+    });
+    // Old data still visible
+    expect(screen.getByText('Previously loaded')).toBeInTheDocument();
+  });
+
+  it('dismisses stale banner when dismiss button is clicked', async () => {
+    const enc = makeEncryption({ description: 'Stale test' });
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [enc],
+      stale: true,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Showing cached listings/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Dismiss stale data warning'));
+
+    expect(screen.queryByText(/Showing cached listings/)).not.toBeInTheDocument();
+  });
+
+  it('clears stale banner on successful refresh', async () => {
+    const enc = makeEncryption({ description: 'Stale then fresh' });
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ data: [enc], stale: true })
+      .mockResolvedValueOnce({ data: [enc], stale: false });
+    (bidsApi.getAllWithWarnings as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ data: [], stale: false })
+      .mockResolvedValueOnce({ data: [], stale: false });
+
+    const { rerender } = render(
+      <ModalProvider>
+        <MarketplaceTab
+          userPkh={USER_PKH}
+          filters={MARKETPLACE_INITIAL}
+          dispatch={noopDispatch}
+          refreshSignal={1}
+        />
+      </ModalProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Showing cached listings/)).toBeInTheDocument();
+    });
+
+    // Trigger successful refresh
+    rerender(
+      <ModalProvider>
+        <MarketplaceTab
+          userPkh={USER_PKH}
+          filters={MARKETPLACE_INITIAL}
+          dispatch={noopDispatch}
+          refreshSignal={2}
+        />
+      </ModalProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Showing cached listings/)).not.toBeInTheDocument();
     });
   });
 });

@@ -89,6 +89,28 @@ describe('encryptionsApi', () => {
     );
   });
 
+  it('getAllWithWarnings returns data and stale flag when present', async () => {
+    mockFetch.mockResolvedValue(
+      okResponse({ data: [{ tokenName: 'tk1' }], warnings: { stale: true } })
+    );
+    const { encryptionsApi } = await loadApi();
+
+    const result = await encryptionsApi.getAllWithWarnings();
+
+    expect(result.data).toEqual([{ tokenName: 'tk1' }]);
+    expect(result.stale).toBe(true);
+  });
+
+  it('getAllWithWarnings returns stale=false when no warnings', async () => {
+    mockFetch.mockResolvedValue(okResponse({ data: [] }));
+    const { encryptionsApi } = await loadApi();
+
+    const result = await encryptionsApi.getAllWithWarnings();
+
+    expect(result.data).toEqual([]);
+    expect(result.stale).toBe(false);
+  });
+
   it('getLevels calls /api/encryptions/:tokenName/levels', async () => {
     mockFetch.mockResolvedValue(okResponse({ data: [] }));
     const { encryptionsApi } = await loadApi();
@@ -113,6 +135,28 @@ describe('bidsApi', () => {
       expect.stringContaining('/api/bids'),
       expect.any(Object)
     );
+  });
+
+  it('getAllWithWarnings returns data and stale flag', async () => {
+    mockFetch.mockResolvedValue(
+      okResponse({ data: [{ tokenName: 'bid1' }], warnings: { stale: true } })
+    );
+    const { bidsApi } = await loadApi();
+
+    const result = await bidsApi.getAllWithWarnings();
+
+    expect(result.data).toEqual([{ tokenName: 'bid1' }]);
+    expect(result.stale).toBe(true);
+  });
+
+  it('getAllWithWarnings returns stale=false when no warnings', async () => {
+    mockFetch.mockResolvedValue(okResponse({ data: [] }));
+    const { bidsApi } = await loadApi();
+
+    const result = await bidsApi.getAllWithWarnings();
+
+    expect(result.data).toEqual([]);
+    expect(result.stale).toBe(false);
   });
 
   it('getByToken calls /api/bids/:tokenName', async () => {

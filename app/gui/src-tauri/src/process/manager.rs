@@ -83,10 +83,18 @@ fn default_shutdown_timeout(name: &str) -> u64 {
         "mithril-client" => ("SHUTDOWN_TIMEOUT_MITHRIL", 30),
         _ => ("SHUTDOWN_TIMEOUT_DEFAULT", 10),
     };
-    std::env::var(env_key)
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(fallback)
+    match std::env::var(env_key) {
+        Ok(val) => match val.parse() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!(
+                    "Warning: invalid value '{val}' for {env_key}, using default {fallback}s"
+                );
+                fallback
+            }
+        },
+        Err(_) => fallback,
+    }
 }
 
 /// A single managed child process with its metadata
@@ -138,6 +146,33 @@ fn send_signal(pid: u32, signal: i32) -> bool {
         );
     }
     ok
+}
+
+/// Check if a process is likely a Veiled-managed process by inspecting /proc/{pid}/cmdline.
+/// Returns true if any cmdline argument contains one of the expected binary name substrings.
+/// Returns false if /proc cannot be read (process exited, permission denied).
+#[cfg(target_os = "linux")]
+fn is_veiled_process(pid: u32, expected_names: &[&str]) -> bool {
+    let cmdline_path = format!("/proc/{}/cmdline", pid);
+    let cmdline_bytes = match std::fs::read(&cmdline_path) {
+        Ok(bytes) => bytes,
+        Err(_) => return false,
+    };
+    // /proc/PID/cmdline uses null bytes as argument separators
+    let args: Vec<&str> = cmdline_bytes
+        .split(|&b| b == 0)
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| std::str::from_utf8(s).ok())
+        .collect();
+    expected_names
+        .iter()
+        .any(|name| args.iter().any(|arg| arg.contains(name)))
+}
+
+/// Non-Linux fallback: assume process matches (preserve existing behavior).
+#[cfg(not(target_os = "linux"))]
+fn is_veiled_process(_pid: u32, _expected_names: &[&str]) -> bool {
+    true
 }
 
 /// The central process manager, held in Tauri state.
@@ -227,10 +262,17 @@ impl NodeManager {
 
     /// Kill any processes listening on our known ports (Express:3001, Ogmios:1337, Kupo:1442).
     /// Catches orphans even when no PID file exists (e.g., first run after adding PID tracking).
+    /// Validates process identity via /proc/{pid}/cmdline to avoid killing unrelated processes.
     fn kill_orphans_on_ports(&self) {
+        let port_binaries: [(u16, &[&str]); 3] = [
+            (3001, &["node", "dist/index.js"]),
+            (1337, &["ogmios"]),
+            (1442, &["kupo"]),
+        ];
+
         let mut orphan_pids: Vec<u32> = Vec::new();
 
-        for port in [3001u16, 1337, 1442] {
+        for (port, expected_names) in &port_binaries {
             let output = std::process::Command::new("fuser")
                 .args([&format!("{}/tcp", port)])
                 .output();
@@ -239,8 +281,17 @@ impl NodeManager {
                 let pids_str = String::from_utf8_lossy(&out.stdout);
                 for token in pids_str.split_whitespace() {
                     if let Ok(pid) = token.parse::<u32>() {
-                        if !orphan_pids.contains(&pid) {
+                        if orphan_pids.contains(&pid) {
+                            continue;
+                        }
+                        if is_veiled_process(pid, expected_names) {
                             orphan_pids.push(pid);
+                        } else {
+                            eprintln!(
+                                "[NodeManager] Port {} occupied by pid={}, \
+                                 but cmdline does not match {:?} — skipping",
+                                port, pid, expected_names
+                            );
                         }
                     }
                 }
@@ -1712,5 +1763,31 @@ mod tests {
         std::env::set_var("SHUTDOWN_TIMEOUT_CARDANO", "not_a_number");
         assert_eq!(default_shutdown_timeout("cardano-node"), 45);
         std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn is_veiled_process_returns_false_for_nonexistent_pid() {
+        assert!(
+            !is_veiled_process(999_999_999, &["node"]),
+            "Should return false for a nonexistent PID"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn is_veiled_process_rejects_unrelated_binary() {
+        // Our own test process cmdline won't contain "ogmios" or "kupo"
+        let pid = std::process::id();
+        assert!(
+            !is_veiled_process(pid, &["ogmios", "kupo"]),
+            "Test process should not match ogmios or kupo"
+        );
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[test]
+    fn is_veiled_process_fallback_always_true() {
+        assert!(is_veiled_process(1, &["anything"]));
     }
 }

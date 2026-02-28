@@ -527,6 +527,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
         onLoadSuccess={onDocumentLoadSuccess}
         onLoadError={onDocumentLoadError}
         loading={pdfLoading}
+        className="flex flex-1 min-h-0 min-w-0"
       >
         {children}
       </Document>
@@ -554,7 +555,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
             {documentWrapper(
               <>
                 {thumbnailSidebar}
-                <div className="flex-1 overflow-auto flex justify-center bg-[var(--bg-secondary)]">
+                <div className="flex-1 overflow-auto flex justify-center items-start bg-[var(--bg-secondary)]">
                   {mainPage}
                 </div>
               </>
@@ -570,11 +571,11 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
     <div className="space-y-3">
       {toolbar}
       {searchBar}
-      <div className="flex max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+      <div className="flex max-h-[500px] overflow-hidden bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
         {documentWrapper(
           <>
             {thumbnailSidebar}
-            <div className="flex-1 overflow-auto flex justify-center">
+            <div className="flex-1 overflow-auto flex justify-center items-start">
               {mainPage}
             </div>
           </>

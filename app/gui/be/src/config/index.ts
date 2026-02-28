@@ -3,6 +3,14 @@ dotenv.config();
 
 export type Network = 'preprod' | 'mainnet';
 
+export function parseOutputIndex(envVar: string | undefined, defaultVal: string): number {
+  const val = parseInt(envVar || defaultVal, 10);
+  if (isNaN(val) || val < 0 || val > 255) {
+    throw new Error(`Invalid output index: "${envVar}" (must be 0-255)`);
+  }
+  return val;
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -35,11 +43,11 @@ export const config = {
       genesisTokenName: process.env.GENESIS_TOKEN_NAME_PREPROD || '',
       // Reference script UTxOs (output #1 from 00_createScriptReferences.sh)
       encryptionRefTxHash: process.env.ENCRYPTION_REF_TX_HASH_PREPROD || '',
-      encryptionRefOutputIndex: parseInt(process.env.ENCRYPTION_REF_OUTPUT_INDEX_PREPROD || '1', 10),
+      encryptionRefOutputIndex: parseOutputIndex(process.env.ENCRYPTION_REF_OUTPUT_INDEX_PREPROD, '1'),
       biddingRefTxHash: process.env.BIDDING_REF_TX_HASH_PREPROD || '',
-      biddingRefOutputIndex: parseInt(process.env.BIDDING_REF_OUTPUT_INDEX_PREPROD || '1', 10),
+      biddingRefOutputIndex: parseOutputIndex(process.env.BIDDING_REF_OUTPUT_INDEX_PREPROD, '1'),
       grothRefTxHash: process.env.GROTH_REF_TX_HASH_PREPROD || '',
-      grothRefOutputIndex: parseInt(process.env.GROTH_REF_OUTPUT_INDEX_PREPROD || '1', 10),
+      grothRefOutputIndex: parseOutputIndex(process.env.GROTH_REF_OUTPUT_INDEX_PREPROD, '1'),
     },
     mainnet: {
       encryptionAddress: process.env.ENCRYPTION_CONTRACT_ADDRESS_MAINNET || '',
@@ -51,11 +59,11 @@ export const config = {
       genesisPolicyId: process.env.GENESIS_POLICY_ID_MAINNET || '',
       genesisTokenName: process.env.GENESIS_TOKEN_NAME_MAINNET || '',
       encryptionRefTxHash: process.env.ENCRYPTION_REF_TX_HASH_MAINNET || '',
-      encryptionRefOutputIndex: parseInt(process.env.ENCRYPTION_REF_OUTPUT_INDEX_MAINNET || '1', 10),
+      encryptionRefOutputIndex: parseOutputIndex(process.env.ENCRYPTION_REF_OUTPUT_INDEX_MAINNET, '1'),
       biddingRefTxHash: process.env.BIDDING_REF_TX_HASH_MAINNET || '',
-      biddingRefOutputIndex: parseInt(process.env.BIDDING_REF_OUTPUT_INDEX_MAINNET || '1', 10),
+      biddingRefOutputIndex: parseOutputIndex(process.env.BIDDING_REF_OUTPUT_INDEX_MAINNET, '1'),
       grothRefTxHash: process.env.GROTH_REF_TX_HASH_MAINNET || '',
-      grothRefOutputIndex: parseInt(process.env.GROTH_REF_OUTPUT_INDEX_MAINNET || '1', 10),
+      grothRefOutputIndex: parseOutputIndex(process.env.GROTH_REF_OUTPUT_INDEX_MAINNET, '1'),
     },
   },
 
