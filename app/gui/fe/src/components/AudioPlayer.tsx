@@ -200,6 +200,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const rafActiveRef = useRef(false);
   const startLoopRef = useRef<(() => void) | null>(null);
   const drawWaveformRef = useRef<((progress: number) => void) | null>(null);
+  const waveformContainerRef = useRef<HTMLDivElement | null>(null);
+  const seekBarTooltipRef = useRef<HTMLDivElement | null>(null);
+  const waveformTooltipRef = useRef<HTMLDivElement | null>(null);
 
   // --- Cache CSS gradient colors (avoids getComputedStyle per frame) ---
 
@@ -351,6 +354,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         : 'rgba(99, 102, 241, 0.15)';
 
       ctx.fillRect(x, mid - h, barW - 0.5, h * 2);
+    }
+
+    // Playback position indicator — bright vertical line at current position
+    if (progressRatio > 0) {
+      const indicatorX = Math.round(progressRatio * width);
+      ctx.fillStyle = 'rgba(250, 250, 250, 0.85)';
+      ctx.fillRect(indicatorX, 0, 1, height);
     }
   }, []);
 
@@ -658,6 +668,38 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     document.addEventListener('mouseup', handleMouseUp);
   }, [duration, isReady]);
 
+  const handleWaveformMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !waveformContainerRef.current || !duration || !isReady) return;
+    e.preventDefault();
+    isSeekingRef.current = true;
+
+    const seekTo = (clientX: number) => {
+      const rect = waveformContainerRef.current!.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      audio.currentTime = ratio * duration;
+      vizTimeRef.current = audio.currentTime;
+      setCurrentTime(audio.currentTime);
+      drawWaveformRef.current?.(ratio);
+    };
+
+    seekTo(e.clientX);
+
+    const handleMouseMove = (moveE: MouseEvent) => {
+      if (!isSeekingRef.current) return;
+      seekTo(moveE.clientX);
+    };
+
+    const handleMouseUp = () => {
+      isSeekingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [duration, isReady]);
+
   const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
     if (!audio || !isReady || !duration) return;
@@ -686,6 +728,49 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       setCurrentTime(audio.currentTime);
     }
   }, [isReady, duration]);
+
+  // --- Seek preview tooltip (ref-based DOM mutation, zero re-renders) ---
+
+  const showSeekTooltip = useCallback((
+    clientX: number,
+    containerRef: React.RefObject<HTMLDivElement | null>,
+    tooltipRef: React.RefObject<HTMLDivElement | null>,
+  ) => {
+    const tooltip = tooltipRef.current;
+    const container = containerRef.current;
+    if (!tooltip || !container || !duration) return;
+    const rect = container.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const halfW = 28; // approximate half-width of "MM:SS" text
+    const rawLeft = clientX - rect.left;
+    const clampedLeft = Math.max(halfW, Math.min(rect.width - halfW, rawLeft));
+    tooltip.style.left = `${clampedLeft}px`;
+    tooltip.style.opacity = '1';
+    tooltip.textContent = formatTime(ratio * duration);
+  }, [duration]);
+
+  const hideSeekTooltip = useCallback((tooltipRef: React.RefObject<HTMLDivElement | null>) => {
+    const tooltip = tooltipRef.current;
+    if (tooltip) tooltip.style.opacity = '0';
+  }, []);
+
+  const handleWaveformMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isReady || !duration) return;
+    showSeekTooltip(e.clientX, waveformContainerRef, waveformTooltipRef);
+  }, [isReady, duration, showSeekTooltip]);
+
+  const handleWaveformMouseLeave = useCallback(() => {
+    hideSeekTooltip(waveformTooltipRef);
+  }, [hideSeekTooltip]);
+
+  const handleSeekBarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isReady || !duration) return;
+    showSeekTooltip(e.clientX, seekBarRef, seekBarTooltipRef);
+  }, [isReady, duration, showSeekTooltip]);
+
+  const handleSeekBarMouseLeave = useCallback(() => {
+    hideSeekTooltip(seekBarTooltipRef);
+  }, [hideSeekTooltip]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
@@ -809,7 +894,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       )}
 
       {/* Visualization Canvas (waveform behind, FFT on top) */}
-      <div className="winamp-groove mx-2 mt-2 relative">
+      <div
+        ref={waveformContainerRef}
+        className="winamp-groove mx-2 mt-2 relative cursor-pointer"
+        onMouseDown={handleWaveformMouseDown}
+        onMouseMove={handleWaveformMouseMove}
+        onMouseLeave={handleWaveformMouseLeave}
+      >
         <canvas
           ref={waveformCanvasRef}
           width={480}
@@ -842,6 +933,12 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             </div>
           </div>
         )}
+        <div
+          ref={waveformTooltipRef}
+          className="absolute -top-6 -translate-x-1/2 bg-black/80 text-white text-[11px] font-mono rounded px-1.5 py-0.5 pointer-events-none select-none z-20 transition-opacity duration-75"
+          style={{ opacity: 0 }}
+          aria-hidden="true"
+        />
       </div>
 
       {/* LED Display Row */}
@@ -868,12 +965,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         </span>
       </div>
 
-      {/* Seek Bar */}
-      <div className="px-3 py-1">
+      {/* Seek Bar — outer wrapper expands click target to ~24px while visual bar stays 8px */}
+      <div className="px-3">
         <div
-          ref={seekBarRef}
-          className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] cursor-pointer relative overflow-hidden outline-none focus-visible:shadow-[var(--focus-ring)]"
+          className="py-2 cursor-pointer relative"
           onMouseDown={handleSeekMouseDown}
+          onMouseMove={handleSeekBarMouseMove}
+          onMouseLeave={handleSeekBarMouseLeave}
           onKeyDown={handleSeekKeyDown}
           role="slider"
           tabIndex={0}
@@ -884,9 +982,20 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           aria-valuetext={formatTime(currentTime)}
         >
           <div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
-            style={{ width: `${progress}%` }}
+            ref={seekBarTooltipRef}
+            className="absolute -top-1 -translate-x-1/2 bg-black/80 text-white text-[11px] font-mono rounded px-1.5 py-0.5 pointer-events-none select-none z-20 transition-opacity duration-75"
+            style={{ opacity: 0 }}
+            aria-hidden="true"
           />
+          <div
+            ref={seekBarRef}
+            className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] relative overflow-hidden outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
       </div>
 

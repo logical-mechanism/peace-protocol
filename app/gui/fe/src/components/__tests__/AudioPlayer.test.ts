@@ -156,6 +156,75 @@ describe('remaining time display', () => {
   });
 });
 
+// --- computeSeekRatio: mirrors the clamping logic used in handleSeekMouseDown / handleWaveformMouseDown ---
+
+function computeSeekRatio(clientX: number, rectLeft: number, rectWidth: number): number {
+  return Math.max(0, Math.min(1, (clientX - rectLeft) / rectWidth));
+}
+
+// --- computeTooltipLeft: mirrors the horizontal clamping in showSeekTooltip ---
+
+function computeTooltipLeft(clientX: number, rectLeft: number, rectWidth: number, halfWidth: number): number {
+  const rawLeft = clientX - rectLeft;
+  return Math.max(halfWidth, Math.min(rectWidth - halfWidth, rawLeft));
+}
+
+describe('computeSeekRatio', () => {
+  it('computes correct ratio for mid-bar positions', () => {
+    expect(computeSeekRatio(150, 100, 200)).toBeCloseTo(0.25);
+    expect(computeSeekRatio(200, 100, 200)).toBeCloseTo(0.5);
+    expect(computeSeekRatio(250, 100, 200)).toBeCloseTo(0.75);
+  });
+
+  it('clamps to 0 when clicking left of the container', () => {
+    expect(computeSeekRatio(50, 100, 200)).toBe(0);
+    expect(computeSeekRatio(0, 100, 200)).toBe(0);
+  });
+
+  it('clamps to 1 when clicking right of the container', () => {
+    expect(computeSeekRatio(350, 100, 200)).toBe(1);
+    expect(computeSeekRatio(500, 100, 200)).toBe(1);
+  });
+
+  it('returns 0 for exact left edge', () => {
+    expect(computeSeekRatio(100, 100, 200)).toBe(0);
+  });
+
+  it('returns 1 for exact right edge', () => {
+    expect(computeSeekRatio(300, 100, 200)).toBe(1);
+  });
+});
+
+describe('computeTooltipLeft', () => {
+  // Container width 400, tooltip half-width 28
+  const halfW = 28;
+  const rectLeft = 50;
+  const rectWidth = 400;
+
+  it('positions tooltip at cursor when in middle of container', () => {
+    // cursor at center: clientX = 250, rawLeft = 200
+    expect(computeTooltipLeft(250, rectLeft, rectWidth, halfW)).toBe(200);
+  });
+
+  it('clamps tooltip to left edge to prevent overflow', () => {
+    // cursor near left edge: clientX = 60, rawLeft = 10 < halfW
+    expect(computeTooltipLeft(60, rectLeft, rectWidth, halfW)).toBe(halfW);
+  });
+
+  it('clamps tooltip to right edge to prevent overflow', () => {
+    // cursor near right edge: clientX = 445, rawLeft = 395 > (400 - 28 = 372)
+    expect(computeTooltipLeft(445, rectLeft, rectWidth, halfW)).toBe(rectWidth - halfW);
+  });
+
+  it('returns halfWidth when cursor is at container left edge', () => {
+    expect(computeTooltipLeft(rectLeft, rectLeft, rectWidth, halfW)).toBe(halfW);
+  });
+
+  it('returns rectWidth - halfWidth when cursor is at container right edge', () => {
+    expect(computeTooltipLeft(rectLeft + rectWidth, rectLeft, rectWidth, halfW)).toBe(rectWidth - halfW);
+  });
+});
+
 describe('computeWaveformSummary', () => {
   it('computes peak values per bucket', () => {
     // 8 samples, 2 buckets → 4 samples per bucket

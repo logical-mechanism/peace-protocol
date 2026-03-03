@@ -39,19 +39,19 @@ Each item:
 
 > Key file: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Add click-to-seek on waveform canvas**
+- [x] 🟡 **Add click-to-seek on waveform canvas**
   - **How**: Add an `onMouseDown` handler to the waveform canvas container `<div>` (line 676). On click, calculate the ratio from `(clientX - rect.left) / rect.width`, map to `ratio * duration`, and set `audio.currentTime`. Sync `vizTimeRef.current` to the new time. Reuse the same drag-to-scrub pattern from `handleSeekMouseDown` (lines 534-562): attach `mousemove` and `mouseup` listeners to `document` so dragging works even when the cursor leaves the canvas. Add `cursor-pointer` to the waveform container.
   - **Why**: Users expect click/drag-to-seek on the waveform (like Spotify, SoundCloud). Currently only the thin 8px seek bar supports seeking, which is a small click target.
 
-- [ ] 🟡 **Add playback position indicator on waveform**
+- [x] 🟡 **Add playback position indicator on waveform**
   - **How**: In `drawWaveform()` (lines 263-287), after drawing the waveform bars, draw a vertical 1px line at `x = progressRatio * width` using `ctx.fillStyle = 'rgba(250, 250, 250, 0.8)'`. This provides a scrubber-head visual on top of the played/unplayed color split. When waveform click-to-seek is implemented, this line follows the cursor during drag for immediate feedback.
   - **Why**: The current played/unplayed color boundary is too subtle at a glance. A bright vertical line makes the current position instantly visible.
 
-- [ ] 🟢 **Enlarge seek bar click target**
+- [x] 🟢 **Enlarge seek bar click target**
   - **How**: The seek bar (line 726-736) is `h-2` (8px tall). Wrap it in a `py-1` container that captures clicks (expanding the hit area to ~24px) while keeping the visual bar at 8px. Apply `onMouseDown` to the outer wrapper and keep the visual bar as a child div.
   - **Why**: 8px is below the recommended 44px minimum touch target. Users miss clicks on the seek bar during fast interaction.
 
-- [ ] 🟢 **Show seek preview time on hover**
+- [x] 🟢 **Show seek preview time on hover**
   - **How**: Add `onMouseMove` to the seek bar (and waveform once click-to-seek exists). On hover, calculate `ratio * duration` and render a tooltip above the cursor showing formatted time. Use a `position: absolute` div with `left` set to cursor position and `transform: translateX(-50%)`. Hide on `mouseLeave`. Keep it lightweight — no state, just a ref to a DOM element updated directly.
   - **Why**: Users hovering over the seek bar have no idea what time position they will jump to. Time preview is standard in all modern media players.
 
