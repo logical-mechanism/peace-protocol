@@ -123,7 +123,7 @@ Each item:
   - **How**: The time display (line 704-718) has `role="button"` and `tabIndex={0}` but only a `title` attribute. Add `aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}`.
   - **Why**: The time display toggle's purpose is not communicated to screen reader users beyond the title attribute.
 
-- [ ] 🟢 **Add `aria-pressed` to loop toggle button**
+- [x] 🟢 **Add `aria-pressed` to loop toggle button**
   - **How**: The loop button (line 783) toggles state but does not communicate this via ARIA. Add `aria-pressed={isLooping}` so screen readers announce "pressed" or "not pressed" state.
   - **Why**: Toggle buttons should use `aria-pressed` for proper assistive technology feedback.
 

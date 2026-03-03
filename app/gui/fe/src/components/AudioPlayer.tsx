@@ -860,6 +860,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             className={`${transportBtn} ml-1 ${isLooping ? '!text-[var(--accent)]' : ''}`}
             title={isLooping ? 'Repeat: On' : 'Repeat: Off'}
             aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
+            aria-pressed={isLooping}
           >
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
