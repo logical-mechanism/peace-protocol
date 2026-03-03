@@ -205,6 +205,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
   const seekBarTooltipRef = useRef<HTMLDivElement | null>(null);
   const waveformTooltipRef = useRef<HTMLDivElement | null>(null);
+  const pcmDecodedRef = useRef(false);
 
   // --- Cache CSS gradient colors (avoids getComputedStyle per frame) ---
 
@@ -250,30 +251,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     prevBarsRef.current.fill(0);
     bufferRef.current = null;
     waveformDataRef.current = null;
+    pcmDecodedRef.current = false;
 
     // Blob URL for native <audio> playback — GStreamer handles output directly,
     // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
     const blob = new Blob([data], { type: getMimeType(fileExtension) });
     const url = URL.createObjectURL(blob);
     audio.src = url;
-
-    // Defer PCM decode slightly so GStreamer can set up its audio pipeline first.
-    // decodeAudioData and GStreamer both touch the audio thread — overlapping them
-    // can cause skipping/lagging on initial playback, especially with large files.
-    const decodeTimer = setTimeout(() => {
-      if (cancelled) return;
-      const offlineCtx = new OfflineAudioContext(2, 1, 44100);
-      offlineCtx.decodeAudioData(data.slice().buffer)
-        .then(buffer => {
-          if (cancelled) return;
-          bufferRef.current = buffer;
-          waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
-          drawWaveformRef.current?.(0);
-        })
-        .catch(() => {
-          if (!cancelled) setVisualizationFailed(true);
-        });
-    }, 100);
 
     // Parse ID3/Vorbis metadata (best-effort, doesn't affect playback)
     import('music-metadata').then(({ parseBuffer }) => {
@@ -295,7 +279,30 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     }).catch(() => {});
 
     const onLoadedMetadata = () => { if (!cancelled) setDuration(audio.duration); };
-    const onCanPlay = () => { if (!cancelled) setIsReady(true); };
+    const onCanPlay = () => {
+      if (cancelled) return;
+      // Ensure playback starts from the beginning — GStreamer can report a
+      // non-zero currentTime after parsing certain container formats.
+      audio.currentTime = 0;
+      setIsReady(true);
+      // Start PCM decode now that GStreamer pipeline is fully ready.
+      // Decoding before canplay contends with GStreamer on the audio thread,
+      // causing skipping/lagging on initial playback.
+      if (!pcmDecodedRef.current) {
+        pcmDecodedRef.current = true;
+        const offlineCtx = new OfflineAudioContext(2, 1, 44100);
+        offlineCtx.decodeAudioData(data.slice().buffer)
+          .then(buffer => {
+            if (cancelled) return;
+            bufferRef.current = buffer;
+            waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
+            drawWaveformRef.current?.(0);
+          })
+          .catch(() => {
+            if (!cancelled) setVisualizationFailed(true);
+          });
+      }
+    };
     const onTimeUpdate = () => {
       if (cancelled) return;
       setCurrentTime(audio.currentTime);
@@ -335,7 +342,6 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
     return () => {
       cancelled = true;
-      clearTimeout(decodeTimer);
       audio.pause();
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('canplay', onCanPlay);
@@ -383,8 +389,12 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     // Playback position indicator — bright vertical line at current position
     if (progressRatio > 0) {
       const indicatorX = Math.round(progressRatio * width);
-      ctx.fillStyle = 'rgba(250, 250, 250, 0.85)';
-      ctx.fillRect(indicatorX, 0, 1, height);
+      // Glow behind
+      ctx.fillStyle = 'rgba(250, 250, 250, 0.3)';
+      ctx.fillRect(indicatorX - 2, 0, 6, height);
+      // Main line
+      ctx.fillStyle = 'rgba(250, 250, 250, 0.9)';
+      ctx.fillRect(indicatorX, 0, 2, height);
     }
   }, []);
 
@@ -606,6 +616,14 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     vizTimeRef.current = audio.currentTime;
   }, [isReady]);
 
+  const handleMuteToggle = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const newMuted = !isMuted;
+    audio.muted = newMuted;
+    setIsMuted(newMuted);
+  }, [isMuted]);
+
   // --- Keyboard shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -673,6 +691,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       audio.currentTime = ratio * duration;
       vizTimeRef.current = audio.currentTime;
       setCurrentTime(audio.currentTime);
+      drawWaveformRef.current?.(ratio);
     };
 
     seekTo(e.clientX);
@@ -750,6 +769,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       e.preventDefault();
       vizTimeRef.current = audio.currentTime;
       setCurrentTime(audio.currentTime);
+      if (duration > 0) drawWaveformRef.current?.(audio.currentTime / duration);
     }
   }, [isReady, duration]);
 
@@ -816,14 +836,6 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     setPlaybackRate(next);
     if (audioRef.current) audioRef.current.playbackRate = next;
   }, [playbackRate]);
-
-  const handleMuteToggle = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const newMuted = !isMuted;
-    audio.muted = newMuted;
-    setIsMuted(newMuted);
-  }, [isMuted]);
 
   // --- Render ---
 
@@ -1018,11 +1030,16 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           />
           <div
             ref={seekBarRef}
-            className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] relative overflow-hidden outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] relative outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             <div
               className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
               style={{ width: `${progress}%` }}
+            />
+            {/* Seek thumb */}
+            <div
+              className="absolute top-1/2 w-3 h-3 rounded-full bg-white border-2 border-[var(--accent)] shadow-sm pointer-events-none"
+              style={{ left: `${progress}%`, transform: 'translateX(-50%) translateY(-50%)' }}
             />
           </div>
         </div>
