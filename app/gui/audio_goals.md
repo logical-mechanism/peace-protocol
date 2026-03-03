@@ -65,7 +65,7 @@ Each item:
   - **How**: When `decodeAudioData` completes (line 191-194), `waveformDataRef.current` is set but `drawWaveform(0)` is not called — the waveform only appears on the next RAF tick. Add a direct `drawWaveform(0)` call after setting the waveform data. This ensures the waveform renders immediately on load, not after a ~42ms delay.
   - **Why**: There is a brief window between waveform data being ready and the next RAF tick where the waveform canvas is blank. For short files or when paused, this is noticeable.
 
-- [ ] 🟢 **Add light-theme Winamp variable overrides**
+- [x] 🟢 **Add light-theme Winamp variable overrides**
   - **How**: The Winamp CSS variables (`--winamp-bg`, `--winamp-bg-dark`, `--winamp-bg-light`, `--winamp-border-light`, `--winamp-border-dark`, `--winamp-led`, `--winamp-led-dim`) are only defined in `:root` (lines 318-328 of `index.css`). There are no `[data-theme="light"]` overrides for them. Add light-theme overrides so the AudioPlayer adapts to light mode. Suggested: `--winamp-bg: #e8e8f0`, `--winamp-bg-dark: #d0d0dc`, `--winamp-bg-light: #f0f0f8`, `--winamp-led: #16a34a`.
   - **Why**: Users on light theme see a jarring dark rectangle for the audio player while everything else is light.
 

@@ -329,6 +329,13 @@ select option {
 }
 
 [data-theme="light"] {
+  --winamp-bg: #e8e8f0;
+  --winamp-bg-dark: #d0d0dc;
+  --winamp-bg-light: #f0f0f8;
+  --winamp-border-light: #c8c8d4;
+  --winamp-border-dark: #b0b0bc;
+  --winamp-led: #16a34a;
+  --winamp-led-dim: rgba(22, 163, 74, 0.3);
   --audio-gradient-start: #4f46e5;
   --audio-gradient-mid: #6366f1;
   --audio-gradient-end: #818cf8;
