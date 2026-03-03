@@ -111,7 +111,7 @@ Each item:
 
 > Key file: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Add `role="slider"` and ARIA attributes to seek bar**
+- [x] 🟡 **Add `role="slider"` and ARIA attributes to seek bar**
   - **How**: The seek bar `<div>` (line 727) has no semantic role. Add `role="slider"`, `aria-label="Seek position"`, `aria-valuemin={0}`, `aria-valuemax={Math.round(duration)}`, `aria-valuenow={Math.round(currentTime)}`, `aria-valuetext={formatTime(currentTime)}`, and `tabIndex={0}`. Add keyboard handlers for Left/Right on the slider (move ±5s), Home (start), End (end).
   - **Why**: The seek bar is invisible to assistive technology. Screen reader users cannot seek within a track.
 

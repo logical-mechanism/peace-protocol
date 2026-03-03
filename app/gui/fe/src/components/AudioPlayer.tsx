@@ -596,6 +596,35 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     document.addEventListener('mouseup', handleMouseUp);
   }, [duration, isReady]);
 
+  const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !isReady || !duration) return;
+
+    let handled = true;
+    switch (e.key) {
+      case 'ArrowLeft':
+        audio.currentTime = Math.max(0, audio.currentTime - 5);
+        break;
+      case 'ArrowRight':
+        audio.currentTime = Math.min(duration, audio.currentTime + 5);
+        break;
+      case 'Home':
+        audio.currentTime = 0;
+        break;
+      case 'End':
+        audio.currentTime = duration;
+        break;
+      default:
+        handled = false;
+    }
+
+    if (handled) {
+      e.preventDefault();
+      vizTimeRef.current = audio.currentTime;
+      setCurrentTime(audio.currentTime);
+    }
+  }, [isReady, duration]);
+
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
     setVolume(v);
@@ -762,8 +791,16 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       <div className="px-3 py-1">
         <div
           ref={seekBarRef}
-          className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] cursor-pointer relative overflow-hidden"
+          className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] cursor-pointer relative overflow-hidden outline-none focus-visible:shadow-[var(--focus-ring)]"
           onMouseDown={handleSeekMouseDown}
+          onKeyDown={handleSeekKeyDown}
+          role="slider"
+          tabIndex={0}
+          aria-label="Seek position"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(currentTime)}
+          aria-valuetext={formatTime(currentTime)}
         >
           <div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
