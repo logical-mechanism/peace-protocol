@@ -119,7 +119,7 @@ Each item:
   - **How**: The status text "Playing"/"Paused"/"Ready"/"Loading" (line 721) should announce to screen readers when it changes. Wrap it in `<span aria-live="polite" aria-atomic="true">`. Do not apply to the time display (updates too frequently).
   - **Why**: Screen reader users have no way to know when playback starts, pauses, or ends.
 
-- [ ] 🟢 **Improve `aria-label` on time display toggle**
+- [x] 🟢 **Improve `aria-label` on time display toggle**
   - **How**: The time display (line 704-718) has `role="button"` and `tabIndex={0}` but only a `title` attribute. Add `aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}`.
   - **Why**: The time display toggle's purpose is not communicated to screen reader users beyond the title attribute.
 

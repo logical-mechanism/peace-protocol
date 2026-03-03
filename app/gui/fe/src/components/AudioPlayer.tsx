@@ -773,6 +773,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           role="button"
           tabIndex={0}
           title="Click to toggle remaining time"
+          aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}
         >
           <span className="winamp-led-text text-lg font-medium">
             {formatTime(currentTime)}
