@@ -191,6 +191,33 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   // we interpolate between updates for fluid visualization
   const vizTimeRef = useRef(0);
   const lastDrawTimeRef = useRef(0);
+  // Cached CSS gradient colors — updated on mount + theme change via MutationObserver
+  const gradientColorsRef = useRef({ start: '#6366f1', mid: '#818cf8', end: '#a5b4fc' });
+  // RAF loop control — stops when paused + bars fully decayed, restarts on play
+  const rafActiveRef = useRef(false);
+  const startLoopRef = useRef<(() => void) | null>(null);
+
+  // --- Cache CSS gradient colors (avoids getComputedStyle per frame) ---
+
+  useEffect(() => {
+    const readColors = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const styles = getComputedStyle(canvas);
+      gradientColorsRef.current = {
+        start: styles.getPropertyValue('--audio-gradient-start').trim() || '#6366f1',
+        mid: styles.getPropertyValue('--audio-gradient-mid').trim() || '#818cf8',
+        end: styles.getPropertyValue('--audio-gradient-end').trim() || '#a5b4fc',
+      };
+    };
+
+    readColors();
+
+    const observer = new MutationObserver(readColors);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    return () => observer.disconnect();
+  }, []);
 
   // --- Load audio element + decode PCM for visualization ---
 
@@ -215,7 +242,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
     // Blob URL for native <audio> playback — GStreamer handles output directly,
     // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
-    const blob = new Blob([new Uint8Array(data)], { type: getMimeType(fileExtension) });
+    const blob = new Blob([data], { type: getMimeType(fileExtension) });
     const url = URL.createObjectURL(blob);
     audio.src = url;
 
@@ -332,10 +359,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const { width, height } = canvas;
     ctx.clearRect(0, 0, width, height);
 
-    const styles = getComputedStyle(canvas);
-    const gradStart = styles.getPropertyValue('--audio-gradient-start').trim() || '#6366f1';
-    const gradMid = styles.getPropertyValue('--audio-gradient-mid').trim() || '#818cf8';
-    const gradEnd = styles.getPropertyValue('--audio-gradient-end').trim() || '#a5b4fc';
+    const { start: gradStart, mid: gradMid, end: gradEnd } = gradientColorsRef.current;
+
+    // Single gradient reused for all bars (avoids 768+ gradient allocations/sec)
+    const barGradient = ctx.createLinearGradient(0, height, 0, 0);
+    barGradient.addColorStop(0, gradStart);
+    barGradient.addColorStop(0.5, gradMid);
+    barGradient.addColorStop(1, gradEnd);
 
     const buffer = bufferRef.current;
     const audio = audioRef.current;
@@ -385,11 +415,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
-        const gradient = ctx.createLinearGradient(x, height, x, y);
-        gradient.addColorStop(0, gradStart);
-        gradient.addColorStop(0.5, gradMid);
-        gradient.addColorStop(1, gradEnd);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = barGradient;
 
         const segH = 3, segGap = 1;
         let curY = height;
@@ -409,11 +435,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
-        const gradient = ctx.createLinearGradient(x, height, x, y);
-        gradient.addColorStop(0, gradStart);
-        gradient.addColorStop(0.5, gradMid);
-        gradient.addColorStop(1, gradEnd);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = barGradient;
 
         const segH = 3, segGap = 1;
         let curY = height;
@@ -431,27 +453,41 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     }
   }, [duration, drawWaveform]);
 
-  // Animation loop — throttled to TARGET_FPS, pauses when window is not visible
+  // Animation loop — throttled to TARGET_FPS, pauses when window is not visible,
+  // stops entirely when paused + bars fully decayed (saves ~24 drawFrame calls/sec idle)
   useEffect(() => {
     let running = true;
     let lastTime = 0;
 
     const startLoop = () => {
-      if (!running) return;
+      if (!running || rafActiveRef.current) return;
+      rafActiveRef.current = true;
       const loop = (now: number) => {
-        if (!running || document.hidden) return;
+        if (!running || document.hidden) {
+          rafActiveRef.current = false;
+          return;
+        }
         if (now - lastTime >= FRAME_INTERVAL) {
           lastTime = now;
           drawFrame();
+
+          // Stop loop when paused and all bars have decayed to zero
+          if (!isPlayingRef.current && prevBarsRef.current.every(v => v < 0.005)) {
+            rafActiveRef.current = false;
+            return;
+          }
         }
         rafRef.current = requestAnimationFrame(loop);
       };
       rafRef.current = requestAnimationFrame(loop);
     };
 
+    startLoopRef.current = startLoop;
+
     const onVisibility = () => {
       if (document.hidden) {
         cancelAnimationFrame(rafRef.current);
+        rafActiveRef.current = false;
       } else {
         lastTime = 0;
         startLoop();
@@ -463,6 +499,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
     return () => {
       running = false;
+      rafActiveRef.current = false;
+      startLoopRef.current = null;
       cancelAnimationFrame(rafRef.current);
       document.removeEventListener('visibilitychange', onVisibility);
     };
@@ -483,6 +521,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       lastDrawTimeRef.current = performance.now();
       isPlayingRef.current = true;
       setIsPlaying(true);
+      // Restart animation loop if it was stopped after decay
+      startLoopRef.current?.();
     }).catch(err => {
       console.error('Failed to play:', err);
       setError('Failed to play audio.');

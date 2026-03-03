@@ -89,19 +89,19 @@ Each item:
 
 > Key file: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Cache CSS variable reads outside the render loop**
+- [x] 🟡 **Cache CSS variable reads outside the render loop**
   - **How**: In `drawFrame()` (line 300), `getComputedStyle(canvas)` is called every frame to read `--audio-gradient-start`, `--audio-gradient-mid`, `--audio-gradient-end`. Move these reads into a ref updated only on theme change. Add a `MutationObserver` on `document.documentElement` watching for `data-theme` attribute changes. On change (or mount), read the three CSS variables and store in `gradientColorsRef`. Use ref values in `drawFrame()`. Eliminates 24 `getComputedStyle()` calls per second.
   - **Why**: `getComputedStyle()` triggers style recalculation and is one of the most expensive calls in a render loop. Caching reduces jank on lower-end hardware.
 
-- [ ] 🟡 **Cache gradient objects instead of creating per-segment**
+- [x] 🟡 **Cache gradient objects instead of creating per-segment**
   - **How**: In `drawFrame()` (lines 353-357 and 375-379), a new `CanvasGradient` is created for every bar in every frame (32 bars x 24 FPS = 768 gradients/second). Since all bars use the same three-stop vertical gradient, pre-create a single full-height gradient at the start of each frame: `ctx.createLinearGradient(0, height, 0, 0)` once, then reuse for all bars.
   - **Why**: Canvas gradient creation allocates GPU resources. Creating 768+ per second is wasteful when a single gradient serves all bars.
 
-- [ ] 🟢 **Stop RAF loop when paused and decay complete**
+- [x] 🟢 **Stop RAF loop when paused and decay complete**
   - **How**: The animation loop (lines 400-434) runs continuously even when paused. After all bars have decayed to zero (`prevBarsRef.current.every(v => v < 0.005)`) and `!isPlayingRef.current`, stop requesting frames. Resume when `handlePlay` is called.
   - **Why**: An idle AudioPlayer burns 24 `drawFrame()` calls per second forever. On a laptop this drains battery for no visual result.
 
-- [ ] 🟢 **Avoid redundant Uint8Array copy in Blob creation**
+- [x] 🟢 **Avoid redundant Uint8Array copy in Blob creation**
   - **How**: At line 183, `new Uint8Array(data)` copies the entire audio buffer before creating the Blob. Since `data` is already a `Uint8Array` from props, pass it directly: `new Blob([data], { ... })`. The separate copy at line 189 for `decodeAudioData` via `data.slice().buffer` is necessary (decodeAudioData neuters the ArrayBuffer) and should remain.
   - **Why**: For a 50MB FLAC file, this eliminates a 50MB synchronous copy on the main thread, reducing load time and memory pressure.
 
