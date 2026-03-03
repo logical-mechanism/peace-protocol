@@ -172,6 +172,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [showRemaining, setShowRemaining] = useState(false);
   const [metadata, setMetadata] = useState<AudioMetadata | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showKeyHints, setShowKeyHints] = useState(false);
 
   // Native <audio> element for playback — no Web Audio API in the output path
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -193,6 +195,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const lastDrawTimeRef = useRef(0);
   // Cached CSS gradient colors — updated on mount + theme change via MutationObserver
   const gradientColorsRef = useRef({ start: '#6366f1', mid: '#818cf8', end: '#a5b4fc' });
+  const hasShownHintsRef = useRef(false);
   // RAF loop control — stops when paused + bars fully decayed, restarts on play
   const rafActiveRef = useRef(false);
   const startLoopRef = useRef<(() => void) | null>(null);
@@ -569,6 +572,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
+      // Show keyboard shortcut hints on first interaction
+      if (!hasShownHintsRef.current) {
+        hasShownHintsRef.current = true;
+        setShowKeyHints(true);
+        setTimeout(() => setShowKeyHints(false), 3000);
+      }
+
       switch (e.key) {
         case ' ':
           e.preventDefault();
@@ -587,7 +597,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           e.preventDefault();
           setVolume(v => {
             const next = Math.min(1, v + 0.05);
-            if (audioRef.current) audioRef.current.volume = next;
+            if (audioRef.current) { audioRef.current.volume = next; audioRef.current.muted = false; }
+            setIsMuted(false);
             return next;
           });
           break;
@@ -595,16 +606,21 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           e.preventDefault();
           setVolume(v => {
             const next = Math.max(0, v - 0.05);
-            if (audioRef.current) audioRef.current.volume = next;
+            if (audioRef.current) { audioRef.current.volume = next; audioRef.current.muted = next === 0; }
+            setIsMuted(next === 0);
             return next;
           });
+          break;
+        case 'm':
+        case 'M':
+          handleMuteToggle();
           break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward]);
+  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward, handleMuteToggle]);
 
   const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -685,6 +701,14 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     setPlaybackRate(next);
     if (audioRef.current) audioRef.current.playbackRate = next;
   }, [playbackRate]);
+
+  const handleMuteToggle = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const newMuted = !isMuted;
+    audio.muted = newMuted;
+    setIsMuted(newMuted);
+  }, [isMuted]);
 
   // --- Render ---
 
@@ -800,6 +824,16 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           <div className="absolute inset-0 flex items-center justify-center bg-[var(--winamp-bg-dark)]/80">
             <DelayedSpinner size="sm" className="mr-2" />
             <span className="text-xs text-[var(--text-muted)]">Loading audio...</span>
+          </div>
+        )}
+        {showKeyHints && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-[var(--transition-slow)]">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;10s</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
+            </div>
           </div>
         )}
       </div>
@@ -920,15 +954,22 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
         {/* Volume */}
         <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-[var(--text-muted)]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            {volume === 0 ? (
-              <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
-            ) : volume < 0.5 ? (
-              <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z" />
-            ) : (
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-            )}
-          </svg>
+          <button
+            onClick={handleMuteToggle}
+            className="w-6 h-6 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors duration-75 cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]"
+            title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              {isMuted || volume === 0 ? (
+                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
+              ) : volume < 0.5 ? (
+                <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z" />
+              ) : (
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+              )}
+            </svg>
+          </button>
           <input
             type="range"
             min="0"

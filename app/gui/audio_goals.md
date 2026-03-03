@@ -75,11 +75,11 @@ Each item:
 
 > Key file: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Add mute toggle button**
+- [x] 🟡 **Add mute toggle button**
   - **How**: Add `isMuted` state and `previousVolume` ref. Place a mute button next to the volume icon SVG (line 807). On click: if not muted, store `volume` in `previousVolume`, set `audio.volume = 0`, `setIsMuted(true)`; if muted, restore `audio.volume = previousVolume.current`, `setIsMuted(false)`. The volume SVG already has a muted-cross variant at line 809 that displays when `volume === 0`. Also add keyboard shortcut `M` for mute toggle in the keydown handler (lines 492-532), matching the VideoPlayer pattern.
   - **Why**: Currently users must drag the volume slider to zero and back. A mute toggle is standard in every media player.
 
-- [ ] 🟢 **Show keyboard shortcut hints on first keypress**
+- [x] 🟢 **Show keyboard shortcut hints on first keypress**
   - **How**: Follow the VideoPlayer pattern. Add a `showKeyHints` state and `hasShownHints` ref. On the first keyboard interaction in the handler, show a small overlay listing shortcuts (Space = Play/Pause, Left/Right = Seek, Up/Down = Volume, M = Mute) and auto-hide after 3 seconds. Render as an absolutely positioned div over the visualization canvas.
   - **Why**: Users do not discover keyboard shortcuts unless told. A one-time hint teaches without being intrusive.
 
