@@ -137,7 +137,7 @@ Each item:
   - **How**: The title bar (lines 632-646) shows "Veiled Audio" and the file extension. Add the file size: calculate `data.length` and format with `formatBytes()` (from `fe/src/utils/formatBytes.ts`). Display as e.g., "MP3 — 4.2 MB".
   - **Why**: Users have no indication of file size, which helps set expectations for load times and explains why large files might take longer to decode.
 
-- [ ] 🟢 **Marquee scroll for long metadata text**
+- [x] 🟢 **Marquee scroll for long metadata text**
   - **How**: When metadata title or artist (lines 656-663) is truncated (uses `truncate` CSS class), add a CSS animation that scrolls horizontally on hover. Measure `scrollWidth` vs `clientWidth` and only animate when overflow occurs. Define the keyframe in `index.css`.
   - **Why**: Truncated track titles hide information the user wants to see. Hover-to-scroll reveals the full title without taking more space.
 

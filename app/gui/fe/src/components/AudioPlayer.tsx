@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
 import { DelayedSpinner } from './LoadingSpinner';
 
 interface AudioMetadata {
@@ -102,6 +102,37 @@ function fftInPlace(re: Float32Array, im: Float32Array): void {
       }
     }
   }
+}
+
+/** Text that scrolls horizontally on hover when it overflows its container. */
+function MarqueeText({ text, className }: { text: string; className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const span = spanRef.current;
+    if (!container || !span) return;
+    const cw = container.clientWidth;
+    const sw = span.scrollWidth;
+    const isOverflowing = sw > cw;
+    setOverflows(isOverflowing);
+    setOffset(isOverflowing ? cw - sw : 0);
+  }, [text]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`marquee-on-hover ${className ?? ''}`}
+      style={{ '--marquee-offset': `${offset}px` } as CSSProperties}
+    >
+      <span ref={spanRef} className={overflows ? 'marquee-overflows' : ''}>
+        {text}
+      </span>
+    </div>
+  );
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
@@ -657,20 +688,22 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           )}
           <div className="flex-1 min-w-0">
             {metadata.title && (
-              <p className="text-xs font-medium text-[var(--text-primary)] truncate">
-                {metadata.title}
-              </p>
+              <MarqueeText
+                text={metadata.title}
+                className="text-xs font-medium text-[var(--text-primary)]"
+              />
             )}
             {metadata.artist && (
-              <p className="text-[10px] text-[var(--text-secondary)] truncate">
-                {metadata.artist}
-              </p>
+              <MarqueeText
+                text={metadata.artist}
+                className="text-[10px] text-[var(--text-secondary)]"
+              />
             )}
             {(metadata.album || metadata.year) && (
-              <p className="text-[10px] text-[var(--text-muted)] truncate">
-                {[metadata.album, metadata.year].filter(Boolean).join(' \u2014 ')}
-                {metadata.trackNumber ? ` (Track ${metadata.trackNumber})` : ''}
-              </p>
+              <MarqueeText
+                text={`${[metadata.album, metadata.year].filter(Boolean).join(' \u2014 ')}${metadata.trackNumber ? ` (Track ${metadata.trackNumber})` : ''}`}
+                className="text-[10px] text-[var(--text-muted)]"
+              />
             )}
           </div>
         </div>

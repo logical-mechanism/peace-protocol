@@ -649,6 +649,26 @@ select option {
   animation: modal-panel-exit 150ms ease-in forwards;
 }
 
+/* Audio player metadata marquee — scrolls overflowing text on hover */
+@keyframes marquee-scroll {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--marquee-offset, 0px)); }
+}
+
+.marquee-on-hover {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-on-hover > span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.marquee-on-hover:hover > span.marquee-overflows {
+  animation: marquee-scroll 4s linear infinite;
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,
