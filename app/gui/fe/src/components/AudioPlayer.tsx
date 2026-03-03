@@ -782,7 +782,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             {showRemaining ? `\u2212${formatTime(Math.max(0, duration - currentTime))}` : formatTime(duration)}
           </span>
         </div>
-        <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase">
+        <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase" aria-live="polite" aria-atomic="true">
           {!isReady ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
         </span>
       </div>

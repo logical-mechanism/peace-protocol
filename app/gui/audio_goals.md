@@ -115,7 +115,7 @@ Each item:
   - **How**: The seek bar `<div>` (line 727) has no semantic role. Add `role="slider"`, `aria-label="Seek position"`, `aria-valuemin={0}`, `aria-valuemax={Math.round(duration)}`, `aria-valuenow={Math.round(currentTime)}`, `aria-valuetext={formatTime(currentTime)}`, and `tabIndex={0}`. Add keyboard handlers for Left/Right on the slider (move ±5s), Home (start), End (end).
   - **Why**: The seek bar is invisible to assistive technology. Screen reader users cannot seek within a track.
 
-- [ ] 🟡 **Add `aria-live` region for playback state changes**
+- [x] 🟡 **Add `aria-live` region for playback state changes**
   - **How**: The status text "Playing"/"Paused"/"Ready"/"Loading" (line 721) should announce to screen readers when it changes. Wrap it in `<span aria-live="polite" aria-atomic="true">`. Do not apply to the time display (updates too frequently).
   - **Why**: Screen reader users have no way to know when playback starts, pauses, or ends.
 
