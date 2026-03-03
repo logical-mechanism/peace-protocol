@@ -21,15 +21,15 @@ Each item:
 
 > Key file: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🔴 **Investigate audio skipping/lagging during playback**
+- [x] 🔴 **Investigate audio skipping/lagging during playback**
   - **How**: The `<audio>` element plays via a Blob URL created from `new Uint8Array(data)` (line 183). For large files, this copies the entire buffer into a Blob synchronously on the main thread. Profile whether the skip occurs during initial Blob creation, during GStreamer pipeline setup, or mid-playback. Test with files of increasing size (5MB, 20MB, 50MB+). If the issue is Blob creation, move `new Blob([new Uint8Array(data)])` into a worker or use `data.buffer` directly without copying. If the issue is GStreamer, check whether `audio.preload = "auto"` (already set at line 629) is insufficient and whether `audio.buffered` ranges reveal gaps. Also check if the parallel `OfflineAudioContext.decodeAudioData` call (line 189) contends with GStreamer on the audio thread.
   - **Why**: Audio skipping during playback is the most user-visible bug. Users expect seamless playback once a file loads.
 
-- [ ] 🟢 **Add `onStalled` / `onWaiting` event handling**
+- [x] 🟢 **Add `onStalled` / `onWaiting` event handling**
   - **How**: Attach `stalled` and `waiting` event listeners to the `<audio>` element alongside the existing listeners (lines 239-243). When `stalled` fires, show a "Buffering" indicator in the LED display area (line 721). When `canplay` fires again after a stall, clear the indicator. The VideoPlayer handles stalled events as a reference pattern.
   - **Why**: When GStreamer stalls mid-playback, the user sees frozen visualization with no feedback. A buffering indicator sets correct expectations.
 
-- [ ] 🟢 **Handle `decodeAudioData` failure with user feedback**
+- [x] 🟢 **Handle `decodeAudioData` failure with user feedback**
   - **How**: The `decodeAudioData` catch block (line 195) silently swallows errors. When decoding fails, FFT and waveform never render but nothing tells the user. Set a `visualizationFailed` state flag and render a small note below the canvas (e.g., "Visualization unavailable for this format"). Playback remains unaffected.
   - **Why**: Users might think the visualization is broken rather than understanding their format does not support PCM decoding in the browser.
 

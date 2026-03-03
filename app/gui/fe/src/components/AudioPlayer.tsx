@@ -174,6 +174,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const [metadata, setMetadata] = useState<AudioMetadata | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [showKeyHints, setShowKeyHints] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [visualizationFailed, setVisualizationFailed] = useState(false);
 
   // Native <audio> element for playback — no Web Audio API in the output path
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -240,6 +242,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     setDuration(0);
     setPlaybackRate(1.0);
     setMetadata(null);
+    setIsBuffering(false);
+    setVisualizationFailed(false);
     isPlayingRef.current = false;
     vizTimeRef.current = 0;
     lastDrawTimeRef.current = 0;
@@ -253,17 +257,23 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const url = URL.createObjectURL(blob);
     audio.src = url;
 
-    // Decode in parallel for FFT visualization + waveform overview (doesn't affect playback)
-    const offlineCtx = new OfflineAudioContext(2, 1, 44100);
-    offlineCtx.decodeAudioData(data.slice().buffer)
-      .then(buffer => {
-        if (cancelled) return;
-        bufferRef.current = buffer;
-        waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
-        // Draw waveform immediately instead of waiting for next RAF tick
-        drawWaveformRef.current?.(0);
-      })
-      .catch(() => {}); // Visualization degrades gracefully if decode fails
+    // Defer PCM decode slightly so GStreamer can set up its audio pipeline first.
+    // decodeAudioData and GStreamer both touch the audio thread — overlapping them
+    // can cause skipping/lagging on initial playback, especially with large files.
+    const decodeTimer = setTimeout(() => {
+      if (cancelled) return;
+      const offlineCtx = new OfflineAudioContext(2, 1, 44100);
+      offlineCtx.decodeAudioData(data.slice().buffer)
+        .then(buffer => {
+          if (cancelled) return;
+          bufferRef.current = buffer;
+          waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
+          drawWaveformRef.current?.(0);
+        })
+        .catch(() => {
+          if (!cancelled) setVisualizationFailed(true);
+        });
+    }, 100);
 
     // Parse ID3/Vorbis metadata (best-effort, doesn't affect playback)
     import('music-metadata').then(({ parseBuffer }) => {
@@ -297,6 +307,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       isPlayingRef.current = false;
       setIsPlaying(false);
     };
+    const onWaiting = () => { if (!cancelled) setIsBuffering(true); };
+    const onPlaying = () => { if (!cancelled) setIsBuffering(false); };
+    const onStalled = () => {
+      // Only treat as buffering if we don't have enough data for continuous playback.
+      // readyState < 3 (HAVE_FUTURE_DATA) means the browser lacks sufficient buffered data.
+      if (!cancelled && audio.readyState < 3) setIsBuffering(true);
+    };
     const onError = () => {
       if (cancelled) return;
       const code = audio.error?.code;
@@ -312,15 +329,22 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('stalled', onStalled);
 
     return () => {
       cancelled = true;
+      clearTimeout(decodeTimer);
       audio.pause();
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('stalled', onStalled);
       // Detach from GStreamer before revoking
       audio.removeAttribute('src');
       audio.load();
@@ -939,6 +963,11 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           style={{ opacity: 0 }}
           aria-hidden="true"
         />
+        {visualizationFailed && isReady && (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-muted)] pointer-events-none select-none">
+            Visualization unavailable for this format
+          </div>
+        )}
       </div>
 
       {/* LED Display Row */}
@@ -961,7 +990,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           </span>
         </div>
         <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase" aria-live="polite" aria-atomic="true">
-          {!isReady ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
+          {!isReady ? 'Loading' : isBuffering && isPlaying ? 'Buffering' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
         </span>
       </div>
 
