@@ -199,6 +199,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   // RAF loop control — stops when paused + bars fully decayed, restarts on play
   const rafActiveRef = useRef(false);
   const startLoopRef = useRef<(() => void) | null>(null);
+  const drawWaveformRef = useRef<((progress: number) => void) | null>(null);
 
   // --- Cache CSS gradient colors (avoids getComputedStyle per frame) ---
 
@@ -256,6 +257,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         if (cancelled) return;
         bufferRef.current = buffer;
         waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
+        // Draw waveform immediately instead of waiting for next RAF tick
+        drawWaveformRef.current?.(0);
       })
       .catch(() => {}); // Visualization degrades gracefully if decode fails
 
@@ -350,6 +353,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       ctx.fillRect(x, mid - h, barW - 0.5, h * 2);
     }
   }, []);
+
+  // Keep ref in sync so the data-loading effect can call it without a dependency
+  drawWaveformRef.current = drawWaveform;
 
   // --- Visualization: FFT computed from decoded AudioBuffer ---
 

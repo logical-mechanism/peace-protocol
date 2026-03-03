@@ -61,7 +61,7 @@ Each item:
 
 > Key file: `fe/src/components/AudioPlayer.tsx`, `fe/src/index.css`
 
-- [ ] 🟢 **Render waveform immediately on decode complete**
+- [x] 🟢 **Render waveform immediately on decode complete**
   - **How**: When `decodeAudioData` completes (line 191-194), `waveformDataRef.current` is set but `drawWaveform(0)` is not called — the waveform only appears on the next RAF tick. Add a direct `drawWaveform(0)` call after setting the waveform data. This ensures the waveform renders immediately on load, not after a ~42ms delay.
   - **Why**: There is a brief window between waveform data being ready and the next RAF tick where the waveform canvas is blank. For short files or when paused, this is noticeable.
 
