@@ -767,6 +767,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
     if (handled) {
       e.preventDefault();
+      e.stopPropagation(); // Prevent global keydown handler from also seeking ±10s
       vizTimeRef.current = audio.currentTime;
       setCurrentTime(audio.currentTime);
       if (duration > 0) drawWaveformRef.current?.(audio.currentTime / duration);

@@ -29,7 +29,7 @@ Each item:
   - **How**: Line 431: `vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000` always advances at 1x. Multiply by `audioRef.current?.playbackRate ?? 1`. This matters because the FFT sample window (line 437: `startSample = Math.floor(vizTimeRef.current * buffer.sampleRate)`) will read from the wrong position at non-1x speeds, causing the FFT bars to not match what the user hears.
   - **Why**: At 2x speed, the FFT visualization lags ~50% behind actual playback between `timeupdate` resyncs (~250ms on WebKitGTK). Bars don't match the audio.
 
-- [ ] 🔴 **Arrow keys double-fire when seek bar is focused**
+- [x] 🔴 **Arrow keys double-fire when seek bar is focused**
   - **How**: When the seek bar div (`role="slider"`, line 1017) is focused, pressing ArrowLeft triggers both `handleSeekKeyDown` (line 752, seeks −5s) and the global `handleKeyDown` (line 646, seeks −10s via `handleSkipBack`). Net effect: −15s instead of −5s. Fix: add `e.stopPropagation()` in `handleSeekKeyDown` for handled keys (line 768-769), preventing the event from reaching the global document listener.
   - **Why**: Pressing arrow keys on the seek bar seeks 3x the expected amount. Makes fine-grained seeking via keyboard impossible.
 
