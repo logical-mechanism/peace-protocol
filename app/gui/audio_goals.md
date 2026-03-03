@@ -141,7 +141,7 @@ Each item:
   - **How**: When metadata title or artist (lines 656-663) is truncated (uses `truncate` CSS class), add a CSS animation that scrolls horizontally on hover. Measure `scrollWidth` vs `clientWidth` and only animate when overflow occurs. Define the keyframe in `index.css`.
   - **Why**: Truncated track titles hide information the user wants to see. Hover-to-scroll reveals the full title without taking more space.
 
-- [ ] 🟢 **Support hours in time display for long audio**
+- [x] 🟢 **Support hours in time display for long audio**
   - **How**: In `formatTime()` (lines 51-56), times over 60 minutes display as "75:30" instead of "1:15:30". Add hours: `const h = Math.floor(seconds / 3600)` and format as `H:MM:SS` when `h > 0`. Update the test in `fe/src/components/__tests__/AudioPlayer.test.ts` (line 83, currently expects `formatTime(3661)` to return `'61:01'` — change to `'1:01:01'`).
   - **Why**: Audiobooks and podcasts display confusing minute counts above 60. Standard formatting uses H:MM:SS.
 

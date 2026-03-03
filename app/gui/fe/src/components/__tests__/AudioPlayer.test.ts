@@ -20,8 +20,12 @@ function getMimeType(ext: string): string {
 
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || seconds < 0) return '00:00';
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
@@ -80,7 +84,15 @@ describe('formatTime', () => {
     expect(formatTime(5)).toBe('00:05');
     expect(formatTime(65)).toBe('01:05');
     expect(formatTime(600)).toBe('10:00');
-    expect(formatTime(3661)).toBe('61:01');
+    expect(formatTime(3661)).toBe('1:01:01');
+  });
+
+  it('formats as H:MM:SS when duration exceeds 60 minutes', () => {
+    expect(formatTime(3600)).toBe('1:00:00');
+    expect(formatTime(3661)).toBe('1:01:01');
+    expect(formatTime(7200)).toBe('2:00:00');
+    expect(formatTime(36000)).toBe('10:00:00');
+    expect(formatTime(86399)).toBe('23:59:59');
   });
 
   it('floors fractional seconds', () => {
