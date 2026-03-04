@@ -37,7 +37,7 @@ Each item:
   - **How**: When `audio.loop = true`, the browser resets `currentTime` to 0 without firing `ended`. But `vizTimeRef` continues incrementing from the old position until the next `timeupdate` resync (~250ms). During that window, FFT reads out-of-bounds samples as 0 (line 447: `idx < channel.length ? channel[idx] : 0`), causing a brief silence dip in the bars. Fix: listen for the `seeked` event on the audio element — the browser fires `seeked` when looping. In the handler, sync `vizTimeRef.current = audio.currentTime`.
   - **Why**: Visible as a brief bar decay/silence flash at loop points. Subtle but noticeable on short loops.
 
-- [ ] 🟢 **Null bufferRef in cleanup to release decoded PCM**
+- [x] 🟢 **Null bufferRef in cleanup to release decoded PCM**
   - **How**: The cleanup function (lines 343-359) pauses audio, removes listeners, revokes blob URL, and cancels RAF — but doesn't null `bufferRef.current`. Add `bufferRef.current = null; waveformDataRef.current = null;` in cleanup. The decoded PCM buffer for a 10-minute FLAC at 44.1kHz stereo is ~100MB.
   - **Why**: Large decoded audio buffers stay in memory until garbage collection. Explicit nulling allows immediate GC when the modal closes.
 

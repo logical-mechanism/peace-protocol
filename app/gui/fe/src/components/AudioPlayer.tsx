@@ -363,6 +363,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       audio.load();
       URL.revokeObjectURL(url);
       cancelAnimationFrame(rafRef.current);
+      // Release decoded PCM data for immediate GC
+      bufferRef.current = null;
+      waveformDataRef.current = null;
     };
   }, [data, fileExtension]);
 
