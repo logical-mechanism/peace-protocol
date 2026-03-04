@@ -79,11 +79,11 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/AudioPlayer.test.ts`
 
-- [ ] 🟡 **Add component rendering tests**
+- [x] 🟡 **Add component rendering tests**
   - **How**: The test file has 48 pure utility function tests but zero React component tests. Add a test section using `@testing-library/react` that renders `<AudioPlayer data={mockData} fileExtension=".mp3" />` with the Tauri mock from `fe/src/test/__mocks__/tauri.ts`. Verify: error state renders when given corrupt data, loading spinner appears initially, transport buttons are present, seek bar has correct ARIA attributes. Mock `HTMLAudioElement` and `OfflineAudioContext`. Follow the pattern in `fe/src/components/__tests__/VideoPlayer.test.ts` if it exists, or `PdfViewer.test.ts`.
   - **Why**: The entire JSX output is unverified by tests. Regressions in rendering (missing buttons, broken ARIA, wrong CSS classes) go undetected.
 
-- [ ] 🟡 **Add interaction tests for keyboard and mouse**
+- [x] 🟡 **Add interaction tests for keyboard and mouse**
   - **How**: Test keyboard shortcuts: Space toggles play/pause, ArrowLeft/Right calls skip handlers, M toggles mute. Test seek bar: clicking at 50% of width sets `currentTime` to half duration. Test volume slider: changing value updates `audio.volume`. Use `fireEvent.keyDown` and `fireEvent.mouseDown` from `@testing-library/react`. These tests would also catch the arrow key double-fire bug (§1.3) once fixed.
   - **Why**: All interaction logic is untested. Keyboard shortcut regressions (wrong key, missing `preventDefault`, double-firing) are only caught by manual testing.
 
