@@ -69,7 +69,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **Add `aria-pressed` to mute toggle button**
+- [x] 🟢 **Add `aria-pressed` to mute toggle button**
   - **How**: The mute button (line 1118-1133) has `aria-label` but no `aria-pressed`. Add `aria-pressed={isMuted}` to match the loop button pattern (line 1098). The loop button already does this correctly.
   - **Why**: Screen readers announce toggle state ("pressed" / "not pressed") for buttons with `aria-pressed`. Without it, the mute button's on/off state is communicated only via the changing `aria-label` text, which is less standard.
 

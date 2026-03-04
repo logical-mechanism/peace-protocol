@@ -1155,6 +1155,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             className="w-6 h-6 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors duration-75 cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]"
             title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
             aria-label={isMuted ? 'Unmute' : 'Mute'}
+            aria-pressed={isMuted}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               {isMuted || volume === 0 ? (
