@@ -33,7 +33,7 @@ Each item:
   - **How**: When the seek bar div (`role="slider"`, line 1017) is focused, pressing ArrowLeft triggers both `handleSeekKeyDown` (line 752, seeks −5s) and the global `handleKeyDown` (line 646, seeks −10s via `handleSkipBack`). Net effect: −15s instead of −5s. Fix: add `e.stopPropagation()` in `handleSeekKeyDown` for handled keys (line 768-769), preventing the event from reaching the global document listener.
   - **Why**: Pressing arrow keys on the seek bar seeks 3x the expected amount. Makes fine-grained seeking via keyboard impossible.
 
-- [ ] 🟢 **Reset vizTimeRef on loop boundary**
+- [x] 🟢 **Reset vizTimeRef on loop boundary**
   - **How**: When `audio.loop = true`, the browser resets `currentTime` to 0 without firing `ended`. But `vizTimeRef` continues incrementing from the old position until the next `timeupdate` resync (~250ms). During that window, FFT reads out-of-bounds samples as 0 (line 447: `idx < channel.length ? channel[idx] : 0`), causing a brief silence dip in the bars. Fix: listen for the `seeked` event on the audio element — the browser fires `seeked` when looping. In the handler, sync `vizTimeRef.current = audio.currentTime`.
   - **Why**: Visible as a brief bar decay/silence flash at loop points. Subtle but noticeable on short loops.
 

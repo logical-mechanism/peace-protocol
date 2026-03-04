@@ -331,6 +331,11 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       }
     };
 
+    // Sync vizTimeRef on seek (including implicit seek when looping)
+    const onSeeked = () => {
+      if (!cancelled) vizTimeRef.current = audio.currentTime;
+    };
+
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -339,6 +344,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     audio.addEventListener('waiting', onWaiting);
     audio.addEventListener('playing', onPlaying);
     audio.addEventListener('stalled', onStalled);
+    audio.addEventListener('seeked', onSeeked);
 
     return () => {
       cancelled = true;
@@ -351,6 +357,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('stalled', onStalled);
+      audio.removeEventListener('seeked', onSeeked);
       // Detach from GStreamer before revoking
       audio.removeAttribute('src');
       audio.load();
