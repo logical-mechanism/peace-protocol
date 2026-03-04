@@ -25,7 +25,7 @@ Each item:
   - **How**: `handleVolumeChange` (line 819-823) sets `audio.volume` but never clears `audio.muted` or `setIsMuted(false)`. Add: if `isMuted` and new volume > 0, set `audio.muted = false` and `setIsMuted(false)`. Reference the ArrowUp handler (lines 658-659) which already does this correctly.
   - **Why**: User mutes with M, then drags volume slider up — audio stays silent even though the slider shows volume. Confusing and feels broken.
 
-- [ ] 🔴 **vizTimeRef interpolation ignores playbackRate**
+- [x] 🔴 **vizTimeRef interpolation ignores playbackRate**
   - **How**: Line 431: `vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000` always advances at 1x. Multiply by `audioRef.current?.playbackRate ?? 1`. This matters because the FFT sample window (line 437: `startSample = Math.floor(vizTimeRef.current * buffer.sampleRate)`) will read from the wrong position at non-1x speeds, causing the FFT bars to not match what the user hears.
   - **Why**: At 2x speed, the FFT visualization lags ~50% behind actual playback between `timeupdate` resyncs (~250ms on WebKitGTK). Bars don't match the audio.
 

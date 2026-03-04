@@ -428,7 +428,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     // Advance interpolated time smoothly between audio.currentTime updates
     const now = performance.now();
     if (lastDrawTimeRef.current > 0 && isPlayingRef.current) {
-      vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000;
+      vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000 * (audioRef.current?.playbackRate ?? 1);
     }
     lastDrawTimeRef.current = now;
 
