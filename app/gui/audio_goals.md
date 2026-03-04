@@ -21,7 +21,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🔴 **Volume slider doesn't unmute when dragged while muted**
+- [x] 🔴 **Volume slider doesn't unmute when dragged while muted**
   - **How**: `handleVolumeChange` (line 819-823) sets `audio.volume` but never clears `audio.muted` or `setIsMuted(false)`. Add: if `isMuted` and new volume > 0, set `audio.muted = false` and `setIsMuted(false)`. Reference the ArrowUp handler (lines 658-659) which already does this correctly.
   - **Why**: User mutes with M, then drags volume slider up — audio stays silent even though the slider shows volume. Confusing and feels broken.
 

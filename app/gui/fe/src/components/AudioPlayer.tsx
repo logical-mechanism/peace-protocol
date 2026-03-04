@@ -820,7 +820,10 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
     setVolume(v);
-    if (audioRef.current) audioRef.current.volume = v;
+    if (audioRef.current) {
+      audioRef.current.volume = v;
+      if (v > 0) { audioRef.current.muted = false; setIsMuted(false); }
+    }
   }, []);
 
   const handleToggleLoop = useCallback(() => {
