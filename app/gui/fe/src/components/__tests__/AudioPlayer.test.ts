@@ -265,6 +265,105 @@ describe('computeWaveformSummary', () => {
   });
 });
 
+// --- Log-frequency bin mapping ---
+
+/** Mirrors the log-frequency bin range calculation from drawFrame(). */
+function computeLogBinRange(barIndex: number, barCount: number, halfFFT: number): { lowBin: number; highBin: number } {
+  const lowBin = Math.floor(halfFFT * (barIndex / barCount) ** 2);
+  const highBin = Math.max(lowBin + 1, Math.floor(halfFFT * ((barIndex + 1) / barCount) ** 2));
+  return { lowBin, highBin };
+}
+
+describe('log-frequency bin mapping', () => {
+  const FFT_SIZE = 1024;
+  const halfFFT = FFT_SIZE / 2; // 512
+  const BAR_COUNT = 32;
+
+  it('first bar starts at bin 0', () => {
+    const { lowBin } = computeLogBinRange(0, BAR_COUNT, halfFFT);
+    expect(lowBin).toBe(0);
+  });
+
+  it('last bar ends at halfFFT', () => {
+    const { highBin } = computeLogBinRange(BAR_COUNT - 1, BAR_COUNT, halfFFT);
+    expect(highBin).toBe(halfFFT);
+  });
+
+  it('every bar has at least 1 bin', () => {
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const { lowBin, highBin } = computeLogBinRange(i, BAR_COUNT, halfFFT);
+      expect(highBin - lowBin).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('bins are contiguous (no gaps between adjacent bars)', () => {
+    for (let i = 0; i < BAR_COUNT - 1; i++) {
+      const { highBin: prevHigh } = computeLogBinRange(i, BAR_COUNT, halfFFT);
+      const { lowBin: nextLow } = computeLogBinRange(i + 1, BAR_COUNT, halfFFT);
+      // Adjacent bars share the boundary — highBin of bar i equals lowBin of bar i+1
+      // (highBin is exclusive, lowBin is inclusive)
+      expect(nextLow).toBe(Math.floor(halfFFT * ((i + 1) / BAR_COUNT) ** 2));
+      expect(prevHigh).toBeGreaterThanOrEqual(nextLow);
+    }
+  });
+
+  it('allocates more bins to higher bars (log distribution)', () => {
+    const firstRange = computeLogBinRange(0, BAR_COUNT, halfFFT);
+    const lastRange = computeLogBinRange(BAR_COUNT - 1, BAR_COUNT, halfFFT);
+    const firstBins = firstRange.highBin - firstRange.lowBin;
+    const lastBins = lastRange.highBin - lastRange.lowBin;
+    // Last bar should cover many more bins than first bar (treble has more bins)
+    expect(lastBins).toBeGreaterThan(firstBins);
+  });
+
+  it('bass bars (first quarter) cover fewer total bins than treble bars (last quarter)', () => {
+    let bassBins = 0;
+    let trebleBins = 0;
+    const quarter = BAR_COUNT / 4;
+    for (let i = 0; i < quarter; i++) {
+      const { lowBin, highBin } = computeLogBinRange(i, BAR_COUNT, halfFFT);
+      bassBins += highBin - lowBin;
+    }
+    for (let i = BAR_COUNT - quarter; i < BAR_COUNT; i++) {
+      const { lowBin, highBin } = computeLogBinRange(i, BAR_COUNT, halfFFT);
+      trebleBins += highBin - lowBin;
+    }
+    expect(trebleBins).toBeGreaterThan(bassBins);
+  });
+});
+
+// --- Waveform pixel skip optimization ---
+
+describe('waveform pixel skip optimization', () => {
+  it('computes same pixel for close time positions', () => {
+    // At 480px width and 300s duration, 1px = 300/480 = 0.625s
+    const canvasWidth = 480;
+    const duration = 300;
+    const time1 = 150.0;
+    const time2 = 150.3; // 0.3s difference < 0.625s per pixel
+    const px1 = Math.round((time1 / duration) * canvasWidth);
+    const px2 = Math.round((time2 / duration) * canvasWidth);
+    expect(px1).toBe(px2); // Same pixel, redraw should be skipped
+  });
+
+  it('computes different pixel for distant time positions', () => {
+    const canvasWidth = 480;
+    const duration = 300;
+    const time1 = 150.0;
+    const time2 = 152.0; // 2s difference > 0.625s per pixel
+    const px1 = Math.round((time1 / duration) * canvasWidth);
+    const px2 = Math.round((time2 / duration) * canvasWidth);
+    expect(px1).not.toBe(px2); // Different pixel, should redraw
+  });
+
+  it('pixel range covers 0 to canvasWidth', () => {
+    const canvasWidth = 480;
+    const duration = 120;
+    expect(Math.round((0 / duration) * canvasWidth)).toBe(0);
+    expect(Math.round((duration / duration) * canvasWidth)).toBe(canvasWidth);
+  });
+});
+
 // --- LED status display priority ---
 
 /** Mirrors the status text logic from the AudioPlayer LED display. */

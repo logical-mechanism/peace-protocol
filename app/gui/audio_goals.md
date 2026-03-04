@@ -47,19 +47,19 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`, `fe/src/index.css`
 
-- [ ] 🟡 **Make waveform colors theme-aware via CSS variables**
+- [x] 🟡 **Make waveform colors theme-aware via CSS variables**
   - **How**: Lines 382-384 use hardcoded `rgba(99, 102, 241, 0.6)` and `rgba(99, 102, 241, 0.15)` for played/unplayed waveform bars. Add two CSS variables to `index.css`: `--waveform-played` and `--waveform-unplayed` in both `:root` (dark) and `[data-theme="light"]` blocks. Read them via `getComputedStyle` in the existing `readColors()` function (lines 214-221) and store in `gradientColorsRef`. Use those ref values in `drawWaveform`. For dark: `rgba(99, 102, 241, 0.6)` / `rgba(99, 102, 241, 0.15)`. For light: `rgba(79, 70, 229, 0.7)` / `rgba(79, 70, 229, 0.2)` (darker indigo, higher opacity for contrast).
   - **Why**: Light theme waveform contrast is ~2.8:1 (vs ~4.2:1 dark). Played/unplayed bars are hard to distinguish on the light `#d0d0dc` background.
 
-- [ ] 🟡 **Make position indicator color theme-aware**
+- [x] 🟡 **Make position indicator color theme-aware**
   - **How**: Lines 393-397 use hardcoded `rgba(250, 250, 250, 0.9)` (white) for the position indicator line. On the light theme background (`#d0d0dc`), white-on-light is nearly invisible. Add a `--waveform-indicator` CSS variable. Dark: `rgba(250, 250, 250, 0.9)`. Light: `rgba(30, 30, 60, 0.8)` (dark line on light bg). Read alongside the other colors in `readColors()`.
   - **Why**: The playback position line is invisible in light theme, making it hard to see where you are in the track.
 
-- [ ] 🟢 **Use log-frequency bin mapping for FFT bars**
+- [x] 🟢 **Use log-frequency bin mapping for FFT bars**
   - **How**: Line 453 uses linear mapping: `binsPerBar = Math.floor((FFT_SIZE / 2) / BAR_COUNT)`. Replace with logarithmic mapping: for bar `i` of `N`, compute `lowBin = floor((FFT_SIZE/2) * (i/N)^2)` and `highBin = floor((FFT_SIZE/2) * ((i+1)/N)^2)`. Average magnitudes across `lowBin..highBin`. This allocates more bars to bass (where musical information concentrates) and fewer to treble. Winamp 2.x uses a similar perceptual weighting.
   - **Why**: Linear mapping assigns equal bins per bar, making treble bars dim (natural spectral rolloff). Log mapping produces more visually balanced and musically meaningful bar heights.
 
-- [ ] 🟢 **Skip waveform redraw when pixel position unchanged**
+- [x] 🟢 **Skip waveform redraw when pixel position unchanged**
   - **How**: Lines 504-506 redraw the waveform every frame (24 FPS). Add a `lastDrawnPixelRef = useRef(-1)`. In `drawFrame`, compute `const px = Math.round(progressRatio * 480)` and skip `drawWaveform()` if `px === lastDrawnPixelRef.current`. Reset the ref on seek operations. At 480px canvas width, this reduces redraws from 24/sec to only when the 1px indicator moves (~8/sec for a 1-minute track, less for longer tracks).
   - **Why**: Eliminates redundant canvas clears and repaints when the waveform looks identical. Minor perf win, bigger impact on low-end hardware.
 

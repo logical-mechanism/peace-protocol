@@ -196,12 +196,17 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const vizTimeRef = useRef(0);
   const lastDrawTimeRef = useRef(0);
   // Cached CSS gradient colors — updated on mount + theme change via MutationObserver
-  const gradientColorsRef = useRef({ start: '#6366f1', mid: '#818cf8', end: '#a5b4fc' });
+  const gradientColorsRef = useRef({
+    start: '#6366f1', mid: '#818cf8', end: '#a5b4fc',
+    waveformPlayed: 'rgba(99, 102, 241, 0.6)', waveformUnplayed: 'rgba(99, 102, 241, 0.15)',
+    indicator: 'rgba(250, 250, 250, 0.9)', indicatorGlow: 'rgba(250, 250, 250, 0.3)',
+  });
   const hasShownHintsRef = useRef(false);
   // RAF loop control — stops when paused + bars fully decayed, restarts on play
   const rafActiveRef = useRef(false);
   const startLoopRef = useRef<(() => void) | null>(null);
   const drawWaveformRef = useRef<((progress: number) => void) | null>(null);
+  const lastDrawnPixelRef = useRef(-1);
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
   const seekBarTooltipRef = useRef<HTMLDivElement | null>(null);
   const waveformTooltipRef = useRef<HTMLDivElement | null>(null);
@@ -218,6 +223,10 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         start: styles.getPropertyValue('--audio-gradient-start').trim() || '#6366f1',
         mid: styles.getPropertyValue('--audio-gradient-mid').trim() || '#818cf8',
         end: styles.getPropertyValue('--audio-gradient-end').trim() || '#a5b4fc',
+        waveformPlayed: styles.getPropertyValue('--waveform-played').trim() || 'rgba(99, 102, 241, 0.6)',
+        waveformUnplayed: styles.getPropertyValue('--waveform-unplayed').trim() || 'rgba(99, 102, 241, 0.15)',
+        indicator: styles.getPropertyValue('--waveform-indicator').trim() || 'rgba(250, 250, 250, 0.9)',
+        indicatorGlow: styles.getPropertyValue('--waveform-indicator-glow').trim() || 'rgba(250, 250, 250, 0.3)',
       };
     };
 
@@ -248,6 +257,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     isPlayingRef.current = false;
     vizTimeRef.current = 0;
     lastDrawTimeRef.current = 0;
+    lastDrawnPixelRef.current = -1;
     prevBarsRef.current.fill(0);
     bufferRef.current = null;
     waveformDataRef.current = null;
@@ -333,7 +343,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
     // Sync vizTimeRef on seek (including implicit seek when looping)
     const onSeeked = () => {
-      if (!cancelled) vizTimeRef.current = audio.currentTime;
+      if (cancelled) return;
+      vizTimeRef.current = audio.currentTime;
+      lastDrawnPixelRef.current = -1; // Force waveform redraw after seek
     };
 
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
@@ -366,6 +378,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       // Release decoded PCM data for immediate GC
       bufferRef.current = null;
       waveformDataRef.current = null;
+      lastDrawnPixelRef.current = -1;
     };
   }, [data, fileExtension]);
 
@@ -384,14 +397,14 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const barW = width / waveform.length;
     const mid = height / 2;
 
+    const { waveformPlayed, waveformUnplayed, indicator, indicatorGlow } = gradientColorsRef.current;
+
     for (let i = 0; i < waveform.length; i++) {
       const h = waveform[i] * mid * 0.9;
       const x = i * barW;
       const isPlayed = (i / waveform.length) <= progressRatio;
 
-      ctx.fillStyle = isPlayed
-        ? 'rgba(99, 102, 241, 0.6)'
-        : 'rgba(99, 102, 241, 0.15)';
+      ctx.fillStyle = isPlayed ? waveformPlayed : waveformUnplayed;
 
       ctx.fillRect(x, mid - h, barW - 0.5, h * 2);
     }
@@ -400,10 +413,10 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     if (progressRatio > 0) {
       const indicatorX = Math.round(progressRatio * width);
       // Glow behind
-      ctx.fillStyle = 'rgba(250, 250, 250, 0.3)';
+      ctx.fillStyle = indicatorGlow;
       ctx.fillRect(indicatorX - 2, 0, 6, height);
       // Main line
-      ctx.fillStyle = 'rgba(250, 250, 250, 0.9)';
+      ctx.fillStyle = indicator;
       ctx.fillRect(indicatorX, 0, 2, height);
     }
   }, []);
@@ -460,16 +473,18 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
       fftInPlace(re, im);
 
-      const binsPerBar = Math.floor((FFT_SIZE / 2) / BAR_COUNT);
+      const halfFFT = FFT_SIZE / 2;
 
       for (let i = 0; i < BAR_COUNT; i++) {
+        // Log-frequency mapping: more bars for bass, fewer for treble (like Winamp)
+        const lowBin = Math.floor(halfFFT * (i / BAR_COUNT) ** 2);
+        const highBin = Math.max(lowBin + 1, Math.floor(halfFFT * ((i + 1) / BAR_COUNT) ** 2));
         let mag = 0;
-        for (let j = 0; j < binsPerBar; j++) {
-          const k = i * binsPerBar + j;
+        for (let k = lowBin; k < highBin; k++) {
           mag += Math.sqrt(re[k] * re[k] + im[k] * im[k]);
         }
         // dB-scale normalization (similar to AnalyserNode)
-        const avgMag = mag / binsPerBar;
+        const avgMag = mag / (highBin - lowBin);
         const dB = avgMag > 0 ? 20 * Math.log10(avgMag / FFT_SIZE) : -100;
         const normalized = Math.max(0, Math.min(1, (dB + 70) / 50)); // -70dB floor, -20dB ceiling
         prevBarsRef.current[i] = SMOOTHING * prevBarsRef.current[i] + (1 - SMOOTHING) * normalized;
@@ -510,9 +525,15 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       }
     }
 
-    // Update waveform progress overlay
+    // Update waveform progress overlay — skip redraw if pixel position is unchanged
     if (waveformDataRef.current && duration > 0) {
-      drawWaveform(vizTimeRef.current / duration);
+      const wCanvas = waveformCanvasRef.current;
+      const progressRatio = vizTimeRef.current / duration;
+      const px = wCanvas ? Math.round(progressRatio * wCanvas.width) : -1;
+      if (px !== lastDrawnPixelRef.current) {
+        lastDrawnPixelRef.current = px;
+        drawWaveform(progressRatio);
+      }
     }
   }, [duration, drawWaveform]);
 
