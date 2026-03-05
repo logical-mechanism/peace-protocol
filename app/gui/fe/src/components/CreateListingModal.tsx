@@ -38,7 +38,7 @@ interface CreateListingModalProps {
 }
 
 /** Files above this threshold show an informational upload time warning. */
-const LARGE_FILE_THRESHOLD_BYTES = 100 * 1024 * 1024; // 100 MB
+const LARGE_FILE_THRESHOLD_BYTES = 1024 * 1024 * 1024; // 1 GB
 
 /** All steps for file-based listing creation. */
 const FILE_LISTING_STEPS: { key: ListingCreationStep; label: string }[] = [
@@ -297,7 +297,7 @@ export default function CreateListingModal({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (file && file.size > LARGE_FILE_THRESHOLD_BYTES) {
-      setErrors((prev) => ({ ...prev, file: 'File too large (max 100 MB)' }));
+      setErrors((prev) => ({ ...prev, file: 'File too large (max 1 GB)' }));
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -345,7 +345,7 @@ export default function CreateListingModal({
     if (!file) return;
 
     if (file.size > LARGE_FILE_THRESHOLD_BYTES) {
-      setErrors((prev) => ({ ...prev, file: 'File too large (max 100 MB)' }));
+      setErrors((prev) => ({ ...prev, file: 'File too large (max 1 GB)' }));
       return;
     }
 
