@@ -1,112 +1,82 @@
 ---
 name: update-gui-goals
-description: Regenerate app/gui/goals.md with a fresh comprehensive analysis of the entire Veiled Desktop App
+description: Regenerate app/gui/audio_goals.md with a fresh comprehensive analysis of the AudioPlayer component
 ---
 
-# Update GUI Goals
+# Update Audio Goals
 
-Delete `goals.md` and regenerate it from scratch with a comprehensive analysis of every possible improvement across the Veiled Desktop App. Do not carry over completed items or skipped items from the previous round — this is a fresh audit.
+Delete `audio_goals.md` and regenerate it from scratch with a comprehensive analysis of every possible improvement across the AudioPlayer component. Do not carry over completed items or skipped items from the previous round — this is a fresh audit against the current state of the code.
+
+**Design intent:** The AudioPlayer is a Winamp clone. All suggestions must respect the retro aesthetic — segmented FFT bars, beveled transport buttons, LED/LCD time display, groove-inset panels, pixelated canvas rendering. Do not suggest "modern" patterns (rounded waveforms, minimal flat controls, material design) that conflict with the Winamp identity. New features should feel like they belong in Winamp 2.x.
 
 ## Process
 
 1. **Read CLAUDE.md** to understand the current architecture, conventions, and gotchas
-2. **Read the current goals.md** (if it exists) to understand what was previously identified — but do NOT preserve it. The output is a clean slate. Note any items marked `[s]` (skipped) — these were intentionally declined and must NOT be re-suggested in the new goals.
-3. **Launch four parallel Explore subagents** (all "very thorough") to audit the codebase:
+2. **Read the current audio_goals.md** (if it exists) to understand what was previously identified — but do NOT preserve it. The output is a clean slate. Note any items marked `[s]` (skipped) — these were intentionally declined and must NOT be re-suggested in the new goals.
+3. **Launch parallel Explore subagents** (all "very thorough") to audit the AudioPlayer:
 
-   **Agent 1 — Frontend UI/UX:**
-   - Read every page component (WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings)
-   - Read every component, modal, card, tab, and viewer
-   - Read index.css, fonts.css for design system gaps
-   - Read all services, hooks, contexts, utils, config
+   **Agent 1 — Playback, Seeking & Transport:**
+   - Read the full `AudioPlayer.tsx` component line by line
+   - Read the `VideoPlayer.tsx` component for feature parity comparison
+   - Read `LibraryContentModal.tsx` for integration point (how data is passed, how the player is mounted)
+   - Read `fe/src/config/categories.ts` for supported audio formats
    - Identify gaps using this checklist:
-     - **State completeness**: Every async operation must have 4 states — loading, success, error, empty. Check every fetch call, every invoke(), every form submission. Flag any that are missing states.
-     - **Interaction feedback**: Every clickable element needs hover, active, focus, and disabled visual states. Check buttons, cards, links, tabs, icons. Flag flat/dead-feeling interactions.
-     - **Visual hierarchy**: Each view should have clear primary action, secondary actions, and tertiary actions distinguished by size, color, and weight. Flag views where everything has equal visual weight.
-     - **Form UX**: Inline validation on blur (not just on submit), helpful placeholder text, clear error placement next to the field, proper tab order, auto-focus on first field when modal opens. Check every form and modal.
-     - **Empty states**: Every list/grid must handle zero items with helpful guidance (illustration + explanation + CTA). Check Marketplace, My Sales, My Purchases, History, Library when empty.
-     - **Loading states**: Prefer skeleton screens over spinners for content areas. Spinners acceptable only for actions (button loading). Check every data-loading view.
-     - **Confirmation dialogs**: Every destructive action (delete, cancel, remove) needs confirmation with clear consequence description. Check all delete/cancel/remove flows.
-     - **Truncation & overflow**: Long text (addresses, descriptions, filenames) must truncate gracefully with tooltip showing full value. Check every place user-generated or on-chain text is displayed.
-     - **Keyboard navigation**: Tab order follows visual layout. Enter activates focused element. Escape closes modals/menus. Arrow keys navigate lists. Check every interactive view.
-     - **Responsive layout**: Window resize from 1280x800 down to 1024x600 should remain usable. Check for overflow, text wrapping, and layout breakage at smaller sizes.
-     - **Content tone**: Headings, labels, empty states, and error messages should use consistent voice — concise, helpful, never blaming the user. Flag any "Error occurred" or "Something went wrong" without next-step guidance.
-     - **Contextual help**: Complex features (SNARK proving, BLS crypto, Iagon storage) should have inline explanations or info tooltips for non-expert users. Check if domain-specific terms are explained anywhere.
-     - **Input constraints**: Number inputs should have min/max, text inputs should have maxLength where appropriate, file inputs should validate size/type before upload. Check every input.
+     - **Playback reliability**: Does the `<audio>` element handle all lifecycle events? Check for `stalled`, `waiting`, `suspend`, `abort`, `emptied`. Are there race conditions between Blob creation, GStreamer pipeline init, and `decodeAudioData`?
+     - **Seeking UX**: Can users seek via waveform click/drag? Is there a visible playback position indicator? Does the seek bar have adequate click target size? Is there a hover time preview? Does seeking work during pause?
+     - **Transport completeness**: Play, pause, stop, skip, loop, speed, mute, volume — is anything missing? Are keyboard shortcuts comprehensive and discoverable? Does the VideoPlayer have transport features the AudioPlayer lacks?
+     - **Playback state sync**: Is `vizTimeRef` always in sync with `audio.currentTime`? Are there edge cases where they diverge (seeking while paused, speed changes, loop boundary)?
+     - **Format handling**: Are all 7 supported formats (mp3, wav, flac, ogg, aac, m4a, opus) handled correctly? Are MIME types accurate? Are error messages helpful when a format fails?
+     - **Edge cases**: What happens at track end with loop off? With loop on? What about zero-length files? Corrupted files? Files with no audio channel?
 
-   **Agent 2 — Backend + Rust Core:**
-   - Read all Express routes, services, middleware, types, config
-   - Read all Tauri commands, process managers, crypto modules, config
-   - Read tauri.conf.json, capabilities, resources/config.json
+   **Agent 2 — Visualization & Performance:**
+   - Read the FFT implementation (`fftInPlace`, `drawFrame`, constants)
+   - Read the waveform implementation (`drawWaveform`, `computeWaveformSummary`)
+   - Read the animation loop and RAF management
+   - Read `fe/src/index.css` for Winamp CSS variables, gradient colors, slider styles, animations
    - Identify gaps using this checklist:
-     - **Validation coverage**: Every route param, query param, and request body field must be validated. Check for missing validators beyond pkh/tokenName/txHash. Flag any raw `req.params` or `req.query` usage without validation.
-     - **Error response consistency**: Every error response must use `{ error: { code, message } }` format. Check all catch blocks and error paths for responses that don't match this shape.
-     - **API design**: Response shapes should be consistent across similar endpoints. Pagination applied uniformly. Sorting options documented. Check for inconsistencies between route groups.
-     - **Tauri command safety**: All `invoke` handlers must validate inputs before processing. Check for path traversal in file operations, injection in shell commands, integer overflow in numeric params.
-     - **Resource cleanup**: Check for file handles, temp files, and child processes that could leak on error paths. Every `tempfile::NamedTempFile` and `tokio::process::Command` should have cleanup on all code paths.
-     - **Atomic operations**: Multi-step operations (write secret + delete old) should be atomic or have recovery. Check for partial-failure scenarios that could leave inconsistent state.
-     - **Race conditions**: Concurrent requests to the same resource (e.g., two tabs placing bids simultaneously) should be handled. Check for TOCTOU issues in file operations and state mutations.
-     - **Graceful degradation**: When Kupo, Koios, or Iagon are unreachable, the app should clearly communicate what's unavailable rather than showing cryptic errors. Check error propagation from services to UI.
-     - **Secret handling**: Secrets in memory should have defined lifetimes. Check for secrets lingering in log output, error messages, or debug strings. Verify zeroization on lock.
+     - **FFT accuracy**: Is the Hann window applied correctly? Is the dB normalization range appropriate (-70dB floor, -20dB ceiling)? Does the bin-to-bar mapping miss high frequencies? Are there artifacts from the smoothing factor?
+     - **Waveform quality**: Is 200 buckets sufficient resolution? Does peak detection miss transients? Are played/unplayed colors distinguishable in both themes? Is the position indicator visible?
+     - **Canvas performance**: Are gradients cached or recreated every frame? Is `getComputedStyle()` called in the render loop? Are there unnecessary allocations per frame? Could the waveform be drawn less frequently (only on time change)?
+     - **RAF loop efficiency**: Does the loop stop when paused and decay complete? Does it respect `document.hidden`? Is the 24 FPS throttle smooth or jittery? Is there a memory leak from leaked RAF callbacks?
+     - **Theme support**: Do all Winamp CSS variables have light-theme overrides? Do gradient colors work in both themes? Is the canvas background correct in light mode?
+     - **Memory management**: Is the decoded AudioBuffer released when the component unmounts? Is the Blob URL revoked? Are Float32Array allocations reused or recreated?
 
-   **Agent 3 — Testing + Build + CI/CD + DevEx:**
-   - List all test files, identify what's NOT tested (components, pages, contexts, routes)
-   - Read build.sh, run.sh, lint.sh, test.sh, check-prereqs.sh
-   - Read CI pipeline (.github/workflows/ci.yml)
-   - Read package.json files, tsconfig, eslint configs, Cargo.toml
-   - Read CHANGELOG.md, CONTRIBUTING.md
+   **Agent 3 — UX, Accessibility & Display:**
+   - Read all UI rendering sections of `AudioPlayer.tsx` (the JSX return block)
+   - Read the metadata parsing and display logic
+   - Read the error state rendering
+   - Read the test file at `fe/src/components/__tests__/AudioPlayer.test.ts`
    - Identify gaps using this checklist:
-     - **Untested components**: Cross-reference `fe/src/components/` against `fe/src/components/__tests__/`. Every user-facing component should have at least a render test. Flag all untested components by name.
-     - **Untested pages**: Check coverage for WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings page components.
-     - **Untested services**: Cross-reference `fe/src/services/` against `fe/src/services/__tests__/`. Flag all untested services.
-     - **Error path testing**: Tests should cover error/failure scenarios, not just happy paths. Check for tests that mock network failures, invalid inputs, timeout scenarios.
-     - **Integration test gaps**: Check for end-to-end flow tests (create listing → place bid → accept → decrypt). Flag missing multi-step workflow tests.
-     - **Build reliability**: Check for flaky tests, missing test isolation, shared mutable state between tests.
-     - **CI pipeline**: Check for missing steps — type checking, linting, test coverage reporting, build verification, Rust clippy/fmt.
-     - **Developer onboarding**: Could a new developer run the app from a fresh clone? Check for missing setup documentation, undocumented prerequisites, unclear error messages from check-prereqs.sh.
+     - **Accessibility**: Does the seek bar have `role="slider"` + ARIA attributes? Are playback state changes announced via `aria-live`? Do toggle buttons use `aria-pressed`? Are all interactive elements keyboard-reachable? Is tab order logical?
+     - **Loading states**: Is there a loading indicator? Does it show during initial decode? During format conversion? Is there a skeleton or spinner?
+     - **Error states**: Are error messages actionable? Do they suggest next steps (export, convert)? Is the error UI visually distinct? Are there error states that are silently swallowed?
+     - **Metadata display**: Are long titles/artists truncated gracefully? Is album art displayed correctly? Is there a hover state to reveal full text? Are time formats correct for long audio (H:MM:SS)?
+     - **Visual polish**: Are transitions smooth? Do buttons have proper hover/active/focus states? Is spacing consistent with the design system? Do animations feel responsive?
+     - **Test coverage**: What utility functions are tested? What's NOT tested? Are edge cases covered (NaN, Infinity, empty arrays, zero-length audio)?
 
-   **Agent 4 — Professional Polish & Craft:**
-   - Read the app from a user's perspective: page by page, flow by flow
-   - Read index.css for design token completeness and consistency
-   - Read every component's styling for visual consistency
-   - Read all user-facing text strings across the app
-   - Audit against these professional quality signals:
-     - **Typography hierarchy**: Is there a clear and consistent scale? Headings (h1-h4), body, caption, label, monospace — each with defined size, weight, line-height. Check if components follow the scale or use arbitrary values.
-     - **Spacing consistency**: Are margins and paddings using the `--space-*` tokens consistently? Flag any hardcoded px/rem values that should use tokens.
-     - **Color contrast**: Do all text/background combinations meet WCAG AA (4.5:1 for body, 3:1 for large text)? Check both dark and light themes. Pay special attention to muted/secondary text colors.
-     - **Focus indicators**: Are focus rings visible on all interactive elements? Are they styled consistently? Do they work in both themes? Flag any `:focus` without a visible indicator.
-     - **Transition consistency**: Are hover/active/open transitions using the `--transition-*` tokens? Flag any abrupt state changes that should animate, and any inconsistent durations.
-     - **Icon and visual consistency**: Are all icons from the same family/style? Are icon sizes consistent for similar contexts? Are illustrations consistent in style?
-     - **Copy quality**: Are labels, headings, and messages concise and consistent in tone? Do CTAs use action verbs? Are technical terms explained? Flag any jargon, passive voice in actions, or inconsistent capitalization.
-     - **Number and data formatting**: Are ADA amounts formatted consistently (decimal places, units)? Are dates relative ("2 hours ago") for recent and absolute for old? Are large numbers formatted with separators? Are byte sizes human-readable?
-     - **Progressive disclosure**: Is complex information revealed in layers (summary → details → raw data)? Check transaction details, encryption info, SNARK proof output.
-     - **Perceived performance**: Are there optimistic updates where safe? Do skeleton screens match the final layout shape? Is there a stale-while-revalidate pattern for cached data?
-     - **Delight details**: Subtle touches that signal craft — smooth page transitions, meaningful loading animations, satisfying button feedback, well-timed toast notifications, thoughtful empty states with personality.
-
-4. **Synthesize findings** from all four agents into a single goals.md file. Cross-reference between agents to eliminate duplicates. If an agent finds nothing meaningful for a section, that section is healthy — do not pad it with filler items.
+4. **Synthesize findings** from all agents into a single `audio_goals.md` file. Cross-reference between agents to eliminate duplicates. If an area has no genuine issues, do not pad it with filler items.
 
 ## Output Format
 
-Write `goals.md` with this structure:
+Write `audio_goals.md` with this structure:
 
 ```markdown
-# Veiled Desktop App — Goals & Improvements
+# AudioPlayer Goals & Improvements
 
-A comprehensive backlog for making Veiled exceptional. Pick any item, implement it, check it off, and submit a PR.
+A comprehensive backlog for making the AudioPlayer exceptional. Pick any item, implement it, check it off, and submit a PR.
 
-Each item has:
-- **What**: A brief description of the feature or improvement
-- **How**: Implementation ideas and key files involved
-- **Why**: The value it provides
+**Architecture context:**
+- Native `<audio>` element for playback (routes through GStreamer via WebKitGTK)
+- Separate PCM decode via `OfflineAudioContext` for FFT visualization only
+- Custom Cooley-Tukey radix-2 FFT (1024 samples, 32 bars)
+- Waveform overview (200 buckets, peak-detection downsampling)
+- WebKitGTK Web Audio API is broken (no AnalyserNode, no AudioWorklet)
+- Styling uses Winamp-themed CSS variables defined in `fe/src/index.css`
 
-Difficulty ratings:
-- 🟢 Small — isolated change, single file, < 1 hour
-- 🟡 Medium — touches 2-4 files, may need testing, < half day
-- 🔴 Large — cross-cutting, multiple components/services, needs design thought
-
----
-
-## Table of Contents
-[numbered list of all sections]
+Each item:
+- `🔴` Critical — bugs, broken features
+- `🟡` Important — UX improvements, user-requested features
+- `🟢` Nice-to-have — polish, optimization
 
 ---
 
@@ -120,64 +90,48 @@ Difficulty ratings:
 
 ---
 
-## Priority Guide
+## Priority Summary
 
-### Must-Have (blocks production readiness)
-### Should-Have (significant UX/reliability improvement)
-### Nice-to-Have (polish and delight)
-### Craft (the details that make users say "this is well built")
-### Infrastructure (developer productivity)
+| Priority | Count | Items |
+|----------|-------|-------|
+| 🔴 Critical | N | ... |
+| 🟡 Important | N | ... |
+| 🟢 Nice-to-have | N | ... |
+
+### Implementation Order (suggested)
+[ordered list of recommended implementation sequence]
 ```
 
 ## Section Categories
 
-Organize items into these approximate sections (merge or split as the findings dictate). If thorough auditing reveals nothing meaningful for a section, omit it — an empty section signals health, not a gap to fill.
+Organize items into these sections (merge or split as findings dictate). If a section has no genuine issues, omit it entirely.
 
-1. Onboarding & First-Run Experience
-2. Wallet & Authentication
-3. Node Sync & Process Management
-4. Dashboard & Navigation
-5. Marketplace Tab
-6. My Sales Tab
-7. My Purchases Tab
-8. History Tab
-9. Library Tab
-10. Create Listing Modal
-11. Place Bid Modal
-12. Media Viewers (PDF, Image, Audio, Video)
-13. Settings Page
-14. Notifications & Alerts
-15. Design System & Styling
-16. Animations & Micro-Interactions
-17. Accessibility
-18. Error Handling & User Feedback
-19. Performance
-20. Backend API
-21. Rust Core & Security
-22. Testing
-23. Developer Experience & Tooling
-24. Documentation & CI/CD
+1. Playback & Stability
+2. Seeking & Navigation
+3. Visualization
+4. Transport Controls
+5. Performance
+6. Accessibility
+7. Metadata & Display
 
 ## Quality Standards
 
-- **Every item must reference specific files** — no vague "improve the UI" items
+- **Every item must reference specific files** — no vague "improve the player" items
 - **How sections must be actionable** — describe the approach concretely enough that a developer can start implementing without ambiguity
-- **Range from small to large** — include quick wins (add an aria-label) alongside big features (auto-updater). Tag each item with a difficulty rating: 🟢 Small, 🟡 Medium, or 🔴 Large
 - **No duplicates** — each improvement appears exactly once in the most relevant section
-- **Verify before suggesting** — read the actual code to confirm something is missing before adding it as a goal. Do not guess based on file names alone. If a component already handles loading/error/empty states, do not suggest adding them
-- **Specific over generic** — "Add `aria-label` to the copy-address button in `WalletUnlock.tsx:42`" is better than "Improve accessibility". Name the file, the line range, the component, the prop
-- **User-observable value** — every item should describe a change that a user or developer would notice. Internal refactors must explain the observable benefit (faster load, fewer bugs, better errors)
-- **Priority guide** selects the ~6 most important items per tier from across all sections. The new "Craft" tier captures polish items that separate a good app from a great one — subtle transitions, satisfying feedback, thoughtful copy, consistent formatting
+- **Verify before suggesting** — read the actual code to confirm something is missing before adding it as a goal. Do not guess based on file names alone. If the component already handles a state/feature, do not suggest adding it
+- **Specific over generic** — "Add `aria-pressed={isLooping}` to the loop button at line 783" is better than "Improve accessibility". Name the file, the line, the prop
+- **User-observable value** — every item should describe a change that a user would notice. Internal refactors must explain the observable benefit (smoother playback, fewer glitches, better errors)
 
 ## Rules
 
-- Delete the existing goals.md before writing — this is always a fresh analysis
-- Do NOT carry over checked items (`[x]`) from the previous goals.md
-- Do NOT carry over skipped items (`[s]`) from the previous goals.md — these were intentionally declined and must not reappear
+- Delete the existing `audio_goals.md` before writing — this is always a fresh analysis
+- Do NOT carry over checked items (`[x]`) from the previous `audio_goals.md`
+- Do NOT carry over skipped items (`[s]`) from the previous `audio_goals.md` — these were intentionally declined and must not reappear
 - Do NOT add items that are already implemented in the codebase — verify by reading the actual code
 - Do NOT pad sections — if a section has no real issues, omit it or include only 1-2 genuine items. Quality over quantity
 - Match the terse, reference-style tone of CLAUDE.md
-- Include every genuine finding — no artificial item count target. A mature codebase may have 30 items; a new one may have 200. Let the findings emerge naturally
-- Run the four Explore agents in parallel to minimize wall-clock time
+- Include every genuine finding — no artificial item count target. Let the findings emerge naturally from the current state of the code
+- Run the Explore agents in parallel to minimize wall-clock time
 - After writing, count the total items with `grep -c '^\- \[ \]'` and report the count
-- Report per-difficulty breakdown: `grep -c '🟢'`, `grep -c '🟡'`, `grep -c '🔴'`
+- Report per-priority breakdown: `grep -c '🔴'`, `grep -c '🟡'`, `grep -c '🟢'`

@@ -445,61 +445,36 @@ export default function LibraryContentModal({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            {/* Metadata */}
-            <div className="mb-6 p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] space-y-3">
+            {/* Metadata — compact two-row layout */}
+            <div className="mb-3 px-3 py-2 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="accent">{getCategoryLabel(item.category)}</Badge>
                 {item.fileExtension && (
                   <Badge variant="neutral">{item.fileExtension.toUpperCase().slice(1)}</Badge>
                 )}
                 {item.contentMissing && <Badge variant="warning">Content Missing</Badge>}
+                {item.description && (
+                  <span className="text-xs text-[var(--text-secondary)] truncate ml-1">{item.description}</span>
+                )}
               </div>
-
-              {item.description && (
-                <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">
-                  {item.description}
-                </p>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[var(--border-subtle)]">
-                {item.seller && (
-                  <div>
-                    <p className="text-xs text-[var(--text-muted)]">Seller</p>
-                    <p className="text-sm font-mono text-[var(--text-secondary)]">
-                      {truncateHex(item.seller, 10, 6)}
-                    </p>
-                  </div>
-                )}
-                {item.createdAt && (
-                  <div>
-                    <p className="text-xs text-[var(--text-muted)]">Listed</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {formatDateTime(item.createdAt)}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs text-[var(--text-muted)]">Decrypted</p>
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    {formatDateTime(item.decryptedAt)}
-                  </p>
-                </div>
-                {item.storageLayer && (
-                  <div>
-                    <p className="text-xs text-[var(--text-muted)]">Storage</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {item.storageLayer}
-                    </p>
-                  </div>
-                )}
-                {item.fileSize != null && (
-                  <div>
-                    <p className="text-xs text-[var(--text-muted)]">File Size</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {formatBytes(item.fileSize)}
-                    </p>
-                  </div>
-                )}
+              <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-[var(--text-muted)]">
+                {item.seller && (<>
+                  <span><span className="text-[var(--accent)] opacity-70">Seller:</span> <span className="font-mono text-[var(--text-secondary)]">{truncateHex(item.seller, 10, 6)}</span></span>
+                  <span className="opacity-30">&middot;</span>
+                </>)}
+                {item.createdAt && (<>
+                  <span><span className="text-[var(--accent)] opacity-70">Listed:</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.createdAt)}</span></span>
+                  <span className="opacity-30">&middot;</span>
+                </>)}
+                <span><span className="text-[var(--accent)] opacity-70">Decrypted:</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.decryptedAt)}</span></span>
+                {item.storageLayer && (<>
+                  <span className="opacity-30">&middot;</span>
+                  <span><span className="text-[var(--accent)] opacity-70">Storage:</span> <span className="text-[var(--text-secondary)]">{item.storageLayer}</span></span>
+                </>)}
+                {item.fileSize != null && (<>
+                  <span className="opacity-30">&middot;</span>
+                  <span><span className="text-[var(--accent)] opacity-70">Size:</span> <span className="text-[var(--text-secondary)]">{formatBytes(item.fileSize)}</span></span>
+                </>)}
               </div>
             </div>
 

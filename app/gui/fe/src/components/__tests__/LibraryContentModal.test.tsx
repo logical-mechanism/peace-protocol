@@ -131,7 +131,7 @@ describe('LibraryContentModal', () => {
   it('renders metadata section with seller info', async () => {
     render(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
-      expect(screen.getByText('Seller')).toBeInTheDocument();
+      expect(screen.getByText(/Seller:/)).toBeInTheDocument();
     });
   });
 

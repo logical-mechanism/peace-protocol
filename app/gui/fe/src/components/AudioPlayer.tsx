@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
 import { DelayedSpinner } from './LoadingSpinner';
 
 interface AudioMetadata {
@@ -8,6 +8,9 @@ interface AudioMetadata {
   trackNumber?: number;
   year?: number;
   picture?: { data: Uint8Array; format: string } | null;
+  bitrate?: number;
+  sampleRate?: number;
+  channels?: number;
 }
 
 function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: string } }) {
@@ -50,8 +53,12 @@ function getMimeType(ext: string): string {
 
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || seconds < 0) return '00:00';
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
@@ -62,6 +69,8 @@ function getConversionHint(ext: string): string | null {
     '.opus': 'Try converting to OGG: ffmpeg -i file.opus -c:a libvorbis output.ogg',
     '.m4a': 'Try converting to MP3: ffmpeg -i file.m4a -c:a libmp3lame output.mp3',
     '.wav': 'WAV is usually supported. The file may be corrupted or use an uncommon codec.',
+    '.ogg': 'Try converting to MP3: ffmpeg -i file.ogg -c:a libmp3lame output.mp3',
+    '.mp3': 'MP3 is widely supported. The file may be corrupted or use an uncommon bitrate.',
   };
   return hints[ext.toLowerCase()] ?? null;
 }
@@ -100,6 +109,37 @@ function fftInPlace(re: Float32Array, im: Float32Array): void {
   }
 }
 
+/** Text that scrolls horizontally on hover when it overflows its container. */
+function MarqueeText({ text, className }: { text: string; className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const span = spanRef.current;
+    if (!container || !span) return;
+    const cw = container.clientWidth;
+    const sw = span.scrollWidth;
+    const isOverflowing = sw > cw;
+    setOverflows(isOverflowing);
+    setOffset(isOverflowing ? cw - sw : 0);
+  }, [text]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`marquee-on-hover ${className ?? ''}`}
+      style={{ '--marquee-offset': `${offset}px` } as CSSProperties}
+    >
+      <span ref={spanRef} className={overflows ? 'marquee-overflows' : ''}>
+        {text}
+      </span>
+    </div>
+  );
+}
+
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
 const BAR_COUNT = 32;
@@ -109,16 +149,23 @@ const TARGET_FPS = 24;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
 const WAVEFORM_BUCKETS = 200;
 
-/** Downsample audio channel to peak values per bucket for waveform overview. */
-function computeWaveformSummary(channel: Float32Array, buckets: number): Float32Array {
-  const samplesPerBucket = Math.floor(channel.length / buckets);
+/** Downsample audio channels to peak values per bucket for waveform overview.
+ *  For stereo, takes the max peak across both channels per sample. */
+function computeWaveformSummary(channels: Float32Array[], buckets: number): Float32Array {
+  if (channels.length === 0 || channels[0].length === 0) return new Float32Array(0);
+  const samplesPerBucket = Math.floor(channels[0].length / buckets);
   if (samplesPerBucket < 1) return new Float32Array(0);
   const summary = new Float32Array(buckets);
+  const isStereo = channels.length >= 2;
   for (let i = 0; i < buckets; i++) {
     let max = 0;
     const start = i * samplesPerBucket;
     for (let j = 0; j < samplesPerBucket; j++) {
-      const abs = Math.abs(channel[start + j] || 0);
+      let abs = Math.abs(channels[0][start + j] || 0);
+      if (isStereo) {
+        const absR = Math.abs(channels[1][start + j] || 0);
+        if (absR > abs) abs = absR;
+      }
       if (abs > max) max = abs;
     }
     summary[i] = max;
@@ -137,6 +184,10 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [showRemaining, setShowRemaining] = useState(false);
   const [metadata, setMetadata] = useState<AudioMetadata | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showKeyHints, setShowKeyHints] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [visualizationFailed, setVisualizationFailed] = useState(false);
 
   // Native <audio> element for playback — no Web Audio API in the output path
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -148,6 +199,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const prevBarsRef = useRef(new Float32Array(BAR_COUNT));
+  const peakBarsRef = useRef(new Float32Array(BAR_COUNT));
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const waveformDataRef = useRef<Float32Array | null>(null);
   const fftReRef = useRef(new Float32Array(FFT_SIZE));
@@ -156,6 +208,48 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   // we interpolate between updates for fluid visualization
   const vizTimeRef = useRef(0);
   const lastDrawTimeRef = useRef(0);
+  // Cached CSS gradient colors — updated on mount + theme change via MutationObserver
+  const gradientColorsRef = useRef({
+    start: '#6366f1', mid: '#818cf8', end: '#a5b4fc',
+    waveformPlayed: 'rgba(34, 211, 238, 0.6)', waveformUnplayed: 'rgba(34, 211, 238, 0.15)',
+    indicator: 'rgba(250, 250, 250, 0.9)', indicatorGlow: 'rgba(250, 250, 250, 0.3)',
+  });
+  const hasShownHintsRef = useRef(false);
+  // RAF loop control — stops when paused + bars fully decayed, restarts on play
+  const rafActiveRef = useRef(false);
+  const startLoopRef = useRef<(() => void) | null>(null);
+  const drawWaveformRef = useRef<((progress: number) => void) | null>(null);
+  const lastDrawnPixelRef = useRef(-1);
+  const waveformContainerRef = useRef<HTMLDivElement | null>(null);
+  const seekBarTooltipRef = useRef<HTMLDivElement | null>(null);
+  const waveformTooltipRef = useRef<HTMLDivElement | null>(null);
+  const pcmDecodedRef = useRef(false);
+
+  // --- Cache CSS gradient colors (avoids getComputedStyle per frame) ---
+
+  useEffect(() => {
+    const readColors = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const styles = getComputedStyle(canvas);
+      gradientColorsRef.current = {
+        start: styles.getPropertyValue('--audio-gradient-start').trim() || '#6366f1',
+        mid: styles.getPropertyValue('--audio-gradient-mid').trim() || '#818cf8',
+        end: styles.getPropertyValue('--audio-gradient-end').trim() || '#a5b4fc',
+        waveformPlayed: styles.getPropertyValue('--waveform-played').trim() || 'rgba(99, 102, 241, 0.6)',
+        waveformUnplayed: styles.getPropertyValue('--waveform-unplayed').trim() || 'rgba(99, 102, 241, 0.15)',
+        indicator: styles.getPropertyValue('--waveform-indicator').trim() || 'rgba(250, 250, 250, 0.9)',
+        indicatorGlow: styles.getPropertyValue('--waveform-indicator-glow').trim() || 'rgba(250, 250, 250, 0.3)',
+      };
+    };
+
+    readColors();
+
+    const observer = new MutationObserver(readColors);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    return () => observer.disconnect();
+  }, []);
 
   // --- Load audio element + decode PCM for visualization ---
 
@@ -171,35 +265,30 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     setDuration(0);
     setPlaybackRate(1.0);
     setMetadata(null);
+    setIsBuffering(false);
+    setVisualizationFailed(false);
     isPlayingRef.current = false;
     vizTimeRef.current = 0;
     lastDrawTimeRef.current = 0;
+    lastDrawnPixelRef.current = -1;
     prevBarsRef.current.fill(0);
+    peakBarsRef.current.fill(0);
     bufferRef.current = null;
     waveformDataRef.current = null;
+    pcmDecodedRef.current = false;
 
     // Blob URL for native <audio> playback — GStreamer handles output directly,
     // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
-    const blob = new Blob([new Uint8Array(data)], { type: getMimeType(fileExtension) });
+    const blob = new Blob([data], { type: getMimeType(fileExtension) });
     const url = URL.createObjectURL(blob);
     audio.src = url;
-
-    // Decode in parallel for FFT visualization + waveform overview (doesn't affect playback)
-    const offlineCtx = new OfflineAudioContext(2, 1, 44100);
-    offlineCtx.decodeAudioData(data.slice().buffer)
-      .then(buffer => {
-        if (cancelled) return;
-        bufferRef.current = buffer;
-        waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
-      })
-      .catch(() => {}); // Visualization degrades gracefully if decode fails
 
     // Parse ID3/Vorbis metadata (best-effort, doesn't affect playback)
     import('music-metadata').then(({ parseBuffer }) => {
       parseBuffer(new Uint8Array(data), { mimeType: getMimeType(fileExtension) })
         .then(result => {
           if (cancelled) return;
-          const { common } = result;
+          const { common, format } = result;
           const pic = common.picture?.[0];
           setMetadata({
             title: common.title,
@@ -208,23 +297,87 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             trackNumber: common.track?.no ?? undefined,
             year: common.year,
             picture: pic ? { data: new Uint8Array(pic.data), format: pic.format } : null,
+            bitrate: format?.bitrate,
+            sampleRate: format?.sampleRate,
+            channels: format?.numberOfChannels,
           });
         })
-        .catch(() => {});
-    }).catch(() => {});
+        .catch((err) => { console.warn('AudioPlayer: metadata parse failed', err); });
+    }).catch((err) => { console.warn('AudioPlayer: music-metadata import failed', err); });
 
-    const onLoadedMetadata = () => { if (!cancelled) setDuration(audio.duration); };
-    const onCanPlay = () => { if (!cancelled) setIsReady(true); };
+    const onLoadedMetadata = () => {
+      if (cancelled) return;
+      const d = audio.duration;
+      if (isFinite(d) && d > 0) setDuration(d);
+    };
+    // WebKitGTK/GStreamer often reports NaN at loadedmetadata time;
+    // the actual duration arrives via durationchange once the demuxer finishes.
+    const onDurationChange = () => {
+      if (cancelled) return;
+      const d = audio.duration;
+      if (isFinite(d) && d > 0) setDuration(d);
+    };
+    const onCanPlay = () => {
+      if (cancelled) return;
+      // Only reset if GStreamer reported a genuinely non-zero start position.
+      // Forcing a seek to 0 when already at 0 causes GStreamer to snap to the
+      // nearest sync frame, clipping the first few milliseconds of audio.
+      if (audio.currentTime > 0.05) {
+        audio.currentTime = 0;
+      }
+      setIsReady(true);
+      // Start PCM decode now that GStreamer pipeline is fully ready.
+      // Decoding before canplay contends with GStreamer on the audio thread,
+      // causing skipping/lagging on initial playback.
+      if (!pcmDecodedRef.current) {
+        pcmDecodedRef.current = true;
+        const offlineCtx = new OfflineAudioContext(2, 1, 44100);
+        const PCM_DECODE_TIMEOUT = 15_000;
+        Promise.race([
+          offlineCtx.decodeAudioData(
+            data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('PCM decode timeout')), PCM_DECODE_TIMEOUT),
+          ),
+        ])
+          .then(buffer => {
+            if (cancelled) return;
+            bufferRef.current = buffer;
+            const channels: Float32Array[] = [];
+            for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+              channels.push(buffer.getChannelData(ch));
+            }
+            waveformDataRef.current = computeWaveformSummary(channels, WAVEFORM_BUCKETS);
+            drawWaveformRef.current?.(0);
+          })
+          .catch(() => {
+            if (!cancelled) setVisualizationFailed(true);
+          });
+      }
+    };
     const onTimeUpdate = () => {
       if (cancelled) return;
       setCurrentTime(audio.currentTime);
       // Re-sync visualization time to prevent drift
       vizTimeRef.current = audio.currentTime;
+      // Fallback: some GStreamer pipelines only report duration after playback starts
+      const d = audio.duration;
+      if (isFinite(d) && d > 0) {
+        setDuration(prev => prev > 0 ? prev : d);
+      }
     };
     const onEnded = () => {
       if (cancelled) return;
       isPlayingRef.current = false;
       setIsPlaying(false);
+    };
+    const onWaiting = () => { if (!cancelled) setIsBuffering(true); };
+    const onPlaying = () => { if (!cancelled) setIsBuffering(false); };
+    const onStalled = () => {
+      // Only treat as buffering if we don't have enough data for continuous playback.
+      // readyState < 3 (HAVE_FUTURE_DATA) means the browser lacks sufficient buffered data.
+      if (!cancelled && audio.readyState < 3) setIsBuffering(true);
     };
     const onError = () => {
       if (cancelled) return;
@@ -236,25 +389,46 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       }
     };
 
+    // Sync vizTimeRef on seek (including implicit seek when looping)
+    const onSeeked = () => {
+      if (cancelled) return;
+      vizTimeRef.current = audio.currentTime;
+      lastDrawnPixelRef.current = -1; // Force waveform redraw after seek
+    };
+
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('durationchange', onDurationChange);
     audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('stalled', onStalled);
+    audio.addEventListener('seeked', onSeeked);
 
     return () => {
       cancelled = true;
       audio.pause();
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('stalled', onStalled);
+      audio.removeEventListener('seeked', onSeeked);
       // Detach from GStreamer before revoking
       audio.removeAttribute('src');
       audio.load();
       URL.revokeObjectURL(url);
       cancelAnimationFrame(rafRef.current);
+      // Release decoded PCM data for immediate GC
+      bufferRef.current = null;
+      waveformDataRef.current = null;
+      lastDrawnPixelRef.current = -1;
     };
   }, [data, fileExtension]);
 
@@ -273,18 +447,32 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const barW = width / waveform.length;
     const mid = height / 2;
 
+    const { waveformPlayed, waveformUnplayed, indicator, indicatorGlow } = gradientColorsRef.current;
+
     for (let i = 0; i < waveform.length; i++) {
       const h = waveform[i] * mid * 0.9;
       const x = i * barW;
       const isPlayed = (i / waveform.length) <= progressRatio;
 
-      ctx.fillStyle = isPlayed
-        ? 'rgba(99, 102, 241, 0.6)'
-        : 'rgba(99, 102, 241, 0.15)';
+      ctx.fillStyle = isPlayed ? waveformPlayed : waveformUnplayed;
 
       ctx.fillRect(x, mid - h, barW - 0.5, h * 2);
     }
+
+    // Playback position indicator — bright vertical line at current position
+    if (progressRatio > 0) {
+      const indicatorX = Math.round(progressRatio * width);
+      // Glow behind
+      ctx.fillStyle = indicatorGlow;
+      ctx.fillRect(indicatorX - 2, 0, 6, height);
+      // Main line
+      ctx.fillStyle = indicator;
+      ctx.fillRect(indicatorX, 0, 2, height);
+    }
   }, []);
+
+  // Keep ref in sync so the data-loading effect can call it without a dependency
+  drawWaveformRef.current = drawWaveform;
 
   // --- Visualization: FFT computed from decoded AudioBuffer ---
 
@@ -297,10 +485,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const { width, height } = canvas;
     ctx.clearRect(0, 0, width, height);
 
-    const styles = getComputedStyle(canvas);
-    const gradStart = styles.getPropertyValue('--audio-gradient-start').trim() || '#6366f1';
-    const gradMid = styles.getPropertyValue('--audio-gradient-mid').trim() || '#818cf8';
-    const gradEnd = styles.getPropertyValue('--audio-gradient-end').trim() || '#a5b4fc';
+    const { start: gradStart, mid: gradMid, end: gradEnd } = gradientColorsRef.current;
+
+    // Single gradient reused for all bars (avoids 768+ gradient allocations/sec)
+    const barGradient = ctx.createLinearGradient(0, height, 0, 0);
+    barGradient.addColorStop(0, gradStart);
+    barGradient.addColorStop(0.5, gradMid);
+    barGradient.addColorStop(1, gradEnd);
 
     const buffer = bufferRef.current;
     const audio = audioRef.current;
@@ -310,7 +501,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     // Advance interpolated time smoothly between audio.currentTime updates
     const now = performance.now();
     if (lastDrawTimeRef.current > 0 && isPlayingRef.current) {
-      vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000;
+      vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000 * (audioRef.current?.playbackRate ?? 1);
     }
     lastDrawTimeRef.current = now;
 
@@ -332,29 +523,34 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
       fftInPlace(re, im);
 
-      const binsPerBar = Math.floor((FFT_SIZE / 2) / BAR_COUNT);
+      const halfFFT = FFT_SIZE / 2;
 
       for (let i = 0; i < BAR_COUNT; i++) {
+        // Log-frequency mapping: more bars for bass, fewer for treble (like Winamp)
+        const lowBin = Math.floor(halfFFT * (i / BAR_COUNT) ** 2);
+        const highBin = Math.max(lowBin + 1, Math.floor(halfFFT * ((i + 1) / BAR_COUNT) ** 2));
         let mag = 0;
-        for (let j = 0; j < binsPerBar; j++) {
-          const k = i * binsPerBar + j;
+        for (let k = lowBin; k < highBin; k++) {
           mag += Math.sqrt(re[k] * re[k] + im[k] * im[k]);
         }
         // dB-scale normalization (similar to AnalyserNode)
-        const avgMag = mag / binsPerBar;
+        const avgMag = mag / (highBin - lowBin);
         const dB = avgMag > 0 ? 20 * Math.log10(avgMag / FFT_SIZE) : -100;
         const normalized = Math.max(0, Math.min(1, (dB + 70) / 50)); // -70dB floor, -20dB ceiling
         prevBarsRef.current[i] = SMOOTHING * prevBarsRef.current[i] + (1 - SMOOTHING) * normalized;
+
+        // Peak hold: capture new peaks, slowly decay old ones
+        if (prevBarsRef.current[i] > peakBarsRef.current[i]) {
+          peakBarsRef.current[i] = prevBarsRef.current[i];
+        } else {
+          peakBarsRef.current[i] *= 0.97;
+        }
 
         const barHeight = prevBarsRef.current[i] * height;
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
-        const gradient = ctx.createLinearGradient(x, height, x, y);
-        gradient.addColorStop(0, gradStart);
-        gradient.addColorStop(0.5, gradMid);
-        gradient.addColorStop(1, gradEnd);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = barGradient;
 
         const segH = 3, segGap = 1;
         let curY = height;
@@ -362,61 +558,105 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           const top = Math.max(y, curY - segH);
           ctx.fillRect(x, top, barWidth, curY - top);
           curY -= segH + segGap;
+        }
+
+        // Draw peak hold indicator dot
+        if (peakBarsRef.current[i] > 0.005) {
+          const peakY = height - peakBarsRef.current[i] * height;
+          ctx.fillStyle = gradEnd;
+          ctx.fillRect(x, peakY, barWidth, segH);
+          ctx.fillStyle = barGradient;
         }
       }
     } else {
       // Decay bars smoothly when not playing
       for (let i = 0; i < BAR_COUNT; i++) {
         prevBarsRef.current[i] *= 0.92;
-        if (prevBarsRef.current[i] < 0.005) continue;
+        peakBarsRef.current[i] *= 0.97;
 
         const barHeight = prevBarsRef.current[i] * height;
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
-        const gradient = ctx.createLinearGradient(x, height, x, y);
-        gradient.addColorStop(0, gradStart);
-        gradient.addColorStop(0.5, gradMid);
-        gradient.addColorStop(1, gradEnd);
-        ctx.fillStyle = gradient;
+        if (prevBarsRef.current[i] >= 0.005) {
+          ctx.fillStyle = barGradient;
 
-        const segH = 3, segGap = 1;
-        let curY = height;
-        while (curY > y) {
-          const top = Math.max(y, curY - segH);
-          ctx.fillRect(x, top, barWidth, curY - top);
-          curY -= segH + segGap;
+          const segH = 3, segGap = 1;
+          let curY = height;
+          while (curY > y) {
+            const top = Math.max(y, curY - segH);
+            ctx.fillRect(x, top, barWidth, curY - top);
+            curY -= segH + segGap;
+          }
+        }
+
+        // Draw peak hold indicator dot (decays independently of bars)
+        if (peakBarsRef.current[i] > 0.005) {
+          const peakY = height - peakBarsRef.current[i] * height;
+          ctx.fillStyle = gradEnd;
+          ctx.fillRect(x, peakY, barWidth, 3);
         }
       }
     }
 
-    // Update waveform progress overlay
+    // Update waveform progress overlay — skip redraw if pixel position is unchanged
     if (waveformDataRef.current && duration > 0) {
-      drawWaveform(vizTimeRef.current / duration);
+      const wCanvas = waveformCanvasRef.current;
+      const progressRatio = vizTimeRef.current / duration;
+      if (!isFinite(progressRatio)) return;
+      const px = wCanvas ? Math.round(progressRatio * wCanvas.width) : -1;
+      if (px !== lastDrawnPixelRef.current) {
+        lastDrawnPixelRef.current = px;
+        drawWaveform(progressRatio);
+      }
     }
   }, [duration, drawWaveform]);
 
-  // Animation loop — throttled to TARGET_FPS, pauses when window is not visible
+  // Animation loop — throttled to TARGET_FPS, pauses when window is not visible,
+  // stops entirely when paused + bars fully decayed (saves ~24 drawFrame calls/sec idle).
+  // Respects prefers-reduced-motion: skips animated loop, draws one static waveform frame.
   useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReduced) {
+      // No animated FFT bars — just draw a static waveform at position 0
+      drawWaveformRef.current?.(0);
+      startLoopRef.current = null;
+      return;
+    }
+
     let running = true;
     let lastTime = 0;
 
     const startLoop = () => {
-      if (!running) return;
+      if (!running || rafActiveRef.current) return;
+      rafActiveRef.current = true;
       const loop = (now: number) => {
-        if (!running || document.hidden) return;
+        if (!running || document.hidden) {
+          rafActiveRef.current = false;
+          return;
+        }
         if (now - lastTime >= FRAME_INTERVAL) {
           lastTime = now;
           drawFrame();
+
+          // Stop loop when paused and all bars + peaks have decayed to zero
+          if (!isPlayingRef.current && prevBarsRef.current.every(v => v < 0.005) && peakBarsRef.current.every(v => v < 0.005)) {
+            rafActiveRef.current = false;
+            return;
+          }
         }
         rafRef.current = requestAnimationFrame(loop);
       };
       rafRef.current = requestAnimationFrame(loop);
     };
 
+    startLoopRef.current = startLoop;
+
     const onVisibility = () => {
       if (document.hidden) {
         cancelAnimationFrame(rafRef.current);
+        rafActiveRef.current = false;
       } else {
         lastTime = 0;
         startLoop();
@@ -428,6 +668,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
     return () => {
       running = false;
+      rafActiveRef.current = false;
+      startLoopRef.current = null;
       cancelAnimationFrame(rafRef.current);
       document.removeEventListener('visibilitychange', onVisibility);
     };
@@ -448,6 +690,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       lastDrawTimeRef.current = performance.now();
       isPlayingRef.current = true;
       setIsPlaying(true);
+      // Restart animation loop if it was stopped after decay
+      startLoopRef.current?.();
     }).catch(err => {
       console.error('Failed to play:', err);
       setError('Failed to play audio.');
@@ -488,11 +732,41 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     vizTimeRef.current = audio.currentTime;
   }, [isReady]);
 
+  const handleMuteToggle = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const newMuted = !isMuted;
+    audio.muted = newMuted;
+    setIsMuted(newMuted);
+  }, [isMuted]);
+
+  const handleToggleLoop = useCallback(() => {
+    setIsLooping(prev => {
+      const next = !prev;
+      if (audioRef.current) audioRef.current.loop = next;
+      return next;
+    });
+  }, []);
+
+  const handleSpeedChange = useCallback(() => {
+    const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
+    const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
+    setPlaybackRate(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  }, [playbackRate]);
+
   // --- Keyboard shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      // Show keyboard shortcut hints on first interaction
+      if (!hasShownHintsRef.current) {
+        hasShownHintsRef.current = true;
+        setShowKeyHints(true);
+        setTimeout(() => setShowKeyHints(false), 3000);
+      }
 
       switch (e.key) {
         case ' ':
@@ -512,7 +786,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           e.preventDefault();
           setVolume(v => {
             const next = Math.min(1, v + 0.05);
-            if (audioRef.current) audioRef.current.volume = next;
+            if (audioRef.current) { audioRef.current.volume = next; audioRef.current.muted = false; }
+            setIsMuted(false);
             return next;
           });
           break;
@@ -520,16 +795,29 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           e.preventDefault();
           setVolume(v => {
             const next = Math.max(0, v - 0.05);
-            if (audioRef.current) audioRef.current.volume = next;
+            if (audioRef.current) { audioRef.current.volume = next; audioRef.current.muted = next === 0; }
+            setIsMuted(next === 0);
             return next;
           });
+          break;
+        case 'm':
+        case 'M':
+          handleMuteToggle();
+          break;
+        case 'l':
+        case 'L':
+          handleToggleLoop();
+          break;
+        case 's':
+        case 'S':
+          handleSpeedChange();
           break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward]);
+  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward, handleMuteToggle, handleToggleLoop, handleSpeedChange]);
 
   const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -542,6 +830,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       audio.currentTime = ratio * duration;
       vizTimeRef.current = audio.currentTime;
       setCurrentTime(audio.currentTime);
+      drawWaveformRef.current?.(ratio);
     };
 
     seekTo(e.clientX);
@@ -561,26 +850,120 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     document.addEventListener('mouseup', handleMouseUp);
   }, [duration, isReady]);
 
+  const handleWaveformMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !waveformContainerRef.current || !duration || !isReady) return;
+    e.preventDefault();
+    isSeekingRef.current = true;
+
+    const seekTo = (clientX: number) => {
+      const rect = waveformContainerRef.current!.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      audio.currentTime = ratio * duration;
+      vizTimeRef.current = audio.currentTime;
+      setCurrentTime(audio.currentTime);
+      drawWaveformRef.current?.(ratio);
+    };
+
+    seekTo(e.clientX);
+
+    const handleMouseMove = (moveE: MouseEvent) => {
+      if (!isSeekingRef.current) return;
+      seekTo(moveE.clientX);
+    };
+
+    const handleMouseUp = () => {
+      isSeekingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [duration, isReady]);
+
+  const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !isReady || !duration) return;
+
+    let handled = true;
+    switch (e.key) {
+      case 'ArrowLeft':
+        audio.currentTime = Math.max(0, audio.currentTime - 5);
+        break;
+      case 'ArrowRight':
+        audio.currentTime = Math.min(duration, audio.currentTime + 5);
+        break;
+      case 'Home':
+        audio.currentTime = 0;
+        break;
+      case 'End':
+        audio.currentTime = duration;
+        break;
+      default:
+        handled = false;
+    }
+
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent global keydown handler from also seeking ±10s
+      vizTimeRef.current = audio.currentTime;
+      setCurrentTime(audio.currentTime);
+      if (duration > 0) drawWaveformRef.current?.(audio.currentTime / duration);
+    }
+  }, [isReady, duration]);
+
+  // --- Seek preview tooltip (ref-based DOM mutation, zero re-renders) ---
+
+  const showSeekTooltip = useCallback((
+    clientX: number,
+    containerRef: React.RefObject<HTMLDivElement | null>,
+    tooltipRef: React.RefObject<HTMLDivElement | null>,
+  ) => {
+    const tooltip = tooltipRef.current;
+    const container = containerRef.current;
+    if (!tooltip || !container || !duration) return;
+    const rect = container.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    tooltip.textContent = formatTime(ratio * duration);
+    const halfW = tooltip.offsetWidth / 2; // dynamic: handles both MM:SS and H:MM:SS
+    const rawLeft = clientX - rect.left;
+    const clampedLeft = Math.max(halfW, Math.min(rect.width - halfW, rawLeft));
+    tooltip.style.left = `${clampedLeft}px`;
+    tooltip.style.opacity = '1';
+  }, [duration]);
+
+  const hideSeekTooltip = useCallback((tooltipRef: React.RefObject<HTMLDivElement | null>) => {
+    const tooltip = tooltipRef.current;
+    if (tooltip) tooltip.style.opacity = '0';
+  }, []);
+
+  const handleWaveformMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isReady || !duration) return;
+    showSeekTooltip(e.clientX, waveformContainerRef, waveformTooltipRef);
+  }, [isReady, duration, showSeekTooltip]);
+
+  const handleWaveformMouseLeave = useCallback(() => {
+    hideSeekTooltip(waveformTooltipRef);
+  }, [hideSeekTooltip]);
+
+  const handleSeekBarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isReady || !duration) return;
+    showSeekTooltip(e.clientX, seekBarRef, seekBarTooltipRef);
+  }, [isReady, duration, showSeekTooltip]);
+
+  const handleSeekBarMouseLeave = useCallback(() => {
+    hideSeekTooltip(seekBarTooltipRef);
+  }, [hideSeekTooltip]);
+
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
     setVolume(v);
-    if (audioRef.current) audioRef.current.volume = v;
+    if (audioRef.current) {
+      audioRef.current.volume = v;
+      if (v > 0) { audioRef.current.muted = false; setIsMuted(false); }
+    }
   }, []);
-
-  const handleToggleLoop = useCallback(() => {
-    setIsLooping(prev => {
-      const next = !prev;
-      if (audioRef.current) audioRef.current.loop = next;
-      return next;
-    });
-  }, []);
-
-  const handleSpeedChange = useCallback(() => {
-    const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
-    const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
-    setPlaybackRate(next);
-    if (audioRef.current) audioRef.current.playbackRate = next;
-  }, [playbackRate]);
 
   // --- Render ---
 
@@ -653,27 +1036,35 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           )}
           <div className="flex-1 min-w-0">
             {metadata.title && (
-              <p className="text-xs font-medium text-[var(--text-primary)] truncate">
-                {metadata.title}
-              </p>
+              <MarqueeText
+                text={metadata.title}
+                className="text-xs font-medium text-[var(--text-primary)]"
+              />
             )}
             {metadata.artist && (
-              <p className="text-[10px] text-[var(--text-secondary)] truncate">
-                {metadata.artist}
-              </p>
+              <MarqueeText
+                text={metadata.artist}
+                className="text-[10px] text-[var(--text-secondary)]"
+              />
             )}
             {(metadata.album || metadata.year) && (
-              <p className="text-[10px] text-[var(--text-muted)] truncate">
-                {[metadata.album, metadata.year].filter(Boolean).join(' \u2014 ')}
-                {metadata.trackNumber ? ` (Track ${metadata.trackNumber})` : ''}
-              </p>
+              <MarqueeText
+                text={`${[metadata.album, metadata.year].filter(Boolean).join(' \u2014 ')}${metadata.trackNumber ? ` (Track ${metadata.trackNumber})` : ''}`}
+                className="text-[10px] text-[var(--text-muted)]"
+              />
             )}
           </div>
         </div>
       )}
 
       {/* Visualization Canvas (waveform behind, FFT on top) */}
-      <div className="winamp-groove mx-2 mt-2 relative">
+      <div
+        ref={waveformContainerRef}
+        className="winamp-groove mx-2 mt-2 relative cursor-pointer"
+        onMouseDown={handleWaveformMouseDown}
+        onMouseMove={handleWaveformMouseMove}
+        onMouseLeave={handleWaveformMouseLeave}
+      >
         <canvas
           ref={waveformCanvasRef}
           width={480}
@@ -686,7 +1077,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           ref={canvasRef}
           width={480}
           height={120}
-          className="w-full block relative"
+          className="w-full block relative opacity-60"
           style={{ imageRendering: 'pixelated' }}
           aria-hidden="true"
         />
@@ -694,6 +1085,29 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           <div className="absolute inset-0 flex items-center justify-center bg-[var(--winamp-bg-dark)]/80">
             <DelayedSpinner size="sm" className="mr-2" />
             <span className="text-xs text-[var(--text-muted)]">Loading audio...</span>
+          </div>
+        )}
+        {showKeyHints && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-[var(--transition-slow)]">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;10s</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
+            </div>
+          </div>
+        )}
+        <div
+          ref={waveformTooltipRef}
+          className="absolute -top-6 -translate-x-1/2 bg-black/80 text-white text-[11px] font-mono rounded px-1.5 py-0.5 pointer-events-none select-none z-20 transition-opacity duration-75"
+          style={{ opacity: 0 }}
+          aria-hidden="true"
+        />
+        {visualizationFailed && isReady && (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-muted)] pointer-events-none select-none">
+            Visualization unavailable for this format
           </div>
         )}
       </div>
@@ -707,6 +1121,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           role="button"
           tabIndex={0}
           title="Click to toggle remaining time"
+          aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}
         >
           <span className="winamp-led-text text-lg font-medium">
             {formatTime(currentTime)}
@@ -716,22 +1131,60 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             {showRemaining ? `\u2212${formatTime(Math.max(0, duration - currentTime))}` : formatTime(duration)}
           </span>
         </div>
-        <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase">
-          {!isReady ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
+        {(metadata?.bitrate || metadata?.sampleRate || metadata?.channels) && (
+          <div className="flex items-center gap-2" aria-label="Audio format info">
+            {metadata.bitrate != null && (
+              <span className="winamp-led-text text-[10px] opacity-40">{Math.round(metadata.bitrate / 1000)}kbps</span>
+            )}
+            {metadata.sampleRate != null && (
+              <span className="winamp-led-text text-[10px] opacity-40">{Math.round(metadata.sampleRate / 1000)}kHz</span>
+            )}
+            {metadata.channels != null && (
+              <span className="winamp-led-text text-[10px] opacity-40">{metadata.channels === 1 ? 'MONO' : metadata.channels === 2 ? 'STEREO' : `${metadata.channels}ch`}</span>
+            )}
+          </div>
+        )}
+        <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase" aria-live="polite" aria-atomic="true">
+          {!isReady ? 'Loading' : isBuffering && isPlaying ? 'Buffering' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
         </span>
       </div>
 
-      {/* Seek Bar */}
-      <div className="px-3 py-1">
+      {/* Seek Bar — outer wrapper expands click target to ~24px while visual bar stays 8px */}
+      <div className="px-3">
         <div
-          ref={seekBarRef}
-          className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] cursor-pointer relative overflow-hidden"
+          className="py-2 cursor-pointer relative"
           onMouseDown={handleSeekMouseDown}
+          onMouseMove={handleSeekBarMouseMove}
+          onMouseLeave={handleSeekBarMouseLeave}
+          onKeyDown={handleSeekKeyDown}
+          role="slider"
+          tabIndex={0}
+          aria-label="Seek position"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(currentTime)}
+          aria-valuetext={formatTime(currentTime)}
         >
           <div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
-            style={{ width: `${progress}%` }}
+            ref={seekBarTooltipRef}
+            className="absolute -top-1 -translate-x-1/2 bg-black/80 text-white text-[11px] font-mono rounded px-1.5 py-0.5 pointer-events-none select-none z-20 transition-opacity duration-75"
+            style={{ opacity: 0 }}
+            aria-hidden="true"
           />
+          <div
+            ref={seekBarRef}
+            className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] relative outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] opacity-60"
+              style={{ width: `${progress}%` }}
+            />
+            {/* Seek thumb */}
+            <div
+              className="absolute top-1/2 w-3 h-3 rounded-full bg-white/60 border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
+              style={{ left: `${progress}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -751,6 +1204,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             className={transportBtnLg}
             title={isPlaying ? 'Pause' : 'Play'}
             aria-label={isPlaying ? 'Pause' : 'Play'}
+            aria-pressed={isPlaying}
             disabled={!isReady}
             style={{ opacity: isReady ? 1 : 0.4 }}
           >
@@ -783,8 +1237,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           <button
             onClick={handleToggleLoop}
             className={`${transportBtn} ml-1 ${isLooping ? '!text-[var(--accent)]' : ''}`}
-            title={isLooping ? 'Repeat: On' : 'Repeat: Off'}
+            title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}
             aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
+            aria-pressed={isLooping}
           >
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
@@ -795,7 +1250,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           <button
             onClick={handleSpeedChange}
             className={`${transportBtn} ml-1 text-[10px] font-bold tracking-tight min-w-[32px] ${playbackRate !== 1 ? '!text-[var(--accent)]' : ''}`}
-            title={`Speed: ${playbackRate}x`}
+            title={`Speed: ${playbackRate}x (S)`}
             aria-label={`Playback speed: ${playbackRate}x`}
           >
             {playbackRate}x
@@ -804,15 +1259,23 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
         {/* Volume */}
         <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-[var(--text-muted)]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            {volume === 0 ? (
-              <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
-            ) : volume < 0.5 ? (
-              <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z" />
-            ) : (
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-            )}
-          </svg>
+          <button
+            onClick={handleMuteToggle}
+            className="w-6 h-6 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors duration-75 cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]"
+            title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            aria-pressed={isMuted}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              {isMuted || volume === 0 ? (
+                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
+              ) : volume < 0.5 ? (
+                <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z" />
+              ) : (
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+              )}
+            </svg>
+          </button>
           <input
             type="range"
             min="0"

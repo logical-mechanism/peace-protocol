@@ -92,20 +92,24 @@ describe('useModalStack', () => {
     expect(result.current.shouldRender).toBe(false);
   });
 
-  it('locks body scroll when shouldRender is true', () => {
+  it('locks body and html scroll when shouldRender is true', () => {
     const { rerender } = renderModalStackHook(false);
     expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.documentElement.style.overflow).not.toBe('hidden');
 
     rerender({ isOpen: true, disabled: false });
     expect(document.body.style.overflow).toBe('hidden');
+    expect(document.documentElement.style.overflow).toBe('hidden');
 
-    // Start closing — body stays locked during exit animation
+    // Start closing — stays locked during exit animation
     rerender({ isOpen: false, disabled: false });
     expect(document.body.style.overflow).toBe('hidden');
+    expect(document.documentElement.style.overflow).toBe('hidden');
 
-    // After exit animation, body unlocks
+    // After exit animation, unlocks
     act(() => { vi.advanceTimersByTime(150); });
-    expect(document.body.style.overflow).toBe('unset');
+    expect(document.body.style.overflow).toBe('');
+    expect(document.documentElement.style.overflow).toBe('');
   });
 
   it('blocks Escape when disabled=true', () => {

@@ -131,7 +131,7 @@ pub async fn health_check(port: u16) -> bool {
 ///   kupo_most_recent_node_tip  115706396      (node's current tip slot)
 ///   kupo_connection_status  1.0               (1.0 = connected to node, 0.0 = disconnected)
 ///   kupo_seconds_since_last_block  2.0        (time since Kupo last ingested a block)
-///   kupo_network_synchronization  0.98619     (mirrors node chain sync, NOT indexing progress)
+///   kupo_network_synchronization  0.98619     (node chain sync progress; fallback for early startup)
 #[derive(Debug, Clone)]
 pub struct KupoMetrics {
     /// Kupo indexing progress: checkpoint / node_tip (0.0–1.0).
@@ -147,8 +147,9 @@ pub struct KupoMetrics {
 /// Returns `KupoMetrics` with indexing progress, connection status, and stall detection.
 /// The /metrics endpoint always returns 200 OK, making it more reliable than /health.
 ///
-/// We compute indexing progress as checkpoint/node_tip (not kupo_network_synchronization,
-/// which just mirrors the node's chain sync percentage).
+/// We use checkpoint/node_tip as the primary sync progress metric (Kupo's actual
+/// indexing progress). Falls back to kupo_network_synchronization during early startup
+/// before checkpoint/node_tip appear in the metrics output.
 pub async fn get_metrics(port: u16) -> Result<KupoMetrics, String> {
     let url = format!("http://127.0.0.1:{}/metrics", port);
     let resp = reqwest::get(&url)
@@ -169,6 +170,7 @@ fn parse_kupo_metrics(body: &str) -> Result<KupoMetrics, String> {
     let mut node_tip: Option<f64> = None;
     let mut connection_status: Option<f64> = None;
     let mut seconds_since_last_block: Option<f64> = None;
+    let mut network_sync: Option<f64> = None;
 
     for line in body.lines() {
         if line.starts_with('#') || line.is_empty() {
@@ -183,16 +185,19 @@ fn parse_kupo_metrics(body: &str) -> Result<KupoMetrics, String> {
             connection_status = v.trim().parse().ok();
         } else if let Some(v) = line.strip_prefix("kupo_seconds_since_last_block") {
             seconds_since_last_block = v.trim().parse().ok();
+        } else if let Some(v) = line.strip_prefix("kupo_network_synchronization") {
+            network_sync = v.trim().parse().ok();
         }
     }
 
+    // Primary: checkpoint / node_tip (Kupo's actual indexing progress).
+    // Fallback: kupo_network_synchronization (available during early startup before
+    // checkpoint/node_tip appear in metrics — tracks node chain sync, not indexing).
+    // Last resort: 0.0 (metrics not yet populated — don't return Err so we
+    // preserve connection_status and seconds_since_last_block for the caller).
     let sync_progress = match (checkpoint, node_tip) {
         (Some(cp), Some(tip)) if tip > 0.0 => (cp / tip).min(1.0),
-        (Some(_), Some(_)) => 0.0, // tip is 0, node hasn't synced yet
-        _ => return Err(
-            "kupo_most_recent_checkpoint or kupo_most_recent_node_tip not found in Kupo metrics"
-                .to_string(),
-        ),
+        _ => network_sync.map(|ns| ns.clamp(0.0, 1.0)).unwrap_or(0.0),
     };
 
     Ok(KupoMetrics {
@@ -228,6 +233,7 @@ kupo_network_synchronization  0.73956
 kupo_seconds_since_last_block  2.0
 ";
         let metrics = parse_kupo_metrics(body).unwrap();
+        // Uses checkpoint/node_tip as primary source (not kupo_network_synchronization)
         assert!((metrics.sync_progress - 61264845.0 / 82838775.0).abs() < 0.0001);
         assert!(metrics.connected);
         assert!((metrics.seconds_since_last_block - 2.0).abs() < 0.001);
@@ -239,6 +245,7 @@ kupo_seconds_since_last_block  2.0
 kupo_connection_status  0.0
 kupo_most_recent_checkpoint  1000
 kupo_most_recent_node_tip  2000
+kupo_network_synchronization  0.5
 kupo_seconds_since_last_block  300.0
 ";
         let metrics = parse_kupo_metrics(body).unwrap();
@@ -253,6 +260,7 @@ kupo_seconds_since_last_block  300.0
 kupo_connection_status  1.0
 kupo_most_recent_checkpoint  0
 kupo_most_recent_node_tip  0
+kupo_network_synchronization  0.0
 kupo_seconds_since_last_block  0.0
 ";
         let metrics = parse_kupo_metrics(body).unwrap();
@@ -260,13 +268,41 @@ kupo_seconds_since_last_block  0.0
     }
 
     #[test]
-    fn parse_missing_checkpoint() {
+    fn parse_network_sync_only() {
+        // Early startup: only network_synchronization is available,
+        // checkpoint and node_tip not yet reported
+        let body = "\
+kupo_connection_status  0.0
+kupo_network_synchronization  0.42
+";
+        let metrics = parse_kupo_metrics(body).unwrap();
+        assert!((metrics.sync_progress - 0.42).abs() < 0.001);
+        assert!(!metrics.connected);
+    }
+
+    #[test]
+    fn parse_fallback_to_checkpoint_ratio() {
+        // Pre-v2.11 Kupo or missing network_synchronization:
+        // falls back to checkpoint / node_tip
         let body = "\
 kupo_connection_status  1.0
+kupo_most_recent_checkpoint  1000
 kupo_most_recent_node_tip  2000
+kupo_seconds_since_last_block  5.0
 ";
-        let result = parse_kupo_metrics(body);
-        assert!(result.is_err());
+        let metrics = parse_kupo_metrics(body).unwrap();
+        assert!((metrics.sync_progress - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn parse_minimal_metrics() {
+        // Very early startup: only connection_status present
+        let body = "\
+kupo_connection_status  1.0
+";
+        let metrics = parse_kupo_metrics(body).unwrap();
+        assert_eq!(metrics.sync_progress, 0.0);
+        assert!(metrics.connected);
     }
 
     #[test]
@@ -275,6 +311,7 @@ kupo_most_recent_node_tip  2000
 kupo_connection_status  1.0
 kupo_most_recent_checkpoint  82838775
 kupo_most_recent_node_tip  82838775
+kupo_network_synchronization  1.0
 kupo_seconds_since_last_block  1.0
 ";
         let metrics = parse_kupo_metrics(body).unwrap();

@@ -1,28 +1,28 @@
 ---
 name: implement
-description: Implement improvements from goals.md by section number or name
+description: Implement improvements from audio_goals.md by section number or name
 argument-hint: <section-number-or-name>
 ---
 
 # Implement Goals
 
-Read `goals.md` and find the section matching "$ARGUMENTS" (by number, title, or keyword).
+Read `audio_goals.md` and find the section matching "$ARGUMENTS" (by number, title, or keyword).
 
-This skill is designed to be **resumable across context windows**. The checked/unchecked state of items in `goals.md` is the persistence mechanism — always read it fresh at the start of each session.
+This skill is designed to be **resumable across context windows**. The checked/unchecked state of items in `audio_goals.md` is the persistence mechanism — always read it fresh at the start of each session.
 
 ## Process
 
-1. **Read goals.md** and extract all unchecked items (`- [ ]`) from the matching section. Skip any items already marked `- [x]` — those were completed in a previous session.
+1. **Read audio_goals.md** and extract all unchecked items (`- [ ]`) from the matching section. Skip any items already marked `- [x]` — those were completed in a previous session.
 2. **Read CLAUDE.md** to refresh on architecture, conventions, and gotchas (modal two-effect pattern, 127.0.0.1 not localhost, WebKitGTK limitations, etc.)
 3. **Decide on planning**: If the section has items that involve architectural changes, new state management, or multi-file coordination — enter plan mode. If the items are self-contained and well-defined (add a button, add a keyboard shortcut, write a test), skip planning and implement directly.
 4. **Track your files**: Before you start implementing, initialize an empty list of files you have edited or created in this session. Every time you use the Edit or Write tool, add that file path to the list. This list determines what gets staged, tested, and committed.
 5. **Implement** each item one at a time:
-   a. **Read first**: Before writing any code, read the target file AND any similar existing implementations in the codebase. If goals.md says "add zoom like PdfViewer", read PdfViewer first. Match existing patterns rather than inventing new ones.
+   a. **Read first**: Before writing any code, read the target file AND any similar existing implementations in the codebase. If audio_goals.md says "add zoom like PdfViewer", read PdfViewer first. Match existing patterns rather than inventing new ones.
    b. Implement the change
    c. If the change involves new logic (helper functions, utilities, state transitions, parsing, etc.), write meaningful tests for it. Do not write tests that just assert the component renders — write tests that verify behavior and catch regressions.
    d. **Test only your files** — see Testing section below
    e. **Flag visual changes**: If the change affects UI (new buttons, layout changes, styling), explicitly tell the user "this needs visual review" with a description of what to look for. You cannot see the screen.
-   f. Check off the item in goals.md (`- [x]`)
+   f. Check off the item in audio_goals.md (`- [x]`)
    g. **Commit only your files** — see Commit Discipline section below
 6. Repeat step 5 for each item in the section
 7. After all items are done, show a summary of what was implemented and list any items that need visual review
@@ -57,27 +57,27 @@ Instead, run tests **only for the files you changed**:
 
 - Commit after each completed sub-task, not at the end
 - **Only stage files you edited or created in this session** — use `git add <file1> <file2> ...` with explicit paths from your tracked file list. Never use `git add -A`, `git add .`, or stage files you did not touch.
-- Include `goals.md` in the commit (since you checked off items)
+- Include `audio_goals.md` in the commit (since you checked off items)
 - Write descriptive commit messages that explain the "why"
 - This gives a clean git history where any change can be reverted independently
 - If `git status` shows other modified files you did not touch, **leave them alone** — another agent or the user is working on them
 
-### Handling goals.md Conflicts
+### Handling audio_goals.md Conflicts
 
-`goals.md` is the one file every implement agent modifies. If your commit fails because another agent changed `goals.md` since you last read it:
+`audio_goals.md` is the one file every implement agent modifies. If your commit fails because another agent changed `audio_goals.md` since you last read it:
 
-1. Re-read `goals.md` to get the latest version
+1. Re-read `audio_goals.md` to get the latest version
 2. Re-apply only your checkbox change (`- [ ]` → `- [x]` for the item you just completed)
-3. Stage `goals.md` and retry the commit
+3. Stage `audio_goals.md` and retry the commit
 4. Do not revert or overwrite another agent's checkbox changes
 
 ## Multi-Context-Window Resumability
 
 This skill is designed to be invoked repeatedly with the same section argument across multiple context windows:
 
-- **On start**: Read `goals.md` fresh. All `- [x]` items were completed previously — skip them. Pick up from the first unchecked `- [ ]` item.
+- **On start**: Read `audio_goals.md` fresh. All `- [x]` items were completed previously — skip them. Pick up from the first unchecked `- [ ]` item.
 - **On finish**: If you run out of context or the session ends, any unchecked items remain for the next invocation to pick up.
-- **No external state needed**: `goals.md` checkboxes are the only coordination mechanism between sessions.
+- **No external state needed**: `audio_goals.md` checkboxes are the only coordination mechanism between sessions.
 
 ## Rules
 

@@ -81,13 +81,16 @@ export function useModalStack(
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, disabled, id, isTopModal, onClose]);
 
-  // Body scroll lock (based on shouldRender, not isOpen, to cover exit animation)
+  // Body scroll lock (based on shouldRender, not isOpen, to cover exit animation).
+  // Lock both <html> and <body> — WebKitGTK can scroll on either element.
   useEffect(() => {
     if (shouldRender) {
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
     };
   }, [shouldRender]);
 

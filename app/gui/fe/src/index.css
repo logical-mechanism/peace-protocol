@@ -326,12 +326,27 @@ select option {
   --audio-gradient-start: #6366f1;
   --audio-gradient-mid: #818cf8;
   --audio-gradient-end: #a5b4fc;
+  --waveform-played: rgba(34, 211, 238, 0.6);
+  --waveform-unplayed: rgba(34, 211, 238, 0.15);
+  --waveform-indicator: rgba(250, 250, 250, 0.9);
+  --waveform-indicator-glow: rgba(250, 250, 250, 0.3);
 }
 
 [data-theme="light"] {
+  --winamp-bg: #e8e8f0;
+  --winamp-bg-dark: #d0d0dc;
+  --winamp-bg-light: #f0f0f8;
+  --winamp-border-light: #c8c8d4;
+  --winamp-border-dark: #b0b0bc;
+  --winamp-led: #16a34a;
+  --winamp-led-dim: rgba(22, 163, 74, 0.3);
   --audio-gradient-start: #4f46e5;
   --audio-gradient-mid: #6366f1;
   --audio-gradient-end: #818cf8;
+  --waveform-played: rgba(6, 182, 212, 0.7);
+  --waveform-unplayed: rgba(6, 182, 212, 0.35);
+  --waveform-indicator: rgba(30, 30, 60, 0.8);
+  --waveform-indicator-glow: rgba(30, 30, 60, 0.25);
 }
 
 .winamp-bevel {
@@ -647,6 +662,26 @@ select option {
 
 .modal-panel-exit {
   animation: modal-panel-exit 150ms ease-in forwards;
+}
+
+/* Audio player metadata marquee — scrolls overflowing text on hover */
+@keyframes marquee-scroll {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--marquee-offset, 0px)); }
+}
+
+.marquee-on-hover {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-on-hover > span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.marquee-on-hover:hover > span.marquee-overflows {
+  animation: marquee-scroll 4s linear infinite;
 }
 
 /* Reduced motion: respect OS accessibility setting */
