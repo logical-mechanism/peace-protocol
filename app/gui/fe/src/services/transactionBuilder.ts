@@ -34,10 +34,10 @@ import type { EncryptionDisplay, BidDisplay } from './api';
 import { getSnarkProver, type SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 import { buildEncryptionMetadata, buildBidMetadata } from './metadata';
-import { encryptFileForUpload, encodeFileSecret } from './crypto/fileEncryption';
-import { uploadFile as iagonUpload, listFiles as iagonListFiles } from './iagonApi';
+import { encodeFileSecret } from './crypto/fileEncryption';
+import { encryptAndUpload, listFiles as iagonListFiles } from './iagonApi';
 import { getStoredApiKey } from './iagonAuth';
-import { hexToBytes, bytesToHex } from './crypto/bls12381';
+import { hexToBytes } from './crypto/bls12381';
 import {
   createListingDraft,
   updateListingDraft,
@@ -217,38 +217,30 @@ function buildPayloadFromForm(formData: CreateListingFormData): Uint8Array {
  *   - secret  (field 1): AES-256-GCM key + nonce (44 bytes)
  *   - digest  (field 2): SHA-256 of original file
  *
- * @param file - The File object from the form
+ * @param filePath - Absolute path to file on disk
+ * @param fileName - Original file name (for extension detection)
  * @param tokenName - Token name for the listing (used as Iagon filename)
  * @returns CBOR-encoded peace-payload bytes
  */
-async function buildPayloadForIagon(file: File, tokenName: string): Promise<Uint8Array> {
-  // Read file bytes
-  const fileBytes = new Uint8Array(await file.arrayBuffer());
-
-  // Encrypt for off-chain storage
-  const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
-
-  // Upload encrypted blob to Iagon
+async function buildPayloadForIagon(filePath: string, fileName: string, tokenName: string): Promise<Uint8Array> {
   const apiKey = await getStoredApiKey();
   if (!apiKey) {
     throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
   }
 
-  // Use token name + original extension as the Iagon filename
-  const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+  const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
   const iagonFilename = `${tokenName}${ext}.enc`;
 
-  const fileInfo = await iagonUpload(
-    apiKey,
-    encryptedBlob,
-    iagonFilename
-  );
+  // Encrypt + upload in Rust (no large byte arrays cross IPC)
+  const result = await encryptAndUpload(apiKey, filePath, iagonFilename);
 
   // Build peace-payload with Iagon reference
-  const locator = new TextEncoder().encode(fileInfo._id);
+  const locator = new TextEncoder().encode(result.file_info._id);
+  const key = hexToBytes(result.key_hex);
+  const nonce = hexToBytes(result.nonce_hex);
+  const digest = hexToBytes(result.digest_hex);
   const secret = encodeFileSecret(key, nonce);
 
-  // Store original file extension as field 3 (filetype) so decryptors know the format
   let extra: Map<number, Uint8Array> | undefined;
   if (ext) {
     extra = new Map();
@@ -319,7 +311,7 @@ export async function createListing(
 
       const payloadBytes = formData.category === 'text'
         ? buildPayloadFromForm(formData)
-        : await buildPayloadForIagon(formData.file!, tokenName);
+        : await buildPayloadForIagon(formData.filePath!, formData.fileName || formData.file?.name || 'file', tokenName);
       const artifacts = await createEncryptionWithWallet(
         wallet,
         payloadBytes,
@@ -348,7 +340,16 @@ export async function createListing(
       payloadBuilder = () => buildPayloadFromForm(formData);
     } else {
       // File listings: encrypt → upload → verify with draft persistence
+      // All heavy byte operations (read, encrypt, upload) happen in Rust
+      // to avoid Tauri IPC JSON serialization memory amplification.
       draftId = crypto.randomUUID();
+
+      const fileName = formData.fileName || formData.file?.name || 'file';
+      const fileSize = formData.fileSize ?? formData.file?.size ?? 0;
+      const filePath = formData.filePath;
+      if (!filePath) {
+        throw new Error('No file selected. Please choose a file to upload.');
+      }
 
       onProgress?.('encrypting');
       await createListingDraft(
@@ -357,31 +358,16 @@ export async function createListing(
         formData.description,
         formData.suggestedPrice || '0',
         formData.imageLink || '',
-        formData.file!.name,
-        formData.file!.size,
+        fileName,
+        fileSize,
       );
 
       // Extract original file extension for payload field 3 (filetype)
-      const ext = formData.file!.name.includes('.')
-        ? formData.file!.name.slice(formData.file!.name.lastIndexOf('.'))
+      const ext = fileName.includes('.')
+        ? fileName.slice(fileName.lastIndexOf('.'))
         : '';
 
-      // Encrypt file
-      const fileBytes = new Uint8Array(await formData.file!.arrayBuffer());
-      const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
-
-      // Save encryption keys + file extension to draft before upload
-      const fileKeyHex = bytesToHex(key);
-      const fileNonceHex = bytesToHex(nonce);
-      const fileDigestHex = bytesToHex(digest);
-      await updateListingDraft(draftId, {
-        fileKey: fileKeyHex,
-        fileNonce: fileNonceHex,
-        fileDigest: fileDigestHex,
-        fileExtension: ext || undefined,
-      });
-
-      // Upload to Iagon
+      // Upload to Iagon (encrypt + upload happens in Rust)
       onProgress?.('uploading');
       const apiKey = await getStoredApiKey();
       if (!apiKey) {
@@ -390,9 +376,18 @@ export async function createListing(
       // Use draft ID for filename since token name isn't known yet
       const iagonFilename = `${draftId}${ext}.enc`;
 
-      const fileInfo = await iagonUpload(apiKey, encryptedBlob, iagonFilename);
+      const uploadResult = await encryptAndUpload(apiKey, filePath, iagonFilename);
+      const fileKeyHex = uploadResult.key_hex;
+      const fileNonceHex = uploadResult.nonce_hex;
+      const fileDigestHex = uploadResult.digest_hex;
+      const fileInfo = uploadResult.file_info;
 
+      // Save encryption keys + file extension to draft after upload
       await updateListingDraft(draftId, {
+        fileKey: fileKeyHex,
+        fileNonce: fileNonceHex,
+        fileDigest: fileDigestHex,
+        fileExtension: ext || undefined,
         status: 'uploaded',
         iagonFileId: fileInfo._id,
         iagonFilename: iagonFilename,

@@ -33,6 +33,16 @@ vi.mock('../../utils/clipboard', () => ({
   copyToClipboard: vi.fn().mockResolvedValue(true),
 }));
 
+const mockDialogOpen = vi.fn();
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: (...args: unknown[]) => mockDialogOpen(...args),
+}));
+
+const mockStat = vi.fn();
+vi.mock('@tauri-apps/plugin-fs', () => ({
+  stat: (...args: unknown[]) => mockStat(...args),
+}));
+
 // --- Test helpers ---
 
 const mockOnClose = vi.fn();
@@ -84,7 +94,7 @@ describe('CreateListingModal', () => {
     fireEvent.click(screen.getByText('File'));
     expect(screen.queryByLabelText(/Secret Message/)).not.toBeInTheDocument();
     // File upload area should appear
-    expect(screen.getByText(/Click or drag a file here/)).toBeInTheDocument();
+    expect(screen.getByText(/Click to select a file/)).toBeInTheDocument();
   });
 
   it('switches back to text mode and clears file state', () => {
@@ -473,12 +483,16 @@ describe('CreateListingModal', () => {
       },
     );
 
+    // Mock native dialog to select a file
+    mockDialogOpen.mockResolvedValueOnce('/path/to/test.pdf');
+    mockStat.mockResolvedValueOnce({ size: 1024 });
+
     renderModal();
-    // Switch to file mode and add a file
+    // Switch to file mode and add a file via native dialog
     fireEvent.click(screen.getByText('File'));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
-    fireEvent.change(fileInput, { target: { files: [file] } });
+    const selectButton = screen.getByText(/Click to select a file/);
+    await act(async () => { fireEvent.click(selectButton); });
+    await waitFor(() => expect(screen.getByText('test.pdf')).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText(/Description/), {
       target: { value: 'file desc', name: 'description' },
     });
@@ -739,41 +753,32 @@ describe('CreateListingModal', () => {
 
   // --- File size validation ---
 
-  it('rejects file over 1 GB via file input with inline error', () => {
+  it('rejects file over 1 GB via native dialog with inline error', async () => {
+    mockDialogOpen.mockResolvedValueOnce('/path/to/big.pdf');
+    mockStat.mockResolvedValueOnce({ size: 1024 * 1024 * 1024 + 1 });
+
     renderModal();
     fireEvent.click(screen.getByText('File'));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    // 1 GB + 1 byte file
-    const largeFile = new File(['x'], 'big.pdf', { type: 'application/pdf' });
-    Object.defineProperty(largeFile, 'size', { value: 1024 * 1024 * 1024 + 1 });
-    fireEvent.change(fileInput, { target: { files: [largeFile] } });
-    expect(screen.getByText('File too large (max 1 GB)')).toBeInTheDocument();
-    // File should not be shown as selected
+    const selectButton = screen.getByText(/Click to select a file/);
+    await act(async () => { fireEvent.click(selectButton); });
+    await waitFor(() => {
+      expect(screen.getByText('File too large (max 1 GB)')).toBeInTheDocument();
+    });
     expect(screen.queryByText('big.pdf')).not.toBeInTheDocument();
   });
 
-  it('accepts file at exactly 1 GB via file input', () => {
-    renderModal();
-    fireEvent.click(screen.getByText('File'));
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    const okFile = new File(['x'], 'ok.pdf', { type: 'application/pdf' });
-    Object.defineProperty(okFile, 'size', { value: 1024 * 1024 * 1024 });
-    fireEvent.change(fileInput, { target: { files: [okFile] } });
-    expect(screen.queryByText('File too large (max 1 GB)')).not.toBeInTheDocument();
-    expect(screen.getByText('ok.pdf')).toBeInTheDocument();
-  });
+  it('accepts file at exactly 1 GB via native dialog', async () => {
+    mockDialogOpen.mockResolvedValueOnce('/path/to/ok.pdf');
+    mockStat.mockResolvedValueOnce({ size: 1024 * 1024 * 1024 });
 
-  it('rejects file over 1 GB via drag and drop', () => {
     renderModal();
     fireEvent.click(screen.getByText('File'));
-    const dropZone = screen.getByText(/Click or drag a file here/).closest('label')!;
-    const largeFile = new File(['x'], 'huge.mp4', { type: 'video/mp4' });
-    Object.defineProperty(largeFile, 'size', { value: 2 * 1024 * 1024 * 1024 });
-    fireEvent.drop(dropZone, {
-      dataTransfer: { files: [largeFile] },
+    const selectButton = screen.getByText(/Click to select a file/);
+    await act(async () => { fireEvent.click(selectButton); });
+    await waitFor(() => {
+      expect(screen.queryByText('File too large (max 1 GB)')).not.toBeInTheDocument();
+      expect(screen.getByText('ok.pdf')).toBeInTheDocument();
     });
-    expect(screen.getByText('File too large (max 1 GB)')).toBeInTheDocument();
-    expect(screen.queryByText('huge.mp4')).not.toBeInTheDocument();
   });
 
   it('does not show ConfirmModal after successful submit', async () => {

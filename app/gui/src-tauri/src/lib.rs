@@ -94,6 +94,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let app_data_dir = app
@@ -306,6 +307,8 @@ pub fn run() {
             commands::iagon::iagon_verify_api_key,
             commands::iagon::iagon_upload,
             commands::iagon::iagon_download,
+            commands::iagon::iagon_encrypt_and_upload,
+            commands::iagon::iagon_download_and_save,
             commands::iagon::iagon_delete_file,
             commands::iagon::iagon_search_files,
             commands::iagon::iagon_list_files,

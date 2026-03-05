@@ -108,12 +108,11 @@ vi.mock('../metadata', () => ({
 }));
 
 vi.mock('../crypto/fileEncryption', () => ({
-  encryptFileForUpload: vi.fn(),
   encodeFileSecret: vi.fn(),
 }));
 
 vi.mock('../iagonApi', () => ({
-  uploadFile: vi.fn(),
+  encryptAndUpload: vi.fn(),
   listFiles: vi.fn(),
 }));
 

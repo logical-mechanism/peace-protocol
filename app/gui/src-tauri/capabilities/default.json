@@ -8,6 +8,7 @@
     "core:window:default",
     "core:window:allow-set-title",
     "dialog:default",
+    "fs:allow-stat",
     "shell:allow-open",
     "opener:default",
     "shell:allow-kill",

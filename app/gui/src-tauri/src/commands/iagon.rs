@@ -3,9 +3,15 @@ use crate::crypto::secrets::{secure_delete, SecretsKey};
 use std::path::Path;
 use zeroize::Zeroizing;
 
+use super::media::ContentDir;
 use super::secrets::SecretsDir;
 
 use crate::crypto::secrets::{decrypt_secret, encrypt_secret, EncryptedSecret};
+
+use aes_gcm::aead::Aead;
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+use rand::RngCore;
+use sha2::{Digest, Sha256};
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -449,6 +455,242 @@ pub async fn iagon_list_files(api_key: String) -> Result<IagonSearchResult, Stri
     Ok(IagonSearchResult { files })
 }
 
+// ── Helpers for hex encoding/decoding ────────────────────────────────────
+
+fn bytes_to_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
+    if !hex.len().is_multiple_of(2) {
+        return Err("Hex string has odd length".to_string());
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).map_err(|e| format!("Invalid hex: {e}")))
+        .collect()
+}
+
+// ── File-based encrypt+upload / download+save commands ──────────────────
+
+/// Maximum file size for encrypt+upload (1 GB).
+const MAX_FILE_SIZE: u64 = 1_073_741_824;
+
+/// Valid content categories (must match media.rs VALID_CATEGORIES).
+const VALID_CATEGORIES: &[&str] = &["text", "document", "audio", "image", "video", "other"];
+
+#[derive(serde::Serialize)]
+pub struct IagonEncryptUploadResult {
+    pub file_info: IagonFileInfo,
+    pub key_hex: String,
+    pub nonce_hex: String,
+    pub digest_hex: String,
+}
+
+/// Encrypt a file on disk with AES-256-GCM and upload to Iagon.
+///
+/// This avoids the Tauri IPC JSON serialization bottleneck by reading the file
+/// directly from disk in Rust rather than receiving bytes through invoke().
+#[tauri::command]
+pub async fn iagon_encrypt_and_upload(
+    api_key: String,
+    file_path: String,
+    filename: String,
+) -> Result<IagonEncryptUploadResult, String> {
+    // Validate file exists and is within size limit
+    let path = std::path::Path::new(&file_path);
+    if !path.exists() || !path.is_file() {
+        return Err("File not found".to_string());
+    }
+    let metadata =
+        std::fs::metadata(path).map_err(|e| format!("Failed to read file metadata: {e}"))?;
+    if metadata.len() > MAX_FILE_SIZE {
+        return Err(format!(
+            "File too large: {} bytes (max {} bytes)",
+            metadata.len(),
+            MAX_FILE_SIZE
+        ));
+    }
+
+    // Read file from disk
+    let plaintext = std::fs::read(path).map_err(|e| format!("Failed to read file: {e}"))?;
+
+    // Generate random AES-256 key (32 bytes) and GCM nonce (12 bytes)
+    let mut key_bytes = [0u8; 32];
+    let mut nonce_bytes = [0u8; 12];
+    rand::thread_rng().fill_bytes(&mut key_bytes);
+    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+
+    // SHA-256 digest of original plaintext
+    let digest = Sha256::digest(&plaintext);
+
+    // AES-256-GCM encrypt (no AAD — matches Web Crypto API in fileEncryption.ts)
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+        .map_err(|e| format!("Failed to create AES cipher: {e}"))?;
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let encrypted = cipher
+        .encrypt(nonce, plaintext.as_ref())
+        .map_err(|e| format!("AES-GCM encryption failed: {e}"))?;
+
+    // Drop plaintext to free memory before upload
+    drop(plaintext);
+
+    // Upload encrypted bytes to Iagon
+    let client = build_client()?;
+    let part = reqwest::multipart::Part::bytes(encrypted)
+        .file_name(filename.clone())
+        .mime_str("application/octet-stream")
+        .map_err(|e| format!("Failed to create upload part: {e}"))?;
+
+    let form = reqwest::multipart::Form::new()
+        .part("file", part)
+        .text("filename", filename)
+        .text("visibility", "public");
+
+    let res = client
+        .post(format!("{IAGON_BASE}/storage/upload"))
+        .header("x-api-key", &api_key)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(map_reqwest_error)?;
+
+    let status = res.status();
+    let body = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(map_iagon_error(status, &body));
+    }
+    let v: serde_json::Value =
+        serde_json::from_str(&body).map_err(|e| format!("Invalid upload response: {e}"))?;
+    if v.get("success").and_then(|s| s.as_bool()) != Some(true) {
+        let msg = v
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown error");
+        return Err(format!("Iagon upload failed: {msg}"));
+    }
+    let data = v
+        .get("data")
+        .ok_or_else(|| "Iagon upload response missing 'data' field".to_string())?;
+    let file_info: IagonFileInfo = serde_json::from_value(data.clone())
+        .map_err(|e| format!("Failed to parse upload result: {e}"))?;
+
+    Ok(IagonEncryptUploadResult {
+        file_info,
+        key_hex: bytes_to_hex(&key_bytes),
+        nonce_hex: bytes_to_hex(&nonce_bytes),
+        digest_hex: bytes_to_hex(&digest),
+    })
+}
+
+#[derive(serde::Serialize)]
+pub struct IagonDownloadSaveResult {
+    pub path: String,
+    pub size: u64,
+}
+
+/// Download a file from Iagon, decrypt with AES-256-GCM, verify digest, and save to content dir.
+///
+/// This avoids the Tauri IPC JSON serialization bottleneck by keeping all byte
+/// operations in Rust rather than returning bytes through invoke().
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub async fn iagon_download_and_save(
+    api_key: String,
+    file_id: String,
+    key_hex: String,
+    nonce_hex: String,
+    digest_hex: Option<String>,
+    token_name: String,
+    category: String,
+    file_name: String,
+    state: tauri::State<'_, ContentDir>,
+) -> Result<IagonDownloadSaveResult, String> {
+    // Validate inputs
+    if !VALID_CATEGORIES.contains(&category.as_str()) {
+        return Err(format!("Invalid category: {category}"));
+    }
+    if token_name.is_empty() || token_name.len() > 64 {
+        return Err("Invalid token name".to_string());
+    }
+    if file_name.is_empty() || file_name.contains('/') || file_name.contains('\\') {
+        return Err("Invalid file name".to_string());
+    }
+
+    // Decode hex key and nonce
+    let key_bytes = hex_to_bytes(&key_hex)?;
+    let nonce_bytes = hex_to_bytes(&nonce_hex)?;
+    if key_bytes.len() != 32 {
+        return Err(format!("AES key must be 32 bytes, got {}", key_bytes.len()));
+    }
+    if nonce_bytes.len() != 12 {
+        return Err(format!(
+            "GCM nonce must be 12 bytes, got {}",
+            nonce_bytes.len()
+        ));
+    }
+
+    // Download encrypted file from Iagon
+    let client = build_client()?;
+    let params = [("id", file_id.as_str())];
+    let res = client
+        .post(format!("{IAGON_BASE}/storage/download/"))
+        .header("x-api-key", &api_key)
+        .form(&params)
+        .send()
+        .await
+        .map_err(map_reqwest_error)?;
+
+    let status = res.status();
+    if !status.is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(map_iagon_error(status, &body));
+    }
+    let encrypted = res
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read download response: {e}"))?;
+
+    // Decrypt with AES-256-GCM (no AAD — matches Web Crypto API)
+    let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+        .map_err(|e| format!("Failed to create AES cipher: {e}"))?;
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let decrypted = cipher.decrypt(nonce, encrypted.as_ref()).map_err(|_| {
+        "AES-GCM decryption failed: invalid key, nonce, or corrupted data".to_string()
+    })?;
+
+    // Drop encrypted blob to free memory
+    drop(encrypted);
+
+    // Verify SHA-256 digest if provided
+    if let Some(ref expected_hex) = digest_hex {
+        let actual = Sha256::digest(&decrypted);
+        let actual_hex = bytes_to_hex(&actual);
+        if actual_hex != *expected_hex {
+            return Err("File integrity check failed: content has been tampered with".to_string());
+        }
+    }
+
+    // Save to content directory: media/content/{category}/{token_name}/{file_name}
+    let token_dir = state.0.join(&category).join(&token_name);
+    std::fs::create_dir_all(&token_dir)
+        .map_err(|e| format!("Failed to create content directory: {e}"))?;
+
+    let file_path = token_dir.join(&file_name);
+    let size = decrypted.len() as u64;
+    std::fs::write(&file_path, &decrypted).map_err(|e| format!("Failed to save content: {e}"))?;
+
+    let path_str = file_path
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "File path contains invalid UTF-8".to_string())?;
+
+    Ok(IagonDownloadSaveResult {
+        path: path_str,
+        size,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -473,5 +715,69 @@ mod tests {
     fn accepts_max_length_api_key() {
         let max = "x".repeat(1024);
         assert!(validate_api_key(&max).is_ok());
+    }
+
+    #[test]
+    fn hex_roundtrip() {
+        let original = vec![0u8, 1, 127, 128, 255];
+        let hex = bytes_to_hex(&original);
+        assert_eq!(hex, "00017f80ff");
+        let decoded = hex_to_bytes(&hex).unwrap();
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn hex_to_bytes_rejects_odd_length() {
+        assert!(hex_to_bytes("abc").is_err());
+    }
+
+    #[test]
+    fn aes_gcm_roundtrip() {
+        // Verify our AES-256-GCM encrypt/decrypt matches the Web Crypto API format
+        let plaintext = b"hello world test data for AES-GCM compatibility";
+        let mut key = [0u8; 32];
+        let mut nonce_bytes = [0u8; 12];
+        rand::thread_rng().fill_bytes(&mut key);
+        rand::thread_rng().fill_bytes(&mut nonce_bytes);
+
+        let cipher = Aes256Gcm::new_from_slice(&key).unwrap();
+        let nonce = Nonce::from_slice(&nonce_bytes);
+
+        // Encrypt
+        let encrypted = cipher.encrypt(nonce, plaintext.as_ref()).unwrap();
+        // ciphertext should be plaintext.len() + 16 (auth tag)
+        assert_eq!(encrypted.len(), plaintext.len() + 16);
+
+        // Decrypt
+        let decrypted = cipher.decrypt(nonce, encrypted.as_ref()).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn aes_gcm_wrong_key_fails() {
+        let plaintext = b"secret data";
+        let mut key = [0u8; 32];
+        let mut nonce_bytes = [0u8; 12];
+        rand::thread_rng().fill_bytes(&mut key);
+        rand::thread_rng().fill_bytes(&mut nonce_bytes);
+
+        let cipher = Aes256Gcm::new_from_slice(&key).unwrap();
+        let nonce = Nonce::from_slice(&nonce_bytes);
+        let encrypted = cipher.encrypt(nonce, plaintext.as_ref()).unwrap();
+
+        // Wrong key should fail decryption
+        let mut wrong_key = key;
+        wrong_key[0] ^= 0xff;
+        let wrong_cipher = Aes256Gcm::new_from_slice(&wrong_key).unwrap();
+        assert!(wrong_cipher.decrypt(nonce, encrypted.as_ref()).is_err());
+    }
+
+    #[test]
+    fn sha256_digest_consistency() {
+        let data = b"test file content";
+        let digest1 = Sha256::digest(data);
+        let digest2 = Sha256::digest(data);
+        assert_eq!(bytes_to_hex(&digest1), bytes_to_hex(&digest2));
+        assert_eq!(digest1.len(), 32);
     }
 }

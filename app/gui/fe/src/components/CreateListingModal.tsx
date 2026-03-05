@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { open } from '@tauri-apps/plugin-dialog';
+import { stat } from '@tauri-apps/plugin-fs';
 import LoadingSpinner from './LoadingSpinner';
 import ConfirmModal from './ConfirmModal';
 import { useModalStack } from '../hooks/useModalStack';
@@ -17,6 +19,12 @@ export interface CreateListingFormData {
   category: FileCategory;
   secretMessage: string;
   file: File | null;
+  /** Absolute path to the file on disk (from native dialog). Used by Rust for encrypt+upload. */
+  filePath: string | null;
+  /** File name from native dialog (for display). */
+  fileName: string | null;
+  /** File size in bytes from native dialog (for validation/display). */
+  fileSize: number | null;
   description: string;
   suggestedPrice: string;
   imageLink: string;
@@ -81,6 +89,9 @@ const INITIAL_FORM_DATA: CreateListingFormData = {
   category: 'text',
   secretMessage: '',
   file: null,
+  filePath: null,
+  fileName: null,
+  fileSize: null,
   description: '',
   suggestedPrice: '',
   imageLink: '',
@@ -100,14 +111,12 @@ export default function CreateListingModal({
   const [copiedError, setCopiedError] = useState(false);
   const [creationStep, setCreationStep] = useState<ListingCreationStep | null>(null);
   const [displayPrice, setDisplayPrice] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
   const [imagePreviewState, setImagePreviewState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -124,7 +133,6 @@ export default function CreateListingModal({
         setTimeout(() => descriptionRef.current?.focus(), 50);
       }
       setDisplayPrice('');
-      setIsDragging(false);
       setImagePreviewState('idle');
       setImagePreviewUrl(null);
       setErrors({});
@@ -152,7 +160,7 @@ export default function CreateListingModal({
           description: formData.description,
           suggestedPrice: formData.suggestedPrice,
           imageLink: formData.imageLink,
-          fileName: formData.file?.name ?? null,
+          fileName: formData.fileName ?? formData.file?.name ?? null,
           savedAt: new Date().toISOString(),
         });
         setDraftSaved(true);
@@ -198,7 +206,7 @@ export default function CreateListingModal({
         }
         return undefined;
       case 'file':
-        if (isFileMode && !formData.file) return 'File is required';
+        if (isFileMode && !formData.filePath) return 'File is required';
         return undefined;
       case 'description':
         if (!formData.description.trim()) return 'Description is required';
@@ -261,12 +269,12 @@ export default function CreateListingModal({
       category: mode === 'text' ? 'text' : 'other',
       secretMessage: '',
       file: null,
+      filePath: null,
+      fileName: null,
+      fileSize: null,
     }));
     setErrors({});
     setSubmitError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   const handleResumeDraft = () => {
@@ -276,6 +284,9 @@ export default function CreateListingModal({
         category: (draft.category as FileCategory) || 'text',
         secretMessage: draft.secretMessage || '',
         file: null,
+        filePath: null,
+        fileName: null,
+        fileSize: null,
         description: draft.description || '',
         suggestedPrice: draft.suggestedPrice || '',
         imageLink: draft.imageLink || '',
@@ -294,68 +305,39 @@ export default function CreateListingModal({
     setIsDirty(false);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (file && file.size > LARGE_FILE_THRESHOLD_BYTES) {
-      setErrors((prev) => ({ ...prev, file: 'File too large (max 1 GB)' }));
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
+  const handleChooseFile = async () => {
+    if (isSubmitting) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        title: 'Select file for listing',
+      });
+      if (!selected) return; // User cancelled
+
+      const filePath = typeof selected === 'string' ? selected : selected;
+      const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
+      const fileStat = await stat(filePath);
+      const fileSize = fileStat.size;
+
+      if (fileSize > LARGE_FILE_THRESHOLD_BYTES) {
+        setErrors((prev) => ({ ...prev, file: 'File too large (max 1 GB)' }));
+        return;
+      }
+
+      const category = detectCategoryFromExtension(fileName);
+      setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category }));
+      if (errors.file) {
+        setErrors((prev) => ({ ...prev, file: undefined }));
+      }
+      setSubmitError(null);
+      setIsDirty(true);
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, file: `Failed to select file: ${err instanceof Error ? err.message : 'Unknown error'}` }));
     }
-    const category = file ? detectCategoryFromExtension(file.name) : 'other';
-    setFormData((prev) => ({ ...prev, file, category }));
-    if (errors.file) {
-      setErrors((prev) => ({ ...prev, file: undefined }));
-    }
-    setSubmitError(null);
-    setIsDirty(true);
   };
 
   const handleRemoveFile = () => {
-    setFormData((prev) => ({ ...prev, file: null, category: 'other' }));
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isSubmitting && isFileMode && isIagonConnected) {
-      setIsDragging(true);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only unset when leaving the drop zone, not when entering a child element
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (isSubmitting || !isFileMode || !isIagonConnected) return;
-
-    const file = e.dataTransfer.files[0] || null;
-    if (!file) return;
-
-    if (file.size > LARGE_FILE_THRESHOLD_BYTES) {
-      setErrors((prev) => ({ ...prev, file: 'File too large (max 1 GB)' }));
-      return;
-    }
-
-    const category = detectCategoryFromExtension(file.name);
-    setFormData((prev) => ({ ...prev, file, category }));
-    if (errors.file) {
-      setErrors((prev) => ({ ...prev, file: undefined }));
-    }
-    setSubmitError(null);
-    setIsDirty(true);
+    setFormData((prev) => ({ ...prev, file: null, filePath: null, fileName: null, fileSize: null, category: 'other' }));
   };
 
   const handleImageLinkBlur = () => {
@@ -621,17 +603,17 @@ export default function CreateListingModal({
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                   Upload File <span className="text-[var(--error)]">*</span>
                 </label>
-                {formData.file ? (
+                {formData.filePath ? (
                   <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <p className="text-sm text-[var(--text-primary)] truncate">{formData.file.name}</p>
+                        <p className="text-sm text-[var(--text-primary)] truncate">{formData.fileName}</p>
                         <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
                           {getCategoryConfig(formData.category)?.label || 'Other'}
                         </span>
                       </div>
-                      <p className="text-xs text-[var(--text-muted)]">{formatFileSize(formData.file.size)}</p>
-                      {formData.file.size > LARGE_FILE_THRESHOLD_BYTES && (
+                      <p className="text-xs text-[var(--text-muted)]">{formatFileSize(formData.fileSize ?? 0)}</p>
+                      {(formData.fileSize ?? 0) > LARGE_FILE_THRESHOLD_BYTES && (
                         <p className="text-xs text-[var(--warning)] mt-0.5">
                           Large files take longer to encrypt and upload.
                         </p>
@@ -650,35 +632,26 @@ export default function CreateListingModal({
                     </button>
                   </div>
                 ) : (
-                  <label
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-[var(--transition-fast)] ${
-                      isDragging
-                        ? 'border-[var(--accent)] bg-[var(--accent)]/10'
-                        : errors.file
-                          ? 'border-[var(--error)] bg-[var(--error)]/5'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
+                  <button
+                    type="button"
+                    onClick={handleChooseFile}
+                    disabled={isSubmitting}
+                    className={`flex flex-col items-center justify-center gap-2 p-6 w-full border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-[var(--transition-fast)] ${
+                      errors.file
+                        ? 'border-[var(--error)] bg-[var(--error)]/5'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
                     }`}
                   >
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     <span className="text-sm text-[var(--text-secondary)]">
-                      {isDragging ? 'Drop file here' : 'Click or drag a file here'}
+                      Click to select a file
                     </span>
                     <span className="text-xs text-[var(--text-muted)]">
                       Type will be detected automatically
                     </span>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      onChange={handleFileChange}
-                      disabled={isSubmitting}
-                      className="hidden"
-                    />
-                  </label>
+                  </button>
                 )}
                 {errors.file && (
                   <p id="file-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.file}</p>
