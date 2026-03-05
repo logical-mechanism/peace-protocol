@@ -25,7 +25,7 @@ Each item:
   - **How**: In the cleanup function (line ~183), after setting `cancelled = true`, call `ffmpeg.terminate()` on the in-flight FFmpeg instance. Requires lifting the `ffmpeg` reference out of `remuxToMp4` into a ref (`ffmpegRef`) so cleanup can access it. Pattern: `ffmpegRef.current?.terminate()` in the effect cleanup.
   - **Why**: If a user closes the modal while remuxing, the FFmpeg WASM worker keeps running in the background, consuming CPU and memory until it finishes or the app is closed.
 
-- [ ] 🟡 **Missing `waiting` and `playing` event handlers**
+- [x] 🟡 **Missing `waiting` and `playing` event handlers**
   - **How**: Add `onWaiting={() => setLoading(true)}` and `onPlaying={() => setLoading(false)}` to the `<video>` element (after line ~584). AudioPlayer handles these at lines 375-376.
   - **Why**: Without `waiting`, the spinner doesn't appear during mid-playback buffering. Without `playing`, the spinner doesn't dismiss after a stall resolves. Users see either no feedback or a stuck spinner.
 

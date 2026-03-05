@@ -583,6 +583,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         const d = videoRef.current?.duration ?? 0;
         if (isFinite(d) && d > 0) setDuration(d);
       }}
+      onWaiting={() => setLoading(true)}
+      onPlaying={() => setLoading(false)}
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
       onEnded={() => setIsPlaying(false)}
