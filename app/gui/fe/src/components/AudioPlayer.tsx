@@ -305,7 +305,11 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         .catch((err) => { console.warn('AudioPlayer: metadata parse failed', err); });
     }).catch((err) => { console.warn('AudioPlayer: music-metadata import failed', err); });
 
-    const onLoadedMetadata = () => { if (!cancelled) setDuration(audio.duration); };
+    const onLoadedMetadata = () => {
+      if (cancelled) return;
+      const d = audio.duration;
+      if (isFinite(d) && d > 0) setDuration(d);
+    };
     const onCanPlay = () => {
       if (cancelled) return;
       // Ensure playback starts from the beginning — GStreamer can report a
