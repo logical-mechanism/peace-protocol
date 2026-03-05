@@ -167,7 +167,7 @@ Each item:
   - **How**: Add time interpolation between `onTimeUpdate` events using `requestAnimationFrame`. Store last known time + timestamp in a ref, interpolate linearly at 60fps. AudioPlayer solves this with `vizTimeRef` interpolation (lines 209, 501-506). Apply interpolated time to seek bar width and time display.
   - **Why**: WebKitGTK fires `timeupdate` at ~4Hz (every 250ms). Without interpolation, the seek bar visibly jumps rather than sliding smoothly.
 
-- [ ] 🟢 **No fullscreen enter/exit transition**
+- [x] 🟢 **No fullscreen enter/exit transition**
   - **How**: Add `transition-opacity duration-200` to the fullscreen overlay (line ~615). Use a brief opacity fade (0->1 on enter, 1->0 on exit with a short delay before unmounting).
   - **Why**: Fullscreen toggle is an abrupt snap. A subtle fade makes the mode switch feel intentional rather than jarring.
 

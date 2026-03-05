@@ -88,6 +88,7 @@ async function remuxToMp4(
 
 export default function VideoPlayer({ data, mimeType, fileExtension, onExport, subtitleData }: VideoPlayerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenVisible, setFullscreenVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [remuxing, setRemuxing] = useState(false);
   const [remuxProgress, setRemuxProgress] = useState(0);
@@ -278,6 +279,16 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       ffmpegTerminateRef.current = null;
     };
   }, [data, mimeType, fileExtension]);
+
+  // Drive fullscreen opacity transition
+  useEffect(() => {
+    if (isFullscreen) {
+      // Trigger fade-in on next frame so the transition fires
+      requestAnimationFrame(() => setFullscreenVisible(true));
+    } else {
+      setFullscreenVisible(false);
+    }
+  }, [isFullscreen]);
 
   // Escape key closes fullscreen (not the parent modal)
   useEffect(() => {
@@ -923,7 +934,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         </div>
 
         {/* Fullscreen overlay */}
-        <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)]">
+        <div className={`fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)] transition-opacity duration-200 ${fullscreenVisible ? 'opacity-100' : 'opacity-0'}`}>
           {/* Video content area */}
           <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-[var(--bg-secondary)] relative">
             {videoElement}
