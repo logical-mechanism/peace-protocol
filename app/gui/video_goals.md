@@ -171,7 +171,7 @@ Each item:
   - **How**: Add `transition-opacity duration-200` to the fullscreen overlay (line ~615). Use a brief opacity fade (0->1 on enter, 1->0 on exit with a short delay before unmounting).
   - **Why**: Fullscreen toggle is an abrupt snap. A subtle fade makes the mode switch feel intentional rather than jarring.
 
-- [ ] 🟢 **No control auto-hide in fullscreen**
+- [x] 🟢 **No control auto-hide in fullscreen**
   - **How**: In fullscreen mode, track mouse movement. Show controls on move, hide after 3s of inactivity via `setTimeout`. Add `cursor: none` when controls are hidden. Reset timer on any mouse/keyboard activity.
   - **Why**: In fullscreen, the always-visible control bar covers video content. Professional video players hide controls after inactivity.
 

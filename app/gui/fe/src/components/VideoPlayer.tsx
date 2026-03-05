@@ -89,6 +89,7 @@ async function remuxToMp4(
 export default function VideoPlayer({ data, mimeType, fileExtension, onExport, subtitleData }: VideoPlayerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenVisible, setFullscreenVisible] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
   const [loading, setLoading] = useState(true);
   const [remuxing, setRemuxing] = useState(false);
   const [remuxProgress, setRemuxProgress] = useState(0);
@@ -122,6 +123,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const activeBlobUrlRef = useRef<string | null>(null);
   // Smooth time interpolation — video.currentTime updates ~4Hz on WebKitGTK,
   // we interpolate between updates for fluid seek bar movement
+  const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const vizTimeRef = useRef(0);
   const lastDrawTimeRef = useRef(0);
   const rafRef = useRef<number>(0);
@@ -289,6 +291,36 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       setFullscreenVisible(false);
     }
   }, [isFullscreen]);
+
+  // Auto-hide controls after 3s inactivity in fullscreen
+  useEffect(() => {
+    if (!isFullscreen) {
+      setControlsVisible(true);
+      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+      return;
+    }
+
+    const resetTimer = () => {
+      setControlsVisible(true);
+      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+      // Don't hide while seeking or paused
+      if (isSeekingRef.current || !isPlayingRef.current) return;
+      autoHideTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+    };
+
+    resetTimer();
+
+    const handleMouseMove = () => resetTimer();
+    const handleKeyDown = () => resetTimer();
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+    };
+  }, [isFullscreen, isPlaying]);
 
   // Escape key closes fullscreen (not the parent modal)
   useEffect(() => {
@@ -934,15 +966,18 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         </div>
 
         {/* Fullscreen overlay */}
-        <div className={`fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)] transition-opacity duration-200 ${fullscreenVisible ? 'opacity-100' : 'opacity-0'}`}>
+        <div
+          className={`fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)] transition-opacity duration-200 ${fullscreenVisible ? 'opacity-100' : 'opacity-0'}`}
+          style={{ cursor: controlsVisible ? 'auto' : 'none' }}
+        >
           {/* Video content area */}
           <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-[var(--bg-secondary)] relative">
             {videoElement}
-            {keyHintsOverlay}
+            {controlsVisible && keyHintsOverlay}
           </div>
 
-          {/* Control bar at bottom */}
-          <div className="flex-shrink-0 px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)]">
+          {/* Control bar at bottom — auto-hides after 3s inactivity */}
+          <div className={`flex-shrink-0 px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] transition-all duration-300 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'}`}>
             {controlBar}
           </div>
         </div>
