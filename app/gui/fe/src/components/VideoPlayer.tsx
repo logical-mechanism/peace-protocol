@@ -81,6 +81,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [pipSupported, setPipSupported] = useState(false);
   const [showCaptions, setShowCaptions] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
   const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
 
   const [showKeyHints, setShowKeyHints] = useState(false);
@@ -372,6 +373,19 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     }
   }, []);
 
+  const handleToggleLoop = useCallback(() => {
+    setIsLooping(prev => {
+      const next = !prev;
+      if (videoRef.current) videoRef.current.loop = next;
+      return next;
+    });
+  }, []);
+
+  // Sync loop property
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.loop = isLooping;
+  }, [isLooping]);
+
   // Keyboard shortcuts (bubbling phase — Escape handled separately in capture phase)
   useEffect(() => {
     if (!blobUrl) return;
@@ -426,6 +440,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         case 'M':
           handleMuteToggle();
           break;
+        case 'l':
+        case 'L':
+          handleToggleLoop();
+          break;
         case 'c':
         case 'C':
           if (subtitleUrl) handleCaptionToggle();
@@ -435,7 +453,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [blobUrl, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle, subtitleUrl, handleCaptionToggle]);
+  }, [blobUrl, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle, handleToggleLoop, subtitleUrl, handleCaptionToggle]);
 
   // --- Error state ---
 
@@ -606,6 +624,19 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         </button>
       )}
 
+      {/* Loop */}
+      <button
+        onClick={handleToggleLoop}
+        className={`${btnClass} ${isLooping ? 'text-[var(--accent)]' : ''}`}
+        title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}
+        aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
+        aria-pressed={isLooping}
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+        </svg>
+      </button>
+
       {/* Speed */}
       <button
         onClick={handleSpeedChange}
@@ -656,6 +687,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s</span>
         <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
         <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
+        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
         {subtitleUrl && <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
       </div>
     </div>
@@ -686,7 +718,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       }}
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
-      onEnded={() => setIsPlaying(false)}
+      onEnded={() => {
+        setIsPlaying(false);
+        if (!isLooping && videoRef.current) videoRef.current.currentTime = 0;
+      }}
       onStalled={() => {
         if (videoRef.current && videoRef.current.readyState < 2) {
           setLoading(true);

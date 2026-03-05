@@ -69,11 +69,11 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟢 **No loop toggle**
+- [x] 🟢 **No loop toggle**
   - **How**: Add `loop` state, a loop button (recycle arrow icon) next to the speed button, and set `video.loop = loop` via ref. Add `L` keyboard shortcut (following AudioPlayer's pattern at lines 807-810). Add `aria-pressed={loop}` to the button.
   - **Why**: Users watching tutorials or short clips want to loop playback without manually restarting.
 
-- [ ] 🟢 **No end-of-video visual feedback**
+- [x] 🟢 **No end-of-video visual feedback**
   - **How**: In the `onEnded` handler (line ~584), add `setIsPlaying(false)` (already present) plus seek to 0: `videoRef.current.currentTime = 0`. This matches AudioPlayer's `handleStop` behavior (line 713).
   - **Why**: When video ends, it freezes on the last frame. Users may not notice it finished vs. paused. Resetting to start makes replay obvious.
 
