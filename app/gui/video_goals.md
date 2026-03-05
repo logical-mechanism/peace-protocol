@@ -21,159 +21,137 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🔴 **FFmpeg worker not terminated on unmount during remux**
-  - **How**: In the cleanup function (line ~183), after setting `cancelled = true`, call `ffmpeg.terminate()` on the in-flight FFmpeg instance. Requires lifting the `ffmpeg` reference out of `remuxToMp4` into a ref (`ffmpegRef`) so cleanup can access it. Pattern: `ffmpegRef.current?.terminate()` in the effect cleanup.
-  - **Why**: If a user closes the modal while remuxing, the FFmpeg WASM worker keeps running in the background, consuming CPU and memory until it finishes or the app is closed.
+- [ ] 🟡 **Missing `preload` attribute on video element**
+  - **How**: Add `preload="metadata"` to the `<video>` element at line 882. AudioPlayer sets `preload="auto"`; `"metadata"` is more appropriate for video since it avoids buffering the full file before user action while still ensuring duration/dimensions are available early.
+  - **Why**: Without a preload hint, WebKitGTK may delay metadata loading (duration, dimensions) until the user interacts, which can cause the seek bar to show `00:00 / 00:00` briefly after the blob URL is set.
 
-- [x] 🟡 **Missing `waiting` and `playing` event handlers**
-  - **How**: Add `onWaiting={() => setLoading(true)}` and `onPlaying={() => setLoading(false)}` to the `<video>` element (after line ~584). AudioPlayer handles these at lines 375-376.
-  - **Why**: Without `waiting`, the spinner doesn't appear during mid-playback buffering. Without `playing`, the spinner doesn't dismiss after a stall resolves. Users see either no feedback or a stuck spinner.
+- [ ] 🟡 **FFmpeg terminate has no timeout -- can hang forever**
+  - **How**: Wrap `ffmpeg.terminate()` at line 76 with `Promise.race([ffmpeg.terminate(), new Promise((_, rej) => setTimeout(() => rej(new Error('FFmpeg worker hung')), 10_000))])`. Same pattern for the cleanup call at line 280. If the timeout fires, log a warning -- the worker will be garbage-collected when the page navigates.
+  - **Why**: If the FFmpeg WASM worker crashes or becomes unresponsive, `terminate()` never resolves, leaving the UI stuck in the remuxing state forever.
 
-- [x] 🟡 **Stalled handler too aggressive -- sets error instead of recoverable state**
-  - **How**: Change the `onStalled` handler (line ~585) to show a warning message instead of a permanent error. Use a timeout (e.g., 5s) before escalating to error. If `playing` fires before the timeout, clear the warning. AudioPlayer pattern (lines 377-381) is more conservative.
-  - **Why**: Network hiccups or slow GStreamer pipeline startup trigger `stalled`, but playback often resumes. Current behavior shows a permanent error for transient issues.
-
-- [x] 🟡 **NaN duration not guarded with `isFinite()`**
-  - **How**: In `handleLoadedMetadata` (line ~209) and `onDurationChange` (line ~581), wrap with `isFinite()`: `setDuration(isFinite(d) ? d : 0)`. AudioPlayer does this at line 310.
-  - **Why**: WebKitGTK/GStreamer can report NaN at loadedmetadata time. NaN duration breaks the seek bar calculation and time display.
-
-- [x] 🟢 **No CDN retry for FFmpeg WASM load**
-  - **How**: Wrap the `toBlobURL` calls in `remuxToMp4` (lines 35-36) with a retry loop (2 retries, 2s delay). Show distinct error message on CDN failure vs. format failure: "Could not download video converter. Check your internet connection."
-  - **Why**: A single network blip during WASM download (2 fetches: core.js + core.wasm) causes the entire remux to fail with a generic error message that doesn't mention connectivity.
+- [ ] 🟢 **No stall detection during remux**
+  - **How**: Track the last time `onProgress` fired in a ref. Start a `setInterval(10_000)` alongside the remux call (line 240). If progress hasn't changed in 30s, set an error: "Conversion appears stuck. The file may be too complex for in-app conversion." Clear the interval in the `finally` block.
+  - **Why**: If FFmpeg stops making progress on a complex file, the user sees a frozen progress bar with no indication of failure.
 
 ---
 
-## 2. Seeking & Navigation
-
-> Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx` (reference)
-
-- [x] 🟡 **No drag-to-seek on progress bar (click-only)**
-  - **How**: Add `onMouseDown` to seek bar div (line ~465) that registers `mousemove` and `mouseup` listeners on `document`, updating `video.currentTime` on each move. Follow AudioPlayer's pattern (lines 822-851) with `handleMouseMove` + `handleMouseUp`. Clean up listeners on mouseup.
-  - **Why**: Desktop users expect click-and-drag seeking. Click-only requires repeated precise clicks to find a position.
-
-- [x] 🟡 **No visible thumb/handle on seek bar**
-  - **How**: Add a circular thumb element positioned at the current progress point. Use a `::after` pseudo-element or a child div with `rounded-full w-3 h-3 bg-[var(--accent)]` absolutely positioned at the progress edge. AudioPlayer has this at line 1184.
-  - **Why**: Without a thumb, users can't see where the playhead is at a glance -- they must read the time display.
-
-- [x] 🟢 **Seek bar click target too small (6px)**
-  - **How**: Add `py-2` padding to the seek bar wrapper (line ~465) to expand the click target to ~22px while keeping the visual bar at `h-1.5`. AudioPlayer does this at lines 1174-1175.
-  - **Why**: 6px is hard to click precisely, especially on high-DPI displays.
-
-- [x] 🟢 **No hover time preview on seek bar**
-  - **How**: Add `onMouseMove` to the seek bar that calculates position ratio and displays a tooltip with `formatTime(ratio * duration)`. Position the tooltip above the cursor. Follow AudioPlayer's `showSeekTooltip`/`hideSeekTooltip` pattern (lines 918-957).
-  - **Why**: Users can't preview where a click will seek to without the tooltip.
-
----
-
-## 3. Transport Controls
+## 2. Format Support & Remuxing
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🟢 **No loop toggle**
-  - **How**: Add `loop` state, a loop button (recycle arrow icon) next to the speed button, and set `video.loop = loop` via ref. Add `L` keyboard shortcut (following AudioPlayer's pattern at lines 807-810). Add `aria-pressed={loop}` to the button.
-  - **Why**: Users watching tutorials or short clips want to loop playback without manually restarting.
+- [ ] 🟡 **FFmpeg WASM fetched from CDN on every remux**
+  - **How**: Bundle `@ffmpeg/core@0.12.6` UMD files (`ffmpeg-core.js` + `ffmpeg-core.wasm`) as static assets in `fe/public/ffmpeg/`. Replace the CDN `baseURL` at line 50 with a relative path. Use `toBlobURL('/ffmpeg/ffmpeg-core.js', ...)` which resolves locally via Vite/Tauri. Remove the retry loop (lines 52-67) since local loads don't fail transiently.
+  - **Why**: Remux fails completely if unpkg.com is unreachable. Desktop apps should work offline. Also eliminates 2-3s CDN latency on first remux.
 
-- [x] 🟢 **No end-of-video visual feedback**
-  - **How**: In the `onEnded` handler (line ~584), add `setIsPlaying(false)` (already present) plus seek to 0: `videoRef.current.currentTime = 0`. This matches AudioPlayer's `handleStop` behavior (line 713).
-  - **Why**: When video ends, it freezes on the last frame. Users may not notice it finished vs. paused. Resetting to start makes replay obvious.
+- [ ] 🟡 **No cancel button during remux**
+  - **How**: In the remuxing UI (lines 668-689), add a "Cancel" button that calls `ffmpegTerminateRef.current?.()`, sets `cancelled = true` via a ref, and resets remuxing state. Show "Conversion cancelled" as an info message (not error). Offer the "Save As" fallback.
+  - **Why**: Large file remux can take minutes. Users have no way to abort except closing the modal, which also loses their place in the library.
 
----
-
-## 4. Format Support & Remuxing
-
-> Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx` (reference for hints)
-
-- [x] 🟡 **Generic error messages -- no format-specific conversion hints**
-  - **How**: Add a `getConversionHint(ext)` function (like AudioPlayer lines 65-76) mapping extensions to FFmpeg CLI commands. Display the hint in the error UI below the generic message. Example: `.mkv` -> "Try converting with: `ffmpeg -i file.mkv -c copy output.mp4`".
-  - **Why**: Users with unsupported formats get "This video format could not be converted" with no actionable guidance. AudioPlayer already provides format-specific hints.
-
-- [x] 🟡 **CDN failure indistinguishable from format failure**
-  - **How**: In `remuxToMp4`, catch errors from `toBlobURL` (lines 35-36) separately from `ffmpeg.exec` errors (line 42). Set distinct error messages: "Video converter could not be loaded (check internet)" vs. "This format could not be converted".
-  - **Why**: Users blame the format when the real issue is network connectivity. Different errors need different user actions.
-
-- [x] 🟢 **No validation of remux output before playback**
-  - **How**: After `ffmpeg.readFile('output.mp4')` (line ~43), check that `mp4Bytes.length > 0`. If empty, throw an error with a message about corrupt input rather than loading an empty blob.
-  - **Why**: FFmpeg can silently produce empty output for certain corrupt inputs. Loading an empty blob into `<video>` causes a confusing delayed error.
+- [ ] 🟢 **FFmpeg virtual filesystem not cleaned before terminate**
+  - **How**: After `ffmpeg.readFile('output.mp4')` at line 73, add `await ffmpeg.deleteFile(inputName); await ffmpeg.deleteFile('output.mp4');` before `ffmpeg.terminate()`. This releases the input + output copies from WASM memory immediately.
+  - **Why**: During remux of a 500MB file, FFmpeg holds both input and output in its virtual FS (up to 1GB). Deleting before terminate frees that memory sooner, reducing peak usage.
 
 ---
 
-## 5. Performance & Memory
+## 3. Performance & Memory
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🔴 **FFmpeg WASM Blob URLs never revoked (memory leak)**
-  - **How**: `toBlobURL()` at lines 35-36 creates 2 Blob URLs per remux that are never revoked. Store the URLs returned by `toBlobURL` and call `URL.revokeObjectURL()` on each after `ffmpeg.load()` completes (the WASM is already loaded into memory at that point). Add cleanup after line 37.
-  - **Why**: Each remux operation permanently leaks 2 Blob URLs. Users who open multiple unsupported videos accumulate leaked URLs for the session lifetime.
-
-- [x] 🟡 **Old blobUrl not revoked when data prop changes**
-  - **How**: In the main effect cleanup (line ~182), revoke `blobUrl` state value in addition to the local `currentUrl`. Use a ref to track the active blob URL so cleanup can always revoke it regardless of which path (probe or remux) created it.
-  - **Why**: Switching between videos (e.g., opening video1.mkv then video2.mkv in the library) leaks the previous Blob URL.
-
-- [x] 🟡 **No file size warning before remux**
-  - **How**: Before calling `remuxToMp4` (line ~163), check `data.length`. If > 500MB, show a warning: "Large file ({size}MB) -- conversion may use significant memory." If > 2GB, skip remux and show error suggesting export. Use `formatBytes` from `fe/src/utils/formatBytes.ts`.
-  - **Why**: Remux peak memory is ~3-4x input size. A 1GB video needs ~3-4GB RAM. No warning means the app silently freezes or crashes.
-
-- [x] 🔴 **Key hints overlay uses hardcoded colors -- unreadable in light theme**
-  - **How**: At line ~558, replace `bg-black/80 text-white` with `bg-[var(--bg-elevated)]/90 text-[var(--text-primary)]`. Replace `bg-white/20` on kbd elements (line ~560) with `bg-[var(--bg-tertiary)]`.
-  - **Why**: In light theme, white text on a near-white background is invisible. This is a visible bug for all light-theme users.
+- [ ] 🟢 **Fullscreen control bar uses `transition-all` instead of specific properties**
+  - **How**: At line 980, replace `transition-all duration-300` with `transition-[opacity,transform] duration-300`. The `translate-y-full` toggle only needs opacity and transform animated -- `transition-all` may animate padding, border, etc. causing unnecessary layout recalculation.
+  - **Why**: On lower-end systems, animating all properties on a complex control bar can cause jank during the fullscreen hide/show transition.
 
 ---
 
-## 6. Accessibility
-
-> Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx` (reference)
-
-- [x] 🟡 **Seek bar missing ARIA slider role and attributes**
-  - **How**: Add to the seek bar div (line ~465): `role="slider"`, `tabIndex={0}`, `aria-label="Seek"`, `aria-valuemin={0}`, `aria-valuemax={Math.round(duration)}`, `aria-valuenow={Math.round(currentTime)}`, `aria-valuetext={formatTime(currentTime)}`. Add `onKeyDown` for ArrowLeft/Right seeking. AudioPlayer implements this at line 1160.
-  - **Why**: Screen readers cannot interact with or announce the seek bar position. Keyboard-only users cannot tab to or operate the seek bar.
-
-- [x] 🟡 **No aria-live status region for playback state**
-  - **How**: Add a visually-hidden `<div aria-live="polite" aria-atomic="true">` that displays current state text ("Playing", "Paused", "Loading", "Error"). AudioPlayer has this at line 1147.
-  - **Why**: Screen reader users receive no announcement when playback starts, pauses, errors, or completes.
-
-- [x] 🟡 **Toggle buttons missing `aria-pressed`**
-  - **How**: Add `aria-pressed={isPlaying}` to play/pause (line ~433), `aria-pressed={isMuted}` to mute (line ~479), `aria-pressed={showCaptions}` to CC (line ~509), `aria-pressed={isFullscreen}` to fullscreen (line ~542). AudioPlayer does this at lines 1207, 1242, 1267.
-  - **Why**: Screen readers cannot convey toggle state to users. "Mute" button doesn't indicate whether audio is currently muted.
-
-- [x] 🟢 **No visible focus ring on buttons**
-  - **How**: Add `focus-visible:shadow-[var(--focus-ring)]` to the `btnClass` definition (line ~427). AudioPlayer uses this pattern.
-  - **Why**: Keyboard users cannot see which control is focused when tabbing through the control bar.
-
----
-
-## 7. Subtitle Support
+## 4. Accessibility
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🟡 **SRT-to-VTT conversion doesn't handle cue IDs**
-  - **How**: In the SRT->VTT conversion (line ~97), after adding the WEBVTT header, strip standalone numeric cue IDs. Add a regex pass: `.replace(/^\d+\s*$/gm, '')` to remove lines that are just numbers (SRT cue identifiers). Clean up resulting double blank lines with `.replace(/\n{3,}/g, '\n\n')`.
-  - **Why**: SRT files have numeric cue IDs (1, 2, 3...) before each timestamp. VTT treats standalone numbers as orphan cues, which can cause parsing failures or display glitches.
+- [ ] 🟡 **Error state not marked as `role="alert"`**
+  - **How**: At line 623, add `role="alert"` to the outer `<div>`: `<div role="alert" className="p-6 bg-[var(--bg-secondary)] ...">`. This ensures screen readers announce the error immediately when it appears.
+  - **Why**: When playback fails, sighted users see the error UI but screen reader users receive no announcement. The existing `aria-live` region (line 699) only covers playback states, not the early-return error view.
 
-- [x] 🟢 **Hard-coded subtitle language "en"**
-  - **How**: At line ~597, change `srcLang="en"` to derive language from subtitle filename if available, or default to `"und"` (undetermined) per BCP 47. The `label` could similarly be "Subtitles" for unknown language.
-  - **Why**: Non-English subtitles are mislabeled, which affects browser subtitle styling and screen reader announcements.
+- [ ] 🟡 **Remux progress bar missing ARIA progressbar role**
+  - **How**: At line 674, add to the progress track: `role="progressbar" aria-label="Conversion progress" aria-valuenow={Math.round(remuxProgress * 100)} aria-valuemin={0} aria-valuemax={100}`. Move these attributes from the visual bar to the outer container div.
+  - **Why**: Screen readers cannot announce conversion progress. Users who rely on assistive technology have no indication of remux completion percentage.
+
+- [ ] 🟡 **No focus trap in fullscreen overlay**
+  - **How**: Import and use the existing `useFocusTrap` hook from `fe/src/hooks/useFocusTrap.ts` on the fullscreen overlay container (line 970). The hook already handles Tab wrapping and focus restoration -- pass a ref to the fullscreen `<div>` and enable it when `isFullscreen` is true.
+  - **Why**: In fullscreen mode, Tab key can move focus to elements behind the overlay (hidden page content). The app already has `useFocusTrap` for modals -- VideoPlayer fullscreen should use the same pattern.
+
+- [ ] 🟢 **PiP button doesn't announce current state**
+  - **How**: At line 836, change the static `aria-label` to dynamic: `aria-label={document.pictureInPictureElement === videoRef.current ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}`. Track PiP state with `enterpictureinpicture`/`leavepictureinpicture` events on the video element to avoid reading `document.pictureInPictureElement` synchronously.
+  - **Why**: Screen reader users hear "Toggle Picture-in-Picture" regardless of whether PiP is active or not, making the current state ambiguous.
+
+- [ ] 🟢 **Volume slider missing ARIA value attributes**
+  - **How**: At line 785, add: `aria-valuenow={isMuted ? 0 : Math.round(volume * 100)}`, `aria-valuetext={isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}`. Native `<input type="range">` already has implicit min/max from the `min`/`max` attributes.
+  - **Why**: Screen readers announce the raw decimal (e.g., "0.75") instead of a human-readable percentage. The `aria-valuetext` override provides "75%" or "Muted".
 
 ---
 
-## 8. Display & UX
+## 5. Subtitle Support
 
-> Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/index.css`
+> Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🟡 **No loading indicator during 8-second format probe**
-  - **How**: Set `setLoading(true)` at the start of the probe (before line ~125). The spinner already renders when `loading && blobUrl` is truthy (line ~635), but `blobUrl` is null during probe. Either show a spinner unconditionally when `loading` is true, or add a "Checking format..." text state.
-  - **Why**: Users see nothing for up to 8 seconds while the probe determines format support. Feels like the app froze.
+- [ ] 🟡 **Subtitle decoding assumes UTF-8 with no fallback**
+  - **How**: At line 149, wrap in a try-catch: try `new TextDecoder('utf-8', { fatal: true }).decode(subtitleData)`. If it throws, fall back to `new TextDecoder('iso-8859-1').decode(subtitleData)`. ISO-8859-1 never fails (every byte maps to a character) and is the most common non-UTF-8 encoding for SRT files.
+  - **Why**: SRT files from older tools or non-English sources are often encoded in Latin-1 or Windows-1252. The current `new TextDecoder().decode()` silently produces replacement characters instead of readable text.
 
-- [x] 🟡 **Seek bar position jank on WebKitGTK (~4Hz updates)**
-  - **How**: Add time interpolation between `onTimeUpdate` events using `requestAnimationFrame`. Store last known time + timestamp in a ref, interpolate linearly at 60fps. AudioPlayer solves this with `vizTimeRef` interpolation (lines 209, 501-506). Apply interpolated time to seek bar width and time display.
-  - **Why**: WebKitGTK fires `timeupdate` at ~4Hz (every 250ms). Without interpolation, the seek bar visibly jumps rather than sliding smoothly.
+- [ ] 🟢 **SRT timestamp regex too strict for edge-case formats**
+  - **How**: At line 153, relax the regex from `(\d{2}:\d{2}:\d{2}),(\d{3})` to `(\d{1,2}:\d{2}:\d{2}),(\d{1,3})`. This handles single-digit hours (e.g., `1:30:45,000`) and variable-precision milliseconds (e.g., `00:00:01,5`) which some SRT generators produce.
+  - **Why**: Strictly-formatted SRT files work fine, but files from tools like Aegisub or hand-edited SRTs may use single-digit hours. These timestamps pass through unconverted, causing VTT parsing failures.
 
-- [x] 🟢 **No fullscreen enter/exit transition**
-  - **How**: Add `transition-opacity duration-200` to the fullscreen overlay (line ~615). Use a brief opacity fade (0->1 on enter, 1->0 on exit with a short delay before unmounting).
-  - **Why**: Fullscreen toggle is an abrupt snap. A subtle fade makes the mode switch feel intentional rather than jarring.
+---
 
-- [x] 🟢 **No control auto-hide in fullscreen**
-  - **How**: In fullscreen mode, track mouse movement. Show controls on move, hide after 3s of inactivity via `setTimeout`. Add `cursor: none` when controls are hidden. Reset timer on any mouse/keyboard activity.
-  - **Why**: In fullscreen, the always-visible control bar covers video content. Professional video players hide controls after inactivity.
+## 6. Display & UX
+
+> Key files: `fe/src/components/VideoPlayer.tsx`
+
+- [ ] 🔴 **Seek thumb uses hardcoded `bg-white/60` -- invisible in light theme**
+  - **How**: At line 765, replace `bg-white/60` with `bg-[var(--bg-elevated)]`. The elevated background variable has proper contrast in both dark and light themes. Keep the `border-2 border-[var(--accent)]/60` which already uses a CSS variable.
+  - **Why**: In light theme, a white/60% opacity thumb on a light background is nearly invisible. Users can't see the seek position at a glance.
+
+- [ ] 🟡 **Key hints overlay shown once and cannot be recalled**
+  - **How**: Add `?` or `H` to the keyboard handler (line 565 switch block) to toggle `showKeyHints`. Change the auto-dismiss from one-shot (line 559 `hasShownHints`) to always showing on `?`/`H` press with a 3s auto-dismiss. This lets users recall shortcuts after the initial display fades.
+  - **Why**: Users who miss the initial 3s hint display have no way to see keyboard shortcuts again without reloading the component.
+
+- [ ] 🟡 **Seek bar has no disabled visual state when video not loaded**
+  - **How**: At line 736, add conditional opacity: `className={`flex-1 py-2 cursor-pointer relative min-w-[60px] ${!duration ? 'opacity-50 pointer-events-none' : ''}`}`. This grays out and disables the seek bar before metadata loads.
+  - **Why**: The seek bar looks interactive even when duration is 0 (no video loaded). Clicking it does nothing but confuses users.
+
+- [ ] 🟢 **Fullscreen button has no visual highlight when active**
+  - **How**: At line 849, add conditional accent color like the CC and Loop buttons: `className={`${btnClass} ${isFullscreen ? 'text-[var(--accent)]' : ''}`}`. The CC button (line 802) and Loop button (line 814) already follow this pattern.
+  - **Why**: Inconsistent with other toggle buttons. CC and Loop highlight in accent color when active, but Fullscreen doesn't, even though it's also a toggle with `aria-pressed`.
+
+---
+
+## 7. Test Coverage
+
+> Key files: `fe/src/components/__tests__/VideoPlayer.test.tsx`
+
+- [ ] 🟡 **Keyboard shortcuts not tested**
+  - **How**: Add tests dispatching `keydown` events for Space (play/pause), ArrowLeft/Right (seek), ArrowUp/Down (volume), F (fullscreen), M (mute), L (loop), C (captions). Verify each shortcut calls the correct handler or updates state. Use `fireEvent.keyDown(document, { key: 'Space' })` pattern. Verify shortcuts are ignored when `<input>` is focused.
+  - **Why**: 12 keyboard shortcuts with guard logic (line 555-556) are untested. A regression in the key handler could silently break all keyboard controls.
+
+- [ ] 🟡 **Error state rendering not tested**
+  - **How**: Mock the probe to fail (simulate `<video>` error event) and FFmpeg to throw. Verify: error message renders, format diagnostic info shows correct extension/MIME, conversion hint appears for known formats, "Save As" button renders when `onExport` is provided and text fallback when it's not.
+  - **Why**: The error UI (lines 621-664) has multiple conditional branches (conversion hints, Save As vs text fallback) that are all untested.
+
+- [ ] 🟡 **Seek bar interaction not tested**
+  - **How**: Render VideoPlayer with mock data, simulate `loadedmetadata` to set duration, then test: `mousedown` on seek bar updates `currentTime`, `mousemove` during drag continues seeking, `mouseup` ends drag. Test keyboard: ArrowLeft/Right on focused seek bar, Home/End. Verify ARIA `aria-valuenow` updates.
+  - **Why**: The drag-to-seek implementation (lines 360-390) and keyboard seek (lines 457-484) are complex interaction handlers with no test coverage.
+
+- [ ] 🟡 **Playback state transitions not tested**
+  - **How**: Test that `onPlay` sets `isPlaying` true (play button changes to pause icon), `onPause` sets false, `onEnded` resets to start (currentTime 0, isPlaying false). Test `onWaiting` shows loading spinner, `onPlaying` dismisses it. Test `onStalled` with 5s timer and error escalation.
+  - **Why**: The stalled handler (lines 932-943) has a 5-second timer with error escalation that could regress. The ended handler (lines 918-925) has loop-conditional logic.
+
+- [ ] 🟢 **Volume and speed controls not tested**
+  - **How**: Test volume slider `onChange` updates volume state and video element. Test mute toggle. Test speed button cycles through `SPEED_OPTIONS` array and wraps around (2x -> 0.5x). Verify video element's `playbackRate` is updated.
+  - **Why**: Speed cycling logic (lines 410-415) wraps around via modulo -- an off-by-one would break the cycle silently.
+
+- [ ] 🟢 **Edge cases not tested (NaN duration, zero-length data, large files)**
+  - **How**: Test `formatTime` with `NaN`, `Infinity`, `-1`, `0` (lines 29-34). Test component with `data` of length 0. Test data > 2GB triggers error (line 226). Test 500MB-2GB shows size warning (line 231). Mock `Blob` and `URL.createObjectURL` for these.
+  - **Why**: Guard logic at system boundaries (size limits, NaN handling) is where regressions cause the most confusing user-facing bugs.
 
 ---
 
@@ -181,27 +159,22 @@ Each item:
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| 🔴 Critical | 3 | FFmpeg worker leak on unmount, FFmpeg Blob URL leak, light-theme key hints |
-| 🟡 Important | 15 | Buffering events, stall handling, NaN duration, drag-to-seek, seek thumb, error hints, CDN vs format errors, blobUrl leak, file size warning, ARIA slider, aria-live, aria-pressed, SRT cue IDs, probe loading, seek jank |
-| 🟢 Nice-to-have | 10 | CDN retry, click target, hover preview, loop, end-of-video reset, remux validation, focus ring, subtitle lang, fullscreen transition, control auto-hide |
+| 🔴 Critical | 1 | Seek thumb invisible in light theme |
+| 🟡 Important | 12 | preload attr, FFmpeg timeout, local WASM, cancel remux, error alert role, progress ARIA, focus trap, subtitle encoding, key hints recall, seek bar disabled state, keyboard tests, error tests, seek tests, state tests |
+| 🟢 Nice-to-have | 11 | Remux stall detection, FFmpeg FS cleanup, transition-all perf, PiP state label, volume ARIA, SRT regex, fullscreen highlight, volume/speed tests, edge case tests |
 
 ### Implementation Order (suggested)
-1. Light-theme key hints (5 min fix, visible bug)
-2. FFmpeg Blob URL leak (small fix, prevents memory accumulation)
-3. FFmpeg worker termination on unmount (ref + cleanup, prevents background CPU waste)
-4. `waiting`/`playing` events (2 lines, fixes buffering spinner)
-5. NaN duration guard (1 line, prevents seek bar breakage)
-6. Stalled handler improvement (small refactor, fewer false errors)
-7. Old blobUrl revocation on data change (ref tracking, prevents leak)
-8. ARIA slider on seek bar (accessibility, moderate effort)
-9. `aria-pressed` on toggles (5 attributes, easy)
-10. `aria-live` status region (small addition)
-11. Probe loading indicator (UX feedback)
-12. Drag-to-seek (moderate effort, big UX win)
-13. Seek bar thumb (CSS addition)
-14. Format-specific error hints (new function + UI)
-15. CDN vs format error distinction (error path split)
-16. SRT cue ID stripping (regex addition)
-17. File size warning (conditional check)
-18. Seek bar time interpolation (rAF loop, moderate)
-19. Remaining nice-to-haves in any order
+1. Seek thumb light-theme fix (1-line CSS variable swap, visible bug)
+2. Error state `role="alert"` (1 attribute, accessibility)
+3. Remux progress ARIA (3 attributes, accessibility)
+4. Fullscreen focus trap (reuse existing hook)
+5. `preload="metadata"` on video (1 attribute)
+6. Seek bar disabled state (conditional class)
+7. Key hints recall via `?`/`H` key
+8. FFmpeg terminate timeout (Promise.race wrapper)
+9. Subtitle UTF-8 fallback (try-catch + ISO-8859-1)
+10. Bundle FFmpeg WASM locally (eliminate CDN dependency)
+11. Cancel button during remux (UI + terminate logic)
+12. Fullscreen button highlight (match CC/Loop pattern)
+13. Test coverage items (keyboard, error, seek, state, edge cases)
+14. Remaining nice-to-haves in any order
