@@ -49,11 +49,11 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **Show bitrate and sample rate in LED display area**
+- [x] 🟢 **Show bitrate and sample rate in LED display area**
   - **How**: The `music-metadata` result (line 284) includes `result.format.bitrate` (number, bps) and `result.format.sampleRate` (number, Hz). Extend the `AudioMetadata` interface (line 4) with `bitrate?: number; sampleRate?: number;`. Populate them at line 288: `bitrate: result.format.bitrate, sampleRate: result.format.sampleRate`. Display in the LED row (line 1042-1063) — add a small info section between the time display and status text: `{metadata?.bitrate && <span className="text-[10px] font-mono text-[var(--winamp-led)] opacity-40">{Math.round(metadata.bitrate / 1000)}kbps</span>}` and similarly for sample rate `{Math.round(sampleRate / 1000)}kHz`. Use the `winamp-led-text` class at reduced opacity for the retro look.
   - **Why**: Winamp 2.x always showed kbps and kHz in the main display. This is expected metadata in a retro audio player and helps users verify file quality at a glance.
 
-- [ ] 🟢 **Add mono/stereo indicator**
+- [x] 🟢 **Add mono/stereo indicator**
   - **How**: `music-metadata` provides `result.format.numberOfChannels`. Add `channels?: number` to `AudioMetadata`. Display next to bitrate: `{metadata?.channels === 1 ? 'MONO' : metadata?.channels === 2 ? 'STEREO' : null}` using the same `winamp-led-text` class at reduced opacity. Alternatively, use two small LED dots (like Winamp's stereo indicator) — a `<span>` with `bg-[var(--winamp-led)]` when stereo, `opacity-20` when mono.
   - **Why**: Classic Winamp had a prominent MONO/STEREO indicator in the main display. Fits the retro aesthetic and provides useful technical info.
 

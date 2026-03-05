@@ -8,6 +8,9 @@ interface AudioMetadata {
   trackNumber?: number;
   year?: number;
   picture?: { data: Uint8Array; format: string } | null;
+  bitrate?: number;
+  sampleRate?: number;
+  channels?: number;
 }
 
 function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: string } }) {
@@ -285,7 +288,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       parseBuffer(new Uint8Array(data), { mimeType: getMimeType(fileExtension) })
         .then(result => {
           if (cancelled) return;
-          const { common } = result;
+          const { common, format } = result;
           const pic = common.picture?.[0];
           setMetadata({
             title: common.title,
@@ -294,6 +297,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             trackNumber: common.track?.no ?? undefined,
             year: common.year,
             picture: pic ? { data: new Uint8Array(pic.data), format: pic.format } : null,
+            bitrate: format?.bitrate,
+            sampleRate: format?.sampleRate,
+            channels: format?.numberOfChannels,
           });
         })
         .catch((err) => { console.warn('AudioPlayer: metadata parse failed', err); });
@@ -1103,6 +1109,19 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             {showRemaining ? `\u2212${formatTime(Math.max(0, duration - currentTime))}` : formatTime(duration)}
           </span>
         </div>
+        {(metadata?.bitrate || metadata?.sampleRate || metadata?.channels) && (
+          <div className="flex items-center gap-2" aria-label="Audio format info">
+            {metadata.bitrate != null && (
+              <span className="winamp-led-text text-[10px] opacity-40">{Math.round(metadata.bitrate / 1000)}kbps</span>
+            )}
+            {metadata.sampleRate != null && (
+              <span className="winamp-led-text text-[10px] opacity-40">{Math.round(metadata.sampleRate / 1000)}kHz</span>
+            )}
+            {metadata.channels != null && (
+              <span className="winamp-led-text text-[10px] opacity-40">{metadata.channels === 1 ? 'MONO' : metadata.channels === 2 ? 'STEREO' : `${metadata.channels}ch`}</span>
+            )}
+          </div>
+        )}
         <span className="text-[10px] font-bold tracking-widest text-[var(--text-muted)] uppercase" aria-live="polite" aria-atomic="true">
           {!isReady ? 'Loading' : isBuffering && isPlaying ? 'Buffering' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
         </span>

@@ -1112,6 +1112,54 @@ describe('AudioPlayer component', () => {
       // Album + year + track rendered as: "Greatest Hits — 2024 (Track 5)"
       expect(screen.getByText(/Greatest Hits.*2024.*Track 5/)).toBeInTheDocument();
     });
+
+    it('shows bitrate, sample rate, and stereo indicator when format info is present', async () => {
+      mockParseBuffer.mockResolvedValueOnce({
+        common: { title: 'Format Track' },
+        format: { bitrate: 128000, sampleRate: 44100, numberOfChannels: 2 },
+      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
+
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.getByText('128kbps')).toBeInTheDocument();
+      expect(screen.getByText('44kHz')).toBeInTheDocument();
+      expect(screen.getByText('STEREO')).toBeInTheDocument();
+    });
+
+    it('shows MONO for single-channel audio', async () => {
+      mockParseBuffer.mockResolvedValueOnce({
+        common: { title: 'Mono Track' },
+        format: { bitrate: 64000, sampleRate: 22050, numberOfChannels: 1 },
+      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
+
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.getByText('64kbps')).toBeInTheDocument();
+      expect(screen.getByText('22kHz')).toBeInTheDocument();
+      expect(screen.getByText('MONO')).toBeInTheDocument();
+    });
+
+    it('shows channel count for multi-channel audio', async () => {
+      mockParseBuffer.mockResolvedValueOnce({
+        common: {},
+        format: { numberOfChannels: 6 },
+      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
+
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.getByText('6ch')).toBeInTheDocument();
+    });
+
+    it('does not show format info when no format fields are present', async () => {
+      // Default mock returns { common: {} } with no format data
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.queryByLabelText('Audio format info')).not.toBeInTheDocument();
+    });
   });
 
   // ── Buffering state transition tests ────────────────────────────────
