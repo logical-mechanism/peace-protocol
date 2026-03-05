@@ -145,11 +145,11 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **SRT-to-VTT conversion doesn't handle cue IDs**
+- [x] 🟡 **SRT-to-VTT conversion doesn't handle cue IDs**
   - **How**: In the SRT->VTT conversion (line ~97), after adding the WEBVTT header, strip standalone numeric cue IDs. Add a regex pass: `.replace(/^\d+\s*$/gm, '')` to remove lines that are just numbers (SRT cue identifiers). Clean up resulting double blank lines with `.replace(/\n{3,}/g, '\n\n')`.
   - **Why**: SRT files have numeric cue IDs (1, 2, 3...) before each timestamp. VTT treats standalone numbers as orphan cues, which can cause parsing failures or display glitches.
 
-- [ ] 🟢 **Hard-coded subtitle language "en"**
+- [x] 🟢 **Hard-coded subtitle language "en"**
   - **How**: At line ~597, change `srcLang="en"` to derive language from subtitle filename if available, or default to `"und"` (undetermined) per BCP 47. The `label` could similarly be "Subtitles" for unknown language.
   - **Why**: Non-English subtitles are mislabeled, which affects browser subtitle styling and screen reader announcements.
 

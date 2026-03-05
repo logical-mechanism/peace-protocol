@@ -139,5 +139,41 @@ describe('VideoPlayer', () => {
       const { container } = renderPlayer({ subtitleData: vttData });
       expect(container).toBeInTheDocument();
     });
+
+    it('strips SRT cue IDs during conversion to VTT', () => {
+      // Capture Blob content by spying on the Blob constructor
+      const capturedBlobs: { parts: BlobPart[]; type: string }[] = [];
+      const OrigBlob = globalThis.Blob;
+      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
+        const blob = new OrigBlob(parts ?? [], opts);
+        if (opts?.type === 'text/vtt' && parts) {
+          capturedBlobs.push({ parts, type: opts.type });
+        }
+        return blob;
+      }) as unknown as typeof Blob;
+      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
+      globalThis.Blob = BlobSpy;
+
+      try {
+        const srtData = new TextEncoder().encode(
+          '1\n00:00:01,000 --> 00:00:04,000\nHello World\n\n2\n00:00:05,000 --> 00:00:08,000\nSecond cue\n',
+        );
+        renderPlayer({ subtitleData: srtData });
+
+        expect(capturedBlobs.length).toBe(1);
+        const vtt = capturedBlobs[0].parts[0] as string;
+        expect(vtt).toContain('WEBVTT');
+        // Timestamps should have dots (not commas)
+        expect(vtt).toContain('00:00:01.000');
+        expect(vtt).toContain('00:00:05.000');
+        // Cue IDs (standalone numbers) should be stripped
+        expect(vtt).not.toMatch(/^\d+\s*$/m);
+        // Cue text should be preserved
+        expect(vtt).toContain('Hello World');
+        expect(vtt).toContain('Second cue');
+      } finally {
+        globalThis.Blob = OrigBlob;
+      }
+    });
   });
 });

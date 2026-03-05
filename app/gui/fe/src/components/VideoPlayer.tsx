@@ -138,7 +138,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     const text = new TextDecoder().decode(subtitleData);
     if (!text.trimStart().startsWith('WEBVTT')) {
       // Simple SRT → VTT conversion: add WEBVTT header, replace comma with dot in timestamps
-      const vtt = 'WEBVTT\n\n' + text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+      const vtt = 'WEBVTT\n\n' + text
+        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+        .replace(/^\d+\s*$/gm, '')       // Strip SRT cue IDs (standalone numbers)
+        .replace(/\n{3,}/g, '\n\n');      // Collapse resulting extra blank lines
       blob = new Blob([vtt], { type: 'text/vtt' });
     } else {
       blob = new Blob([subtitleData as BlobPart], { type: 'text/vtt' });
@@ -842,7 +845,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         <track
           kind="subtitles"
           src={subtitleUrl}
-          srcLang="en"
+          srcLang="und"
           label="Subtitles"
           default={showCaptions}
         />
