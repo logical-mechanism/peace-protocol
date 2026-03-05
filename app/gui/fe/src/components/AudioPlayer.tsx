@@ -319,9 +319,12 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     };
     const onCanPlay = () => {
       if (cancelled) return;
-      // Ensure playback starts from the beginning — GStreamer can report a
-      // non-zero currentTime after parsing certain container formats.
-      audio.currentTime = 0;
+      // Only reset if GStreamer reported a genuinely non-zero start position.
+      // Forcing a seek to 0 when already at 0 causes GStreamer to snap to the
+      // nearest sync frame, clipping the first few milliseconds of audio.
+      if (audio.currentTime > 0.05) {
+        audio.currentTime = 0;
+      }
       setIsReady(true);
       // Start PCM decode now that GStreamer pipeline is fully ready.
       // Decoding before canplay contends with GStreamer on the audio thread,
