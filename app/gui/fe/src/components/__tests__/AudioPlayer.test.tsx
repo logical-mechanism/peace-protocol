@@ -807,6 +807,52 @@ describe('AudioPlayer component', () => {
       expect(audio.muted).toBe(false);
       expect(screen.getByLabelText('Mute')).toBeInTheDocument();
     });
+
+    it('L key toggles loop on', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      expect(screen.getByLabelText('Enable repeat')).toHaveAttribute('aria-pressed', 'false');
+      await act(async () => {
+        fireEvent.keyDown(document, { key: 'l' });
+      });
+      expect(audio.loop).toBe(true);
+      expect(screen.getByLabelText('Disable repeat')).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('L key toggles loop off', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      // Enable loop
+      await act(async () => {
+        fireEvent.keyDown(document, { key: 'l' });
+      });
+      // Disable loop
+      await act(async () => {
+        fireEvent.keyDown(document, { key: 'L' });
+      });
+      expect(audio.loop).toBe(false);
+      expect(screen.getByLabelText('Enable repeat')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('S key cycles playback speed', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      expect(screen.getByLabelText('Playback speed: 1x')).toBeInTheDocument();
+      await act(async () => {
+        fireEvent.keyDown(document, { key: 's' });
+      });
+      expect(audio.playbackRate).toBe(1.25);
+      expect(screen.getByLabelText('Playback speed: 1.25x')).toBeInTheDocument();
+    });
   });
 
   describe('seek bar keyboard', () => {

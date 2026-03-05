@@ -35,11 +35,11 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Add `L` keyboard shortcut for loop toggle**
+- [x] 🟡 **Add `L` keyboard shortcut for loop toggle**
   - **How**: In the global `handleKeyDown` switch statement (line 692-728), add a case after the `m`/`M` case: `case 'l': case 'L': handleToggleLoop(); break;`. Update the key hints overlay (line 1020-1025) to add a new row: `<span><kbd>L</kbd> Loop</span>`. Update the loop button's `title` to include `(L)`: line 1153 → `title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}`.
   - **Why**: Every other toggle has a keyboard shortcut (Space for play, M for mute) but loop requires a mouse click. Keyboard-only users can't toggle repeat mode.
 
-- [ ] 🟡 **Add `S` keyboard shortcut for speed cycling**
+- [x] 🟡 **Add `S` keyboard shortcut for speed cycling**
   - **How**: In the same switch statement, add: `case 's': case 'S': handleSpeedChange(); break;`. Update key hints to add `<span><kbd>S</kbd> Speed</span>`. Update the speed button's `title` at line 1166 to append `(S)`. Add `handleSpeedChange` to the `useEffect` dependency array at line 733.
   - **Why**: Same reasoning as loop — speed cycling is mouse-only. Keyboard users (especially visually impaired) benefit from being able to change speed without finding the small button.
 

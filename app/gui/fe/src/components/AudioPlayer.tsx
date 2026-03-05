@@ -712,6 +712,21 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     setIsMuted(newMuted);
   }, [isMuted]);
 
+  const handleToggleLoop = useCallback(() => {
+    setIsLooping(prev => {
+      const next = !prev;
+      if (audioRef.current) audioRef.current.loop = next;
+      return next;
+    });
+  }, []);
+
+  const handleSpeedChange = useCallback(() => {
+    const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
+    const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
+    setPlaybackRate(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  }, [playbackRate]);
+
   // --- Keyboard shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -761,12 +776,20 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         case 'M':
           handleMuteToggle();
           break;
+        case 'l':
+        case 'L':
+          handleToggleLoop();
+          break;
+        case 's':
+        case 'S':
+          handleSpeedChange();
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward, handleMuteToggle]);
+  }, [isPlaying, handlePlay, handlePause, handleSkipBack, handleSkipForward, handleMuteToggle, handleToggleLoop, handleSpeedChange]);
 
   const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -914,21 +937,6 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     }
   }, []);
 
-  const handleToggleLoop = useCallback(() => {
-    setIsLooping(prev => {
-      const next = !prev;
-      if (audioRef.current) audioRef.current.loop = next;
-      return next;
-    });
-  }, []);
-
-  const handleSpeedChange = useCallback(() => {
-    const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
-    const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
-    setPlaybackRate(next);
-    if (audioRef.current) audioRef.current.playbackRate = next;
-  }, [playbackRate]);
-
   // --- Render ---
 
   if (error) {
@@ -1058,6 +1066,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
               <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;10s</span>
               <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
               <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
             </div>
           </div>
         )}
@@ -1186,7 +1196,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           <button
             onClick={handleToggleLoop}
             className={`${transportBtn} ml-1 ${isLooping ? '!text-[var(--accent)]' : ''}`}
-            title={isLooping ? 'Repeat: On' : 'Repeat: Off'}
+            title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}
             aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
             aria-pressed={isLooping}
           >
@@ -1199,7 +1209,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           <button
             onClick={handleSpeedChange}
             className={`${transportBtn} ml-1 text-[10px] font-bold tracking-tight min-w-[32px] ${playbackRate !== 1 ? '!text-[var(--accent)]' : ''}`}
-            title={`Speed: ${playbackRate}x`}
+            title={`Speed: ${playbackRate}x (S)`}
             aria-label={`Playback speed: ${playbackRate}x`}
           >
             {playbackRate}x
