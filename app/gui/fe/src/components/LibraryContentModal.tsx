@@ -459,21 +459,21 @@ export default function LibraryContentModal({
               </div>
               <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-[var(--text-muted)]">
                 {item.seller && (<>
-                  <span>Seller: <span className="font-mono text-[var(--text-secondary)]">{truncateHex(item.seller, 10, 6)}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">Seller:</span> <span className="font-mono text-[var(--text-secondary)]">{truncateHex(item.seller, 10, 6)}</span></span>
                   <span className="opacity-30">&middot;</span>
                 </>)}
                 {item.createdAt && (<>
-                  <span>Listed: <span className="text-[var(--text-secondary)]">{formatDateTime(item.createdAt)}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">Listed:</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.createdAt)}</span></span>
                   <span className="opacity-30">&middot;</span>
                 </>)}
-                <span>Decrypted: <span className="text-[var(--text-secondary)]">{formatDateTime(item.decryptedAt)}</span></span>
+                <span><span className="text-[var(--accent)] opacity-70">Decrypted:</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.decryptedAt)}</span></span>
                 {item.storageLayer && (<>
                   <span className="opacity-30">&middot;</span>
-                  <span>Storage: <span className="text-[var(--text-secondary)]">{item.storageLayer}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">Storage:</span> <span className="text-[var(--text-secondary)]">{item.storageLayer}</span></span>
                 </>)}
                 {item.fileSize != null && (<>
                   <span className="opacity-30">&middot;</span>
-                  <span>Size: <span className="text-[var(--text-secondary)]">{formatBytes(item.fileSize)}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">Size:</span> <span className="text-[var(--text-secondary)]">{formatBytes(item.fileSize)}</span></span>
                 </>)}
               </div>
             </div>
