@@ -63,7 +63,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **Guard against division by zero in drawFrame waveform progress**
+- [x] 🟢 **Guard against division by zero in drawFrame waveform progress**
   - **How**: At line 552, `const progressRatio = vizTimeRef.current / duration` can produce `Infinity` if `duration` is 0 but `vizTimeRef.current` is non-zero (theoretically possible with zero-length or corrupt files). Add `if (!isFinite(progressRatio)) return;` after the calculation, before the pixel comparison at line 554. The `duration > 0` guard at line 550 should prevent this, but the Infinity check is a cheap safety net.
   - **Why**: Prevents a corrupt or zero-length file from causing the waveform to render with an Infinity progress ratio, which would produce NaN pixel values in `drawWaveform`.
 

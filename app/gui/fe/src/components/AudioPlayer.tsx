@@ -582,6 +582,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     if (waveformDataRef.current && duration > 0) {
       const wCanvas = waveformCanvasRef.current;
       const progressRatio = vizTimeRef.current / duration;
+      if (!isFinite(progressRatio)) return;
       const px = wCanvas ? Math.round(progressRatio * wCanvas.width) : -1;
       if (px !== lastDrawnPixelRef.current) {
         lastDrawnPixelRef.current = px;
