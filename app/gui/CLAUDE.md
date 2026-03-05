@@ -356,7 +356,7 @@ app/gui/
 
 **On-chain datums** (defined in both fe and be):
 - `EncryptionDatum` — owner_vkh, owner_g1 (Register), token, half_level, full_level|null, capsule, status (Open|Pending)
-- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token)
+- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token), locked_until (POSIX ms)
 - `Register` — { generator: hex, public_value: hex } (BLS12-381 G1 points, 96 hex chars each)
 - `Capsule` — { nonce: 24 hex, aad: 64 hex, ct: variable hex } (ChaCha20-Poly1305)
 - `HalfEncryptionLevel` — { r1b, r2_g1b, r4b } (G1, G1, G2)
@@ -364,7 +364,7 @@ app/gui/
 
 **Display models** (be types, consumed by fe):
 - `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, category?, createdAt, utxo, datum
-- `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, utxo, datum
+- `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, lockedUntil, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
 **Frontend state types:**

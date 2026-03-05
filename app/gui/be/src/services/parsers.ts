@@ -3,7 +3,7 @@
  *
  * Field ordering matches contracts/lib/types/*.ak exactly:
  *   EncryptionDatum: owner_vkh, owner_g1, token, half_level, full_level, capsule, status
- *   BidDatum:        owner_vkh, owner_g1, pointer, token
+ *   BidDatum:        owner_vkh, owner_g1, pointer, token, locked_until
  *   Register:        generator, public_value
  *   HalfEncLevel:    r1b, r2_g1b, r4b
  *   FullEncLevel:    r1b, r2_g1b, r2_g2b, r4b
