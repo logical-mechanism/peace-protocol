@@ -33,6 +33,9 @@ globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
 const playMock = vi.fn().mockResolvedValue(undefined);
 const pauseMock = vi.fn();
 
+import { parseBuffer as _parseBuffer } from 'music-metadata';
+const mockParseBuffer = vi.mocked(_parseBuffer);
+
 import AudioPlayer from '../AudioPlayer';
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -64,6 +67,13 @@ async function fireCanPlay() {
   await act(async () => {
     audio.dispatchEvent(new Event('loadedmetadata'));
     audio.dispatchEvent(new Event('canplay'));
+  });
+}
+
+/** Flush microtask queue so async metadata parsing and PCM decode settle. */
+async function flushMicrotasks() {
+  await act(async () => {
+    await new Promise(r => setTimeout(r, 0));
   });
 }
 
@@ -989,6 +999,207 @@ describe('AudioPlayer component', () => {
         fireEvent.keyDown(document, { key: 'ArrowUp' });
       });
       expect(audio.muted).toBe(false);
+    });
+  });
+
+  // ── Metadata rendering tests ────────────────────────────────────────
+
+  describe('metadata display', () => {
+    it('shows title, artist, and album when metadata is present', async () => {
+      mockParseBuffer.mockResolvedValueOnce({
+        common: {
+          title: 'Test Song',
+          artist: 'Test Artist',
+          album: 'Test Album',
+        },
+      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
+
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.getByText('Test Song')).toBeInTheDocument();
+      expect(screen.getByText('Test Artist')).toBeInTheDocument();
+      expect(screen.getByText('Test Album')).toBeInTheDocument();
+    });
+
+    it('shows album art image when metadata contains a picture', async () => {
+      mockParseBuffer.mockResolvedValueOnce({
+        common: {
+          title: 'Art Track',
+          picture: [{
+            data: new Uint8Array([0x89, 0x50, 0x4E, 0x47]),
+            format: 'image/png',
+          }],
+        },
+      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
+
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.getByAltText('Album art')).toBeInTheDocument();
+    });
+
+    it('does not show metadata section when no metadata fields are present', async () => {
+      // Default mock returns { common: {} } — no title, artist, or album
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.queryByAltText('Album art')).not.toBeInTheDocument();
+      // The metadata section is conditionally rendered, so no title/artist text should appear
+      expect(screen.queryByText('Test Song')).not.toBeInTheDocument();
+    });
+
+    it('shows year and track number when available', async () => {
+      mockParseBuffer.mockResolvedValueOnce({
+        common: {
+          title: 'Numbered Track',
+          album: 'Greatest Hits',
+          year: 2024,
+          track: { no: 5, of: 12 },
+        },
+      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
+
+      renderPlayer();
+      await flushMicrotasks();
+
+      expect(screen.getByText('Numbered Track')).toBeInTheDocument();
+      // Album + year + track rendered as: "Greatest Hits — 2024 (Track 5)"
+      expect(screen.getByText(/Greatest Hits.*2024.*Track 5/)).toBeInTheDocument();
+    });
+  });
+
+  // ── Buffering state transition tests ────────────────────────────────
+
+  describe('buffering state transitions', () => {
+    it('shows Buffering when playing and waiting event fires', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      // Start playing
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+
+      // Fire waiting event
+      await act(async () => {
+        audio.dispatchEvent(new Event('waiting'));
+      });
+
+      expect(screen.getByText('Buffering')).toBeInTheDocument();
+    });
+
+    it('clears Buffering when playing event fires after waiting', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      // Play → waiting → playing
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+      await act(async () => {
+        audio.dispatchEvent(new Event('waiting'));
+      });
+      expect(screen.getByText('Buffering')).toBeInTheDocument();
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('playing'));
+      });
+      // Should now show Playing, not Buffering
+      expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
+      expect(screen.getByText('Playing')).toBeInTheDocument();
+    });
+
+    it('shows Buffering on stalled when readyState < 3', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      // Start playing
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+
+      // Set readyState < 3 (HAVE_CURRENT_DATA = 2)
+      Object.defineProperty(audio, 'readyState', { value: 2, configurable: true });
+      await act(async () => {
+        audio.dispatchEvent(new Event('stalled'));
+      });
+
+      expect(screen.getByText('Buffering')).toBeInTheDocument();
+    });
+
+    it('does not show Buffering on stalled when readyState >= 3', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      // Start playing
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+
+      // Set readyState >= 3 (HAVE_FUTURE_DATA = 3)
+      Object.defineProperty(audio, 'readyState', { value: 3, configurable: true });
+      await act(async () => {
+        audio.dispatchEvent(new Event('stalled'));
+      });
+
+      // Should show Playing, not Buffering
+      expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
+      expect(screen.getByText('Playing')).toBeInTheDocument();
+    });
+  });
+
+  // ── Visualization failure fallback test ─────────────────────────────
+
+  describe('visualization failure fallback', () => {
+    it('shows fallback text when PCM decodeAudioData rejects', async () => {
+      // Override OfflineAudioContext to reject decodeAudioData
+      const originalOAC = globalThis.OfflineAudioContext;
+      globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
+        decodeAudioData: vi.fn().mockRejectedValue(new Error('decode failed')),
+      })) as unknown as typeof OfflineAudioContext;
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      // Flush the rejected decode promise
+      await flushMicrotasks();
+
+      expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
+
+      // Restore
+      globalThis.OfflineAudioContext = originalOAC;
+    });
+
+    it('keeps playback controls functional when visualization fails', async () => {
+      const originalOAC = globalThis.OfflineAudioContext;
+      globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
+        decodeAudioData: vi.fn().mockRejectedValue(new Error('decode failed')),
+      })) as unknown as typeof OfflineAudioContext;
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      await flushMicrotasks();
+
+      // Play button should still be enabled and functional
+      const playBtn = screen.getByLabelText('Play');
+      expect(playBtn).toBeEnabled();
+      await act(async () => {
+        fireEvent.click(playBtn);
+      });
+      expect(playMock).toHaveBeenCalled();
+
+      globalThis.OfflineAudioContext = originalOAC;
     });
   });
 });

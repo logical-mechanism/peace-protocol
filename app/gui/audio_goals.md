@@ -83,15 +83,15 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/AudioPlayer.test.tsx`
 
-- [ ] 🟡 **Add metadata rendering tests**
+- [x] 🟡 **Add metadata rendering tests**
   - **How**: The test file has 107 tests covering utilities, rendering, and interactions — but zero tests for the metadata display section (lines 939-965). Add tests that: (1) render with mock metadata containing title/artist/album and verify text appears, (2) render with metadata including a picture and verify `<img>` with `alt="Album art"` is present, (3) render without metadata and verify the metadata section is absent. Mock `music-metadata` dynamic import to resolve with controlled data. Follow the existing rendering test pattern (lines 483-623).
   - **Why**: The metadata section renders conditionally based on parsed ID3/Vorbis data. A regression that breaks the conditional (`metadata && (metadata.title || ...)`) or the `MetadataAlbumArt` subcomponent would go undetected.
 
-- [ ] 🟢 **Add buffering state transition tests**
+- [x] 🟢 **Add buffering state transition tests**
   - **How**: Test the `onWaiting`, `onPlaying`, and `onStalled` event handlers by firing the corresponding events on the mock audio element and verifying the status text changes. `onWaiting` (line 330-332) should show "Buffering" when `readyState < 3`. `onPlaying` (line 327-328) should clear the buffering state. `onStalled` (line 330-332) should also show "Buffering" when `readyState < 3`. Use `getStatusText()` assertions (already tested as a utility at line 449-477) combined with DOM assertions on the `aria-live` status element.
   - **Why**: Buffering state transitions are critical for user trust (knowing the player is working, not frozen). The `readyState < 3` guard in `onStalled` is a subtle condition that could regress.
 
-- [ ] 🟢 **Add visualization failure fallback test**
+- [x] 🟢 **Add visualization failure fallback test**
   - **How**: Test that when PCM `decodeAudioData` rejects (line 311-312), the component shows "Visualization unavailable for this format" (line 1013-1016) instead of the canvas. Mock `OfflineAudioContext.decodeAudioData` to reject immediately, fire `canplay` on the audio element, and verify the fallback text appears. This also implicitly tests that playback remains functional despite visualization failure.
   - **Why**: The graceful degradation path (GStreamer plays, but FFT/waveform unavailable) is a key architectural feature. Without a test, a regression could show a blank canvas instead of the informative fallback message.
 
