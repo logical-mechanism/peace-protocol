@@ -196,6 +196,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const prevBarsRef = useRef(new Float32Array(BAR_COUNT));
+  const peakBarsRef = useRef(new Float32Array(BAR_COUNT));
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const waveformDataRef = useRef<Float32Array | null>(null);
   const fftReRef = useRef(new Float32Array(FFT_SIZE));
@@ -268,6 +269,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     lastDrawTimeRef.current = 0;
     lastDrawnPixelRef.current = -1;
     prevBarsRef.current.fill(0);
+    peakBarsRef.current.fill(0);
     bufferRef.current = null;
     waveformDataRef.current = null;
     pcmDecodedRef.current = false;
@@ -510,6 +512,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         const normalized = Math.max(0, Math.min(1, (dB + 70) / 50)); // -70dB floor, -20dB ceiling
         prevBarsRef.current[i] = SMOOTHING * prevBarsRef.current[i] + (1 - SMOOTHING) * normalized;
 
+        // Peak hold: capture new peaks, slowly decay old ones
+        if (prevBarsRef.current[i] > peakBarsRef.current[i]) {
+          peakBarsRef.current[i] = prevBarsRef.current[i];
+        } else {
+          peakBarsRef.current[i] *= 0.97;
+        }
+
         const barHeight = prevBarsRef.current[i] * height;
         const x = i * (barWidth + gap);
         const y = height - barHeight;
@@ -523,25 +532,42 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           ctx.fillRect(x, top, barWidth, curY - top);
           curY -= segH + segGap;
         }
+
+        // Draw peak hold indicator dot
+        if (peakBarsRef.current[i] > 0.005) {
+          const peakY = height - peakBarsRef.current[i] * height;
+          ctx.fillStyle = gradEnd;
+          ctx.fillRect(x, peakY, barWidth, segH);
+          ctx.fillStyle = barGradient;
+        }
       }
     } else {
       // Decay bars smoothly when not playing
       for (let i = 0; i < BAR_COUNT; i++) {
         prevBarsRef.current[i] *= 0.92;
-        if (prevBarsRef.current[i] < 0.005) continue;
+        peakBarsRef.current[i] *= 0.97;
 
         const barHeight = prevBarsRef.current[i] * height;
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
-        ctx.fillStyle = barGradient;
+        if (prevBarsRef.current[i] >= 0.005) {
+          ctx.fillStyle = barGradient;
 
-        const segH = 3, segGap = 1;
-        let curY = height;
-        while (curY > y) {
-          const top = Math.max(y, curY - segH);
-          ctx.fillRect(x, top, barWidth, curY - top);
-          curY -= segH + segGap;
+          const segH = 3, segGap = 1;
+          let curY = height;
+          while (curY > y) {
+            const top = Math.max(y, curY - segH);
+            ctx.fillRect(x, top, barWidth, curY - top);
+            curY -= segH + segGap;
+          }
+        }
+
+        // Draw peak hold indicator dot (decays independently of bars)
+        if (peakBarsRef.current[i] > 0.005) {
+          const peakY = height - peakBarsRef.current[i] * height;
+          ctx.fillStyle = gradEnd;
+          ctx.fillRect(x, peakY, barWidth, 3);
         }
       }
     }
@@ -576,8 +602,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           lastTime = now;
           drawFrame();
 
-          // Stop loop when paused and all bars have decayed to zero
-          if (!isPlayingRef.current && prevBarsRef.current.every(v => v < 0.005)) {
+          // Stop loop when paused and all bars + peaks have decayed to zero
+          if (!isPlayingRef.current && prevBarsRef.current.every(v => v < 0.005) && peakBarsRef.current.every(v => v < 0.005)) {
             rafActiveRef.current = false;
             return;
           }
