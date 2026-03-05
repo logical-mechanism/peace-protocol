@@ -74,6 +74,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
   const hasShownHints = useRef(false);
+  const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // PiP feature detection
   useEffect(() => {
@@ -187,6 +188,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         videoEl.load();
       }
       revokeUrl();
+      if (stalledTimerRef.current) {
+        clearTimeout(stalledTimerRef.current);
+        stalledTimerRef.current = null;
+      }
     };
   }, [data, mimeType, fileExtension]);
 
@@ -584,14 +589,27 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         if (isFinite(d) && d > 0) setDuration(d);
       }}
       onWaiting={() => setLoading(true)}
-      onPlaying={() => setLoading(false)}
+      onPlaying={() => {
+        setLoading(false);
+        if (stalledTimerRef.current) {
+          clearTimeout(stalledTimerRef.current);
+          stalledTimerRef.current = null;
+        }
+      }}
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
       onEnded={() => setIsPlaying(false)}
       onStalled={() => {
         if (videoRef.current && videoRef.current.readyState < 2) {
-          setLoading(false);
-          setError('Video playback stalled. Your system may be missing required GStreamer plugins.');
+          setLoading(true);
+          if (stalledTimerRef.current) clearTimeout(stalledTimerRef.current);
+          stalledTimerRef.current = setTimeout(() => {
+            if (videoRef.current && videoRef.current.readyState < 2) {
+              setLoading(false);
+              setError('Video playback stalled. Your system may be missing required GStreamer plugins.');
+            }
+            stalledTimerRef.current = null;
+          }, 5000);
         }
       }}
       onClick={handlePlayPause}

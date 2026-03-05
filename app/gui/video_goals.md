@@ -29,7 +29,7 @@ Each item:
   - **How**: Add `onWaiting={() => setLoading(true)}` and `onPlaying={() => setLoading(false)}` to the `<video>` element (after line ~584). AudioPlayer handles these at lines 375-376.
   - **Why**: Without `waiting`, the spinner doesn't appear during mid-playback buffering. Without `playing`, the spinner doesn't dismiss after a stall resolves. Users see either no feedback or a stuck spinner.
 
-- [ ] 🟡 **Stalled handler too aggressive -- sets error instead of recoverable state**
+- [x] 🟡 **Stalled handler too aggressive -- sets error instead of recoverable state**
   - **How**: Change the `onStalled` handler (line ~585) to show a warning message instead of a permanent error. Use a timeout (e.g., 5s) before escalating to error. If `playing` fires before the timeout, clear the warning. AudioPlayer pattern (lines 377-381) is more conservative.
   - **Why**: Network hiccups or slow GStreamer pipeline startup trigger `stalled`, but playback often resumes. Current behavior shows a permanent error for transient issues.
 
