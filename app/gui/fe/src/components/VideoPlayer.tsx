@@ -87,7 +87,9 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
+  const seekBarTooltipRef = useRef<HTMLDivElement>(null);
   const hasShownHints = useRef(false);
+  const isSeekingRef = useRef(false);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ffmpegTerminateRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -250,13 +252,34 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     if (video.paused) video.play(); else video.pause();
   }, []);
 
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const video = videoRef.current;
     const bar = seekBarRef.current;
     if (!video || !bar || !duration) return;
-    const rect = bar.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    video.currentTime = ratio * duration;
+    isSeekingRef.current = true;
+
+    const seekTo = (clientX: number) => {
+      const rect = bar.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      video.currentTime = ratio * duration;
+      setCurrentTime(video.currentTime);
+    };
+
+    seekTo(e.clientX);
+
+    const handleMouseMove = (moveE: MouseEvent) => {
+      if (!isSeekingRef.current) return;
+      seekTo(moveE.clientX);
+    };
+
+    const handleMouseUp = () => {
+      isSeekingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }, [duration]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,6 +318,34 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     if (!video) return;
     video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
   }, []);
+
+  const showSeekTooltip = useCallback((clientX: number) => {
+    const tooltip = seekBarTooltipRef.current;
+    const container = seekBarRef.current;
+    if (!tooltip || !container || !duration) return;
+    const rect = container.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    tooltip.textContent = formatTime(ratio * duration);
+    const halfW = tooltip.offsetWidth / 2;
+    const rawLeft = clientX - rect.left;
+    const clampedLeft = Math.max(halfW, Math.min(rect.width - halfW, rawLeft));
+    tooltip.style.left = `${clampedLeft}px`;
+    tooltip.style.opacity = '1';
+  }, [duration]);
+
+  const hideSeekTooltip = useCallback(() => {
+    const tooltip = seekBarTooltipRef.current;
+    if (tooltip) tooltip.style.opacity = '0';
+  }, []);
+
+  const handleSeekBarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration) return;
+    showSeekTooltip(e.clientX);
+  }, [duration, showSeekTooltip]);
+
+  const handleSeekBarMouseLeave = useCallback(() => {
+    hideSeekTooltip();
+  }, [hideSeekTooltip]);
 
   const handleCaptionToggle = useCallback(() => {
     setShowCaptions(prev => {
@@ -487,16 +538,33 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         {formatTime(currentTime)} / {formatTime(duration)}
       </span>
 
-      {/* Seek bar */}
+      {/* Seek bar — outer wrapper expands click target while visual bar stays h-1.5 */}
       <div
-        ref={seekBarRef}
-        className="flex-1 h-1.5 bg-[var(--bg-secondary)] rounded-full cursor-pointer relative overflow-hidden border border-[var(--border-subtle)] min-w-[60px]"
-        onClick={handleSeek}
+        className="flex-1 py-2 cursor-pointer relative min-w-[60px]"
+        onMouseDown={handleSeekMouseDown}
+        onMouseMove={handleSeekBarMouseMove}
+        onMouseLeave={handleSeekBarMouseLeave}
       >
+        {/* Seek tooltip */}
         <div
-          className="absolute inset-y-0 left-0 bg-[var(--accent)] rounded-full transition-[width] duration-[var(--transition-fast)]"
-          style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+          ref={seekBarTooltipRef}
+          className="absolute -top-7 text-xs font-mono text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded px-1.5 py-0.5 pointer-events-none opacity-0 transition-opacity duration-75"
+          style={{ transform: 'translateX(-50%)' }}
         />
+        <div
+          ref={seekBarRef}
+          className="h-1.5 bg-[var(--bg-secondary)] rounded-full relative border border-[var(--border-subtle)]"
+        >
+          <div
+            className="absolute inset-y-0 left-0 bg-[var(--accent)] rounded-full transition-[width] duration-[var(--transition-fast)]"
+            style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+          />
+          {/* Seek thumb */}
+          <div
+            className="absolute top-1/2 w-3 h-3 rounded-full bg-white/60 border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
+            style={{ left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+          />
+        </div>
       </div>
 
       {divider}

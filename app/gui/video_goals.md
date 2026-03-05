@@ -47,19 +47,19 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx` (reference)
 
-- [ ] 🟡 **No drag-to-seek on progress bar (click-only)**
+- [x] 🟡 **No drag-to-seek on progress bar (click-only)**
   - **How**: Add `onMouseDown` to seek bar div (line ~465) that registers `mousemove` and `mouseup` listeners on `document`, updating `video.currentTime` on each move. Follow AudioPlayer's pattern (lines 822-851) with `handleMouseMove` + `handleMouseUp`. Clean up listeners on mouseup.
   - **Why**: Desktop users expect click-and-drag seeking. Click-only requires repeated precise clicks to find a position.
 
-- [ ] 🟡 **No visible thumb/handle on seek bar**
+- [x] 🟡 **No visible thumb/handle on seek bar**
   - **How**: Add a circular thumb element positioned at the current progress point. Use a `::after` pseudo-element or a child div with `rounded-full w-3 h-3 bg-[var(--accent)]` absolutely positioned at the progress edge. AudioPlayer has this at line 1184.
   - **Why**: Without a thumb, users can't see where the playhead is at a glance -- they must read the time display.
 
-- [ ] 🟢 **Seek bar click target too small (6px)**
+- [x] 🟢 **Seek bar click target too small (6px)**
   - **How**: Add `py-2` padding to the seek bar wrapper (line ~465) to expand the click target to ~22px while keeping the visual bar at `h-1.5`. AudioPlayer does this at lines 1174-1175.
   - **Why**: 6px is hard to click precisely, especially on high-DPI displays.
 
-- [ ] 🟢 **No hover time preview on seek bar**
+- [x] 🟢 **No hover time preview on seek bar**
   - **How**: Add `onMouseMove` to the seek bar that calculates position ratio and displays a tooltip with `formatTime(ratio * duration)`. Position the tooltip above the cursor. Follow AudioPlayer's `showSeekTooltip`/`hideSeekTooltip` pattern (lines 918-957).
   - **Why**: Users can't preview where a click will seek to without the tooltip.
 
