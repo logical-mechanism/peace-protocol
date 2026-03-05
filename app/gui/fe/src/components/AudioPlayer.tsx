@@ -66,6 +66,8 @@ function getConversionHint(ext: string): string | null {
     '.opus': 'Try converting to OGG: ffmpeg -i file.opus -c:a libvorbis output.ogg',
     '.m4a': 'Try converting to MP3: ffmpeg -i file.m4a -c:a libmp3lame output.mp3',
     '.wav': 'WAV is usually supported. The file may be corrupted or use an uncommon codec.',
+    '.ogg': 'Try converting to MP3: ffmpeg -i file.ogg -c:a libmp3lame output.mp3',
+    '.mp3': 'MP3 is widely supported. The file may be corrupted or use an uncommon bitrate.',
   };
   return hints[ext.toLowerCase()] ?? null;
 }
@@ -1096,6 +1098,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             className={transportBtnLg}
             title={isPlaying ? 'Pause' : 'Play'}
             aria-label={isPlaying ? 'Pause' : 'Play'}
+            aria-pressed={isPlaying}
             disabled={!isReady}
             style={{ opacity: isReady ? 1 : 0.4 }}
           >
