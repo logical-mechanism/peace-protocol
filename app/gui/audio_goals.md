@@ -35,7 +35,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Calculate tooltip half-width dynamically for long audio**
+- [x] 🟡 **Calculate tooltip half-width dynamically for long audio**
   - **How**: `showSeekTooltip()` (line 820) hardcodes `const halfW = 28` assuming `MM:SS` text width. For audio ≥ 1 hour, `formatTime()` outputs `H:MM:SS` (7 chars vs 5), and the tooltip text overflows the clamping bounds. Fix: after setting `tooltip.textContent`, read `tooltip.offsetWidth / 2` for the actual half-width, then apply the clamp. The tooltip already has `position: absolute` and `white-space: nowrap`, so `offsetWidth` is accurate. Alternatively, bump `halfW` to `36` statically to cover both formats (simpler, slightly less precise).
   - **Why**: Seek bar and waveform tooltips clip or overflow at container edges for audio longer than 1 hour, because the clamp margin is too narrow for the wider time string.
 

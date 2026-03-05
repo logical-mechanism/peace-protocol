@@ -819,12 +819,12 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     if (!tooltip || !container || !duration) return;
     const rect = container.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const halfW = 28; // approximate half-width of "MM:SS" text
+    tooltip.textContent = formatTime(ratio * duration);
+    const halfW = tooltip.offsetWidth / 2; // dynamic: handles both MM:SS and H:MM:SS
     const rawLeft = clientX - rect.left;
     const clampedLeft = Math.max(halfW, Math.min(rect.width - halfW, rawLeft));
     tooltip.style.left = `${clampedLeft}px`;
     tooltip.style.opacity = '1';
-    tooltip.textContent = formatTime(ratio * duration);
   }, [duration]);
 
   const hideSeekTooltip = useCallback((tooltipRef: React.RefObject<HTMLDivElement | null>) => {
