@@ -310,7 +310,15 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       if (!pcmDecodedRef.current) {
         pcmDecodedRef.current = true;
         const offlineCtx = new OfflineAudioContext(2, 1, 44100);
-        offlineCtx.decodeAudioData(data.slice().buffer)
+        const PCM_DECODE_TIMEOUT = 15_000;
+        Promise.race([
+          offlineCtx.decodeAudioData(
+            data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('PCM decode timeout')), PCM_DECODE_TIMEOUT),
+          ),
+        ])
           .then(buffer => {
             if (cancelled) return;
             bufferRef.current = buffer;

@@ -59,11 +59,11 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **Avoid unnecessary `data.slice()` in PCM decode**
+- [x] 🟢 **Avoid unnecessary `data.slice()` in PCM decode**
   - **How**: Line 304: `offlineCtx.decodeAudioData(data.slice().buffer)` creates a full copy of the `Uint8Array` before decoding. `decodeAudioData` already takes ownership of the ArrayBuffer (detaches it), so the slice is defensive — but `data` is the component prop and shouldn't be detached. The fix: use `data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)` to clone only the underlying ArrayBuffer without creating an intermediate `Uint8Array`. This is cheaper for large files (avoids typed-array construction overhead). For a 25MB FLAC, this saves ~25MB of temporary heap allocation.
   - **Why**: The current approach doubles peak memory briefly during PCM decode setup. For large audio files (10+ minutes of FLAC), this is noticeable on memory-constrained systems.
 
-- [ ] 🟢 **Add timeout for PCM decode to prevent silent hang**
+- [x] 🟢 **Add timeout for PCM decode to prevent silent hang**
   - **How**: Lines 303-313: `offlineCtx.decodeAudioData()` has no timeout. If GStreamer's offline decoder stalls (rare but possible with exotic codec variants), the visualization never appears and the user gets no feedback. Wrap the decode in a `Promise.race()` with a 15-second timeout: `Promise.race([offlineCtx.decodeAudioData(...), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))])`. On timeout, set `visualizationFailed = true` (same as current decode failure path, line 312).
   - **Why**: Prevents the visualization from being permanently "loading" if the offline audio context hangs. The user would see the "Visualization unavailable" fallback instead of an indefinite blank canvas.
 
