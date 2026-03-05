@@ -31,12 +31,23 @@ async function remuxToMp4(
   const ffmpeg = new FFmpeg();
   setTerminate?.(() => ffmpeg.terminate());
 
-  // Load the single-threaded WASM core from CDN via blob URLs
+  // Load the single-threaded WASM core from CDN via blob URLs (retry on network failure)
   const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-  });
+  const maxRetries = 2;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      break;
+    } catch (err) {
+      if (attempt >= maxRetries) {
+        throw new Error('Could not download video converter. Check your internet connection.');
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
 
   if (onProgress) ffmpeg.on('progress', onProgress);
 
@@ -173,9 +184,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         const mp4Url = URL.createObjectURL(mp4Blob);
         currentUrl = mp4Url;
         setBlobUrl(mp4Url);
-      } catch {
+      } catch (err) {
         if (cancelled) return;
-        setError('This video format could not be converted for in-app playback.');
+        const msg = err instanceof Error ? err.message : '';
+        setError(msg.includes('internet connection')
+          ? msg
+          : 'This video format could not be converted for in-app playback.');
         setLoading(false);
       } finally {
         if (!cancelled) {

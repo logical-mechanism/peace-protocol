@@ -37,7 +37,7 @@ Each item:
   - **How**: In `handleLoadedMetadata` (line ~209) and `onDurationChange` (line ~581), wrap with `isFinite()`: `setDuration(isFinite(d) ? d : 0)`. AudioPlayer does this at line 310.
   - **Why**: WebKitGTK/GStreamer can report NaN at loadedmetadata time. NaN duration breaks the seek bar calculation and time display.
 
-- [ ] 🟢 **No CDN retry for FFmpeg WASM load**
+- [x] 🟢 **No CDN retry for FFmpeg WASM load**
   - **How**: Wrap the `toBlobURL` calls in `remuxToMp4` (lines 35-36) with a retry loop (2 retries, 2s delay). Show distinct error message on CDN failure vs. format failure: "Could not download video converter. Check your internet connection."
   - **Why**: A single network blip during WASM download (2 fetches: core.js + core.wasm) causes the entire remux to fail with a generic error message that doesn't mention connectivity.
 
