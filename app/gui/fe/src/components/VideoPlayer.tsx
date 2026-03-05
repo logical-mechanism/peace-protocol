@@ -23,11 +23,13 @@ async function remuxToMp4(
   data: Uint8Array,
   inputName: string,
   onProgress?: (event: { progress: number; time: number }) => void,
+  setTerminate?: (fn: (() => Promise<void>) | null) => void,
 ): Promise<Uint8Array> {
   const { FFmpeg } = await import('@ffmpeg/ffmpeg');
   const { toBlobURL } = await import('@ffmpeg/util');
 
   const ffmpeg = new FFmpeg();
+  setTerminate?.(() => ffmpeg.terminate());
 
   // Load the single-threaded WASM core from CDN via blob URLs
   const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
@@ -44,6 +46,7 @@ async function remuxToMp4(
 
   if (onProgress) ffmpeg.off('progress', onProgress);
   await ffmpeg.terminate();
+  setTerminate?.(null);
 
   if (output instanceof Uint8Array) return output;
   // readFile can return a string for text files; shouldn't happen for video
@@ -75,6 +78,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const seekBarRef = useRef<HTMLDivElement>(null);
   const hasShownHints = useRef(false);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ffmpegTerminateRef = useRef<(() => Promise<void>) | null>(null);
 
   // PiP feature detection
   useEffect(() => {
@@ -163,7 +167,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         const inputName = `input${fileExtension}`;
         const mp4Bytes = await remuxToMp4(new Uint8Array(data), inputName, (evt) => {
           if (!cancelled) setRemuxProgress(Math.max(0, Math.min(1, evt.progress)));
-        });
+        }, (fn) => { ffmpegTerminateRef.current = fn; });
         if (cancelled) return;
         const mp4Blob = new Blob([mp4Bytes as BlobPart], { type: 'video/mp4' });
         const mp4Url = URL.createObjectURL(mp4Blob);
@@ -192,6 +196,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         clearTimeout(stalledTimerRef.current);
         stalledTimerRef.current = null;
       }
+      ffmpegTerminateRef.current?.().catch(() => {});
+      ffmpegTerminateRef.current = null;
     };
   }, [data, mimeType, fileExtension]);
 

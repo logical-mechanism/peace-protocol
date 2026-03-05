@@ -21,7 +21,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🔴 **FFmpeg worker not terminated on unmount during remux**
+- [x] 🔴 **FFmpeg worker not terminated on unmount during remux**
   - **How**: In the cleanup function (line ~183), after setting `cancelled = true`, call `ffmpeg.terminate()` on the in-flight FFmpeg instance. Requires lifting the `ffmpeg` reference out of `remuxToMp4` into a ref (`ffmpegRef`) so cleanup can access it. Pattern: `ffmpegRef.current?.terminate()` in the effect cleanup.
   - **Why**: If a user closes the modal while remuxing, the FFmpeg WASM worker keeps running in the background, consuming CPU and memory until it finishes or the app is closed.
 
