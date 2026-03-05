@@ -63,6 +63,26 @@ export async function saveDecryptedContent(
 }
 
 /**
+ * Copy a file from disk into the library content directory.
+ * Used to add the seller's own file to their library after listing creation.
+ * No file bytes cross IPC — Rust reads directly from disk.
+ */
+export async function copyToLibrary(
+  sourcePath: string,
+  tokenName: string,
+  category: string,
+  fileExtension?: string,
+): Promise<string> {
+  const fileName = tokenName + (fileExtension || getExtension(category));
+  return invoke<string>('copy_to_library', {
+    sourcePath,
+    tokenName,
+    category,
+    fileName,
+  });
+}
+
+/**
  * Save metadata alongside decrypted content for library display.
  *
  * Saved at: media/content/{category}/{tokenName}/{tokenName}.json

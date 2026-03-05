@@ -62,8 +62,12 @@ fn validate_api_key(api_key: &str) -> Result<(), String> {
 }
 
 fn build_client() -> Result<reqwest::Client, String> {
+    build_client_with_timeout(60)
+}
+
+fn build_client_with_timeout(secs: u64) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(secs))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))
 }
@@ -84,6 +88,10 @@ fn map_iagon_error(status: reqwest::StatusCode, body: &str) -> String {
         404 => iagon_error_json(
             "NOT_FOUND",
             "Iagon endpoint not found. The API may have changed.",
+        ),
+        413 => iagon_error_json(
+            "FILE_TOO_LARGE",
+            "File exceeds Iagon's upload size limit. Try a smaller file (under 200 MB).",
         ),
         500..=599 => iagon_error_json(
             "SERVER_ERROR",
@@ -535,8 +543,10 @@ pub async fn iagon_encrypt_and_upload(
     // Drop plaintext to free memory before upload
     drop(plaintext);
 
-    // Upload encrypted bytes to Iagon
-    let client = build_client()?;
+    // Timeout scales with file size: 30s base + 3s per MB (assumes ≥330 KB/s upload).
+    let file_mb = (encrypted.len() as u64).saturating_add(1_048_575) / 1_048_576;
+    let timeout_secs = 30 + file_mb * 3;
+    let client = build_client_with_timeout(timeout_secs)?;
     let part = reqwest::multipart::Part::bytes(encrypted)
         .file_name(filename.clone())
         .mime_str("application/octet-stream")
@@ -630,8 +640,8 @@ pub async fn iagon_download_and_save(
         ));
     }
 
-    // Download encrypted file from Iagon
-    let client = build_client()?;
+    // Download encrypted file from Iagon (10 min timeout for large files)
+    let client = build_client_with_timeout(600)?;
     let params = [("id", file_id.as_str())];
     let res = client
         .post(format!("{IAGON_BASE}/storage/download/"))

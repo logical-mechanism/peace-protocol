@@ -43,9 +43,25 @@ import {
   updateListingDraft,
   type ListingDraft,
 } from './listingDraftStorage';
+import { copyToLibrary, saveContentMetadata } from './contentStorage';
 
 // Environment flag for stub mode
 const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
+
+/**
+ * Filter out specific UTxOs from a list (e.g. collateral, explicit inputs).
+ * Compares by txHash + outputIndex.
+ */
+function excludeUtxos<T extends { input: { txHash: string; outputIndex: number } }>(
+  utxos: T[],
+  ...excluded: { input: { txHash: string; outputIndex: number } }[]
+): T[] {
+  return utxos.filter(u =>
+    !excluded.some(e =>
+      u.input.txHash === e.input.txHash && u.input.outputIndex === e.input.outputIndex
+    )
+  );
+}
 
 // Cardano protocol parameter (preprod/mainnet)
 const COINS_PER_UTXO_BYTE = 4310;
@@ -461,7 +477,12 @@ export async function createListing(
       return a.input.outputIndex - b.input.outputIndex;
     });
 
-    const firstUtxo = utxos[0];
+    // Pick the first UTxO that isn't the collateral to avoid consuming it as a regular input.
+    const nonCollateral = excludeUtxos(utxos, collateral[0]);
+    if (nonCollateral.length === 0) {
+      throw new Error('No non-collateral UTxOs available. Send more ADA to your wallet.');
+    }
+    const firstUtxo = nonCollateral[0];
     const tokenName = computeTokenName(
       firstUtxo.input.txHash,
       firstUtxo.input.outputIndex
@@ -541,9 +562,7 @@ export async function createListing(
         formData.category,
       ))
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos.filter(u =>
-        !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
-      ))
+      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
       .complete();
 
     onProgress?.('signing');
@@ -554,6 +573,29 @@ export async function createListing(
 
     if (draftId) {
       await updateListingDraft(draftId, { txHash, status: 'submitted' });
+    }
+
+    // Add the seller's own file to their library (best-effort, non-blocking)
+    if (formData.filePath && formData.category !== 'text') {
+      try {
+        const ext = formData.fileName
+          ? '.' + formData.fileName.split('.').pop()
+          : undefined;
+        await copyToLibrary(formData.filePath, tokenName, formData.category, ext);
+        await saveContentMetadata({
+          tokenName,
+          description: formData.description,
+          suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
+          storageLayer: getStorageLayerUri(formData),
+          imageLink: formData.imageLink || undefined,
+          category: formData.category,
+          fileExtension: ext,
+          decryptedAt: new Date().toISOString(),
+          fileSize: formData.fileSize ?? undefined,
+        });
+      } catch (err) {
+        console.warn('[createListing] Failed to add file to library:', err);
+      }
     }
 
     return {
@@ -681,7 +723,12 @@ export async function retryListingFromDraft(
       return a.input.outputIndex - b.input.outputIndex;
     });
 
-    const firstUtxo = utxos[0];
+    // Pick the first UTxO that isn't the collateral to avoid consuming it as a regular input.
+    const nonCollateral = excludeUtxos(utxos, collateral[0]);
+    if (nonCollateral.length === 0) {
+      throw new Error('No non-collateral UTxOs available. Send more ADA to your wallet.');
+    }
+    const firstUtxo = nonCollateral[0];
     const tokenName = computeTokenName(
       firstUtxo.input.txHash,
       firstUtxo.input.outputIndex
@@ -761,9 +808,7 @@ export async function retryListingFromDraft(
         draft.category,
       ))
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos.filter(u =>
-        !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
-      ))
+      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
       .complete();
 
     onProgress?.('signing');
@@ -896,7 +941,7 @@ export async function removeListing(
       .requiredSignerHash(ownerPkh)
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     // 5. Sign and submit
@@ -1040,7 +1085,7 @@ export async function cancelPendingListing(
         encryption.category || '',
       ))
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     const signedTx = await wallet.signTx(unsignedTx);
@@ -1164,7 +1209,12 @@ export async function placeBid(
       return a.input.outputIndex - b.input.outputIndex;
     });
 
-    const firstUtxo = utxos[0];
+    // Pick the first UTxO that isn't the collateral to avoid consuming it as a regular input.
+    const nonCollateral = excludeUtxos(utxos, collateral[0]);
+    if (nonCollateral.length === 0) {
+      throw new Error('No non-collateral UTxOs available. Send more ADA to your wallet.');
+    }
+    const firstUtxo = nonCollateral[0];
     const bidTokenName = computeTokenName(
       firstUtxo.input.txHash,
       firstUtxo.input.outputIndex
@@ -1274,12 +1324,9 @@ export async function placeBid(
         metadata?.futurePrice?.toString() || '',
       ))
       // Change and UTxO selection
-      // Exclude firstUtxo from coin selection pool — it's already an explicit input.
-      // Including it causes the selector to undercount available ADA.
+      // Exclude firstUtxo (explicit input) and collateral from coin selection.
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos.filter(u =>
-        !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
-      ))
+      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
       .complete();
 
     // 11. Sign and submit
@@ -1416,7 +1463,7 @@ export async function cancelBid(
       .requiredSignerHash(ownerPkh)
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     // 5. Sign and submit
@@ -1712,7 +1759,7 @@ export async function acceptBidSnark(
       ))
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos);
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]));
 
     let unsignedTx: string;
     try {
@@ -2080,7 +2127,7 @@ export async function completeReEncryption(
       ))
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     // 17. Sign and submit

@@ -321,6 +321,7 @@ pub fn run() {
             commands::media::delete_cached_image,
             // Content commands (for future data layer)
             commands::media::save_content,
+            commands::media::copy_to_library,
             // Library commands (browse/read/delete/export decrypted content)
             commands::media::list_library_items,
             commands::media::read_library_content,

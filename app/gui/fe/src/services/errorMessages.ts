@@ -108,13 +108,23 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
-  // Iagon quota / file size — must be before generic Iagon pattern
+  // Iagon file too large — must be before generic Iagon pattern
   {
-    test: (e) => /iagon|gw\.iagon\.com/i.test(e) && /413|quota|storage.*full|file.*too.*large/i.test(e),
+    test: (e) => /FILE_TOO_LARGE/i.test(e) || (/iagon|gw\.iagon\.com/i.test(e) && /413|file.*too.*large/i.test(e)),
     result: {
-      title: 'Iagon Storage Limit',
-      message: 'The file exceeds Iagon\'s storage limit, or your account quota is full.',
-      action: 'Try a smaller file or check your Iagon account storage usage.',
+      title: 'File Too Large for Iagon',
+      message: 'Iagon does not support uploading files this large.',
+      action: 'Choose a file under 200 MB.',
+      recoverable: true,
+    },
+  },
+  // Iagon quota — must be before generic Iagon pattern
+  {
+    test: (e) => /iagon|gw\.iagon\.com/i.test(e) && /quota|storage.*full/i.test(e),
+    result: {
+      title: 'Iagon Storage Full',
+      message: 'Your Iagon account storage quota is full.',
+      action: 'Check your Iagon account storage usage.',
       recoverable: true,
     },
   },
