@@ -585,8 +585,18 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   }, [duration, drawWaveform]);
 
   // Animation loop — throttled to TARGET_FPS, pauses when window is not visible,
-  // stops entirely when paused + bars fully decayed (saves ~24 drawFrame calls/sec idle)
+  // stops entirely when paused + bars fully decayed (saves ~24 drawFrame calls/sec idle).
+  // Respects prefers-reduced-motion: skips animated loop, draws one static waveform frame.
   useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReduced) {
+      // No animated FFT bars — just draw a static waveform at position 0
+      drawWaveformRef.current?.(0);
+      startLoopRef.current = null;
+      return;
+    }
+
     let running = true;
     let lastTime = 0;
 
