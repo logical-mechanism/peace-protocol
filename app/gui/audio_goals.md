@@ -73,15 +73,15 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/AudioPlayer.test.tsx`
 
-- [ ] 🟡 **Add LED time toggle interaction test**
+- [x] 🟡 **Add LED time toggle interaction test**
   - **How**: The LED display at lines 1043-1059 has `role="button"` and `tabIndex={0}` with `onClick` and `onKeyDown` handlers. Add tests in a new `describe('AudioPlayer component → LED time toggle')` block: (1) Click the LED display and verify text changes from total to remaining format (look for the `\u2212` minus sign prefix). (2) Press Enter on the focused LED display and verify the same toggle. (3) Press Space on the LED display. Follow the existing keyboard interaction test patterns (lines ~678-730 in the test file). The LED display can be found via `role="button"` and `title="Click to toggle remaining time"`.
   - **Why**: The time toggle is an interactive element with keyboard support but has zero test coverage. A regression breaking the toggle or keyboard handler would go undetected.
 
-- [ ] 🟢 **Verify speed button cycles `audio.playbackRate`**
+- [x] 🟢 **Verify speed button cycles `audio.playbackRate`**
   - **How**: In the existing `describe('AudioPlayer component → button interactions')` block, add a test that: clicks the speed button (find by `aria-label` matching `/playback speed/i`), then asserts the mock audio element's `playbackRate` was set to the next speed value (1.25 after first click from default 1.0). The mock audio element at line ~74 of the test file needs a `playbackRate` property added if not present.
   - **Why**: The test file verifies the speed button renders "1x" and changes label on click, but never verifies the audio element's `playbackRate` is actually updated. `handleSpeedChange()` (line 893) sets both state and `audioRef.current.playbackRate` — only the state side is implicitly tested.
 
-- [ ] 🟢 **Verify loop toggle syncs `audio.loop`**
+- [x] 🟢 **Verify loop toggle syncs `audio.loop`**
   - **How**: Similar to speed: in the button interactions block, click the loop button (find by `aria-label` matching `/repeat/i`), then assert `audio.loop` was set to `true`. Click again, assert `audio.loop` is `false`. The `handleToggleLoop` (line 881-887) and the sync effect (line 615-617) both set `audio.loop` — test should verify the element property changes.
   - **Why**: `aria-pressed` is tested but the actual audio element property sync isn't. A regression in `handleToggleLoop` that updates state but forgets `audioRef.current.loop = next` (line 884) would be invisible.
 

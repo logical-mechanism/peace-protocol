@@ -977,6 +977,27 @@ describe('AudioPlayer component', () => {
       expect(screen.getByLabelText('Disable repeat')).toHaveAttribute('aria-pressed', 'true');
     });
 
+    it('loop toggle syncs audio.loop property', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      expect(audio.loop).toBe(false);
+
+      // Enable loop
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Enable repeat'));
+      });
+      expect(audio.loop).toBe(true);
+
+      // Disable loop
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Disable repeat'));
+      });
+      expect(audio.loop).toBe(false);
+    });
+
     it('speed button cycles through options', async () => {
       renderPlayer();
 
@@ -993,6 +1014,84 @@ describe('AudioPlayer component', () => {
         fireEvent.click(screen.getByLabelText('Playback speed: 1.25x'));
       });
       expect(screen.getByLabelText('Playback speed: 1.5x')).toBeInTheDocument();
+    });
+
+    it('speed button sets audio.playbackRate', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      // Default playbackRate
+      expect(audio.playbackRate).toBe(1);
+
+      // 1x → 1.25x
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Playback speed: 1x'));
+      });
+      expect(audio.playbackRate).toBe(1.25);
+
+      // 1.25x → 1.5x
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Playback speed: 1.25x'));
+      });
+      expect(audio.playbackRate).toBe(1.5);
+    });
+  });
+
+  describe('LED time toggle', () => {
+    it('click toggles from total to remaining time', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      const ledDisplay = screen.getByTitle('Click to toggle remaining time');
+      // Initially shows total duration (no minus sign prefix)
+      expect(ledDisplay.textContent).not.toContain('\u2212');
+
+      // Click to switch to remaining time
+      await act(async () => {
+        fireEvent.click(ledDisplay);
+      });
+      // Now shows remaining time with minus sign prefix
+      expect(ledDisplay.textContent).toContain('\u2212');
+
+      // Click again to switch back to total
+      await act(async () => {
+        fireEvent.click(ledDisplay);
+      });
+      expect(ledDisplay.textContent).not.toContain('\u2212');
+    });
+
+    it('Enter key toggles remaining time', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      const ledDisplay = screen.getByTitle('Click to toggle remaining time');
+      expect(ledDisplay.textContent).not.toContain('\u2212');
+
+      await act(async () => {
+        fireEvent.keyDown(ledDisplay, { key: 'Enter' });
+      });
+      expect(ledDisplay.textContent).toContain('\u2212');
+    });
+
+    it('Space key toggles remaining time', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+
+      const ledDisplay = screen.getByTitle('Click to toggle remaining time');
+      expect(ledDisplay.textContent).not.toContain('\u2212');
+
+      await act(async () => {
+        fireEvent.keyDown(ledDisplay, { key: ' ' });
+      });
+      expect(ledDisplay.textContent).toContain('\u2212');
     });
   });
 
