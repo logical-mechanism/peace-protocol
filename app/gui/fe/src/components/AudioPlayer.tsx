@@ -358,6 +358,11 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       setCurrentTime(audio.currentTime);
       // Re-sync visualization time to prevent drift
       vizTimeRef.current = audio.currentTime;
+      // Fallback: some GStreamer pipelines only report duration after playback starts
+      const d = audio.duration;
+      if (isFinite(d) && d > 0) {
+        setDuration(prev => prev > 0 ? prev : d);
+      }
     };
     const onEnded = () => {
       if (cancelled) return;
