@@ -73,7 +73,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **Log metadata parsing failures instead of silently swallowing**
+- [x] 🟢 **Log metadata parsing failures instead of silently swallowing**
   - **How**: Lines 287-289: both `.catch(() => {})` handlers on the `music-metadata` import and `parseBuffer` call silently discard errors. Replace with `console.warn('AudioPlayer: metadata parse failed', err)` (or just the inner catch — the import catch is for bundle-split failure which is already visible). This doesn't change behavior — metadata is best-effort and playback is unaffected — but gives developers a diagnostic signal when metadata is unexpectedly missing.
   - **Why**: When a user reports "no album art" or "no title", there's currently zero diagnostic output. A warning makes it possible to determine whether the file lacks metadata or parsing failed.
 

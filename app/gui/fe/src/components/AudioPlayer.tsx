@@ -294,8 +294,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             picture: pic ? { data: new Uint8Array(pic.data), format: pic.format } : null,
           });
         })
-        .catch(() => {});
-    }).catch(() => {});
+        .catch((err) => { console.warn('AudioPlayer: metadata parse failed', err); });
+    }).catch((err) => { console.warn('AudioPlayer: music-metadata import failed', err); });
 
     const onLoadedMetadata = () => { if (!cancelled) setDuration(audio.duration); };
     const onCanPlay = () => {
