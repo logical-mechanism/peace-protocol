@@ -1077,7 +1077,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           ref={canvasRef}
           width={480}
           height={120}
-          className="w-full block relative"
+          className="w-full block relative opacity-60"
           style={{ imageRendering: 'pixelated' }}
           aria-hidden="true"
         />
@@ -1176,12 +1176,12 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
             className="winamp-groove h-2 bg-[var(--winamp-bg-dark)] relative outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             <div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] opacity-60"
               style={{ width: `${progress}%` }}
             />
             {/* Seek thumb */}
             <div
-              className="absolute top-1/2 w-3 h-3 rounded-full bg-white border-2 border-[var(--accent)] shadow-sm pointer-events-none"
+              className="absolute top-1/2 w-3 h-3 rounded-full bg-white/60 border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
               style={{ left: `${progress}%`, transform: 'translateX(-50%) translateY(-50%)' }}
             />
           </div>
