@@ -49,7 +49,7 @@ Each item:
   - **How**: `--waveform-unplayed` in light theme (index.css line 347) is `rgba(79, 70, 229, 0.2)`. On the `#d0d0dc` canvas background (`--winamp-bg-dark` light override, line 337), this blends to approximately `rgb(182, 180, 222)` — roughly 1.5:1 contrast ratio against the background, which is below WCAG thresholds. Increase opacity to `rgba(79, 70, 229, 0.35)` or switch to a neutral gray like `rgba(100, 100, 120, 0.25)` for better separation from the played bars. The played bars at 0.7 opacity are fine.
   - **Why**: In light theme, unplayed waveform bars are nearly invisible against the light gray canvas. Users can't see the waveform shape ahead of the playback position, defeating the purpose of the overview.
 
-- [ ] 🟢 **Use both channels for stereo waveform peak detection**
+- [x] 🟢 **Use both channels for stereo waveform peak detection**
   - **How**: `computeWaveformSummary()` (line 148-162) is called with `buffer.getChannelData(0)` (line 308), using only the left channel. For stereo files, transients that appear only in the right channel are missed, producing a visually inaccurate waveform. Fix: if `buffer.numberOfChannels >= 2`, get both channels and compute `Math.max(Math.abs(left[idx]), Math.abs(right[idx]))` per sample in the peak loop. The function signature stays the same — just pass a merged peak array. For mono files, no change needed.
   - **Why**: Stereo audio with panned elements (e.g., panned percussion) shows a waveform that doesn't match the perceived loudness. Both channels should contribute to the peak envelope.
 

@@ -134,15 +134,21 @@ function getConversionHint(ext: string): string | null {
   return hints[ext.toLowerCase()] ?? null;
 }
 
-function computeWaveformSummary(channel: Float32Array, buckets: number): Float32Array {
-  const samplesPerBucket = Math.floor(channel.length / buckets);
+function computeWaveformSummary(channels: Float32Array[], buckets: number): Float32Array {
+  if (channels.length === 0 || channels[0].length === 0) return new Float32Array(0);
+  const samplesPerBucket = Math.floor(channels[0].length / buckets);
   if (samplesPerBucket < 1) return new Float32Array(0);
   const summary = new Float32Array(buckets);
+  const isStereo = channels.length >= 2;
   for (let i = 0; i < buckets; i++) {
     let max = 0;
     const start = i * samplesPerBucket;
     for (let j = 0; j < samplesPerBucket; j++) {
-      const abs = Math.abs(channel[start + j] || 0);
+      let abs = Math.abs(channels[0][start + j] || 0);
+      if (isStereo) {
+        const absR = Math.abs(channels[1][start + j] || 0);
+        if (absR > abs) abs = absR;
+      }
       if (abs > max) max = abs;
     }
     summary[i] = max;
@@ -310,9 +316,9 @@ describe('computeTooltipLeft', () => {
 });
 
 describe('computeWaveformSummary', () => {
-  it('computes peak values per bucket', () => {
+  it('computes peak values per bucket (mono)', () => {
     const channel = new Float32Array([0.1, 0.5, 0.3, 0.2, 0.8, 0.4, 0.6, 0.7]);
-    const result = computeWaveformSummary(channel, 2);
+    const result = computeWaveformSummary([channel], 2);
     expect(result.length).toBe(2);
     expect(result[0]).toBeCloseTo(0.5);
     expect(result[1]).toBeCloseTo(0.8);
@@ -320,20 +326,20 @@ describe('computeWaveformSummary', () => {
 
   it('handles negative values using absolute value', () => {
     const channel = new Float32Array([-0.9, 0.1, -0.2, 0.3]);
-    const result = computeWaveformSummary(channel, 2);
+    const result = computeWaveformSummary([channel], 2);
     expect(result[0]).toBeCloseTo(0.9);
     expect(result[1]).toBeCloseTo(0.3);
   });
 
   it('returns empty array when channel is too short for buckets', () => {
     const channel = new Float32Array([0.5]);
-    const result = computeWaveformSummary(channel, 200);
+    const result = computeWaveformSummary([channel], 200);
     expect(result.length).toBe(0);
   });
 
   it('handles silence', () => {
     const channel = new Float32Array(100);
-    const result = computeWaveformSummary(channel, 10);
+    const result = computeWaveformSummary([channel], 10);
     expect(result.length).toBe(10);
     for (let i = 0; i < result.length; i++) {
       expect(result[i]).toBe(0);
@@ -342,9 +348,42 @@ describe('computeWaveformSummary', () => {
 
   it('handles single bucket covering all samples', () => {
     const channel = new Float32Array([0.1, 0.9, 0.3, 0.5]);
-    const result = computeWaveformSummary(channel, 1);
+    const result = computeWaveformSummary([channel], 1);
     expect(result.length).toBe(1);
     expect(result[0]).toBeCloseTo(0.9);
+  });
+
+  it('returns empty array for empty channels array', () => {
+    const result = computeWaveformSummary([], 10);
+    expect(result.length).toBe(0);
+  });
+
+  it('uses max of both channels for stereo', () => {
+    // Left channel has peak in bucket 1, right channel has peak in bucket 0
+    const left  = new Float32Array([0.1, 0.2, 0.8, 0.3]);
+    const right = new Float32Array([0.9, 0.1, 0.1, 0.2]);
+    const result = computeWaveformSummary([left, right], 2);
+    expect(result.length).toBe(2);
+    // Bucket 0: max(abs(0.1), abs(0.9)) = 0.9, max(abs(0.2), abs(0.1)) = 0.2 → peak 0.9
+    expect(result[0]).toBeCloseTo(0.9);
+    // Bucket 1: max(abs(0.8), abs(0.1)) = 0.8, max(abs(0.3), abs(0.2)) = 0.3 → peak 0.8
+    expect(result[1]).toBeCloseTo(0.8);
+  });
+
+  it('stereo picks right channel peak when left is silent', () => {
+    const left  = new Float32Array([0, 0, 0, 0]);
+    const right = new Float32Array([0, 0, 0.7, 0]);
+    const result = computeWaveformSummary([left, right], 2);
+    expect(result[0]).toBeCloseTo(0);
+    expect(result[1]).toBeCloseTo(0.7);
+  });
+
+  it('stereo handles negative values in both channels', () => {
+    const left  = new Float32Array([-0.3, 0.1]);
+    const right = new Float32Array([0.1, -0.6]);
+    const result = computeWaveformSummary([left, right], 1);
+    // Per sample: max(0.3, 0.1) = 0.3, max(0.1, 0.6) = 0.6 → peak 0.6
+    expect(result[0]).toBeCloseTo(0.6);
   });
 });
 

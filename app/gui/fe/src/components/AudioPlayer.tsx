@@ -146,16 +146,23 @@ const TARGET_FPS = 24;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
 const WAVEFORM_BUCKETS = 200;
 
-/** Downsample audio channel to peak values per bucket for waveform overview. */
-function computeWaveformSummary(channel: Float32Array, buckets: number): Float32Array {
-  const samplesPerBucket = Math.floor(channel.length / buckets);
+/** Downsample audio channels to peak values per bucket for waveform overview.
+ *  For stereo, takes the max peak across both channels per sample. */
+function computeWaveformSummary(channels: Float32Array[], buckets: number): Float32Array {
+  if (channels.length === 0 || channels[0].length === 0) return new Float32Array(0);
+  const samplesPerBucket = Math.floor(channels[0].length / buckets);
   if (samplesPerBucket < 1) return new Float32Array(0);
   const summary = new Float32Array(buckets);
+  const isStereo = channels.length >= 2;
   for (let i = 0; i < buckets; i++) {
     let max = 0;
     const start = i * samplesPerBucket;
     for (let j = 0; j < samplesPerBucket; j++) {
-      const abs = Math.abs(channel[start + j] || 0);
+      let abs = Math.abs(channels[0][start + j] || 0);
+      if (isStereo) {
+        const absR = Math.abs(channels[1][start + j] || 0);
+        if (absR > abs) abs = absR;
+      }
       if (abs > max) max = abs;
     }
     summary[i] = max;
@@ -307,7 +314,11 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
           .then(buffer => {
             if (cancelled) return;
             bufferRef.current = buffer;
-            waveformDataRef.current = computeWaveformSummary(buffer.getChannelData(0), WAVEFORM_BUCKETS);
+            const channels: Float32Array[] = [];
+            for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+              channels.push(buffer.getChannelData(ch));
+            }
+            waveformDataRef.current = computeWaveformSummary(channels, WAVEFORM_BUCKETS);
             drawWaveformRef.current?.(0);
           })
           .catch(() => {
