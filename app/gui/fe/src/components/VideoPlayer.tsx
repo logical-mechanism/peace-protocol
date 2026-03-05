@@ -398,6 +398,33 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     hideSeekTooltip();
   }, [hideSeekTooltip]);
 
+  const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const video = videoRef.current;
+    if (!video || !duration) return;
+
+    let handled = true;
+    switch (e.key) {
+      case 'ArrowLeft':
+        video.currentTime = Math.max(0, video.currentTime - 5);
+        break;
+      case 'ArrowRight':
+        video.currentTime = Math.min(duration, video.currentTime + 5);
+        break;
+      case 'Home':
+        video.currentTime = 0;
+        break;
+      case 'End':
+        video.currentTime = duration;
+        break;
+      default:
+        handled = false;
+    }
+    if (handled) {
+      e.preventDefault();
+      setCurrentTime(video.currentTime);
+    }
+  }, [duration]);
+
   const handleCaptionToggle = useCallback(() => {
     setShowCaptions(prev => {
       const next = !prev;
@@ -579,13 +606,17 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
   // --- Control bar ---
 
-  const btnClass = "px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon";
+  const btnClass = "px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon outline-none focus-visible:shadow-[var(--focus-ring)]";
   const divider = <div className="w-px h-5 bg-[var(--border-subtle)] flex-shrink-0" />;
 
   const controlBar = (
     <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+      {/* Screen reader status */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true">
+        {error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
+      </span>
       {/* Play/Pause */}
-      <button onClick={handlePlayPause} className={btnClass} title={isPlaying ? 'Pause (Space)' : 'Play (Space)'} aria-label={isPlaying ? 'Pause' : 'Play'}>
+      <button onClick={handlePlayPause} className={btnClass} title={isPlaying ? 'Pause (Space)' : 'Play (Space)'} aria-label={isPlaying ? 'Pause' : 'Play'} aria-pressed={isPlaying}>
         {isPlaying ? (
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
@@ -622,6 +653,14 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         onMouseDown={handleSeekMouseDown}
         onMouseMove={handleSeekBarMouseMove}
         onMouseLeave={handleSeekBarMouseLeave}
+        onKeyDown={handleSeekKeyDown}
+        role="slider"
+        tabIndex={0}
+        aria-label="Seek"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration)}
+        aria-valuenow={Math.round(currentTime)}
+        aria-valuetext={formatTime(currentTime)}
       >
         {/* Seek tooltip */}
         <div
@@ -648,7 +687,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       {divider}
 
       {/* Volume */}
-      <button onClick={handleMuteToggle} className={btnClass} title={isMuted ? 'Unmute (M)' : 'Mute (M)'} aria-label={isMuted ? 'Unmute' : 'Mute'}>
+      <button onClick={handleMuteToggle} className={btnClass} title={isMuted ? 'Unmute (M)' : 'Mute (M)'} aria-label={isMuted ? 'Unmute' : 'Mute'} aria-pressed={isMuted}>
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           {isMuted || volume === 0 ? (
             <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
@@ -679,6 +718,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           className={`${btnClass} font-bold text-xs ${showCaptions ? 'text-[var(--accent)]' : ''}`}
           title={showCaptions ? 'Hide subtitles (C)' : 'Show subtitles (C)'}
           aria-label={showCaptions ? 'Hide subtitles' : 'Show subtitles'}
+          aria-pressed={showCaptions}
         >
           CC
         </button>
@@ -725,6 +765,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         className={btnClass}
         title={isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
         aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        aria-pressed={isFullscreen}
       >
         {isFullscreen ? (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

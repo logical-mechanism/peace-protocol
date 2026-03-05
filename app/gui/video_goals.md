@@ -123,19 +123,19 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx` (reference)
 
-- [ ] 🟡 **Seek bar missing ARIA slider role and attributes**
+- [x] 🟡 **Seek bar missing ARIA slider role and attributes**
   - **How**: Add to the seek bar div (line ~465): `role="slider"`, `tabIndex={0}`, `aria-label="Seek"`, `aria-valuemin={0}`, `aria-valuemax={Math.round(duration)}`, `aria-valuenow={Math.round(currentTime)}`, `aria-valuetext={formatTime(currentTime)}`. Add `onKeyDown` for ArrowLeft/Right seeking. AudioPlayer implements this at line 1160.
   - **Why**: Screen readers cannot interact with or announce the seek bar position. Keyboard-only users cannot tab to or operate the seek bar.
 
-- [ ] 🟡 **No aria-live status region for playback state**
+- [x] 🟡 **No aria-live status region for playback state**
   - **How**: Add a visually-hidden `<div aria-live="polite" aria-atomic="true">` that displays current state text ("Playing", "Paused", "Loading", "Error"). AudioPlayer has this at line 1147.
   - **Why**: Screen reader users receive no announcement when playback starts, pauses, errors, or completes.
 
-- [ ] 🟡 **Toggle buttons missing `aria-pressed`**
+- [x] 🟡 **Toggle buttons missing `aria-pressed`**
   - **How**: Add `aria-pressed={isPlaying}` to play/pause (line ~433), `aria-pressed={isMuted}` to mute (line ~479), `aria-pressed={showCaptions}` to CC (line ~509), `aria-pressed={isFullscreen}` to fullscreen (line ~542). AudioPlayer does this at lines 1207, 1242, 1267.
   - **Why**: Screen readers cannot convey toggle state to users. "Mute" button doesn't indicate whether audio is currently muted.
 
-- [ ] 🟢 **No visible focus ring on buttons**
+- [x] 🟢 **No visible focus ring on buttons**
   - **How**: Add `focus-visible:shadow-[var(--focus-ring)]` to the `btnClass` definition (line ~427). AudioPlayer uses this pattern.
   - **Why**: Keyboard users cannot see which control is focused when tabbing through the control bar.
 
