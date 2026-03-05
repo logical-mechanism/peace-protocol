@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
@@ -201,6 +201,7 @@ function BidCard({
   onAccept,
   formatLovelace,
 }: BidCardProps) {
+  const [now] = useState(Date.now);
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
       <div className="flex items-start justify-between gap-4">
@@ -240,7 +241,7 @@ function BidCard({
         {bid.lockedUntil > 0 && (
           <div className="flex items-center justify-between">
             <span className="text-xs text-[var(--text-muted)]">Lock Status</span>
-            {bid.lockedUntil > Date.now() ? (
+            {bid.lockedUntil > now ? (
               <span className="text-xs font-medium text-[var(--warning)]">
                 Locked until {new Date(bid.lockedUntil).toLocaleString()}
               </span>

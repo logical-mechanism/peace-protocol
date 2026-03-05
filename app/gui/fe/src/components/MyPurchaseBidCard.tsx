@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { memo, useState } from 'react';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { formatAda } from '../utils/formatAda';
@@ -35,7 +35,8 @@ function MyPurchaseBidCard({
   const isAccepted = bid.status === 'accepted';
   const isRejected = bid.status === 'rejected';
   const isCancelled = bid.status === 'cancelled';
-  const isLocked = isPending && bid.lockedUntil > Date.now();
+  const [now] = useState(Date.now);
+  const isLocked = isPending && bid.lockedUntil > now;
 
   // Get status message for non-pending states
   const getStatusMessage = () => {
