@@ -326,8 +326,8 @@ select option {
   --audio-gradient-start: #6366f1;
   --audio-gradient-mid: #818cf8;
   --audio-gradient-end: #a5b4fc;
-  --waveform-played: rgba(99, 102, 241, 0.6);
-  --waveform-unplayed: rgba(99, 102, 241, 0.15);
+  --waveform-played: rgba(34, 211, 238, 0.6);
+  --waveform-unplayed: rgba(34, 211, 238, 0.15);
   --waveform-indicator: rgba(250, 250, 250, 0.9);
   --waveform-indicator-glow: rgba(250, 250, 250, 0.3);
 }
@@ -343,8 +343,8 @@ select option {
   --audio-gradient-start: #4f46e5;
   --audio-gradient-mid: #6366f1;
   --audio-gradient-end: #818cf8;
-  --waveform-played: rgba(79, 70, 229, 0.7);
-  --waveform-unplayed: rgba(79, 70, 229, 0.35);
+  --waveform-played: rgba(6, 182, 212, 0.7);
+  --waveform-unplayed: rgba(6, 182, 212, 0.35);
   --waveform-indicator: rgba(30, 30, 60, 0.8);
   --waveform-indicator-glow: rgba(30, 30, 60, 0.25);
 }

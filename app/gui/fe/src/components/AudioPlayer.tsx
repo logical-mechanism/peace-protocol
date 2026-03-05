@@ -211,7 +211,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   // Cached CSS gradient colors — updated on mount + theme change via MutationObserver
   const gradientColorsRef = useRef({
     start: '#6366f1', mid: '#818cf8', end: '#a5b4fc',
-    waveformPlayed: 'rgba(99, 102, 241, 0.6)', waveformUnplayed: 'rgba(99, 102, 241, 0.15)',
+    waveformPlayed: 'rgba(34, 211, 238, 0.6)', waveformUnplayed: 'rgba(34, 211, 238, 0.15)',
     indicator: 'rgba(250, 250, 250, 0.9)', indicatorGlow: 'rgba(250, 250, 250, 0.3)',
   });
   const hasShownHintsRef = useRef(false);
