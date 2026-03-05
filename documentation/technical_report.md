@@ -412,7 +412,9 @@ Bob may now create a bid UTxO in the bid contract to purchase the encrypted data
 
 The structure of the bid entry transaction is similar to that of the re-encryption entry transaction, but uses \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The transaction input derives the \texttt{pointer} token name in the same way as the \texttt{token} name. A user may reference the \texttt{token} name on-chain from the re-encryption contract. Bob may then create the \texttt{BidDatum} as shown in Listing \ref{lst:fullbiddatum}.
 
-Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. A valid \texttt{Register} is important, as the validity of the $\mathbb{G}_{1}$ point determines whether Bob can decrypt the data after the re-encryption process. The value on the UTxO is the price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids, but Alice may only select a single bid for the re-encryption transaction. For simplicity of the proof-of-concept, Bob will need to remove his old or unused bids, then recreate the bids for any necessary price or \texttt{token} adjustments. Bob may remove his bid at any time.
+Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. A valid \texttt{Register} is important, as the validity of the $\mathbb{G}_{1}$ point determines whether Bob can decrypt the data after the re-encryption process. The value on the UTxO is the price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids, but Alice may only select a single bid for the re-encryption transaction. For simplicity of the proof-of-concept, Bob will need to remove his old or unused bids, then recreate the bids for any necessary price or \texttt{token} adjustments.
+
+To mitigate grief attacks during the re-encryption flow, each bid is automatically locked for a minimum period (\texttt{minimum\_bid\_lock}, currently 6 hours) upon creation. The on-chain \texttt{EntryBidMint} redeemer enforces that \texttt{locked\_until} is at least \texttt{minimum\_bid\_lock} in the future. The \texttt{RemoveBid} spend redeemer enforces that the transaction's validity interval lower bound exceeds \texttt{locked\_until}. This guarantees Alice a safe window to compute the SNARK proof and submit both re-encryption transactions without Bob withdrawing his bid mid-process.
 
 ### Phase 3: SNARK Submission And Re-Encryption
 
@@ -510,7 +512,7 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 - The protocol does not protect the data after decryption. If Bob decrypts the plaintext, Bob can copy or leak it. Cryptography cannot prevent exfiltration. Only economic or legal controls can reduce this risk.
 
-- The protocol does not ensure a fair exchange. Either party can abort or grief at different stages. The two-transaction re-encryption flow introduces a window where Alice has submitted the SNARK proof but not yet completed the transfer. The TTL-based cancellation mechanism provides recovery but does not guarantee atomicity. Achieving strong fairness in a production setting typically requires additional escrow, bonding, or timeout mechanisms.
+- The protocol does not ensure a perfectly fair exchange. Either party can abort at different stages. The two-transaction re-encryption flow introduces a window where Alice has submitted the SNARK proof but not yet completed the transfer. The TTL-based cancellation mechanism provides recovery but does not guarantee atomicity. To mitigate grief attacks where a buyer removes a bid during Alice's SNARK computation, bids are automatically locked for a minimum period (\texttt{minimum\_bid\_lock}) upon creation. This lock prevents the \texttt{RemoveBid} redeemer from succeeding until the lock expires, giving Alice a guaranteed window to compute and submit her proof. Combined with transaction chaining (submitting both re-encryption transactions back-to-back after offline proof generation), this eliminates the primary grief vector.
 
 - Key compromise is catastrophic. Any theft of secret keys compromises the confidentiality of those assets. Losing secret keys prevents decrypting.
 
@@ -565,6 +567,7 @@ pub type BidDatum {
   owner_g1: Register,
   pointer: AssetName,
   token: AssetName,
+  locked_until: Int,
 }
 \end{lstlisting}
 ```
@@ -783,6 +786,7 @@ pub type BidDatum {
   owner_g1,
   pointer: generate_token_name(inputs),
   token,
+  locked_until: now + 2 * minimum_bid_lock,
 }
 \end{lstlisting}
 ```

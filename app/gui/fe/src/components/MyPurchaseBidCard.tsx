@@ -35,6 +35,7 @@ function MyPurchaseBidCard({
   const isAccepted = bid.status === 'accepted';
   const isRejected = bid.status === 'rejected';
   const isCancelled = bid.status === 'cancelled';
+  const isLocked = isPending && bid.lockedUntil > Date.now();
 
   // Get status message for non-pending states
   const getStatusMessage = () => {
@@ -46,7 +47,11 @@ function MyPurchaseBidCard({
   };
 
   const getStatusTooltip = () => {
-    if (isPending) return 'Waiting for the seller to accept or reject your bid. You can cancel at any time.';
+    if (isPending && isLocked) {
+      const unlockDate = new Date(bid.lockedUntil).toLocaleString();
+      return `Waiting for the seller to accept. Bid is locked until ${unlockDate}.`;
+    }
+    if (isPending) return 'Waiting for the seller to accept or reject your bid. You can cancel now.';
     if (isAccepted) return 'The seller accepted your bid. Decrypt to claim the content.';
     if (isRejected) return 'The seller did not accept your bid.';
     if (isCancelled) return 'You cancelled this bid.';
@@ -142,9 +147,15 @@ function MyPurchaseBidCard({
               {isPending && (
                 <button
                   onClick={() => onCancel?.(bid)}
-                  className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+                  disabled={isLocked}
+                  title={isLocked ? `Locked until ${new Date(bid.lockedUntil).toLocaleString()}` : undefined}
+                  className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary ${
+                    isLocked
+                      ? 'opacity-50 cursor-not-allowed text-[var(--text-muted)]'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)]'
+                  }`}
                 >
-                  Cancel
+                  {isLocked ? 'Locked' : 'Cancel'}
                 </button>
               )}
               {isAccepted && (
@@ -302,14 +313,29 @@ function MyPurchaseBidCard({
         </div>
       )}
 
+      {/* Lock Status */}
+      {isPending && isLocked && (
+        <div className="mt-4 p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)]">
+          <p className="text-xs text-[var(--text-muted)]">
+            Bid locked until {new Date(bid.lockedUntil).toLocaleString()}
+          </p>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="mt-4 space-y-2">
         {isPending && (
           <button
             onClick={() => onCancel?.(bid)}
-            className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+            disabled={isLocked}
+            title={isLocked ? `Locked until ${new Date(bid.lockedUntil).toLocaleString()}` : undefined}
+            className={`w-full px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary ${
+              isLocked
+                ? 'opacity-50 cursor-not-allowed text-[var(--text-muted)]'
+                : 'text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)]'
+            }`}
           >
-            Cancel Bid
+            {isLocked ? 'Bid Locked' : 'Cancel Bid'}
           </button>
         )}
         {isAccepted && (

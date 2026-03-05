@@ -128,6 +128,7 @@ function mkBidDatum() {
       mkRegister(),              // 1: owner_g1
       { bytes: pointer },        // 2: pointer
       { bytes: TOKEN_HEX },     // 3: token
+      { int: 1234567890000 },    // 4: locked_until (POSIX ms)
     ],
   };
 }
@@ -193,7 +194,7 @@ describe('parseEncryptionDatum', () => {
 });
 
 describe('parseBidDatum', () => {
-  it('parses all 4 fields correctly', () => {
+  it('parses all 5 fields correctly', () => {
     const datum = mkBidDatum();
     const result = parseBidDatum(datum);
 
@@ -201,6 +202,7 @@ describe('parseBidDatum', () => {
     expect(result.owner_g1).toEqual({ generator: G1_HEX, public_value: G1_HEX });
     expect(result.pointer).toBe('ab'.repeat(32));
     expect(result.token).toBe(TOKEN_HEX);
+    expect(result.locked_until).toBe(1234567890000);
   });
 });
 
@@ -248,6 +250,7 @@ describe('error handling', () => {
         mkRegister(),
         { bytes: 'ab'.repeat(32) },
         { bytes: TOKEN_HEX },
+        { int: 1234567890000 },
       ],
     };
     expect(() => parseBidDatum(badBid)).toThrow('Expected bytes');

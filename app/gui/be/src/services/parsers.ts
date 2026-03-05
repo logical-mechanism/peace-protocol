@@ -166,6 +166,7 @@ export function parseBidDatum(datumValue: unknown): BidDatum {
     owner_g1: parseRegister(c.fields[1]),
     pointer: asBytes(c.fields[2]),
     token: asBytes(c.fields[3]),
+    locked_until: asInt(c.fields[4]),
   };
 }
 

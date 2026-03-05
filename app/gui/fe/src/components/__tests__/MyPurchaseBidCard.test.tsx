@@ -103,19 +103,26 @@ describe('MyPurchaseBidCard', () => {
   });
 
   describe('pending status', () => {
-    it('shows Cancel Bid button in full mode', () => {
-      renderCard({ status: 'pending' }, { onCancel: vi.fn() });
+    const expiredLock = { lockedUntil: 0 };
+
+    it('shows Cancel Bid button in full mode when lock expired', () => {
+      renderCard({ status: 'pending', ...expiredLock }, { onCancel: vi.fn() });
       expect(screen.getByText('Cancel Bid')).toBeInTheDocument();
     });
 
-    it('shows Cancel button in compact mode', () => {
-      renderCard({ status: 'pending' }, { compact: true, onCancel: vi.fn() });
+    it('shows Bid Locked button when lock is active', () => {
+      renderCard({ status: 'pending' }, { onCancel: vi.fn() });
+      expect(screen.getByText('Bid Locked')).toBeInTheDocument();
+    });
+
+    it('shows Cancel button in compact mode when lock expired', () => {
+      renderCard({ status: 'pending', ...expiredLock }, { compact: true, onCancel: vi.fn() });
       expect(screen.getByText('Cancel')).toBeInTheDocument();
     });
 
     it('calls onCancel when Cancel Bid clicked', () => {
       const onCancel = vi.fn();
-      renderCard({ status: 'pending' }, { onCancel });
+      renderCard({ status: 'pending', ...expiredLock }, { onCancel });
       fireEvent.click(screen.getByText('Cancel Bid'));
       expect(onCancel).toHaveBeenCalledOnce();
     });

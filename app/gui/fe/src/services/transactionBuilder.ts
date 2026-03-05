@@ -1198,9 +1198,12 @@ export async function placeBid(
     }
 
     // 8. Build inline datum (BidDatum)
-    // Field order must match Aiken: owner_vkh, owner_g1, pointer, token
+    // Field order must match Aiken: owner_vkh, owner_g1, pointer, token, locked_until
     // pointer = bid token name (validated == token_name on-chain)
     // token = encryption token name (the one being bid on)
+    // locked_until = 2 * minimum_bid_lock (12 hours) from now
+    const MINIMUM_BID_LOCK_MS = 6 * 60 * 60 * 1000; // 6 hours, matches on-chain constant
+    const lockedUntil = Date.now() + 2 * MINIMUM_BID_LOCK_MS;
     const datum = {
       constructor: 0,
       fields: [
@@ -1208,6 +1211,7 @@ export async function placeBid(
         artifacts.plutusJson.register,           // owner_g1: Register { generator, public_value }
         { bytes: bidTokenName },                 // pointer (bid token name)
         { bytes: encryptionTokenName },          // token (encryption token name)
+        { int: lockedUntil },                    // locked_until (POSIX ms)
       ],
     };
 
@@ -1319,7 +1323,7 @@ export async function placeBid(
  */
 export async function cancelBid(
   wallet: IWallet,
-  bid: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string } }
+  bid: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string; locked_until: number } }
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -1366,7 +1370,13 @@ export async function cancelBid(
     const policyId = config.contracts.biddingPolicyId;
     const refScript = config.referenceScripts.bidding;
 
-    // 3. Build redeemers
+    // 3. Check bid lock has expired
+    if (bid.datum.locked_until > Date.now()) {
+      const unlockDate = new Date(bid.datum.locked_until).toLocaleString();
+      throw new Error(`Bid is locked until ${unlockDate}. You cannot cancel it before then.`);
+    }
+
+    // 4. Build redeemers
     // Spend redeemer: RemoveBid (constructor 0)
     const spendRedeemer = { constructor: 0, fields: [] };
 
@@ -1376,7 +1386,11 @@ export async function cancelBid(
       fields: [{ bytes: bid.tokenName }],
     };
 
-    // 4. Build transaction
+    // 5. Set validity interval so on-chain lb > locked_until check passes
+    const currentSlot = await fetchCurrentSlot();
+    const invalidBeforeSlot = currentSlot - 60; // ~1 minute ago (ensures node accepts it)
+
+    // 6. Build transaction
     const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
@@ -1394,6 +1408,8 @@ export async function cancelBid(
       .mint('-1', policyId, bid.tokenName)
       .mintTxInReference(refScript.txHash, refScript.outputIndex)
       .mintRedeemerValue(mintRedeemer, 'JSON')
+      // Validity interval: lower bound must be past locked_until
+      .invalidBefore(invalidBeforeSlot)
       // Collateral
       .txInCollateral(
         collateral[0].input.txHash,

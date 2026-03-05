@@ -117,6 +117,7 @@ export interface BidDatum {
   owner_g1: Register;
   pointer: string;
   token: string;
+  locked_until: number;
 }
 
 export interface BidDisplay {
@@ -128,6 +129,7 @@ export interface BidDisplay {
   futurePrice?: number;
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
   createdAt: string;
+  lockedUntil: number;
   utxo: {
     txHash: string;
     outputIndex: number;

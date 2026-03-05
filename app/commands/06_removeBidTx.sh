@@ -81,6 +81,12 @@ bidding_tx_in=${TXIN::-8}
 
 bidding_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/bidding_contract-reference-utxo.signed | jq -r '.txhash')
 
+# read locked_until from bid datum to set --invalid-before
+locked_until=$(jq -r '.fields[4].int' ../data/bidding/bidding-datum.json)
+# convert ms to seconds for slot calculation (approximate)
+invalid_before_slot=$((locked_until / 1000))
+echo -e "\033[1;36m\nBid locked until: $(date -d @${invalid_before_slot}) \033[0m"
+
 echo -e "\033[0;36m Building Tx \033[0m"
 FEE=$(${cli} conway transaction build \
     --out-file ./tmp/tx.draft \
@@ -94,6 +100,7 @@ FEE=$(${cli} conway transaction build \
     --spending-reference-tx-in-redeemer-file ../data/bidding/bidding-remove-redeemer.json \
     --required-signer-hash ${collat_pkh} \
     --required-signer-hash ${bob_pkh} \
+    --invalid-before ${invalid_before_slot} \
     --mint="${bidding_asset}" \
     --mint-tx-in-reference="${bidding_ref_utxo}#1" \
     --mint-plutus-script-v3 \

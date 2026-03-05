@@ -126,15 +126,21 @@ from src.commands import create_bidding_tx
 create_bidding_tx('${bob_wallet_path}/payment.skey')
 "
 
+# locked_until = now + 2 * minimum_bid_lock (12 hours)
+locked_until=$(($(date +%s%3N) + 2 * 6 * 3600 * 1000))
+echo -e "\033[1;36m\nBid locked until: $(date -d @$((locked_until / 1000))) \033[0m"
+
 jq \
 --arg bob_pkh "${bob_pkh}" \
 --arg bid_token_name "${token_name}" \
 --arg encryption_token "${encryption_token}" \
 --argjson register "$(cat ../data/register.json)" \
+--argjson locked_until "${locked_until}" \
 '.fields[0].bytes=$bob_pkh |
 .fields[1]=$register |
 .fields[2].bytes=$bid_token_name |
-.fields[3].bytes=$encryption_token' \
+.fields[3].bytes=$encryption_token |
+.fields[4].int=$locked_until' \
 ../data/bidding/bidding-datum.json | sponge ../data/bidding/bidding-datum.json
 
 jq \
