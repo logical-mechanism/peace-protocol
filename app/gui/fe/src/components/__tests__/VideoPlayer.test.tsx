@@ -123,6 +123,21 @@ describe('VideoPlayer', () => {
     });
   });
 
+  describe('probe loading indicator', () => {
+    it('shows format compatibility message during probe', () => {
+      // Prevent the probe from resolving immediately so loading state persists
+      const origCreate = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = origCreate(tag);
+        // Don't auto-fire loadedmetadata — leave probe pending
+        return el;
+      });
+
+      renderPlayer();
+      expect(screen.getByText('Checking format compatibility...')).toBeInTheDocument();
+    });
+  });
+
   describe('subtitle support', () => {
     it('renders without crash when SRT subtitle data is provided', () => {
       const srtData = new TextEncoder().encode(

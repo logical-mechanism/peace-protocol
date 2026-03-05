@@ -883,6 +883,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative">
+        {loading && !blobUrl && !remuxing && (
+          <div className="py-12 text-center">
+            <DelayedSpinner size="lg" className="mx-auto mb-4" />
+            <p className="text-sm text-[var(--text-muted)]">Checking format compatibility...</p>
+          </div>
+        )}
         {loading && blobUrl && (
           <div className="py-12 text-center">
             <DelayedSpinner size="lg" className="mx-auto mb-4" />

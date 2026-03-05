@@ -159,7 +159,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/index.css`
 
-- [ ] 🟡 **No loading indicator during 8-second format probe**
+- [x] 🟡 **No loading indicator during 8-second format probe**
   - **How**: Set `setLoading(true)` at the start of the probe (before line ~125). The spinner already renders when `loading && blobUrl` is truthy (line ~635), but `blobUrl` is null during probe. Either show a spinner unconditionally when `loading` is true, or add a "Checking format..." text state.
   - **Why**: Users see nothing for up to 8 seconds while the probe determines format support. Feels like the app froze.
 
