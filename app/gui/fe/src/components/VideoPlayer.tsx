@@ -11,6 +11,20 @@ interface VideoPlayerProps {
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
+function getConversionHint(ext: string): string | null {
+  const hints: Record<string, string> = {
+    '.mkv': 'Try converting with: ffmpeg -i file.mkv -c copy output.mp4',
+    '.avi': 'Try converting with: ffmpeg -i file.avi -c copy output.mp4',
+    '.webm': 'Try converting with: ffmpeg -i file.webm -c:v libx264 -c:a aac output.mp4',
+    '.flv': 'Try converting with: ffmpeg -i file.flv -c copy output.mp4',
+    '.wmv': 'Try converting with: ffmpeg -i file.wmv -c:v libx264 -c:a aac output.mp4',
+    '.mov': 'Try converting with: ffmpeg -i file.mov -c copy output.mp4',
+    '.ts': 'Try converting with: ffmpeg -i file.ts -c copy output.mp4',
+    '.mp4': 'MP4 is widely supported. The file may be corrupted or use an uncommon codec.',
+  };
+  return hints[ext.toLowerCase()] ?? null;
+}
+
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || seconds < 0) return '00:00';
   const m = Math.floor(seconds / 60);
@@ -41,9 +55,9 @@ async function remuxToMp4(
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
       });
       break;
-    } catch (err) {
+    } catch (cause) {
       if (attempt >= maxRetries) {
-        throw new Error('Could not download video converter. Check your internet connection.');
+        throw new Error('Could not download video converter. Check your internet connection.', { cause });
       }
       await new Promise(r => setTimeout(r, 2000));
     }
@@ -59,7 +73,12 @@ async function remuxToMp4(
   await ffmpeg.terminate();
   setTerminate?.(null);
 
-  if (output instanceof Uint8Array) return output;
+  if (output instanceof Uint8Array) {
+    if (output.length === 0) {
+      throw new Error('Conversion produced empty output. The input file may be corrupt or use an unsupported codec.');
+    }
+    return output;
+  }
   // readFile can return a string for text files; shouldn't happen for video
   throw new Error('Unexpected output type from ffmpeg');
 }
@@ -465,7 +484,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         </svg>
         <p className="text-sm font-medium text-[var(--error)]">Failed to play video</p>
         <p className="text-xs text-[var(--text-muted)]">
-          This video format could not be converted for in-app playback.
+          {error}
         </p>
 
         {/* Diagnostic info */}
@@ -474,6 +493,13 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           <span className="text-[var(--border-subtle)]">|</span>
           <span>MIME: <span className="font-mono text-[var(--text-secondary)]">{mimeType}</span></span>
         </div>
+
+        {/* Conversion hint */}
+        {getConversionHint(fileExtension) && (
+          <p className="text-xs font-mono text-[var(--text-muted)] bg-[var(--bg-tertiary)] rounded-[var(--radius-sm)] px-3 py-1.5 max-w-md mx-auto">
+            {getConversionHint(fileExtension)}
+          </p>
+        )}
 
         {/* Inline Save As button */}
         {onExport ? (

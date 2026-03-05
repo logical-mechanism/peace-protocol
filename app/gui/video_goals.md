@@ -83,15 +83,15 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx` (reference for hints)
 
-- [ ] 🟡 **Generic error messages -- no format-specific conversion hints**
+- [x] 🟡 **Generic error messages -- no format-specific conversion hints**
   - **How**: Add a `getConversionHint(ext)` function (like AudioPlayer lines 65-76) mapping extensions to FFmpeg CLI commands. Display the hint in the error UI below the generic message. Example: `.mkv` -> "Try converting with: `ffmpeg -i file.mkv -c copy output.mp4`".
   - **Why**: Users with unsupported formats get "This video format could not be converted" with no actionable guidance. AudioPlayer already provides format-specific hints.
 
-- [ ] 🟡 **CDN failure indistinguishable from format failure**
+- [x] 🟡 **CDN failure indistinguishable from format failure**
   - **How**: In `remuxToMp4`, catch errors from `toBlobURL` (lines 35-36) separately from `ffmpeg.exec` errors (line 42). Set distinct error messages: "Video converter could not be loaded (check internet)" vs. "This format could not be converted".
   - **Why**: Users blame the format when the real issue is network connectivity. Different errors need different user actions.
 
-- [ ] 🟢 **No validation of remux output before playback**
+- [x] 🟢 **No validation of remux output before playback**
   - **How**: After `ffmpeg.readFile('output.mp4')` (line ~43), check that `mp4Bytes.length > 0`. If empty, throw an error with a message about corrupt input rather than loading an empty blob.
   - **Why**: FFmpeg can silently produce empty output for certain corrupt inputs. Loading an empty blob into `<video>` causes a confusing delayed error.
 
