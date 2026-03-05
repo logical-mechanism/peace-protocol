@@ -29,8 +29,8 @@ describe('getFriendlyError', () => {
       expect(result.action).toBe('Wait for the node to finish syncing, then try again.');
     });
 
-    it('matches port 1442', () => {
-      expectTitle('connect ECONNREFUSED 127.0.0.1:1442', 'Kupo Unavailable');
+    it('matches port 44203', () => {
+      expectTitle('connect ECONNREFUSED 127.0.0.1:44203', 'Kupo Unavailable');
     });
 
     it('matches kupo keyword', () => {

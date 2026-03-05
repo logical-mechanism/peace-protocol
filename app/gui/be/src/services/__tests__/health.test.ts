@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../config/index.js', () => ({
   config: { network: 'preprod' },
   getNetworkConfig: () => ({
-    kupoUrl: 'http://127.0.0.1:1442',
+    kupoUrl: 'http://127.0.0.1:44203',
     koiosUrl: 'https://preprod.koios.rest/api/v1',
     koiosToken: '',
   }),

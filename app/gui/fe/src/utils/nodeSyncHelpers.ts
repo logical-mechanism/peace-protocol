@@ -63,7 +63,7 @@ export function getErrorGuidance(error: string | null): ErrorGuidance {
     return {
       title: 'Port conflict detected',
       steps: [
-        'Another process is using a required port (3001, 1337, or 1442).',
+        'Another process is using a required port (3001, 1337, or 44203).',
         'Close any other instances of this application.',
         'If the issue persists, restart your computer to release the ports.',
       ],

@@ -1,7 +1,7 @@
 {
   "network": "Preprod",
   "ogmios_port": 1337,
-  "kupo_port": 1442,
+  "kupo_port": 44203,
   "auto_start_node": true,
   "contracts": {
     "encryption_address": "addr_test1zzq5eggu9zqzn2rqlrj4fuu8drmd5r5y9dpnd7tyztjwhdvxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmqrmpcts",

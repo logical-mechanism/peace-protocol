@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { KupoAdapter } from '../kupoAdapter';
 
-const BASE_URL = 'http://127.0.0.1:1442';
+const BASE_URL = 'http://127.0.0.1:44203';
 
 let adapter: KupoAdapter;
 let mockFetch: ReturnType<typeof vi.fn>;

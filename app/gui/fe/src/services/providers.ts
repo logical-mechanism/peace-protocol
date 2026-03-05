@@ -6,7 +6,7 @@
  * getBlockfrostProvider() pattern in transactionBuilder.ts.
  *
  * Ports match the Tauri-managed processes from Phase 2:
- *   - Kupo:   http://127.0.0.1:1442
+ *   - Kupo:   http://127.0.0.1:44203
  *   - Ogmios: ws://127.0.0.1:1337
  * Uses 127.0.0.1 instead of localhost to avoid IPv6 resolution issues.
  */
@@ -39,7 +39,7 @@ let _ogmios: FixedOgmiosProvider | null = null;
 /** Local Kupo adapter — implements IFetcher for UTxO queries. */
 export function getKupoAdapter(): KupoAdapter {
   if (!_kupo) {
-    _kupo = new KupoAdapter('http://127.0.0.1:1442');
+    _kupo = new KupoAdapter('http://127.0.0.1:44203');
   }
   return _kupo;
 }

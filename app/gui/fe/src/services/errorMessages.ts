@@ -30,7 +30,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
   },
   // Kupo (local UTxO indexer) — must be before generic network
   {
-    test: (e) => /1442|kupo/i.test(e),
+    test: (e) => /44203|kupo/i.test(e),
     result: {
       title: 'Kupo Unavailable',
       message: 'The UTxO indexer is not responding.',

@@ -93,7 +93,7 @@ describe('getErrorGuidance', () => {
   })
 
   it('detects connection refused errors', () => {
-    expect(getErrorGuidance('ECONNREFUSED 127.0.0.1:1442').title).toBe('Connection refused')
+    expect(getErrorGuidance('ECONNREFUSED 127.0.0.1:44203').title).toBe('Connection refused')
     expect(getErrorGuidance('Connection refused by server').title).toBe('Connection refused')
   })
 

@@ -18,7 +18,7 @@ Kupo (UTxOs) + Koios (history)    cardano-node, cardano-cli, Ogmios, Kupo, Mithr
 - **Tauri IPC** (`invoke`/`listen`): wallet ops, node control, SNARK proving, secrets storage, config
 - **REST API** (port 3001): blockchain data queries (encryptions, bids, protocol config)
 - **WebSocket** (port 1337): Ogmios for tx evaluation & submission (used by MeshTxBuilder)
-- **HTTP** (port 1442): Kupo for UTxO fetching (used by KupoAdapter)
+- **HTTP** (port 44203): Kupo for UTxO fetching (used by KupoAdapter)
 
 ## Directory Structure
 
@@ -114,7 +114,7 @@ app/gui/
 │   │   │   ├── cardano.rs           # cardano-node config & lifecycle
 │   │   │   ├── cardano_cli.rs       # cardano-cli tip query (primary sync source)
 │   │   │   ├── ogmios.rs            # Ogmios (port 1337)
-│   │   │   ├── kupo.rs              # Kupo (port 1442, /metrics for sync + stall detection)
+│   │   │   ├── kupo.rs              # Kupo (port 44203, /metrics for sync + stall detection)
 │   │   │   ├── mithril.rs           # Mithril snapshot bootstrap
 │   │   │   └── express.rs           # Express backend (port 3001)
 │   │   └── commands/
@@ -247,7 +247,7 @@ app/gui/
 **Stack:** Express v5, TypeScript, port 3001. Stateless and read-only — all state lives on-chain.
 
 **Two data sources:**
-- **Kupo** (localhost:1442) — current UTxO state at contract addresses
+- **Kupo** (localhost:44203) — current UTxO state at contract addresses
 - **Koios** (preprod.koios.rest) — historical tx data, CIP-20 metadata, protocol params
 
 **Route groups:**
@@ -311,7 +311,7 @@ app/gui/
 - SIGTERM → configurable wait → SIGKILL: cardano-node 45s (flush in-memory ledger), mithril-client 30s, others 10s
 - `user_stopped` flag prevents auto-restart after intentional shutdown
 - Linux: uses `libc::kill` directly (avoids AppImage /usr/bin/kill issues)
-- Orphan cleanup on startup: reads `managed_pids.json` from previous session → SIGTERM → 30s → SIGKILL; also port-scans 3001/1337/1442
+- Orphan cleanup on startup: reads `managed_pids.json` from previous session → SIGTERM → 30s → SIGKILL; also port-scans 3001/1337/44203
 - Health check: only Express has one (`GET /health`); no built-in checks for cardano-node/Ogmios/Kupo
 - `cardano_cli.rs` — short-lived sidecar query (not a long-running process); spawns `cardano-cli conway query tip` with 10s timeout to get sync data from the node socket
 

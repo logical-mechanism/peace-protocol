@@ -27,7 +27,7 @@ export const config = {
 
   // Local Kupo HTTP API
   kupo: {
-    url: process.env.KUPO_URL || 'http://localhost:1442',
+    url: process.env.KUPO_URL || 'http://localhost:44203',
   },
 
   // Contract addresses (will be populated after preprod deployment)
