@@ -310,6 +310,13 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       const d = audio.duration;
       if (isFinite(d) && d > 0) setDuration(d);
     };
+    // WebKitGTK/GStreamer often reports NaN at loadedmetadata time;
+    // the actual duration arrives via durationchange once the demuxer finishes.
+    const onDurationChange = () => {
+      if (cancelled) return;
+      const d = audio.duration;
+      if (isFinite(d) && d > 0) setDuration(d);
+    };
     const onCanPlay = () => {
       if (cancelled) return;
       // Ensure playback starts from the beginning — GStreamer can report a
@@ -382,6 +389,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     };
 
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('durationchange', onDurationChange);
     audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('ended', onEnded);
@@ -395,6 +403,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       cancelled = true;
       audio.pause();
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
