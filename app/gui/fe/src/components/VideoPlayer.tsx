@@ -207,7 +207,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const handleLoadedMetadata = useCallback(() => {
     setLoading(false);
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const d = videoRef.current.duration;
+      if (isFinite(d) && d > 0) setDuration(d);
     }
   }, []);
 
@@ -578,7 +579,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       onLoadedMetadata={handleLoadedMetadata}
       onError={handleError}
       onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
-      onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
+      onDurationChange={() => {
+        const d = videoRef.current?.duration ?? 0;
+        if (isFinite(d) && d > 0) setDuration(d);
+      }}
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
       onEnded={() => setIsPlaying(false)}
