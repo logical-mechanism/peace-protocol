@@ -1395,4 +1395,106 @@ describe('AudioPlayer component', () => {
       globalThis.OfflineAudioContext = originalOAC;
     });
   });
+
+  describe('duration detection', () => {
+    it('sets duration from durationchange when loadedmetadata reports NaN', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+
+      // Simulate WebKitGTK: duration is NaN at loadedmetadata time
+      Object.defineProperty(audio, 'duration', { value: NaN, writable: true, configurable: true });
+      let _ct = 0;
+      Object.defineProperty(audio, 'currentTime', {
+        get: () => _ct, set: (v: number) => { _ct = v; }, configurable: true,
+      });
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('loadedmetadata'));
+      });
+
+      // Duration should still show 00:00 (NaN was rejected)
+      const ledDisplay = screen.getByTitle('Click to toggle remaining time');
+      expect(ledDisplay.textContent).toContain('00:00');
+
+      // Now GStreamer resolves the actual duration
+      Object.defineProperty(audio, 'duration', { value: 180, writable: true, configurable: true });
+      await act(async () => {
+        audio.dispatchEvent(new Event('durationchange'));
+      });
+
+      // Duration should now show 03:00
+      expect(ledDisplay.textContent).toContain('03:00');
+    });
+
+    it('falls back to timeupdate for duration when loadedmetadata and durationchange both report NaN', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+
+      Object.defineProperty(audio, 'duration', { value: NaN, writable: true, configurable: true });
+      let _ct = 0;
+      Object.defineProperty(audio, 'currentTime', {
+        get: () => _ct, set: (v: number) => { _ct = v; }, configurable: true,
+      });
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('loadedmetadata'));
+        audio.dispatchEvent(new Event('durationchange'));
+        audio.dispatchEvent(new Event('canplay'));
+      });
+
+      const ledDisplay = screen.getByTitle('Click to toggle remaining time');
+      expect(ledDisplay.textContent).toContain('00:00');
+
+      // Duration becomes available during playback
+      Object.defineProperty(audio, 'duration', { value: 240, writable: true, configurable: true });
+      _ct = 5;
+      await act(async () => {
+        audio.dispatchEvent(new Event('timeupdate'));
+      });
+
+      expect(ledDisplay.textContent).toContain('04:00');
+    });
+
+    it('does not seek to 0 in onCanPlay when currentTime is near zero', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+
+      let _ct = 0.01; // Near-zero (below 0.05 threshold)
+      Object.defineProperty(audio, 'currentTime', {
+        get: () => _ct,
+        set: (v: number) => { _ct = v; },
+        configurable: true,
+      });
+      Object.defineProperty(audio, 'duration', { value: 120, writable: true, configurable: true });
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('loadedmetadata'));
+        audio.dispatchEvent(new Event('canplay'));
+      });
+
+      // Should NOT have been reset to 0 — near-zero values are left alone
+      expect(_ct).toBe(0.01);
+    });
+
+    it('seeks to 0 in onCanPlay when currentTime is significantly non-zero', async () => {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+
+      let _ct = 5.0; // Significantly non-zero
+      Object.defineProperty(audio, 'currentTime', {
+        get: () => _ct,
+        set: (v: number) => { _ct = v; },
+        configurable: true,
+      });
+      Object.defineProperty(audio, 'duration', { value: 120, writable: true, configurable: true });
+
+      await act(async () => {
+        audio.dispatchEvent(new Event('loadedmetadata'));
+        audio.dispatchEvent(new Event('canplay'));
+      });
+
+      // Should have been reset to 0
+      expect(_ct).toBe(0);
+    });
+  });
 });
