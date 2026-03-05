@@ -108,6 +108,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
 
   const [showKeyHints, setShowKeyHints] = useState(false);
+  // Interpolated time for smooth seek bar (updated at 60fps via rAF)
+  const [displayTime, setDisplayTime] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
@@ -117,6 +119,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ffmpegTerminateRef = useRef<(() => Promise<void>) | null>(null);
   const activeBlobUrlRef = useRef<string | null>(null);
+  // Smooth time interpolation — video.currentTime updates ~4Hz on WebKitGTK,
+  // we interpolate between updates for fluid seek bar movement
+  const vizTimeRef = useRef(0);
+  const lastDrawTimeRef = useRef(0);
+  const rafRef = useRef<number>(0);
+  const isPlayingRef = useRef(false);
 
   // PiP feature detection
   useEffect(() => {
@@ -317,6 +325,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       video.currentTime = ratio * duration;
       setCurrentTime(video.currentTime);
+      vizTimeRef.current = video.currentTime;
+      setDisplayTime(video.currentTime);
     };
 
     seekTo(e.clientX);
@@ -425,6 +435,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     if (handled) {
       e.preventDefault();
       setCurrentTime(video.currentTime);
+      vizTimeRef.current = video.currentTime;
+      setDisplayTime(video.currentTime);
     }
   }, [duration]);
 
@@ -465,6 +477,32 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   useEffect(() => {
     if (videoRef.current) videoRef.current.loop = isLooping;
   }, [isLooping]);
+
+  // Smooth seek bar interpolation at 60fps between ~4Hz timeupdate events
+  useEffect(() => {
+    if (!isPlaying) {
+      lastDrawTimeRef.current = 0;
+      return;
+    }
+    let running = true;
+    const loop = () => {
+      if (!running) return;
+      const now = performance.now();
+      if (lastDrawTimeRef.current > 0) {
+        vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000 * playbackRate;
+        // Clamp to duration to avoid overshooting
+        if (duration > 0) vizTimeRef.current = Math.min(vizTimeRef.current, duration);
+      }
+      lastDrawTimeRef.current = now;
+      setDisplayTime(vizTimeRef.current);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      running = false;
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [isPlaying, playbackRate, duration]);
 
   // Keyboard shortcuts (bubbling phase — Escape handled separately in capture phase)
   useEffect(() => {
@@ -647,7 +685,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
       {/* Time */}
       <span className="text-xs font-mono text-[var(--text-muted)] min-w-[85px] text-center select-none">
-        {formatTime(currentTime)} / {formatTime(duration)}
+        {formatTime(displayTime)} / {formatTime(duration)}
       </span>
 
       {/* Seek bar — outer wrapper expands click target while visual bar stays h-1.5 */}
@@ -676,13 +714,13 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           className="h-1.5 bg-[var(--bg-secondary)] rounded-full relative border border-[var(--border-subtle)]"
         >
           <div
-            className="absolute inset-y-0 left-0 bg-[var(--accent)] rounded-full transition-[width] duration-[var(--transition-fast)]"
-            style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+            className="absolute inset-y-0 left-0 bg-[var(--accent)] rounded-full"
+            style={{ width: `${duration > 0 ? (displayTime / duration) * 100 : 0}%` }}
           />
           {/* Seek thumb */}
           <div
             className="absolute top-1/2 w-3 h-3 rounded-full bg-white/60 border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
-            style={{ left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+            style={{ left: `${duration > 0 ? (displayTime / duration) * 100 : 0}%`, transform: 'translateX(-50%) translateY(-50%)' }}
           />
         </div>
       </div>
@@ -807,7 +845,11 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       }
       onLoadedMetadata={handleLoadedMetadata}
       onError={handleError}
-      onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
+      onTimeUpdate={() => {
+        const t = videoRef.current?.currentTime ?? 0;
+        setCurrentTime(t);
+        vizTimeRef.current = t;
+      }}
       onDurationChange={() => {
         const d = videoRef.current?.duration ?? 0;
         if (isFinite(d) && d > 0) setDuration(d);
@@ -820,11 +862,29 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           stalledTimerRef.current = null;
         }
       }}
-      onPlay={() => setIsPlaying(true)}
-      onPause={() => setIsPlaying(false)}
+      onPlay={() => {
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+        vizTimeRef.current = videoRef.current?.currentTime ?? 0;
+        lastDrawTimeRef.current = performance.now();
+      }}
+      onPause={() => {
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+      }}
       onEnded={() => {
         setIsPlaying(false);
-        if (!isLooping && videoRef.current) videoRef.current.currentTime = 0;
+        isPlayingRef.current = false;
+        if (!isLooping && videoRef.current) {
+          videoRef.current.currentTime = 0;
+          vizTimeRef.current = 0;
+          setDisplayTime(0);
+        }
+      }}
+      onSeeked={() => {
+        const t = videoRef.current?.currentTime ?? 0;
+        vizTimeRef.current = t;
+        setDisplayTime(t);
       }}
       onStalled={() => {
         if (videoRef.current && videoRef.current.readyState < 2) {

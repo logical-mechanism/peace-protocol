@@ -163,7 +163,7 @@ Each item:
   - **How**: Set `setLoading(true)` at the start of the probe (before line ~125). The spinner already renders when `loading && blobUrl` is truthy (line ~635), but `blobUrl` is null during probe. Either show a spinner unconditionally when `loading` is true, or add a "Checking format..." text state.
   - **Why**: Users see nothing for up to 8 seconds while the probe determines format support. Feels like the app froze.
 
-- [ ] 🟡 **Seek bar position jank on WebKitGTK (~4Hz updates)**
+- [x] 🟡 **Seek bar position jank on WebKitGTK (~4Hz updates)**
   - **How**: Add time interpolation between `onTimeUpdate` events using `requestAnimationFrame`. Store last known time + timestamp in a ref, interpolate linearly at 60fps. AudioPlayer solves this with `vizTimeRef` interpolation (lines 209, 501-506). Apply interpolated time to seek bar width and time display.
   - **Why**: WebKitGTK fires `timeupdate` at ~4Hz (every 250ms). Without interpolation, the seek bar visibly jumps rather than sliding smoothly.
 
