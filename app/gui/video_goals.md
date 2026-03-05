@@ -101,19 +101,19 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🔴 **FFmpeg WASM Blob URLs never revoked (memory leak)**
+- [x] 🔴 **FFmpeg WASM Blob URLs never revoked (memory leak)**
   - **How**: `toBlobURL()` at lines 35-36 creates 2 Blob URLs per remux that are never revoked. Store the URLs returned by `toBlobURL` and call `URL.revokeObjectURL()` on each after `ffmpeg.load()` completes (the WASM is already loaded into memory at that point). Add cleanup after line 37.
   - **Why**: Each remux operation permanently leaks 2 Blob URLs. Users who open multiple unsupported videos accumulate leaked URLs for the session lifetime.
 
-- [ ] 🟡 **Old blobUrl not revoked when data prop changes**
+- [x] 🟡 **Old blobUrl not revoked when data prop changes**
   - **How**: In the main effect cleanup (line ~182), revoke `blobUrl` state value in addition to the local `currentUrl`. Use a ref to track the active blob URL so cleanup can always revoke it regardless of which path (probe or remux) created it.
   - **Why**: Switching between videos (e.g., opening video1.mkv then video2.mkv in the library) leaks the previous Blob URL.
 
-- [ ] 🟡 **No file size warning before remux**
+- [x] 🟡 **No file size warning before remux**
   - **How**: Before calling `remuxToMp4` (line ~163), check `data.length`. If > 500MB, show a warning: "Large file ({size}MB) -- conversion may use significant memory." If > 2GB, skip remux and show error suggesting export. Use `formatBytes` from `fe/src/utils/formatBytes.ts`.
   - **Why**: Remux peak memory is ~3-4x input size. A 1GB video needs ~3-4GB RAM. No warning means the app silently freezes or crashes.
 
-- [ ] 🔴 **Key hints overlay uses hardcoded colors -- unreadable in light theme**
+- [x] 🔴 **Key hints overlay uses hardcoded colors -- unreadable in light theme**
   - **How**: At line ~558, replace `bg-black/80 text-white` with `bg-[var(--bg-elevated)]/90 text-[var(--text-primary)]`. Replace `bg-white/20` on kbd elements (line ~560) with `bg-[var(--bg-tertiary)]`.
   - **Why**: In light theme, white text on a near-white background is invisible. This is a visible bug for all light-theme users.
 

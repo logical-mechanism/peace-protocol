@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DelayedSpinner } from './LoadingSpinner';
+import { formatBytes } from '../utils/formatBytes';
 
 interface VideoPlayerProps {
   data: Uint8Array;
@@ -50,10 +51,12 @@ async function remuxToMp4(
   const maxRetries = 2;
   for (let attempt = 0; ; attempt++) {
     try {
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      });
+      const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+      const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+      await ffmpeg.load({ coreURL, wasmURL });
+      // WASM is loaded into memory — revoke blob URLs to free the references
+      URL.revokeObjectURL(coreURL);
+      URL.revokeObjectURL(wasmURL);
       break;
     } catch (cause) {
       if (attempt >= maxRetries) {
@@ -89,6 +92,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [remuxing, setRemuxing] = useState(false);
   const [remuxProgress, setRemuxProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   // Playback state
@@ -112,6 +116,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const isSeekingRef = useRef(false);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ffmpegTerminateRef = useRef<(() => Promise<void>) | null>(null);
+  const activeBlobUrlRef = useRef<string | null>(null);
 
   // PiP feature detection
   useEffect(() => {
@@ -156,6 +161,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       }
     };
 
+    // Revoke any blob URL from a previous data prop
+    if (activeBlobUrlRef.current) {
+      URL.revokeObjectURL(activeBlobUrlRef.current);
+      activeBlobUrlRef.current = null;
+    }
+
     // Reset playback state on new data
     setPlaybackRate(1.0);
     setRemuxProgress(0);
@@ -187,12 +198,26 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       if (cancelled) { revokeUrl(); return; }
 
       if (canPlay) {
+        activeBlobUrlRef.current = url;
         setBlobUrl(url);
         return;
       }
 
       // The browser can't play this format natively — try remuxing
       revokeUrl();
+
+      // Guard against very large files that would exhaust memory during remux
+      const MAX_REMUX_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
+      const WARN_REMUX_SIZE = 500 * 1024 * 1024; // 500 MB
+      if (data.length > MAX_REMUX_SIZE) {
+        setError(`File too large for in-app conversion (${formatBytes(data.length)}). Use Save As to open with an external player.`);
+        setLoading(false);
+        return;
+      }
+      if (data.length > WARN_REMUX_SIZE) {
+        setSizeWarning(`Large file (${formatBytes(data.length)}) — conversion may use significant memory.`);
+      }
+
       setRemuxing(true);
       setRemuxProgress(0);
 
@@ -205,6 +230,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         const mp4Blob = new Blob([mp4Bytes as BlobPart], { type: 'video/mp4' });
         const mp4Url = URL.createObjectURL(mp4Blob);
         currentUrl = mp4Url;
+        activeBlobUrlRef.current = mp4Url;
         setBlobUrl(mp4Url);
       } catch (err) {
         if (cancelled) return;
@@ -228,6 +254,11 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         videoEl.load();
       }
       revokeUrl();
+      // Also revoke the ref-tracked URL (covers cases where currentUrl was reassigned)
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
       if (stalledTimerRef.current) {
         clearTimeout(stalledTimerRef.current);
         stalledTimerRef.current = null;
@@ -539,6 +570,9 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
             {Math.round(remuxProgress * 100)}%
           </p>
         </div>
+        {sizeWarning && (
+          <p className="text-xs text-[var(--warning)]">{sizeWarning}</p>
+        )}
       </div>
     );
   }
@@ -706,15 +740,15 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   );
 
   const keyHintsOverlay = showKeyHints ? (
-    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-[var(--transition-slow)]">
+    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)]/90 text-[var(--text-primary)] text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-[var(--transition-slow)] border border-[var(--border-subtle)]">
       <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
-        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">F</kbd> Fullscreen</span>
-        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s</span>
-        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
-        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
-        <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
-        {subtitleUrl && <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">F</kbd> Fullscreen</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
+        {subtitleUrl && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
       </div>
     </div>
   ) : null;
