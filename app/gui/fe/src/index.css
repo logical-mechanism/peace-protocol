@@ -344,7 +344,7 @@ select option {
   --audio-gradient-mid: #6366f1;
   --audio-gradient-end: #818cf8;
   --waveform-played: rgba(79, 70, 229, 0.7);
-  --waveform-unplayed: rgba(79, 70, 229, 0.2);
+  --waveform-unplayed: rgba(79, 70, 229, 0.35);
   --waveform-indicator: rgba(30, 30, 60, 0.8);
   --waveform-indicator-glow: rgba(30, 30, 60, 0.25);
 }

@@ -45,7 +45,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`, `fe/src/index.css`
 
-- [ ] 🟡 **Improve light-theme waveform unplayed bar contrast**
+- [x] 🟡 **Improve light-theme waveform unplayed bar contrast**
   - **How**: `--waveform-unplayed` in light theme (index.css line 347) is `rgba(79, 70, 229, 0.2)`. On the `#d0d0dc` canvas background (`--winamp-bg-dark` light override, line 337), this blends to approximately `rgb(182, 180, 222)` — roughly 1.5:1 contrast ratio against the background, which is below WCAG thresholds. Increase opacity to `rgba(79, 70, 229, 0.35)` or switch to a neutral gray like `rgba(100, 100, 120, 0.25)` for better separation from the played bars. The played bars at 0.7 opacity are fine.
   - **Why**: In light theme, unplayed waveform bars are nearly invisible against the light gray canvas. Users can't see the waveform shape ahead of the playback position, defeating the purpose of the overview.
 
