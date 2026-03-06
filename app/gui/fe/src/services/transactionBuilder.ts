@@ -1276,6 +1276,11 @@ export async function placeBid(
     // Bid amount in lovelace (the ADA locked at the script IS the bid)
     const bidAmountLovelace = Math.floor(bidAmountAda * 1_000_000).toString();
 
+    // 10a. Compute validity interval (contract requires finite upper bound for lock check)
+    const currentSlot = await fetchCurrentSlot();
+    const invalidBefore = currentSlot - 60;     // ~1 minute ago
+    const invalidHereafter = currentSlot + 900; // ~15 minutes from now
+
     const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
@@ -1323,6 +1328,9 @@ export async function placeBid(
       .metadataValue(674, buildBidMetadata(
         metadata?.futurePrice?.toString() || '',
       ))
+      // Validity interval (on-chain lock check needs finite upper bound)
+      .invalidBefore(invalidBefore)
+      .invalidHereafter(invalidHereafter)
       // Change and UTxO selection
       // Exclude firstUtxo (explicit input) and collateral from coin selection.
       .changeAddress(changeAddress)
@@ -1431,6 +1439,7 @@ export async function cancelBid(
     // 5. Set validity interval so on-chain lb > locked_until check passes
     const currentSlot = await fetchCurrentSlot();
     const invalidBeforeSlot = currentSlot - 60; // ~1 minute ago (ensures node accepts it)
+    const invalidHereafterSlot = currentSlot + 900; // ~15 minutes from now
 
     // 6. Build transaction
     const txBuilder = createTxBuilder();
@@ -1452,6 +1461,7 @@ export async function cancelBid(
       .mintRedeemerValue(mintRedeemer, 'JSON')
       // Validity interval: lower bound must be past locked_until
       .invalidBefore(invalidBeforeSlot)
+      .invalidHereafter(invalidHereafterSlot)
       // Collateral
       .txInCollateral(
         collateral[0].input.txHash,

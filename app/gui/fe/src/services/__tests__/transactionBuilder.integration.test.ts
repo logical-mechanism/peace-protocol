@@ -39,6 +39,7 @@ const {
     txInInlineDatumPresent: vi.fn().mockReturnThis(),
     txInRedeemerValue: vi.fn().mockReturnThis(),
     invalidBefore: vi.fn().mockReturnThis(),
+    invalidHereafter: vi.fn().mockReturnThis(),
     // Property set by createTxBuilder
     txEvaluationMultiplier: 1.0,
   };
