@@ -44,7 +44,7 @@ async function remuxToMp4(
   const { toBlobURL } = await import('@ffmpeg/util');
 
   const ffmpeg = new FFmpeg();
-  setTerminate?.(() => ffmpeg.terminate());
+  setTerminate?.(() => Promise.resolve(ffmpeg.terminate()));
 
   // Load the single-threaded WASM core from CDN via blob URLs (retry on network failure)
   const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';

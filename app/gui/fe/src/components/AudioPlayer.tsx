@@ -279,7 +279,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
 
     // Blob URL for native <audio> playback — GStreamer handles output directly,
     // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
-    const blob = new Blob([data], { type: getMimeType(fileExtension) });
+    const blob = new Blob([data as BlobPart], { type: getMimeType(fileExtension) });
     const url = URL.createObjectURL(blob);
     audio.src = url;
 
@@ -335,7 +335,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         const PCM_DECODE_TIMEOUT = 15_000;
         Promise.race([
           offlineCtx.decodeAudioData(
-            data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
+            (data.buffer as ArrayBuffer).slice(data.byteOffset, data.byteOffset + data.byteLength),
           ),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('PCM decode timeout')), PCM_DECODE_TIMEOUT),
