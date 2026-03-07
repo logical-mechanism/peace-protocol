@@ -29,7 +29,7 @@ Each item:
   - **How**: Wrap `ffmpeg.terminate()` at line 76 with `Promise.race([ffmpeg.terminate(), new Promise((_, rej) => setTimeout(() => rej(new Error('FFmpeg worker hung')), 10_000))])`. Same pattern for the cleanup call at line 280. If the timeout fires, log a warning -- the worker will be garbage-collected when the page navigates.
   - **Why**: If the FFmpeg WASM worker crashes or becomes unresponsive, `terminate()` never resolves, leaving the UI stuck in the remuxing state forever.
 
-- [ ] 🟢 **No stall detection during remux**
+- [x] 🟢 **No stall detection during remux**
   - **How**: Track the last time `onProgress` fired in a ref. Start a `setInterval(10_000)` alongside the remux call (line 240). If progress hasn't changed in 30s, set an error: "Conversion appears stuck. The file may be too complex for in-app conversion." Clear the interval in the `finally` block.
   - **Why**: If FFmpeg stops making progress on a complex file, the user sees a frozen progress bar with no indication of failure.
 

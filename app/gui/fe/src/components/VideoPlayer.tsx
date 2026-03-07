@@ -245,9 +245,23 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       setRemuxing(true);
       setRemuxProgress(0);
 
+      // Stall detection: if no progress in 30s, show error
+      let lastProgressTime = Date.now();
+      const stallCheck = setInterval(() => {
+        if (Date.now() - lastProgressTime > 30_000) {
+          clearInterval(stallCheck);
+          setError('Conversion appears stuck. The file may be too complex for in-app conversion.');
+          setRemuxing(false);
+          setLoading(false);
+          ffmpegTerminateRef.current?.().catch(() => {});
+          ffmpegTerminateRef.current = null;
+        }
+      }, 10_000);
+
       try {
         const inputName = `input${fileExtension}`;
         const mp4Bytes = await remuxToMp4(new Uint8Array(data), inputName, (evt) => {
+          lastProgressTime = Date.now();
           if (!cancelled) setRemuxProgress(Math.max(0, Math.min(1, evt.progress)));
         }, (fn) => { ffmpegTerminateRef.current = fn; });
         if (cancelled) return;
@@ -259,11 +273,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       } catch (err) {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : '';
-        setError(msg.includes('internet connection')
+        setError(msg.includes('internet connection') || msg.includes('appears stuck')
           ? msg
           : 'This video format could not be converted for in-app playback.');
         setLoading(false);
       } finally {
+        clearInterval(stallCheck);
         if (!cancelled) {
             setRemuxing(false);
         }
