@@ -61,7 +61,12 @@ async function remuxToMp4(
   const baseURL = `${window.location.origin}/ffmpeg`;
   const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
   const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
-  await ffmpeg.load({ coreURL, wasmURL });
+  await Promise.race([
+    ffmpeg.load({ coreURL, wasmURL }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('FFmpeg failed to initialize. Try restarting the app.')), 15_000),
+    ),
+  ]);
   URL.revokeObjectURL(coreURL);
   URL.revokeObjectURL(wasmURL);
 
@@ -396,7 +401,11 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     setLoading(false);
     if (videoRef.current) {
       const d = videoRef.current.duration;
-      if (isFinite(d) && d > 0) setDuration(d);
+      if (!isFinite(d) || d <= 0) {
+        setError('This file contains no playable video data.');
+        return;
+      }
+      setDuration(d);
     }
   }, []);
 

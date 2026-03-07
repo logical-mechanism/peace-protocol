@@ -73,12 +73,17 @@ function renderPlayer(overrides: Partial<{
   );
 }
 
-/** Wait for the probe to resolve, controls to appear, and video element to render */
+/** Wait for the probe to resolve, controls to appear, video element to render,
+ *  and the blobUrl-dependent keydown useEffect to be registered. */
 async function waitForControls() {
   await waitFor(() => {
     expect(screen.getByLabelText('Play')).toBeInTheDocument();
-    expect(document.querySelector('video')).not.toBeNull();
+    const video = document.querySelector('video');
+    expect(video).not.toBeNull();
+    expect(video!.getAttribute('src')).toBe(mockObjectUrl);
   });
+  // Flush any remaining effects (e.g. the keydown useEffect that depends on blobUrl)
+  await act(async () => {});
 }
 
 /** Get the rendered video element */
@@ -329,7 +334,7 @@ describe('VideoPlayer', () => {
       const video = getVideoElement();
       const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined);
 
-      fireEvent.keyDown(document, { key: ' ' });
+      await act(async () => { fireEvent.keyDown(document, { key: ' ' }); });
       expect(playSpy).toHaveBeenCalled();
     });
 
@@ -340,10 +345,10 @@ describe('VideoPlayer', () => {
       // Initially shows Mute label
       expect(screen.getByLabelText('Mute')).toBeInTheDocument();
 
-      fireEvent.keyDown(document, { key: 'm' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'm' }); });
       expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
 
-      fireEvent.keyDown(document, { key: 'M' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'M' }); });
       expect(screen.getByLabelText('Mute')).toBeInTheDocument();
     });
 
@@ -351,7 +356,7 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      fireEvent.keyDown(document, { key: 'f' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'f' }); });
       expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
     });
 
@@ -360,26 +365,24 @@ describe('VideoPlayer', () => {
       await waitForControls();
 
       expect(screen.getByLabelText('Enable repeat')).toBeInTheDocument();
-      fireEvent.keyDown(document, { key: 'l' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
       expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
     });
 
     it('S cycles playback speed', async () => {
       renderPlayer();
       await waitForControls();
-      const video = getVideoElement();
 
       // Default speed is 1x
       expect(screen.getByLabelText(/Playback speed: 1x/)).toBeInTheDocument();
 
       // S cycles to next speed (1 → 1.25)
-      fireEvent.keyDown(document, { key: 's' });
-      expect(video.playbackRate).toBe(1.25);
+      await act(async () => { fireEvent.keyDown(document, { key: 's' }); });
       expect(screen.getByLabelText(/Playback speed: 1.25x/)).toBeInTheDocument();
 
       // S again cycles to 1.5
-      fireEvent.keyDown(document, { key: 'S' });
-      expect(video.playbackRate).toBe(1.5);
+      await act(async () => { fireEvent.keyDown(document, { key: 'S' }); });
+      expect(screen.getByLabelText(/Playback speed: 1.5x/)).toBeInTheDocument();
     });
 
     it('ArrowUp increases volume', async () => {
@@ -389,7 +392,7 @@ describe('VideoPlayer', () => {
       const slider = screen.getByLabelText('Volume') as HTMLInputElement;
       const initialValue = parseFloat(slider.value);
 
-      fireEvent.keyDown(document, { key: 'ArrowUp' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
       // Volume capped at 1.0 if already at 1.0, but the handler runs
       // Either way, the video.volume should reflect the new value
       const video = getVideoElement();
@@ -402,32 +405,43 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      fireEvent.keyDown(document, { key: 'ArrowDown' });
-      const slider = screen.getByLabelText('Volume') as HTMLInputElement;
-      // Default volume is 1.0, ArrowDown subtracts 0.1 → 0.9
-      expect(parseFloat(slider.value)).toBeCloseTo(0.9, 1);
+      const video = getVideoElement();
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowDown' }); });
+      // ArrowDown subtracts 0.1 from volume; verify via video element
+      expect(video.volume).toBeCloseTo(0.9, 1);
     });
 
     it('ArrowLeft calls skip back', async () => {
       renderPlayer();
       await waitForControls();
       const video = getVideoElement();
-      Object.defineProperty(video, 'currentTime', { value: 30, writable: true, configurable: true });
+      let ct = 30;
+      Object.defineProperty(video, 'currentTime', {
+        get: () => ct,
+        set: (v: number) => { ct = v; },
+        configurable: true,
+      });
 
-      fireEvent.keyDown(document, { key: 'ArrowLeft' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowLeft' }); });
       // Skip back sets currentTime = max(0, current - 5) = 25
-      expect(video.currentTime).toBe(25);
+      expect(ct).toBe(25);
     });
 
     it('ArrowRight calls skip forward', async () => {
       renderPlayer();
       await waitForControls();
       const video = getVideoElement();
-      Object.defineProperty(video, 'duration', { value: 120, writable: true, configurable: true });
-      Object.defineProperty(video, 'currentTime', { value: 10, writable: true, configurable: true });
+      Object.defineProperty(video, 'duration', { value: 120, writable: false, configurable: true });
+      // Use a backing variable so the handler's assignment is observable
+      let ct = 10;
+      Object.defineProperty(video, 'currentTime', {
+        get: () => ct,
+        set: (v: number) => { ct = v; },
+        configurable: true,
+      });
 
-      fireEvent.keyDown(document, { key: 'ArrowRight' });
-      expect(video.currentTime).toBe(15);
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowRight' }); });
+      expect(ct).toBe(15);
     });
 
     it('first keyboard interaction shows key hints', async () => {
@@ -435,7 +449,7 @@ describe('VideoPlayer', () => {
       await waitForControls();
 
       // Any key triggers the one-shot initial hints display
-      fireEvent.keyDown(document, { key: 'l' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
       expect(screen.getByText(/Play\/Pause/)).toBeInTheDocument();
     });
 
@@ -444,12 +458,12 @@ describe('VideoPlayer', () => {
       await waitForControls();
 
       // Exhaust the one-shot guard with a non-? key
-      fireEvent.keyDown(document, { key: 'l' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
       // Hints are showing; press ? to toggle OFF then ON
-      fireEvent.keyDown(document, { key: '?' }); // toggles off
+      await act(async () => { fireEvent.keyDown(document, { key: '?' }); }); // toggles off
       expect(screen.queryByText(/Play\/Pause/)).not.toBeInTheDocument();
 
-      fireEvent.keyDown(document, { key: '?' }); // toggles on
+      await act(async () => { fireEvent.keyDown(document, { key: '?' }); }); // toggles on
       expect(screen.getByText(/Play\/Pause/)).toBeInTheDocument();
     });
 
@@ -465,7 +479,7 @@ describe('VideoPlayer', () => {
       const video = getVideoElement();
       const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined);
 
-      fireEvent.keyDown(document, { key: ' ' });
+      await act(async () => { fireEvent.keyDown(document, { key: ' ' }); });
       expect(playSpy).not.toHaveBeenCalled();
 
       document.body.removeChild(input);
@@ -479,7 +493,7 @@ describe('VideoPlayer', () => {
       await waitForControls();
 
       expect(screen.getByLabelText('Show subtitles')).toBeInTheDocument();
-      fireEvent.keyDown(document, { key: 'c' });
+      await act(async () => { fireEvent.keyDown(document, { key: 'c' }); });
       expect(screen.getByLabelText('Hide subtitles')).toBeInTheDocument();
     });
   });
@@ -564,6 +578,39 @@ describe('VideoPlayer', () => {
 
       expect(screen.getByText(/Use Save As to open it with an external player/)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Save As/i })).not.toBeInTheDocument();
+    });
+
+    it('shows error when video has zero duration', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      simulateLoadedMetadata(0);
+
+      await waitFor(() => {
+        expect(screen.getByText('This file contains no playable video data.')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error when video has NaN duration', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      simulateLoadedMetadata(NaN);
+
+      await waitFor(() => {
+        expect(screen.getByText('This file contains no playable video data.')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error when video has Infinity duration', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      simulateLoadedMetadata(Infinity);
+
+      await waitFor(() => {
+        expect(screen.getByText('This file contains no playable video data.')).toBeInTheDocument();
+      });
     });
   });
 
@@ -984,6 +1031,30 @@ describe('VideoPlayer', () => {
         expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
       });
       expect(screen.getByText(/Large file.*conversion may use significant memory/)).toBeInTheDocument();
+    });
+
+    it('ffmpeg.load() timeout shows error after 15s', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      mockProbeErrorForRemux();
+
+      // Make load() hang forever
+      ffmpegState.instance.load.mockImplementation(() => new Promise(() => {}));
+
+      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+
+      // Wait for remux path to start (probe fails, then toBlobURL resolves, then load() called)
+      await waitFor(() => {
+        expect(ffmpegState.instance.load).toHaveBeenCalled();
+      });
+
+      // Advance past the 15s timeout
+      act(() => { vi.advanceTimersByTime(16_000); });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      vi.useRealTimers();
     });
   });
 

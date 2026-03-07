@@ -19,15 +19,19 @@ Each item:
 
 ## 1. Playback & Stability
 
-> Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/LibraryContentModal.tsx`
+> Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🔴 **MOV MIME type mapped incorrectly in LibraryContentModal**
-  - **How**: In `LibraryContentModal.tsx`, the `videoMimeMap` maps `'.mov': 'video/mp4'`. Change to `'.mov': 'video/quicktime'`. MOV containers use the QuickTime MIME type; declaring `video/mp4` can cause the probe to reject a valid MOV file or skip the remux fallback when it's actually needed.
-  - **Why**: MOV files may fail the native playback probe on stricter GStreamer configurations because the declared MIME type doesn't match the actual container format.
+- [x] 🟡 **Zero-length video files fail silently**
+  - **How**: After the probe resolves and `onLoadedMetadata` fires, check `video.duration`. If `duration === 0` or `!isFinite(duration)`, call `setError('This file contains no playable video data.')` and `setLoading(false)` instead of proceeding. Add the check at ~line 397 inside the `onLoadedMetadata` handler.
+  - **Why**: Zero-length or metadata-only files leave the player in a limbo state — seek bar disabled, play button does nothing, no error message. Users think the app is broken.
 
-- [x] 🟡 **Video `onError` handler discards browser error details**
-  - **How**: In `VideoPlayer.tsx`, the `handleError` callback (~line 403) sets a generic `'The video could not be played.'` message. Instead, read `videoRef.current?.error?.message` and `videoRef.current?.error?.code` (the `MediaError` object) and include it: `setError(\`Playback failed: \${videoRef.current?.error?.message || 'unknown error'}\`)`. Also append the conversion hint for the current `fileExtension` so the user sees the ffmpeg suggestion without needing a separate lookup.
-  - **Why**: When playback fails after a successful probe, users see a generic message with no diagnostic info and no conversion hint — unlike the probe-failure error path which includes both.
+- [x] 🟡 **No timeout on `ffmpeg.load()` — WASM init can hang indefinitely**
+  - **How**: Wrap the `ffmpeg.load()` call (~line 64) in a `Promise.race` with a 15-second timeout. If the timeout fires, reject with `'FFmpeg failed to initialize. Try restarting the app.'` and set `loading` to false. The caller at ~line 288 already catches and displays errors.
+  - **Why**: If `ffmpeg-core.wasm` is corrupt or the JS worker deadlocks, the user sees an infinite "Converting..." spinner with no way to recover except closing the modal.
+
+- [x] 🟢 **Probe `<video>` element never removed from memory**
+  - **How**: In the `probeNativePlayback` function (~line 225), the temporary video element is created via `document.createElement('video')` but never explicitly released. Add `probe.src = ''; probe.load();` in the `cleanup()` function (~line 241) to release any internal GStreamer resources the element acquired during the probe.
+  - **Why**: While GC will eventually collect the orphaned element, calling `load()` after clearing `src` immediately releases the media pipeline resources. Matters when probing multiple files in sequence.
 
 ---
 
@@ -35,9 +39,13 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx`
 
-- [x] 🟡 **Missing `S` keyboard shortcut for playback speed cycling**
-  - **How**: In the keyboard handler switch block (~line 631), add a `case 'S':` / `case 's':` that calls the same speed-cycling logic as the speed button click handler (~line 466). AudioPlayer already maps `S` to speed cycling (~line 813). Also add `S` to the keyboard hints overlay (~line 974) with label "Speed".
-  - **Why**: Feature parity with AudioPlayer. Keyboard power users expect consistent shortcuts across media players in the same app.
+- [ ] 🟢 **No time format toggle (elapsed vs remaining)**
+  - **How**: Add a `showRemaining` boolean state (default `false`). On the time display (~line 841), when `showRemaining` is true, show `-formatTime(duration - displayTime) / formatTime(duration)` instead of `formatTime(displayTime) / formatTime(duration)`. Make the time display clickable to toggle. Add `T` keyboard shortcut in the key handler (~line 631). AudioPlayer implements this pattern at ~line 185 with `showRemaining` state.
+  - **Why**: Standard video player feature. Lets users see how much time is left without mental math.
+
+- [ ] 🟢 **No double-click on video to toggle fullscreen**
+  - **How**: Add an `onDoubleClick` handler to the video element (~line 1000) that calls the same `toggleFullscreen` logic used by the F key and fullscreen button (~line 577). Use `e.preventDefault()` to avoid text selection. Must not interfere with single-click play/pause — use a 200ms `setTimeout` pattern: single-click sets a timer, double-click clears it and toggles fullscreen instead.
+  - **Why**: Double-click-to-fullscreen is the universal convention in desktop video players (VLC, mpv, YouTube). Users try it instinctively.
 
 ---
 
@@ -45,9 +53,13 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🟢 **PiP event listeners re-attached on every `blobUrl` change**
-  - **How**: The PiP `useEffect` (~line 157) has `[blobUrl]` in its dependency array. The `enterpictureinpicture` and `leavepictureinpicture` events are attached to the `<video>` element ref, which doesn't change when `blobUrl` changes — only `video.src` changes. Change the dependency array to `[]` (mount-only). The event listeners will still fire because they're on the element, not the URL.
-  - **Why**: Every remux or data change tears down and re-attaches two event listeners unnecessarily. Benign but wasteful — especially visible in DevTools event listener counts.
+- [ ] 🟡 **Redundant `Uint8Array` copy during remux doubles memory usage**
+  - **How**: At ~line 290, `new Uint8Array(data)` creates a copy of the entire file before passing to FFmpeg. If `data` is already a `Uint8Array`, pass it directly: `const input = data instanceof Uint8Array ? data : new Uint8Array(data);`. The `remuxToMp4` function at ~line 46 accepts `Uint8Array`, so no signature change needed.
+  - **Why**: For a 500MB video, this copy creates ~1GB peak memory (original + copy) before FFmpeg even starts. Eliminating the copy reduces peak memory by the file size. Especially important near the 2GB hard limit.
+
+- [ ] 🟢 **Probe blob creates another unnecessary copy**
+  - **How**: At ~line 227, `new Blob([new Uint8Array(data)])` copies the data again for the probe. Since the probe only needs to check if the format plays (8s timeout, no seeking), consider reusing the same `Uint8Array` reference: `new Blob([data])` works if `data` is already a `Uint8Array` or `ArrayBuffer`. Check the type first and avoid the wrapper copy.
+  - **Why**: During the probe phase, three copies of the file exist momentarily (prop, Uint8Array wrapper, Blob internals). For large files this is wasteful, though the probe blob is short-lived.
 
 ---
 
@@ -55,17 +67,17 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🟡 **PiP button missing `aria-pressed` attribute**
-  - **How**: At the PiP button (~line 943), add `aria-pressed={isPip}`. The button already has a dynamic `aria-label` that changes between "Enter/Exit Picture-in-Picture", but toggle buttons should also declare their pressed state. Every other toggle button in the control bar (play, mute, loop, CC, fullscreen) already has `aria-pressed`.
-  - **Why**: Screen reader users hear the label but not the toggle state. Inconsistent with all other toggle buttons in the same control bar.
+- [ ] 🟡 **No `aria-live` announcement for volume changes via keyboard**
+  - **How**: Add an `aria-live="polite"` region (similar to the playback state region at ~line 810) that announces volume changes. When the `ArrowUp`/`ArrowDown` keyboard handler adjusts volume (~line 649), update the region text to `Volume ${Math.round(newVolume * 100)}%`. Use a separate `sr-only` span so it doesn't interfere with the playback state announcements. AudioPlayer has this pattern.
+  - **Why**: Keyboard users adjusting volume with arrow keys get no audio feedback (volume changes are silent by nature for small increments) and no screen reader feedback. They can't tell if the shortcut worked.
 
-- [x] 🟡 **Seek bar missing `aria-disabled` when video not loaded**
-  - **How**: At the seek bar wrapper (~line 841), add `aria-disabled={!duration || undefined}` alongside the existing visual `opacity-50 pointer-events-none` class. The seek bar already has `role="slider"` and ARIA value attributes, but doesn't communicate the disabled state to assistive technology.
-  - **Why**: The seek bar looks disabled (grayed out) but screen readers still announce it as an interactive slider. Adding `aria-disabled` completes the accessibility story.
+- [ ] 🟡 **No `aria-live` announcement for speed changes via keyboard**
+  - **How**: When the `S` key cycles speed (~line 684), update the same (or a second) `aria-live` region with `Speed ${newSpeed}x`. The speed button's visual text already updates, but screen readers don't re-read button text on content change — they need a live region.
+  - **Why**: Keyboard users pressing S have no confirmation the speed actually changed unless they navigate to the speed button and re-read it.
 
-- [x] 🟢 **`aria-live` region shows "Ready" instead of "Paused" at time 0:00**
-  - **How**: In the `aria-live` status span (~line 803), the condition is `currentTime > 0 ? 'Paused' : 'Ready'`. Change to just `'Paused'` when `!isPlaying` regardless of `currentTime`. The full expression becomes: `error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : 'Paused'`. The "Ready" state is only meaningful before first play, but there's no reliable way to distinguish "never played" from "paused at 0:00" without adding state.
-  - **Why**: If a user pauses at 0:00 (or after a video resets on end), the screen reader announces "Ready" instead of "Paused", which misrepresents the actual playback state.
+- [ ] 🟢 **Caption button disappears when no subtitles — no disabled state for discoverability**
+  - **How**: At ~line 913, the CC button is conditionally rendered with `{subtitleUrl && (...)}`. Change to always render the button, but add `disabled` + `opacity-50 cursor-not-allowed` when `!subtitleUrl`. Set `aria-disabled={!subtitleUrl || undefined}` and skip the toggle handler when disabled.
+  - **Why**: Users don't know captions are a feature unless they happen to open a file that has subtitles. A grayed-out CC button signals the feature exists and is available for files with subtitle data.
 
 ---
 
@@ -73,29 +85,25 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/VideoPlayer.test.tsx`
 
-- [x] 🟡 **FFmpeg remux pipeline untested**
-  - **How**: Mock `@ffmpeg/ffmpeg` and `@ffmpeg/util` (or the app's remux wrapper). Test: (1) unsupported format triggers remux after probe failure, (2) progress callback updates `remuxProgress` state, (3) cancel button calls `ffmpeg.terminate()` and shows cancelled UI, (4) stall detection fires after 30s inactivity, (5) file > 2GB shows size error, (6) file > 500MB shows size warning. Use `vi.useFakeTimers()` for the stall detection timeout.
-  - **Why**: The entire remux pipeline — the most complex code path in the component — has zero test coverage. Progress, cancellation, stall detection, and size guards are all untested.
+- [ ] 🟡 **Fullscreen auto-hide timer not tested**
+  - **How**: Test the 3-second inactivity timer: (1) enter fullscreen via F key, (2) advance timers by 3000ms with `vi.advanceTimersByTime(3000)`, (3) verify controls are hidden (check for `opacity-0` or `translate-y-full` class on control bar). Also test that mouse movement resets the timer: move mouse, advance 2s, verify still visible, advance 2s more, verify hidden.
+  - **Why**: The auto-hide timer is the core fullscreen UX mechanism. A regression would leave controls permanently visible or permanently hidden.
 
-- [x] 🟡 **Fullscreen Escape isolation not tested**
-  - **How**: Render VideoPlayer inside a wrapper that listens for Escape (simulating the parent modal). Toggle fullscreen via the F key or fullscreen button. Fire `keydown` with `Escape`. Assert: (1) `isFullscreen` becomes false, (2) the wrapper's Escape handler was NOT called (stopPropagation worked). Use `document.addEventListener('keydown', spy)` in the test to verify propagation was stopped.
-  - **Why**: The capture-phase Escape handler is the critical mechanism preventing fullscreen exit from closing the library modal. A regression here would make fullscreen unusable.
+- [ ] 🟡 **Loop-on-ended behavior not tested**
+  - **How**: (1) Enable loop via L key, (2) fire `ended` event on video element, (3) verify `currentTime` is NOT reset to 0 (loop lets the video element handle replay). Contrast with non-loop: fire `ended`, verify `currentTime` IS reset to 0 and `isPlaying` becomes false. The `onEnded` handler at ~line 1035 has the branching logic.
+  - **Why**: The loop/non-loop branch in `onEnded` is the only code path that distinguishes these behaviors. Testing both branches prevents regressions.
 
-- [x] 🟡 **Probe mechanism not tested**
-  - **How**: Test the two probe outcomes: (1) native playback supported — mock the temporary `<video>` element's `loadedmetadata` event firing, verify blob URL is set directly without remux. (2) Native playback fails — mock the `error` event on the probe element, verify remux is triggered. Mock `document.createElement('video')` to return a controllable fake element.
-  - **Why**: The probe is the decision point between native play and remux. If the probe logic regresses, videos either unnecessarily remux (slow) or fail to play (broken).
+- [ ] 🟢 **Volume boundary clamping at 0 and 1.0 not tested**
+  - **How**: (1) Set volume to 0.05 via slider, press ArrowDown — verify volume clamps to 0, not -0.05. (2) Set volume to 0.95, press ArrowUp — verify volume clamps to 1.0, not 1.05. The clamping logic is at ~line 649: `Math.min(1, Math.max(0, ...))`.
+  - **Why**: Boundary values are classic regression points. If clamping breaks, volume could go negative (silent with no recovery) or above 1.0 (browser may clip or distort).
 
-- [x] 🟢 **PiP button rendering and state not tested**
-  - **How**: Test: (1) PiP button renders when `document.pictureInPictureEnabled` is true, (2) doesn't render when false, (3) clicking calls `video.requestPictureInPicture()`, (4) `enterpictureinpicture` event updates `isPip` state and button label. Mock `document.pictureInPictureEnabled` and the video element's PiP methods.
-  - **Why**: PiP support is conditional on browser capability. The rendering guard and state tracking via events are both untested.
+- [ ] 🟢 **Seek bar mouse click interaction not tested**
+  - **How**: Get the seek bar element (`role="slider"`), fire `mousedown` with a `clientX` at 50% of the bar width. Verify `video.currentTime` is set to ~50% of duration. Use `getBoundingClientRect` mock to control bar dimensions. The handler is `handleSeekMouseDown` at ~line 418.
+  - **Why**: Seek-by-click is the primary mouse interaction. Currently only keyboard seek (Home/End/Arrows) is tested.
 
-- [x] 🟢 **Blob URL revocation on unmount not tested**
-  - **How**: Spy on `URL.revokeObjectURL`. Render VideoPlayer with data, verify blob URL is created. Unmount the component. Assert `revokeObjectURL` was called with the created URL. Also test: render with data A, then re-render with data B — verify the first blob URL is revoked before creating the second.
-  - **Why**: Blob URL leaks are invisible to users but accumulate memory over time. The cleanup logic is correct but untested — a refactor could silently break it.
-
-- [x] 🟢 **Subtitle edge cases not tested**
-  - **How**: Test: (1) empty subtitle `Uint8Array` (length 0) — should not crash, (2) SRT with malformed timestamps like `99:99:99,999` — should pass through without breaking VTT conversion, (3) SRT with HTML tags (`<b>text</b>`) — should be preserved (VTT supports basic HTML). These are boundary cases for the SRT→VTT converter.
-  - **Why**: The converter handles common cases but edge cases could cause silent failures or crashes that only surface with user-provided subtitle files.
+- [ ] 🟢 **Caption track mode synchronization not tested**
+  - **How**: (1) Render with subtitle data, (2) verify `<track>` element has `default={true}` (showCaptions starts true), (3) press C to toggle captions off, (4) verify `video.textTracks[0].mode === 'hidden'`. Mock `video.textTracks` as a list with one track object. The toggle logic is at ~line 548.
+  - **Why**: The caption toggle sets `textTracks[0].mode` directly — if the track index assumption breaks or mode assignment fails, captions silently stop working.
 
 ---
 
@@ -103,16 +111,18 @@ Each item:
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| 🔴 Critical | 1 | MOV MIME type bug |
-| 🟡 Important | 7 | onError details, speed shortcut, PiP aria-pressed, seek bar aria-disabled, remux tests, fullscreen Escape test, probe test |
-| 🟢 Nice-to-have | 5 | PiP listener deps, aria-live Ready/Paused, PiP tests, blob URL tests, subtitle edge case tests |
+| 🔴 Critical | 0 | — |
+| 🟡 Important | 7 | zero-length files, FFmpeg timeout, remux memory copy, volume aria-live, speed aria-live, fullscreen timer test, loop-on-ended test |
+| 🟢 Nice-to-have | 8 | probe element cleanup, time format toggle, double-click fullscreen, probe blob copy, disabled CC button, volume clamping test, seek click test, caption track test |
 
 ### Implementation Order (suggested)
-1. MOV MIME type fix (1-line change, actual bug)
-2. PiP `aria-pressed` attribute (1 attribute, consistency fix)
-3. Seek bar `aria-disabled` (1 attribute, accessibility)
-4. Video `onError` with browser error details (improved diagnostics)
-5. `S` keyboard shortcut for speed (feature parity with AudioPlayer)
-6. `aria-live` Ready→Paused fix (accessibility edge case)
-7. PiP event listener dependency array (minor perf)
-8. Test coverage items (remux, fullscreen Escape, probe, PiP, blob URL, subtitles)
+1. Zero-length video error (quick guard, fixes silent failure)
+2. FFmpeg load timeout (Promise.race wrapper, prevents hangs)
+3. Volume/speed `aria-live` announcements (accessibility compliance)
+4. Remux Uint8Array copy elimination (memory optimization)
+5. Fullscreen auto-hide timer test (protects core UX)
+6. Loop-on-ended test (protects playback logic)
+7. Remaining test coverage items (volume clamping, seek click, caption track)
+8. Double-click fullscreen + time format toggle (UX polish)
+9. Disabled CC button (discoverability)
+10. Probe element cleanup + probe blob copy (minor memory)
