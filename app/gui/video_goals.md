@@ -19,37 +19,25 @@ Each item:
 
 ## 1. Playback & Stability
 
-> Key files: `fe/src/components/VideoPlayer.tsx`
+> Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/LibraryContentModal.tsx`
 
-- [x] 🟡 **Missing `preload` attribute on video element**
-  - **How**: Add `preload="metadata"` to the `<video>` element at line 882. AudioPlayer sets `preload="auto"`; `"metadata"` is more appropriate for video since it avoids buffering the full file before user action while still ensuring duration/dimensions are available early.
-  - **Why**: Without a preload hint, WebKitGTK may delay metadata loading (duration, dimensions) until the user interacts, which can cause the seek bar to show `00:00 / 00:00` briefly after the blob URL is set.
+- [ ] 🔴 **MOV MIME type mapped incorrectly in LibraryContentModal**
+  - **How**: In `LibraryContentModal.tsx`, the `videoMimeMap` maps `'.mov': 'video/mp4'`. Change to `'.mov': 'video/quicktime'`. MOV containers use the QuickTime MIME type; declaring `video/mp4` can cause the probe to reject a valid MOV file or skip the remux fallback when it's actually needed.
+  - **Why**: MOV files may fail the native playback probe on stricter GStreamer configurations because the declared MIME type doesn't match the actual container format.
 
-- [x] 🟡 **FFmpeg terminate has no timeout -- can hang forever**
-  - **How**: Wrap `ffmpeg.terminate()` at line 76 with `Promise.race([ffmpeg.terminate(), new Promise((_, rej) => setTimeout(() => rej(new Error('FFmpeg worker hung')), 10_000))])`. Same pattern for the cleanup call at line 280. If the timeout fires, log a warning -- the worker will be garbage-collected when the page navigates.
-  - **Why**: If the FFmpeg WASM worker crashes or becomes unresponsive, `terminate()` never resolves, leaving the UI stuck in the remuxing state forever.
-
-- [x] 🟢 **No stall detection during remux**
-  - **How**: Track the last time `onProgress` fired in a ref. Start a `setInterval(10_000)` alongside the remux call (line 240). If progress hasn't changed in 30s, set an error: "Conversion appears stuck. The file may be too complex for in-app conversion." Clear the interval in the `finally` block.
-  - **Why**: If FFmpeg stops making progress on a complex file, the user sees a frozen progress bar with no indication of failure.
+- [ ] 🟡 **Video `onError` handler discards browser error details**
+  - **How**: In `VideoPlayer.tsx`, the `handleError` callback (~line 403) sets a generic `'The video could not be played.'` message. Instead, read `videoRef.current?.error?.message` and `videoRef.current?.error?.code` (the `MediaError` object) and include it: `setError(\`Playback failed: \${videoRef.current?.error?.message || 'unknown error'}\`)`. Also append the conversion hint for the current `fileExtension` so the user sees the ffmpeg suggestion without needing a separate lookup.
+  - **Why**: When playback fails after a successful probe, users see a generic message with no diagnostic info and no conversion hint — unlike the probe-failure error path which includes both.
 
 ---
 
-## 2. Format Support & Remuxing
+## 2. Transport Controls
 
-> Key files: `fe/src/components/VideoPlayer.tsx`
+> Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx`
 
-- [x] 🟡 **FFmpeg WASM fetched from CDN on every remux**
-  - **How**: Bundle `@ffmpeg/core@0.12.6` UMD files (`ffmpeg-core.js` + `ffmpeg-core.wasm`) as static assets in `fe/public/ffmpeg/`. Replace the CDN `baseURL` at line 50 with a relative path. Use `toBlobURL('/ffmpeg/ffmpeg-core.js', ...)` which resolves locally via Vite/Tauri. Remove the retry loop (lines 52-67) since local loads don't fail transiently.
-  - **Why**: Remux fails completely if unpkg.com is unreachable. Desktop apps should work offline. Also eliminates 2-3s CDN latency on first remux.
-
-- [x] 🟡 **No cancel button during remux**
-  - **How**: In the remuxing UI (lines 668-689), add a "Cancel" button that calls `ffmpegTerminateRef.current?.()`, sets `cancelled = true` via a ref, and resets remuxing state. Show "Conversion cancelled" as an info message (not error). Offer the "Save As" fallback.
-  - **Why**: Large file remux can take minutes. Users have no way to abort except closing the modal, which also loses their place in the library.
-
-- [x] 🟢 **FFmpeg virtual filesystem not cleaned before terminate**
-  - **How**: After `ffmpeg.readFile('output.mp4')` at line 73, add `await ffmpeg.deleteFile(inputName); await ffmpeg.deleteFile('output.mp4');` before `ffmpeg.terminate()`. This releases the input + output copies from WASM memory immediately.
-  - **Why**: During remux of a 500MB file, FFmpeg holds both input and output in its virtual FS (up to 1GB). Deleting before terminate frees that memory sooner, reducing peak usage.
+- [ ] 🟡 **Missing `S` keyboard shortcut for playback speed cycling**
+  - **How**: In the keyboard handler switch block (~line 631), add a `case 'S':` / `case 's':` that calls the same speed-cycling logic as the speed button click handler (~line 466). AudioPlayer already maps `S` to speed cycling (~line 813). Also add `S` to the keyboard hints overlay (~line 974) with label "Speed".
+  - **Why**: Feature parity with AudioPlayer. Keyboard power users expect consistent shortcuts across media players in the same app.
 
 ---
 
@@ -57,9 +45,9 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🟢 **Fullscreen control bar uses `transition-all` instead of specific properties**
-  - **How**: At line 980, replace `transition-all duration-300` with `transition-[opacity,transform] duration-300`. The `translate-y-full` toggle only needs opacity and transform animated -- `transition-all` may animate padding, border, etc. causing unnecessary layout recalculation.
-  - **Why**: On lower-end systems, animating all properties on a complex control bar can cause jank during the fullscreen hide/show transition.
+- [ ] 🟢 **PiP event listeners re-attached on every `blobUrl` change**
+  - **How**: The PiP `useEffect` (~line 157) has `[blobUrl]` in its dependency array. The `enterpictureinpicture` and `leavepictureinpicture` events are attached to the `<video>` element ref, which doesn't change when `blobUrl` changes — only `video.src` changes. Change the dependency array to `[]` (mount-only). The event listeners will still fire because they're on the element, not the URL.
+  - **Why**: Every remux or data change tears down and re-attaches two event listeners unnecessarily. Benign but wasteful — especially visible in DevTools event listener counts.
 
 ---
 
@@ -67,91 +55,47 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [x] 🟡 **Error state not marked as `role="alert"`**
-  - **How**: At line 623, add `role="alert"` to the outer `<div>`: `<div role="alert" className="p-6 bg-[var(--bg-secondary)] ...">`. This ensures screen readers announce the error immediately when it appears.
-  - **Why**: When playback fails, sighted users see the error UI but screen reader users receive no announcement. The existing `aria-live` region (line 699) only covers playback states, not the early-return error view.
+- [ ] 🟡 **PiP button missing `aria-pressed` attribute**
+  - **How**: At the PiP button (~line 943), add `aria-pressed={isPip}`. The button already has a dynamic `aria-label` that changes between "Enter/Exit Picture-in-Picture", but toggle buttons should also declare their pressed state. Every other toggle button in the control bar (play, mute, loop, CC, fullscreen) already has `aria-pressed`.
+  - **Why**: Screen reader users hear the label but not the toggle state. Inconsistent with all other toggle buttons in the same control bar.
 
-- [x] 🟡 **Remux progress bar missing ARIA progressbar role**
-  - **How**: At line 674, add to the progress track: `role="progressbar" aria-label="Conversion progress" aria-valuenow={Math.round(remuxProgress * 100)} aria-valuemin={0} aria-valuemax={100}`. Move these attributes from the visual bar to the outer container div.
-  - **Why**: Screen readers cannot announce conversion progress. Users who rely on assistive technology have no indication of remux completion percentage.
+- [ ] 🟡 **Seek bar missing `aria-disabled` when video not loaded**
+  - **How**: At the seek bar wrapper (~line 841), add `aria-disabled={!duration || undefined}` alongside the existing visual `opacity-50 pointer-events-none` class. The seek bar already has `role="slider"` and ARIA value attributes, but doesn't communicate the disabled state to assistive technology.
+  - **Why**: The seek bar looks disabled (grayed out) but screen readers still announce it as an interactive slider. Adding `aria-disabled` completes the accessibility story.
 
-- [x] 🟡 **No focus trap in fullscreen overlay**
-  - **How**: Import and use the existing `useFocusTrap` hook from `fe/src/hooks/useFocusTrap.ts` on the fullscreen overlay container (line 970). The hook already handles Tab wrapping and focus restoration -- pass a ref to the fullscreen `<div>` and enable it when `isFullscreen` is true.
-  - **Why**: In fullscreen mode, Tab key can move focus to elements behind the overlay (hidden page content). The app already has `useFocusTrap` for modals -- VideoPlayer fullscreen should use the same pattern.
-
-- [x] 🟢 **PiP button doesn't announce current state**
-  - **How**: At line 836, change the static `aria-label` to dynamic: `aria-label={document.pictureInPictureElement === videoRef.current ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}`. Track PiP state with `enterpictureinpicture`/`leavepictureinpicture` events on the video element to avoid reading `document.pictureInPictureElement` synchronously.
-  - **Why**: Screen reader users hear "Toggle Picture-in-Picture" regardless of whether PiP is active or not, making the current state ambiguous.
-
-- [x] 🟢 **Volume slider missing ARIA value attributes**
-  - **How**: At line 785, add: `aria-valuenow={isMuted ? 0 : Math.round(volume * 100)}`, `aria-valuetext={isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}`. Native `<input type="range">` already has implicit min/max from the `min`/`max` attributes.
-  - **Why**: Screen readers announce the raw decimal (e.g., "0.75") instead of a human-readable percentage. The `aria-valuetext` override provides "75%" or "Muted".
+- [ ] 🟢 **`aria-live` region shows "Ready" instead of "Paused" at time 0:00**
+  - **How**: In the `aria-live` status span (~line 803), the condition is `currentTime > 0 ? 'Paused' : 'Ready'`. Change to just `'Paused'` when `!isPlaying` regardless of `currentTime`. The full expression becomes: `error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : 'Paused'`. The "Ready" state is only meaningful before first play, but there's no reliable way to distinguish "never played" from "paused at 0:00" without adding state.
+  - **Why**: If a user pauses at 0:00 (or after a video resets on end), the screen reader announces "Ready" instead of "Paused", which misrepresents the actual playback state.
 
 ---
 
-## 5. Subtitle Support
-
-> Key files: `fe/src/components/VideoPlayer.tsx`
-
-- [x] 🟡 **Subtitle decoding assumes UTF-8 with no fallback**
-  - **How**: At line 149, wrap in a try-catch: try `new TextDecoder('utf-8', { fatal: true }).decode(subtitleData)`. If it throws, fall back to `new TextDecoder('iso-8859-1').decode(subtitleData)`. ISO-8859-1 never fails (every byte maps to a character) and is the most common non-UTF-8 encoding for SRT files.
-  - **Why**: SRT files from older tools or non-English sources are often encoded in Latin-1 or Windows-1252. The current `new TextDecoder().decode()` silently produces replacement characters instead of readable text.
-
-- [x] 🟢 **SRT timestamp regex too strict for edge-case formats**
-  - **How**: At line 153, relax the regex from `(\d{2}:\d{2}:\d{2}),(\d{3})` to `(\d{1,2}:\d{2}:\d{2}),(\d{1,3})`. This handles single-digit hours (e.g., `1:30:45,000`) and variable-precision milliseconds (e.g., `00:00:01,5`) which some SRT generators produce.
-  - **Why**: Strictly-formatted SRT files work fine, but files from tools like Aegisub or hand-edited SRTs may use single-digit hours. These timestamps pass through unconverted, causing VTT parsing failures.
-
----
-
-## 6. Display & UX
-
-> Key files: `fe/src/components/VideoPlayer.tsx`
-
-- [x] 🔴 **Seek thumb uses hardcoded `bg-white/60` -- invisible in light theme**
-  - **How**: At line 765, replace `bg-white/60` with `bg-[var(--bg-elevated)]`. The elevated background variable has proper contrast in both dark and light themes. Keep the `border-2 border-[var(--accent)]/60` which already uses a CSS variable.
-  - **Why**: In light theme, a white/60% opacity thumb on a light background is nearly invisible. Users can't see the seek position at a glance.
-
-- [x] 🟡 **Key hints overlay shown once and cannot be recalled**
-  - **How**: Add `?` or `H` to the keyboard handler (line 565 switch block) to toggle `showKeyHints`. Change the auto-dismiss from one-shot (line 559 `hasShownHints`) to always showing on `?`/`H` press with a 3s auto-dismiss. This lets users recall shortcuts after the initial display fades.
-  - **Why**: Users who miss the initial 3s hint display have no way to see keyboard shortcuts again without reloading the component.
-
-- [x] 🟡 **Seek bar has no disabled visual state when video not loaded**
-  - **How**: At line 736, add conditional opacity: `className={`flex-1 py-2 cursor-pointer relative min-w-[60px] ${!duration ? 'opacity-50 pointer-events-none' : ''}`}`. This grays out and disables the seek bar before metadata loads.
-  - **Why**: The seek bar looks interactive even when duration is 0 (no video loaded). Clicking it does nothing but confuses users.
-
-- [x] 🟢 **Fullscreen button has no visual highlight when active**
-  - **How**: At line 849, add conditional accent color like the CC and Loop buttons: `className={`${btnClass} ${isFullscreen ? 'text-[var(--accent)]' : ''}`}`. The CC button (line 802) and Loop button (line 814) already follow this pattern.
-  - **Why**: Inconsistent with other toggle buttons. CC and Loop highlight in accent color when active, but Fullscreen doesn't, even though it's also a toggle with `aria-pressed`.
-
----
-
-## 7. Test Coverage
+## 5. Test Coverage
 
 > Key files: `fe/src/components/__tests__/VideoPlayer.test.tsx`
 
-- [x] 🟡 **Keyboard shortcuts not tested**
-  - **How**: Add tests dispatching `keydown` events for Space (play/pause), ArrowLeft/Right (seek), ArrowUp/Down (volume), F (fullscreen), M (mute), L (loop), C (captions). Verify each shortcut calls the correct handler or updates state. Use `fireEvent.keyDown(document, { key: 'Space' })` pattern. Verify shortcuts are ignored when `<input>` is focused.
-  - **Why**: 12 keyboard shortcuts with guard logic (line 555-556) are untested. A regression in the key handler could silently break all keyboard controls.
+- [ ] 🟡 **FFmpeg remux pipeline untested**
+  - **How**: Mock `@ffmpeg/ffmpeg` and `@ffmpeg/util` (or the app's remux wrapper). Test: (1) unsupported format triggers remux after probe failure, (2) progress callback updates `remuxProgress` state, (3) cancel button calls `ffmpeg.terminate()` and shows cancelled UI, (4) stall detection fires after 30s inactivity, (5) file > 2GB shows size error, (6) file > 500MB shows size warning. Use `vi.useFakeTimers()` for the stall detection timeout.
+  - **Why**: The entire remux pipeline — the most complex code path in the component — has zero test coverage. Progress, cancellation, stall detection, and size guards are all untested.
 
-- [x] 🟡 **Error state rendering not tested**
-  - **How**: Mock the probe to fail (simulate `<video>` error event) and FFmpeg to throw. Verify: error message renders, format diagnostic info shows correct extension/MIME, conversion hint appears for known formats, "Save As" button renders when `onExport` is provided and text fallback when it's not.
-  - **Why**: The error UI (lines 621-664) has multiple conditional branches (conversion hints, Save As vs text fallback) that are all untested.
+- [ ] 🟡 **Fullscreen Escape isolation not tested**
+  - **How**: Render VideoPlayer inside a wrapper that listens for Escape (simulating the parent modal). Toggle fullscreen via the F key or fullscreen button. Fire `keydown` with `Escape`. Assert: (1) `isFullscreen` becomes false, (2) the wrapper's Escape handler was NOT called (stopPropagation worked). Use `document.addEventListener('keydown', spy)` in the test to verify propagation was stopped.
+  - **Why**: The capture-phase Escape handler is the critical mechanism preventing fullscreen exit from closing the library modal. A regression here would make fullscreen unusable.
 
-- [x] 🟡 **Seek bar interaction not tested**
-  - **How**: Render VideoPlayer with mock data, simulate `loadedmetadata` to set duration, then test: `mousedown` on seek bar updates `currentTime`, `mousemove` during drag continues seeking, `mouseup` ends drag. Test keyboard: ArrowLeft/Right on focused seek bar, Home/End. Verify ARIA `aria-valuenow` updates.
-  - **Why**: The drag-to-seek implementation (lines 360-390) and keyboard seek (lines 457-484) are complex interaction handlers with no test coverage.
+- [ ] 🟡 **Probe mechanism not tested**
+  - **How**: Test the two probe outcomes: (1) native playback supported — mock the temporary `<video>` element's `loadedmetadata` event firing, verify blob URL is set directly without remux. (2) Native playback fails — mock the `error` event on the probe element, verify remux is triggered. Mock `document.createElement('video')` to return a controllable fake element.
+  - **Why**: The probe is the decision point between native play and remux. If the probe logic regresses, videos either unnecessarily remux (slow) or fail to play (broken).
 
-- [x] 🟡 **Playback state transitions not tested**
-  - **How**: Test that `onPlay` sets `isPlaying` true (play button changes to pause icon), `onPause` sets false, `onEnded` resets to start (currentTime 0, isPlaying false). Test `onWaiting` shows loading spinner, `onPlaying` dismisses it. Test `onStalled` with 5s timer and error escalation.
-  - **Why**: The stalled handler (lines 932-943) has a 5-second timer with error escalation that could regress. The ended handler (lines 918-925) has loop-conditional logic.
+- [ ] 🟢 **PiP button rendering and state not tested**
+  - **How**: Test: (1) PiP button renders when `document.pictureInPictureEnabled` is true, (2) doesn't render when false, (3) clicking calls `video.requestPictureInPicture()`, (4) `enterpictureinpicture` event updates `isPip` state and button label. Mock `document.pictureInPictureEnabled` and the video element's PiP methods.
+  - **Why**: PiP support is conditional on browser capability. The rendering guard and state tracking via events are both untested.
 
-- [x] 🟢 **Volume and speed controls not tested**
-  - **How**: Test volume slider `onChange` updates volume state and video element. Test mute toggle. Test speed button cycles through `SPEED_OPTIONS` array and wraps around (2x -> 0.5x). Verify video element's `playbackRate` is updated.
-  - **Why**: Speed cycling logic (lines 410-415) wraps around via modulo -- an off-by-one would break the cycle silently.
+- [ ] 🟢 **Blob URL revocation on unmount not tested**
+  - **How**: Spy on `URL.revokeObjectURL`. Render VideoPlayer with data, verify blob URL is created. Unmount the component. Assert `revokeObjectURL` was called with the created URL. Also test: render with data A, then re-render with data B — verify the first blob URL is revoked before creating the second.
+  - **Why**: Blob URL leaks are invisible to users but accumulate memory over time. The cleanup logic is correct but untested — a refactor could silently break it.
 
-- [x] 🟢 **Edge cases not tested (NaN duration, zero-length data, large files)**
-  - **How**: Test `formatTime` with `NaN`, `Infinity`, `-1`, `0` (lines 29-34). Test component with `data` of length 0. Test data > 2GB triggers error (line 226). Test 500MB-2GB shows size warning (line 231). Mock `Blob` and `URL.createObjectURL` for these.
-  - **Why**: Guard logic at system boundaries (size limits, NaN handling) is where regressions cause the most confusing user-facing bugs.
+- [ ] 🟢 **Subtitle edge cases not tested**
+  - **How**: Test: (1) empty subtitle `Uint8Array` (length 0) — should not crash, (2) SRT with malformed timestamps like `99:99:99,999` — should pass through without breaking VTT conversion, (3) SRT with HTML tags (`<b>text</b>`) — should be preserved (VTT supports basic HTML). These are boundary cases for the SRT→VTT converter.
+  - **Why**: The converter handles common cases but edge cases could cause silent failures or crashes that only surface with user-provided subtitle files.
 
 ---
 
@@ -159,22 +103,16 @@ Each item:
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| 🔴 Critical | 1 | Seek thumb invisible in light theme |
-| 🟡 Important | 12 | preload attr, FFmpeg timeout, local WASM, cancel remux, error alert role, progress ARIA, focus trap, subtitle encoding, key hints recall, seek bar disabled state, keyboard tests, error tests, seek tests, state tests |
-| 🟢 Nice-to-have | 11 | Remux stall detection, FFmpeg FS cleanup, transition-all perf, PiP state label, volume ARIA, SRT regex, fullscreen highlight, volume/speed tests, edge case tests |
+| 🔴 Critical | 1 | MOV MIME type bug |
+| 🟡 Important | 7 | onError details, speed shortcut, PiP aria-pressed, seek bar aria-disabled, remux tests, fullscreen Escape test, probe test |
+| 🟢 Nice-to-have | 5 | PiP listener deps, aria-live Ready/Paused, PiP tests, blob URL tests, subtitle edge case tests |
 
 ### Implementation Order (suggested)
-1. Seek thumb light-theme fix (1-line CSS variable swap, visible bug)
-2. Error state `role="alert"` (1 attribute, accessibility)
-3. Remux progress ARIA (3 attributes, accessibility)
-4. Fullscreen focus trap (reuse existing hook)
-5. `preload="metadata"` on video (1 attribute)
-6. Seek bar disabled state (conditional class)
-7. Key hints recall via `?`/`H` key
-8. FFmpeg terminate timeout (Promise.race wrapper)
-9. Subtitle UTF-8 fallback (try-catch + ISO-8859-1)
-10. Bundle FFmpeg WASM locally (eliminate CDN dependency)
-11. Cancel button during remux (UI + terminate logic)
-12. Fullscreen button highlight (match CC/Loop pattern)
-13. Test coverage items (keyboard, error, seek, state, edge cases)
-14. Remaining nice-to-haves in any order
+1. MOV MIME type fix (1-line change, actual bug)
+2. PiP `aria-pressed` attribute (1 attribute, consistency fix)
+3. Seek bar `aria-disabled` (1 attribute, accessibility)
+4. Video `onError` with browser error details (improved diagnostics)
+5. `S` keyboard shortcut for speed (feature parity with AudioPlayer)
+6. `aria-live` Ready→Paused fix (accessibility edge case)
+7. PiP event listener dependency array (minor perf)
+8. Test coverage items (remux, fullscreen Escape, probe, PiP, blob URL, subtitles)
