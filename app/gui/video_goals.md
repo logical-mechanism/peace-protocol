@@ -111,7 +111,7 @@ Each item:
   - **How**: At line 765, replace `bg-white/60` with `bg-[var(--bg-elevated)]`. The elevated background variable has proper contrast in both dark and light themes. Keep the `border-2 border-[var(--accent)]/60` which already uses a CSS variable.
   - **Why**: In light theme, a white/60% opacity thumb on a light background is nearly invisible. Users can't see the seek position at a glance.
 
-- [ ] 🟡 **Key hints overlay shown once and cannot be recalled**
+- [x] 🟡 **Key hints overlay shown once and cannot be recalled**
   - **How**: Add `?` or `H` to the keyboard handler (line 565 switch block) to toggle `showKeyHints`. Change the auto-dismiss from one-shot (line 559 `hasShownHints`) to always showing on `?`/`H` press with a 3s auto-dismiss. This lets users recall shortcuts after the initial display fades.
   - **Why**: Users who miss the initial 3s hint display have no way to see keyboard shortcuts again without reloading the component.
 

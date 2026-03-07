@@ -127,6 +127,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const seekBarRef = useRef<HTMLDivElement>(null);
   const seekBarTooltipRef = useRef<HTMLDivElement>(null);
   const hasShownHints = useRef(false);
+  const keyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSeekingRef = useRef(false);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ffmpegTerminateRef = useRef<(() => Promise<void>) | null>(null);
@@ -624,10 +625,22 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       if (!hasShownHints.current) {
         hasShownHints.current = true;
         setShowKeyHints(true);
-        setTimeout(() => setShowKeyHints(false), 3000);
+        keyHintTimerRef.current = setTimeout(() => setShowKeyHints(false), 3000);
       }
 
       switch (e.key) {
+        case '?':
+        case 'h':
+        case 'H':
+          // Toggle key hints with 3s auto-dismiss
+          if (keyHintTimerRef.current) clearTimeout(keyHintTimerRef.current);
+          setShowKeyHints(prev => {
+            if (!prev) {
+              keyHintTimerRef.current = setTimeout(() => setShowKeyHints(false), 3000);
+            }
+            return !prev;
+          });
+          break;
         case ' ':
           e.preventDefault();
           handlePlayPause();
@@ -968,6 +981,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
         {subtitleUrl && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">?</kbd> Show hints</span>
       </div>
     </div>
   ) : null;
