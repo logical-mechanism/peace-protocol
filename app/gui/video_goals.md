@@ -89,7 +89,7 @@ Each item:
   - **How**: Test the 3-second inactivity timer: (1) enter fullscreen via F key, (2) advance timers by 3000ms with `vi.advanceTimersByTime(3000)`, (3) verify controls are hidden (check for `opacity-0` or `translate-y-full` class on control bar). Also test that mouse movement resets the timer: move mouse, advance 2s, verify still visible, advance 2s more, verify hidden.
   - **Why**: The auto-hide timer is the core fullscreen UX mechanism. A regression would leave controls permanently visible or permanently hidden.
 
-- [ ] 🟡 **Loop-on-ended behavior not tested**
+- [x] 🟡 **Loop-on-ended behavior not tested**
   - **How**: (1) Enable loop via L key, (2) fire `ended` event on video element, (3) verify `currentTime` is NOT reset to 0 (loop lets the video element handle replay). Contrast with non-loop: fire `ended`, verify `currentTime` IS reset to 0 and `isPlaying` becomes false. The `onEnded` handler at ~line 1035 has the branching logic.
   - **Why**: The loop/non-loop branch in `onEnded` is the only code path that distinguishes these behaviors. Testing both branches prevents regressions.
 
