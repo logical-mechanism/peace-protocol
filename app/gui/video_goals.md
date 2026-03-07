@@ -55,15 +55,15 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **PiP button missing `aria-pressed` attribute**
+- [x] 🟡 **PiP button missing `aria-pressed` attribute**
   - **How**: At the PiP button (~line 943), add `aria-pressed={isPip}`. The button already has a dynamic `aria-label` that changes between "Enter/Exit Picture-in-Picture", but toggle buttons should also declare their pressed state. Every other toggle button in the control bar (play, mute, loop, CC, fullscreen) already has `aria-pressed`.
   - **Why**: Screen reader users hear the label but not the toggle state. Inconsistent with all other toggle buttons in the same control bar.
 
-- [ ] 🟡 **Seek bar missing `aria-disabled` when video not loaded**
+- [x] 🟡 **Seek bar missing `aria-disabled` when video not loaded**
   - **How**: At the seek bar wrapper (~line 841), add `aria-disabled={!duration || undefined}` alongside the existing visual `opacity-50 pointer-events-none` class. The seek bar already has `role="slider"` and ARIA value attributes, but doesn't communicate the disabled state to assistive technology.
   - **Why**: The seek bar looks disabled (grayed out) but screen readers still announce it as an interactive slider. Adding `aria-disabled` completes the accessibility story.
 
-- [ ] 🟢 **`aria-live` region shows "Ready" instead of "Paused" at time 0:00**
+- [x] 🟢 **`aria-live` region shows "Ready" instead of "Paused" at time 0:00**
   - **How**: In the `aria-live` status span (~line 803), the condition is `currentTime > 0 ? 'Paused' : 'Ready'`. Change to just `'Paused'` when `!isPlaying` regardless of `currentTime`. The full expression becomes: `error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : 'Paused'`. The "Ready" state is only meaningful before first play, but there's no reliable way to distinguish "never played" from "paused at 0:00" without adding state.
   - **Why**: If a user pauses at 0:00 (or after a video resets on end), the screen reader announces "Ready" instead of "Paused", which misrepresents the actual playback state.
 

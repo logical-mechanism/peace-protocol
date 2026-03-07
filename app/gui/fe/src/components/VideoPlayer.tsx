@@ -808,7 +808,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
       {/* Screen reader status */}
       <span className="sr-only" aria-live="polite" aria-atomic="true">
-        {error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
+        {error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : 'Paused'}
       </span>
       {/* Play/Pause */}
       <button onClick={handlePlayPause} className={btnClass} title={isPlaying ? 'Pause (Space)' : 'Play (Space)'} aria-label={isPlaying ? 'Pause' : 'Play'} aria-pressed={isPlaying}>
@@ -856,6 +856,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         aria-valuemax={Math.round(duration)}
         aria-valuenow={Math.round(currentTime)}
         aria-valuetext={formatTime(currentTime)}
+        aria-disabled={!duration || undefined}
       >
         {/* Seek tooltip */}
         <div
@@ -946,7 +947,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
       {/* PiP */}
       {pipSupported && (
-        <button onClick={handlePip} className={btnClass} title={isPip ? 'Exit Picture-in-Picture' : 'Picture-in-Picture'} aria-label={isPip ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}>
+        <button onClick={handlePip} className={btnClass} title={isPip ? 'Exit Picture-in-Picture' : 'Picture-in-Picture'} aria-label={isPip ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'} aria-pressed={isPip}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <rect x="2" y="3" width="20" height="14" rx="2" strokeWidth={2} />
             <rect x="11" y="9" width="9" height="6" rx="1" strokeWidth={2} fill="currentColor" opacity={0.3} />
