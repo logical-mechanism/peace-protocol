@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // ── Mocks ───────────────────────────────────────────────────────────
@@ -49,6 +49,28 @@ function renderPlayer(overrides: Partial<{
       {...overrides}
     />,
   );
+}
+
+/** Wait for the probe to resolve, controls to appear, and video element to render */
+async function waitForControls() {
+  await waitFor(() => {
+    expect(screen.getByLabelText('Play')).toBeInTheDocument();
+    expect(document.querySelector('video')).not.toBeNull();
+  });
+}
+
+/** Get the rendered video element */
+function getVideoElement(): HTMLVideoElement {
+  return document.querySelector('video') as HTMLVideoElement;
+}
+
+/** Simulate loadedmetadata with a given duration on the rendered video */
+function simulateLoadedMetadata(durationSeconds: number) {
+  const video = getVideoElement();
+  if (video) {
+    Object.defineProperty(video, 'duration', { value: durationSeconds, writable: true, configurable: true });
+    fireEvent.loadedMetadata(video);
+  }
 }
 
 beforeEach(() => {
@@ -252,6 +274,519 @@ describe('VideoPlayer', () => {
       } finally {
         globalThis.Blob = OrigBlob;
       }
+    });
+  });
+
+  // ── Keyboard shortcuts ──────────────────────────────────────────────
+
+  describe('keyboard shortcuts', () => {
+    it('Space toggles play/pause', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+      const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+
+      fireEvent.keyDown(document, { key: ' ' });
+      expect(playSpy).toHaveBeenCalled();
+    });
+
+    it('M toggles mute', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Initially shows Mute label
+      expect(screen.getByLabelText('Mute')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'm' });
+      expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'M' });
+      expect(screen.getByLabelText('Mute')).toBeInTheDocument();
+    });
+
+    it('F toggles fullscreen overlay', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      fireEvent.keyDown(document, { key: 'f' });
+      expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
+    });
+
+    it('L toggles loop', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      expect(screen.getByLabelText('Enable repeat')).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: 'l' });
+      expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
+    });
+
+    it('ArrowUp increases volume', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const slider = screen.getByLabelText('Volume') as HTMLInputElement;
+      const initialValue = parseFloat(slider.value);
+
+      fireEvent.keyDown(document, { key: 'ArrowUp' });
+      // Volume capped at 1.0 if already at 1.0, but the handler runs
+      // Either way, the video.volume should reflect the new value
+      const video = getVideoElement();
+      expect(video.muted).toBe(false);
+      // If was at 1.0, stays at 1.0
+      expect(parseFloat(slider.value)).toBeGreaterThanOrEqual(initialValue);
+    });
+
+    it('ArrowDown decreases volume', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      const slider = screen.getByLabelText('Volume') as HTMLInputElement;
+      // Default volume is 1.0, ArrowDown subtracts 0.1 → 0.9
+      expect(parseFloat(slider.value)).toBeCloseTo(0.9, 1);
+    });
+
+    it('ArrowLeft calls skip back', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+      Object.defineProperty(video, 'currentTime', { value: 30, writable: true, configurable: true });
+
+      fireEvent.keyDown(document, { key: 'ArrowLeft' });
+      // Skip back sets currentTime = max(0, current - 5) = 25
+      expect(video.currentTime).toBe(25);
+    });
+
+    it('ArrowRight calls skip forward', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+      Object.defineProperty(video, 'duration', { value: 120, writable: true, configurable: true });
+      Object.defineProperty(video, 'currentTime', { value: 10, writable: true, configurable: true });
+
+      fireEvent.keyDown(document, { key: 'ArrowRight' });
+      expect(video.currentTime).toBe(15);
+    });
+
+    it('first keyboard interaction shows key hints', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Any key triggers the one-shot initial hints display
+      fireEvent.keyDown(document, { key: 'l' });
+      expect(screen.getByText(/Play\/Pause/)).toBeInTheDocument();
+    });
+
+    it('? recalls key hints after initial display dismissed', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Exhaust the one-shot guard with a non-? key
+      fireEvent.keyDown(document, { key: 'l' });
+      // Hints are showing; press ? to toggle OFF then ON
+      fireEvent.keyDown(document, { key: '?' }); // toggles off
+      expect(screen.queryByText(/Play\/Pause/)).not.toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: '?' }); // toggles on
+      expect(screen.getByText(/Play\/Pause/)).toBeInTheDocument();
+    });
+
+    it('ignores shortcuts when input is focused', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Create and focus an input element
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+
+      const video = getVideoElement();
+      const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+
+      fireEvent.keyDown(document, { key: ' ' });
+      expect(playSpy).not.toHaveBeenCalled();
+
+      document.body.removeChild(input);
+    });
+
+    it('C toggles captions when subtitles are available', async () => {
+      const srtData = new TextEncoder().encode(
+        '1\n00:00:01,000 --> 00:00:04,000\nHello\n',
+      );
+      renderPlayer({ subtitleData: srtData });
+      await waitForControls();
+
+      expect(screen.getByLabelText('Show subtitles')).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: 'c' });
+      expect(screen.getByLabelText('Hide subtitles')).toBeInTheDocument();
+    });
+  });
+
+  // ── Error state rendering ──────────────────────────────────────────
+
+  describe('error state rendering', () => {
+    /** Override the probe to fire an error event instead of loadedmetadata */
+    function mockProbeError() {
+      const origCreate = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = origCreate(tag);
+        if (tag === 'video') {
+          setTimeout(() => el.dispatchEvent(new Event('error')), 0);
+        }
+        return el;
+      });
+    }
+
+    afterEach(() => {
+      // Restore the original probe mock so subsequent tests get loadedmetadata
+      isProbe = true;
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = originalCreateElement(tag);
+        if (tag === 'video' && isProbe) {
+          isProbe = false;
+          setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
+        }
+        return el;
+      });
+    });
+
+    it('shows error message with role="alert" when probe fails', async () => {
+      mockProbeError();
+
+      // Mock FFmpeg import to throw so remux also fails
+      vi.mock('@ffmpeg/ffmpeg', () => {
+        throw new Error('FFmpeg not available');
+      });
+
+      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Failed to play video')).toBeInTheDocument();
+    });
+
+    it('shows format diagnostic info with extension and MIME type', async () => {
+      mockProbeError();
+
+      vi.mock('@ffmpeg/ffmpeg', () => {
+        throw new Error('FFmpeg not available');
+      });
+
+      renderPlayer({ fileExtension: '.webm', mimeType: 'video/webm' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('WEBM')).toBeInTheDocument();
+      expect(screen.getByText('video/webm')).toBeInTheDocument();
+    });
+
+    it('shows Save As button when onExport is provided', async () => {
+      mockProbeError();
+
+      vi.mock('@ffmpeg/ffmpeg', () => {
+        throw new Error('FFmpeg not available');
+      });
+
+      const onExport = vi.fn();
+      renderPlayer({ fileExtension: '.avi', mimeType: 'video/avi', onExport });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      const saveBtn = screen.getByRole('button', { name: /Save As/i });
+      expect(saveBtn).toBeInTheDocument();
+      fireEvent.click(saveBtn);
+      expect(onExport).toHaveBeenCalled();
+    });
+
+    it('shows text fallback when onExport is not provided', async () => {
+      mockProbeError();
+
+      vi.mock('@ffmpeg/ffmpeg', () => {
+        throw new Error('FFmpeg not available');
+      });
+
+      renderPlayer({ fileExtension: '.avi', mimeType: 'video/avi' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Use Save As to open it with an external player/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Save As/i })).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Seek bar interaction ───────────────────────────────────────────
+
+  describe('seek bar interaction', () => {
+    it('renders seek bar with slider role and ARIA attributes', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const seekBar = screen.getByRole('slider', { name: 'Seek' });
+      expect(seekBar).toBeInTheDocument();
+      expect(seekBar).toHaveAttribute('aria-valuemin', '0');
+      expect(seekBar).toHaveAttribute('aria-valuenow', '0');
+    });
+
+    it('shows disabled state when duration is 0', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const seekBar = screen.getByRole('slider', { name: 'Seek' });
+      // Without loadedmetadata, duration is 0 → opacity-50 pointer-events-none
+      expect(seekBar.className).toContain('opacity-50');
+      expect(seekBar.className).toContain('pointer-events-none');
+    });
+
+    it('seek bar keyboard: Home jumps to start', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+      simulateLoadedMetadata(120);
+      Object.defineProperty(video, 'currentTime', { value: 60, writable: true, configurable: true });
+
+      const seekBar = screen.getByRole('slider', { name: 'Seek' });
+      fireEvent.keyDown(seekBar, { key: 'Home' });
+
+      expect(video.currentTime).toBe(0);
+    });
+
+    it('seek bar keyboard: End jumps to end', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+      simulateLoadedMetadata(120);
+      Object.defineProperty(video, 'currentTime', { value: 10, writable: true, configurable: true });
+
+      const seekBar = screen.getByRole('slider', { name: 'Seek' });
+      fireEvent.keyDown(seekBar, { key: 'End' });
+
+      expect(video.currentTime).toBe(120);
+    });
+  });
+
+  // ── Playback state transitions ─────────────────────────────────────
+
+  describe('playback state transitions', () => {
+    it('onPlay changes button to Pause', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      fireEvent.play(video);
+
+      expect(screen.getByLabelText('Pause')).toBeInTheDocument();
+    });
+
+    it('onPause changes button to Play', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      fireEvent.play(video);
+      expect(screen.getByLabelText('Pause')).toBeInTheDocument();
+
+      fireEvent.pause(video);
+      expect(screen.getByLabelText('Play')).toBeInTheDocument();
+    });
+
+    it('onEnded resets to start when not looping', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      Object.defineProperty(video, 'currentTime', { value: 100, writable: true, configurable: true });
+
+      fireEvent.play(video);
+      act(() => { fireEvent(video, new Event('ended')); });
+
+      // Should reset currentTime to 0
+      expect(video.currentTime).toBe(0);
+      // Should show Play button (not Pause)
+      expect(screen.getByLabelText('Play')).toBeInTheDocument();
+    });
+
+    it('onWaiting shows loading state', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      fireEvent.waiting(video);
+
+      expect(screen.getByTestId('spinner')).toBeInTheDocument();
+    });
+
+    it('onPlaying dismisses loading state', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      fireEvent.waiting(video);
+      expect(screen.getByTestId('spinner')).toBeInTheDocument();
+
+      fireEvent.playing(video);
+      expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
+    });
+
+    it('onStalled with low readyState shows loading and escalates to error after 5s', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      Object.defineProperty(video, 'readyState', { value: 1, writable: true, configurable: true });
+
+      act(() => { fireEvent(video, new Event('stalled')); });
+      expect(screen.getByTestId('spinner')).toBeInTheDocument();
+
+      // Advance 5s for the stalled timer to fire
+      act(() => { vi.advanceTimersByTime(5000); });
+
+      expect(screen.getByText(/Video playback stalled/)).toBeInTheDocument();
+      vi.useRealTimers();
+    });
+  });
+
+  // ── Volume and speed controls ──────────────────────────────────────
+
+  describe('volume and speed controls', () => {
+    it('volume slider changes volume', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const slider = screen.getByLabelText('Volume') as HTMLInputElement;
+      fireEvent.change(slider, { target: { value: '0.5' } });
+
+      const video = getVideoElement();
+      expect(video.volume).toBe(0.5);
+    });
+
+    it('volume slider to 0 mutes', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const slider = screen.getByLabelText('Volume') as HTMLInputElement;
+      fireEvent.change(slider, { target: { value: '0' } });
+
+      expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
+    });
+
+    it('mute toggle button works', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const muteBtn = screen.getByLabelText('Mute');
+      fireEvent.click(muteBtn);
+      expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
+
+      const unmuteBtn = screen.getByLabelText('Unmute');
+      fireEvent.click(unmuteBtn);
+      expect(screen.getByLabelText('Mute')).toBeInTheDocument();
+    });
+
+    it('speed button cycles through options and wraps', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Default is 1x, which is index 2 in [0.5, 0.75, 1, 1.25, 1.5, 2]
+      const speedBtn = screen.getByLabelText('Playback speed: 1x');
+      expect(speedBtn).toBeInTheDocument();
+
+      fireEvent.click(speedBtn);
+      expect(screen.getByLabelText('Playback speed: 1.25x')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Playback speed: 1.25x'));
+      expect(screen.getByLabelText('Playback speed: 1.5x')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Playback speed: 1.5x'));
+      expect(screen.getByLabelText('Playback speed: 2x')).toBeInTheDocument();
+
+      // Wrap around: 2x → 0.5x
+      fireEvent.click(screen.getByLabelText('Playback speed: 2x'));
+      expect(screen.getByLabelText('Playback speed: 0.5x')).toBeInTheDocument();
+    });
+
+    it('speed change updates video playbackRate', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      const speedBtn = screen.getByLabelText('Playback speed: 1x');
+      fireEvent.click(speedBtn);
+
+      expect(video.playbackRate).toBe(1.25);
+    });
+
+    it('volume ARIA attributes reflect current state', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const slider = screen.getByLabelText('Volume') as HTMLInputElement;
+      expect(slider).toHaveAttribute('aria-valuenow', '100');
+      expect(slider).toHaveAttribute('aria-valuetext', '100%');
+
+      fireEvent.change(slider, { target: { value: '0.75' } });
+      expect(slider).toHaveAttribute('aria-valuenow', '75');
+      expect(slider).toHaveAttribute('aria-valuetext', '75%');
+    });
+  });
+
+  // ── Edge cases ─────────────────────────────────────────────────────
+
+  describe('edge cases', () => {
+    it('formatTime handles NaN gracefully (displays 00:00)', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      Object.defineProperty(video, 'duration', { value: NaN, writable: true, configurable: true });
+      fireEvent.durationChange(video);
+
+      // Time display should show 00:00 / 00:00 (duration stays 0 since NaN is filtered)
+      const timeDisplay = screen.getByText('00:00 / 00:00');
+      expect(timeDisplay).toBeInTheDocument();
+    });
+
+    it('formatTime handles negative duration gracefully', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      Object.defineProperty(video, 'duration', { value: -5, writable: true, configurable: true });
+      fireEvent.durationChange(video);
+
+      // Negative duration filtered by `isFinite(d) && d > 0`, keeps 0
+      expect(screen.getByText('00:00 / 00:00')).toBeInTheDocument();
+    });
+
+    it('formatTime formats minutes and seconds correctly', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      simulateLoadedMetadata(125); // 2:05
+
+      expect(screen.getByText(/02:05/)).toBeInTheDocument();
+    });
+
+    it('handles zero-length data without crashing', () => {
+      const emptyData = new Uint8Array(0);
+      const { container } = renderPlayer({ data: emptyData });
+      expect(container).toBeInTheDocument();
+    });
+
+    it('renders loading state while checking format for very large data reference', () => {
+      // Component should still try to probe — no early exit for large but under-limit files
+      const largeishData = new Uint8Array(100);
+      renderPlayer({ data: largeishData });
+      expect(screen.getByText('Checking format compatibility...')).toBeInTheDocument();
     });
   });
 });

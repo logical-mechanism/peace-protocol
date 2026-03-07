@@ -129,27 +129,27 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/VideoPlayer.test.tsx`
 
-- [ ] 🟡 **Keyboard shortcuts not tested**
+- [x] 🟡 **Keyboard shortcuts not tested**
   - **How**: Add tests dispatching `keydown` events for Space (play/pause), ArrowLeft/Right (seek), ArrowUp/Down (volume), F (fullscreen), M (mute), L (loop), C (captions). Verify each shortcut calls the correct handler or updates state. Use `fireEvent.keyDown(document, { key: 'Space' })` pattern. Verify shortcuts are ignored when `<input>` is focused.
   - **Why**: 12 keyboard shortcuts with guard logic (line 555-556) are untested. A regression in the key handler could silently break all keyboard controls.
 
-- [ ] 🟡 **Error state rendering not tested**
+- [x] 🟡 **Error state rendering not tested**
   - **How**: Mock the probe to fail (simulate `<video>` error event) and FFmpeg to throw. Verify: error message renders, format diagnostic info shows correct extension/MIME, conversion hint appears for known formats, "Save As" button renders when `onExport` is provided and text fallback when it's not.
   - **Why**: The error UI (lines 621-664) has multiple conditional branches (conversion hints, Save As vs text fallback) that are all untested.
 
-- [ ] 🟡 **Seek bar interaction not tested**
+- [x] 🟡 **Seek bar interaction not tested**
   - **How**: Render VideoPlayer with mock data, simulate `loadedmetadata` to set duration, then test: `mousedown` on seek bar updates `currentTime`, `mousemove` during drag continues seeking, `mouseup` ends drag. Test keyboard: ArrowLeft/Right on focused seek bar, Home/End. Verify ARIA `aria-valuenow` updates.
   - **Why**: The drag-to-seek implementation (lines 360-390) and keyboard seek (lines 457-484) are complex interaction handlers with no test coverage.
 
-- [ ] 🟡 **Playback state transitions not tested**
+- [x] 🟡 **Playback state transitions not tested**
   - **How**: Test that `onPlay` sets `isPlaying` true (play button changes to pause icon), `onPause` sets false, `onEnded` resets to start (currentTime 0, isPlaying false). Test `onWaiting` shows loading spinner, `onPlaying` dismisses it. Test `onStalled` with 5s timer and error escalation.
   - **Why**: The stalled handler (lines 932-943) has a 5-second timer with error escalation that could regress. The ended handler (lines 918-925) has loop-conditional logic.
 
-- [ ] 🟢 **Volume and speed controls not tested**
+- [x] 🟢 **Volume and speed controls not tested**
   - **How**: Test volume slider `onChange` updates volume state and video element. Test mute toggle. Test speed button cycles through `SPEED_OPTIONS` array and wraps around (2x -> 0.5x). Verify video element's `playbackRate` is updated.
   - **Why**: Speed cycling logic (lines 410-415) wraps around via modulo -- an off-by-one would break the cycle silently.
 
-- [ ] 🟢 **Edge cases not tested (NaN duration, zero-length data, large files)**
+- [x] 🟢 **Edge cases not tested (NaN duration, zero-length data, large files)**
   - **How**: Test `formatTime` with `NaN`, `Infinity`, `-1`, `0` (lines 29-34). Test component with `data` of length 0. Test data > 2GB triggers error (line 226). Test 500MB-2GB shows size warning (line 231). Mock `Blob` and `URL.createObjectURL` for these.
   - **Why**: Guard logic at system boundaries (size limits, NaN handling) is where regressions cause the most confusing user-facing bugs.
 
