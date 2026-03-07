@@ -155,6 +155,69 @@ describe('VideoPlayer', () => {
       expect(container).toBeInTheDocument();
     });
 
+    it('falls back to ISO-8859-1 when subtitle data is not valid UTF-8', () => {
+      // 0xe9 is 'é' in ISO-8859-1 but invalid as a standalone byte in UTF-8
+      const latin1Data = new Uint8Array([
+        ...new TextEncoder().encode('1\n00:00:01,000 --> 00:00:04,000\nCaf'),
+        0xe9, // é in ISO-8859-1
+        ...new TextEncoder().encode('\n'),
+      ]);
+
+      const capturedBlobs: { parts: BlobPart[]; type: string }[] = [];
+      const OrigBlob = globalThis.Blob;
+      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
+        const blob = new OrigBlob(parts ?? [], opts);
+        if (opts?.type === 'text/vtt' && parts) {
+          capturedBlobs.push({ parts, type: opts.type });
+        }
+        return blob;
+      }) as unknown as typeof Blob;
+      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
+      globalThis.Blob = BlobSpy;
+
+      try {
+        renderPlayer({ subtitleData: latin1Data });
+        expect(capturedBlobs.length).toBe(1);
+        const vtt = capturedBlobs[0].parts[0] as string;
+        // ISO-8859-1 decodes 0xe9 as 'é'
+        expect(vtt).toContain('Café');
+      } finally {
+        globalThis.Blob = OrigBlob;
+      }
+    });
+
+    it('handles SRT files with single-digit hours and variable-precision milliseconds', () => {
+      const capturedBlobs: { parts: BlobPart[]; type: string }[] = [];
+      const OrigBlob = globalThis.Blob;
+      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
+        const blob = new OrigBlob(parts ?? [], opts);
+        if (opts?.type === 'text/vtt' && parts) {
+          capturedBlobs.push({ parts, type: opts.type });
+        }
+        return blob;
+      }) as unknown as typeof Blob;
+      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
+      globalThis.Blob = BlobSpy;
+
+      try {
+        // Single-digit hour and 1-digit millisecond
+        const srtData = new TextEncoder().encode(
+          '1\n1:30:45,5 --> 1:31:00,50\nSingle digit hour\n\n2\n00:00:05,000 --> 00:00:08,000\nNormal\n',
+        );
+        renderPlayer({ subtitleData: srtData });
+
+        expect(capturedBlobs.length).toBe(1);
+        const vtt = capturedBlobs[0].parts[0] as string;
+        // Single-digit hours should have commas replaced with dots
+        expect(vtt).toContain('1:30:45.5');
+        expect(vtt).toContain('1:31:00.50');
+        // Standard timestamps still work
+        expect(vtt).toContain('00:00:05.000');
+      } finally {
+        globalThis.Blob = OrigBlob;
+      }
+    });
+
     it('strips SRT cue IDs during conversion to VTT', () => {
       // Capture Blob content by spying on the Blob constructor
       const capturedBlobs: { parts: BlobPart[]; type: string }[] = [];

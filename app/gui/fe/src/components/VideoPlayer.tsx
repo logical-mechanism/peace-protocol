@@ -174,11 +174,17 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     }
     // Convert SRT to VTT if needed (WebVTT is required for <track>)
     let blob: Blob;
-    const text = new TextDecoder().decode(subtitleData);
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(subtitleData);
+    } catch {
+      // Fall back to ISO-8859-1 for non-UTF-8 SRT files (Latin-1, Windows-1252)
+      text = new TextDecoder('iso-8859-1').decode(subtitleData);
+    }
     if (!text.trimStart().startsWith('WEBVTT')) {
       // Simple SRT → VTT conversion: add WEBVTT header, replace comma with dot in timestamps
       const vtt = 'WEBVTT\n\n' + text
-        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+        .replace(/(\d{1,2}:\d{2}:\d{2}),(\d{1,3})/g, '$1.$2')
         .replace(/^\d+\s*$/gm, '')       // Strip SRT cue IDs (standalone numbers)
         .replace(/\n{3,}/g, '\n\n');      // Collapse resulting extra blank lines
       blob = new Blob([vtt], { type: 'text/vtt' });

@@ -93,11 +93,11 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **Subtitle decoding assumes UTF-8 with no fallback**
+- [x] 🟡 **Subtitle decoding assumes UTF-8 with no fallback**
   - **How**: At line 149, wrap in a try-catch: try `new TextDecoder('utf-8', { fatal: true }).decode(subtitleData)`. If it throws, fall back to `new TextDecoder('iso-8859-1').decode(subtitleData)`. ISO-8859-1 never fails (every byte maps to a character) and is the most common non-UTF-8 encoding for SRT files.
   - **Why**: SRT files from older tools or non-English sources are often encoded in Latin-1 or Windows-1252. The current `new TextDecoder().decode()` silently produces replacement characters instead of readable text.
 
-- [ ] 🟢 **SRT timestamp regex too strict for edge-case formats**
+- [x] 🟢 **SRT timestamp regex too strict for edge-case formats**
   - **How**: At line 153, relax the regex from `(\d{2}:\d{2}:\d{2}),(\d{3})` to `(\d{1,2}:\d{2}:\d{2}),(\d{1,3})`. This handles single-digit hours (e.g., `1:30:45,000`) and variable-precision milliseconds (e.g., `00:00:01,5`) which some SRT generators produce.
   - **Why**: Strictly-formatted SRT files work fine, but files from tools like Aegisub or hand-edited SRTs may use single-digit hours. These timestamps pass through unconverted, causing VTT parsing failures.
 
