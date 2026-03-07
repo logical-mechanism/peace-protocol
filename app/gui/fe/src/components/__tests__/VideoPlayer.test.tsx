@@ -1369,4 +1369,78 @@ describe('VideoPlayer', () => {
       });
     });
   });
+
+  // ── Accessibility: aria-live announcements ────────────────────────────
+
+  describe('accessibility aria-live announcements', () => {
+    function getLiveRegionTexts(): string[] {
+      const regions = document.querySelectorAll('[aria-live="polite"]');
+      return Array.from(regions).map(el => el.textContent ?? '');
+    }
+
+    it('announces volume on ArrowUp', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
+
+      expect(getLiveRegionTexts().some(t => /Volume \d+%/.test(t))).toBe(true);
+    });
+
+    it('announces "Muted" when volume reaches 0 via ArrowDown', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Press ArrowDown enough times to reach 0 (default volume is 1.0, step is 0.1)
+      for (let i = 0; i < 11; i++) {
+        await act(async () => { fireEvent.keyDown(document, { key: 'ArrowDown' }); });
+      }
+
+      expect(getLiveRegionTexts().some(t => t === 'Muted')).toBe(true);
+    });
+
+    it('announces speed change on S key', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 's' }); });
+
+      expect(getLiveRegionTexts().some(t => /Speed [\d.]+x/.test(t))).toBe(true);
+    });
+  });
+
+  // ── Accessibility: CC button discoverability ──────────────────────────
+
+  describe('CC button discoverability', () => {
+    it('shows disabled CC button when no subtitles are provided', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const ccBtn = screen.getByLabelText('Subtitles unavailable');
+      expect(ccBtn).toBeInTheDocument();
+      expect(ccBtn).toBeDisabled();
+    });
+
+    it('shows enabled CC button when subtitles are provided', async () => {
+      const srtData = new TextEncoder().encode(
+        '1\n00:00:01,000 --> 00:00:04,000\nHello\n',
+      );
+      renderPlayer({ subtitleData: srtData });
+      await waitForControls();
+
+      const ccBtn = screen.getByLabelText('Show subtitles');
+      expect(ccBtn).toBeInTheDocument();
+      expect(ccBtn).not.toBeDisabled();
+    });
+
+    it('C key does nothing when no subtitles available', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const ccBtn = screen.getByLabelText('Subtitles unavailable');
+      await act(async () => { fireEvent.keyDown(document, { key: 'c' }); });
+      // Button should still show "Subtitles unavailable" (not toggled)
+      expect(ccBtn).toHaveAttribute('aria-label', 'Subtitles unavailable');
+    });
+  });
 });

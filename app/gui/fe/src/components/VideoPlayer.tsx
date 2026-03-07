@@ -127,6 +127,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   // Interpolated time for smooth seek bar (updated at 60fps via rAF)
   const [displayTime, setDisplayTime] = useState(0);
   const [showRemaining, setShowRemaining] = useState(false);
+  // Screen reader announcement for volume/speed changes via keyboard
+  const [controlAnnouncement, setControlAnnouncement] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fullscreenRef = useRef<HTMLDivElement>(null);
@@ -503,6 +505,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
     setPlaybackRate(next);
     if (videoRef.current) videoRef.current.playbackRate = next;
+    setControlAnnouncement(`Speed ${next}x`);
   }, [playbackRate]);
 
   const handleSkipBack = useCallback(() => {
@@ -694,6 +697,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
             const v = Math.min(1, prev + 0.1);
             if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = false; }
             setIsMuted(false);
+            setControlAnnouncement(`Volume ${Math.round(v * 100)}%`);
             return v;
           });
           break;
@@ -703,6 +707,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
             const v = Math.max(0, prev - 0.1);
             if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = v === 0; }
             setIsMuted(v === 0);
+            setControlAnnouncement(v === 0 ? 'Muted' : `Volume ${Math.round(v * 100)}%`);
             return v;
           });
           break;
@@ -847,6 +852,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       <span className="sr-only" aria-live="polite" aria-atomic="true">
         {error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : 'Paused'}
       </span>
+      {/* Screen reader announcement for volume/speed changes */}
+      <span className="sr-only" aria-live="polite" aria-atomic="true">
+        {controlAnnouncement}
+      </span>
       {/* Play/Pause */}
       <button onClick={handlePlayPause} className={btnClass} title={isPlaying ? 'Pause (Space)' : 'Play (Space)'} aria-label={isPlaying ? 'Pause' : 'Play'} aria-pressed={isPlaying}>
         {isPlaying ? (
@@ -954,18 +963,18 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
       {divider}
 
-      {/* CC / Subtitles */}
-      {subtitleUrl && (
-        <button
-          onClick={handleCaptionToggle}
-          className={`${btnClass} font-bold text-xs ${showCaptions ? 'text-[var(--accent)]' : ''}`}
-          title={showCaptions ? 'Hide subtitles (C)' : 'Show subtitles (C)'}
-          aria-label={showCaptions ? 'Hide subtitles' : 'Show subtitles'}
-          aria-pressed={showCaptions}
-        >
-          CC
-        </button>
-      )}
+      {/* CC / Subtitles — always visible, disabled when no subtitles for discoverability */}
+      <button
+        onClick={subtitleUrl ? handleCaptionToggle : undefined}
+        className={`${btnClass} font-bold text-xs ${!subtitleUrl ? 'opacity-50 cursor-not-allowed' : showCaptions ? 'text-[var(--accent)]' : ''}`}
+        title={!subtitleUrl ? 'No subtitles available' : showCaptions ? 'Hide subtitles (C)' : 'Show subtitles (C)'}
+        aria-label={!subtitleUrl ? 'Subtitles unavailable' : showCaptions ? 'Hide subtitles' : 'Show subtitles'}
+        aria-pressed={subtitleUrl ? showCaptions : undefined}
+        aria-disabled={!subtitleUrl || undefined}
+        disabled={!subtitleUrl}
+      >
+        CC
+      </button>
 
       {/* Loop */}
       <button

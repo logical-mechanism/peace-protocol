@@ -67,15 +67,15 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **No `aria-live` announcement for volume changes via keyboard**
+- [x] 🟡 **No `aria-live` announcement for volume changes via keyboard**
   - **How**: Add an `aria-live="polite"` region (similar to the playback state region at ~line 810) that announces volume changes. When the `ArrowUp`/`ArrowDown` keyboard handler adjusts volume (~line 649), update the region text to `Volume ${Math.round(newVolume * 100)}%`. Use a separate `sr-only` span so it doesn't interfere with the playback state announcements. AudioPlayer has this pattern.
   - **Why**: Keyboard users adjusting volume with arrow keys get no audio feedback (volume changes are silent by nature for small increments) and no screen reader feedback. They can't tell if the shortcut worked.
 
-- [ ] 🟡 **No `aria-live` announcement for speed changes via keyboard**
+- [x] 🟡 **No `aria-live` announcement for speed changes via keyboard**
   - **How**: When the `S` key cycles speed (~line 684), update the same (or a second) `aria-live` region with `Speed ${newSpeed}x`. The speed button's visual text already updates, but screen readers don't re-read button text on content change — they need a live region.
   - **Why**: Keyboard users pressing S have no confirmation the speed actually changed unless they navigate to the speed button and re-read it.
 
-- [ ] 🟢 **Caption button disappears when no subtitles — no disabled state for discoverability**
+- [x] 🟢 **Caption button disappears when no subtitles — no disabled state for discoverability**
   - **How**: At ~line 913, the CC button is conditionally rendered with `{subtitleUrl && (...)}`. Change to always render the button, but add `disabled` + `opacity-50 cursor-not-allowed` when `!subtitleUrl`. Set `aria-disabled={!subtitleUrl || undefined}` and skip the toggle handler when disabled.
   - **Why**: Users don't know captions are a feature unless they happen to open a file that has subtitles. A grayed-out CC button signals the feature exists and is available for files with subtitle data.
 
