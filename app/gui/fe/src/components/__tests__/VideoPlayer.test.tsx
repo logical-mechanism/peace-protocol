@@ -36,16 +36,22 @@ vi.mock('@ffmpeg/ffmpeg', () => ({ FFmpeg: vi.fn() }));
 vi.mock('@ffmpeg/util', () => ({ toBlobURL: vi.fn() }));
 
 // Mock document.createElement to auto-resolve the format probe for the first
-// <video> created (the probe), while returning real DOM elements so React
-// rendering works correctly for subsequent <video> elements.
-let isProbe = true;
+// standalone <video> created (the probe), while returning real DOM elements so
+// React rendering works correctly. Only fires loadedmetadata on standalone
+// (not-yet-mounted) video elements — i.e. the probe, not React's real <video>.
+let probeResolved = false;
 const originalCreateElement = document.createElement.bind(document);
 vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
   const el = originalCreateElement(tag);
-  if (tag === 'video' && isProbe) {
-    isProbe = false;
-    // Fire loadedmetadata on next tick so the probe resolves as "can play"
-    setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
+  if (tag === 'video' && !probeResolved) {
+    // Check on next tick whether this element is still detached (= probe element).
+    // React-rendered elements will be in the DOM by then, so we skip them.
+    setTimeout(() => {
+      if (!el.parentNode && !probeResolved) {
+        probeResolved = true;
+        el.dispatchEvent(new Event('loadedmetadata'));
+      }
+    }, 5);
   }
   return el;
 });
@@ -102,7 +108,7 @@ function simulateLoadedMetadata(durationSeconds: number) {
 
 beforeEach(async () => {
   vi.clearAllMocks();
-  isProbe = true;
+  probeResolved = false;
   ffmpegState.progressCallback = null;
 
   // Re-wire FFmpeg mocks after clearAllMocks (which resets mock implementations)
@@ -135,9 +141,11 @@ describe('VideoPlayer', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('creates blob URL from data', () => {
+    it('creates blob URL from data', async () => {
       renderPlayer();
-      expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+      });
     });
   });
 
@@ -577,12 +585,16 @@ describe('VideoPlayer', () => {
 
     afterEach(() => {
       // Restore the original probe mock so subsequent tests get loadedmetadata
-      isProbe = true;
+      probeResolved = false;
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         const el = originalCreateElement(tag);
-        if (tag === 'video' && isProbe) {
-          isProbe = false;
-          setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
+        if (tag === 'video' && !probeResolved) {
+          setTimeout(() => {
+            if (!el.parentNode && !probeResolved) {
+              probeResolved = true;
+              el.dispatchEvent(new Event('loadedmetadata'));
+            }
+          }, 5);
         }
         return el;
       });
@@ -977,12 +989,16 @@ describe('VideoPlayer', () => {
     afterEach(() => {
       ffmpegState.mode = 'throw';
       // Restore the original probe mock
-      isProbe = true;
+      probeResolved = false;
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         const el = originalCreateElement(tag);
-        if (tag === 'video' && isProbe) {
-          isProbe = false;
-          setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
+        if (tag === 'video' && !probeResolved) {
+          setTimeout(() => {
+            if (!el.parentNode && !probeResolved) {
+              probeResolved = true;
+              el.dispatchEvent(new Event('loadedmetadata'));
+            }
+          }, 5);
         }
         return el;
       });
@@ -1187,12 +1203,16 @@ describe('VideoPlayer', () => {
       });
 
       // Restore probe mock
-      isProbe = true;
+      probeResolved = false;
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         const el = originalCreateElement(tag);
-        if (tag === 'video' && isProbe) {
-          isProbe = false;
-          setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
+        if (tag === 'video' && !probeResolved) {
+          setTimeout(() => {
+            if (!el.parentNode && !probeResolved) {
+              probeResolved = true;
+              el.dispatchEvent(new Event('loadedmetadata'));
+            }
+          }, 5);
         }
         return el;
       });
@@ -1299,7 +1319,7 @@ describe('VideoPlayer', () => {
       (globalThis.URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear();
 
       // Reset probe flag for new data
-      isProbe = true;
+      probeResolved = false;
       const newData = new Uint8Array([0x00, 0x00, 0x00, 0x20]);
       rerender(
         <VideoPlayer data={newData} mimeType="video/mp4" fileExtension=".mp4" />,
@@ -1412,19 +1432,18 @@ describe('VideoPlayer', () => {
   // ── Fullscreen auto-hide timer ──────────────────────────────────────
 
   describe('fullscreen auto-hide timer', () => {
-    it('hides controls after 3s inactivity in fullscreen while playing', async () => {
+    it('hides controls after inactivity in fullscreen while playing', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       renderPlayer();
       await waitForControls();
 
-      // Enter fullscreen — video element remounts into fullscreen DOM tree
+      // Enter fullscreen
       await act(async () => { fireEvent.keyDown(document, { key: 'f' }); });
       expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
 
-      // Re-query video element AFTER fullscreen (React remounts it in new tree position)
       const fsVideo = getVideoElement();
 
-      // Start playback on the fullscreen video element
+      // Start playback
       await act(async () => { fireEvent.play(fsVideo); });
       expect(screen.getByLabelText('Pause')).toBeInTheDocument();
       await act(async () => { vi.advanceTimersByTime(1); });
@@ -1433,8 +1452,8 @@ describe('VideoPlayer', () => {
       const overlay = () => document.querySelector('.fixed.inset-0.z-\\[60\\]') as HTMLElement | null;
       expect(overlay()!.style.cursor).toBe('auto');
 
-      // Advance 3s — auto-hide fires, cursor should become 'none'
-      await act(async () => { vi.advanceTimersByTime(3001); });
+      // Initial delay after entering fullscreen is 5s (longer to let user orient)
+      await act(async () => { vi.advanceTimersByTime(5001); });
       expect(overlay()!.style.cursor).toBe('none');
 
       vi.useRealTimers();

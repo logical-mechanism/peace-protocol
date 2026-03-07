@@ -27,6 +27,9 @@ function getConversionHint(ext: string): string | null {
   return hints[ext.toLowerCase()] ?? null;
 }
 
+/** Extensions that WebKitGTK/GStreamer handles natively — skip the probe for these. */
+const NATIVE_GOOD_EXTENSIONS = new Set(['.mp4', '.ogg', '.ogv']);
+
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || seconds < 0) return '00:00';
   const m = Math.floor(seconds / 60);
@@ -144,6 +147,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   // Smooth time interpolation — video.currentTime updates ~4Hz on WebKitGTK,
   // we interpolate between updates for fluid seek bar movement
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fullscreenEnteredAtRef = useRef(0);
   const vizTimeRef = useRef(0);
   const lastDrawTimeRef = useRef(0);
   const rafRef = useRef<number>(0);
@@ -232,11 +236,24 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     remuxCancelledRef.current = false;
 
     (async () => {
-      // First attempt: create blob URL and see if a probe <video> can play it
+      // Yield so the loading spinner paints before the potentially expensive Blob creation
+      await new Promise(resolve => setTimeout(resolve, 0));
+      if (cancelled) return;
+
       const blob = new Blob([data], { type: mimeType });
       const url = URL.createObjectURL(blob);
       currentUrl = url;
 
+      // Skip probe for formats that WebKitGTK/GStreamer handles natively
+      const ext = fileExtension.toLowerCase();
+      if (NATIVE_GOOD_EXTENSIONS.has(ext)) {
+        if (cancelled) { revokeUrl(); return; }
+        activeBlobUrlRef.current = url;
+        setBlobUrl(url);
+        return;
+      }
+
+      // First attempt: see if a probe <video> can play it
       const canPlay = await new Promise<boolean>((resolve) => {
         const probe = document.createElement('video');
         probe.preload = 'metadata';
@@ -361,7 +378,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     }
   }, [isFullscreen]);
 
-  // Auto-hide controls after 3s inactivity in fullscreen
+  // Auto-hide controls after inactivity in fullscreen
   useEffect(() => {
     if (!isFullscreen) {
       setControlsVisible(true);
@@ -369,12 +386,17 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       return;
     }
 
+    fullscreenEnteredAtRef.current = Date.now();
+
     const resetTimer = () => {
       setControlsVisible(true);
       if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
       // Don't hide while seeking or paused
       if (isSeekingRef.current || !isPlayingRef.current) return;
-      autoHideTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+      // Longer delay during the first 3s after entering fullscreen so controls don't vanish immediately
+      const elapsed = Date.now() - fullscreenEnteredAtRef.current;
+      const delay = elapsed < 3000 ? 5000 : 3000;
+      autoHideTimerRef.current = setTimeout(() => setControlsVisible(false), delay);
     };
 
     resetTimer();
@@ -1129,56 +1151,57 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     </video>
   ) : null;
 
-  // Fullscreen overlay
-  if (isFullscreen) {
-    return (
-      <>
-        {/* Inline placeholder so LibraryContentModal layout isn't disrupted */}
+  // Single return path — video element stays at the same React tree position
+  // regardless of fullscreen state, preventing unmount/remount that loses playback.
+  return (
+    <div className="space-y-3">
+      {isFullscreen && (
         <div className="p-4 text-center text-sm text-[var(--text-muted)]">
           Video is expanded to fullscreen. Press Esc or the collapse button to return.
         </div>
+      )}
 
-        {/* Fullscreen overlay */}
+      <div
+        ref={fullscreenRef}
+        className={isFullscreen
+          ? `fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)] transition-opacity duration-200 ${fullscreenVisible ? 'opacity-100' : 'opacity-0'}`
+          : 'contents'
+        }
+        style={isFullscreen ? { cursor: controlsVisible ? 'auto' : 'none' } : undefined}
+      >
+        {/* Video content area */}
         <div
-          ref={fullscreenRef}
-          className={`fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)] transition-opacity duration-200 ${fullscreenVisible ? 'opacity-100' : 'opacity-0'}`}
-          style={{ cursor: controlsVisible ? 'auto' : 'none' }}
+          className={isFullscreen
+            ? 'flex-1 overflow-auto flex items-center justify-center p-4 bg-[var(--bg-secondary)] relative'
+            : 'flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative'
+          }
         >
-          {/* Video content area */}
-          <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-[var(--bg-secondary)] relative">
-            {videoElement}
-            {controlsVisible && keyHintsOverlay}
-          </div>
-
-          {/* Control bar at bottom — auto-hides after 3s inactivity */}
-          <div className={`flex-shrink-0 px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] transition-[opacity,transform] duration-300 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'}`}>
-            {controlBar}
-          </div>
+          {loading && !blobUrl && !remuxing && (
+            <div className="py-12 text-center">
+              <DelayedSpinner size="lg" className="mx-auto mb-4" />
+              <p className="text-sm text-[var(--text-muted)]">Checking format compatibility...</p>
+            </div>
+          )}
+          {loading && blobUrl && (
+            <div className="py-12 text-center">
+              <DelayedSpinner size="lg" className="mx-auto mb-4" />
+              <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
+            </div>
+          )}
+          {videoElement}
+          {isFullscreen ? controlsVisible && keyHintsOverlay : keyHintsOverlay}
         </div>
-      </>
-    );
-  }
 
-  // Normal inline view
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative">
-        {loading && !blobUrl && !remuxing && (
-          <div className="py-12 text-center">
-            <DelayedSpinner size="lg" className="mx-auto mb-4" />
-            <p className="text-sm text-[var(--text-muted)]">Checking format compatibility...</p>
-          </div>
-        )}
-        {loading && blobUrl && (
-          <div className="py-12 text-center">
-            <DelayedSpinner size="lg" className="mx-auto mb-4" />
-            <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
-          </div>
-        )}
-        {videoElement}
-        {keyHintsOverlay}
+        {/* Control bar — auto-hides in fullscreen after inactivity */}
+        <div
+          className={isFullscreen
+            ? `flex-shrink-0 px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] transition-[opacity,transform] duration-300 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'}`
+            : ''
+          }
+        >
+          {controlBar}
+        </div>
       </div>
-      {controlBar}
     </div>
   );
 }
