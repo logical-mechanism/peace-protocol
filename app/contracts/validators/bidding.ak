@@ -14,7 +14,6 @@ use types/bidding.{
   BidDatum, BidMintRedeemer, BidSpendRedeemer, EntryBidMint, LeaveBidBurn,
   RemoveBid, UseBid,
 }
-use types/bidding
 use types/encryption.{UseEncryption}
 use types/reference.{ReferenceDatum}
 use types/register
