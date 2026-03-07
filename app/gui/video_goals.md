@@ -107,7 +107,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🔴 **Seek thumb uses hardcoded `bg-white/60` -- invisible in light theme**
+- [x] 🔴 **Seek thumb uses hardcoded `bg-white/60` -- invisible in light theme**
   - **How**: At line 765, replace `bg-white/60` with `bg-[var(--bg-elevated)]`. The elevated background variable has proper contrast in both dark and light themes. Keep the `border-2 border-[var(--accent)]/60` which already uses a CSS variable.
   - **Why**: In light theme, a white/60% opacity thumb on a light background is nearly invisible. Users can't see the seek position at a glance.
 

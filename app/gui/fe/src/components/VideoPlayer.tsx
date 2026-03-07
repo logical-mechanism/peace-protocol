@@ -854,7 +854,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           />
           {/* Seek thumb */}
           <div
-            className="absolute top-1/2 w-3 h-3 rounded-full bg-white/60 border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
+            className="absolute top-1/2 w-3 h-3 rounded-full bg-[var(--bg-elevated)] border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
             style={{ left: `${duration > 0 ? (displayTime / duration) * 100 : 0}%`, transform: 'translateX(-50%) translateY(-50%)' }}
           />
         </div>
