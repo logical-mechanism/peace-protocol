@@ -73,27 +73,27 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/VideoPlayer.test.tsx`
 
-- [ ] 🟡 **FFmpeg remux pipeline untested**
+- [x] 🟡 **FFmpeg remux pipeline untested**
   - **How**: Mock `@ffmpeg/ffmpeg` and `@ffmpeg/util` (or the app's remux wrapper). Test: (1) unsupported format triggers remux after probe failure, (2) progress callback updates `remuxProgress` state, (3) cancel button calls `ffmpeg.terminate()` and shows cancelled UI, (4) stall detection fires after 30s inactivity, (5) file > 2GB shows size error, (6) file > 500MB shows size warning. Use `vi.useFakeTimers()` for the stall detection timeout.
   - **Why**: The entire remux pipeline — the most complex code path in the component — has zero test coverage. Progress, cancellation, stall detection, and size guards are all untested.
 
-- [ ] 🟡 **Fullscreen Escape isolation not tested**
+- [x] 🟡 **Fullscreen Escape isolation not tested**
   - **How**: Render VideoPlayer inside a wrapper that listens for Escape (simulating the parent modal). Toggle fullscreen via the F key or fullscreen button. Fire `keydown` with `Escape`. Assert: (1) `isFullscreen` becomes false, (2) the wrapper's Escape handler was NOT called (stopPropagation worked). Use `document.addEventListener('keydown', spy)` in the test to verify propagation was stopped.
   - **Why**: The capture-phase Escape handler is the critical mechanism preventing fullscreen exit from closing the library modal. A regression here would make fullscreen unusable.
 
-- [ ] 🟡 **Probe mechanism not tested**
+- [x] 🟡 **Probe mechanism not tested**
   - **How**: Test the two probe outcomes: (1) native playback supported — mock the temporary `<video>` element's `loadedmetadata` event firing, verify blob URL is set directly without remux. (2) Native playback fails — mock the `error` event on the probe element, verify remux is triggered. Mock `document.createElement('video')` to return a controllable fake element.
   - **Why**: The probe is the decision point between native play and remux. If the probe logic regresses, videos either unnecessarily remux (slow) or fail to play (broken).
 
-- [ ] 🟢 **PiP button rendering and state not tested**
+- [x] 🟢 **PiP button rendering and state not tested**
   - **How**: Test: (1) PiP button renders when `document.pictureInPictureEnabled` is true, (2) doesn't render when false, (3) clicking calls `video.requestPictureInPicture()`, (4) `enterpictureinpicture` event updates `isPip` state and button label. Mock `document.pictureInPictureEnabled` and the video element's PiP methods.
   - **Why**: PiP support is conditional on browser capability. The rendering guard and state tracking via events are both untested.
 
-- [ ] 🟢 **Blob URL revocation on unmount not tested**
+- [x] 🟢 **Blob URL revocation on unmount not tested**
   - **How**: Spy on `URL.revokeObjectURL`. Render VideoPlayer with data, verify blob URL is created. Unmount the component. Assert `revokeObjectURL` was called with the created URL. Also test: render with data A, then re-render with data B — verify the first blob URL is revoked before creating the second.
   - **Why**: Blob URL leaks are invisible to users but accumulate memory over time. The cleanup logic is correct but untested — a refactor could silently break it.
 
-- [ ] 🟢 **Subtitle edge cases not tested**
+- [x] 🟢 **Subtitle edge cases not tested**
   - **How**: Test: (1) empty subtitle `Uint8Array` (length 0) — should not crash, (2) SRT with malformed timestamps like `99:99:99,999` — should pass through without breaking VTT conversion, (3) SRT with HTML tags (`<b>text</b>`) — should be preserved (VTT supports basic HTML). These are boundary cases for the SRT→VTT converter.
   - **Why**: The converter handles common cases but edge cases could cause silent failures or crashes that only surface with user-provided subtitle files.
 

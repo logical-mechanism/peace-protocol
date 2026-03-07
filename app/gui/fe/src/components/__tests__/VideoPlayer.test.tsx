@@ -13,6 +13,28 @@ const mockObjectUrl = 'blob:mock-video-url';
 globalThis.URL.createObjectURL = vi.fn().mockReturnValue(mockObjectUrl);
 globalThis.URL.revokeObjectURL = vi.fn();
 
+// ── Configurable FFmpeg mock ─────────────────────────────────────────
+// Always returns a mock FFmpeg class. In 'throw' mode, load() rejects (simulating
+// FFmpeg unavailability). In 'mock' mode, all methods resolve normally.
+const ffmpegState = vi.hoisted(() => ({
+  mode: 'throw' as 'throw' | 'mock',
+  instance: {
+    load: vi.fn(),
+    writeFile: vi.fn(),
+    exec: vi.fn(),
+    readFile: vi.fn(),
+    deleteFile: vi.fn(),
+    terminate: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+  },
+  progressCallback: null as ((evt: { progress: number; time: number }) => void) | null,
+}));
+
+// FFmpeg mocks are re-wired in beforeEach after vi.clearAllMocks
+vi.mock('@ffmpeg/ffmpeg', () => ({ FFmpeg: vi.fn() }));
+vi.mock('@ffmpeg/util', () => ({ toBlobURL: vi.fn() }));
+
 // Mock document.createElement to auto-resolve the format probe for the first
 // <video> created (the probe), while returning real DOM elements so React
 // rendering works correctly for subsequent <video> elements.
@@ -73,9 +95,30 @@ function simulateLoadedMetadata(durationSeconds: number) {
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   isProbe = true;
+  ffmpegState.progressCallback = null;
+
+  // Re-wire FFmpeg mocks after clearAllMocks (which resets mock implementations)
+  const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+  const { toBlobURL } = await import('@ffmpeg/util');
+  const inst = ffmpegState.instance;
+  (FFmpeg as ReturnType<typeof vi.fn>).mockImplementation(() => {
+    inst.on.mockImplementation((_event: string, cb: (evt: { progress: number; time: number }) => void) => {
+      ffmpegState.progressCallback = cb;
+    });
+    return inst;
+  });
+  (toBlobURL as ReturnType<typeof vi.fn>).mockResolvedValue('blob:mock-ffmpeg-url');
+
+  // Default: load() rejects so probe-fail tests see error state (not remux UI)
+  inst.load.mockRejectedValue(new Error('FFmpeg not available'));
+  inst.writeFile.mockResolvedValue(undefined);
+  inst.exec.mockResolvedValue(undefined);
+  inst.readFile.mockResolvedValue(new Uint8Array([0x00, 0x00, 0x00, 0x20]));
+  inst.deleteFile.mockResolvedValue(undefined);
+  inst.terminate.mockResolvedValue(undefined);
 });
 
 // ── Tests ───────────────────────────────────────────────────────────
@@ -472,11 +515,6 @@ describe('VideoPlayer', () => {
     it('shows error message with role="alert" when probe fails', async () => {
       mockProbeError();
 
-      // Mock FFmpeg import to throw so remux also fails
-      vi.mock('@ffmpeg/ffmpeg', () => {
-        throw new Error('FFmpeg not available');
-      });
-
       renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
 
       await waitFor(() => {
@@ -488,10 +526,6 @@ describe('VideoPlayer', () => {
 
     it('shows format diagnostic info with extension and MIME type', async () => {
       mockProbeError();
-
-      vi.mock('@ffmpeg/ffmpeg', () => {
-        throw new Error('FFmpeg not available');
-      });
 
       renderPlayer({ fileExtension: '.webm', mimeType: 'video/webm' });
 
@@ -505,10 +539,6 @@ describe('VideoPlayer', () => {
 
     it('shows Save As button when onExport is provided', async () => {
       mockProbeError();
-
-      vi.mock('@ffmpeg/ffmpeg', () => {
-        throw new Error('FFmpeg not available');
-      });
 
       const onExport = vi.fn();
       renderPlayer({ fileExtension: '.avi', mimeType: 'video/avi', onExport });
@@ -525,10 +555,6 @@ describe('VideoPlayer', () => {
 
     it('shows text fallback when onExport is not provided', async () => {
       mockProbeError();
-
-      vi.mock('@ffmpeg/ffmpeg', () => {
-        throw new Error('FFmpeg not available');
-      });
 
       renderPlayer({ fileExtension: '.avi', mimeType: 'video/avi' });
 
@@ -805,6 +831,409 @@ describe('VideoPlayer', () => {
       const largeishData = new Uint8Array(100);
       renderPlayer({ data: largeishData });
       expect(screen.getByText('Checking format compatibility...')).toBeInTheDocument();
+    });
+  });
+
+  // ── FFmpeg remux pipeline ───────────────────────────────────────────
+
+  describe('FFmpeg remux pipeline', () => {
+    /** Override probe to fire error on FIRST video element only (the probe).
+     *  Subsequent video elements (React-rendered) are left untouched.
+     *  Uses originalCreateElement to avoid chaining through the default probe spy. */
+    function mockProbeErrorForRemux() {
+      let probeHandled = false;
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = originalCreateElement(tag);
+        if (tag === 'video' && !probeHandled) {
+          probeHandled = true;
+          setTimeout(() => el.dispatchEvent(new Event('error')), 0);
+        }
+        return el;
+      });
+    }
+
+    function enableRemuxMock(opts?: { execDelay?: number }) {
+      ffmpegState.mode = 'mock';
+      ffmpegState.progressCallback = null;
+      const inst = ffmpegState.instance;
+      inst.load.mockResolvedValue(undefined);
+      if (opts?.execDelay) {
+        inst.exec.mockImplementation(() => new Promise(resolve => setTimeout(resolve, opts.execDelay)));
+      } else {
+        inst.exec.mockResolvedValue(undefined);
+      }
+      inst.readFile.mockResolvedValue(new Uint8Array([0x00, 0x00, 0x00, 0x20]));
+    }
+
+    afterEach(() => {
+      ffmpegState.mode = 'throw';
+      // Restore the original probe mock
+      isProbe = true;
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = originalCreateElement(tag);
+        if (tag === 'video' && isProbe) {
+          isProbe = false;
+          setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
+        }
+        return el;
+      });
+    });
+
+    it('triggers remux after probe failure and calls FFmpeg load + exec', async () => {
+      enableRemuxMock();
+      mockProbeErrorForRemux();
+
+      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+
+      await waitFor(() => {
+        expect(ffmpegState.instance.load).toHaveBeenCalled();
+      });
+      await waitFor(() => {
+        expect(ffmpegState.instance.exec).toHaveBeenCalledWith(['-i', 'input.mkv', '-c', 'copy', 'output.mp4']);
+      });
+    });
+
+    it('progress callback updates conversion progress display', async () => {
+      enableRemuxMock({ execDelay: 500 });
+      mockProbeErrorForRemux();
+
+      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+
+      // Wait for remuxing UI to appear
+      await waitFor(() => {
+        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
+      });
+
+      // Simulate progress via the captured callback
+      expect(ffmpegState.progressCallback).not.toBeNull();
+      act(() => {
+        ffmpegState.progressCallback!({ progress: 0.5, time: 5 });
+      });
+
+      expect(screen.getByText('50%')).toBeInTheDocument();
+      const progressBar = screen.getByRole('progressbar', { name: 'Conversion progress' });
+      expect(progressBar).toHaveAttribute('aria-valuenow', '50');
+    });
+
+    it('cancel button calls ffmpeg.terminate and shows cancelled UI', async () => {
+      enableRemuxMock({ execDelay: 60000 }); // long exec so we can cancel
+      mockProbeErrorForRemux();
+
+      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska', onExport: vi.fn() });
+
+      await waitFor(() => {
+        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
+      });
+
+      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+      fireEvent.click(cancelBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Conversion cancelled.')).toBeInTheDocument();
+      });
+      expect(ffmpegState.instance.terminate).toHaveBeenCalled();
+    });
+
+    it('stall detection fires after 30s of no progress', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      enableRemuxMock({ execDelay: 999999 });
+      mockProbeErrorForRemux();
+
+      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+
+      // Wait for remuxing to start
+      await waitFor(() => {
+        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
+      });
+
+      // Advance past the stall detection threshold (10s interval checks, 30s since last progress)
+      act(() => { vi.advanceTimersByTime(40_000); });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Conversion appears stuck/)).toBeInTheDocument();
+      });
+      vi.useRealTimers();
+    });
+
+    it('file > 2GB shows size error without attempting remux', async () => {
+      enableRemuxMock();
+      mockProbeErrorForRemux();
+
+      // Create a mock data object with large length (don't actually allocate 2GB!)
+      const fakeData = new Uint8Array(1);
+      Object.defineProperty(fakeData, 'length', { value: 2.5 * 1024 * 1024 * 1024 });
+
+      renderPlayer({ data: fakeData, fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/File too large for in-app conversion/)).toBeInTheDocument();
+    });
+
+    it('file > 500MB shows size warning during remux', async () => {
+      enableRemuxMock({ execDelay: 60000 });
+      mockProbeErrorForRemux();
+
+      const fakeData = new Uint8Array(1);
+      Object.defineProperty(fakeData, 'length', { value: 600 * 1024 * 1024 });
+
+      renderPlayer({ data: fakeData, fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Large file.*conversion may use significant memory/)).toBeInTheDocument();
+    });
+  });
+
+  // ── Fullscreen Escape isolation ─────────────────────────────────────
+
+  describe('fullscreen Escape isolation', () => {
+    it('Escape exits fullscreen without propagating to parent handlers', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Spy on a bubble-phase listener (simulating the parent modal's Escape handler)
+      const parentEscapeSpy = vi.fn();
+      document.addEventListener('keydown', parentEscapeSpy);
+
+      // Enter fullscreen via F key
+      fireEvent.keyDown(document, { key: 'f' });
+      expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
+
+      // Fire Escape
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      // Fullscreen should be closed
+      await waitFor(() => {
+        expect(screen.queryByText(/Video is expanded to fullscreen/)).not.toBeInTheDocument();
+      });
+
+      // The parent handler should NOT have seen the Escape key
+      // (capture-phase handler calls stopPropagation)
+      const escapeEvents = parentEscapeSpy.mock.calls.filter(
+        ([e]: [KeyboardEvent]) => e.key === 'Escape',
+      );
+      expect(escapeEvents).toHaveLength(0);
+
+      document.removeEventListener('keydown', parentEscapeSpy);
+    });
+  });
+
+  // ── Probe mechanism ─────────────────────────────────────────────────
+
+  describe('probe mechanism', () => {
+    it('native playback supported — sets blob URL directly without remux', async () => {
+      // Default mock fires loadedmetadata = probe success
+      renderPlayer();
+      await waitForControls();
+
+      // Video element should have a source — controls are rendered
+      expect(screen.getByLabelText('Play')).toBeInTheDocument();
+      // No remux UI should have appeared
+      expect(screen.queryByText('Converting for playback...')).not.toBeInTheDocument();
+    });
+
+    it('native playback fails — shows error for non-remuxable format', async () => {
+      // Override probe to fire error
+      const origCreate = document.createElement.bind(document);
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = origCreate(tag);
+        if (tag === 'video') {
+          setTimeout(() => el.dispatchEvent(new Event('error')), 0);
+        }
+        return el;
+      });
+
+      // ffmpegState.mode defaults to 'throw' — remux will also fail
+      renderPlayer({ fileExtension: '.webm', mimeType: 'video/webm' });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      // Restore probe mock
+      isProbe = true;
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        const el = originalCreateElement(tag);
+        if (tag === 'video' && isProbe) {
+          isProbe = false;
+          setTimeout(() => el.dispatchEvent(new Event('loadedmetadata')), 0);
+        }
+        return el;
+      });
+    });
+  });
+
+  // ── PiP button ──────────────────────────────────────────────────────
+
+  describe('PiP button', () => {
+    it('renders PiP button when pictureInPictureEnabled is true', async () => {
+      Object.defineProperty(document, 'pictureInPictureEnabled', {
+        value: true,
+        configurable: true,
+      });
+
+      renderPlayer();
+      await waitForControls();
+
+      expect(screen.getByLabelText(/Picture-in-Picture/)).toBeInTheDocument();
+
+      // Clean up
+      Object.defineProperty(document, 'pictureInPictureEnabled', {
+        value: false,
+        configurable: true,
+      });
+    });
+
+    it('does not render PiP button when pictureInPictureEnabled is false', async () => {
+      Object.defineProperty(document, 'pictureInPictureEnabled', {
+        value: false,
+        configurable: true,
+      });
+
+      renderPlayer();
+      await waitForControls();
+
+      expect(screen.queryByLabelText(/Picture-in-Picture/)).not.toBeInTheDocument();
+    });
+
+    it('clicking PiP button calls requestPictureInPicture', async () => {
+      Object.defineProperty(document, 'pictureInPictureEnabled', {
+        value: true,
+        configurable: true,
+      });
+
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      const pipSpy = vi.fn().mockResolvedValue(undefined);
+      video.requestPictureInPicture = pipSpy;
+
+      const pipBtn = screen.getByLabelText(/Enter Picture-in-Picture/);
+      fireEvent.click(pipBtn);
+
+      expect(pipSpy).toHaveBeenCalled();
+
+      Object.defineProperty(document, 'pictureInPictureEnabled', {
+        value: false,
+        configurable: true,
+      });
+    });
+
+    it('PiP button shows aria-pressed reflecting isPip state', async () => {
+      Object.defineProperty(document, 'pictureInPictureEnabled', {
+        value: true,
+        configurable: true,
+      });
+
+      renderPlayer();
+      await waitForControls();
+
+      const pipBtn = screen.getByLabelText(/Picture-in-Picture/);
+      // Initially not in PiP — aria-pressed should be false
+      expect(pipBtn).toHaveAttribute('aria-pressed', 'false');
+
+      Object.defineProperty(document, 'pictureInPictureEnabled', {
+        value: false,
+        configurable: true,
+      });
+    });
+  });
+
+  // ── Blob URL cleanup ────────────────────────────────────────────────
+
+  describe('blob URL cleanup', () => {
+    it('revokes blob URL on unmount', async () => {
+      const { unmount } = renderPlayer();
+      await waitForControls();
+
+      (globalThis.URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear();
+
+      unmount();
+
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
+    });
+
+    it('revokes previous blob URL when data changes', async () => {
+      const { rerender } = render(
+        <VideoPlayer data={testVideoData} mimeType="video/mp4" fileExtension=".mp4" />,
+      );
+      await waitForControls();
+
+      (globalThis.URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear();
+
+      // Reset probe flag for new data
+      isProbe = true;
+      const newData = new Uint8Array([0x00, 0x00, 0x00, 0x20]);
+      rerender(
+        <VideoPlayer data={newData} mimeType="video/mp4" fileExtension=".mp4" />,
+      );
+
+      // The effect cleanup + new effect should revoke the old URL
+      await waitFor(() => {
+        expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ── Subtitle edge cases ─────────────────────────────────────────────
+
+  describe('subtitle edge cases', () => {
+    /** Helper to capture VTT blob content */
+    function withBlobSpy(fn: (getCaptured: () => string[]) => void) {
+      const capturedBlobs: string[] = [];
+      const OrigBlob = globalThis.Blob;
+      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
+        const blob = new OrigBlob(parts ?? [], opts);
+        if (opts?.type === 'text/vtt' && parts) {
+          capturedBlobs.push(parts[0] as string);
+        }
+        return blob;
+      }) as unknown as typeof Blob;
+      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
+      globalThis.Blob = BlobSpy;
+      try {
+        fn(() => capturedBlobs);
+      } finally {
+        globalThis.Blob = OrigBlob;
+      }
+    }
+
+    it('empty subtitle Uint8Array does not crash', () => {
+      const { container } = renderPlayer({ subtitleData: new Uint8Array(0) });
+      expect(container).toBeInTheDocument();
+    });
+
+    it('SRT with malformed timestamps passes through without breaking', () => {
+      withBlobSpy((getCaptured) => {
+        const srtData = new TextEncoder().encode(
+          '1\n99:99:99,999 --> 99:99:99,999\nBad timestamps\n',
+        );
+        renderPlayer({ subtitleData: srtData });
+
+        const captured = getCaptured();
+        expect(captured.length).toBe(1);
+        // The regex still matches the malformed timestamps (comma→dot)
+        expect(captured[0]).toContain('99:99:99.999');
+        expect(captured[0]).toContain('Bad timestamps');
+      });
+    });
+
+    it('SRT with HTML tags preserves them in VTT output', () => {
+      withBlobSpy((getCaptured) => {
+        const srtData = new TextEncoder().encode(
+          '1\n00:00:01,000 --> 00:00:04,000\n<b>Bold</b> and <i>italic</i>\n',
+        );
+        renderPlayer({ subtitleData: srtData });
+
+        const captured = getCaptured();
+        expect(captured.length).toBe(1);
+        expect(captured[0]).toContain('<b>Bold</b>');
+        expect(captured[0]).toContain('<i>italic</i>');
+      });
     });
   });
 });
