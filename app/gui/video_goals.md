@@ -57,7 +57,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟢 **Fullscreen control bar uses `transition-all` instead of specific properties**
+- [x] 🟢 **Fullscreen control bar uses `transition-all` instead of specific properties**
   - **How**: At line 980, replace `transition-all duration-300` with `transition-[opacity,transform] duration-300`. The `translate-y-full` toggle only needs opacity and transform animated -- `transition-all` may animate padding, border, etc. causing unnecessary layout recalculation.
   - **Why**: On lower-end systems, animating all properties on a complex control bar can cause jank during the fullscreen hide/show transition.
 

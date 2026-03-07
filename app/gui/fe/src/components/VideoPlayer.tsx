@@ -1044,7 +1044,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           </div>
 
           {/* Control bar at bottom — auto-hides after 3s inactivity */}
-          <div className={`flex-shrink-0 px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] transition-all duration-300 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'}`}>
+          <div className={`flex-shrink-0 px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] transition-[opacity,transform] duration-300 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'}`}>
             {controlBar}
           </div>
         </div>
