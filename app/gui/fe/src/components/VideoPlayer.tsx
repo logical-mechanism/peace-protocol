@@ -953,7 +953,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       {/* Fullscreen */}
       <button
         onClick={() => setIsFullscreen(fs => !fs)}
-        className={btnClass}
+        className={`${btnClass} ${isFullscreen ? 'text-[var(--accent)]' : ''}`}
         title={isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
         aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         aria-pressed={isFullscreen}

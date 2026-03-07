@@ -119,7 +119,7 @@ Each item:
   - **How**: At line 736, add conditional opacity: `className={`flex-1 py-2 cursor-pointer relative min-w-[60px] ${!duration ? 'opacity-50 pointer-events-none' : ''}`}`. This grays out and disables the seek bar before metadata loads.
   - **Why**: The seek bar looks interactive even when duration is 0 (no video loaded). Clicking it does nothing but confuses users.
 
-- [ ] 🟢 **Fullscreen button has no visual highlight when active**
+- [x] 🟢 **Fullscreen button has no visual highlight when active**
   - **How**: At line 849, add conditional accent color like the CC and Loop buttons: `className={`${btnClass} ${isFullscreen ? 'text-[var(--accent)]' : ''}`}`. The CC button (line 802) and Loop button (line 814) already follow this pattern.
   - **Why**: Inconsistent with other toggle buttons. CC and Loop highlight in accent color when active, but Fullscreen doesn't, even though it's also a toggle with `aria-pressed`.
 
