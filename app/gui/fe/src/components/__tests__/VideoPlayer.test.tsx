@@ -1409,6 +1409,182 @@ describe('VideoPlayer', () => {
     });
   });
 
+  // ── Fullscreen auto-hide timer ──────────────────────────────────────
+
+  describe('fullscreen auto-hide timer', () => {
+    it('hides controls after 3s inactivity in fullscreen while playing', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPlayer();
+      await waitForControls();
+
+      // Enter fullscreen — video element remounts into fullscreen DOM tree
+      await act(async () => { fireEvent.keyDown(document, { key: 'f' }); });
+      expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
+
+      // Re-query video element AFTER fullscreen (React remounts it in new tree position)
+      const fsVideo = getVideoElement();
+
+      // Start playback on the fullscreen video element
+      await act(async () => { fireEvent.play(fsVideo); });
+      expect(screen.getByLabelText('Pause')).toBeInTheDocument();
+      await act(async () => { vi.advanceTimersByTime(1); });
+
+      // Verify cursor starts as 'auto' (controlsVisible = true)
+      const overlay = () => document.querySelector('.fixed.inset-0.z-\\[60\\]') as HTMLElement | null;
+      expect(overlay()!.style.cursor).toBe('auto');
+
+      // Advance 3s — auto-hide fires, cursor should become 'none'
+      await act(async () => { vi.advanceTimersByTime(3001); });
+      expect(overlay()!.style.cursor).toBe('none');
+
+      vi.useRealTimers();
+    });
+
+    it('controls stay visible when paused in fullscreen', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPlayer();
+      await waitForControls();
+
+      // Enter fullscreen but don't play
+      await act(async () => { fireEvent.keyDown(document, { key: 'f' }); });
+      await act(async () => { vi.advanceTimersByTime(1); });
+
+      const overlay = () => document.querySelector('.fixed.inset-0.z-\\[60\\]') as HTMLElement | null;
+      expect(overlay()!.style.cursor).toBe('auto');
+
+      // Advance well past 3s — controls remain visible (paused)
+      await act(async () => { vi.advanceTimersByTime(10000); });
+      expect(overlay()!.style.cursor).toBe('auto');
+
+      vi.useRealTimers();
+    });
+  });
+
+  // ── Loop-on-ended behavior ──────────────────────────────────────────
+
+  describe('loop-on-ended behavior', () => {
+    it('onEnded does NOT reset currentTime when loop is enabled', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      let ct = 95;
+      Object.defineProperty(video, 'currentTime', {
+        get: () => ct,
+        set: (v: number) => { ct = v; },
+        configurable: true,
+      });
+
+      // Enable loop
+      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
+      expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
+
+      // Start playback, then fire ended
+      fireEvent.play(video);
+      act(() => { fireEvent(video, new Event('ended')); });
+
+      // With loop enabled, currentTime should NOT be reset to 0
+      expect(ct).toBe(95);
+      // isPlaying should still become false (the handler always sets it)
+      expect(screen.getByLabelText('Play')).toBeInTheDocument();
+    });
+  });
+
+  // ── Volume boundary clamping ────────────────────────────────────────
+
+  describe('volume boundary clamping', () => {
+    it('volume does not go below 0 when pressing ArrowDown at minimum', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Press ArrowDown 11 times (from 1.0, each step -0.1, so 10 gets to 0, 11th should clamp)
+      for (let i = 0; i < 11; i++) {
+        await act(async () => { fireEvent.keyDown(document, { key: 'ArrowDown' }); });
+      }
+
+      const video = getVideoElement();
+      expect(video.volume).toBeGreaterThanOrEqual(0);
+      expect(video.volume).toBe(0);
+    });
+
+    it('volume does not exceed 1.0 when pressing ArrowUp at maximum', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      // Default volume is 1.0; press ArrowUp twice to ensure it clamps
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
+
+      const video = getVideoElement();
+      expect(video.volume).toBeLessThanOrEqual(1);
+      expect(video.volume).toBe(1);
+    });
+  });
+
+  // ── Seek bar mouse click ────────────────────────────────────────────
+
+  describe('seek bar mouse click', () => {
+    it('clicking seek bar at 50% sets currentTime to 50% of duration', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      const video = getVideoElement();
+      simulateLoadedMetadata(100);
+
+      let ct = 0;
+      Object.defineProperty(video, 'currentTime', {
+        get: () => ct,
+        set: (v: number) => { ct = v; },
+        configurable: true,
+      });
+
+      const seekBar = screen.getByRole('slider', { name: 'Seek' });
+
+      // Mock getBoundingClientRect on the inner bar ref (the seek handler uses seekBarRef)
+      // The handler uses the slider div's child ref, but the mousedown is on the slider div itself
+      // The seekBarRef is the inner .h-1.5 div — mock its parent's getBoundingClientRect
+      const innerBar = seekBar.querySelector('.h-1\\.5');
+      if (innerBar) {
+        vi.spyOn(innerBar, 'getBoundingClientRect').mockReturnValue({
+          left: 0, right: 200, width: 200, top: 0, bottom: 10, height: 10, x: 0, y: 0, toJSON: () => {},
+        });
+      }
+
+      fireEvent.mouseDown(seekBar, { clientX: 100 });
+
+      // 100 / 200 = 0.5, so currentTime = 0.5 * 100 = 50
+      expect(ct).toBe(50);
+    });
+  });
+
+  // ── Caption track mode synchronization ──────────────────────────────
+
+  describe('caption track mode synchronization', () => {
+    it('C key toggles textTracks[0].mode between showing and hidden', async () => {
+      const srtData = new TextEncoder().encode(
+        '1\n00:00:01,000 --> 00:00:04,000\nHello\n',
+      );
+      renderPlayer({ subtitleData: srtData });
+      await waitForControls();
+
+      const video = getVideoElement();
+
+      // Mock textTracks
+      const mockTrack = { mode: 'hidden' as string };
+      const textTracks = [mockTrack] as unknown as TextTrackList;
+      Object.defineProperty(textTracks, 'length', { value: 1 });
+      Object.defineProperty(video, 'textTracks', { value: textTracks, configurable: true });
+
+      // showCaptions starts false → first C press toggles to true → mode = 'showing'
+      await act(async () => { fireEvent.keyDown(document, { key: 'c' }); });
+      expect(mockTrack.mode).toBe('showing');
+
+      // Press C again to toggle back to false → mode = 'hidden'
+      await act(async () => { fireEvent.keyDown(document, { key: 'C' }); });
+      expect(mockTrack.mode).toBe('hidden');
+    });
+  });
+
   // ── Accessibility: CC button discoverability ──────────────────────────
 
   describe('CC button discoverability', () => {

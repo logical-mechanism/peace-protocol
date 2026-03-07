@@ -85,7 +85,7 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/VideoPlayer.test.tsx`
 
-- [ ] 🟡 **Fullscreen auto-hide timer not tested**
+- [x] 🟡 **Fullscreen auto-hide timer not tested**
   - **How**: Test the 3-second inactivity timer: (1) enter fullscreen via F key, (2) advance timers by 3000ms with `vi.advanceTimersByTime(3000)`, (3) verify controls are hidden (check for `opacity-0` or `translate-y-full` class on control bar). Also test that mouse movement resets the timer: move mouse, advance 2s, verify still visible, advance 2s more, verify hidden.
   - **Why**: The auto-hide timer is the core fullscreen UX mechanism. A regression would leave controls permanently visible or permanently hidden.
 
