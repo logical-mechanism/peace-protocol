@@ -43,7 +43,7 @@ Each item:
   - **How**: Add a `showRemaining` boolean state (default `false`). On the time display (~line 841), when `showRemaining` is true, show `-formatTime(duration - displayTime) / formatTime(duration)` instead of `formatTime(displayTime) / formatTime(duration)`. Make the time display clickable to toggle. Add `T` keyboard shortcut in the key handler (~line 631). AudioPlayer implements this pattern at ~line 185 with `showRemaining` state.
   - **Why**: Standard video player feature. Lets users see how much time is left without mental math.
 
-- [ ] 🟢 **No double-click on video to toggle fullscreen**
+- [x] 🟢 **No double-click on video to toggle fullscreen**
   - **How**: Add an `onDoubleClick` handler to the video element (~line 1000) that calls the same `toggleFullscreen` logic used by the F key and fullscreen button (~line 577). Use `e.preventDefault()` to avoid text selection. Must not interfere with single-click play/pause — use a 200ms `setTimeout` pattern: single-click sets a timer, double-click clears it and toggles fullscreen instead.
   - **Why**: Double-click-to-fullscreen is the universal convention in desktop video players (VLC, mpv, YouTube). Users try it instinctively.
 

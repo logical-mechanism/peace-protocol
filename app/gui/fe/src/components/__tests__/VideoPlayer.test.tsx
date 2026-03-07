@@ -406,6 +406,32 @@ describe('VideoPlayer', () => {
       expect(timeButton.textContent).toContain('02:00');
     });
 
+    it('double-click on video toggles fullscreen', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+
+      // Double-click should enter fullscreen
+      await act(async () => { fireEvent.doubleClick(video); });
+      expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
+    });
+
+    it('single click on video triggers play/pause after delay', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+      const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+
+      // Single click should not immediately trigger play
+      await act(async () => { fireEvent.click(video); });
+      expect(playSpy).not.toHaveBeenCalled();
+
+      // After 200ms delay, play/pause fires
+      await new Promise(r => setTimeout(r, 250));
+      await act(async () => {});
+      expect(playSpy).toHaveBeenCalled();
+    });
+
     it('clicking time display toggles remaining time', async () => {
       renderPlayer();
       await waitForControls();

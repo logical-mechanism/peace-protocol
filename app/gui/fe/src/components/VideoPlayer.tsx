@@ -146,6 +146,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const lastDrawTimeRef = useRef(0);
   const rafRef = useRef<number>(0);
   const isPlayingRef = useRef(false);
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // PiP feature detection
   useEffect(() => {
@@ -339,6 +340,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         clearTimeout(stalledTimerRef.current);
         stalledTimerRef.current = null;
       }
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
       ffmpegTerminateRef.current?.().catch(() => {});
       ffmpegTerminateRef.current = null;
     };
@@ -423,6 +428,24 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) video.play(); else video.pause();
+  }, []);
+
+  const handleVideoClick = useCallback(() => {
+    // Delay play/pause to distinguish from double-click
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null;
+      handlePlayPause();
+    }, 200);
+  }, [handlePlayPause]);
+
+  const handleVideoDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+    setIsFullscreen(fs => !fs);
   }, []);
 
   const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -1082,7 +1105,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           }, 5000);
         }
       }}
-      onClick={handlePlayPause}
+      onClick={handleVideoClick}
+      onDoubleClick={handleVideoDoubleClick}
     >
       {subtitleUrl && (
         <track
