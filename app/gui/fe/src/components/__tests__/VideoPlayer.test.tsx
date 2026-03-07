@@ -385,6 +385,42 @@ describe('VideoPlayer', () => {
       expect(screen.getByLabelText(/Playback speed: 1.5x/)).toBeInTheDocument();
     });
 
+    it('T toggles time display between total and remaining', async () => {
+      renderPlayer();
+      await waitForControls();
+      simulateLoadedMetadata(120);
+
+      // Default: shows total time (formatTime(duration) = "02:00")
+      const timeButton = screen.getByTitle(/toggle remaining time/i);
+      expect(timeButton).toBeInTheDocument();
+      expect(timeButton.textContent).toContain('02:00');
+      expect(timeButton.textContent).not.toContain('\u2212');
+
+      // Press T to toggle to remaining time
+      await act(async () => { fireEvent.keyDown(document, { key: 't' }); });
+      expect(timeButton.textContent).toContain('\u2212');
+
+      // Press T again to toggle back to total
+      await act(async () => { fireEvent.keyDown(document, { key: 'T' }); });
+      expect(timeButton.textContent).not.toContain('\u2212');
+      expect(timeButton.textContent).toContain('02:00');
+    });
+
+    it('clicking time display toggles remaining time', async () => {
+      renderPlayer();
+      await waitForControls();
+      simulateLoadedMetadata(60);
+
+      const timeButton = screen.getByTitle(/toggle remaining time/i);
+      expect(timeButton.textContent).not.toContain('\u2212');
+
+      await act(async () => { fireEvent.click(timeButton); });
+      expect(timeButton.textContent).toContain('\u2212');
+
+      await act(async () => { fireEvent.click(timeButton); });
+      expect(timeButton.textContent).not.toContain('\u2212');
+    });
+
     it('ArrowUp increases volume', async () => {
       renderPlayer();
       await waitForControls();

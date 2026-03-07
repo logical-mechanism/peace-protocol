@@ -39,7 +39,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟢 **No time format toggle (elapsed vs remaining)**
+- [x] 🟢 **No time format toggle (elapsed vs remaining)**
   - **How**: Add a `showRemaining` boolean state (default `false`). On the time display (~line 841), when `showRemaining` is true, show `-formatTime(duration - displayTime) / formatTime(duration)` instead of `formatTime(displayTime) / formatTime(duration)`. Make the time display clickable to toggle. Add `T` keyboard shortcut in the key handler (~line 631). AudioPlayer implements this pattern at ~line 185 with `showRemaining` state.
   - **Why**: Standard video player feature. Lets users see how much time is left without mental math.
 

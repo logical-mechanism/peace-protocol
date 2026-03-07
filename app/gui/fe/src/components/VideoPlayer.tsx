@@ -126,6 +126,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [showKeyHints, setShowKeyHints] = useState(false);
   // Interpolated time for smooth seek bar (updated at 60fps via rAF)
   const [displayTime, setDisplayTime] = useState(0);
+  const [showRemaining, setShowRemaining] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fullscreenRef = useRef<HTMLDivElement>(null);
@@ -698,6 +699,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         case 'C':
           if (subtitleUrl) handleCaptionToggle();
           break;
+        case 't':
+        case 'T':
+          setShowRemaining(r => !r);
+          break;
         case 's':
         case 'S':
           handleSpeedChange();
@@ -847,9 +852,17 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       </button>
 
       {/* Time */}
-      <span className="text-xs font-mono text-[var(--text-muted)] min-w-[85px] text-center select-none">
-        {formatTime(displayTime)} / {formatTime(duration)}
-      </span>
+      <div
+        className="text-xs font-mono text-[var(--text-muted)] min-w-[85px] text-center select-none cursor-pointer"
+        onClick={() => setShowRemaining(r => !r)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowRemaining(r => !r); } }}
+        role="button"
+        tabIndex={0}
+        title="Click to toggle remaining time (T)"
+        aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}
+      >
+        {formatTime(displayTime)} / {showRemaining ? `\u2212${formatTime(Math.max(0, duration - displayTime))}` : formatTime(duration)}
+      </div>
 
       {/* Seek bar — outer wrapper expands click target while visual bar stays h-1.5 */}
       <div
@@ -997,6 +1010,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time</span>
         {subtitleUrl && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">?</kbd> Show hints</span>
       </div>
