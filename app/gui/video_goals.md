@@ -53,11 +53,11 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **Redundant `Uint8Array` copy during remux doubles memory usage**
+- [x] 🟡 **Redundant `Uint8Array` copy during remux doubles memory usage**
   - **How**: At ~line 290, `new Uint8Array(data)` creates a copy of the entire file before passing to FFmpeg. If `data` is already a `Uint8Array`, pass it directly: `const input = data instanceof Uint8Array ? data : new Uint8Array(data);`. The `remuxToMp4` function at ~line 46 accepts `Uint8Array`, so no signature change needed.
   - **Why**: For a 500MB video, this copy creates ~1GB peak memory (original + copy) before FFmpeg even starts. Eliminating the copy reduces peak memory by the file size. Especially important near the 2GB hard limit.
 
-- [ ] 🟢 **Probe blob creates another unnecessary copy**
+- [x] 🟢 **Probe blob creates another unnecessary copy**
   - **How**: At ~line 227, `new Blob([new Uint8Array(data)])` copies the data again for the probe. Since the probe only needs to check if the format plays (8s timeout, no seeking), consider reusing the same `Uint8Array` reference: `new Blob([data])` works if `data` is already a `Uint8Array` or `ArrayBuffer`. Check the type first and avoid the wrapper copy.
   - **Why**: During the probe phase, three copies of the file exist momentarily (prop, Uint8Array wrapper, Blob internals). For large files this is wasteful, though the probe blob is short-lived.
 

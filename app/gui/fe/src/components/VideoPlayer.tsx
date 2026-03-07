@@ -231,7 +231,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
     (async () => {
       // First attempt: create blob URL and see if a probe <video> can play it
-      const blob = new Blob([new Uint8Array(data)], { type: mimeType });
+      const blob = new Blob([data], { type: mimeType });
       const url = URL.createObjectURL(blob);
       currentUrl = url;
 
@@ -294,7 +294,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
       try {
         const inputName = `input${fileExtension}`;
-        const mp4Bytes = await remuxToMp4(new Uint8Array(data), inputName, (evt) => {
+        const mp4Bytes = await remuxToMp4(data, inputName, (evt) => {
           lastProgressTime = Date.now();
           if (!cancelled) setRemuxProgress(Math.max(0, Math.min(1, evt.progress)));
         }, (fn) => { ffmpegTerminateRef.current = fn; });
