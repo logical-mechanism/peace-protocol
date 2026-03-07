@@ -102,6 +102,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [error, setError] = useState<string | null>(null);
   const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [remuxCancelled, setRemuxCancelled] = useState(false);
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -126,6 +127,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const isSeekingRef = useRef(false);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ffmpegTerminateRef = useRef<(() => Promise<void>) | null>(null);
+  const remuxCancelledRef = useRef(false);
   const activeBlobUrlRef = useRef<string | null>(null);
   // Smooth time interpolation — video.currentTime updates ~4Hz on WebKitGTK,
   // we interpolate between updates for fluid seek bar movement
@@ -190,6 +192,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     // Reset playback state on new data
     setPlaybackRate(1.0);
     setRemuxProgress(0);
+    setRemuxCancelled(false);
+    remuxCancelledRef.current = false;
 
     (async () => {
       // First attempt: create blob URL and see if a probe <video> can play it
@@ -268,6 +272,10 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         setBlobUrl(mp4Url);
       } catch (err) {
         if (cancelled) return;
+        if (remuxCancelledRef.current) {
+          remuxCancelledRef.current = false;
+          return;
+        }
         const msg = err instanceof Error ? err.message : '';
         setError(msg.includes('appears stuck')
           ? msg
@@ -537,6 +545,16 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     });
   }, []);
 
+  const handleCancelRemux = useCallback(() => {
+    remuxCancelledRef.current = true;
+    setRemuxCancelled(true);
+    ffmpegTerminateRef.current?.().catch(() => {});
+    ffmpegTerminateRef.current = null;
+    setRemuxing(false);
+    setRemuxProgress(0);
+    setSizeWarning(null);
+  }, []);
+
   // Sync loop property
   useEffect(() => {
     if (videoRef.current) videoRef.current.loop = isLooping;
@@ -704,6 +722,33 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         </div>
         {sizeWarning && (
           <p className="text-xs text-[var(--warning)]">{sizeWarning}</p>
+        )}
+        <button
+          onClick={handleCancelRemux}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  // --- Cancelled fallback ---
+
+  if (remuxCancelled && !blobUrl) {
+    return (
+      <div className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-center space-y-3">
+        <p className="text-sm text-[var(--text-muted)]">Conversion cancelled.</p>
+        {onExport && (
+          <button
+            onClick={onExport}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Save As
+          </button>
         )}
       </div>
     );

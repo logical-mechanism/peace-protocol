@@ -43,7 +43,7 @@ Each item:
   - **How**: Bundle `@ffmpeg/core@0.12.6` UMD files (`ffmpeg-core.js` + `ffmpeg-core.wasm`) as static assets in `fe/public/ffmpeg/`. Replace the CDN `baseURL` at line 50 with a relative path. Use `toBlobURL('/ffmpeg/ffmpeg-core.js', ...)` which resolves locally via Vite/Tauri. Remove the retry loop (lines 52-67) since local loads don't fail transiently.
   - **Why**: Remux fails completely if unpkg.com is unreachable. Desktop apps should work offline. Also eliminates 2-3s CDN latency on first remux.
 
-- [ ] 🟡 **No cancel button during remux**
+- [x] 🟡 **No cancel button during remux**
   - **How**: In the remuxing UI (lines 668-689), add a "Cancel" button that calls `ffmpegTerminateRef.current?.()`, sets `cancelled = true` via a ref, and resets remuxing state. Show "Conversion cancelled" as an info message (not error). Offer the "Save As" fallback.
   - **Why**: Large file remux can take minutes. Users have no way to abort except closing the modal, which also loses their place in the library.
 
