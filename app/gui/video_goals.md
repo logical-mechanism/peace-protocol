@@ -101,7 +101,7 @@ Each item:
   - **How**: Get the seek bar element (`role="slider"`), fire `mousedown` with a `clientX` at 50% of the bar width. Verify `video.currentTime` is set to ~50% of duration. Use `getBoundingClientRect` mock to control bar dimensions. The handler is `handleSeekMouseDown` at ~line 418.
   - **Why**: Seek-by-click is the primary mouse interaction. Currently only keyboard seek (Home/End/Arrows) is tested.
 
-- [ ] 🟢 **Caption track mode synchronization not tested**
+- [x] 🟢 **Caption track mode synchronization not tested**
   - **How**: (1) Render with subtitle data, (2) verify `<track>` element has `default={true}` (showCaptions starts true), (3) press C to toggle captions off, (4) verify `video.textTracks[0].mode === 'hidden'`. Mock `video.textTracks` as a list with one track object. The toggle logic is at ~line 548.
   - **Why**: The caption toggle sets `textTracks[0].mode` directly — if the track index assumption breaks or mode assignment fails, captions silently stop working.
 
