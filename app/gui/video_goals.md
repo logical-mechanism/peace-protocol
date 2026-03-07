@@ -45,7 +45,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟢 **PiP event listeners re-attached on every `blobUrl` change**
+- [x] 🟢 **PiP event listeners re-attached on every `blobUrl` change**
   - **How**: The PiP `useEffect` (~line 157) has `[blobUrl]` in its dependency array. The `enterpictureinpicture` and `leavepictureinpicture` events are attached to the `<video>` element ref, which doesn't change when `blobUrl` changes — only `video.src` changes. Change the dependency array to `[]` (mount-only). The event listeners will still fire because they're on the element, not the URL.
   - **Why**: Every remux or data change tears down and re-attaches two event listeners unnecessarily. Benign but wasteful — especially visible in DevTools event listener counts.
 

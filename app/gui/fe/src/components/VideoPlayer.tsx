@@ -165,7 +165,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       video.removeEventListener('enterpictureinpicture', onEnterPip);
       video.removeEventListener('leavepictureinpicture', onLeavePip);
     };
-  }, [blobUrl]); // Re-attach when video src changes
+  }, []); // Element ref doesn't change; listeners persist across src changes
 
   // Create Blob URL for subtitle track
   useEffect(() => {
