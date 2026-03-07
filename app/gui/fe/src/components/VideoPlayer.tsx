@@ -82,6 +82,14 @@ async function remuxToMp4(
   await ffmpeg.exec(['-i', inputName, '-c', 'copy', 'output.mp4']);
   const output = await ffmpeg.readFile('output.mp4');
 
+  // Clean virtual FS to free WASM memory before terminate
+  try {
+    await ffmpeg.deleteFile(inputName);
+    await ffmpeg.deleteFile('output.mp4');
+  } catch {
+    // Best-effort cleanup — terminate will free everything regardless
+  }
+
   if (onProgress) ffmpeg.off('progress', onProgress);
   await terminateWithTimeout(ffmpeg);
   setTerminate?.(null);

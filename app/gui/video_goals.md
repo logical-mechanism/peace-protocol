@@ -47,7 +47,7 @@ Each item:
   - **How**: In the remuxing UI (lines 668-689), add a "Cancel" button that calls `ffmpegTerminateRef.current?.()`, sets `cancelled = true` via a ref, and resets remuxing state. Show "Conversion cancelled" as an info message (not error). Offer the "Save As" fallback.
   - **Why**: Large file remux can take minutes. Users have no way to abort except closing the modal, which also loses their place in the library.
 
-- [ ] 🟢 **FFmpeg virtual filesystem not cleaned before terminate**
+- [x] 🟢 **FFmpeg virtual filesystem not cleaned before terminate**
   - **How**: After `ffmpeg.readFile('output.mp4')` at line 73, add `await ffmpeg.deleteFile(inputName); await ffmpeg.deleteFile('output.mp4');` before `ffmpeg.terminate()`. This releases the input + output copies from WASM memory immediately.
   - **Why**: During remux of a 500MB file, FFmpeg holds both input and output in its virtual FS (up to 1GB). Deleting before terminate frees that memory sooner, reducing peak usage.
 
