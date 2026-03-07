@@ -21,7 +21,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **Missing `preload` attribute on video element**
+- [x] 🟡 **Missing `preload` attribute on video element**
   - **How**: Add `preload="metadata"` to the `<video>` element at line 882. AudioPlayer sets `preload="auto"`; `"metadata"` is more appropriate for video since it avoids buffering the full file before user action while still ensuring duration/dimensions are available early.
   - **Why**: Without a preload hint, WebKitGTK may delay metadata loading (duration, dimensions) until the user interacts, which can cause the seek bar to show `00:00 / 00:00` briefly after the blob URL is set.
 

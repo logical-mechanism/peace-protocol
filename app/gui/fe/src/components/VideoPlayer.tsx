@@ -882,6 +882,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     <video
       ref={videoRef}
       src={blobUrl}
+      preload="metadata"
       className={isFullscreen
         ? "max-w-full max-h-full cursor-pointer"
         : "max-w-full max-h-[500px] cursor-pointer"
