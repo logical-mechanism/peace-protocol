@@ -25,7 +25,7 @@ Each item:
   - **How**: In `LibraryContentModal.tsx`, the `videoMimeMap` maps `'.mov': 'video/mp4'`. Change to `'.mov': 'video/quicktime'`. MOV containers use the QuickTime MIME type; declaring `video/mp4` can cause the probe to reject a valid MOV file or skip the remux fallback when it's actually needed.
   - **Why**: MOV files may fail the native playback probe on stricter GStreamer configurations because the declared MIME type doesn't match the actual container format.
 
-- [ ] 🟡 **Video `onError` handler discards browser error details**
+- [x] 🟡 **Video `onError` handler discards browser error details**
   - **How**: In `VideoPlayer.tsx`, the `handleError` callback (~line 403) sets a generic `'The video could not be played.'` message. Instead, read `videoRef.current?.error?.message` and `videoRef.current?.error?.code` (the `MediaError` object) and include it: `setError(\`Playback failed: \${videoRef.current?.error?.message || 'unknown error'}\`)`. Also append the conversion hint for the current `fileExtension` so the user sees the ffmpeg suggestion without needing a separate lookup.
   - **Why**: When playback fails after a successful probe, users see a generic message with no diagnostic info and no conversion hint — unlike the probe-failure error path which includes both.
 

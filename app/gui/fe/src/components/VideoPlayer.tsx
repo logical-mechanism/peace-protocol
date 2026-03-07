@@ -402,7 +402,9 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
   const handleError = useCallback(() => {
     setLoading(false);
-    setError('The video could not be played.');
+    const mediaError = videoRef.current?.error;
+    const detail = mediaError?.message || `error code ${mediaError?.code ?? 'unknown'}`;
+    setError(`Playback failed: ${detail}`);
   }, []);
 
   // --- Playback handlers ---
