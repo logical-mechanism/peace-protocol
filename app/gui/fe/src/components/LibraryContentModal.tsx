@@ -117,7 +117,7 @@ function videoExtensionToMimeType(ext?: string): string {
   const map: Record<string, string> = {
     '.mp4': 'video/mp4',
     '.webm': 'video/webm',
-    '.mov': 'video/mp4',
+    '.mov': 'video/quicktime',
     '.ogg': 'video/ogg',
     '.mkv': 'video/x-matroska',
     '.avi': 'video/x-msvideo',

@@ -21,7 +21,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/LibraryContentModal.tsx`
 
-- [ ] 🔴 **MOV MIME type mapped incorrectly in LibraryContentModal**
+- [x] 🔴 **MOV MIME type mapped incorrectly in LibraryContentModal**
   - **How**: In `LibraryContentModal.tsx`, the `videoMimeMap` maps `'.mov': 'video/mp4'`. Change to `'.mov': 'video/quicktime'`. MOV containers use the QuickTime MIME type; declaring `video/mp4` can cause the probe to reject a valid MOV file or skip the remux fallback when it's actually needed.
   - **Why**: MOV files may fail the native playback probe on stricter GStreamer configurations because the declared MIME type doesn't match the actual container format.
 
