@@ -25,7 +25,7 @@ Each item:
   - **How**: Add `preload="metadata"` to the `<video>` element at line 882. AudioPlayer sets `preload="auto"`; `"metadata"` is more appropriate for video since it avoids buffering the full file before user action while still ensuring duration/dimensions are available early.
   - **Why**: Without a preload hint, WebKitGTK may delay metadata loading (duration, dimensions) until the user interacts, which can cause the seek bar to show `00:00 / 00:00` briefly after the blob URL is set.
 
-- [ ] 🟡 **FFmpeg terminate has no timeout -- can hang forever**
+- [x] 🟡 **FFmpeg terminate has no timeout -- can hang forever**
   - **How**: Wrap `ffmpeg.terminate()` at line 76 with `Promise.race([ffmpeg.terminate(), new Promise((_, rej) => setTimeout(() => rej(new Error('FFmpeg worker hung')), 10_000))])`. Same pattern for the cleanup call at line 280. If the timeout fires, log a warning -- the worker will be garbage-collected when the page navigates.
   - **Why**: If the FFmpeg WASM worker crashes or becomes unresponsive, `terminate()` never resolves, leaving the UI stuck in the remuxing state forever.
 

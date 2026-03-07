@@ -33,6 +33,16 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+/** Terminate FFmpeg with a 10s timeout to avoid hanging if the worker is unresponsive. */
+async function terminateWithTimeout(ffmpeg: { terminate: () => Promise<void> }): Promise<void> {
+  await Promise.race([
+    ffmpeg.terminate(),
+    new Promise<void>((_, rej) => setTimeout(() => rej(new Error('FFmpeg worker hung')), 10_000)),
+  ]).catch((err) => {
+    console.warn('FFmpeg terminate failed:', err);
+  });
+}
+
 /** Try to remux an unsupported container to MP4 via ffmpeg.wasm (lazy-loaded). */
 async function remuxToMp4(
   data: Uint8Array,
@@ -44,7 +54,7 @@ async function remuxToMp4(
   const { toBlobURL } = await import('@ffmpeg/util');
 
   const ffmpeg = new FFmpeg();
-  setTerminate?.(() => Promise.resolve(ffmpeg.terminate()));
+  setTerminate?.(() => terminateWithTimeout(ffmpeg));
 
   // Load the single-threaded WASM core from CDN via blob URLs (retry on network failure)
   const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
@@ -73,7 +83,7 @@ async function remuxToMp4(
   const output = await ffmpeg.readFile('output.mp4');
 
   if (onProgress) ffmpeg.off('progress', onProgress);
-  await ffmpeg.terminate();
+  await terminateWithTimeout(ffmpeg);
   setTerminate?.(null);
 
   if (output instanceof Uint8Array) {
