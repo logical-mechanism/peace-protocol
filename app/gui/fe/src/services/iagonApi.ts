@@ -71,9 +71,8 @@ export async function verifyApiKey(apiKey: string): Promise<boolean> {
 // ── Storage Endpoints ───────────────────────────────────────────────────
 
 /**
- * Upload an encrypted file to Iagon.
- * Files are uploaded as public (content is already client-side encrypted).
- * File data is passed as a byte array through the Tauri command bridge.
+ * @deprecated Use encryptAndUpload() instead — this function causes ~15-20x
+ * memory amplification for large files due to Tauri IPC JSON serialization.
  */
 export async function uploadFile(
   apiKey: string,
@@ -88,8 +87,8 @@ export async function uploadFile(
 }
 
 /**
- * Download a file from Iagon by ID.
- * Returns the raw file bytes.
+ * @deprecated Use downloadAndSave() instead — this function causes ~15-20x
+ * memory amplification for large files due to Tauri IPC JSON serialization.
  */
 export async function downloadFile(
   apiKey: string,
@@ -97,6 +96,81 @@ export async function downloadFile(
 ): Promise<Uint8Array> {
   const bytes = await invoke<number[]>('iagon_download', { apiKey, fileId });
   return new Uint8Array(bytes);
+}
+
+// ── File-based endpoints (no large byte arrays cross IPC) ───────────────
+
+export interface IagonEncryptUploadResult {
+  file_info: IagonFileInfo;
+  key_hex: string;
+  nonce_hex: string;
+  digest_hex: string;
+}
+
+export interface IagonDownloadSaveResult {
+  path: string;
+  size: number;
+}
+
+/**
+ * Encrypt a file on disk with AES-256-GCM and upload to Iagon.
+ *
+ * All heavy byte operations (read, encrypt, upload) happen in Rust.
+ * Only small strings cross the IPC bridge — no memory amplification.
+ *
+ * @param apiKey - Iagon API key
+ * @param filePath - Absolute path to the file on disk
+ * @param filename - Name for the uploaded file on Iagon
+ * @returns File info + hex-encoded encryption key, nonce, and digest
+ */
+export async function encryptAndUpload(
+  apiKey: string,
+  filePath: string,
+  filename: string,
+): Promise<IagonEncryptUploadResult> {
+  return invoke<IagonEncryptUploadResult>('iagon_encrypt_and_upload', {
+    apiKey,
+    filePath,
+    filename,
+  });
+}
+
+/**
+ * Download a file from Iagon, decrypt, verify digest, and save to content dir.
+ *
+ * All heavy byte operations (download, decrypt, save) happen in Rust.
+ * Only small strings cross the IPC bridge — no memory amplification.
+ *
+ * @param apiKey - Iagon API key
+ * @param fileId - Iagon file ID to download
+ * @param keyHex - AES-256 key as hex string (64 chars)
+ * @param nonceHex - GCM nonce as hex string (24 chars)
+ * @param digestHex - Expected SHA-256 digest as hex (null to skip verification)
+ * @param tokenName - Encryption token name (used as directory name)
+ * @param category - Content category (text, document, audio, etc.)
+ * @param fileName - Name for the saved file
+ * @returns Saved file path and size
+ */
+export async function downloadAndSave(
+  apiKey: string,
+  fileId: string,
+  keyHex: string,
+  nonceHex: string,
+  digestHex: string | null,
+  tokenName: string,
+  category: string,
+  fileName: string,
+): Promise<IagonDownloadSaveResult> {
+  return invoke<IagonDownloadSaveResult>('iagon_download_and_save', {
+    apiKey,
+    fileId,
+    keyHex,
+    nonceHex,
+    digestHex,
+    tokenName,
+    category,
+    fileName,
+  });
 }
 
 /**

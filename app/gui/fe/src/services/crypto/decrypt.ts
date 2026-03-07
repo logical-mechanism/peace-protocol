@@ -28,8 +28,8 @@ import { encryptionsApi } from '../api';
 import { decrypt as eciesDecrypt } from './ecies';
 import { parsePayload } from './payload';
 import { bytesToHex } from './bls12381';
-import { decryptDownloadedFile, decodeFileSecret, verifyFileDigest } from './fileEncryption';
-import { downloadFile as iagonDownload } from '../iagonApi';
+import { decodeFileSecret } from './fileEncryption';
+import { downloadAndSave } from '../iagonApi';
 import { getStoredApiKey } from '../iagonAuth';
 import { g2Point, scale } from './bls12381';
 import { H0 } from './constants';
@@ -37,17 +37,20 @@ import { getSnarkProver } from '../snark';
 import { deriveSecretFromWallet } from './walletSecret';
 
 /**
- * Resolve an Iagon-backed payload by downloading and decrypting the file.
+ * Resolve an Iagon-backed payload by downloading, decrypting, and saving the file.
+ *
+ * All heavy byte operations (download, decrypt, verify, save) happen in Rust
+ * to avoid Tauri IPC JSON serialization memory amplification.
  *
  * Extracts the Iagon file ID from field 0 (locator), the AES key+nonce
- * from field 1 (secret), downloads the encrypted file, decrypts it,
- * optionally verifies integrity via field 2 (digest), and extracts the
- * original file extension from field 3 (filetype).
+ * from field 1 (secret), and the original file extension from field 3 (filetype).
  */
 async function resolveIagonPayload(
   payload: Map<number, Uint8Array>,
+  tokenName: string,
+  category: string,
   onProgress?: OnDecryptProgress
-): Promise<{ rawContent: Uint8Array; message: string; fileExtension?: string }> {
+): Promise<{ savedPath: string; size: number; message: string; fileExtension?: string }> {
   const locator = payload.get(0)!;
   const secret = payload.get(1)!;
   const digest = payload.get(2);
@@ -66,23 +69,28 @@ async function resolveIagonPayload(
   // Signal downloading phase
   onProgress?.(0, 1, 'downloading');
 
-  // Download encrypted file from Iagon
-  const encryptedBlob = await iagonDownload(apiKey, fileId);
+  // Determine file name for saving
+  const fileName = `${tokenName}${fileExtension || '.bin'}`;
 
-  // Decrypt with AES-256-GCM
-  const rawContent = await decryptDownloadedFile(encryptedBlob, key, nonce);
-
-  // Verify integrity if digest is available
-  if (digest) {
-    await verifyFileDigest(rawContent, digest);
-  }
+  // Download, decrypt, verify, and save — all in Rust
+  const result = await downloadAndSave(
+    apiKey,
+    fileId,
+    bytesToHex(key),
+    bytesToHex(nonce),
+    digest ? bytesToHex(digest) : null,
+    tokenName,
+    category,
+    fileName,
+  );
 
   // Signal download complete
   onProgress?.(1, 1, 'downloading');
 
   return {
-    rawContent,
-    message: `File downloaded and decrypted (${rawContent.length} bytes)`,
+    savedPath: result.path,
+    size: result.size,
+    message: `File downloaded and decrypted (${result.size} bytes)`,
     fileExtension,
   };
 }
@@ -105,9 +113,11 @@ async function resolveDecryptedPayload(
   onProgress?: OnDecryptProgress
 ): Promise<{
   payload?: Map<number, Uint8Array>;
-  rawContent: Uint8Array;
+  rawContent?: Uint8Array;
   message: string;
   fileExtension?: string;
+  savedPath?: string;
+  savedSize?: number;
 }> {
   let payload: Map<number, Uint8Array>;
   try {
@@ -124,10 +134,16 @@ async function resolveDecryptedPayload(
   const rawContent = payload.get(0)!;
 
   if (encryption.storageLayer === 'iagon' && payload.has(1)) {
-    // Off-chain file: download from Iagon and decrypt with AES-GCM.
+    // Off-chain file: download, decrypt, and save — all in Rust.
     // Errors here intentionally propagate — caller must handle as failure.
-    const result = await resolveIagonPayload(payload, onProgress);
-    return { payload, rawContent: result.rawContent, message: result.message, fileExtension: result.fileExtension };
+    const result = await resolveIagonPayload(payload, encryption.tokenName, encryption.category || 'other', onProgress);
+    return {
+      payload,
+      message: result.message,
+      fileExtension: result.fileExtension,
+      savedPath: result.savedPath,
+      savedSize: result.size,
+    };
   }
 
   // On-chain text content
@@ -198,6 +214,8 @@ export interface DecryptionResult {
   payload?: Map<number, Uint8Array>; // Structured CBOR payload fields
   rawContent?: Uint8Array; // Raw bytes of field 0 for saving to disk
   fileExtension?: string; // Field 3 (filetype) — original file extension (e.g. ".pdf", ".docx")
+  savedPath?: string; // Path where file content was saved (Iagon files saved by Rust)
+  savedSize?: number; // Size of the saved file in bytes
   error?: string; // Error message if failed
   isStub?: boolean; // True if using stub data
 }
@@ -487,6 +505,8 @@ async function decryptReal(
       payload: resolved.payload,
       rawContent: resolved.rawContent,
       fileExtension: resolved.fileExtension,
+      savedPath: resolved.savedPath,
+      savedSize: resolved.savedSize,
       isStub: false,
     };
   } catch (err) {
@@ -676,6 +696,8 @@ export async function decryptEncryption(
       payload: resolved.payload,
       rawContent: resolved.rawContent,
       fileExtension: resolved.fileExtension,
+      savedPath: resolved.savedPath,
+      savedSize: resolved.savedSize,
       isStub: false,
     };
   } catch (err) {

@@ -7,11 +7,13 @@ import {
   verifyApiKey,
   uploadFile,
   downloadFile,
+  encryptAndUpload,
+  downloadAndSave,
   deleteFile,
   searchFiles,
   listFiles,
 } from '../iagonApi';
-import type { IagonFileInfo } from '../iagonApi';
+import type { IagonFileInfo, IagonEncryptUploadResult, IagonDownloadSaveResult } from '../iagonApi';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -150,6 +152,74 @@ describe('iagonApi', () => {
     });
   });
 
+  // ── File-based IPC tests (no byte arrays cross IPC) ──────────────
+
+  describe('encryptAndUpload', () => {
+    it('calls iagon_encrypt_and_upload with file path (no byte arrays)', async () => {
+      const result: IagonEncryptUploadResult = {
+        file_info: {
+          _id: 'file-1',
+          name: 'test.enc',
+          path: '/test.enc',
+          unique_id: 'uniq-1',
+          file_size_byte_native: 100,
+          file_size_byte_encrypted: 120,
+        },
+        key_hex: 'a'.repeat(64),
+        nonce_hex: 'b'.repeat(24),
+        digest_hex: 'c'.repeat(64),
+      };
+      mockInvoke.mockResolvedValueOnce(result);
+      const res = await encryptAndUpload('api-key', '/path/to/file.pdf', 'draft-123.pdf.enc');
+      expect(mockInvoke).toHaveBeenCalledWith('iagon_encrypt_and_upload', {
+        apiKey: 'api-key',
+        filePath: '/path/to/file.pdf',
+        filename: 'draft-123.pdf.enc',
+      });
+      // Verify no byte arrays in the invoke call
+      const callArgs = mockInvoke.mock.calls[0][1] as Record<string, unknown>;
+      for (const value of Object.values(callArgs)) {
+        expect(value).not.toBeInstanceOf(Uint8Array);
+        expect(Array.isArray(value)).toBe(false);
+      }
+      expect(res.file_info._id).toBe('file-1');
+      expect(res.key_hex).toBe('a'.repeat(64));
+    });
+  });
+
+  describe('downloadAndSave', () => {
+    it('calls iagon_download_and_save with string params only', async () => {
+      const result: IagonDownloadSaveResult = {
+        path: '/data/content/document/tok123/tok123.pdf',
+        size: 12345,
+      };
+      mockInvoke.mockResolvedValueOnce(result);
+      const res = await downloadAndSave(
+        'api-key', 'file-1', 'aa'.repeat(32), 'bb'.repeat(12),
+        'cc'.repeat(32), 'tok123', 'document', 'tok123.pdf'
+      );
+      expect(mockInvoke).toHaveBeenCalledWith('iagon_download_and_save', {
+        apiKey: 'api-key',
+        fileId: 'file-1',
+        keyHex: 'aa'.repeat(32),
+        nonceHex: 'bb'.repeat(12),
+        digestHex: 'cc'.repeat(32),
+        tokenName: 'tok123',
+        category: 'document',
+        fileName: 'tok123.pdf',
+      });
+      expect(res.path).toContain('tok123.pdf');
+      expect(res.size).toBe(12345);
+    });
+
+    it('passes null digestHex when no digest provided', async () => {
+      mockInvoke.mockResolvedValueOnce({ path: '/path', size: 100 });
+      await downloadAndSave('key', 'fid', 'aa'.repeat(32), 'bb'.repeat(12), null, 'tok', 'audio', 'f.mp3');
+      const callArgs = mockInvoke.mock.calls[0][1] as Record<string, unknown>;
+      expect(callArgs.digestHex).toBeNull();
+    });
+  });
+
   // ── Error path tests ─────────────────────────────────────────────
 
   describe('error handling', () => {
@@ -191,6 +261,18 @@ describe('iagonApi', () => {
     it('listFiles propagates invoke rejection', async () => {
       mockInvoke.mockRejectedValueOnce(new Error('wallet locked'));
       await expect(listFiles('key')).rejects.toThrow('wallet locked');
+    });
+
+    it('encryptAndUpload propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('File not found'));
+      await expect(encryptAndUpload('key', '/no/file', 'f.enc')).rejects.toThrow('File not found');
+    });
+
+    it('downloadAndSave propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('AES-GCM decryption failed'));
+      await expect(
+        downloadAndSave('key', 'fid', 'aa'.repeat(32), 'bb'.repeat(12), null, 'tok', 'audio', 'f.mp3')
+      ).rejects.toThrow('AES-GCM decryption failed');
     });
   });
 });

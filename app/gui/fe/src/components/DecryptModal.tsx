@@ -90,9 +90,21 @@ export default function DecryptModal({
 
         // Auto-save decrypted content and metadata to library
         const category = encryption?.category || 'text';
-        const contentBytes = result.rawContent ?? new TextEncoder().encode(result.message);
         try {
-          const path = await saveDecryptedContent(encryption!.tokenName, category, contentBytes, result.fileExtension);
+          let path: string;
+          let fileSize: number;
+
+          if (result.savedPath) {
+            // File content — already saved by Rust (no large byte arrays crossed IPC)
+            path = result.savedPath;
+            fileSize = result.savedSize ?? 0;
+          } else {
+            // Text content — save via IPC (small data, safe to serialize)
+            const contentBytes = result.rawContent ?? new TextEncoder().encode(result.message);
+            path = await saveDecryptedContent(encryption!.tokenName, category, contentBytes, result.fileExtension);
+            fileSize = contentBytes.length;
+          }
+
           setSavedPath(path);
           // Save metadata alongside content for library display
           await saveContentMetadata({
@@ -106,7 +118,7 @@ export default function DecryptModal({
             seller: encryption!.seller,
             createdAt: encryption!.createdAt,
             decryptedAt: new Date().toISOString(),
-            fileSize: contentBytes.length,
+            fileSize,
           });
         } catch (err) {
           console.warn('Failed to save decrypted content:', err);

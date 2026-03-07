@@ -39,7 +39,7 @@ app/gui/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios singletons
 │   │   │   ├── kupoAdapter.ts       # IFetcher implementation for MeshSDK
-│   │   │   ├── transactionBuilder.ts # All tx building (~2174 lines)
+│   │   │   ├── transactionBuilder.ts # All tx building (~2190 lines)
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
 │   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete content)
@@ -164,7 +164,7 @@ app/gui/
 
 **Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactionBuilder.ts ~2174 lines):
+**Transaction building** (fe/src/services/transactionBuilder.ts ~2190 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
 - `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`
 - `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`
@@ -356,7 +356,7 @@ app/gui/
 
 **On-chain datums** (defined in both fe and be):
 - `EncryptionDatum` — owner_vkh, owner_g1 (Register), token, half_level, full_level|null, capsule, status (Open|Pending)
-- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token)
+- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token), locked_until (POSIX ms)
 - `Register` — { generator: hex, public_value: hex } (BLS12-381 G1 points, 96 hex chars each)
 - `Capsule` — { nonce: 24 hex, aad: 64 hex, ct: variable hex } (ChaCha20-Poly1305)
 - `HalfEncryptionLevel` — { r1b, r2_g1b, r4b } (G1, G1, G2)
@@ -364,7 +364,7 @@ app/gui/
 
 **Display models** (be types, consumed by fe):
 - `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, category?, createdAt, utxo, datum
-- `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, utxo, datum
+- `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, lockedUntil, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
 **Frontend state types:**

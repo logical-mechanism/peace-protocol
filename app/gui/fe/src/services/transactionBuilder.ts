@@ -34,18 +34,34 @@ import type { EncryptionDisplay, BidDisplay } from './api';
 import { getSnarkProver, type SnarkProof } from './snark';
 import type { CreateListingFormData } from '../components/CreateListingModal';
 import { buildEncryptionMetadata, buildBidMetadata } from './metadata';
-import { encryptFileForUpload, encodeFileSecret } from './crypto/fileEncryption';
-import { uploadFile as iagonUpload, listFiles as iagonListFiles } from './iagonApi';
+import { encodeFileSecret } from './crypto/fileEncryption';
+import { encryptAndUpload, listFiles as iagonListFiles } from './iagonApi';
 import { getStoredApiKey } from './iagonAuth';
-import { hexToBytes, bytesToHex } from './crypto/bls12381';
+import { hexToBytes } from './crypto/bls12381';
 import {
   createListingDraft,
   updateListingDraft,
   type ListingDraft,
 } from './listingDraftStorage';
+import { copyToLibrary, saveContentMetadata } from './contentStorage';
 
 // Environment flag for stub mode
 const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
+
+/**
+ * Filter out specific UTxOs from a list (e.g. collateral, explicit inputs).
+ * Compares by txHash + outputIndex.
+ */
+function excludeUtxos<T extends { input: { txHash: string; outputIndex: number } }>(
+  utxos: T[],
+  ...excluded: { input: { txHash: string; outputIndex: number } }[]
+): T[] {
+  return utxos.filter(u =>
+    !excluded.some(e =>
+      u.input.txHash === e.input.txHash && u.input.outputIndex === e.input.outputIndex
+    )
+  );
+}
 
 // Cardano protocol parameter (preprod/mainnet)
 const COINS_PER_UTXO_BYTE = 4310;
@@ -217,38 +233,30 @@ function buildPayloadFromForm(formData: CreateListingFormData): Uint8Array {
  *   - secret  (field 1): AES-256-GCM key + nonce (44 bytes)
  *   - digest  (field 2): SHA-256 of original file
  *
- * @param file - The File object from the form
+ * @param filePath - Absolute path to file on disk
+ * @param fileName - Original file name (for extension detection)
  * @param tokenName - Token name for the listing (used as Iagon filename)
  * @returns CBOR-encoded peace-payload bytes
  */
-async function buildPayloadForIagon(file: File, tokenName: string): Promise<Uint8Array> {
-  // Read file bytes
-  const fileBytes = new Uint8Array(await file.arrayBuffer());
-
-  // Encrypt for off-chain storage
-  const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
-
-  // Upload encrypted blob to Iagon
+async function buildPayloadForIagon(filePath: string, fileName: string, tokenName: string): Promise<Uint8Array> {
   const apiKey = await getStoredApiKey();
   if (!apiKey) {
     throw new Error('Iagon is not connected. Go to Settings > Data Layer to connect.');
   }
 
-  // Use token name + original extension as the Iagon filename
-  const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+  const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
   const iagonFilename = `${tokenName}${ext}.enc`;
 
-  const fileInfo = await iagonUpload(
-    apiKey,
-    encryptedBlob,
-    iagonFilename
-  );
+  // Encrypt + upload in Rust (no large byte arrays cross IPC)
+  const result = await encryptAndUpload(apiKey, filePath, iagonFilename);
 
   // Build peace-payload with Iagon reference
-  const locator = new TextEncoder().encode(fileInfo._id);
+  const locator = new TextEncoder().encode(result.file_info._id);
+  const key = hexToBytes(result.key_hex);
+  const nonce = hexToBytes(result.nonce_hex);
+  const digest = hexToBytes(result.digest_hex);
   const secret = encodeFileSecret(key, nonce);
 
-  // Store original file extension as field 3 (filetype) so decryptors know the format
   let extra: Map<number, Uint8Array> | undefined;
   if (ext) {
     extra = new Map();
@@ -319,7 +327,7 @@ export async function createListing(
 
       const payloadBytes = formData.category === 'text'
         ? buildPayloadFromForm(formData)
-        : await buildPayloadForIagon(formData.file!, tokenName);
+        : await buildPayloadForIagon(formData.filePath!, formData.fileName || formData.file?.name || 'file', tokenName);
       const artifacts = await createEncryptionWithWallet(
         wallet,
         payloadBytes,
@@ -348,7 +356,16 @@ export async function createListing(
       payloadBuilder = () => buildPayloadFromForm(formData);
     } else {
       // File listings: encrypt → upload → verify with draft persistence
+      // All heavy byte operations (read, encrypt, upload) happen in Rust
+      // to avoid Tauri IPC JSON serialization memory amplification.
       draftId = crypto.randomUUID();
+
+      const fileName = formData.fileName || formData.file?.name || 'file';
+      const fileSize = formData.fileSize ?? formData.file?.size ?? 0;
+      const filePath = formData.filePath;
+      if (!filePath) {
+        throw new Error('No file selected. Please choose a file to upload.');
+      }
 
       onProgress?.('encrypting');
       await createListingDraft(
@@ -357,31 +374,16 @@ export async function createListing(
         formData.description,
         formData.suggestedPrice || '0',
         formData.imageLink || '',
-        formData.file!.name,
-        formData.file!.size,
+        fileName,
+        fileSize,
       );
 
       // Extract original file extension for payload field 3 (filetype)
-      const ext = formData.file!.name.includes('.')
-        ? formData.file!.name.slice(formData.file!.name.lastIndexOf('.'))
+      const ext = fileName.includes('.')
+        ? fileName.slice(fileName.lastIndexOf('.'))
         : '';
 
-      // Encrypt file
-      const fileBytes = new Uint8Array(await formData.file!.arrayBuffer());
-      const { encryptedBlob, key, nonce, digest } = await encryptFileForUpload(fileBytes);
-
-      // Save encryption keys + file extension to draft before upload
-      const fileKeyHex = bytesToHex(key);
-      const fileNonceHex = bytesToHex(nonce);
-      const fileDigestHex = bytesToHex(digest);
-      await updateListingDraft(draftId, {
-        fileKey: fileKeyHex,
-        fileNonce: fileNonceHex,
-        fileDigest: fileDigestHex,
-        fileExtension: ext || undefined,
-      });
-
-      // Upload to Iagon
+      // Upload to Iagon (encrypt + upload happens in Rust)
       onProgress?.('uploading');
       const apiKey = await getStoredApiKey();
       if (!apiKey) {
@@ -390,9 +392,18 @@ export async function createListing(
       // Use draft ID for filename since token name isn't known yet
       const iagonFilename = `${draftId}${ext}.enc`;
 
-      const fileInfo = await iagonUpload(apiKey, encryptedBlob, iagonFilename);
+      const uploadResult = await encryptAndUpload(apiKey, filePath, iagonFilename);
+      const fileKeyHex = uploadResult.key_hex;
+      const fileNonceHex = uploadResult.nonce_hex;
+      const fileDigestHex = uploadResult.digest_hex;
+      const fileInfo = uploadResult.file_info;
 
+      // Save encryption keys + file extension to draft after upload
       await updateListingDraft(draftId, {
+        fileKey: fileKeyHex,
+        fileNonce: fileNonceHex,
+        fileDigest: fileDigestHex,
+        fileExtension: ext || undefined,
         status: 'uploaded',
         iagonFileId: fileInfo._id,
         iagonFilename: iagonFilename,
@@ -466,7 +477,12 @@ export async function createListing(
       return a.input.outputIndex - b.input.outputIndex;
     });
 
-    const firstUtxo = utxos[0];
+    // Pick the first UTxO that isn't the collateral to avoid consuming it as a regular input.
+    const nonCollateral = excludeUtxos(utxos, collateral[0]);
+    if (nonCollateral.length === 0) {
+      throw new Error('No non-collateral UTxOs available. Send more ADA to your wallet.');
+    }
+    const firstUtxo = nonCollateral[0];
     const tokenName = computeTokenName(
       firstUtxo.input.txHash,
       firstUtxo.input.outputIndex
@@ -546,9 +562,7 @@ export async function createListing(
         formData.category,
       ))
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos.filter(u =>
-        !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
-      ))
+      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
       .complete();
 
     onProgress?.('signing');
@@ -559,6 +573,29 @@ export async function createListing(
 
     if (draftId) {
       await updateListingDraft(draftId, { txHash, status: 'submitted' });
+    }
+
+    // Add the seller's own file to their library (best-effort, non-blocking)
+    if (formData.filePath && formData.category !== 'text') {
+      try {
+        const ext = formData.fileName
+          ? '.' + formData.fileName.split('.').pop()
+          : undefined;
+        await copyToLibrary(formData.filePath, tokenName, formData.category, ext);
+        await saveContentMetadata({
+          tokenName,
+          description: formData.description,
+          suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
+          storageLayer: getStorageLayerUri(formData),
+          imageLink: formData.imageLink || undefined,
+          category: formData.category,
+          fileExtension: ext,
+          decryptedAt: new Date().toISOString(),
+          fileSize: formData.fileSize ?? undefined,
+        });
+      } catch (err) {
+        console.warn('[createListing] Failed to add file to library:', err);
+      }
     }
 
     return {
@@ -686,7 +723,12 @@ export async function retryListingFromDraft(
       return a.input.outputIndex - b.input.outputIndex;
     });
 
-    const firstUtxo = utxos[0];
+    // Pick the first UTxO that isn't the collateral to avoid consuming it as a regular input.
+    const nonCollateral = excludeUtxos(utxos, collateral[0]);
+    if (nonCollateral.length === 0) {
+      throw new Error('No non-collateral UTxOs available. Send more ADA to your wallet.');
+    }
+    const firstUtxo = nonCollateral[0];
     const tokenName = computeTokenName(
       firstUtxo.input.txHash,
       firstUtxo.input.outputIndex
@@ -766,9 +808,7 @@ export async function retryListingFromDraft(
         draft.category,
       ))
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos.filter(u =>
-        !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
-      ))
+      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
       .complete();
 
     onProgress?.('signing');
@@ -901,7 +941,7 @@ export async function removeListing(
       .requiredSignerHash(ownerPkh)
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     // 5. Sign and submit
@@ -1045,7 +1085,7 @@ export async function cancelPendingListing(
         encryption.category || '',
       ))
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     const signedTx = await wallet.signTx(unsignedTx);
@@ -1169,7 +1209,12 @@ export async function placeBid(
       return a.input.outputIndex - b.input.outputIndex;
     });
 
-    const firstUtxo = utxos[0];
+    // Pick the first UTxO that isn't the collateral to avoid consuming it as a regular input.
+    const nonCollateral = excludeUtxos(utxos, collateral[0]);
+    if (nonCollateral.length === 0) {
+      throw new Error('No non-collateral UTxOs available. Send more ADA to your wallet.');
+    }
+    const firstUtxo = nonCollateral[0];
     const bidTokenName = computeTokenName(
       firstUtxo.input.txHash,
       firstUtxo.input.outputIndex
@@ -1198,9 +1243,12 @@ export async function placeBid(
     }
 
     // 8. Build inline datum (BidDatum)
-    // Field order must match Aiken: owner_vkh, owner_g1, pointer, token
+    // Field order must match Aiken: owner_vkh, owner_g1, pointer, token, locked_until
     // pointer = bid token name (validated == token_name on-chain)
     // token = encryption token name (the one being bid on)
+    // locked_until = 2 * minimum_bid_lock (12 hours) from now
+    const MINIMUM_BID_LOCK_MS = 6 * 60 * 60 * 1000; // 6 hours, matches on-chain constant
+    const lockedUntil = Date.now() + 2 * MINIMUM_BID_LOCK_MS;
     const datum = {
       constructor: 0,
       fields: [
@@ -1208,6 +1256,7 @@ export async function placeBid(
         artifacts.plutusJson.register,           // owner_g1: Register { generator, public_value }
         { bytes: bidTokenName },                 // pointer (bid token name)
         { bytes: encryptionTokenName },          // token (encryption token name)
+        { int: lockedUntil },                    // locked_until (POSIX ms)
       ],
     };
 
@@ -1226,6 +1275,11 @@ export async function placeBid(
 
     // Bid amount in lovelace (the ADA locked at the script IS the bid)
     const bidAmountLovelace = Math.floor(bidAmountAda * 1_000_000).toString();
+
+    // 10a. Compute validity interval (contract requires finite upper bound for lock check)
+    const currentSlot = await fetchCurrentSlot();
+    const invalidBefore = currentSlot - 60;     // ~1 minute ago
+    const invalidHereafter = currentSlot + 900; // ~15 minutes from now
 
     const txBuilder = createTxBuilder();
 
@@ -1274,13 +1328,13 @@ export async function placeBid(
       .metadataValue(674, buildBidMetadata(
         metadata?.futurePrice?.toString() || '',
       ))
+      // Validity interval (on-chain lock check needs finite upper bound)
+      .invalidBefore(invalidBefore)
+      .invalidHereafter(invalidHereafter)
       // Change and UTxO selection
-      // Exclude firstUtxo from coin selection pool — it's already an explicit input.
-      // Including it causes the selector to undercount available ADA.
+      // Exclude firstUtxo (explicit input) and collateral from coin selection.
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos.filter(u =>
-        !(u.input.txHash === firstUtxo.input.txHash && u.input.outputIndex === firstUtxo.input.outputIndex)
-      ))
+      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
       .complete();
 
     // 11. Sign and submit
@@ -1319,7 +1373,7 @@ export async function placeBid(
  */
 export async function cancelBid(
   wallet: IWallet,
-  bid: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string } }
+  bid: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string; locked_until: number } }
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -1366,7 +1420,13 @@ export async function cancelBid(
     const policyId = config.contracts.biddingPolicyId;
     const refScript = config.referenceScripts.bidding;
 
-    // 3. Build redeemers
+    // 3. Check bid lock has expired
+    if (bid.datum.locked_until > Date.now()) {
+      const unlockDate = new Date(bid.datum.locked_until).toLocaleString();
+      throw new Error(`Bid is locked until ${unlockDate}. You cannot cancel it before then.`);
+    }
+
+    // 4. Build redeemers
     // Spend redeemer: RemoveBid (constructor 0)
     const spendRedeemer = { constructor: 0, fields: [] };
 
@@ -1376,7 +1436,12 @@ export async function cancelBid(
       fields: [{ bytes: bid.tokenName }],
     };
 
-    // 4. Build transaction
+    // 5. Set validity interval so on-chain lb > locked_until check passes
+    const currentSlot = await fetchCurrentSlot();
+    const invalidBeforeSlot = currentSlot - 60; // ~1 minute ago (ensures node accepts it)
+    const invalidHereafterSlot = currentSlot + 900; // ~15 minutes from now
+
+    // 6. Build transaction
     const txBuilder = createTxBuilder();
 
     const unsignedTx = await txBuilder
@@ -1394,6 +1459,9 @@ export async function cancelBid(
       .mint('-1', policyId, bid.tokenName)
       .mintTxInReference(refScript.txHash, refScript.outputIndex)
       .mintRedeemerValue(mintRedeemer, 'JSON')
+      // Validity interval: lower bound must be past locked_until
+      .invalidBefore(invalidBeforeSlot)
+      .invalidHereafter(invalidHereafterSlot)
       // Collateral
       .txInCollateral(
         collateral[0].input.txHash,
@@ -1405,7 +1473,7 @@ export async function cancelBid(
       .requiredSignerHash(ownerPkh)
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     // 5. Sign and submit
@@ -1701,7 +1769,7 @@ export async function acceptBidSnark(
       ))
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos);
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]));
 
     let unsignedTx: string;
     try {
@@ -2069,7 +2137,7 @@ export async function completeReEncryption(
       ))
       // Change and UTxO selection
       .changeAddress(changeAddress)
-      .selectUtxosFrom(utxos)
+      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
       .complete();
 
     // 17. Sign and submit

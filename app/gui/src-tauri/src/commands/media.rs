@@ -434,6 +434,38 @@ pub fn save_content(
         .ok_or_else(|| "File path contains invalid UTF-8".to_string())
 }
 
+/// Copy a file from disk into the library content directory.
+/// Used to add the seller's own file to their library after listing creation.
+/// Avoids sending file bytes over IPC — reads directly from disk.
+#[tauri::command]
+pub fn copy_to_library(
+    state: tauri::State<'_, ContentDir>,
+    source_path: String,
+    token_name: String,
+    category: String,
+    file_name: String,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+    validate_file_name(&file_name)?;
+
+    let src = std::path::Path::new(&source_path);
+    if !src.exists() || !src.is_file() {
+        return Err("Source file not found".to_string());
+    }
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    std::fs::create_dir_all(&token_dir)
+        .map_err(|e| format!("Failed to create content directory: {e}"))?;
+
+    let dest = token_dir.join(&file_name);
+    std::fs::copy(src, &dest).map_err(|e| format!("Failed to copy file to library: {e}"))?;
+
+    dest.to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "File path contains invalid UTF-8".to_string())
+}
+
 // ── Library commands (browse/read/delete decrypted content) ────────────
 
 /// Metadata stored alongside decrypted content (matches fe ContentMetadata).

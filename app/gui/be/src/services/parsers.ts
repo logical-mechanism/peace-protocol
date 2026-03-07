@@ -3,7 +3,7 @@
  *
  * Field ordering matches contracts/lib/types/*.ak exactly:
  *   EncryptionDatum: owner_vkh, owner_g1, token, half_level, full_level, capsule, status
- *   BidDatum:        owner_vkh, owner_g1, pointer, token
+ *   BidDatum:        owner_vkh, owner_g1, pointer, token, locked_until
  *   Register:        generator, public_value
  *   HalfEncLevel:    r1b, r2_g1b, r4b
  *   FullEncLevel:    r1b, r2_g1b, r2_g2b, r4b
@@ -166,6 +166,7 @@ export function parseBidDatum(datumValue: unknown): BidDatum {
     owner_g1: parseRegister(c.fields[1]),
     pointer: asBytes(c.fields[2]),
     token: asBytes(c.fields[3]),
+    locked_until: asInt(c.fields[4]),
   };
 }
 

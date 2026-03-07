@@ -79,7 +79,7 @@ function mkRegister(gen = G1_HEX, pub = G1_HEX) {
   return { constructor: 0, fields: [{ bytes: gen }, { bytes: pub }] };
 }
 
-function mkBidDatumValue(overrides: { vkh?: string; pointer?: string; token?: string } = {}) {
+function mkBidDatumValue(overrides: { vkh?: string; pointer?: string; token?: string; locked_until?: number } = {}) {
   return {
     constructor: 0,
     fields: [
@@ -87,6 +87,7 @@ function mkBidDatumValue(overrides: { vkh?: string; pointer?: string; token?: st
       mkRegister(),
       { bytes: overrides.pointer ?? POINTER_HEX },
       { bytes: overrides.token ?? TOKEN_HEX },
+      { int: overrides.locked_until ?? Date.now() + 12 * 60 * 60 * 1000 },
     ],
   };
 }

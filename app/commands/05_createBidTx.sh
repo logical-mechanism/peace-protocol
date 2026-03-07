@@ -126,15 +126,21 @@ from src.commands import create_bidding_tx
 create_bidding_tx('${bob_wallet_path}/payment.skey')
 "
 
+# locked_until = now + 2 * minimum_bid_lock (12 hours)
+locked_until=$(($(date +%s%3N) + 2 * 6 * 3600 * 1000))
+echo -e "\033[1;36m\nBid locked until: $(date -d @$((locked_until / 1000))) \033[0m"
+
 jq \
 --arg bob_pkh "${bob_pkh}" \
 --arg bid_token_name "${token_name}" \
 --arg encryption_token "${encryption_token}" \
 --argjson register "$(cat ../data/register.json)" \
+--argjson locked_until "${locked_until}" \
 '.fields[0].bytes=$bob_pkh |
 .fields[1]=$register |
 .fields[2].bytes=$bid_token_name |
-.fields[3].bytes=$encryption_token' \
+.fields[3].bytes=$encryption_token |
+.fields[4].int=$locked_until' \
 ../data/bidding/bidding-datum.json | sponge ../data/bidding/bidding-datum.json
 
 jq \
@@ -152,6 +158,12 @@ echo -e "\033[0;35m\nBidding Output: ${bidding_script_output}\033[0m"
 
 bidding_ref_utxo=$(${cli} conway transaction txid --tx-file tmp/bidding_contract-reference-utxo.signed | jq -r '.txhash')
 
+# validity range (contract requires finite upper bound for lock check)
+current_slot=$(${cli} conway query tip ${network} | jq -r '.slot')
+invalid_before=$((current_slot - 60))
+invalid_hereafter=$((current_slot + 900))
+echo -e "\033[1;36m\nValidity range: slot ${invalid_before} to ${invalid_hereafter} \033[0m"
+
 echo -e "\033[0;36m Building Tx \033[0m"
 FEE=$(${cli} conway transaction build \
     --out-file ./tmp/tx.draft \
@@ -164,6 +176,8 @@ FEE=$(${cli} conway transaction build \
     --tx-out-inline-datum-file ../data/bidding/bidding-datum.json \
     --required-signer-hash ${collat_pkh} \
     --required-signer-hash ${bob_pkh} \
+    --invalid-before ${invalid_before} \
+    --invalid-hereafter ${invalid_hereafter} \
     --mint="${bidding_asset}" \
     --mint-tx-in-reference="${bidding_ref_utxo}#1" \
     --mint-plutus-script-v3 \
