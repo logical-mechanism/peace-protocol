@@ -67,23 +67,23 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **Error state not marked as `role="alert"`**
+- [x] 🟡 **Error state not marked as `role="alert"`**
   - **How**: At line 623, add `role="alert"` to the outer `<div>`: `<div role="alert" className="p-6 bg-[var(--bg-secondary)] ...">`. This ensures screen readers announce the error immediately when it appears.
   - **Why**: When playback fails, sighted users see the error UI but screen reader users receive no announcement. The existing `aria-live` region (line 699) only covers playback states, not the early-return error view.
 
-- [ ] 🟡 **Remux progress bar missing ARIA progressbar role**
+- [x] 🟡 **Remux progress bar missing ARIA progressbar role**
   - **How**: At line 674, add to the progress track: `role="progressbar" aria-label="Conversion progress" aria-valuenow={Math.round(remuxProgress * 100)} aria-valuemin={0} aria-valuemax={100}`. Move these attributes from the visual bar to the outer container div.
   - **Why**: Screen readers cannot announce conversion progress. Users who rely on assistive technology have no indication of remux completion percentage.
 
-- [ ] 🟡 **No focus trap in fullscreen overlay**
+- [x] 🟡 **No focus trap in fullscreen overlay**
   - **How**: Import and use the existing `useFocusTrap` hook from `fe/src/hooks/useFocusTrap.ts` on the fullscreen overlay container (line 970). The hook already handles Tab wrapping and focus restoration -- pass a ref to the fullscreen `<div>` and enable it when `isFullscreen` is true.
   - **Why**: In fullscreen mode, Tab key can move focus to elements behind the overlay (hidden page content). The app already has `useFocusTrap` for modals -- VideoPlayer fullscreen should use the same pattern.
 
-- [ ] 🟢 **PiP button doesn't announce current state**
+- [x] 🟢 **PiP button doesn't announce current state**
   - **How**: At line 836, change the static `aria-label` to dynamic: `aria-label={document.pictureInPictureElement === videoRef.current ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}`. Track PiP state with `enterpictureinpicture`/`leavepictureinpicture` events on the video element to avoid reading `document.pictureInPictureElement` synchronously.
   - **Why**: Screen reader users hear "Toggle Picture-in-Picture" regardless of whether PiP is active or not, making the current state ambiguous.
 
-- [ ] 🟢 **Volume slider missing ARIA value attributes**
+- [x] 🟢 **Volume slider missing ARIA value attributes**
   - **How**: At line 785, add: `aria-valuenow={isMuted ? 0 : Math.round(volume * 100)}`, `aria-valuetext={isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}`. Native `<input type="range">` already has implicit min/max from the `min`/`max` attributes.
   - **Why**: Screen readers announce the raw decimal (e.g., "0.75") instead of a human-readable percentage. The `aria-valuetext` override provides "75%" or "Muted".
 

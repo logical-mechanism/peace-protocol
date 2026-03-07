@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DelayedSpinner } from './LoadingSpinner';
 import { formatBytes } from '../utils/formatBytes';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface VideoPlayerProps {
   data: Uint8Array;
@@ -114,6 +115,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [pipSupported, setPipSupported] = useState(false);
   const [showCaptions, setShowCaptions] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
+  const [isPip, setIsPip] = useState(false);
   const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
 
   const [showKeyHints, setShowKeyHints] = useState(false);
@@ -121,6 +123,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [displayTime, setDisplayTime] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
   const seekBarTooltipRef = useRef<HTMLDivElement>(null);
   const hasShownHints = useRef(false);
@@ -145,6 +148,23 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       (document as Document & { pictureInPictureEnabled: boolean }).pictureInPictureEnabled,
     );
   }, []);
+
+  // Trap focus within fullscreen overlay
+  useFocusTrap(fullscreenRef, isFullscreen);
+
+  // Track PiP state via video element events
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onEnterPip = () => setIsPip(true);
+    const onLeavePip = () => setIsPip(false);
+    video.addEventListener('enterpictureinpicture', onEnterPip);
+    video.addEventListener('leavepictureinpicture', onLeavePip);
+    return () => {
+      video.removeEventListener('enterpictureinpicture', onEnterPip);
+      video.removeEventListener('leavepictureinpicture', onLeavePip);
+    };
+  }, [blobUrl]); // Re-attach when video src changes
 
   // Create Blob URL for subtitle track
   useEffect(() => {
@@ -659,7 +679,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
   if (error) {
     return (
-      <div className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-center space-y-3">
+      <div role="alert" className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-center space-y-3">
         <svg className="w-8 h-8 mx-auto mb-2 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
@@ -710,7 +730,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         <DelayedSpinner size="lg" className="mx-auto" />
         <p className="text-sm text-[var(--text-muted)]">Converting for playback...</p>
         <div className="mx-auto max-w-xs">
-          <div className="h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden border border-[var(--border-subtle)]">
+          <div className="h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden border border-[var(--border-subtle)]" role="progressbar" aria-label="Conversion progress" aria-valuenow={Math.round(remuxProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
             <div
               className="h-full bg-[var(--accent)] transition-all duration-300"
               style={{ width: `${Math.round(remuxProgress * 100)}%` }}
@@ -857,6 +877,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         onChange={handleVolumeChange}
         className="w-16 accent-[var(--accent)]"
         aria-label="Volume"
+        aria-valuenow={isMuted ? 0 : Math.round(volume * 100)}
+        aria-valuetext={isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}
       />
 
       {divider}
@@ -899,7 +921,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
       {/* PiP */}
       {pipSupported && (
-        <button onClick={handlePip} className={btnClass} title="Picture-in-Picture" aria-label="Toggle Picture-in-Picture">
+        <button onClick={handlePip} className={btnClass} title={isPip ? 'Exit Picture-in-Picture' : 'Picture-in-Picture'} aria-label={isPip ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <rect x="2" y="3" width="20" height="14" rx="2" strokeWidth={2} />
             <rect x="11" y="9" width="9" height="6" rx="1" strokeWidth={2} fill="currentColor" opacity={0.3} />
@@ -1034,6 +1056,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
         {/* Fullscreen overlay */}
         <div
+          ref={fullscreenRef}
           className={`fixed inset-0 z-[60] flex flex-col bg-[var(--bg-primary)] transition-opacity duration-200 ${fullscreenVisible ? 'opacity-100' : 'opacity-0'}`}
           style={{ cursor: controlsVisible ? 'auto' : 'none' }}
         >
