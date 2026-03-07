@@ -115,7 +115,7 @@ Each item:
   - **How**: Add `?` or `H` to the keyboard handler (line 565 switch block) to toggle `showKeyHints`. Change the auto-dismiss from one-shot (line 559 `hasShownHints`) to always showing on `?`/`H` press with a 3s auto-dismiss. This lets users recall shortcuts after the initial display fades.
   - **Why**: Users who miss the initial 3s hint display have no way to see keyboard shortcuts again without reloading the component.
 
-- [ ] 🟡 **Seek bar has no disabled visual state when video not loaded**
+- [x] 🟡 **Seek bar has no disabled visual state when video not loaded**
   - **How**: At line 736, add conditional opacity: `className={`flex-1 py-2 cursor-pointer relative min-w-[60px] ${!duration ? 'opacity-50 pointer-events-none' : ''}`}`. This grays out and disables the seek bar before metadata loads.
   - **Why**: The seek bar looks interactive even when duration is 0 (no video loaded). Clicking it does nothing but confuses users.
 

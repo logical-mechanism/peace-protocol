@@ -838,7 +838,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
       {/* Seek bar — outer wrapper expands click target while visual bar stays h-1.5 */}
       <div
-        className="flex-1 py-2 cursor-pointer relative min-w-[60px]"
+        className={`flex-1 py-2 cursor-pointer relative min-w-[60px] ${!duration ? 'opacity-50 pointer-events-none' : ''}`}
         onMouseDown={handleSeekMouseDown}
         onMouseMove={handleSeekBarMouseMove}
         onMouseLeave={handleSeekBarMouseLeave}
