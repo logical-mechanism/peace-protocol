@@ -689,12 +689,16 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         case 'C':
           if (subtitleUrl) handleCaptionToggle();
           break;
+        case 's':
+        case 'S':
+          handleSpeedChange();
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [blobUrl, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle, handleToggleLoop, subtitleUrl, handleCaptionToggle]);
+  }, [blobUrl, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle, handleToggleLoop, handleSpeedChange, subtitleUrl, handleCaptionToggle]);
 
   // --- Error state ---
 
@@ -982,6 +986,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
         {subtitleUrl && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">?</kbd> Show hints</span>
       </div>

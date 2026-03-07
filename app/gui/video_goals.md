@@ -35,7 +35,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`, `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Missing `S` keyboard shortcut for playback speed cycling**
+- [x] 🟡 **Missing `S` keyboard shortcut for playback speed cycling**
   - **How**: In the keyboard handler switch block (~line 631), add a `case 'S':` / `case 's':` that calls the same speed-cycling logic as the speed button click handler (~line 466). AudioPlayer already maps `S` to speed cycling (~line 813). Also add `S` to the keyboard hints overlay (~line 974) with label "Speed".
   - **Why**: Feature parity with AudioPlayer. Keyboard power users expect consistent shortcuts across media players in the same app.
 

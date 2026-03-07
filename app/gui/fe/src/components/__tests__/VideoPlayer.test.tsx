@@ -321,6 +321,24 @@ describe('VideoPlayer', () => {
       expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
     });
 
+    it('S cycles playback speed', async () => {
+      renderPlayer();
+      await waitForControls();
+      const video = getVideoElement();
+
+      // Default speed is 1x
+      expect(screen.getByLabelText(/Playback speed: 1x/)).toBeInTheDocument();
+
+      // S cycles to next speed (1 → 1.25)
+      fireEvent.keyDown(document, { key: 's' });
+      expect(video.playbackRate).toBe(1.25);
+      expect(screen.getByLabelText(/Playback speed: 1.25x/)).toBeInTheDocument();
+
+      // S again cycles to 1.5
+      fireEvent.keyDown(document, { key: 'S' });
+      expect(video.playbackRate).toBe(1.5);
+    });
+
     it('ArrowUp increases volume', async () => {
       renderPlayer();
       await waitForControls();
