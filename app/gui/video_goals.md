@@ -97,7 +97,7 @@ Each item:
   - **How**: (1) Set volume to 0.05 via slider, press ArrowDown — verify volume clamps to 0, not -0.05. (2) Set volume to 0.95, press ArrowUp — verify volume clamps to 1.0, not 1.05. The clamping logic is at ~line 649: `Math.min(1, Math.max(0, ...))`.
   - **Why**: Boundary values are classic regression points. If clamping breaks, volume could go negative (silent with no recovery) or above 1.0 (browser may clip or distort).
 
-- [ ] 🟢 **Seek bar mouse click interaction not tested**
+- [x] 🟢 **Seek bar mouse click interaction not tested**
   - **How**: Get the seek bar element (`role="slider"`), fire `mousedown` with a `clientX` at 50% of the bar width. Verify `video.currentTime` is set to ~50% of duration. Use `getBoundingClientRect` mock to control bar dimensions. The handler is `handleSeekMouseDown` at ~line 418.
   - **Why**: Seek-by-click is the primary mouse interaction. Currently only keyboard seek (Home/End/Arrows) is tested.
 
