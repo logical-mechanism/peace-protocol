@@ -39,7 +39,7 @@ Each item:
 
 > Key files: `fe/src/components/VideoPlayer.tsx`
 
-- [ ] 🟡 **FFmpeg WASM fetched from CDN on every remux**
+- [x] 🟡 **FFmpeg WASM fetched from CDN on every remux**
   - **How**: Bundle `@ffmpeg/core@0.12.6` UMD files (`ffmpeg-core.js` + `ffmpeg-core.wasm`) as static assets in `fe/public/ffmpeg/`. Replace the CDN `baseURL` at line 50 with a relative path. Use `toBlobURL('/ffmpeg/ffmpeg-core.js', ...)` which resolves locally via Vite/Tauri. Remove the retry loop (lines 52-67) since local loads don't fail transiently.
   - **Why**: Remux fails completely if unpkg.com is unreachable. Desktop apps should work offline. Also eliminates 2-3s CDN latency on first remux.
 

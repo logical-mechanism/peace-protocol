@@ -56,25 +56,13 @@ async function remuxToMp4(
   const ffmpeg = new FFmpeg();
   setTerminate?.(() => terminateWithTimeout(ffmpeg));
 
-  // Load the single-threaded WASM core from CDN via blob URLs (retry on network failure)
-  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-  const maxRetries = 2;
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
-      const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
-      await ffmpeg.load({ coreURL, wasmURL });
-      // WASM is loaded into memory — revoke blob URLs to free the references
-      URL.revokeObjectURL(coreURL);
-      URL.revokeObjectURL(wasmURL);
-      break;
-    } catch (cause) {
-      if (attempt >= maxRetries) {
-        throw new Error('Could not download video converter. Check your internet connection.', { cause });
-      }
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
+  // Load the single-threaded WASM core from bundled static assets (no CDN dependency)
+  const baseURL = `${window.location.origin}/ffmpeg`;
+  const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+  const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
+  await ffmpeg.load({ coreURL, wasmURL });
+  URL.revokeObjectURL(coreURL);
+  URL.revokeObjectURL(wasmURL);
 
   if (onProgress) ffmpeg.on('progress', onProgress);
 
@@ -281,7 +269,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       } catch (err) {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : '';
-        setError(msg.includes('internet connection') || msg.includes('appears stuck')
+        setError(msg.includes('appears stuck')
           ? msg
           : 'This video format could not be converted for in-app playback.');
         setLoading(false);
