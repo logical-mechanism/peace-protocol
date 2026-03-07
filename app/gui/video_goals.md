@@ -93,7 +93,7 @@ Each item:
   - **How**: (1) Enable loop via L key, (2) fire `ended` event on video element, (3) verify `currentTime` is NOT reset to 0 (loop lets the video element handle replay). Contrast with non-loop: fire `ended`, verify `currentTime` IS reset to 0 and `isPlaying` becomes false. The `onEnded` handler at ~line 1035 has the branching logic.
   - **Why**: The loop/non-loop branch in `onEnded` is the only code path that distinguishes these behaviors. Testing both branches prevents regressions.
 
-- [ ] 🟢 **Volume boundary clamping at 0 and 1.0 not tested**
+- [x] 🟢 **Volume boundary clamping at 0 and 1.0 not tested**
   - **How**: (1) Set volume to 0.05 via slider, press ArrowDown — verify volume clamps to 0, not -0.05. (2) Set volume to 0.95, press ArrowUp — verify volume clamps to 1.0, not 1.05. The clamping logic is at ~line 649: `Math.min(1, Math.max(0, ...))`.
   - **Why**: Boundary values are classic regression points. If clamping breaks, volume could go negative (silent with no recovery) or above 1.0 (browser may clip or distort).
 
