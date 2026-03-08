@@ -605,6 +605,61 @@ pub fn read_library_content(
     std::fs::read(&content_path).map_err(|e| format!("Failed to read content file: {e}"))
 }
 
+/// Return the absolute file path for a library item's content file.
+/// Used for streamable media (video/audio) where reading the entire file into
+/// memory via IPC is too expensive. The frontend uses convertFileSrc() to create
+/// an asset:// URL that WebKitGTK can stream directly from disk.
+#[tauri::command]
+pub fn get_library_content_path(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    Ok(content_path.to_string_lossy().to_string())
+}
+
+/// Return the absolute file path for a library item's subtitle file, if one exists.
+#[tauri::command]
+pub fn get_library_subtitle_path(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<Option<String>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Ok(None);
+    }
+
+    let entries =
+        std::fs::read_dir(&token_dir).map_err(|e| format!("Failed to read directory: {e}"))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = ext.to_lowercase();
+            if ext_lower == "vtt" || ext_lower == "srt" {
+                return Ok(Some(path.to_string_lossy().to_string()));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
 /// Read a subtitle file (.vtt or .srt) from a library item's directory, if one exists.
 /// Returns the file bytes or None if no subtitle file is found.
 #[tauri::command]

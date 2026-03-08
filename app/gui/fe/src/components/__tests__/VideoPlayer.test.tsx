@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
@@ -8,70 +8,22 @@ vi.mock('../LoadingSpinner', () => ({
   DelayedSpinner: () => <div data-testid="spinner">Loading...</div>,
 }));
 
-// Mock URL.createObjectURL / revokeObjectURL
-const mockObjectUrl = 'blob:mock-video-url';
-globalThis.URL.createObjectURL = vi.fn().mockReturnValue(mockObjectUrl);
-globalThis.URL.revokeObjectURL = vi.fn();
-
-// ── Configurable FFmpeg mock ─────────────────────────────────────────
-// Always returns a mock FFmpeg class. In 'throw' mode, load() rejects (simulating
-// FFmpeg unavailability). In 'mock' mode, all methods resolve normally.
-const ffmpegState = vi.hoisted(() => ({
-  mode: 'throw' as 'throw' | 'mock',
-  instance: {
-    load: vi.fn(),
-    writeFile: vi.fn(),
-    exec: vi.fn(),
-    readFile: vi.fn(),
-    deleteFile: vi.fn(),
-    terminate: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
-  },
-  progressCallback: null as ((evt: { progress: number; time: number }) => void) | null,
-}));
-
-// FFmpeg mocks are re-wired in beforeEach after vi.clearAllMocks
-vi.mock('@ffmpeg/ffmpeg', () => ({ FFmpeg: vi.fn() }));
-vi.mock('@ffmpeg/util', () => ({ toBlobURL: vi.fn() }));
-
-// Mock document.createElement to auto-resolve the format probe for the first
-// standalone <video> created (the probe), while returning real DOM elements so
-// React rendering works correctly. Only fires loadedmetadata on standalone
-// (not-yet-mounted) video elements — i.e. the probe, not React's real <video>.
-let probeResolved = false;
-const originalCreateElement = document.createElement.bind(document);
-vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-  const el = originalCreateElement(tag);
-  if (tag === 'video' && !probeResolved) {
-    // Check on next tick whether this element is still detached (= probe element).
-    // React-rendered elements will be in the DOM by then, so we skip them.
-    setTimeout(() => {
-      if (!el.parentNode && !probeResolved) {
-        probeResolved = true;
-        el.dispatchEvent(new Event('loadedmetadata'));
-      }
-    }, 5);
-  }
-  return el;
-});
-
 import VideoPlayer from '../VideoPlayer';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-const testVideoData = new Uint8Array([0x00, 0x00, 0x00, 0x18]);
+const mockVideoUrl = 'asset://localhost/mock-video.mp4';
 
 function renderPlayer(overrides: Partial<{
-  data: Uint8Array;
+  src: string;
   mimeType: string;
   fileExtension: string;
   onExport: () => void;
-  subtitleData: Uint8Array | null;
+  subtitleUrl: string | null;
 }> = {}) {
   return render(
     <VideoPlayer
-      data={testVideoData}
+      src={mockVideoUrl}
       mimeType="video/mp4"
       fileExtension=".mp4"
       {...overrides}
@@ -79,16 +31,15 @@ function renderPlayer(overrides: Partial<{
   );
 }
 
-/** Wait for the probe to resolve, controls to appear, video element to render,
- *  and the blobUrl-dependent keydown useEffect to be registered. */
+/** Wait for controls to appear and video element to render. */
 async function waitForControls() {
   await waitFor(() => {
     expect(screen.getByLabelText('Play')).toBeInTheDocument();
     const video = document.querySelector('video');
     expect(video).not.toBeNull();
-    expect(video!.getAttribute('src')).toBe(mockObjectUrl);
+    expect(video!.getAttribute('src')).toBe(mockVideoUrl);
   });
-  // Flush any remaining effects (e.g. the keydown useEffect that depends on blobUrl)
+  // Flush any remaining effects
   await act(async () => {});
 }
 
@@ -106,30 +57,8 @@ function simulateLoadedMetadata(durationSeconds: number) {
   }
 }
 
-beforeEach(async () => {
+beforeEach(() => {
   vi.clearAllMocks();
-  probeResolved = false;
-  ffmpegState.progressCallback = null;
-
-  // Re-wire FFmpeg mocks after clearAllMocks (which resets mock implementations)
-  const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-  const { toBlobURL } = await import('@ffmpeg/util');
-  const inst = ffmpegState.instance;
-  (FFmpeg as ReturnType<typeof vi.fn>).mockImplementation(() => {
-    inst.on.mockImplementation((_event: string, cb: (evt: { progress: number; time: number }) => void) => {
-      ffmpegState.progressCallback = cb;
-    });
-    return inst;
-  });
-  (toBlobURL as ReturnType<typeof vi.fn>).mockResolvedValue('blob:mock-ffmpeg-url');
-
-  // Default: load() rejects so probe-fail tests see error state (not remux UI)
-  inst.load.mockRejectedValue(new Error('FFmpeg not available'));
-  inst.writeFile.mockResolvedValue(undefined);
-  inst.exec.mockResolvedValue(undefined);
-  inst.readFile.mockResolvedValue(new Uint8Array([0x00, 0x00, 0x00, 0x20]));
-  inst.deleteFile.mockResolvedValue(undefined);
-  inst.terminate.mockResolvedValue(undefined);
 });
 
 // ── Tests ───────────────────────────────────────────────────────────
@@ -141,11 +70,11 @@ describe('VideoPlayer', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('creates blob URL from data', async () => {
+    it('sets src URL on video element', () => {
       renderPlayer();
-      await waitFor(() => {
-        expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
-      });
+      const video = getVideoElement();
+      expect(video).not.toBeNull();
+      expect(video.getAttribute('src')).toBe(mockVideoUrl);
     });
   });
 
@@ -201,135 +130,38 @@ describe('VideoPlayer', () => {
     });
   });
 
-  describe('probe loading indicator', () => {
-    it('shows format compatibility message during probe', () => {
-      // Prevent the probe from resolving immediately so loading state persists
-      const origCreate = document.createElement.bind(document);
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = origCreate(tag);
-        // Don't auto-fire loadedmetadata — leave probe pending
-        return el;
-      });
-
+  describe('loading state', () => {
+    it('shows loading spinner initially', () => {
       renderPlayer();
-      expect(screen.getByText('Checking format compatibility...')).toBeInTheDocument();
+      expect(screen.getByText('Loading video...')).toBeInTheDocument();
+    });
+
+    it('hides loading spinner after loadedmetadata', async () => {
+      renderPlayer();
+      await waitForControls();
+      simulateLoadedMetadata(120);
+      expect(screen.queryByText('Loading video...')).not.toBeInTheDocument();
     });
   });
 
   describe('subtitle support', () => {
-    it('renders without crash when SRT subtitle data is provided', () => {
-      const srtData = new TextEncoder().encode(
-        '1\n00:00:01,000 --> 00:00:04,000\nHello World\n',
-      );
-      const { container } = renderPlayer({ subtitleData: srtData });
-      expect(container).toBeInTheDocument();
+    it('renders track element when subtitleUrl is provided', () => {
+      renderPlayer({ subtitleUrl: 'asset://localhost/mock-subtitle.vtt' });
+      const track = document.querySelector('track');
+      expect(track).not.toBeNull();
+      expect(track!.getAttribute('src')).toBe('asset://localhost/mock-subtitle.vtt');
     });
 
-    it('renders without crash when VTT subtitle data is provided', () => {
-      const vttData = new TextEncoder().encode(
-        'WEBVTT\n\n1\n00:00:01.000 --> 00:00:04.000\nHello World\n',
-      );
-      const { container } = renderPlayer({ subtitleData: vttData });
-      expect(container).toBeInTheDocument();
+    it('does not render track element when subtitleUrl is null', () => {
+      renderPlayer({ subtitleUrl: null });
+      const track = document.querySelector('track');
+      expect(track).toBeNull();
     });
 
-    it('falls back to ISO-8859-1 when subtitle data is not valid UTF-8', () => {
-      // 0xe9 is 'é' in ISO-8859-1 but invalid as a standalone byte in UTF-8
-      const latin1Data = new Uint8Array([
-        ...new TextEncoder().encode('1\n00:00:01,000 --> 00:00:04,000\nCaf'),
-        0xe9, // é in ISO-8859-1
-        ...new TextEncoder().encode('\n'),
-      ]);
-
-      const capturedBlobs: { parts: BlobPart[]; type: string }[] = [];
-      const OrigBlob = globalThis.Blob;
-      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
-        const blob = new OrigBlob(parts ?? [], opts);
-        if (opts?.type === 'text/vtt' && parts) {
-          capturedBlobs.push({ parts, type: opts.type });
-        }
-        return blob;
-      }) as unknown as typeof Blob;
-      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
-      globalThis.Blob = BlobSpy;
-
-      try {
-        renderPlayer({ subtitleData: latin1Data });
-        expect(capturedBlobs.length).toBe(1);
-        const vtt = capturedBlobs[0].parts[0] as string;
-        // ISO-8859-1 decodes 0xe9 as 'é'
-        expect(vtt).toContain('Café');
-      } finally {
-        globalThis.Blob = OrigBlob;
-      }
-    });
-
-    it('handles SRT files with single-digit hours and variable-precision milliseconds', () => {
-      const capturedBlobs: { parts: BlobPart[]; type: string }[] = [];
-      const OrigBlob = globalThis.Blob;
-      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
-        const blob = new OrigBlob(parts ?? [], opts);
-        if (opts?.type === 'text/vtt' && parts) {
-          capturedBlobs.push({ parts, type: opts.type });
-        }
-        return blob;
-      }) as unknown as typeof Blob;
-      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
-      globalThis.Blob = BlobSpy;
-
-      try {
-        // Single-digit hour and 1-digit millisecond
-        const srtData = new TextEncoder().encode(
-          '1\n1:30:45,5 --> 1:31:00,50\nSingle digit hour\n\n2\n00:00:05,000 --> 00:00:08,000\nNormal\n',
-        );
-        renderPlayer({ subtitleData: srtData });
-
-        expect(capturedBlobs.length).toBe(1);
-        const vtt = capturedBlobs[0].parts[0] as string;
-        // Single-digit hours should have commas replaced with dots
-        expect(vtt).toContain('1:30:45.5');
-        expect(vtt).toContain('1:31:00.50');
-        // Standard timestamps still work
-        expect(vtt).toContain('00:00:05.000');
-      } finally {
-        globalThis.Blob = OrigBlob;
-      }
-    });
-
-    it('strips SRT cue IDs during conversion to VTT', () => {
-      // Capture Blob content by spying on the Blob constructor
-      const capturedBlobs: { parts: BlobPart[]; type: string }[] = [];
-      const OrigBlob = globalThis.Blob;
-      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
-        const blob = new OrigBlob(parts ?? [], opts);
-        if (opts?.type === 'text/vtt' && parts) {
-          capturedBlobs.push({ parts, type: opts.type });
-        }
-        return blob;
-      }) as unknown as typeof Blob;
-      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
-      globalThis.Blob = BlobSpy;
-
-      try {
-        const srtData = new TextEncoder().encode(
-          '1\n00:00:01,000 --> 00:00:04,000\nHello World\n\n2\n00:00:05,000 --> 00:00:08,000\nSecond cue\n',
-        );
-        renderPlayer({ subtitleData: srtData });
-
-        expect(capturedBlobs.length).toBe(1);
-        const vtt = capturedBlobs[0].parts[0] as string;
-        expect(vtt).toContain('WEBVTT');
-        // Timestamps should have dots (not commas)
-        expect(vtt).toContain('00:00:01.000');
-        expect(vtt).toContain('00:00:05.000');
-        // Cue IDs (standalone numbers) should be stripped
-        expect(vtt).not.toMatch(/^\d+\s*$/m);
-        // Cue text should be preserved
-        expect(vtt).toContain('Hello World');
-        expect(vtt).toContain('Second cue');
-      } finally {
-        globalThis.Blob = OrigBlob;
-      }
+    it('does not render track element when subtitleUrl is omitted', () => {
+      renderPlayer();
+      const track = document.querySelector('track');
+      expect(track).toBeNull();
     });
   });
 
@@ -350,7 +182,6 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Initially shows Mute label
       expect(screen.getByLabelText('Mute')).toBeInTheDocument();
 
       await act(async () => { fireEvent.keyDown(document, { key: 'm' }); });
@@ -381,16 +212,13 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Default speed is 1x
       expect(screen.getByLabelText(/Playback speed: 1x/)).toBeInTheDocument();
 
-      // S cycles to next speed (1 → 1.25)
       await act(async () => { fireEvent.keyDown(document, { key: 's' }); });
-      expect(screen.getByLabelText(/Playback speed: 1.25x/)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByLabelText(/Playback speed: 1.25x/)).toBeInTheDocument());
 
-      // S again cycles to 1.5
       await act(async () => { fireEvent.keyDown(document, { key: 'S' }); });
-      expect(screen.getByLabelText(/Playback speed: 1.5x/)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByLabelText(/Playback speed: 1.5x/)).toBeInTheDocument());
     });
 
     it('T toggles time display between total and remaining', async () => {
@@ -398,17 +226,14 @@ describe('VideoPlayer', () => {
       await waitForControls();
       simulateLoadedMetadata(120);
 
-      // Default: shows total time (formatTime(duration) = "02:00")
       const timeButton = screen.getByTitle(/toggle remaining time/i);
       expect(timeButton).toBeInTheDocument();
       expect(timeButton.textContent).toContain('02:00');
       expect(timeButton.textContent).not.toContain('\u2212');
 
-      // Press T to toggle to remaining time
       await act(async () => { fireEvent.keyDown(document, { key: 't' }); });
       expect(timeButton.textContent).toContain('\u2212');
 
-      // Press T again to toggle back to total
       await act(async () => { fireEvent.keyDown(document, { key: 'T' }); });
       expect(timeButton.textContent).not.toContain('\u2212');
       expect(timeButton.textContent).toContain('02:00');
@@ -419,7 +244,6 @@ describe('VideoPlayer', () => {
       await waitForControls();
       const video = getVideoElement();
 
-      // Double-click should enter fullscreen
       await act(async () => { fireEvent.doubleClick(video); });
       expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
     });
@@ -430,7 +254,6 @@ describe('VideoPlayer', () => {
       const video = getVideoElement();
       const playSpy = vi.spyOn(video, 'play').mockResolvedValue(undefined);
 
-      // Single click should not immediately trigger play
       await act(async () => { fireEvent.click(video); });
       expect(playSpy).not.toHaveBeenCalled();
 
@@ -463,11 +286,8 @@ describe('VideoPlayer', () => {
       const initialValue = parseFloat(slider.value);
 
       await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
-      // Volume capped at 1.0 if already at 1.0, but the handler runs
-      // Either way, the video.volume should reflect the new value
       const video = getVideoElement();
       expect(video.muted).toBe(false);
-      // If was at 1.0, stays at 1.0
       expect(parseFloat(slider.value)).toBeGreaterThanOrEqual(initialValue);
     });
 
@@ -477,7 +297,6 @@ describe('VideoPlayer', () => {
 
       const video = getVideoElement();
       await act(async () => { fireEvent.keyDown(document, { key: 'ArrowDown' }); });
-      // ArrowDown subtracts 0.1 from volume; verify via video element
       expect(video.volume).toBeCloseTo(0.9, 1);
     });
 
@@ -493,7 +312,6 @@ describe('VideoPlayer', () => {
       });
 
       await act(async () => { fireEvent.keyDown(document, { key: 'ArrowLeft' }); });
-      // Skip back sets currentTime = max(0, current - 5) = 25
       expect(ct).toBe(25);
     });
 
@@ -502,7 +320,6 @@ describe('VideoPlayer', () => {
       await waitForControls();
       const video = getVideoElement();
       Object.defineProperty(video, 'duration', { value: 120, writable: false, configurable: true });
-      // Use a backing variable so the handler's assignment is observable
       let ct = 10;
       Object.defineProperty(video, 'currentTime', {
         get: () => ct,
@@ -518,7 +335,6 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Any key triggers the one-shot initial hints display
       await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
       expect(screen.getByText(/Play\/Pause/)).toBeInTheDocument();
     });
@@ -527,9 +343,7 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Exhaust the one-shot guard with a non-? key
       await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
-      // Hints are showing; press ? to toggle OFF then ON
       await act(async () => { fireEvent.keyDown(document, { key: '?' }); }); // toggles off
       expect(screen.queryByText(/Play\/Pause/)).not.toBeInTheDocument();
 
@@ -541,7 +355,6 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Create and focus an input element
       const input = document.createElement('input');
       document.body.appendChild(input);
       input.focus();
@@ -556,10 +369,7 @@ describe('VideoPlayer', () => {
     });
 
     it('C toggles captions when subtitles are available', async () => {
-      const srtData = new TextEncoder().encode(
-        '1\n00:00:01,000 --> 00:00:04,000\nHello\n',
-      );
-      renderPlayer({ subtitleData: srtData });
+      renderPlayer({ subtitleUrl: 'asset://localhost/mock-subtitle.vtt' });
       await waitForControls();
 
       expect(screen.getByLabelText('Show subtitles')).toBeInTheDocument();
@@ -571,65 +381,42 @@ describe('VideoPlayer', () => {
   // ── Error state rendering ──────────────────────────────────────────
 
   describe('error state rendering', () => {
-    /** Override the probe to fire an error event instead of loadedmetadata */
-    function mockProbeError() {
-      const origCreate = document.createElement.bind(document);
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = origCreate(tag);
-        if (tag === 'video') {
-          setTimeout(() => el.dispatchEvent(new Event('error')), 0);
-        }
-        return el;
-      });
-    }
-
-    afterEach(() => {
-      // Restore the original probe mock so subsequent tests get loadedmetadata
-      probeResolved = false;
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = originalCreateElement(tag);
-        if (tag === 'video' && !probeResolved) {
-          setTimeout(() => {
-            if (!el.parentNode && !probeResolved) {
-              probeResolved = true;
-              el.dispatchEvent(new Event('loadedmetadata'));
-            }
-          }, 5);
-        }
-        return el;
-      });
-    });
-
-    it('shows error message with role="alert" when probe fails', async () => {
-      mockProbeError();
-
+    it('shows error message with role="alert" when video fires error', async () => {
       renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
+      await waitFor(() => {
+        const video = getVideoElement();
+        expect(video).not.toBeNull();
+      });
+
+      const video = getVideoElement();
+      Object.defineProperty(video, 'error', { value: { code: 4, message: 'Format not supported' }, configurable: true });
+      fireEvent.error(video);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
-
       expect(screen.getByText('Failed to play video')).toBeInTheDocument();
     });
 
     it('shows format diagnostic info with extension and MIME type', async () => {
-      mockProbeError();
-
       renderPlayer({ fileExtension: '.webm', mimeType: 'video/webm' });
+      const video = getVideoElement();
+      Object.defineProperty(video, 'error', { value: { code: 4, message: 'Not supported' }, configurable: true });
+      fireEvent.error(video);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
-
       expect(screen.getByText('WEBM')).toBeInTheDocument();
       expect(screen.getByText('video/webm')).toBeInTheDocument();
     });
 
     it('shows Save As button when onExport is provided', async () => {
-      mockProbeError();
-
       const onExport = vi.fn();
       renderPlayer({ fileExtension: '.avi', mimeType: 'video/avi', onExport });
+      const video = getVideoElement();
+      Object.defineProperty(video, 'error', { value: { code: 4, message: 'Not supported' }, configurable: true });
+      fireEvent.error(video);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -642,9 +429,10 @@ describe('VideoPlayer', () => {
     });
 
     it('shows text fallback when onExport is not provided', async () => {
-      mockProbeError();
-
       renderPlayer({ fileExtension: '.avi', mimeType: 'video/avi' });
+      const video = getVideoElement();
+      Object.defineProperty(video, 'error', { value: { code: 4, message: 'Not supported' }, configurable: true });
+      fireEvent.error(video);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -657,7 +445,6 @@ describe('VideoPlayer', () => {
     it('shows error when video has zero duration', async () => {
       renderPlayer();
       await waitForControls();
-
       simulateLoadedMetadata(0);
 
       await waitFor(() => {
@@ -668,7 +455,6 @@ describe('VideoPlayer', () => {
     it('shows error when video has NaN duration', async () => {
       renderPlayer();
       await waitForControls();
-
       simulateLoadedMetadata(NaN);
 
       await waitFor(() => {
@@ -679,7 +465,6 @@ describe('VideoPlayer', () => {
     it('shows error when video has Infinity duration', async () => {
       renderPlayer();
       await waitForControls();
-
       simulateLoadedMetadata(Infinity);
 
       await waitFor(() => {
@@ -706,7 +491,6 @@ describe('VideoPlayer', () => {
       await waitForControls();
 
       const seekBar = screen.getByRole('slider', { name: 'Seek' });
-      // Without loadedmetadata, duration is 0 → opacity-50 pointer-events-none
       expect(seekBar.className).toContain('opacity-50');
       expect(seekBar.className).toContain('pointer-events-none');
     });
@@ -773,9 +557,7 @@ describe('VideoPlayer', () => {
       fireEvent.play(video);
       act(() => { fireEvent(video, new Event('ended')); });
 
-      // Should reset currentTime to 0
       expect(video.currentTime).toBe(0);
-      // Should show Play button (not Pause)
       expect(screen.getByLabelText('Play')).toBeInTheDocument();
     });
 
@@ -812,7 +594,6 @@ describe('VideoPlayer', () => {
       act(() => { fireEvent(video, new Event('stalled')); });
       expect(screen.getByTestId('spinner')).toBeInTheDocument();
 
-      // Advance 5s for the stalled timer to fire
       act(() => { vi.advanceTimersByTime(5000); });
 
       expect(screen.getByText(/Video playback stalled/)).toBeInTheDocument();
@@ -861,7 +642,6 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Default is 1x, which is index 2 in [0.5, 0.75, 1, 1.25, 1.5, 2]
       const speedBtn = screen.getByLabelText('Playback speed: 1x');
       expect(speedBtn).toBeInTheDocument();
 
@@ -915,7 +695,6 @@ describe('VideoPlayer', () => {
       Object.defineProperty(video, 'duration', { value: NaN, writable: true, configurable: true });
       fireEvent.durationChange(video);
 
-      // Time display should show 00:00 / 00:00 (duration stays 0 since NaN is filtered)
       const timeDisplay = screen.getByText('00:00 / 00:00');
       expect(timeDisplay).toBeInTheDocument();
     });
@@ -928,7 +707,6 @@ describe('VideoPlayer', () => {
       Object.defineProperty(video, 'duration', { value: -5, writable: true, configurable: true });
       fireEvent.durationChange(video);
 
-      // Negative duration filtered by `isFinite(d) && d > 0`, keeps 0
       expect(screen.getByText('00:00 / 00:00')).toBeInTheDocument();
     });
 
@@ -941,198 +719,11 @@ describe('VideoPlayer', () => {
       expect(screen.getByText(/02:05/)).toBeInTheDocument();
     });
 
-    it('handles zero-length data without crashing', () => {
-      const emptyData = new Uint8Array(0);
-      const { container } = renderPlayer({ data: emptyData });
+    it('renders with different src URL', () => {
+      const { container } = renderPlayer({ src: 'asset://localhost/other-video.webm' });
       expect(container).toBeInTheDocument();
-    });
-
-    it('renders loading state while checking format for very large data reference', () => {
-      // Component should still try to probe — no early exit for large but under-limit files
-      const largeishData = new Uint8Array(100);
-      renderPlayer({ data: largeishData });
-      expect(screen.getByText('Checking format compatibility...')).toBeInTheDocument();
-    });
-  });
-
-  // ── FFmpeg remux pipeline ───────────────────────────────────────────
-
-  describe('FFmpeg remux pipeline', () => {
-    /** Override probe to fire error on FIRST video element only (the probe).
-     *  Subsequent video elements (React-rendered) are left untouched.
-     *  Uses originalCreateElement to avoid chaining through the default probe spy. */
-    function mockProbeErrorForRemux() {
-      let probeHandled = false;
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = originalCreateElement(tag);
-        if (tag === 'video' && !probeHandled) {
-          probeHandled = true;
-          setTimeout(() => el.dispatchEvent(new Event('error')), 0);
-        }
-        return el;
-      });
-    }
-
-    function enableRemuxMock(opts?: { execDelay?: number }) {
-      ffmpegState.mode = 'mock';
-      ffmpegState.progressCallback = null;
-      const inst = ffmpegState.instance;
-      inst.load.mockResolvedValue(undefined);
-      if (opts?.execDelay) {
-        inst.exec.mockImplementation(() => new Promise(resolve => setTimeout(resolve, opts.execDelay)));
-      } else {
-        inst.exec.mockResolvedValue(undefined);
-      }
-      inst.readFile.mockResolvedValue(new Uint8Array([0x00, 0x00, 0x00, 0x20]));
-    }
-
-    afterEach(() => {
-      ffmpegState.mode = 'throw';
-      // Restore the original probe mock
-      probeResolved = false;
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = originalCreateElement(tag);
-        if (tag === 'video' && !probeResolved) {
-          setTimeout(() => {
-            if (!el.parentNode && !probeResolved) {
-              probeResolved = true;
-              el.dispatchEvent(new Event('loadedmetadata'));
-            }
-          }, 5);
-        }
-        return el;
-      });
-    });
-
-    it('triggers remux after probe failure and calls FFmpeg load + exec', async () => {
-      enableRemuxMock();
-      mockProbeErrorForRemux();
-
-      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
-
-      await waitFor(() => {
-        expect(ffmpegState.instance.load).toHaveBeenCalled();
-      });
-      await waitFor(() => {
-        expect(ffmpegState.instance.exec).toHaveBeenCalledWith(['-i', 'input.mkv', '-c', 'copy', 'output.mp4']);
-      });
-    });
-
-    it('progress callback updates conversion progress display', async () => {
-      enableRemuxMock({ execDelay: 500 });
-      mockProbeErrorForRemux();
-
-      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
-
-      // Wait for remuxing UI to appear
-      await waitFor(() => {
-        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
-      });
-
-      // Simulate progress via the captured callback
-      expect(ffmpegState.progressCallback).not.toBeNull();
-      act(() => {
-        ffmpegState.progressCallback!({ progress: 0.5, time: 5 });
-      });
-
-      expect(screen.getByText('50%')).toBeInTheDocument();
-      const progressBar = screen.getByRole('progressbar', { name: 'Conversion progress' });
-      expect(progressBar).toHaveAttribute('aria-valuenow', '50');
-    });
-
-    it('cancel button calls ffmpeg.terminate and shows cancelled UI', async () => {
-      enableRemuxMock({ execDelay: 60000 }); // long exec so we can cancel
-      mockProbeErrorForRemux();
-
-      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska', onExport: vi.fn() });
-
-      await waitFor(() => {
-        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
-      });
-
-      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
-      fireEvent.click(cancelBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText('Conversion cancelled.')).toBeInTheDocument();
-      });
-      expect(ffmpegState.instance.terminate).toHaveBeenCalled();
-    });
-
-    it('stall detection fires after 30s of no progress', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      enableRemuxMock({ execDelay: 999999 });
-      mockProbeErrorForRemux();
-
-      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
-
-      // Wait for remuxing to start
-      await waitFor(() => {
-        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
-      });
-
-      // Advance past the stall detection threshold (10s interval checks, 30s since last progress)
-      act(() => { vi.advanceTimersByTime(40_000); });
-
-      await waitFor(() => {
-        expect(screen.getByText(/Conversion appears stuck/)).toBeInTheDocument();
-      });
-      vi.useRealTimers();
-    });
-
-    it('file > 2GB shows size error without attempting remux', async () => {
-      enableRemuxMock();
-      mockProbeErrorForRemux();
-
-      // Create a mock data object with large length (don't actually allocate 2GB!)
-      const fakeData = new Uint8Array(1);
-      Object.defineProperty(fakeData, 'length', { value: 2.5 * 1024 * 1024 * 1024 });
-
-      renderPlayer({ data: fakeData, fileExtension: '.mkv', mimeType: 'video/x-matroska' });
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-      expect(screen.getByText(/File too large for in-app conversion/)).toBeInTheDocument();
-    });
-
-    it('file > 500MB shows size warning during remux', async () => {
-      enableRemuxMock({ execDelay: 60000 });
-      mockProbeErrorForRemux();
-
-      const fakeData = new Uint8Array(1);
-      Object.defineProperty(fakeData, 'length', { value: 600 * 1024 * 1024 });
-
-      renderPlayer({ data: fakeData, fileExtension: '.mkv', mimeType: 'video/x-matroska' });
-
-      await waitFor(() => {
-        expect(screen.getByText('Converting for playback...')).toBeInTheDocument();
-      });
-      expect(screen.getByText(/Large file.*conversion may use significant memory/)).toBeInTheDocument();
-    });
-
-    it('ffmpeg.load() timeout shows error after 15s', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      mockProbeErrorForRemux();
-
-      // Make load() hang forever
-      ffmpegState.instance.load.mockImplementation(() => new Promise(() => {}));
-
-      renderPlayer({ fileExtension: '.mkv', mimeType: 'video/x-matroska' });
-
-      // Wait for remux path to start (probe fails, then toBlobURL resolves, then load() called)
-      await waitFor(() => {
-        expect(ffmpegState.instance.load).toHaveBeenCalled();
-      });
-
-      // Advance past the 15s timeout
-      act(() => { vi.advanceTimersByTime(16_000); });
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-
-      vi.useRealTimers();
+      const video = getVideoElement();
+      expect(video.getAttribute('src')).toBe('asset://localhost/other-video.webm');
     });
   });
 
@@ -1143,79 +734,24 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Spy on a bubble-phase listener (simulating the parent modal's Escape handler)
       const parentEscapeSpy = vi.fn();
       document.addEventListener('keydown', parentEscapeSpy);
 
-      // Enter fullscreen via F key
       fireEvent.keyDown(document, { key: 'f' });
       expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
 
-      // Fire Escape
       fireEvent.keyDown(document, { key: 'Escape' });
 
-      // Fullscreen should be closed
       await waitFor(() => {
         expect(screen.queryByText(/Video is expanded to fullscreen/)).not.toBeInTheDocument();
       });
 
-      // The parent handler should NOT have seen the Escape key
-      // (capture-phase handler calls stopPropagation)
       const escapeEvents = parentEscapeSpy.mock.calls.filter(
         ([e]: [KeyboardEvent]) => e.key === 'Escape',
       );
       expect(escapeEvents).toHaveLength(0);
 
       document.removeEventListener('keydown', parentEscapeSpy);
-    });
-  });
-
-  // ── Probe mechanism ─────────────────────────────────────────────────
-
-  describe('probe mechanism', () => {
-    it('native playback supported — sets blob URL directly without remux', async () => {
-      // Default mock fires loadedmetadata = probe success
-      renderPlayer();
-      await waitForControls();
-
-      // Video element should have a source — controls are rendered
-      expect(screen.getByLabelText('Play')).toBeInTheDocument();
-      // No remux UI should have appeared
-      expect(screen.queryByText('Converting for playback...')).not.toBeInTheDocument();
-    });
-
-    it('native playback fails — shows error for non-remuxable format', async () => {
-      // Override probe to fire error
-      const origCreate = document.createElement.bind(document);
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = origCreate(tag);
-        if (tag === 'video') {
-          setTimeout(() => el.dispatchEvent(new Event('error')), 0);
-        }
-        return el;
-      });
-
-      // ffmpegState.mode defaults to 'throw' — remux will also fail
-      renderPlayer({ fileExtension: '.webm', mimeType: 'video/webm' });
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-
-      // Restore probe mock
-      probeResolved = false;
-      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        const el = originalCreateElement(tag);
-        if (tag === 'video' && !probeResolved) {
-          setTimeout(() => {
-            if (!el.parentNode && !probeResolved) {
-              probeResolved = true;
-              el.dispatchEvent(new Event('loadedmetadata'));
-            }
-          }, 5);
-        }
-        return el;
-      });
     });
   });
 
@@ -1233,7 +769,6 @@ describe('VideoPlayer', () => {
 
       expect(screen.getByLabelText(/Picture-in-Picture/)).toBeInTheDocument();
 
-      // Clean up
       Object.defineProperty(document, 'pictureInPictureEnabled', {
         value: false,
         configurable: true,
@@ -1286,106 +821,11 @@ describe('VideoPlayer', () => {
       await waitForControls();
 
       const pipBtn = screen.getByLabelText(/Picture-in-Picture/);
-      // Initially not in PiP — aria-pressed should be false
       expect(pipBtn).toHaveAttribute('aria-pressed', 'false');
 
       Object.defineProperty(document, 'pictureInPictureEnabled', {
         value: false,
         configurable: true,
-      });
-    });
-  });
-
-  // ── Blob URL cleanup ────────────────────────────────────────────────
-
-  describe('blob URL cleanup', () => {
-    it('revokes blob URL on unmount', async () => {
-      const { unmount } = renderPlayer();
-      await waitForControls();
-
-      (globalThis.URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear();
-
-      unmount();
-
-      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
-    });
-
-    it('revokes previous blob URL when data changes', async () => {
-      const { rerender } = render(
-        <VideoPlayer data={testVideoData} mimeType="video/mp4" fileExtension=".mp4" />,
-      );
-      await waitForControls();
-
-      (globalThis.URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear();
-
-      // Reset probe flag for new data
-      probeResolved = false;
-      const newData = new Uint8Array([0x00, 0x00, 0x00, 0x20]);
-      rerender(
-        <VideoPlayer data={newData} mimeType="video/mp4" fileExtension=".mp4" />,
-      );
-
-      // The effect cleanup + new effect should revoke the old URL
-      await waitFor(() => {
-        expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
-      });
-    });
-  });
-
-  // ── Subtitle edge cases ─────────────────────────────────────────────
-
-  describe('subtitle edge cases', () => {
-    /** Helper to capture VTT blob content */
-    function withBlobSpy(fn: (getCaptured: () => string[]) => void) {
-      const capturedBlobs: string[] = [];
-      const OrigBlob = globalThis.Blob;
-      const BlobSpy = vi.fn(function (this: Blob, parts?: BlobPart[], opts?: BlobPropertyBag) {
-        const blob = new OrigBlob(parts ?? [], opts);
-        if (opts?.type === 'text/vtt' && parts) {
-          capturedBlobs.push(parts[0] as string);
-        }
-        return blob;
-      }) as unknown as typeof Blob;
-      Object.setPrototypeOf(BlobSpy.prototype, OrigBlob.prototype);
-      globalThis.Blob = BlobSpy;
-      try {
-        fn(() => capturedBlobs);
-      } finally {
-        globalThis.Blob = OrigBlob;
-      }
-    }
-
-    it('empty subtitle Uint8Array does not crash', () => {
-      const { container } = renderPlayer({ subtitleData: new Uint8Array(0) });
-      expect(container).toBeInTheDocument();
-    });
-
-    it('SRT with malformed timestamps passes through without breaking', () => {
-      withBlobSpy((getCaptured) => {
-        const srtData = new TextEncoder().encode(
-          '1\n99:99:99,999 --> 99:99:99,999\nBad timestamps\n',
-        );
-        renderPlayer({ subtitleData: srtData });
-
-        const captured = getCaptured();
-        expect(captured.length).toBe(1);
-        // The regex still matches the malformed timestamps (comma→dot)
-        expect(captured[0]).toContain('99:99:99.999');
-        expect(captured[0]).toContain('Bad timestamps');
-      });
-    });
-
-    it('SRT with HTML tags preserves them in VTT output', () => {
-      withBlobSpy((getCaptured) => {
-        const srtData = new TextEncoder().encode(
-          '1\n00:00:01,000 --> 00:00:04,000\n<b>Bold</b> and <i>italic</i>\n',
-        );
-        renderPlayer({ subtitleData: srtData });
-
-        const captured = getCaptured();
-        expect(captured.length).toBe(1);
-        expect(captured[0]).toContain('<b>Bold</b>');
-        expect(captured[0]).toContain('<i>italic</i>');
       });
     });
   });
@@ -1411,7 +851,6 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Press ArrowDown enough times to reach 0 (default volume is 1.0, step is 0.1)
       for (let i = 0; i < 11; i++) {
         await act(async () => { fireEvent.keyDown(document, { key: 'ArrowDown' }); });
       }
@@ -1437,22 +876,21 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Enter fullscreen
       await act(async () => { fireEvent.keyDown(document, { key: 'f' }); });
       expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
 
       const fsVideo = getVideoElement();
 
-      // Start playback
       await act(async () => { fireEvent.play(fsVideo); });
       expect(screen.getByLabelText('Pause')).toBeInTheDocument();
-      await act(async () => { vi.advanceTimersByTime(1); });
+      // Advance past one rAF frame (~16ms) so the auto-hide effect's
+      // requestAnimationFrame callback fires and schedules the hide timeout
+      await act(async () => { vi.advanceTimersByTime(20); });
 
-      // Verify cursor starts as 'auto' (controlsVisible = true)
       const overlay = () => document.querySelector('.fixed.inset-0.z-\\[60\\]') as HTMLElement | null;
       expect(overlay()!.style.cursor).toBe('auto');
 
-      // Initial delay after entering fullscreen is 5s (longer to let user orient)
+      // Initial delay after entering fullscreen is 5s
       await act(async () => { vi.advanceTimersByTime(5001); });
       expect(overlay()!.style.cursor).toBe('none');
 
@@ -1464,14 +902,12 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Enter fullscreen but don't play
       await act(async () => { fireEvent.keyDown(document, { key: 'f' }); });
-      await act(async () => { vi.advanceTimersByTime(1); });
+      await act(async () => { vi.advanceTimersByTime(20); });
 
       const overlay = () => document.querySelector('.fixed.inset-0.z-\\[60\\]') as HTMLElement | null;
       expect(overlay()!.style.cursor).toBe('auto');
 
-      // Advance well past 3s — controls remain visible (paused)
       await act(async () => { vi.advanceTimersByTime(10000); });
       expect(overlay()!.style.cursor).toBe('auto');
 
@@ -1494,17 +930,13 @@ describe('VideoPlayer', () => {
         configurable: true,
       });
 
-      // Enable loop
       await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
       expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
 
-      // Start playback, then fire ended
       fireEvent.play(video);
       act(() => { fireEvent(video, new Event('ended')); });
 
-      // With loop enabled, currentTime should NOT be reset to 0
       expect(ct).toBe(95);
-      // isPlaying should still become false (the handler always sets it)
       expect(screen.getByLabelText('Play')).toBeInTheDocument();
     });
   });
@@ -1516,7 +948,6 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Press ArrowDown 11 times (from 1.0, each step -0.1, so 10 gets to 0, 11th should clamp)
       for (let i = 0; i < 11; i++) {
         await act(async () => { fireEvent.keyDown(document, { key: 'ArrowDown' }); });
       }
@@ -1530,7 +961,6 @@ describe('VideoPlayer', () => {
       renderPlayer();
       await waitForControls();
 
-      // Default volume is 1.0; press ArrowUp twice to ensure it clamps
       await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
       await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
 
@@ -1559,9 +989,6 @@ describe('VideoPlayer', () => {
 
       const seekBar = screen.getByRole('slider', { name: 'Seek' });
 
-      // Mock getBoundingClientRect on the inner bar ref (the seek handler uses seekBarRef)
-      // The handler uses the slider div's child ref, but the mousedown is on the slider div itself
-      // The seekBarRef is the inner .h-1.5 div — mock its parent's getBoundingClientRect
       const innerBar = seekBar.querySelector('.h-1\\.5');
       if (innerBar) {
         vi.spyOn(innerBar, 'getBoundingClientRect').mockReturnValue({
@@ -1571,7 +998,6 @@ describe('VideoPlayer', () => {
 
       fireEvent.mouseDown(seekBar, { clientX: 100 });
 
-      // 100 / 200 = 0.5, so currentTime = 0.5 * 100 = 50
       expect(ct).toBe(50);
     });
   });
@@ -1580,25 +1006,19 @@ describe('VideoPlayer', () => {
 
   describe('caption track mode synchronization', () => {
     it('C key toggles textTracks[0].mode between showing and hidden', async () => {
-      const srtData = new TextEncoder().encode(
-        '1\n00:00:01,000 --> 00:00:04,000\nHello\n',
-      );
-      renderPlayer({ subtitleData: srtData });
+      renderPlayer({ subtitleUrl: 'asset://localhost/mock-subtitle.vtt' });
       await waitForControls();
 
       const video = getVideoElement();
 
-      // Mock textTracks
       const mockTrack = { mode: 'hidden' as string };
       const textTracks = [mockTrack] as unknown as TextTrackList;
       Object.defineProperty(textTracks, 'length', { value: 1 });
       Object.defineProperty(video, 'textTracks', { value: textTracks, configurable: true });
 
-      // showCaptions starts false → first C press toggles to true → mode = 'showing'
       await act(async () => { fireEvent.keyDown(document, { key: 'c' }); });
       expect(mockTrack.mode).toBe('showing');
 
-      // Press C again to toggle back to false → mode = 'hidden'
       await act(async () => { fireEvent.keyDown(document, { key: 'C' }); });
       expect(mockTrack.mode).toBe('hidden');
     });
@@ -1617,10 +1037,7 @@ describe('VideoPlayer', () => {
     });
 
     it('shows enabled CC button when subtitles are provided', async () => {
-      const srtData = new TextEncoder().encode(
-        '1\n00:00:01,000 --> 00:00:04,000\nHello\n',
-      );
-      renderPlayer({ subtitleData: srtData });
+      renderPlayer({ subtitleUrl: 'asset://localhost/mock-subtitle.vtt' });
       await waitForControls();
 
       const ccBtn = screen.getByLabelText('Show subtitles');
@@ -1634,7 +1051,6 @@ describe('VideoPlayer', () => {
 
       const ccBtn = screen.getByLabelText('Subtitles unavailable');
       await act(async () => { fireEvent.keyDown(document, { key: 'c' }); });
-      // Button should still show "Subtitles unavailable" (not toggled)
       expect(ccBtn).toHaveAttribute('aria-label', 'Subtitles unavailable');
     });
   });

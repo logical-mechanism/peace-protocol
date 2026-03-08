@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 
 export interface LibraryItem {
   tokenName: string;
@@ -40,6 +40,25 @@ export async function readSubtitleFile(
 ): Promise<Uint8Array | null> {
   const data = await invoke<number[] | null>('read_subtitle_file', { tokenName, category });
   return data ? new Uint8Array(data) : null;
+}
+
+/** Get an asset:// URL for a library content file that WebKitGTK can stream directly.
+ *  Avoids reading the entire file into memory via IPC — critical for large video/audio. */
+export async function getLibraryContentUrl(
+  tokenName: string,
+  category: string
+): Promise<string> {
+  const path = await invoke<string>('get_library_content_path', { tokenName, category });
+  return convertFileSrc(path);
+}
+
+/** Get an asset:// URL for a library item's subtitle file, if one exists. */
+export async function getLibrarySubtitleUrl(
+  tokenName: string,
+  category: string
+): Promise<string | null> {
+  const path = await invoke<string | null>('get_library_subtitle_path', { tokenName, category });
+  return path ? convertFileSrc(path) : null;
 }
 
 export async function openWithSystem(

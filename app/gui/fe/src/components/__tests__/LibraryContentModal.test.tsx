@@ -11,6 +11,8 @@ const mockDeleteLibraryItem = vi.fn();
 const mockExportLibraryContent = vi.fn();
 const mockReadSubtitleFile = vi.fn();
 const mockOpenWithSystem = vi.fn();
+const mockGetLibraryContentUrl = vi.fn();
+const mockGetLibrarySubtitleUrl = vi.fn();
 
 vi.mock('../../services/libraryService', () => ({
   readLibraryContent: (...args: unknown[]) => mockReadLibraryContent(...args),
@@ -18,6 +20,8 @@ vi.mock('../../services/libraryService', () => ({
   exportLibraryContent: (...args: unknown[]) => mockExportLibraryContent(...args),
   readSubtitleFile: (...args: unknown[]) => mockReadSubtitleFile(...args),
   openWithSystem: (...args: unknown[]) => mockOpenWithSystem(...args),
+  getLibraryContentUrl: (...args: unknown[]) => mockGetLibraryContentUrl(...args),
+  getLibrarySubtitleUrl: (...args: unknown[]) => mockGetLibrarySubtitleUrl(...args),
 }));
 
 vi.mock('../../utils/clipboard', () => ({
@@ -240,7 +244,7 @@ describe('getViewMode (via rendering)', () => {
   });
 
   it('renders audio player for .mp3 extension', async () => {
-    mockReadLibraryContent.mockResolvedValue(new Uint8Array([0xff, 0xfb]));
+    mockGetLibraryContentUrl.mockResolvedValue('asset://localhost/mock-audio.mp3');
     render(
       <LibraryContentModal
         {...defaultProps}

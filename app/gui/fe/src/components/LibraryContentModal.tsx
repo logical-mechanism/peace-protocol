@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import type { LibraryItem } from '../services/libraryService';
-import { readLibraryContent, readSubtitleFile, deleteLibraryItem, exportLibraryContent, openWithSystem } from '../services/libraryService';
+import { readLibraryContent, deleteLibraryItem, exportLibraryContent, openWithSystem, getLibraryContentUrl, getLibrarySubtitleUrl } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import { formatBytes } from '../utils/formatBytes';
@@ -206,7 +206,9 @@ export default function LibraryContentModal({
   const [state, setState] = useState<ModalState>('loading');
   const [textContent, setTextContent] = useState<string | null>(null);
   const [rawContent, setRawContent] = useState<Uint8Array | null>(null);
-  const [subtitleData, setSubtitleData] = useState<Uint8Array | null>(null);
+  // URL for streamable media (video/audio) — avoids reading entire file into memory via IPC
+  const [contentUrl, setContentUrl] = useState<string | null>(null);
+  const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -221,7 +223,8 @@ export default function LibraryContentModal({
     setState('loading');
     setTextContent(null);
     setRawContent(null);
-    setSubtitleData(null);
+    setContentUrl(null);
+    setSubtitleUrl(null);
     setError(null);
     setCopied(false);
     setConfirmingDelete(false);
@@ -239,23 +242,31 @@ export default function LibraryContentModal({
 
     (async () => {
       try {
-        const data = await readLibraryContent(item.tokenName, item.category);
-        if (cancelled) return;
-
         const viewMode = getViewMode(item.category, item.fileExtension);
 
-        if (viewMode === 'text') {
-          const text = new TextDecoder().decode(data);
-          setTextContent(text);
-        }
-        if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video' || viewMode === 'download') {
-          setRawContent(data);
-        }
-        // Load subtitle file for videos (best-effort, non-blocking)
-        if (viewMode === 'video') {
-          readSubtitleFile(item.tokenName, item.category)
-            .then(subs => { if (!cancelled) setSubtitleData(subs); })
-            .catch(() => {}); // Subtitle not found is fine
+        if (viewMode === 'video' || viewMode === 'audio') {
+          // Stream from disk via asset:// URL — avoids reading entire file into memory via IPC
+          const url = await getLibraryContentUrl(item.tokenName, item.category);
+          if (cancelled) return;
+          setContentUrl(url);
+          // Load subtitle URL for videos (best-effort, non-blocking)
+          if (viewMode === 'video') {
+            getLibrarySubtitleUrl(item.tokenName, item.category)
+              .then(subUrl => { if (!cancelled) setSubtitleUrl(subUrl); })
+              .catch(() => {}); // Subtitle not found is fine
+          }
+        } else {
+          // For non-streamable content, read into memory (text, PDF, image, download)
+          const data = await readLibraryContent(item.tokenName, item.category);
+          if (cancelled) return;
+
+          if (viewMode === 'text') {
+            const text = new TextDecoder().decode(data);
+            setTextContent(text);
+          }
+          if (viewMode === 'pdf' || viewMode === 'image' || viewMode === 'download') {
+            setRawContent(data);
+          }
         }
         setState('loaded');
       } catch (err) {
@@ -539,21 +550,21 @@ export default function LibraryContentModal({
             )}
 
             {/* Loaded state — Audio player */}
-            {state === 'loaded' && viewMode === 'audio' && rawContent && (
+            {state === 'loaded' && viewMode === 'audio' && contentUrl && (
               <Suspense fallback={<ContentSkeleton viewMode="audio" />}>
-                <AudioPlayer data={rawContent} fileExtension={item.fileExtension || '.mp3'} onExport={handleExport} />
+                <AudioPlayer src={contentUrl} fileExtension={item.fileExtension || '.mp3'} onExport={handleExport} />
               </Suspense>
             )}
 
             {/* Loaded state — Video player */}
-            {state === 'loaded' && viewMode === 'video' && rawContent && (
+            {state === 'loaded' && viewMode === 'video' && contentUrl && (
               <Suspense fallback={<ContentSkeleton viewMode="video" />}>
                 <VideoPlayer
-                  data={rawContent}
+                  src={contentUrl}
                   mimeType={videoExtensionToMimeType(item.fileExtension)}
                   fileExtension={item.fileExtension || '.mp4'}
                   onExport={handleExport}
-                  subtitleData={subtitleData}
+                  subtitleUrl={subtitleUrl}
                 />
               </Suspense>
             )}

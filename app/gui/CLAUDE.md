@@ -42,7 +42,7 @@ app/gui/
 │   │   │   ├── transactionBuilder.ts # All tx building (~2240 lines)
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
-│   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete content)
+│   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete/export content + asset:// URL helpers for streaming)
 │   │   │   ├── secretCleanup.ts     # Deferred secret deletion after on-chain confirmation
 │   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
 │   │   │   ├── iagonApi.ts          # Iagon HTTP endpoints via Tauri invoke (CORS bypass)
@@ -374,7 +374,7 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (71 commands, invoke from frontend):
+**Tauri commands** (73 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
@@ -385,7 +385,7 @@ app/gui/
 - Iagon Keys: `store_iagon_api_key`, `get_iagon_api_key`, `remove_iagon_api_key`, `has_iagon_api_key`
 - Iagon HTTP: `iagon_get_nonce`, `iagon_verify`, `iagon_generate_api_key`, `iagon_verify_api_key`, `iagon_upload`, `iagon_download`, `iagon_encrypt_and_upload`, `iagon_download_and_save`, `iagon_delete_file`, `iagon_search_files`, `iagon_list_files`
 - Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`, `copy_to_library`
-- Library: `list_library_items`, `read_library_content`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
+- Library: `list_library_items`, `read_library_content`, `get_library_content_path`, `get_library_subtitle_path`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -533,11 +533,11 @@ const json: ApiResponse<YourType> = await res.json();
 - **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
 - **Provider nesting order** — ErrorBoundary → ShutdownOverlay → WalletProvider → NodeProvider → WasmProvider → BrowserRouter → ModalProvider → App (in main.tsx); `initializeTheme()` called before `createRoot()` to prevent flash; order matters for context dependencies
 - **File categories** — Defined in `fe/src/config/categories.ts`. All categories now enabled. `text` uses on-chain storage (capsule only); all other categories (document, audio, image, video, other) use Iagon off-chain storage (AES-256-GCM encrypted before upload). Category stored in CIP-20 metadata. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
-- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes, `delete_library_item` removes the token directory, `export_library_content` opens native save dialog. LibraryContentModal lazy-loads PdfViewer, ImageViewer, AudioPlayer, VideoPlayer via React `lazy()` + `Suspense`. Uses wide modal (`max-w-4xl`) for rich media. View mode determined by `getViewMode()`: prioritizes fileExtension from payload field 3, falls back to category. Modes: text (inline), PDF (PdfViewer), image (ImageViewer), audio (AudioPlayer), video (VideoPlayer), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
+- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes (text/PDF/image), `get_library_content_path` + `convertFileSrc` returns `asset://` URL for streaming (video/audio), `delete_library_item` removes the token directory, `export_library_content` opens native save dialog. LibraryContentModal lazy-loads PdfViewer, ImageViewer, AudioPlayer, VideoPlayer via React `lazy()` + `Suspense`. Video/audio use URL-based streaming to avoid IPC serialization bottleneck; text/PDF/image read into memory. Uses wide modal (`max-w-4xl`) for rich media. View mode determined by `getViewMode()`: prioritizes fileExtension from payload field 3, falls back to category. Modes: text (inline), PDF (PdfViewer), image (ImageViewer), audio (AudioPlayer), video (VideoPlayer), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
 - **PdfViewer** — Uses `react-pdf` (pdfjs-dist worker). Renders decrypted PDFs from `Uint8Array` via Blob URL. Zoom 0.5x-3.0x, page navigation, fullscreen overlay at `z-[60]` (above modal `z-50`). Blob URL created in useEffect to handle React StrictMode double-mount
 - **ImageViewer** — Renders decrypted images from `Uint8Array` via Blob URL with MIME type derived from fileExtension. Zoom and fullscreen overlay at `z-[60]` (above modal `z-50`). Supports PNG, JPEG, GIF, WebP, SVG, BMP
-- **AudioPlayer** — Winamp-style player using native `<audio>` element for GStreamer playback (bypasses broken WebKitGTK Web Audio API). Custom FFT visualization (32 bars, Cooley-Tukey radix-2). Transport controls: play, pause, stop, skip ±10s. Volume slider. Graceful fallback if PCM decode fails. Supports: mp3, wav, flac, ogg, aac, m4a, opus
-- **VideoPlayer** — Native `<video>` element with FFmpeg.wasm remux fallback. Attempts native playback first; if unsupported format detected, remuxes to MP4 via FFmpeg.wasm in-browser. Fullscreen overlay at `z-[60]` (above modal `z-50`). Supports common video formats
+- **AudioPlayer** — Winamp-style player using native `<audio>` element for GStreamer playback (bypasses broken WebKitGTK Web Audio API). Streams from disk via `asset://` URL (Tauri `convertFileSrc`). Custom FFT visualization (32 bars, Cooley-Tukey radix-2). Transport controls: play, pause, stop, skip ±10s. Volume slider. Supports: mp3, wav, flac, ogg, aac, m4a, opus
+- **VideoPlayer** — Native `<video>` element streaming from disk via `asset://` URL (Tauri `convertFileSrc`). No in-memory blob loading — avoids Tauri IPC serialization bottleneck for large files. Single unified return path with CSS-based fullscreen toggle (`display: contents` ↔ `fixed inset-0 z-[60]`) to preserve playback state across fullscreen transitions. Auto-hide controls with 5s initial delay on fullscreen entry. Subtitle support via `<track>` element with `asset://` URL. Shows conversion hints for unsupported formats. Supports common video formats
 - **WebKitGTK Web Audio API broken** — `AnalyserNode` and `AudioContext` don't work reliably in WebKitGTK; AudioPlayer uses native `<audio>` element (which routes through GStreamer) instead of Web Audio API
 - **Iagon requires internet** — Iagon operations (upload, download, auth) require internet access. Unlike on-chain text listings, file-based listings fail if `gw.iagon.com` is unreachable. The `reqwest` client has a 60s timeout
 - **Listing drafts persist across WebView resets** — Stored as encrypted JSON in `secrets/listing-drafts/` (filesystem), not IndexedDB (which WebKitGTK can clear). This is why `listingDraftStorage` uses Tauri invoke instead of localStorage
@@ -560,4 +560,5 @@ const json: ApiResponse<YourType> = await res.json();
 - **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout
 - **Pagination** — Backend `pagination.ts` middleware provides offset-based pagination (default 50, max 200 items) with `{ total, limit, offset, hasMore }` meta
 - **cardano-cli as primary sync source** — `cardano-cli conway query tip` is the primary sync data source (runs as sidecar every 5s poll). Works as soon as the node socket exists (~10-60s before Ogmios connects). Provides exact `syncProgress`, `epoch`, `era`, `slotInEpoch`, `slotsToEpochEnd`. Ogmios is fallback only. Kupo metrics (`/metrics`) provide indexing progress + `kupo_connection_status` + `kupo_seconds_since_last_block` for stall/disconnect detection
+- **Asset protocol streaming** — Video and audio files are streamed from disk via Tauri's `convertFileSrc()` which converts a file path to an `asset://localhost/` URL. WebKitGTK loads this directly — avoids the Tauri IPC serialization bottleneck where `Vec<u8>` is serialized as JSON `number[]` (a 100MB file becomes ~300MB of JSON text). `get_library_content_path` and `get_library_subtitle_path` Rust commands return the file path; `libraryService.ts` wraps them with `convertFileSrc()`. Text, PDF, and image files still use `readLibraryContent()` (small enough for IPC)
 - **Background cleanup** — Hourly async task in lib.rs: securely deletes orphaned SNARK temp files older than 1 hour, evicts cached images older than 30 days or exceeding 500MB total

@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DelayedSpinner } from './LoadingSpinner';
-import { formatBytes } from '../utils/formatBytes';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface VideoPlayerProps {
-  data: Uint8Array;
+  /** Direct URL to the video file (asset:// protocol from Tauri convertFileSrc). */
+  src: string;
   mimeType: string;
   fileExtension: string;
   onExport?: () => void;
-  subtitleData?: Uint8Array | null;
+  /** Direct URL to the subtitle file (asset:// protocol), or null if none. */
+  subtitleUrl?: string | null;
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
@@ -27,9 +28,6 @@ function getConversionHint(ext: string): string | null {
   return hints[ext.toLowerCase()] ?? null;
 }
 
-/** Extensions that WebKitGTK/GStreamer handles natively — skip the probe for these. */
-const NATIVE_GOOD_EXTENSIONS = new Set(['.mp4', '.ogg', '.ogv']);
-
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || seconds < 0) return '00:00';
   const m = Math.floor(seconds / 60);
@@ -37,81 +35,12 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-/** Terminate FFmpeg with a 10s timeout to avoid hanging if the worker is unresponsive. */
-async function terminateWithTimeout(ffmpeg: { terminate: () => Promise<void> }): Promise<void> {
-  await Promise.race([
-    ffmpeg.terminate(),
-    new Promise<void>((_, rej) => setTimeout(() => rej(new Error('FFmpeg worker hung')), 10_000)),
-  ]).catch((err) => {
-    console.warn('FFmpeg terminate failed:', err);
-  });
-}
-
-/** Try to remux an unsupported container to MP4 via ffmpeg.wasm (lazy-loaded). */
-async function remuxToMp4(
-  data: Uint8Array,
-  inputName: string,
-  onProgress?: (event: { progress: number; time: number }) => void,
-  setTerminate?: (fn: (() => Promise<void>) | null) => void,
-): Promise<Uint8Array> {
-  const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-  const { toBlobURL } = await import('@ffmpeg/util');
-
-  const ffmpeg = new FFmpeg();
-  setTerminate?.(() => terminateWithTimeout(ffmpeg));
-
-  // Load the single-threaded WASM core from bundled static assets (no CDN dependency)
-  const baseURL = `${window.location.origin}/ffmpeg`;
-  const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
-  const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
-  await Promise.race([
-    ffmpeg.load({ coreURL, wasmURL }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('FFmpeg failed to initialize. Try restarting the app.')), 15_000),
-    ),
-  ]);
-  URL.revokeObjectURL(coreURL);
-  URL.revokeObjectURL(wasmURL);
-
-  if (onProgress) ffmpeg.on('progress', onProgress);
-
-  await ffmpeg.writeFile(inputName, data);
-  await ffmpeg.exec(['-i', inputName, '-c', 'copy', 'output.mp4']);
-  const output = await ffmpeg.readFile('output.mp4');
-
-  // Clean virtual FS to free WASM memory before terminate
-  try {
-    await ffmpeg.deleteFile(inputName);
-    await ffmpeg.deleteFile('output.mp4');
-  } catch {
-    // Best-effort cleanup — terminate will free everything regardless
-  }
-
-  if (onProgress) ffmpeg.off('progress', onProgress);
-  await terminateWithTimeout(ffmpeg);
-  setTerminate?.(null);
-
-  if (output instanceof Uint8Array) {
-    if (output.length === 0) {
-      throw new Error('Conversion produced empty output. The input file may be corrupt or use an unsupported codec.');
-    }
-    return output;
-  }
-  // readFile can return a string for text files; shouldn't happen for video
-  throw new Error('Unexpected output type from ffmpeg');
-}
-
-export default function VideoPlayer({ data, mimeType, fileExtension, onExport, subtitleData }: VideoPlayerProps) {
+export default function VideoPlayer({ src, mimeType, fileExtension, onExport, subtitleUrl: subtitleUrlProp }: VideoPlayerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenVisible, setFullscreenVisible] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [remuxing, setRemuxing] = useState(false);
-  const [remuxProgress, setRemuxProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [sizeWarning, setSizeWarning] = useState<string | null>(null);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [remuxCancelled, setRemuxCancelled] = useState(false);
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -120,11 +49,14 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
-  const [pipSupported, setPipSupported] = useState(false);
+  const [pipSupported] = useState(() =>
+    typeof document !== 'undefined' &&
+    'pictureInPictureEnabled' in document &&
+    (document as Document & { pictureInPictureEnabled: boolean }).pictureInPictureEnabled,
+  );
   const [showCaptions, setShowCaptions] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [isPip, setIsPip] = useState(false);
-  const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
 
   const [showKeyHints, setShowKeyHints] = useState(false);
   // Interpolated time for smooth seek bar (updated at 60fps via rAF)
@@ -132,6 +64,15 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const [showRemaining, setShowRemaining] = useState(false);
   // Screen reader announcement for volume/speed changes via keyboard
   const [controlAnnouncement, setControlAnnouncement] = useState('');
+
+  // Reset playback state when src changes (React "adjusting state during render" pattern)
+  const [prevSrc, setPrevSrc] = useState(src);
+  if (prevSrc !== src) {
+    setPrevSrc(src);
+    setPlaybackRate(1.0);
+    setError(null);
+    setLoading(true);
+  }
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fullscreenRef = useRef<HTMLDivElement>(null);
@@ -141,9 +82,6 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const keyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSeekingRef = useRef(false);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ffmpegTerminateRef = useRef<(() => Promise<void>) | null>(null);
-  const remuxCancelledRef = useRef(false);
-  const activeBlobUrlRef = useRef<string | null>(null);
   // Smooth time interpolation — video.currentTime updates ~4Hz on WebKitGTK,
   // we interpolate between updates for fluid seek bar movement
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -153,15 +91,6 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
   const rafRef = useRef<number>(0);
   const isPlayingRef = useRef(false);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // PiP feature detection
-  useEffect(() => {
-    setPipSupported(
-      typeof document !== 'undefined' &&
-      'pictureInPictureEnabled' in document &&
-      (document as Document & { pictureInPictureEnabled: boolean }).pictureInPictureEnabled,
-    );
-  }, []);
 
   // Trap focus within fullscreen overlay
   useFocusTrap(fullscreenRef, isFullscreen);
@@ -180,180 +109,12 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     };
   }, []); // Element ref doesn't change; listeners persist across src changes
 
-  // Create Blob URL for subtitle track
+  // Cleanup media element when src changes
   useEffect(() => {
-    if (!subtitleData || subtitleData.length === 0) {
-      setSubtitleUrl(null);
-      return;
-    }
-    // Convert SRT to VTT if needed (WebVTT is required for <track>)
-    let blob: Blob;
-    let text: string;
-    try {
-      text = new TextDecoder('utf-8', { fatal: true }).decode(subtitleData);
-    } catch {
-      // Fall back to ISO-8859-1 for non-UTF-8 SRT files (Latin-1, Windows-1252)
-      text = new TextDecoder('iso-8859-1').decode(subtitleData);
-    }
-    if (!text.trimStart().startsWith('WEBVTT')) {
-      // Simple SRT → VTT conversion: add WEBVTT header, replace comma with dot in timestamps
-      const vtt = 'WEBVTT\n\n' + text
-        .replace(/(\d{1,2}:\d{2}:\d{2}),(\d{1,3})/g, '$1.$2')
-        .replace(/^\d+\s*$/gm, '')       // Strip SRT cue IDs (standalone numbers)
-        .replace(/\n{3,}/g, '\n\n');      // Collapse resulting extra blank lines
-      blob = new Blob([vtt], { type: 'text/vtt' });
-    } else {
-      blob = new Blob([subtitleData as BlobPart], { type: 'text/vtt' });
-    }
-    const url = URL.createObjectURL(blob);
-    setSubtitleUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [subtitleData]);
-
-  // Probe whether the browser can play the blob directly; if not, remux.
-  useEffect(() => {
-    let cancelled = false;
-    let currentUrl: string | null = null;
     const videoEl = videoRef.current;
-
-    const revokeUrl = () => {
-      if (currentUrl) {
-        URL.revokeObjectURL(currentUrl);
-        currentUrl = null;
-      }
-    };
-
-    // Revoke any blob URL from a previous data prop
-    if (activeBlobUrlRef.current) {
-      URL.revokeObjectURL(activeBlobUrlRef.current);
-      activeBlobUrlRef.current = null;
-    }
-
-    // Reset playback state on new data
-    setPlaybackRate(1.0);
-    setRemuxProgress(0);
-    setRemuxCancelled(false);
-    remuxCancelledRef.current = false;
-
-    (async () => {
-      // Yield so the loading spinner paints before the potentially expensive Blob creation
-      await new Promise(resolve => setTimeout(resolve, 0));
-      if (cancelled) return;
-
-      const blob = new Blob([data], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      currentUrl = url;
-
-      // Skip probe for formats that WebKitGTK/GStreamer handles natively
-      const ext = fileExtension.toLowerCase();
-      if (NATIVE_GOOD_EXTENSIONS.has(ext)) {
-        if (cancelled) { revokeUrl(); return; }
-        activeBlobUrlRef.current = url;
-        setBlobUrl(url);
-        return;
-      }
-
-      // First attempt: see if a probe <video> can play it
-      const canPlay = await new Promise<boolean>((resolve) => {
-        const probe = document.createElement('video');
-        probe.preload = 'metadata';
-        probe.muted = true;
-        let resolved = false;
-        const timeout = setTimeout(() => { cleanup(); resolve(false); }, 8000);
-        const cleanup = () => {
-          if (resolved) return;
-          resolved = true;
-          clearTimeout(timeout);
-          probe.removeAttribute('src');
-          probe.load();
-        };
-        probe.addEventListener('loadedmetadata', () => { cleanup(); resolve(true); }, { once: true });
-        probe.addEventListener('error', () => { cleanup(); resolve(false); }, { once: true });
-        probe.src = url;
-      });
-
-      if (cancelled) { revokeUrl(); return; }
-
-      if (canPlay) {
-        activeBlobUrlRef.current = url;
-        setBlobUrl(url);
-        return;
-      }
-
-      // The browser can't play this format natively — try remuxing
-      revokeUrl();
-
-      // Guard against very large files that would exhaust memory during remux
-      const MAX_REMUX_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
-      const WARN_REMUX_SIZE = 500 * 1024 * 1024; // 500 MB
-      if (data.length > MAX_REMUX_SIZE) {
-        setError(`File too large for in-app conversion (${formatBytes(data.length)}). Use Save As to open with an external player.`);
-        setLoading(false);
-        return;
-      }
-      if (data.length > WARN_REMUX_SIZE) {
-        setSizeWarning(`Large file (${formatBytes(data.length)}) — conversion may use significant memory.`);
-      }
-
-      setRemuxing(true);
-      setRemuxProgress(0);
-
-      // Stall detection: if no progress in 30s, show error
-      let lastProgressTime = Date.now();
-      const stallCheck = setInterval(() => {
-        if (Date.now() - lastProgressTime > 30_000) {
-          clearInterval(stallCheck);
-          setError('Conversion appears stuck. The file may be too complex for in-app conversion.');
-          setRemuxing(false);
-          setLoading(false);
-          ffmpegTerminateRef.current?.().catch(() => {});
-          ffmpegTerminateRef.current = null;
-        }
-      }, 10_000);
-
-      try {
-        const inputName = `input${fileExtension}`;
-        const mp4Bytes = await remuxToMp4(data, inputName, (evt) => {
-          lastProgressTime = Date.now();
-          if (!cancelled) setRemuxProgress(Math.max(0, Math.min(1, evt.progress)));
-        }, (fn) => { ffmpegTerminateRef.current = fn; });
-        if (cancelled) return;
-        const mp4Blob = new Blob([mp4Bytes as BlobPart], { type: 'video/mp4' });
-        const mp4Url = URL.createObjectURL(mp4Blob);
-        currentUrl = mp4Url;
-        activeBlobUrlRef.current = mp4Url;
-        setBlobUrl(mp4Url);
-      } catch (err) {
-        if (cancelled) return;
-        if (remuxCancelledRef.current) {
-          remuxCancelledRef.current = false;
-          return;
-        }
-        const msg = err instanceof Error ? err.message : '';
-        setError(msg.includes('appears stuck')
-          ? msg
-          : 'This video format could not be converted for in-app playback.');
-        setLoading(false);
-      } finally {
-        clearInterval(stallCheck);
-        if (!cancelled) {
-            setRemuxing(false);
-        }
-      }
-    })();
-
     return () => {
-      cancelled = true;
       if (videoEl) {
         videoEl.pause();
-        videoEl.removeAttribute('src');
-        videoEl.load();
-      }
-      revokeUrl();
-      // Also revoke the ref-tracked URL (covers cases where currentUrl was reassigned)
-      if (activeBlobUrlRef.current) {
-        URL.revokeObjectURL(activeBlobUrlRef.current);
-        activeBlobUrlRef.current = null;
       }
       if (stalledTimerRef.current) {
         clearTimeout(stalledTimerRef.current);
@@ -363,25 +124,20 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
       }
-      ffmpegTerminateRef.current?.().catch(() => {});
-      ffmpegTerminateRef.current = null;
     };
-  }, [data, mimeType, fileExtension]);
+  }, [src]);
 
   // Drive fullscreen opacity transition
   useEffect(() => {
-    if (isFullscreen) {
-      // Trigger fade-in on next frame so the transition fires
-      requestAnimationFrame(() => setFullscreenVisible(true));
-    } else {
-      setFullscreenVisible(false);
-    }
+    // Trigger on next frame so the CSS transition fires
+    const id = requestAnimationFrame(() => setFullscreenVisible(isFullscreen));
+    return () => cancelAnimationFrame(id);
   }, [isFullscreen]);
 
   // Auto-hide controls after inactivity in fullscreen
   useEffect(() => {
     if (!isFullscreen) {
-      setControlsVisible(true);
+      queueMicrotask(() => setControlsVisible(true));
       if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
       return;
     }
@@ -399,7 +155,8 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       autoHideTimerRef.current = setTimeout(() => setControlsVisible(false), delay);
     };
 
-    resetTimer();
+    // Initial show + auto-hide setup (deferred to avoid synchronous setState in effect)
+    const id = requestAnimationFrame(() => resetTimer());
 
     const handleMouseMove = () => resetTimer();
     const handleKeyDown = () => resetTimer();
@@ -407,6 +164,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      cancelAnimationFrame(id);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('keydown', handleKeyDown);
       if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
@@ -632,16 +390,6 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
     });
   }, []);
 
-  const handleCancelRemux = useCallback(() => {
-    remuxCancelledRef.current = true;
-    setRemuxCancelled(true);
-    ffmpegTerminateRef.current?.().catch(() => {});
-    ffmpegTerminateRef.current = null;
-    setRemuxing(false);
-    setRemuxProgress(0);
-    setSizeWarning(null);
-  }, []);
-
   // Sync loop property
   useEffect(() => {
     if (videoRef.current) videoRef.current.loop = isLooping;
@@ -675,7 +423,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
   // Keyboard shortcuts (bubbling phase — Escape handled separately in capture phase)
   useEffect(() => {
-    if (!blobUrl) return;
+    if (!src) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName ?? '').toLowerCase();
@@ -747,7 +495,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           break;
         case 'c':
         case 'C':
-          if (subtitleUrl) handleCaptionToggle();
+          if (subtitleUrlProp) handleCaptionToggle();
           break;
         case 't':
         case 'T':
@@ -762,7 +510,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [blobUrl, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle, handleToggleLoop, handleSpeedChange, subtitleUrl, handleCaptionToggle]);
+  }, [src, handlePlayPause, handleSkipBack, handleSkipForward, handleMuteToggle, handleToggleLoop, handleSpeedChange, subtitleUrlProp, handleCaptionToggle]);
 
   // --- Error state ---
 
@@ -806,58 +554,6 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
           <p className="text-xs text-[var(--text-muted)]">
             Use Save As to open it with an external player.
           </p>
-        )}
-      </div>
-    );
-  }
-
-  // --- Remuxing progress ---
-
-  if (remuxing) {
-    return (
-      <div className="py-12 text-center space-y-4">
-        <DelayedSpinner size="lg" className="mx-auto" />
-        <p className="text-sm text-[var(--text-muted)]">Converting for playback...</p>
-        <div className="mx-auto max-w-xs">
-          <div className="h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden border border-[var(--border-subtle)]" role="progressbar" aria-label="Conversion progress" aria-valuenow={Math.round(remuxProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
-            <div
-              className="h-full bg-[var(--accent)] transition-all duration-300"
-              style={{ width: `${Math.round(remuxProgress * 100)}%` }}
-            />
-          </div>
-          <p className="text-xs text-[var(--text-muted)] mt-2">
-            {Math.round(remuxProgress * 100)}%
-          </p>
-        </div>
-        {sizeWarning && (
-          <p className="text-xs text-[var(--warning)]">{sizeWarning}</p>
-        )}
-        <button
-          onClick={handleCancelRemux}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
-  // --- Cancelled fallback ---
-
-  if (remuxCancelled && !blobUrl) {
-    return (
-      <div className="p-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-center space-y-3">
-        <p className="text-sm text-[var(--text-muted)]">Conversion cancelled.</p>
-        {onExport && (
-          <button
-            onClick={onExport}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Save As
-          </button>
         )}
       </div>
     );
@@ -987,13 +683,13 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
 
       {/* CC / Subtitles — always visible, disabled when no subtitles for discoverability */}
       <button
-        onClick={subtitleUrl ? handleCaptionToggle : undefined}
-        className={`${btnClass} font-bold text-xs ${!subtitleUrl ? 'opacity-50 cursor-not-allowed' : showCaptions ? 'text-[var(--accent)]' : ''}`}
-        title={!subtitleUrl ? 'No subtitles available' : showCaptions ? 'Hide subtitles (C)' : 'Show subtitles (C)'}
-        aria-label={!subtitleUrl ? 'Subtitles unavailable' : showCaptions ? 'Hide subtitles' : 'Show subtitles'}
-        aria-pressed={subtitleUrl ? showCaptions : undefined}
-        aria-disabled={!subtitleUrl || undefined}
-        disabled={!subtitleUrl}
+        onClick={subtitleUrlProp ? handleCaptionToggle : undefined}
+        className={`${btnClass} font-bold text-xs ${!subtitleUrlProp ? 'opacity-50 cursor-not-allowed' : showCaptions ? 'text-[var(--accent)]' : ''}`}
+        title={!subtitleUrlProp ? 'No subtitles available' : showCaptions ? 'Hide subtitles (C)' : 'Show subtitles (C)'}
+        aria-label={!subtitleUrlProp ? 'Subtitles unavailable' : showCaptions ? 'Hide subtitles' : 'Show subtitles'}
+        aria-pressed={subtitleUrlProp ? showCaptions : undefined}
+        aria-disabled={!subtitleUrlProp || undefined}
+        disabled={!subtitleUrlProp}
       >
         CC
       </button>
@@ -1065,16 +761,16 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time</span>
-        {subtitleUrl && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
+        {subtitleUrlProp && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">?</kbd> Show hints</span>
       </div>
     </div>
   ) : null;
 
-  const videoElement = blobUrl ? (
+  const videoElement = (
     <video
       ref={videoRef}
-      src={blobUrl}
+      src={src}
       preload="metadata"
       className={isFullscreen
         ? "max-w-full max-h-full cursor-pointer"
@@ -1139,17 +835,17 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
       onClick={handleVideoClick}
       onDoubleClick={handleVideoDoubleClick}
     >
-      {subtitleUrl && (
+      {subtitleUrlProp && (
         <track
           kind="subtitles"
-          src={subtitleUrl}
+          src={subtitleUrlProp}
           srcLang="und"
           label="Subtitles"
           default={showCaptions}
         />
       )}
     </video>
-  ) : null;
+  );
 
   // Single return path — video element stays at the same React tree position
   // regardless of fullscreen state, preventing unmount/remount that loses playback.
@@ -1176,13 +872,7 @@ export default function VideoPlayer({ data, mimeType, fileExtension, onExport, s
             : 'flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative'
           }
         >
-          {loading && !blobUrl && !remuxing && (
-            <div className="py-12 text-center">
-              <DelayedSpinner size="lg" className="mx-auto mb-4" />
-              <p className="text-sm text-[var(--text-muted)]">Checking format compatibility...</p>
-            </div>
-          )}
-          {loading && blobUrl && (
+          {loading && (
             <div className="py-12 text-center">
               <DelayedSpinner size="lg" className="mx-auto mb-4" />
               <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
