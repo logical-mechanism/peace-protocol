@@ -770,7 +770,6 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
   const videoElement = (
     <video
       ref={videoRef}
-      src={src}
       preload="metadata"
       className={isFullscreen
         ? "max-w-full max-h-full cursor-pointer"
@@ -834,6 +833,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       }}
       onClick={handleVideoClick}
       onDoubleClick={handleVideoDoubleClick}
+      src={src}
     >
       {subtitleUrlProp && (
         <track

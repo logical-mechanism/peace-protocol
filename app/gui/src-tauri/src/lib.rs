@@ -12,9 +12,148 @@ use config::AppConfig;
 use crypto::audit::AuditLog;
 use crypto::secrets::SecretsKey;
 use process::manager::NodeManager;
+use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
+
+/// Map file extension to MIME type for media streaming.
+/// Uses extension-based detection (not magic bytes) to ensure correct types
+/// for formats like .m4v that `infer` misidentifies as `video/x-m4v`.
+fn media_mime_type(path: &str) -> &'static str {
+    let ext = path.rsplit('.').next().unwrap_or("");
+    match ext.to_ascii_lowercase().as_str() {
+        "mp4" | "m4v" => "video/mp4",
+        "webm" => "video/webm",
+        "ogv" => "video/ogg",
+        "mov" => "video/quicktime",
+        "mkv" => "video/x-matroska",
+        "avi" => "video/x-msvideo",
+        "ts" => "video/mp2t",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "flac" => "audio/flac",
+        "ogg" => "audio/ogg",
+        "m4a" | "aac" => "audio/mp4",
+        "opus" => "audio/opus",
+        "weba" => "audio/webm",
+        "vtt" => "text/vtt",
+        "srt" => "text/plain; charset=utf-8",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Parse a single-range `Range: bytes=START-END` header.
+/// Returns (start, end) inclusive, capped at 1 MB per chunk.
+fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
+    let range = header.strip_prefix("bytes=")?;
+    let (start_str, end_str) = range.split_once('-')?;
+
+    let start: u64 = if start_str.is_empty() {
+        // Suffix range: `-500` means last 500 bytes
+        let suffix: u64 = end_str.parse().ok()?;
+        file_len.saturating_sub(suffix)
+    } else {
+        start_str.parse().ok()?
+    };
+
+    const MAX_CHUNK: u64 = 1024 * 1024; // 1 MB
+
+    let end: u64 = if end_str.is_empty() || start_str.is_empty() {
+        // Open-ended: cap at MAX_CHUNK from start
+        (start + MAX_CHUNK - 1).min(file_len - 1)
+    } else {
+        let requested: u64 = end_str.parse().ok()?;
+        // Cap chunk size but respect explicit end
+        let capped = start + (requested - start).min(MAX_CHUNK - 1);
+        capped.min(file_len - 1)
+    };
+
+    if start >= file_len || end < start {
+        return None;
+    }
+
+    Some((start, end))
+}
+
+/// Handle requests on the `media://` custom protocol.
+/// Serves files from the app's media directory with correct MIME types
+/// and full HTTP range request support for video/audio streaming.
+fn media_protocol_handler(
+    request: &tauri::http::Request<Vec<u8>>,
+    content_dir: &std::path::Path,
+) -> tauri::http::Response<Cow<'static, [u8]>> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let err_response = |status: u16| -> tauri::http::Response<Cow<'static, [u8]>> {
+        tauri::http::Response::builder()
+            .status(status)
+            .body(Vec::new().into())
+            .unwrap()
+    };
+
+    // Decode the percent-encoded path (skip leading `/`)
+    let raw_path = request.uri().path();
+    let decoded = percent_encoding::percent_decode(&raw_path.as_bytes()[1..])
+        .decode_utf8_lossy()
+        .to_string();
+
+    let path = std::path::Path::new(&decoded);
+
+    // Security: path must resolve within the media directory
+    let media_dir = content_dir.parent().unwrap_or(content_dir);
+    let canonical = match std::fs::canonicalize(path) {
+        Ok(p) => p,
+        Err(_) => return err_response(404),
+    };
+    let canonical_media =
+        std::fs::canonicalize(media_dir).unwrap_or_else(|_| media_dir.to_path_buf());
+    if !canonical.starts_with(&canonical_media) {
+        return err_response(403);
+    }
+
+    let mime_type = media_mime_type(&decoded);
+
+    let mut file = match std::fs::File::open(&canonical) {
+        Ok(f) => f,
+        Err(_) => return err_response(404),
+    };
+
+    let len = file.metadata().map(|m| m.len()).unwrap_or(0);
+
+    // Handle Range requests (HTTP 206)
+    if let Some(range_header) = request.headers().get("range").and_then(|v| v.to_str().ok()) {
+        if let Some((start, end)) = parse_byte_range(range_header, len) {
+            let nbytes = end - start + 1;
+            let mut buf = vec![0u8; nbytes as usize];
+            if file.seek(SeekFrom::Start(start)).is_ok() {
+                let _ = file.read_exact(&mut buf);
+            }
+            return tauri::http::Response::builder()
+                .status(206)
+                .header("Content-Type", mime_type)
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Range", format!("bytes {start}-{end}/{len}"))
+                .header("Content-Length", nbytes.to_string())
+                .header("Access-Control-Expose-Headers", "content-range")
+                .body(buf.into())
+                .unwrap();
+        }
+        return err_response(416); // Range Not Satisfiable
+    }
+
+    // Non-range request: return full file with Accept-Ranges
+    let mut buf = Vec::with_capacity(len as usize);
+    let _ = file.read_to_end(&mut buf);
+
+    tauri::http::Response::builder()
+        .status(200)
+        .header("Content-Type", mime_type)
+        .header("Accept-Ranges", "bytes")
+        .header("Content-Length", len.to_string())
+        .body(buf.into())
+        .unwrap()
+}
 
 /// Global flag to prevent duplicate shutdown attempts.
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
@@ -96,6 +235,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
+        .register_uri_scheme_protocol("media", |ctx, request| {
+            let content_dir = ctx.app_handle().state::<ContentDir>();
+            media_protocol_handler(&request, &content_dir.0)
+        })
         .setup(|app| {
             let app_data_dir = app
                 .path()

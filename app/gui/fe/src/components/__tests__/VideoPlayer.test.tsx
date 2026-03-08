@@ -720,10 +720,10 @@ describe('VideoPlayer', () => {
     });
 
     it('renders with different src URL', () => {
-      const { container } = renderPlayer({ src: 'asset://localhost/other-video.webm' });
+      const { container } = renderPlayer({ src: 'media://localhost/other-video.webm' });
       expect(container).toBeInTheDocument();
       const video = getVideoElement();
-      expect(video.getAttribute('src')).toBe('asset://localhost/other-video.webm');
+      expect(video.getAttribute('src')).toBe('media://localhost/other-video.webm');
     });
   });
 

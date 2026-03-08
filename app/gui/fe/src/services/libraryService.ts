@@ -1,4 +1,4 @@
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface LibraryItem {
   tokenName: string;
@@ -42,23 +42,25 @@ export async function readSubtitleFile(
   return data ? new Uint8Array(data) : null;
 }
 
-/** Get an asset:// URL for a library content file that WebKitGTK can stream directly.
+/** Get a media:// URL for a library content file that WebKitGTK can stream directly.
+ *  Uses the custom `media` URI scheme (registered in lib.rs) which serves files with
+ *  correct extension-based MIME types and full range request support.
  *  Avoids reading the entire file into memory via IPC — critical for large video/audio. */
 export async function getLibraryContentUrl(
   tokenName: string,
   category: string
 ): Promise<string> {
   const path = await invoke<string>('get_library_content_path', { tokenName, category });
-  return convertFileSrc(path);
+  return `media://localhost/${encodeURIComponent(path)}`;
 }
 
-/** Get an asset:// URL for a library item's subtitle file, if one exists. */
+/** Get a media:// URL for a library item's subtitle file, if one exists. */
 export async function getLibrarySubtitleUrl(
   tokenName: string,
   category: string
 ): Promise<string | null> {
   const path = await invoke<string | null>('get_library_subtitle_path', { tokenName, category });
-  return path ? convertFileSrc(path) : null;
+  return path ? `media://localhost/${encodeURIComponent(path)}` : null;
 }
 
 export async function openWithSystem(
