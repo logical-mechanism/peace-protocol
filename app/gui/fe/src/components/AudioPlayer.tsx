@@ -214,6 +214,8 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
   const seekBarTooltipRef = useRef<HTMLDivElement | null>(null);
   const waveformTooltipRef = useRef<HTMLDivElement | null>(null);
   const pcmDecodedRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- Cache CSS gradient colors (avoids getComputedStyle per frame) ---
 
@@ -258,6 +260,8 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
     bufferRef.current = null;
     waveformDataRef.current = null;
     pcmDecodedRef.current = false;
+    retryCountRef.current = 0;
+    if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
 
     // Stream directly from disk via asset:// URL — GStreamer handles output directly,
     // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
@@ -275,6 +279,57 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
       const d = audio.duration;
       if (isFinite(d) && d > 0) setDuration(d);
     };
+    // Background PCM decode: fetch audio bytes + decode via OfflineAudioContext
+    // for FFT bar visualization. Playback still uses native <audio> (GStreamer).
+    async function decodePcmForVisualization() {
+      try {
+        // Size guard: skip files > 100 MB to avoid memory pressure
+        const head = await fetch(src, { method: 'HEAD' });
+        if (cancelled) return;
+        const size = parseInt(head.headers.get('content-length') || '0', 10);
+        if (size > 100 * 1024 * 1024) { setVisualizationFailed(true); return; }
+
+        const resp = await fetch(src);
+        if (cancelled) return;
+        if (!resp.ok) { setVisualizationFailed(true); return; }
+        const arrayBuffer = await resp.arrayBuffer();
+        if (cancelled) return;
+
+        // OfflineAudioContext for decoding only — no audio output needed
+        const offlineCtx = new OfflineAudioContext(1, 1, 44100);
+        const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+        if (cancelled) return;
+
+        bufferRef.current = audioBuffer;
+
+        // Generate waveform overview (480 buckets = canvas width)
+        const channel = audioBuffer.getChannelData(0);
+        const bucketCount = 480;
+        const bucketSize = Math.floor(channel.length / bucketCount);
+        if (bucketSize > 0) {
+          const waveform = new Float32Array(bucketCount);
+          for (let i = 0; i < bucketCount; i++) {
+            let sum = 0;
+            const start = i * bucketSize;
+            for (let j = start; j < start + bucketSize && j < channel.length; j++) {
+              sum += Math.abs(channel[j]);
+            }
+            waveform[i] = sum / bucketSize;
+          }
+          let max = 0;
+          for (let i = 0; i < waveform.length; i++) if (waveform[i] > max) max = waveform[i];
+          if (max > 0) for (let i = 0; i < waveform.length; i++) waveform[i] /= max;
+          waveformDataRef.current = waveform;
+        }
+
+        setVisualizationFailed(false);
+        drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
+        startLoopRef.current?.();
+      } catch {
+        if (!cancelled) setVisualizationFailed(true);
+      }
+    }
+
     const onCanPlay = () => {
       if (cancelled) return;
       // Only reset if GStreamer reported a genuinely non-zero start position.
@@ -284,11 +339,10 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
         audio.currentTime = 0;
       }
       setIsReady(true);
-      // PCM decode for waveform visualization is skipped for URL-based streaming
-      // since raw bytes aren't in memory. FFT bar visualization is used as fallback.
+      // Kick off background PCM decode for FFT visualization
       if (!pcmDecodedRef.current) {
         pcmDecodedRef.current = true;
-        setVisualizationFailed(true);
+        decodePcmForVisualization();
       }
     };
     const onTimeUpdate = () => {
@@ -317,6 +371,16 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
     const onError = () => {
       if (cancelled) return;
       const code = audio.error?.code;
+      // Retry on SRC_NOT_SUPPORTED — transient GStreamer/media server race on first load
+      if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED && retryCountRef.current < 2) {
+        retryCountRef.current++;
+        retryTimerRef.current = setTimeout(() => {
+          if (cancelled) return;
+          audio.src = src;
+          audio.load();
+        }, 500 * retryCountRef.current);
+        return;
+      }
       if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
         setError('Audio format not supported. Try converting to MP3 or OGG.');
       } else {
@@ -345,6 +409,7 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
     return () => {
       cancelled = true;
       audio.pause();
+      if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('canplay', onCanPlay);

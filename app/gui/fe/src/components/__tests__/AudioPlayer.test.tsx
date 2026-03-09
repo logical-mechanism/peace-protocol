@@ -619,36 +619,50 @@ describe('AudioPlayer component', () => {
       expect(screen.getByText('WAV')).toBeInTheDocument();
     });
 
-    it('renders error state with conversion hint for unsupported format', async () => {
+    it('renders error state with conversion hint for unsupported format after retries exhausted', async () => {
+      vi.useFakeTimers();
       renderPlayer({ fileExtension: '.flac' });
+      // First error — triggers retry 1 (500ms)
+      await fireAudioError();
+      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
+      // Advance past retry 1
+      await act(async () => { vi.advanceTimersByTime(500); });
+      // Second error — triggers retry 2 (1000ms)
+      await fireAudioError();
+      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
+      // Advance past retry 2
+      await act(async () => { vi.advanceTimersByTime(1000); });
+      // Third error — retries exhausted, show error
       await fireAudioError();
       expect(screen.getByText(/Audio format not supported/)).toBeInTheDocument();
       expect(screen.getByText(/ffmpeg/)).toBeInTheDocument();
+      vi.useRealTimers();
     });
 
     it('shows format badge in error state', async () => {
       renderPlayer({ fileExtension: '.flac' });
-      await fireAudioError();
+      // Use non-retryable error code for immediate error
+      await fireAudioError(MEDIA_ERR_DECODE);
       expect(screen.getByText('FLAC')).toBeInTheDocument();
     });
 
     it('shows Save As button in error state when onExport provided', async () => {
       const onExport = vi.fn();
       renderPlayer({ onExport });
-      await fireAudioError();
+      await fireAudioError(MEDIA_ERR_DECODE);
       expect(screen.getByText(/Save As/)).toBeInTheDocument();
     });
 
     it('hides Save As in error state when onExport not provided', async () => {
       renderPlayer();
-      await fireAudioError();
+      await fireAudioError(MEDIA_ERR_DECODE);
       expect(screen.queryByText(/Save As/)).not.toBeInTheDocument();
     });
 
     it('calls onExport when Save As is clicked in error state', async () => {
       const onExport = vi.fn();
       renderPlayer({ onExport });
-      await fireAudioError();
+      await fireAudioError(MEDIA_ERR_DECODE);
       fireEvent.click(screen.getByText(/Save As/));
       expect(onExport).toHaveBeenCalledOnce();
     });
@@ -1237,12 +1251,93 @@ describe('AudioPlayer component', () => {
     });
   });
 
+  // ── Retry on error tests ────────────────────────────────────────────
+
+  describe('retry on transient error', () => {
+    it('does not show error on first SRC_NOT_SUPPORTED (retries transparently)', async () => {
+      vi.useFakeTimers();
+      renderPlayer();
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      // Error should not be shown — retry is pending
+      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
+      // Loading spinner should still be visible
+      expect(screen.getByTestId('spinner')).toBeInTheDocument();
+      vi.useRealTimers();
+    });
+
+    it('retries loading after 500ms delay on first error', async () => {
+      vi.useFakeTimers();
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      const loadSpy = vi.spyOn(audio, 'load');
+
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      expect(loadSpy).not.toHaveBeenCalled();
+
+      // Advance past retry delay
+      await act(async () => { vi.advanceTimersByTime(500); });
+      expect(loadSpy).toHaveBeenCalledOnce();
+
+      loadSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('shows error after all retries are exhausted', async () => {
+      vi.useFakeTimers();
+      renderPlayer();
+
+      // Error 1 → retry 1
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      await act(async () => { vi.advanceTimersByTime(500); });
+
+      // Error 2 → retry 2
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      await act(async () => { vi.advanceTimersByTime(1000); });
+
+      // Error 3 → retries exhausted
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      expect(screen.getByText(/Audio format not supported/)).toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('shows non-retryable errors immediately', async () => {
+      renderPlayer();
+      await fireAudioError(MEDIA_ERR_DECODE);
+      expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
+    });
+  });
+
   // ── Visualization failure fallback test ─────────────────────────────
 
   describe('visualization failure fallback', () => {
+    it('shows fallback text when fetch for PCM decode fails', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      // Flush the rejected fetch promise
+      await flushMicrotasks();
+
+      expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
+
+      globalThis.fetch = originalFetch;
+    });
+
     it('shows fallback text when PCM decodeAudioData rejects', async () => {
-      // Override OfflineAudioContext to reject decodeAudioData
+      const originalFetch = globalThis.fetch;
       const originalOAC = globalThis.OfflineAudioContext;
+
+      // fetch succeeds but decodeAudioData fails
+      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
+        if (opts?.method === 'HEAD') {
+          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': '1000' }) });
+        }
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(1000)) });
+      });
       globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
         decodeAudioData: vi.fn().mockRejectedValue(new Error('decode failed')),
       })) as unknown as typeof OfflineAudioContext;
@@ -1251,20 +1346,57 @@ describe('AudioPlayer component', () => {
       const audio = document.querySelector('audio')!;
       makeAudioControllable(audio);
       await fireCanPlay();
-      // Flush the rejected decode promise
       await flushMicrotasks();
 
       expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
 
-      // Restore
+      globalThis.fetch = originalFetch;
       globalThis.OfflineAudioContext = originalOAC;
     });
 
+    it('shows fallback for files exceeding 100MB size limit', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
+        if (opts?.method === 'HEAD') {
+          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': String(150 * 1024 * 1024) }) });
+        }
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) });
+      });
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      await flushMicrotasks();
+
+      expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
+
+      globalThis.fetch = originalFetch;
+    });
+
+    it('does not show fallback when PCM decode succeeds', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
+        if (opts?.method === 'HEAD') {
+          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': '1000' }) });
+        }
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(1000)) });
+      });
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      await flushMicrotasks();
+
+      expect(screen.queryByText('Visualization unavailable for this format')).not.toBeInTheDocument();
+
+      globalThis.fetch = originalFetch;
+    });
+
     it('keeps playback controls functional when visualization fails', async () => {
-      const originalOAC = globalThis.OfflineAudioContext;
-      globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
-        decodeAudioData: vi.fn().mockRejectedValue(new Error('decode failed')),
-      })) as unknown as typeof OfflineAudioContext;
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
 
       renderPlayer();
       const audio = document.querySelector('audio')!;
@@ -1280,7 +1412,7 @@ describe('AudioPlayer component', () => {
       });
       expect(playMock).toHaveBeenCalled();
 
-      globalThis.OfflineAudioContext = originalOAC;
+      globalThis.fetch = originalFetch;
     });
   });
 
