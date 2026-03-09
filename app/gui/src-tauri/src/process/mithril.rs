@@ -96,8 +96,14 @@ pub async fn convert_to_lmdb(
     app_config: &AppConfig,
     app_data_dir: &Path,
 ) -> Result<(), String> {
-    let db_dir = app_config.node_db_dir(app_data_dir);
-    let network = app_config.network.to_string();
+    // Mithril v2 extracts into a db/ subdirectory of the download-dir.
+    // The converter needs the actual db path containing the ledger/ directory.
+    let base_db = app_config.node_db_dir(app_data_dir);
+    let db_dir = if base_db.join("db").join("immutable").exists() {
+        base_db.join("db")
+    } else {
+        base_db
+    };
 
     let args = vec![
         "tools".to_string(),
@@ -107,8 +113,6 @@ pub async fn convert_to_lmdb(
         db_dir.to_string_lossy().into(),
         "--cardano-node-version".to_string(),
         "latest".to_string(),
-        "--cardano-network".to_string(),
-        network,
         "--utxo-hd-flavor".to_string(),
         "LMDB".to_string(),
         "--commit".to_string(),

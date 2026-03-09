@@ -73,7 +73,7 @@ impl CardanoNodeConfig {
 
         // Config files to copy from resources.
         // config.json and topology.json are always overwritten so that changes
-        // (e.g. V2InMemory → V2LMDB ledger backend) take effect on upgrade.
+        // (e.g. V2InMemory → V1LMDB ledger backend) take effect on upgrade.
         // Genesis files are large and stable — only copied if missing.
         let always_overwrite = ["config.json", "topology.json"];
         let copy_if_missing = [
