@@ -1,0 +1,195 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { getSnarkProver } from '../services/snark'
+import { useModalStack } from '../hooks/useModalStack'
+import { useFocusTrap } from '../hooks/useFocusTrap'
+
+interface SnarkSetupModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onReady: () => void
+}
+
+/**
+ * Modal for SNARK prover setup.
+ *
+ * On first launch, checks if setup files (pk.bin, ccs.bin) exist.
+ * If missing, triggers decompression of bundled .zst files.
+ * These files are shipped with the installer (~500MB compressed).
+ */
+export default function SnarkSetupModal({
+  isOpen,
+  onClose,
+  onReady,
+}: SnarkSetupModalProps) {
+  const [status, setStatus] = useState<'checking' | 'decompressing' | 'complete' | 'error'>('checking')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  // Stack-aware Escape key + body scroll lock + animation
+  const { zIndex, shouldRender, animationState } = useModalStack(
+    'snark-download', isOpen, onClose,
+    status === 'decompressing' || status === 'checking',
+  )
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, isOpen)
+
+  // Check setup status on open
+  useEffect(() => {
+    if (!isOpen) return
+
+    const checkAndSetup = async () => {
+      setStatus('checking')
+      setError(null)
+      setMessage('Checking setup files...')
+
+      try {
+        const prover = getSnarkProver()
+        const exists = await prover.checkSetup()
+
+        if (exists) {
+          setStatus('complete')
+          onReady()
+        } else {
+          setStatus('decompressing')
+          setMessage('Decompressing SNARK setup files...')
+
+          await prover.initialize((progress) => {
+            setMessage(progress.message)
+          })
+
+          setStatus('complete')
+          onReady()
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Setup failed'
+        setError(msg)
+        setStatus('error')
+      }
+    }
+
+    checkAndSetup()
+  }, [isOpen, onReady])
+
+  const handleRetry = useCallback(async () => {
+    setStatus('checking')
+    setError(null)
+    setMessage('Retrying setup...')
+
+    try {
+      const prover = getSnarkProver()
+      await prover.initialize((progress) => {
+        setMessage(progress.message)
+        if (progress.stage === 'checking-setup') {
+          setStatus('decompressing')
+        }
+      })
+
+      setStatus('complete')
+      onReady()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Setup failed'
+      setError(msg)
+      setStatus('error')
+    }
+  }, [onReady])
+
+  if (!shouldRender) return null
+
+  return (
+    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+      {/* Backdrop */}
+      <div
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+        onClick={status !== 'decompressing' ? onClose : undefined}
+      />
+
+      {/* Modal */}
+      <div className={`relative w-full max-w-lg max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">SNARK Prover Setup</h2>
+            {status !== 'decompressing' && status !== 'checking' && (
+              <button
+                onClick={onClose}
+                aria-label="Close dialog"
+                className="p-1 btn-base btn-icon"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-6 space-y-4">
+          {(status === 'checking' || status === 'decompressing') && (
+            <div className="flex flex-col items-center py-8 space-y-4">
+              <div className="animate-spin w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full" />
+              <span className="text-[var(--text-secondary)]">{message}</span>
+              {status === 'decompressing' && (
+                <p className="text-sm text-[var(--text-muted)] text-center">
+                  This only needs to happen once
+                </p>
+              )}
+            </div>
+          )}
+
+          {status === 'complete' && (
+            <div className="flex flex-col items-center py-8">
+              <div className="w-16 h-16 bg-[var(--success-muted)] rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-lg font-medium">Prover Ready</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">
+                SNARK setup files are ready to use
+              </p>
+            </div>
+          )}
+
+          {status === 'error' && (
+            <div className="bg-[var(--error-muted)] text-[var(--error)] rounded-[var(--radius-md)] px-4 py-3 text-sm flex items-start gap-2">
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
+          {status === 'complete' && (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+            >
+              Continue
+            </button>
+          )}
+
+          {status === 'error' && (
+            <>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm btn-base btn-icon"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
+              >
+                Retry
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

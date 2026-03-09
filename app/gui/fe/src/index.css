@@ -1,0 +1,696 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+/* Design System CSS Variables from ui-goals.md */
+:root {
+  /* Backgrounds - subtle gradation */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-card: #1a1a1a;
+  --bg-card-hover: #222222;
+  --bg-elevated: #242424;
+  --bg-tertiary: #2a2a2a;
+
+  /* Borders - barely visible, adds definition */
+  --border-subtle: #2a2a2a;
+  --border-default: #333333;
+  --border-focus: #444444;
+
+  /* Text - high contrast for readability (WCAG AA 4.5:1 on all bg-* surfaces) */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1a1;
+  --text-muted: #9ca3af;
+
+  /* Accent - single accent color, used sparingly */
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-muted: rgba(99, 102, 241, 0.15);
+
+  /* Semantic */
+  --success: #22c55e;
+  --success-muted: rgba(34, 197, 94, 0.15);
+  --warning: #f59e0b;
+  --warning-muted: rgba(245, 158, 11, 0.15);
+  --error: #ef4444;
+  --error-muted: rgba(239, 68, 68, 0.15);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Spacing (4px baseline) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+
+  /* Semantic spacing aliases */
+  --space-xs: var(--space-1);  /* 4px  - tight gaps, inline spacing */
+  --space-sm: var(--space-2);  /* 8px  - compact padding, small gaps */
+  --space-md: var(--space-4);  /* 16px - standard padding, section gaps */
+  --space-lg: var(--space-6);  /* 24px - card padding, group spacing */
+  --space-xl: var(--space-8);  /* 32px - section separation */
+
+  /* Spacing usage rules:
+   * Card inner padding:   var(--space-md)  = 16px  (replaces p-4)
+   * Section padding:      var(--space-lg)  = 24px  (replaces p-6)
+   * Page outer padding:   var(--space-xl)  = 32px  (replaces p-8)
+   * Sub-grid values (py-1.5, px-1.5, py-0.5) remain as Tailwind —
+   * they are intentional for compact inline elements (badges, pills, icon buttons).
+   */
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --focus-ring: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
+
+  /* Transitions */
+  --transition-fast: 150ms;
+  --transition-base: 200ms;
+  --transition-slow: 300ms;
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #fafafa;
+  --bg-secondary: #f0f0f0;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f5f5f5;
+  --bg-elevated: #ffffff;
+  --bg-tertiary: #e5e5e5;
+
+  /* Borders */
+  --border-subtle: #e0e0e0;
+  --border-default: #d0d0d0;
+  --border-focus: #bfbfbf;
+
+  /* Text (WCAG AA 4.5:1 on all bg-* surfaces) */
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --text-muted: #6b7280;
+
+  /* Accent — slightly darker indigo for light bg contrast */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-muted: rgba(79, 70, 229, 0.12);
+
+  /* Semantic — same hues, slightly adjusted for light bg */
+  --success: #16a34a;
+  --success-muted: rgba(22, 163, 74, 0.12);
+  --warning: #d97706;
+  --warning-muted: rgba(217, 119, 6, 0.12);
+  --error: #dc2626;
+  --error-muted: rgba(220, 38, 38, 0.1);
+
+  /* Shadows — much lower opacity */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.1);
+  --focus-ring: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Focus visible indicators for keyboard navigation — subtle glow */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Range slider thumb focus indicator */
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Custom scrollbar styling for WebKitGTK */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-secondary);
+}
+
+/* Line clamp utilities for text truncation */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Shared button interactive states */
+.btn-base {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-base:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-base:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary: solid accent background */
+.btn-primary {
+  background-color: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+/* Secondary: accent text with accent border */
+.btn-secondary {
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--accent-muted);
+}
+
+/* Tertiary: neutral border, subtle hover */
+.btn-tertiary {
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-tertiary:hover:not(:disabled) {
+  background-color: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+/* Destructive: error text with error border */
+.btn-destructive {
+  color: var(--error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-destructive:hover:not(:disabled) {
+  background-color: var(--error-muted);
+}
+
+/* Danger: solid error background, white text (e.g., delete confirmation) */
+.btn-danger {
+  background-color: var(--error);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Success: solid success background */
+.btn-success {
+  background-color: var(--success);
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Icon: minimal chrome, muted text, hover bg */
+.btn-icon {
+  color: var(--text-muted);
+}
+
+.btn-icon:hover:not(:disabled) {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
+/* Force color scheme for form controls (WebKit in Tauri ignores CSS color on <select>) */
+select, input, textarea {
+  color-scheme: dark;
+}
+
+[data-theme="light"] select,
+[data-theme="light"] input,
+[data-theme="light"] textarea {
+  color-scheme: light;
+}
+
+select option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Winamp-style audio player */
+:root {
+  --winamp-bg: #1e1e2e;
+  --winamp-bg-dark: #12121c;
+  --winamp-bg-light: #2a2a3c;
+  --winamp-border-light: #3a3a4c;
+  --winamp-border-dark: #0a0a14;
+  --winamp-led: #22c55e;
+  --winamp-led-dim: rgba(34, 197, 94, 0.3);
+  --audio-gradient-start: #6366f1;
+  --audio-gradient-mid: #818cf8;
+  --audio-gradient-end: #a5b4fc;
+  --waveform-played: rgba(34, 211, 238, 0.6);
+  --waveform-unplayed: rgba(34, 211, 238, 0.15);
+  --waveform-indicator: rgba(250, 250, 250, 0.9);
+  --waveform-indicator-glow: rgba(250, 250, 250, 0.3);
+}
+
+[data-theme="light"] {
+  --winamp-bg: #e8e8f0;
+  --winamp-bg-dark: #d0d0dc;
+  --winamp-bg-light: #f0f0f8;
+  --winamp-border-light: #c8c8d4;
+  --winamp-border-dark: #b0b0bc;
+  --winamp-led: #16a34a;
+  --winamp-led-dim: rgba(22, 163, 74, 0.3);
+  --audio-gradient-start: #4f46e5;
+  --audio-gradient-mid: #6366f1;
+  --audio-gradient-end: #818cf8;
+  --waveform-played: rgba(6, 182, 212, 0.7);
+  --waveform-unplayed: rgba(6, 182, 212, 0.35);
+  --waveform-indicator: rgba(30, 30, 60, 0.8);
+  --waveform-indicator-glow: rgba(30, 30, 60, 0.25);
+}
+
+.winamp-bevel {
+  box-shadow:
+    inset 1px 1px 0 var(--winamp-border-light),
+    inset -1px -1px 0 var(--winamp-border-dark);
+}
+
+.winamp-groove {
+  box-shadow:
+    inset 1px 1px 0 var(--winamp-border-dark),
+    inset -1px -1px 0 var(--winamp-border-light);
+}
+
+.winamp-led-text {
+  font-family: var(--font-mono);
+  color: var(--winamp-led);
+  text-shadow: 0 0 8px var(--winamp-led-dim), 0 0 2px var(--winamp-led);
+  letter-spacing: 0.1em;
+}
+
+.winamp-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--winamp-bg-dark);
+  box-shadow: inset 1px 1px 0 var(--winamp-border-dark);
+  outline: none;
+  cursor: pointer;
+}
+
+.winamp-slider:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.winamp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 14px;
+  background: var(--winamp-bg-light);
+  border: 1px solid var(--winamp-border-light);
+  cursor: pointer;
+}
+
+/* Page transition animation (GPU-accelerated: opacity + transform) */
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: page-fade-in 200ms ease-out;
+}
+
+/* Tab content fade-in (GPU-accelerated) */
+@keyframes tab-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tab-transition {
+  animation: tab-fade-in 150ms ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Skeleton shimmer — sweeps a translucent highlight left-to-right */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Progress bar shimmer — translucent highlight sweep over colored gradient */
+.progress-bar-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* PDF search highlights — text layer is transparent overlay on canvas */
+.textLayer .pdf-search-highlight {
+  background-color: rgba(255, 196, 0, 0.35);
+  border-radius: 2px;
+  color: transparent;
+}
+
+.textLayer .pdf-search-highlight.current {
+  background-color: rgba(255, 140, 0, 0.6);
+  color: transparent;
+}
+
+/* Card entrance stagger — cascade cards in with a slight upward slide */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-stagger {
+  opacity: 0;
+  animation: card-enter 300ms ease-out forwards;
+}
+
+/* Copy-to-clipboard checkmark — scale in with a slight overshoot */
+@keyframes copy-check {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.copy-check-animate {
+  animation: copy-check 300ms ease-out;
+}
+
+/* Draft saved indicator — fade in, hold, fade out */
+@keyframes draft-saved {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.draft-saved-indicator {
+  animation: draft-saved 1.5s ease-in-out forwards;
+}
+
+/* Toast exit — slides out right and fades */
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.toast-exit {
+  animation: toast-exit 300ms ease-in forwards;
+}
+
+/* Bid count badge pulse — draws attention when bid count increases */
+@keyframes bid-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.bid-pulse {
+  animation: bid-pulse 400ms ease-out;
+}
+
+/* Favorite star pulse — brief scale on toggle */
+@keyframes fav-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.fav-pulse {
+  animation: fav-pulse 200ms ease;
+}
+
+/* Tooltip popover — fade in with subtle scale */
+@keyframes tooltip-enter {
+  from { opacity: 0; scale: 0.95; }
+  to { opacity: 1; scale: 1; }
+}
+
+.tooltip-enter {
+  animation: tooltip-enter 150ms ease-out;
+}
+
+/* Transaction success celebration — subtle bounce on checkmark icon */
+@keyframes tx-celebration {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.2); }
+  55%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.tx-celebration {
+  animation: tx-celebration 500ms ease-out;
+  filter: drop-shadow(0 0 4px var(--success));
+}
+
+/* Background refresh indicator — indeterminate bar sliding left-to-right */
+@keyframes refresh-bar {
+  0%   { width: 0%; margin-left: 0%; }
+  50%  { width: 40%; margin-left: 30%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+
+.animate-refresh-bar {
+  animation: refresh-bar 1.5s ease-in-out infinite;
+}
+
+/* Indeterminate progress bar — sliding bar for unknown-duration operations */
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* Onboarding overlay — slide up from bottom-right */
+@keyframes onboarding-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal entrance/exit — backdrop fade + panel slide-up */
+@keyframes modal-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-backdrop-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes modal-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.modal-backdrop-enter {
+  animation: modal-backdrop-enter 200ms ease-out;
+}
+
+.modal-backdrop-exit {
+  animation: modal-backdrop-exit 150ms ease-in forwards;
+}
+
+.modal-panel-enter {
+  animation: modal-panel-enter 200ms ease-out;
+}
+
+.modal-panel-exit {
+  animation: modal-panel-exit 150ms ease-in forwards;
+}
+
+/* Audio player metadata marquee — scrolls overflowing text on hover */
+@keyframes marquee-scroll {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--marquee-offset, 0px)); }
+}
+
+.marquee-on-hover {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-on-hover > span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.marquee-on-hover:hover > span.marquee-overflows {
+  animation: marquee-scroll 4s linear infinite;
+}
+
+/* Reduced motion: respect OS accessibility setting */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

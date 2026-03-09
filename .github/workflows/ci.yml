@@ -83,3 +83,73 @@ jobs:
           cache-dependency-path: app/ui/fe/package-lock.json
       - run: npm ci
       - run: npx vitest run
+
+  tauri:
+    name: Tauri (desktop app)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/gui
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check version consistency
+        run: |
+          V_ROOT=$(jq -r .version package.json)
+          V_FE=$(jq -r .version fe/package.json)
+          V_BE=$(jq -r .version be/package.json)
+          V_TAURI=$(jq -r .version src-tauri/tauri.conf.json)
+          V_CARGO=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "root:  $V_ROOT"
+          echo "fe:    $V_FE"
+          echo "be:    $V_BE"
+          echo "tauri: $V_TAURI"
+          echo "cargo: $V_CARGO"
+          if [ "$V_ROOT" != "$V_FE" ] || [ "$V_ROOT" != "$V_BE" ] || [ "$V_ROOT" != "$V_TAURI" ] || [ "$V_ROOT" != "$V_CARGO" ]; then
+            echo "::error::Version mismatch detected! All 5 version fields must match."
+            exit 1
+          fi
+          echo "All versions match: $V_ROOT"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/gui/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/gui/src-tauri
+      - run: npm run install:all
+      - name: Build backend
+        run: npm --prefix be run build
+      - name: Create stub sidecar binaries
+        run: |
+          mkdir -p src-tauri/binaries
+          for bin in cardano-node ogmios kupo mithril-client snark cardano-cli; do
+            touch "src-tauri/binaries/${bin}-x86_64-unknown-linux-gnu"
+          done
+      - run: npm --prefix fe run lint
+      - run: npm --prefix be run lint
+      - run: cd be && npx eslint src/
+      - run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+      - run: npm --prefix fe run test:coverage
+      - run: npm --prefix be run test:coverage
+      - name: Check for stale or missing snapshots
+        working-directory: app/gui
+        run: |
+          SNAP_FILES=$(git status --porcelain -- '*.snap' 2>/dev/null)
+          if [ -n "$SNAP_FILES" ]; then
+            echo "::error::Snapshot files were created or modified during CI! Run tests locally and commit .snap files."
+            echo "$SNAP_FILES"
+            exit 1
+          fi

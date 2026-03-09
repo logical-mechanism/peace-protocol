@@ -1,0 +1,900 @@
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+
+/// Managed state holding the base directory for cached images.
+pub struct MediaDir(pub PathBuf);
+
+/// Managed state holding the base directory for purchased/decrypted content.
+pub struct ContentDir(pub PathBuf);
+
+/// Valid content categories (must match fe/src/config/categories.ts).
+const VALID_CATEGORIES: &[&str] = &["text", "document", "audio", "image", "video", "other"];
+
+/// Create all category subdirectories under the content root.
+pub fn ensure_content_dirs(base: &Path) -> Result<(), String> {
+    for category in VALID_CATEGORIES {
+        let dir = base.join(category);
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| format!("Failed to create content/{category} directory: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Maximum download size: 10 MB.
+const MAX_DOWNLOAD_BYTES: usize = 10 * 1024 * 1024;
+
+#[derive(Serialize, Clone)]
+pub struct ImageResult {
+    pub base64: String,
+    pub content_type: String,
+}
+
+#[derive(Serialize)]
+pub struct ImageCacheStatus {
+    pub cached: Vec<String>,
+    pub banned: Vec<String>,
+    pub total_bytes: u64,
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+fn detect_content_type(bytes: &[u8]) -> &'static str {
+    if bytes.len() >= 4 && bytes[..4] == [0x89, 0x50, 0x4E, 0x47] {
+        return "image/png";
+    }
+    if bytes.len() >= 3 && bytes[..3] == [0xFF, 0xD8, 0xFF] {
+        return "image/jpeg";
+    }
+    if bytes.len() >= 4 && &bytes[..4] == b"GIF8" {
+        return "image/gif";
+    }
+    if bytes.len() > 11 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        return "image/webp";
+    }
+    // SVG: starts with "<svg" or "<?xml" (possibly with leading whitespace/BOM)
+    let trimmed = if bytes.len() >= 3 && bytes[..3] == [0xEF, 0xBB, 0xBF] {
+        &bytes[3..] // skip UTF-8 BOM
+    } else {
+        bytes
+    };
+    let trimmed = trimmed
+        .iter()
+        .skip_while(|b| b.is_ascii_whitespace())
+        .copied()
+        .take(5)
+        .collect::<Vec<u8>>();
+    if trimmed.starts_with(b"<svg") || trimmed.starts_with(b"<?xml") {
+        return "image/svg+xml";
+    }
+    "image/png" // fallback
+}
+
+fn img_path(dir: &Path, token_name: &str) -> PathBuf {
+    dir.join(format!("{}.img", token_name))
+}
+
+fn banned_path(dir: &Path, token_name: &str) -> PathBuf {
+    dir.join(format!("{}.banned", token_name))
+}
+
+fn validate_token_name(token_name: &str) -> Result<(), String> {
+    if token_name.is_empty() || token_name.len() > 128 {
+        return Err("Invalid token name".to_string());
+    }
+    // Only allow hex characters (token names are hex-encoded on-chain)
+    if !token_name.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("Token name must be hex characters only".to_string());
+    }
+    Ok(())
+}
+
+fn read_image_result(dir: &Path, token_name: &str) -> Result<Option<ImageResult>, String> {
+    let path = img_path(dir, token_name);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let bytes = std::fs::read(&path).map_err(|e| format!("Failed to read cached image: {e}"))?;
+    if bytes.is_empty() {
+        return Ok(None);
+    }
+    let content_type = detect_content_type(&bytes).to_string();
+    use base64::Engine;
+    let base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(Some(ImageResult {
+        base64,
+        content_type,
+    }))
+}
+
+// ── Cache cleanup ───────────────────────────────────────────────────────
+
+/// Periodic image cache cleanup policy.
+///
+/// 1. Delete `.img` files older than `max_age_secs` (default: 30 days).
+/// 2. Remove orphaned `.banned` markers whose `.img` no longer exists.
+/// 3. If total cache size exceeds `max_size_bytes` (default: 500 MB),
+///    delete oldest `.img` files until under the limit.
+pub fn cleanup_image_cache(images_dir: &Path, max_age_secs: u64, max_size_bytes: u64) {
+    let entries = match std::fs::read_dir(images_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    let now = std::time::SystemTime::now();
+    let max_age = std::time::Duration::from_secs(max_age_secs);
+
+    struct CachedImage {
+        path: PathBuf,
+        token: String,
+        size: u64,
+        modified: std::time::SystemTime,
+    }
+
+    let mut images: Vec<CachedImage> = Vec::new();
+    let mut banned_tokens: Vec<String> = Vec::new();
+
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+
+        if let Some(token) = name_str.strip_suffix(".img") {
+            if let Ok(meta) = entry.metadata() {
+                let modified = meta.modified().unwrap_or(now);
+                images.push(CachedImage {
+                    path: entry.path(),
+                    token: token.to_string(),
+                    size: meta.len(),
+                    modified,
+                });
+            }
+        } else if let Some(token) = name_str.strip_suffix(".banned") {
+            banned_tokens.push(token.to_string());
+        }
+    }
+
+    // Pass 1: Delete images older than max_age
+    let mut deleted_age = 0u32;
+    images.retain(|img| {
+        let age = now.duration_since(img.modified).unwrap_or_default();
+        if age > max_age {
+            let _ = std::fs::remove_file(&img.path);
+            let ban = img.path.with_extension("banned");
+            if ban.exists() {
+                let _ = std::fs::remove_file(&ban);
+            }
+            deleted_age += 1;
+            false
+        } else {
+            true
+        }
+    });
+
+    // Pass 2: Remove orphaned .banned markers (no corresponding .img)
+    let img_tokens: std::collections::HashSet<&str> =
+        images.iter().map(|i| i.token.as_str()).collect();
+    for token in &banned_tokens {
+        if !img_tokens.contains(token.as_str()) {
+            let ban_path = images_dir.join(format!("{token}.banned"));
+            let _ = std::fs::remove_file(&ban_path);
+        }
+    }
+
+    // Pass 3: Enforce size cap — delete oldest first
+    let total_size: u64 = images.iter().map(|i| i.size).sum();
+    if total_size > max_size_bytes {
+        images.sort_by(|a, b| a.modified.cmp(&b.modified));
+        let mut current_size = total_size;
+        let mut deleted_size = 0u32;
+        for img in &images {
+            if current_size <= max_size_bytes {
+                break;
+            }
+            let _ = std::fs::remove_file(&img.path);
+            let ban = img.path.with_extension("banned");
+            if ban.exists() {
+                let _ = std::fs::remove_file(&ban);
+            }
+            current_size = current_size.saturating_sub(img.size);
+            deleted_size += 1;
+        }
+        if deleted_size > 0 {
+            eprintln!(
+                "Image cache cleanup: deleted {deleted_size} files to stay under {} MB limit",
+                max_size_bytes / (1024 * 1024)
+            );
+        }
+    }
+
+    if deleted_age > 0 {
+        eprintln!(
+            "Image cache cleanup: deleted {deleted_age} images older than {} days",
+            max_age_secs / 86400
+        );
+    }
+}
+
+// ── Commands ────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn download_image(
+    state: tauri::State<'_, MediaDir>,
+    token_name: String,
+    url: String,
+) -> Result<ImageResult, String> {
+    validate_token_name(&token_name)?;
+
+    // Validate URL
+    let parsed: reqwest::Url = url.parse().map_err(|_| "Invalid URL format".to_string())?;
+    let scheme = parsed.scheme();
+    if scheme != "http" && scheme != "https" {
+        return Err("URL must use http:// or https://".to_string());
+    }
+
+    // Download with timeout and size limit
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+
+    let response = client
+        .get(parsed)
+        .send()
+        .await
+        .map_err(|e| format!("Download failed: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Download failed with status: {}",
+            response.status()
+        ));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body: {e}"))?;
+
+    if bytes.len() > MAX_DOWNLOAD_BYTES {
+        return Err(format!(
+            "Image too large: {} bytes (max {} bytes)",
+            bytes.len(),
+            MAX_DOWNLOAD_BYTES
+        ));
+    }
+
+    if bytes.is_empty() {
+        return Err("Downloaded file is empty".to_string());
+    }
+
+    // Save to disk
+    let path = img_path(&state.0, &token_name);
+    std::fs::write(&path, &bytes).map_err(|e| format!("Failed to save image: {e}"))?;
+
+    // Remove any existing ban marker (downloading a new image clears the ban)
+    let ban = banned_path(&state.0, &token_name);
+    if ban.exists() {
+        let _ = std::fs::remove_file(&ban);
+    }
+
+    // Return base64
+    let content_type = detect_content_type(&bytes).to_string();
+    use base64::Engine;
+    let base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+
+    Ok(ImageResult {
+        base64,
+        content_type,
+    })
+}
+
+#[tauri::command]
+pub fn get_cached_image(
+    state: tauri::State<'_, MediaDir>,
+    token_name: String,
+) -> Result<Option<ImageResult>, String> {
+    validate_token_name(&token_name)?;
+
+    // If banned, return None (frontend will show banned.png)
+    if banned_path(&state.0, &token_name).exists() {
+        return Ok(None);
+    }
+
+    read_image_result(&state.0, &token_name)
+}
+
+#[tauri::command]
+pub fn list_cached_images(state: tauri::State<'_, MediaDir>) -> Result<ImageCacheStatus, String> {
+    let mut cached = Vec::new();
+    let mut banned = Vec::new();
+    let mut total_bytes: u64 = 0;
+
+    let entries =
+        std::fs::read_dir(&state.0).map_err(|e| format!("Failed to read media directory: {e}"))?;
+
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+
+        if let Some(token) = name_str.strip_suffix(".img") {
+            if let Ok(meta) = entry.metadata() {
+                total_bytes += meta.len();
+            }
+            cached.push(token.to_string());
+        } else if let Some(token) = name_str.strip_suffix(".banned") {
+            banned.push(token.to_string());
+        }
+    }
+
+    Ok(ImageCacheStatus {
+        cached,
+        banned,
+        total_bytes,
+    })
+}
+
+#[tauri::command]
+pub fn ban_image(state: tauri::State<'_, MediaDir>, token_name: String) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+
+    // Create ban marker
+    let ban = banned_path(&state.0, &token_name);
+    std::fs::write(&ban, b"").map_err(|e| format!("Failed to create ban marker: {e}"))?;
+
+    // Delete cached image to free disk space
+    let img = img_path(&state.0, &token_name);
+    if img.exists() {
+        let _ = std::fs::remove_file(&img);
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn unban_image(state: tauri::State<'_, MediaDir>, token_name: String) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+
+    let ban = banned_path(&state.0, &token_name);
+    if ban.exists() {
+        std::fs::remove_file(&ban).map_err(|e| format!("Failed to remove ban marker: {e}"))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_cached_image(
+    state: tauri::State<'_, MediaDir>,
+    token_name: String,
+) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+
+    let img = img_path(&state.0, &token_name);
+    if img.exists() {
+        let _ = std::fs::remove_file(&img);
+    }
+
+    let ban = banned_path(&state.0, &token_name);
+    if ban.exists() {
+        let _ = std::fs::remove_file(&ban);
+    }
+
+    Ok(())
+}
+
+// ── Content commands (for future data layer) ──────────────────────────
+
+fn validate_category(category: &str) -> Result<(), String> {
+    if VALID_CATEGORIES.contains(&category) {
+        Ok(())
+    } else {
+        Err(format!("Invalid category: {category}"))
+    }
+}
+
+fn validate_file_name(file_name: &str) -> Result<(), String> {
+    if file_name.is_empty() || file_name.len() > 255 {
+        return Err("Invalid file name".to_string());
+    }
+    // Reject path traversal attempts
+    if file_name.contains('/') || file_name.contains('\\') || file_name.contains("..") {
+        return Err("File name must not contain path separators".to_string());
+    }
+    Ok(())
+}
+
+/// Save decrypted content to the appropriate category folder.
+/// Returns the absolute path of the saved file.
+#[tauri::command]
+pub fn save_content(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+    file_name: String,
+    data: Vec<u8>,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+    validate_file_name(&file_name)?;
+
+    if data.is_empty() {
+        return Err("Content data is empty".to_string());
+    }
+
+    // Create a subdirectory per token to avoid name collisions
+    let token_dir = state.0.join(&category).join(&token_name);
+    std::fs::create_dir_all(&token_dir)
+        .map_err(|e| format!("Failed to create content directory: {e}"))?;
+
+    let file_path = token_dir.join(&file_name);
+    std::fs::write(&file_path, &data).map_err(|e| format!("Failed to save content: {e}"))?;
+
+    file_path
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "File path contains invalid UTF-8".to_string())
+}
+
+/// Copy a file from disk into the library content directory.
+/// Used to add the seller's own file to their library after listing creation.
+/// Avoids sending file bytes over IPC — reads directly from disk.
+#[tauri::command]
+pub fn copy_to_library(
+    state: tauri::State<'_, ContentDir>,
+    source_path: String,
+    token_name: String,
+    category: String,
+    file_name: String,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+    validate_file_name(&file_name)?;
+
+    let src = std::path::Path::new(&source_path);
+    if !src.exists() || !src.is_file() {
+        return Err("Source file not found".to_string());
+    }
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    std::fs::create_dir_all(&token_dir)
+        .map_err(|e| format!("Failed to create content directory: {e}"))?;
+
+    let dest = token_dir.join(&file_name);
+    std::fs::copy(src, &dest).map_err(|e| format!("Failed to copy file to library: {e}"))?;
+
+    dest.to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "File path contains invalid UTF-8".to_string())
+}
+
+// ── Library commands (browse/read/delete decrypted content) ────────────
+
+/// Metadata stored alongside decrypted content (matches fe ContentMetadata).
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ContentMetadataJson {
+    token_name: String,
+    description: Option<String>,
+    suggested_price: Option<f64>,
+    storage_layer: Option<String>,
+    image_link: Option<String>,
+    category: String,
+    file_extension: Option<String>,
+    seller: Option<String>,
+    created_at: Option<String>,
+    decrypted_at: String,
+    file_size: Option<u64>,
+}
+
+/// A library item returned to the frontend.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryItem {
+    pub token_name: String,
+    pub category: String,
+    pub description: Option<String>,
+    pub suggested_price: Option<f64>,
+    pub storage_layer: Option<String>,
+    pub image_link: Option<String>,
+    pub file_extension: Option<String>,
+    pub seller: Option<String>,
+    pub created_at: Option<String>,
+    pub decrypted_at: String,
+    pub content_missing: bool,
+    pub file_size: Option<u64>,
+}
+
+/// List all library items by scanning content directories for metadata files.
+#[tauri::command]
+pub fn list_library_items(state: tauri::State<'_, ContentDir>) -> Result<Vec<LibraryItem>, String> {
+    let mut items = Vec::new();
+
+    for category in VALID_CATEGORIES {
+        let category_dir = state.0.join(category);
+        if !category_dir.is_dir() {
+            continue;
+        }
+
+        let entries = match std::fs::read_dir(&category_dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+
+            let token_name = entry.file_name().to_string_lossy().to_string();
+            let token_dir = entry.path();
+
+            // Look for the metadata JSON file
+            let meta_path = token_dir.join(format!("{}.json", token_name));
+            if !meta_path.exists() {
+                continue; // Skip entries without metadata
+            }
+
+            let meta_bytes = match std::fs::read(&meta_path) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprintln!("Warning: failed to read {}: {e}", meta_path.display());
+                    continue;
+                }
+            };
+
+            let meta: ContentMetadataJson = match serde_json::from_slice(&meta_bytes) {
+                Ok(m) => m,
+                Err(e) => {
+                    eprintln!("Warning: failed to parse {}: {e}", meta_path.display());
+                    continue;
+                }
+            };
+
+            // Check if the actual content file exists (any non-.json file)
+            let content_file = find_content_file(&token_dir, &token_name);
+            let content_missing = content_file.is_none();
+
+            // Use metadata file_size if present, otherwise read from disk
+            let file_size = meta.file_size.or_else(|| {
+                content_file
+                    .as_ref()
+                    .and_then(|p| std::fs::metadata(p).ok())
+                    .map(|m| m.len())
+            });
+
+            items.push(LibraryItem {
+                token_name: meta.token_name,
+                category: meta.category,
+                description: meta.description,
+                suggested_price: meta.suggested_price,
+                storage_layer: meta.storage_layer,
+                image_link: meta.image_link,
+                file_extension: meta.file_extension,
+                seller: meta.seller,
+                created_at: meta.created_at,
+                decrypted_at: meta.decrypted_at,
+                content_missing,
+                file_size,
+            });
+        }
+    }
+
+    // Sort by decrypted_at descending (newest first)
+    items.sort_by(|a, b| b.decrypted_at.cmp(&a.decrypted_at));
+    Ok(items)
+}
+
+/// Read the content file for a library item (returns raw bytes).
+#[tauri::command]
+pub fn read_library_content(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<Vec<u8>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    // Find the content file (first non-.json file in the directory)
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    std::fs::read(&content_path).map_err(|e| format!("Failed to read content file: {e}"))
+}
+
+/// Return the absolute file path for a library item's content file.
+/// Used for streamable media (video/audio) where reading the entire file into
+/// memory via IPC is too expensive. The frontend uses convertFileSrc() to create
+/// an asset:// URL that WebKitGTK can stream directly from disk.
+#[tauri::command]
+pub fn get_library_content_path(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    Ok(content_path.to_string_lossy().to_string())
+}
+
+/// Return the absolute file path for a library item's subtitle file, if one exists.
+#[tauri::command]
+pub fn get_library_subtitle_path(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<Option<String>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Ok(None);
+    }
+
+    let entries =
+        std::fs::read_dir(&token_dir).map_err(|e| format!("Failed to read directory: {e}"))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = ext.to_lowercase();
+            if ext_lower == "vtt" || ext_lower == "srt" {
+                return Ok(Some(path.to_string_lossy().to_string()));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+/// Read a subtitle file (.vtt or .srt) from a library item's directory, if one exists.
+/// Returns the file bytes or None if no subtitle file is found.
+#[tauri::command]
+pub fn read_subtitle_file(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<Option<Vec<u8>>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Ok(None);
+    }
+
+    let entries =
+        std::fs::read_dir(&token_dir).map_err(|e| format!("Failed to read directory: {e}"))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = ext.to_lowercase();
+            if ext_lower == "vtt" || ext_lower == "srt" {
+                let bytes = std::fs::read(&path)
+                    .map_err(|e| format!("Failed to read subtitle file: {e}"))?;
+                return Ok(Some(bytes));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+/// Delete a library item (removes the entire token directory).
+#[tauri::command]
+pub fn delete_library_item(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if token_dir.is_dir() {
+        std::fs::remove_dir_all(&token_dir)
+            .map_err(|e| format!("Failed to delete library item: {e}"))?;
+    }
+
+    Ok(())
+}
+
+/// Export a library item to a user-chosen location via native save dialog.
+#[tauri::command]
+pub async fn export_library_content(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+    suggested_filename: String,
+) -> Result<Option<String>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    // Find the content file
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    // Open native save dialog
+    use tauri_plugin_dialog::DialogExt;
+    let dest = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested_filename)
+        .blocking_save_file();
+
+    match dest {
+        Some(path) => {
+            let dest_path = path
+                .as_path()
+                .ok_or_else(|| "Invalid save path".to_string())?;
+            std::fs::copy(&content_path, dest_path)
+                .map_err(|e| format!("Failed to save file: {e}"))?;
+            Ok(Some(dest_path.to_string_lossy().to_string()))
+        }
+        None => Ok(None), // User cancelled
+    }
+}
+
+/// Export arbitrary text content to a user-chosen file via native save dialog.
+/// Returns the saved file path, or None if the user cancelled.
+#[tauri::command]
+pub async fn export_text_file(
+    app: tauri::AppHandle,
+    content: String,
+    suggested_filename: String,
+) -> Result<Option<String>, String> {
+    if content.is_empty() {
+        return Err("Content is empty".to_string());
+    }
+
+    use tauri_plugin_dialog::DialogExt;
+    let dest = app
+        .dialog()
+        .file()
+        .set_file_name(&suggested_filename)
+        .blocking_save_file();
+
+    match dest {
+        Some(path) => {
+            let dest_path = path
+                .as_path()
+                .ok_or_else(|| "Invalid save path".to_string())?;
+            std::fs::write(dest_path, content.as_bytes())
+                .map_err(|e| format!("Failed to save file: {e}"))?;
+            Ok(Some(dest_path.to_string_lossy().to_string()))
+        }
+        None => Ok(None), // User cancelled
+    }
+}
+
+/// Find the content file in a token directory (the non-.json file).
+fn find_content_file(token_dir: &Path, token_name: &str) -> Option<PathBuf> {
+    let json_name = format!("{}.json", token_name);
+    let entries = std::fs::read_dir(token_dir).ok()?;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str != json_name && entry.path().is_file() {
+            return Some(entry.path());
+        }
+    }
+    None
+}
+
+/// Open a library content file with the OS default application.
+#[tauri::command]
+pub async fn open_with_system(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<(), String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    let path_str = content_path.to_string_lossy().to_string();
+
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_path(&path_str, None::<&str>)
+        .map_err(|e| format!("Failed to open with system player: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn test_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("peace_media_test_{name}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn cleanup_deletes_old_images() {
+        let dir = test_dir("cleanup_old");
+        let img = dir.join("abc123.img");
+        fs::write(&img, b"fake image data").unwrap();
+        // With max_age=0, all files are considered "old"
+        cleanup_image_cache(&dir, 0, u64::MAX);
+        assert!(!img.exists(), "Image should be deleted when max_age is 0");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cleanup_keeps_recent_images() {
+        let dir = test_dir("cleanup_recent");
+        let img = dir.join("abc123.img");
+        fs::write(&img, b"recent image").unwrap();
+        // 30 days is much longer than the file's age (just created)
+        cleanup_image_cache(&dir, 30 * 86400, u64::MAX);
+        assert!(img.exists(), "Recent image should be kept");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cleanup_enforces_size_cap() {
+        let dir = test_dir("cleanup_size");
+        // Create two files, total 200 bytes, with a 100-byte cap
+        let img1 = dir.join("older.img");
+        let img2 = dir.join("newer.img");
+        fs::write(&img1, vec![0u8; 100]).unwrap();
+        // Brief pause to ensure different mtime
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        fs::write(&img2, vec![0u8; 100]).unwrap();
+
+        cleanup_image_cache(&dir, 30 * 86400, 100);
+        // Oldest should be deleted first
+        assert!(!img1.exists(), "Oldest file should be deleted");
+        assert!(img2.exists(), "Newer file should be kept");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cleanup_removes_orphaned_banned() {
+        let dir = test_dir("cleanup_orphan_ban");
+        // Create a .banned with no corresponding .img
+        let ban = dir.join("orphan.banned");
+        fs::write(&ban, b"").unwrap();
+        // Create a .banned WITH a corresponding .img
+        let img = dir.join("valid.img");
+        let ban2 = dir.join("valid.banned");
+        fs::write(&img, b"data").unwrap();
+        fs::write(&ban2, b"").unwrap();
+
+        cleanup_image_cache(&dir, 30 * 86400, u64::MAX);
+        assert!(!ban.exists(), "Orphaned ban should be deleted");
+        assert!(ban2.exists(), "Ban with corresponding img should be kept");
+        let _ = fs::remove_dir_all(&dir);
+    }
+}

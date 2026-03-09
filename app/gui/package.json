@@ -1,0 +1,27 @@
+{
+  "name": "veiled",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Veiled - Peace Protocol Desktop Application",
+  "scripts": {
+    "dev": "npm --prefix fe run dev",
+    "build": "npm --prefix fe run build",
+    "dev:be": "npm --prefix be run dev",
+    "dev:all": "concurrently -n be,fe -c blue,green \"npm run dev:be\" \"npm run dev\"",
+    "install:all": "npm install && npm --prefix fe install && npm --prefix be install && npm --prefix be run build",
+    "tauri": "tauri",
+    "test": "bash test.sh",
+    "test:fe": "npm --prefix fe run test",
+    "test:be": "npm --prefix be run test",
+    "lint": "bash lint.sh",
+    "lint:fe": "npm --prefix fe run lint",
+    "lint:be": "npm --prefix be run lint:eslint",
+    "clean": "rm -rf node_modules fe/node_modules be/node_modules be/dist src-tauri/target",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "concurrently": "^9.0.0",
+    "conventional-changelog-cli": "^5.0.0"
+  }
+}

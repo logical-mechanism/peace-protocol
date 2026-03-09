@@ -1,0 +1,74 @@
+import { Router } from 'express';
+import { getKoiosClient } from '../services/koios.js';
+import { logger } from '../services/logger.js';
+import { validateTxHashParam } from '../middleware/validate.js';
+
+const router = Router();
+
+/**
+ * GET /confirmations/:txHash
+ *
+ * Returns the number of block confirmations for a transaction.
+ * Used by the frontend to decide when it's safe to securely delete
+ * spent cryptographic secrets (seller a/r, hop a0/r0/hk).
+ *
+ * Returns { confirmations: 0 } if the tx is not yet in a block.
+ */
+router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
+  try {
+    const txHash = req.params.txHash as string;
+    const koios = getKoiosClient();
+
+    const [txInfo, tip] = await Promise.all([
+      koios.getTxInfo(txHash).catch(() => null),
+      koios.getTip(),
+    ]);
+
+    if (!txInfo) {
+      return res.json({ data: { confirmations: 0, status: 'pending' } });
+    }
+
+    const blockHeight = txInfo.block_height;
+    if (typeof blockHeight !== 'number') {
+      return res.json({ data: { confirmations: 0, status: 'pending' } });
+    }
+
+    const confirmations = Math.max(0, tip.block_no - blockHeight);
+    res.set('Cache-Control', 'no-cache');
+    return res.json({ data: { confirmations, blockHeight, status: 'confirmed' } });
+  } catch (error) {
+    logger.error('Failed to get confirmations', { error: String(error), requestId: req.requestId });
+    return res.status(503).json({
+      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to check transaction confirmations', requestId: req.requestId },
+    });
+  }
+});
+
+/**
+ * GET /tip
+ *
+ * Returns the current network tip from Koios.
+ * Used by NodeSync to show "Block X / Y" during sync.
+ */
+router.get('/tip', async (_req, res) => {
+  try {
+    const koios = getKoiosClient();
+    const tip = await koios.getTip();
+    res.set('Cache-Control', 'max-age=5');
+    return res.json({
+      data: {
+        block_no: tip.block_no,
+        epoch_no: tip.epoch_no,
+        block_time: tip.block_time,
+        abs_slot: tip.abs_slot,
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to get chain tip', { error: String(error), requestId: _req.requestId });
+    return res.status(503).json({
+      error: { code: 'TIP_UNAVAILABLE', message: 'Unable to fetch chain tip', requestId: _req.requestId },
+    });
+  }
+});
+
+export default router;

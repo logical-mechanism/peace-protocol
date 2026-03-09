@@ -1,0 +1,23 @@
+{
+  "network": "Preprod",
+  "ogmios_port": 1337,
+  "kupo_port": 44203,
+  "auto_start_node": true,
+  "contracts": {
+    "encryption_address": "addr_test1zz5zwf2ugexn5r472uvx4ufurng79v3px67dtz9j9mr8w2yxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmqcdrgvr",
+    "bidding_address": "addr_test1zzvq8jmmk4zy47avermdsnfzsaqszhxlkhlqq8v7clww5muxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmq7rqvx3",
+    "reference_address": "addr_test1wz8spc6z67tde75rfxt6802z8zvn9h48um2usumgjn5v0mqh57qv6",
+    "script_reference_address": "addr_test1vr7axgxdn3ff7qs5226m884n5mv9fu736kwr98fw6xuq89geads5m",
+    "encryption_policy_id": "a827255c464d3a0ebe57186af13c1cd1e2b22136bcd588b22ec67728",
+    "bidding_policy_id": "9803cb7bb5444afbacc8f6d84d228741015cdfb5fe001d9ec7dcea6f",
+    "groth_policy_id": "af64830fb77b17bcb8ba43ab9ea905c4e70d8d84e1d3e62e4196a985",
+    "genesis_policy_id": "4e111177f2963caf907ab39a8cd973d04dc662e83e9fdf2155ea678f",
+    "genesis_token_name": "006ffa8a2487e2ff77ecb06de726cb97217e23c0b43f03782d3019330904199d",
+    "encryption_ref_tx_hash": "8c29b09f432e62cc7a1563302a44b9c4953bded83a4d6ae2dce9baff2bc05d20",
+    "encryption_ref_output_index": 1,
+    "bidding_ref_tx_hash": "d70f2f610a10feb495e59e6300031139dfa6c89755ae4efbe2d18fb75f07a6c7",
+    "bidding_ref_output_index": 1,
+    "groth_ref_tx_hash": "f9f2f3c46ad69c5eb4df7f0c693469ec60dacfe15d69d3e310f8bf728fa56e76",
+    "groth_ref_output_index": 1
+  }
+}

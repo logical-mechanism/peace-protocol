@@ -1,0 +1,93 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+export type Network = 'preprod' | 'mainnet';
+
+export function parseOutputIndex(envVar: string | undefined, defaultVal: string): number {
+  const val = parseInt(envVar || defaultVal, 10);
+  if (isNaN(val) || val < 0 || val > 255) {
+    throw new Error(`Invalid output index: "${envVar}" (must be 0-255)`);
+  }
+  return val;
+}
+
+export const config = {
+  port: parseInt(process.env.PORT || '3001', 10),
+  nodeEnv: process.env.NODE_ENV || 'development',
+  network: (process.env.NETWORK || 'preprod') as Network,
+  useStubs: process.env.USE_STUBS === 'true',
+
+  // Koios URLs and auth tokens
+  koios: {
+    preprod: process.env.KOIOS_URL_PREPROD || 'https://preprod.koios.rest/api/v1',
+    mainnet: process.env.KOIOS_URL_MAINNET || 'https://api.koios.rest/api/v1',
+    tokenPreprod: process.env.KOIOS_TOKEN_PREPROD || '',
+    tokenMainnet: process.env.KOIOS_TOKEN_MAINNET || '',
+  },
+
+  // Local Kupo HTTP API
+  kupo: {
+    url: process.env.KUPO_URL || 'http://localhost:44203',
+  },
+
+  // Contract addresses (will be populated after preprod deployment)
+  contracts: {
+    preprod: {
+      encryptionAddress: process.env.ENCRYPTION_CONTRACT_ADDRESS_PREPROD || '',
+      biddingAddress: process.env.BIDDING_CONTRACT_ADDRESS_PREPROD || '',
+      referenceAddress: process.env.REFERENCE_CONTRACT_ADDRESS_PREPROD || '',
+      encryptionPolicyId: process.env.ENCRYPTION_POLICY_ID_PREPROD || '',
+      biddingPolicyId: process.env.BIDDING_POLICY_ID_PREPROD || '',
+      grothPolicyId: process.env.GROTH_POLICY_ID_PREPROD || '',
+      genesisPolicyId: process.env.GENESIS_POLICY_ID_PREPROD || '',
+      genesisTokenName: process.env.GENESIS_TOKEN_NAME_PREPROD || '',
+      // Reference script UTxOs (output #1 from 00_createScriptReferences.sh)
+      encryptionRefTxHash: process.env.ENCRYPTION_REF_TX_HASH_PREPROD || '',
+      encryptionRefOutputIndex: parseOutputIndex(process.env.ENCRYPTION_REF_OUTPUT_INDEX_PREPROD, '1'),
+      biddingRefTxHash: process.env.BIDDING_REF_TX_HASH_PREPROD || '',
+      biddingRefOutputIndex: parseOutputIndex(process.env.BIDDING_REF_OUTPUT_INDEX_PREPROD, '1'),
+      grothRefTxHash: process.env.GROTH_REF_TX_HASH_PREPROD || '',
+      grothRefOutputIndex: parseOutputIndex(process.env.GROTH_REF_OUTPUT_INDEX_PREPROD, '1'),
+    },
+    mainnet: {
+      encryptionAddress: process.env.ENCRYPTION_CONTRACT_ADDRESS_MAINNET || '',
+      biddingAddress: process.env.BIDDING_CONTRACT_ADDRESS_MAINNET || '',
+      referenceAddress: process.env.REFERENCE_CONTRACT_ADDRESS_MAINNET || '',
+      encryptionPolicyId: process.env.ENCRYPTION_POLICY_ID_MAINNET || '',
+      biddingPolicyId: process.env.BIDDING_POLICY_ID_MAINNET || '',
+      grothPolicyId: process.env.GROTH_POLICY_ID_MAINNET || '',
+      genesisPolicyId: process.env.GENESIS_POLICY_ID_MAINNET || '',
+      genesisTokenName: process.env.GENESIS_TOKEN_NAME_MAINNET || '',
+      encryptionRefTxHash: process.env.ENCRYPTION_REF_TX_HASH_MAINNET || '',
+      encryptionRefOutputIndex: parseOutputIndex(process.env.ENCRYPTION_REF_OUTPUT_INDEX_MAINNET, '1'),
+      biddingRefTxHash: process.env.BIDDING_REF_TX_HASH_MAINNET || '',
+      biddingRefOutputIndex: parseOutputIndex(process.env.BIDDING_REF_OUTPUT_INDEX_MAINNET, '1'),
+      grothRefTxHash: process.env.GROTH_REF_TX_HASH_MAINNET || '',
+      grothRefOutputIndex: parseOutputIndex(process.env.GROTH_REF_OUTPUT_INDEX_MAINNET, '1'),
+    },
+  },
+
+  // CORS — always allow local origins since this is a desktop app.
+  // In dev: Vite serves on 127.0.0.1:5173
+  // In prod: Tauri webview uses tauri://localhost or https://tauri.localhost
+  cors: {
+    origins: [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'tauri://localhost',
+      'https://tauri.localhost',
+    ] as string[],
+  },
+} as const;
+
+// Helper to get network-specific config
+export function getNetworkConfig() {
+  const network = config.network;
+  const koiosToken = network === 'preprod' ? config.koios.tokenPreprod : config.koios.tokenMainnet;
+  return {
+    koiosUrl: config.koios[network],
+    koiosToken,
+    kupoUrl: config.kupo.url,
+    contracts: config.contracts[network],
+  };
+}

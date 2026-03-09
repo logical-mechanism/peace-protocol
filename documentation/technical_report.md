@@ -113,11 +113,11 @@ In this report, we introduce the PEACE protocol, an ECIES-based, multi-hop, unid
 
 The encrypted NFT problem refers to the lack of inherent encryption and security measures for the digital assets, making the associated content vulnerable to unauthorized access, duplication, and loss, and is one of the most significant issues with current NFT standards on Cardano. Either the data is not encrypted, available to everyone who views the NFT, or the encryption requires centralization, with a company handling it on behalf of users. Current solutions [@stuffio-whitepaper] claim to offer decentralized encrypted assets (DEAs), but lack a publicly available, verifiable cryptographic protocol or an open-source implementation. Most, if not all, of the mechanics behind current DEA solutions remain undisclosed. This report aims to fill that knowledge gap by providing an open-source implementation of a decentralized re-encryption protocol for encrypted assets on Cardano.
 
-Several mandatory requirements must be satisfied for the protocol to function as intended. The encryption protocol must allow tradability of both the NFT itself and the right to decrypt the NFT data, implying that the solution must involve smart contracts and a form of encryption that allows data access to be re-encrypted for another user without revealing the encrypted content in the process. The contract side of the protocol should be reasonably straightforward. It needs a way to trade a token that holds the encrypted data and allows other users to receive it. To ensure decryptability, the tokens must be soulbound. On the encryption side of the protocol is some form of encryption that enables the re-encryption process to function correctly. Luckily, this type of encryption has been in cryptography research for quite some time [@mambo-okamoto-1997] [@blaze-bleumer-strauss-1998] [@ateniese-et-al-ndss2005]. There are even patented cloud-based solutions already in existence [@ironcore-recrypt-rs]. Currently, there are no open-source, fully on-chain, decentralized re-encryption protocols for encrypting NFT data on Cardano. The PEACE protocol aims to provide a proof-of-concept solution to this problem.
+Several mandatory requirements must be satisfied for the protocol to function as intended. The encryption protocol must allow tradability of both the NFT itself and the right to decrypt the NFT data, implying that the solution must involve smart contracts and a form of encryption that allows data access to be re-encrypted for another user without revealing the encrypted content in the process. The contract side of the protocol should be reasonably straightforward. It needs a way to trade a token that holds the encrypted data and allows other users to receive it. To ensure decryptability, the tokens must be soulbound. On the encryption side of the protocol is some form of encryption that enables the re-encryption process to function correctly. Luckily, this type of encryption has been in cryptography research for quite some time [@mambo-okamoto-1997] [@blaze-bleumer-strauss-1998] [@ateniese-et-al-ndss2005]. There are even patented cloud-based solutions already in existence [@ironcore-recrypt-rs]. Currently, there are no open-source, fully on-chain, decentralized re-encryption protocols for encrypting NFT data on Cardano. The PEACE protocol provides an open-source solution to this problem.
 
-The PEACE protocol will implement an ambitious yet well-defined, unidirectional, multi-hop proxy re-encryption (PRE) scheme [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that it cannot be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report.
+The PEACE protocol implements a unidirectional, multi-hop proxy re-encryption (PRE) scheme [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that it cannot be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report.
 
-The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 will be a brief overview of the required cryptographic primitives. Section 4 will be a detailed description of the protocol. Section 5 will delve into security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
+The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 provides a brief overview of the required cryptographic primitives. Section 4 gives a detailed description of the protocol. Section 5 examines security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
 
 # Background And Preliminaries
 
@@ -351,14 +351,14 @@ where $vk_{x}$ incorporates both the public inputs and commitment wires.
 
 # Protocol Overview
 
-The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The protocol should be viewed as a proof-of-concept, as the data storage layer is the Cardano blockchain. The current Cardano chain parameters limit storage to less than 16 KB. In a production setting, the data storage layer should allow for arbitrary file sizes.
+The PEACE protocol is an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain, allowing creators, collectors, and developers to trade encrypted NFTs without relying on centralized decryption services. The current implementation uses the Cardano blockchain as the data storage layer. Cardano's chain parameters limit on-chain storage to less than 16 KB. For use cases requiring larger payloads, the data storage layer can be extended to support arbitrary file sizes.
 
 ![Protocol state flow](./images/statemachine-flowchart.png){ width=40% float=true }
 
 
 ## Design Goals And Requirements
 
-Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction construction, cryptographic proof generation, and the happy-path flow. The design on both sides will focus on a two-party example: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. As this is a proof-of-concept, the off-chain will not include the general n-party system, as that is future work for a real-world production setting.
+Two equally important areas, the on-chain and off-chain, define the protocol design. The on-chain design is everything related to smart contracts written in Aiken for the Cardano blockchain. The off-chain design includes transaction construction, cryptographic proof generation, and the happy-path flow. The design on both sides will focus on a two-party example: Alice and Bob, who want to trade encrypted data. Alice will be the original owner, and Bob will be the new owner. The current off-chain implementation focuses on the two-party case. Extending to a general n-party system is planned as future work.
 
 The protocol must allow continuous trading via a multi-hop PRE, meaning that Alice trades with Bob, who can then trade with Carol. In this setting, Alice will trade to Bob, then Bob will trade back to Alice, rather than Carol, without any loss of generality. Each hop will generate a new owner and decryption data for the encryption UTxO. The on-chain storage remains constant per hop: the datum stores only the current half-level and the previous full-level, rather than a growing list of all levels. Users reconstruct the complete encryption level history by querying the blockchain from the mint transaction to the current state. Users will use a basic bid system for token trading. A user may choose not to trade their token by simply not selecting a bid if one exists.
 
@@ -368,7 +368,7 @@ The re-encryption process needs to flow in one direction per hop. Alice trades w
 
 Each UTxO in this system must be uniquely identified via an NFT. The uniqueness requirement works well for the encryption side because the NFT could be a tokenized representation of the encrypted data, something similar to a CIP68 [@CIP-68] contract, but using a single token. The bid side does work, but the token becomes a pointer rather than having any real data attached, essentially a unique, one-time-use token. Together, they provide the correct uniqueness requirement. UTxOs may be removed from the contract at any time by the owner. After the trade, the owner of the encrypted data may do whatever they want with that data. The protocol does not require the re-encryption contract to permanently store the encrypted data.
 
-The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which is UX-equivalent to a classical proxy re-encryption scheme in this setting, since smart contracts on Cardano are passive validators and do not initiate actions. Ultimately, some user must act as the proxy, the one doing the re-encryption, because the contract cannot do it on its own. The smart contract must act as the proxy's validator, not solely as the proxy itself. To simplify this proof-of-concept implementation, the owner will act as their own proxy in the protocol.
+The protocol will use an owner-mediated re-encryption flow (a hybrid PRE), which is UX-equivalent to a classical proxy re-encryption scheme in this setting, since smart contracts on Cardano are passive validators and do not initiate actions. Ultimately, some user must act as the proxy, the one doing the re-encryption, because the contract cannot do it on its own. The smart contract must act as the proxy's validator, not solely as the proxy itself. In the current implementation, the owner acts as their own proxy in the protocol.
 
 ## On-Chain And Off-Chain Architecture
 
@@ -390,7 +390,7 @@ Each user in the protocol can deterministically generate BLS12-381 key pairs rep
 
 The BLS12-381 keys used for re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both Ed25519 keys for authorizing UTxO spending and BLS12-381 scalars for obtaining and delegating decryption rights. Losing or compromising the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
 
-The proof-of-concept does not implement a full key rotation or revocation mechanism. If a user's BLS12-381 secret key is compromised, an attacker can decrypt all current and future capsules addressed to that key, but cannot retroactively remove or alter on-chain history. Handling key rotation, partial recovery, and revocation across many encrypted positions is left as future work for a real-world production deployment.
+The current version does not implement a full key rotation or revocation mechanism. If a user's BLS12-381 secret key is compromised, an attacker can decrypt all current and future capsules addressed to that key, but cannot retroactively remove or alter on-chain history. Handling key rotation, partial recovery, and revocation across many encrypted positions is left as future work.
 
 For each encrypted item, the protocol generates a fresh KEM used at each encryption level. The KEM is never directly stored on-chain. The on-chain Capsule contains the AES-GCM nonce, associated data, and ciphertext.
 
@@ -412,7 +412,9 @@ Bob may now create a bid UTxO in the bid contract to purchase the encrypted data
 
 The structure of the bid entry transaction is similar to that of the re-encryption entry transaction, but uses \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The transaction input derives the \texttt{pointer} token name in the same way as the \texttt{token} name. A user may reference the \texttt{token} name on-chain from the re-encryption contract. Bob may then create the \texttt{BidDatum} as shown in Listing \ref{lst:fullbiddatum}.
 
-Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. A valid \texttt{Register} is important, as the validity of the $\mathbb{G}_{1}$ point determines whether Bob can decrypt the data after the re-encryption process. The value on the UTxO is the price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids, but Alice may only select a single bid for the re-encryption transaction. For simplicity of the proof-of-concept, Bob will need to remove his old or unused bids, then recreate the bids for any necessary price or \texttt{token} adjustments. Bob may remove his bid at any time.
+Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. A valid \texttt{Register} is important, as the validity of the $\mathbb{G}_{1}$ point determines whether Bob can decrypt the data after the re-encryption process. The value on the UTxO is the price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids, but Alice may only select a single bid for the re-encryption transaction. In the current version, Bob must remove old or unused bids, then recreate the bids for any necessary price or \texttt{token} adjustments.
+
+To mitigate grief attacks during the re-encryption flow, each bid is automatically locked for a minimum period (\texttt{minimum\_bid\_lock}, currently 6 hours) upon creation. The on-chain \texttt{EntryBidMint} redeemer enforces that \texttt{locked\_until} is at least \texttt{minimum\_bid\_lock} in the future. The \texttt{RemoveBid} spend redeemer enforces that the transaction's validity interval lower bound exceeds \texttt{locked\_until}. This guarantees Alice a safe window to compute the SNARK proof and submit both re-encryption transactions without Bob withdrawing his bid mid-process.
 
 ### Phase 3: SNARK Submission And Re-Encryption
 
@@ -436,7 +438,7 @@ The PEACE protocol needs to have reasonable security. In a real-world production
 
 ## Assumptions
 
-This protocol is presented as a proof-of-concept and inherits standard assumptions from public-key cryptography and public blockchains. The assumptions below describe what must hold for the security claims in this document to be meaningful.
+This protocol inherits standard assumptions from public-key cryptography and public blockchains. The assumptions below describe what must hold for the security claims in this document to be meaningful.
 
 - All compressed curve points accepted by the protocol (on-chain or off-chain) MUST be validated as canonical encodings. As members of the correct prime-order subgroup (rejecting non-canonical encodings, the point at infinity where disallowed, and any point not in the intended subgroup), otherwise an attacker may exploit small-subgroup/cofactor edge cases to bypass security claims or forge relations that appear to verify.
 
@@ -450,7 +452,7 @@ This protocol is presented as a proof-of-concept and inherits standard assumptio
 
 - On-chain validation is authoritative: The ledger enforces the validator exactly as written (Aiken/Plutus semantics). Any check performed only off-chain is advisory and not part of the security boundary.
 
-- Proof system assumptions: In a production setting, the protocol must use SNARKs. Their required assumptions hold (soundness and any additional properties needed for adversarial settings). If the SNARK requires a trusted setup, then the corresponding trapdoor ("toxic waste") is assumed destroyed.
+- Proof system assumptions: In a production setting, the protocol uses SNARKs. Their required assumptions hold (soundness and any additional properties needed for adversarial settings). If the SNARK requires a trusted setup, then the corresponding trapdoor ("toxic waste") is assumed destroyed.
 
 - Chain security: The blockchain provides finality and censorship-resistance to the degree commonly assumed for Cardano. Prolonged reorgs, validator bugs, or sustained censorship are out of scope.
 
@@ -510,7 +512,7 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 - The protocol does not protect the data after decryption. If Bob decrypts the plaintext, Bob can copy or leak it. Cryptography cannot prevent exfiltration. Only economic or legal controls can reduce this risk.
 
-- The protocol does not ensure a fair exchange. Either party can abort or grief at different stages. The two-transaction re-encryption flow introduces a window where Alice has submitted the SNARK proof but not yet completed the transfer. The TTL-based cancellation mechanism provides recovery but does not guarantee atomicity. Achieving strong fairness in a production setting typically requires additional escrow, bonding, or timeout mechanisms.
+- The protocol does not ensure a perfectly fair exchange. Either party can abort at different stages. The two-transaction re-encryption flow introduces a window where Alice has submitted the SNARK proof but not yet completed the transfer. The TTL-based cancellation mechanism provides recovery but does not guarantee atomicity. To mitigate grief attacks where a buyer removes a bid during Alice's SNARK computation, bids are automatically locked for a minimum period (\texttt{minimum\_bid\_lock}) upon creation. This lock prevents the \texttt{RemoveBid} redeemer from succeeding until the lock expires, giving Alice a guaranteed window to compute and submit her proof. Combined with transaction chaining (submitting both re-encryption transactions back-to-back after offline proof generation), this eliminates the primary grief vector.
 
 - Key compromise is catastrophic. Any theft of secret keys compromises the confidentiality of those assets. Losing secret keys prevents decrypting.
 
@@ -532,7 +534,7 @@ The two-transaction design introduces additional complexity and a brief window w
 
 # Conclusion
 
-The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guarantees. As a proof of concept, PEACE emphasizes correctness, composability, and an auditable trust boundary. The integration of a Groth16 SNARK ensures that the re-encryption witness is correctly derived from the pairing secret, addressing the key limitation of earlier designs. The two-transaction flow accommodates on-chain resource limits while maintaining security. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what should remain off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
+The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with reasonable security guarantees. PEACE emphasizes correctness, composability, and an auditable trust boundary. The integration of a Groth16 SNARK ensures that the re-encryption witness is correctly derived from the pairing secret, addressing the key limitation of earlier designs. The two-transaction flow accommodates on-chain resource limits while maintaining security. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what should remain off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
 
 \clearpage
 \appendix
@@ -565,6 +567,7 @@ pub type BidDatum {
   owner_g1: Register,
   pointer: AssetName,
   token: AssetName,
+  locked_until: Int,
 }
 \end{lstlisting}
 ```
@@ -783,6 +786,7 @@ pub type BidDatum {
   owner_g1,
   pointer: generate_token_name(inputs),
   token,
+  locked_until: now + 2 * minimum_bid_lock,
 }
 \end{lstlisting}
 ```

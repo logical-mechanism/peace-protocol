@@ -3,6 +3,7 @@
 ////
 
 use aiken/collection/list.{has}
+use aiken/interval.{Finite}
 use cardano/address.{Address, PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
@@ -27,6 +28,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
       reference_inputs,
       mint,
       extra_signatories,
+      validity_range,
       ..
     }: Transaction = self
     when redeemer is {
@@ -42,7 +44,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         }): Option<Output> =
           search.for_output_by_token(outputs, policy_id, token_name)
         // reputation datum needs to be validated so destruct it
-        expect BidDatum { owner_vkh, owner_g1, pointer, token }: BidDatum =
+        expect BidDatum { owner_vkh, owner_g1, pointer, token, locked_until }: BidDatum =
           output_datum_data
         // get encryption contract info from reference data
         let ReferenceDatum { encryption, .. }: ReferenceDatum =
@@ -50,6 +52,12 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         // reference the encryption utxo for the existence check
         expect Some(_) =
           search.for_input_by_token(reference_inputs, encryption, token)
+        // locked_until must be at least minimum_bid_lock from now
+        let lock_is_valid: Bool =
+          when validity_range.upper_bound.bound_type is {
+            Finite(ub) -> locked_until >= ub + bidding.minimum_bid_lock
+            _ -> False
+          }
         //
         and {
           // script output can not have a reference script
@@ -66,6 +74,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           register.is_register_valid(owner_g1),
           // token name needs to be in the datum
           pointer == token_name,
+          // bid must be locked for at least minimum_bid_lock
+          lock_is_valid,
         }
       }
       // single token burn here
@@ -88,9 +98,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             reference_inputs,
             extra_signatories,
             redeemers,
+            validity_range,
             ..
           }: Transaction = self
-          let BidDatum { owner_vkh, pointer, token, .. } = this_datum
+          let BidDatum { owner_vkh, pointer, token, locked_until, .. } =
+            this_datum
           expect Some(this_input): Option<Input> =
             inputs
               |> transaction.find_input(utxo)
@@ -104,12 +116,20 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 // token must be burnt, so lets check that no output holds that token
                 let burn_token: Bool =
                   search.no_output_holds_token(outputs, this_script, pointer)
+                // bid can only be removed after lock expires
+                let lock_expired: Bool =
+                  when validity_range.lower_bound.bound_type is {
+                    Finite(lb) -> lb > locked_until
+                    _ -> False
+                  }
                 //
                 and {
                   // owner_vkh must sign
                   has(extra_signatories, owner_vkh),
                   // must burn token
                   burn_token,
+                  // lock must have expired
+                  lock_expired,
                 }
               } else {
                 // invalid start
