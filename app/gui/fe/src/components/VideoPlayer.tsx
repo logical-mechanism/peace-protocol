@@ -786,6 +786,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         const d = videoRef.current?.duration ?? 0;
         if (isFinite(d) && d > 0) setDuration(d);
       }}
+      onCanPlay={() => setLoading(false)}
       onWaiting={() => setLoading(true)}
       onPlaying={() => {
         setLoading(false);
@@ -872,13 +873,15 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
             : 'flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative'
           }
         >
+          {videoElement}
           {loading && (
-            <div className="py-12 text-center">
-              <DelayedSpinner size="lg" className="mx-auto mb-4" />
-              <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
+            <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]">
+              <div className="text-center">
+                <DelayedSpinner size="lg" className="mx-auto mb-4" />
+                <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
+              </div>
             </div>
           )}
-          {videoElement}
           {isFullscreen ? controlsVisible && keyHintsOverlay : keyHintsOverlay}
         </div>
 
