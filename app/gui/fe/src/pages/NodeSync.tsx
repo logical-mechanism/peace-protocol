@@ -544,7 +544,7 @@ export default function NodeSync() {
                 {stage === 'stopped'
                   ? 'Node Setup'
                   : stage === 'bootstrapping'
-                  ? 'Downloading Snapshot'
+                  ? (mithrilProgress?.stage === 'Converting' ? 'Converting Ledger' : 'Downloading Snapshot')
                   : stage === 'starting'
                   ? 'Starting Node'
                   : stage === 'syncing'

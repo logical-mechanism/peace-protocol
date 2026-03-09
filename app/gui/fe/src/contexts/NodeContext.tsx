@@ -117,6 +117,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const [kupoConnected, setKupoConnected] = useState<boolean | null>(null)
   const [kupoSecondsSinceLastBlock, setKupoSecondsSinceLastBlock] = useState<number | null>(null)
   const mountedRef = useRef(true)
+  const convertingRef = useRef(false)
 
   // Listen for Tauri events from Rust backend
   useEffect(() => {
@@ -141,13 +142,44 @@ export function NodeProvider({ children }: { children: ReactNode }) {
       })
     )
 
-    // Mithril progress events
+    // Mithril progress events (download + LMDB conversion)
     unlisteners.push(
       listen<MithrilProgress>('mithril-progress', (event) => {
         if (!mountedRef.current) return
         setMithrilProgress(event.payload)
-        if (event.payload.stage === 'Complete') {
-          setStage('starting')
+
+        // After download completes, convert InMemory ledger to LMDB.
+        // invoke('convert_ledger_to_lmdb') blocks until the converter
+        // process exits, so convertingRef stays true for the full duration.
+        if (event.payload.stage === 'Complete' && !convertingRef.current) {
+          convertingRef.current = true
+          setMithrilProgress({
+            stage: 'Converting',
+            progress_percent: 0,
+            bytes_downloaded: 0,
+            total_bytes: 0,
+            message: 'Converting ledger to LMDB...',
+          })
+          invoke('convert_ledger_to_lmdb')
+            .then(() => {
+              if (!mountedRef.current) return
+              setMithrilProgress({
+                stage: 'Complete',
+                progress_percent: 100,
+                bytes_downloaded: 0,
+                total_bytes: 0,
+                message: 'LMDB conversion complete',
+              })
+            })
+            .catch((e: unknown) => {
+              if (!mountedRef.current) return
+              const msg = e instanceof Error ? e.message : String(e)
+              setError(msg)
+              setStage('error')
+            })
+            .finally(() => {
+              convertingRef.current = false
+            })
         }
       })
     )
@@ -179,16 +211,22 @@ export function NodeProvider({ children }: { children: ReactNode }) {
       setKupoConnected(status.kupo_connection_status)
       setKupoSecondsSinceLastBlock(status.kupo_seconds_since_last_block)
 
-      // Map overall state to stage
-      const stageMap: Record<string, NodeStage> = {
-        Stopped: 'stopped',
-        Bootstrapping: 'bootstrapping',
-        Starting: 'starting',
-        Syncing: 'syncing',
-        Synced: 'synced',
-        Error: 'error',
+      // Map overall state to stage.
+      // During LMDB conversion, keep showing 'bootstrapping' even if the
+      // mithril-client process briefly exits between download and convert.
+      if (convertingRef.current) {
+        setStage('bootstrapping')
+      } else {
+        const stageMap: Record<string, NodeStage> = {
+          Stopped: 'stopped',
+          Bootstrapping: 'bootstrapping',
+          Starting: 'starting',
+          Syncing: 'syncing',
+          Synced: 'synced',
+          Error: 'error',
+        }
+        setStage(stageMap[status.overall] || 'stopped')
       }
-      setStage(stageMap[status.overall] || 'stopped')
 
       // Clear error when things are running fine
       if (status.overall !== 'Error') {
@@ -226,6 +264,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const startBootstrap = useCallback(async () => {
     setError(null)
     setStage('bootstrapping')
+    convertingRef.current = false
     try {
       await invoke('start_mithril_bootstrap')
     } catch (e: unknown) {

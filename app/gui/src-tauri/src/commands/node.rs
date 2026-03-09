@@ -245,8 +245,8 @@ pub async fn start_node(
     cardano::start_cardano_node(&manager, &config, app_data_dir, &app_handle).await?;
 
     // 2. Wait for node socket to appear (poll every 5s, no fixed timeout).
-    // After a Mithril bootstrap, ledger replay can take 10+ minutes (preprod)
-    // or hours (mainnet). We wait as long as cardano-node is still running.
+    // With --include-ancillary + LMDB conversion, startup should be fast.
+    // Legacy v1 bootstraps without ancillary files may still replay (10+ min).
     let socket_path = config.node_socket_path(app_data_dir);
     loop {
         if socket_path.exists() {
@@ -373,6 +373,18 @@ pub async fn start_mithril_bootstrap(
 ) -> Result<(), String> {
     let config = app_handle.state::<AppConfig>();
     mithril::start_mithril_bootstrap(&manager, &config, &app_data_dir.0).await
+}
+
+/// Convert the downloaded Mithril ledger snapshot from InMemory to LMDB format.
+/// Called by the frontend after bootstrap completes, before starting the node.
+/// Blocks until the conversion process exits (not fire-and-forget).
+#[tauri::command]
+pub async fn convert_ledger_to_lmdb(
+    app_data_dir: tauri::State<'_, AppDataDir>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let config = app_handle.state::<AppConfig>();
+    mithril::convert_to_lmdb(&app_handle, &config, &app_data_dir.0).await
 }
 
 /// Get recent log lines for a specific process

@@ -15,10 +15,12 @@ export function createApp() {
   app.use(requestLogger);
   app.use(requestTimeout());
 
-  // CORS configuration
+  // CORS — allow all origins. This is a desktop-only app where the backend
+  // listens exclusively on 127.0.0.1:3001. WebKitGTK sends an unpredictable
+  // Origin header from the Tauri webview in production builds.
   app.use(
     cors({
-      origin: config.cors.origins,
+      origin: true,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],

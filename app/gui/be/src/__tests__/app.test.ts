@@ -9,9 +9,6 @@ vi.mock('../config/index.js', () => ({
     useStubs: false,
     network: 'preprod',
     nodeEnv: 'test',
-    cors: {
-      origins: ['http://127.0.0.1:5173', 'tauri://localhost'],
-    },
   },
   getNetworkConfig: vi.fn(() => ({
     kupoUrl: 'http://127.0.0.1:44203',
@@ -111,12 +108,12 @@ describe('CORS', () => {
     expect(res.headers['access-control-allow-headers']).toContain('Content-Type');
   });
 
-  it('does not include CORS headers for disallowed origins', async () => {
+  it('reflects any origin (desktop-only app, backend on localhost)', async () => {
     const res = await request(app)
       .get('/health')
       .set('Origin', 'https://evil.example.com');
 
-    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(res.headers['access-control-allow-origin']).toBe('https://evil.example.com');
   });
 });
 

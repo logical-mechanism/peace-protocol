@@ -440,6 +440,7 @@ pub fn run() {
             commands::node::start_node,
             commands::node::stop_node,
             commands::node::start_mithril_bootstrap,
+            commands::node::convert_ledger_to_lmdb,
             commands::node::get_process_logs,
             // Chain commands (Koios direct)
             commands::chain::get_network_tip,
