@@ -12,14 +12,20 @@ use config::AppConfig;
 use crypto::audit::AuditLog;
 use crypto::secrets::SecretsKey;
 use process::manager::NodeManager;
-use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+// ── Media streaming server ──────────────────────────────────────────────────
+// WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
+// (asset://, media://) for <video>/<audio> elements. Work around this by
+// running a lightweight HTTP server on localhost that serves media files
+// with correct MIME types and full range-request support.
+
+/// Tauri state: the port the media server is listening on.
+pub struct MediaServerPort(pub u16);
+
 /// Map file extension to MIME type for media streaming.
-/// Uses extension-based detection (not magic bytes) to ensure correct types
-/// for formats like .m4v that `infer` misidentifies as `video/x-m4v`.
 fn media_mime_type(path: &str) -> &'static str {
     let ext = path.rsplit('.').next().unwrap_or("");
     match ext.to_ascii_lowercase().as_str() {
@@ -44,27 +50,24 @@ fn media_mime_type(path: &str) -> &'static str {
 }
 
 /// Parse a single-range `Range: bytes=START-END` header.
-/// Returns (start, end) inclusive, capped at 1 MB per chunk.
+/// Returns (start, end) inclusive, capped at 2 MB per chunk.
 fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
     let range = header.strip_prefix("bytes=")?;
     let (start_str, end_str) = range.split_once('-')?;
 
     let start: u64 = if start_str.is_empty() {
-        // Suffix range: `-500` means last 500 bytes
         let suffix: u64 = end_str.parse().ok()?;
         file_len.saturating_sub(suffix)
     } else {
         start_str.parse().ok()?
     };
 
-    const MAX_CHUNK: u64 = 1024 * 1024; // 1 MB
+    const MAX_CHUNK: u64 = 2 * 1024 * 1024; // 2 MB
 
     let end: u64 = if end_str.is_empty() || start_str.is_empty() {
-        // Open-ended: cap at MAX_CHUNK from start
         (start + MAX_CHUNK - 1).min(file_len - 1)
     } else {
         let requested: u64 = end_str.parse().ok()?;
-        // Cap chunk size but respect explicit end
         let capped = start + (requested - start).min(MAX_CHUNK - 1);
         capped.min(file_len - 1)
     };
@@ -76,23 +79,16 @@ fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
     Some((start, end))
 }
 
-/// Handle requests on the `media://` custom protocol.
-/// Serves files from the app's media directory with correct MIME types
-/// and full HTTP range request support for video/audio streaming.
-fn media_protocol_handler(
-    request: &tauri::http::Request<Vec<u8>>,
-    content_dir: &std::path::Path,
-) -> tauri::http::Response<Cow<'static, [u8]>> {
+/// Axum handler: serve a media file with range-request support.
+/// URL format: `GET /<percent-encoded-absolute-path>`
+async fn serve_media_file(
+    axum::extract::State(media_dir): axum::extract::State<std::path::PathBuf>,
+    request: axum::extract::Request,
+) -> axum::response::Response {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
     use std::io::{Read, Seek, SeekFrom};
 
-    let err_response = |status: u16| -> tauri::http::Response<Cow<'static, [u8]>> {
-        tauri::http::Response::builder()
-            .status(status)
-            .body(Vec::new().into())
-            .unwrap()
-    };
-
-    // Decode the percent-encoded path (skip leading `/`)
     let raw_path = request.uri().path();
     let decoded = percent_encoding::percent_decode(&raw_path.as_bytes()[1..])
         .decode_utf8_lossy()
@@ -100,28 +96,25 @@ fn media_protocol_handler(
 
     let path = std::path::Path::new(&decoded);
 
-    // Security: path must resolve within the media directory
-    let media_dir = content_dir.parent().unwrap_or(content_dir);
+    // Security: resolved path must be within the media directory
     let canonical = match std::fs::canonicalize(path) {
         Ok(p) => p,
-        Err(_) => return err_response(404),
+        Err(_) => return StatusCode::NOT_FOUND.into_response(),
     };
-    let canonical_media =
-        std::fs::canonicalize(media_dir).unwrap_or_else(|_| media_dir.to_path_buf());
+    let canonical_media = std::fs::canonicalize(&media_dir).unwrap_or_else(|_| media_dir.clone());
     if !canonical.starts_with(&canonical_media) {
-        return err_response(403);
+        return StatusCode::FORBIDDEN.into_response();
     }
 
     let mime_type = media_mime_type(&decoded);
 
     let mut file = match std::fs::File::open(&canonical) {
         Ok(f) => f,
-        Err(_) => return err_response(404),
+        Err(_) => return StatusCode::NOT_FOUND.into_response(),
     };
-
     let len = file.metadata().map(|m| m.len()).unwrap_or(0);
 
-    // Handle Range requests (HTTP 206)
+    // Range request → 206 Partial Content
     if let Some(range_header) = request.headers().get("range").and_then(|v| v.to_str().ok()) {
         if let Some((start, end)) = parse_byte_range(range_header, len) {
             let nbytes = end - start + 1;
@@ -129,30 +122,69 @@ fn media_protocol_handler(
             if file.seek(SeekFrom::Start(start)).is_ok() {
                 let _ = file.read_exact(&mut buf);
             }
-            return tauri::http::Response::builder()
-                .status(206)
-                .header("Content-Type", mime_type)
-                .header("Accept-Ranges", "bytes")
-                .header("Content-Range", format!("bytes {start}-{end}/{len}"))
-                .header("Content-Length", nbytes.to_string())
-                .header("Access-Control-Expose-Headers", "content-range")
-                .body(buf.into())
-                .unwrap();
+            return (
+                StatusCode::PARTIAL_CONTENT,
+                [
+                    ("Content-Type", mime_type.to_string()),
+                    ("Accept-Ranges", "bytes".to_string()),
+                    ("Content-Range", format!("bytes {start}-{end}/{len}")),
+                    ("Content-Length", nbytes.to_string()),
+                    ("Access-Control-Allow-Origin", "*".to_string()),
+                ],
+                buf,
+            )
+                .into_response();
         }
-        return err_response(416); // Range Not Satisfiable
+        return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
     }
 
-    // Non-range request: return full file with Accept-Ranges
+    // Full request → 200 OK
     let mut buf = Vec::with_capacity(len as usize);
     let _ = file.read_to_end(&mut buf);
 
-    tauri::http::Response::builder()
-        .status(200)
-        .header("Content-Type", mime_type)
-        .header("Accept-Ranges", "bytes")
-        .header("Content-Length", len.to_string())
-        .body(buf.into())
-        .unwrap()
+    (
+        StatusCode::OK,
+        [
+            ("Content-Type", mime_type.to_string()),
+            ("Accept-Ranges", "bytes".to_string()),
+            ("Content-Length", len.to_string()),
+            ("Access-Control-Allow-Origin", "*".to_string()),
+        ],
+        buf,
+    )
+        .into_response()
+}
+
+/// Start the media HTTP server on a random port. Returns the port number.
+fn start_media_server(media_dir: std::path::PathBuf) -> u16 {
+    // Bind synchronously to get the port before returning
+    let std_listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind media server");
+    let port = std_listener.local_addr().unwrap().port();
+    std_listener
+        .set_nonblocking(true)
+        .expect("Failed to set non-blocking");
+
+    let router = axum::Router::new()
+        .fallback(serve_media_file)
+        .with_state(media_dir);
+
+    tauri::async_runtime::spawn(async move {
+        let listener = tokio::net::TcpListener::from_std(std_listener)
+            .expect("Failed to create tokio listener");
+        axum::serve(listener, router)
+            .await
+            .expect("Media server failed");
+    });
+
+    eprintln!("[media-server] Listening on 127.0.0.1:{port}");
+    port
+}
+
+/// Tauri command: return the media server port so the frontend can construct URLs.
+#[tauri::command]
+fn get_media_server_port(state: tauri::State<'_, MediaServerPort>) -> u16 {
+    state.0
 }
 
 /// Global flag to prevent duplicate shutdown attempts.
@@ -235,10 +267,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
-        .register_uri_scheme_protocol("media", |ctx, request| {
-            let content_dir = ctx.app_handle().state::<ContentDir>();
-            media_protocol_handler(&request, &content_dir.0)
-        })
         .setup(|app| {
             let app_data_dir = app
                 .path()
@@ -351,7 +379,16 @@ pub fn run() {
                 .expect("Failed to create content directories");
             crypto::wallet::set_owner_only_dir(&content_dir)
                 .expect("Failed to set content directory permissions");
-            app.manage(ContentDir(content_dir));
+            app.manage(ContentDir(content_dir.clone()));
+
+            // Media streaming server — serves video/audio over HTTP for WebKitGTK/GStreamer.
+            // The media/ parent dir is the security boundary (contains content/ and images/).
+            let media_dir = content_dir
+                .parent()
+                .unwrap_or(&content_dir)
+                .to_path_buf();
+            let port = start_media_server(media_dir);
+            app.manage(MediaServerPort(port));
 
             // Warn frontend if config fell back to defaults
             if config_used_defaults {
@@ -475,6 +512,8 @@ pub fn run() {
             commands::media::export_library_content,
             commands::media::export_text_file,
             commands::media::open_with_system,
+            // Media streaming server
+            get_media_server_port,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
