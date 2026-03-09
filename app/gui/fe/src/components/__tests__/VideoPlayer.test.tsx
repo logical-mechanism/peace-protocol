@@ -747,7 +747,7 @@ describe('VideoPlayer', () => {
       });
 
       const escapeEvents = parentEscapeSpy.mock.calls.filter(
-        ([e]: [KeyboardEvent]) => e.key === 'Escape',
+        (args) => (args[0] as KeyboardEvent).key === 'Escape',
       );
       expect(escapeEvents).toHaveLength(0);
 

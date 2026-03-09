@@ -323,7 +323,7 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
         }
 
         setVisualizationFailed(false);
-        drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
+        if (audio) drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
         startLoopRef.current?.();
       } catch {
         if (!cancelled) setVisualizationFailed(true);
