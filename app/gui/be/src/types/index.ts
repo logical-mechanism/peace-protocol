@@ -88,6 +88,7 @@ export interface BidDatum {
   owner_g1: Register;
   pointer: string;                // bid's own token name (validated on-chain: pointer == token_name)
   token: string;                  // encryption token name being bid on
+  locked_until: number;           // POSIX milliseconds — bid cannot be removed before this time
 }
 
 // CIP-20 metadata structure (from tx metadata key 674)
@@ -123,6 +124,7 @@ export interface BidDisplay {
   encryptionToken: string;        // pointer to encryption
   amount: number;                 // lovelace
   futurePrice?: number;           // ADA — bidder's desired re-listing price (from CIP-20 metadata)
+  lockedUntil: number;            // POSIX milliseconds — bid cannot be removed before this time
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
   createdAt: string;              // ISO date
   utxo: {

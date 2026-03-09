@@ -260,14 +260,14 @@ impl NodeManager {
         let _ = std::fs::remove_file(&self.pid_file);
     }
 
-    /// Kill any processes listening on our known ports (Express:3001, Ogmios:1337, Kupo:1442).
+    /// Kill any processes listening on our known ports (Express:3001, Ogmios:1337, Kupo:44203).
     /// Catches orphans even when no PID file exists (e.g., first run after adding PID tracking).
     /// Validates process identity via /proc/{pid}/cmdline to avoid killing unrelated processes.
     fn kill_orphans_on_ports(&self) {
         let port_binaries: [(u16, &[&str]); 3] = [
             (3001, &["node", "dist/index.js"]),
             (1337, &["ogmios"]),
-            (1442, &["kupo"]),
+            (44203, &["kupo"]),
         ];
 
         let mut orphan_pids: Vec<u32> = Vec::new();
@@ -1144,7 +1144,7 @@ impl NodeManager {
         }
 
         // Also collect PIDs from known ports as a safety net
-        for port in [3001u16, 1337, 1442] {
+        for port in [3001u16, 1337, 44203] {
             if let Ok(out) = std::process::Command::new("fuser")
                 .args([&format!("{}/tcp", port)])
                 .output()

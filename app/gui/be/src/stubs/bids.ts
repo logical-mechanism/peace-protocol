@@ -17,6 +17,7 @@ export const STUB_BIDS: BidDisplay[] = [
     amount: 120_000_000, // 120 ADA in lovelace
     status: 'pending',
     createdAt: '2025-01-16T08:30:00Z',
+    lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
     utxo: {
       txHash: 'ff00112244556677889900aabbccddeeff00112244556677889900aabbccddee',
       outputIndex: 0,
@@ -29,6 +30,7 @@ export const STUB_BIDS: BidDisplay[] = [
       },
       pointer: '00abc123def456789012345678901234567890123456789012345678901234',
       token: '10bid001abc234567890123456789012345678901234567890123456789012',
+      locked_until: Date.now() + 12 * 60 * 60 * 1000,
     },
   },
   {
@@ -39,6 +41,7 @@ export const STUB_BIDS: BidDisplay[] = [
     amount: 95_000_000, // 95 ADA in lovelace
     status: 'pending',
     createdAt: '2025-01-16T12:45:00Z',
+    lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
     utxo: {
       txHash: '00112233556677889900aabbccddeeff00112233556677889900aabbccddeeff',
       outputIndex: 0,
@@ -51,6 +54,7 @@ export const STUB_BIDS: BidDisplay[] = [
       },
       pointer: '00abc123def456789012345678901234567890123456789012345678901234',
       token: '11bid002def345678901234567890123456789012345678901234567890123',
+      locked_until: Date.now() + 12 * 60 * 60 * 1000,
     },
   },
   {
@@ -61,6 +65,7 @@ export const STUB_BIDS: BidDisplay[] = [
     amount: 300_000_000, // 300 ADA in lovelace
     status: 'pending',
     createdAt: '2025-01-17T09:00:00Z',
+    lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
     utxo: {
       txHash: '11223344667788990011aabbccddeeff11223344667788990011aabbccddeeff',
       outputIndex: 0,
@@ -73,6 +78,7 @@ export const STUB_BIDS: BidDisplay[] = [
       },
       pointer: '01def456abc789012345678901234567890123456789012345678901234567',
       token: '12bid003ghi456789012345678901234567890123456789012345678901234',
+      locked_until: Date.now() + 12 * 60 * 60 * 1000,
     },
   },
   {
@@ -83,6 +89,7 @@ export const STUB_BIDS: BidDisplay[] = [
     amount: 550_000_000, // 550 ADA in lovelace (accepted bid for pending encryption)
     status: 'accepted',
     createdAt: '2025-01-17T10:30:00Z',
+    lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
     utxo: {
       txHash: '22334455778899001122aabbccddeeff22334455778899001122aabbccddeeff',
       outputIndex: 0,
@@ -95,6 +102,7 @@ export const STUB_BIDS: BidDisplay[] = [
       },
       pointer: '02ghi789jkl012345678901234567890123456789012345678901234567890',
       token: '13bid004jkl567890123456789012345678901234567890123456789012345',
+      locked_until: Date.now() + 12 * 60 * 60 * 1000,
     },
   },
   {
@@ -105,6 +113,7 @@ export const STUB_BIDS: BidDisplay[] = [
     amount: 1_200_000_000, // 1200 ADA in lovelace
     status: 'pending',
     createdAt: '2025-01-19T14:15:00Z',
+    lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
     utxo: {
       txHash: '33445566889900112233aabbccddeeff33445566889900112233aabbccddeeff',
       outputIndex: 0,
@@ -117,6 +126,7 @@ export const STUB_BIDS: BidDisplay[] = [
       },
       pointer: '04stu345vwx678901234567890123456789012345678901234567890123456',
       token: '14bid005mno678901234567890123456789012345678901234567890123456',
+      locked_until: Date.now() + 12 * 60 * 60 * 1000,
     },
   },
   // TEST WALLET: Accepted bid for decrypt modal testing
@@ -128,6 +138,7 @@ export const STUB_BIDS: BidDisplay[] = [
     amount: 150_000_000, // 150 ADA in lovelace
     status: 'accepted',
     createdAt: '2025-01-20T10:00:00Z',
+    lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
     utxo: {
       txHash: '44556677889900aabbccddeeff0011223344556677889900aabbccddeeff0011',
       outputIndex: 0,
@@ -140,6 +151,7 @@ export const STUB_BIDS: BidDisplay[] = [
       },
       pointer: '00abc123def456789012345678901234567890123456789012345678901234',
       token: '15bid006test78901234567890123456789012345678901234567890123456',
+      locked_until: Date.now() + 12 * 60 * 60 * 1000,
     },
   },
 ];

@@ -60,6 +60,7 @@ function utxoToBidDisplay(utxo: KoiosUtxo, datum: BidDatum, cip20: ParsedBidCip2
     encryptionToken: datum.token,
     amount,
     futurePrice: cip20.futurePrice,
+    lockedUntil: datum.locked_until,
     status,
     createdAt: new Date(utxo.block_time * 1000).toISOString(),
     utxo: {

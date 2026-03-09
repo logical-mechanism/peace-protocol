@@ -105,6 +105,7 @@ export function createBidDatum(overrides: Partial<BidDatum> = {}): BidDatum {
     owner_g1: createRegister(),
     pointer: uniqueTokenName('bid'),
     token: uniqueTokenName('enc'),
+    locked_until: Date.now() + 12 * 60 * 60 * 1000,
     ...overrides,
   };
 }
@@ -145,6 +146,7 @@ export function createBid(overrides: Partial<BidDisplay> = {}): BidDisplay {
     status: 'pending',
     createdAt: '2025-01-16T12:00:00Z',
     utxo: { txHash: DEFAULT_TX_HASH, outputIndex: 1 },
+    lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
     datum: createBidDatum({ pointer: tokenName, token: encryptionToken }),
     ...overrides,
   };

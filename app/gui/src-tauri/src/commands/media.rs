@@ -434,6 +434,38 @@ pub fn save_content(
         .ok_or_else(|| "File path contains invalid UTF-8".to_string())
 }
 
+/// Copy a file from disk into the library content directory.
+/// Used to add the seller's own file to their library after listing creation.
+/// Avoids sending file bytes over IPC — reads directly from disk.
+#[tauri::command]
+pub fn copy_to_library(
+    state: tauri::State<'_, ContentDir>,
+    source_path: String,
+    token_name: String,
+    category: String,
+    file_name: String,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+    validate_file_name(&file_name)?;
+
+    let src = std::path::Path::new(&source_path);
+    if !src.exists() || !src.is_file() {
+        return Err("Source file not found".to_string());
+    }
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    std::fs::create_dir_all(&token_dir)
+        .map_err(|e| format!("Failed to create content directory: {e}"))?;
+
+    let dest = token_dir.join(&file_name);
+    std::fs::copy(src, &dest).map_err(|e| format!("Failed to copy file to library: {e}"))?;
+
+    dest.to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "File path contains invalid UTF-8".to_string())
+}
+
 // ── Library commands (browse/read/delete decrypted content) ────────────
 
 /// Metadata stored alongside decrypted content (matches fe ContentMetadata).
@@ -571,6 +603,61 @@ pub fn read_library_content(
         .ok_or_else(|| "Content file not found".to_string())?;
 
     std::fs::read(&content_path).map_err(|e| format!("Failed to read content file: {e}"))
+}
+
+/// Return the absolute file path for a library item's content file.
+/// Used for streamable media (video/audio) where reading the entire file into
+/// memory via IPC is too expensive. The frontend uses convertFileSrc() to create
+/// an asset:// URL that WebKitGTK can stream directly from disk.
+#[tauri::command]
+pub fn get_library_content_path(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<String, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    Ok(content_path.to_string_lossy().to_string())
+}
+
+/// Return the absolute file path for a library item's subtitle file, if one exists.
+#[tauri::command]
+pub fn get_library_subtitle_path(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<Option<String>, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Ok(None);
+    }
+
+    let entries =
+        std::fs::read_dir(&token_dir).map_err(|e| format!("Failed to read directory: {e}"))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let ext_lower = ext.to_lowercase();
+            if ext_lower == "vtt" || ext_lower == "srt" {
+                return Ok(Some(path.to_string_lossy().to_string()));
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 /// Read a subtitle file (.vtt or .srt) from a library item's directory, if one exists.

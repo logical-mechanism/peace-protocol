@@ -16,6 +16,177 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+// ── Media streaming server ──────────────────────────────────────────────────
+// WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
+// (asset://, media://) for <video>/<audio> elements. Work around this by
+// running a lightweight HTTP server on localhost that serves media files
+// with correct MIME types and full range-request support.
+
+/// Tauri state: the port the media server is listening on.
+pub struct MediaServerPort(pub u16);
+
+/// Map file extension to MIME type for media streaming.
+fn media_mime_type(path: &str) -> &'static str {
+    let ext = path.rsplit('.').next().unwrap_or("");
+    match ext.to_ascii_lowercase().as_str() {
+        "mp4" | "m4v" => "video/mp4",
+        "webm" => "video/webm",
+        "ogv" => "video/ogg",
+        "mov" => "video/quicktime",
+        "mkv" => "video/x-matroska",
+        "avi" => "video/x-msvideo",
+        "ts" => "video/mp2t",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "flac" => "audio/flac",
+        "ogg" => "audio/ogg",
+        "m4a" | "aac" => "audio/mp4",
+        "opus" => "audio/opus",
+        "weba" => "audio/webm",
+        "vtt" => "text/vtt",
+        "srt" => "text/plain; charset=utf-8",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Parse a single-range `Range: bytes=START-END` header.
+/// Returns (start, end) inclusive, capped at 2 MB per chunk.
+fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
+    let range = header.strip_prefix("bytes=")?;
+    let (start_str, end_str) = range.split_once('-')?;
+
+    let start: u64 = if start_str.is_empty() {
+        let suffix: u64 = end_str.parse().ok()?;
+        file_len.saturating_sub(suffix)
+    } else {
+        start_str.parse().ok()?
+    };
+
+    const MAX_CHUNK: u64 = 2 * 1024 * 1024; // 2 MB
+
+    let end: u64 = if end_str.is_empty() || start_str.is_empty() {
+        (start + MAX_CHUNK - 1).min(file_len - 1)
+    } else {
+        let requested: u64 = end_str.parse().ok()?;
+        let capped = start + (requested - start).min(MAX_CHUNK - 1);
+        capped.min(file_len - 1)
+    };
+
+    if start >= file_len || end < start {
+        return None;
+    }
+
+    Some((start, end))
+}
+
+/// Axum handler: serve a media file with range-request support.
+/// URL format: `GET /<percent-encoded-absolute-path>`
+async fn serve_media_file(
+    axum::extract::State(media_dir): axum::extract::State<std::path::PathBuf>,
+    request: axum::extract::Request,
+) -> axum::response::Response {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+    use std::io::{Read, Seek, SeekFrom};
+
+    let raw_path = request.uri().path();
+    let decoded = percent_encoding::percent_decode(&raw_path.as_bytes()[1..])
+        .decode_utf8_lossy()
+        .to_string();
+
+    let path = std::path::Path::new(&decoded);
+
+    // Security: resolved path must be within the media directory
+    let canonical = match std::fs::canonicalize(path) {
+        Ok(p) => p,
+        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+    };
+    let canonical_media = std::fs::canonicalize(&media_dir).unwrap_or_else(|_| media_dir.clone());
+    if !canonical.starts_with(&canonical_media) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+
+    let mime_type = media_mime_type(&decoded);
+
+    let mut file = match std::fs::File::open(&canonical) {
+        Ok(f) => f,
+        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+    };
+    let len = file.metadata().map(|m| m.len()).unwrap_or(0);
+
+    // Range request → 206 Partial Content
+    if let Some(range_header) = request.headers().get("range").and_then(|v| v.to_str().ok()) {
+        if let Some((start, end)) = parse_byte_range(range_header, len) {
+            let nbytes = end - start + 1;
+            let mut buf = vec![0u8; nbytes as usize];
+            if file.seek(SeekFrom::Start(start)).is_ok() {
+                let _ = file.read_exact(&mut buf);
+            }
+            return (
+                StatusCode::PARTIAL_CONTENT,
+                [
+                    ("Content-Type", mime_type.to_string()),
+                    ("Accept-Ranges", "bytes".to_string()),
+                    ("Content-Range", format!("bytes {start}-{end}/{len}")),
+                    ("Content-Length", nbytes.to_string()),
+                    ("Access-Control-Allow-Origin", "*".to_string()),
+                ],
+                buf,
+            )
+                .into_response();
+        }
+        return StatusCode::RANGE_NOT_SATISFIABLE.into_response();
+    }
+
+    // Full request → 200 OK
+    let mut buf = Vec::with_capacity(len as usize);
+    let _ = file.read_to_end(&mut buf);
+
+    (
+        StatusCode::OK,
+        [
+            ("Content-Type", mime_type.to_string()),
+            ("Accept-Ranges", "bytes".to_string()),
+            ("Content-Length", len.to_string()),
+            ("Access-Control-Allow-Origin", "*".to_string()),
+        ],
+        buf,
+    )
+        .into_response()
+}
+
+/// Start the media HTTP server on a random port. Returns the port number.
+fn start_media_server(media_dir: std::path::PathBuf) -> u16 {
+    // Bind synchronously to get the port before returning
+    let std_listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind media server");
+    let port = std_listener.local_addr().unwrap().port();
+    std_listener
+        .set_nonblocking(true)
+        .expect("Failed to set non-blocking");
+
+    let router = axum::Router::new()
+        .fallback(serve_media_file)
+        .with_state(media_dir);
+
+    tauri::async_runtime::spawn(async move {
+        let listener = tokio::net::TcpListener::from_std(std_listener)
+            .expect("Failed to create tokio listener");
+        axum::serve(listener, router)
+            .await
+            .expect("Media server failed");
+    });
+
+    eprintln!("[media-server] Listening on 127.0.0.1:{port}");
+    port
+}
+
+/// Tauri command: return the media server port so the frontend can construct URLs.
+#[tauri::command]
+fn get_media_server_port(state: tauri::State<'_, MediaServerPort>) -> u16 {
+    state.0
+}
+
 /// Global flag to prevent duplicate shutdown attempts.
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
@@ -94,6 +265,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let app_data_dir = app
@@ -207,7 +379,16 @@ pub fn run() {
                 .expect("Failed to create content directories");
             crypto::wallet::set_owner_only_dir(&content_dir)
                 .expect("Failed to set content directory permissions");
-            app.manage(ContentDir(content_dir));
+            app.manage(ContentDir(content_dir.clone()));
+
+            // Media streaming server — serves video/audio over HTTP for WebKitGTK/GStreamer.
+            // The media/ parent dir is the security boundary (contains content/ and images/).
+            let media_dir = content_dir
+                .parent()
+                .unwrap_or(&content_dir)
+                .to_path_buf();
+            let port = start_media_server(media_dir);
+            app.manage(MediaServerPort(port));
 
             // Warn frontend if config fell back to defaults
             if config_used_defaults {
@@ -306,6 +487,8 @@ pub fn run() {
             commands::iagon::iagon_verify_api_key,
             commands::iagon::iagon_upload,
             commands::iagon::iagon_download,
+            commands::iagon::iagon_encrypt_and_upload,
+            commands::iagon::iagon_download_and_save,
             commands::iagon::iagon_delete_file,
             commands::iagon::iagon_search_files,
             commands::iagon::iagon_list_files,
@@ -318,14 +501,19 @@ pub fn run() {
             commands::media::delete_cached_image,
             // Content commands (for future data layer)
             commands::media::save_content,
+            commands::media::copy_to_library,
             // Library commands (browse/read/delete/export decrypted content)
             commands::media::list_library_items,
             commands::media::read_library_content,
+            commands::media::get_library_content_path,
+            commands::media::get_library_subtitle_path,
             commands::media::read_subtitle_file,
             commands::media::delete_library_item,
             commands::media::export_library_content,
             commands::media::export_text_file,
             commands::media::open_with_system,
+            // Media streaming server
+            get_media_server_port,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

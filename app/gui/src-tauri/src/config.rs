@@ -145,7 +145,7 @@ impl Default for AppConfig {
         Self {
             network: Network::Preprod,
             ogmios_port: 1337,
-            kupo_port: 1442,
+            kupo_port: 44203,
             auto_start_node: true,
             contracts: None,
         }
@@ -369,7 +369,7 @@ mod tests {
         let config = AppConfig::default();
         assert_eq!(config.network, Network::Preprod);
         assert_eq!(config.ogmios_port, 1337);
-        assert_eq!(config.kupo_port, 1442);
+        assert_eq!(config.kupo_port, 44203);
         assert!(config.auto_start_node);
     }
 

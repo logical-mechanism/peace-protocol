@@ -139,11 +139,9 @@ function LibraryCard({
             {/* Middle: Seller & Date */}
             <div className="flex items-center gap-6 flex-shrink-0">
               <div className="text-right">
-                {item.seller && (
-                  <p className="text-xs font-mono text-[var(--text-muted)]">
-                    {truncateHex(item.seller, 8, 4)}
-                  </p>
-                )}
+                <p className="text-xs font-mono text-[var(--text-muted)]">
+                  {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
+                </p>
                 <p className="text-xs text-[var(--text-muted)]">
                   {formatDate(item.decryptedAt)}
                   {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
@@ -229,7 +227,7 @@ function LibraryCard({
         </div>
 
         {/* Description */}
-        {item.description && (
+        {item.description ? (
           <div
             className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
             onClick={() => setDescriptionModalOpen(true)}
@@ -239,6 +237,12 @@ function LibraryCard({
               title={item.description}
             >
               {truncateDescription(item.description)}
+            </p>
+          </div>
+        ) : (
+          <div className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+            <p className="text-sm font-medium text-[var(--text-muted)] line-clamp-1">
+              No description
             </p>
           </div>
         )}
@@ -251,14 +255,12 @@ function LibraryCard({
         </div>
 
         {/* Seller Info */}
-        {item.seller && (
-          <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-            <span className="text-xs font-mono text-[var(--text-secondary)]">
-              {truncateHex(item.seller, 8, 4)}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
+          <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
+          <span className="text-xs font-mono text-[var(--text-secondary)]">
+            {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
+          </span>
+        </div>
 
         {/* Action Buttons */}
         {!selectMode && (

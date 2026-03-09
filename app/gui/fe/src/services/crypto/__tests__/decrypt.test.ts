@@ -48,6 +48,7 @@ vi.mock('../fileEncryption', () => ({
 
 vi.mock('../../iagonApi', () => ({
   downloadFile: vi.fn(),
+  downloadAndSave: vi.fn(),
 }));
 
 vi.mock('../../iagonAuth', () => ({

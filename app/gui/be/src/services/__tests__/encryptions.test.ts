@@ -47,7 +47,7 @@ vi.mock('../../config/index.js', () => ({
     },
     koiosUrl: 'https://preprod.koios.rest/api/v1',
     koiosToken: '',
-    kupoUrl: 'http://localhost:1442',
+    kupoUrl: 'http://localhost:44203',
   }),
 }));
 

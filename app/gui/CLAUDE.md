@@ -18,7 +18,7 @@ Kupo (UTxOs) + Koios (history)    cardano-node, cardano-cli, Ogmios, Kupo, Mithr
 - **Tauri IPC** (`invoke`/`listen`): wallet ops, node control, SNARK proving, secrets storage, config
 - **REST API** (port 3001): blockchain data queries (encryptions, bids, protocol config)
 - **WebSocket** (port 1337): Ogmios for tx evaluation & submission (used by MeshTxBuilder)
-- **HTTP** (port 1442): Kupo for UTxO fetching (used by KupoAdapter)
+- **HTTP** (port 44203): Kupo for UTxO fetching (used by KupoAdapter)
 
 ## Directory Structure
 
@@ -39,10 +39,10 @@ app/gui/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios singletons
 │   │   │   ├── kupoAdapter.ts       # IFetcher implementation for MeshSDK
-│   │   │   ├── transactionBuilder.ts # All tx building (~2174 lines)
+│   │   │   ├── transactionBuilder.ts # All tx building (~2240 lines)
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
-│   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete content)
+│   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete/export content + media server URL helpers for streaming)
 │   │   │   ├── secretCleanup.ts     # Deferred secret deletion after on-chain confirmation
 │   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
 │   │   │   ├── iagonApi.ts          # Iagon HTTP endpoints via Tauri invoke (CORS bypass)
@@ -102,7 +102,7 @@ app/gui/
 │   └── dist/                        # Compiled JS (tsc output) — Tauri runs this
 ├── src-tauri/
 │   ├── src/
-│   │   ├── lib.rs                   # App setup, plugins, state, event handlers
+│   │   ├── lib.rs                   # App setup, plugins, state, event handlers, media HTTP server
 │   │   ├── config.rs                # AppConfig, Network, ContractConfig
 │   │   ├── crypto/
 │   │   │   ├── wallet.rs            # AES-256-GCM + Argon2id wallet encryption
@@ -114,7 +114,7 @@ app/gui/
 │   │   │   ├── cardano.rs           # cardano-node config & lifecycle
 │   │   │   ├── cardano_cli.rs       # cardano-cli tip query (primary sync source)
 │   │   │   ├── ogmios.rs            # Ogmios (port 1337)
-│   │   │   ├── kupo.rs              # Kupo (port 1442, /metrics for sync + stall detection)
+│   │   │   ├── kupo.rs              # Kupo (port 44203, /metrics for sync + stall detection)
 │   │   │   ├── mithril.rs           # Mithril snapshot bootstrap
 │   │   │   └── express.rs           # Express backend (port 3001)
 │   │   └── commands/
@@ -133,7 +133,7 @@ app/gui/
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn, notification:default)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
-│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest, zeroize
+│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest, axum, zeroize
 ├── build.sh                         # Sources check-prereqs.sh, installs deps, runs `tauri build`
 ├── build-debug.sh                   # Sources check-prereqs.sh, installs deps, runs `tauri build --debug`
 ├── run.sh                           # Sources check-prereqs.sh, kills stale dev-port processes, installs deps, tsc watch for be, runs `tauri dev`
@@ -162,9 +162,9 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactionBuilder.ts ~2174 lines):
+**Transaction building** (fe/src/services/transactionBuilder.ts ~2240 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
 - `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`
 - `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`
@@ -247,7 +247,7 @@ app/gui/
 **Stack:** Express v5, TypeScript, port 3001. Stateless and read-only — all state lives on-chain.
 
 **Two data sources:**
-- **Kupo** (localhost:1442) — current UTxO state at contract addresses
+- **Kupo** (localhost:44203) — current UTxO state at contract addresses
 - **Koios** (preprod.koios.rest) — historical tx data, CIP-20 metadata, protocol params
 
 **Route groups:**
@@ -311,7 +311,7 @@ app/gui/
 - SIGTERM → configurable wait → SIGKILL: cardano-node 45s (flush in-memory ledger), mithril-client 30s, others 10s
 - `user_stopped` flag prevents auto-restart after intentional shutdown
 - Linux: uses `libc::kill` directly (avoids AppImage /usr/bin/kill issues)
-- Orphan cleanup on startup: reads `managed_pids.json` from previous session → SIGTERM → 30s → SIGKILL; also port-scans 3001/1337/1442
+- Orphan cleanup on startup: reads `managed_pids.json` from previous session → SIGTERM → 30s → SIGKILL; also port-scans 3001/1337/44203
 - Health check: only Express has one (`GET /health`); no built-in checks for cardano-node/Ogmios/Kupo
 - `cardano_cli.rs` — short-lived sidecar query (not a long-running process); spawns `cardano-cli conway query tip` with 10s timeout to get sync data from the node socket
 
@@ -347,6 +347,15 @@ app/gui/
 - Prove outputs `proof.json` + `public.json` in temp directory; returned as raw text to frontend
 - ~3 min proving time (vs 106 min in browser WASM); no timeout
 
+**Media server** (src-tauri/src/lib.rs):
+- Axum HTTP server spawned on a random `127.0.0.1` port at app startup
+- Serves files from the `media/` directory with HTTP range-request support (206 Partial Content, 2 MB max chunk)
+- Maps file extensions to correct MIME types (mp4→video/mp4, mp3→audio/mpeg, vtt→text/vtt, etc.)
+- Resolves canonical paths to prevent directory traversal
+- Replaces previous `asset://` protocol approach — WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
+- Frontend calls `get_media_server_port()` to get port, `libraryService.ts` constructs `http://127.0.0.1:{port}/{path}` URLs
+- `MediaServerPort` Tauri state stores the port number
+
 **Config** (src-tauri/src/config.rs):
 - `resources/config.json` is the single source of truth for contract addresses and policy IDs
 - Network toggle (preprod/mainnet) with separate chain data directories
@@ -356,7 +365,7 @@ app/gui/
 
 **On-chain datums** (defined in both fe and be):
 - `EncryptionDatum` — owner_vkh, owner_g1 (Register), token, half_level, full_level|null, capsule, status (Open|Pending)
-- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token)
+- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token), locked_until (POSIX ms)
 - `Register` — { generator: hex, public_value: hex } (BLS12-381 G1 points, 96 hex chars each)
 - `Capsule` — { nonce: 24 hex, aad: 64 hex, ct: variable hex } (ChaCha20-Poly1305)
 - `HalfEncryptionLevel` — { r1b, r2_g1b, r4b } (G1, G1, G2)
@@ -364,7 +373,7 @@ app/gui/
 
 **Display models** (be types, consumed by fe):
 - `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, category?, createdAt, utxo, datum
-- `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, utxo, datum
+- `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, lockedUntil, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
 **Frontend state types:**
@@ -374,7 +383,7 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (68 commands, invoke from frontend):
+**Tauri commands** (74 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
@@ -383,9 +392,10 @@ app/gui/
 - Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
 - Listing Drafts: `store_listing_draft`, `update_listing_draft`, `get_listing_draft`, `list_listing_drafts`, `remove_listing_draft`
 - Iagon Keys: `store_iagon_api_key`, `get_iagon_api_key`, `remove_iagon_api_key`, `has_iagon_api_key`
-- Iagon HTTP: `iagon_get_nonce`, `iagon_verify`, `iagon_generate_api_key`, `iagon_verify_api_key`, `iagon_upload`, `iagon_download`, `iagon_delete_file`, `iagon_search_files`, `iagon_list_files`
-- Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`
-- Library: `list_library_items`, `read_library_content`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
+- Iagon HTTP: `iagon_get_nonce`, `iagon_verify`, `iagon_generate_api_key`, `iagon_verify_api_key`, `iagon_upload`, `iagon_download`, `iagon_encrypt_and_upload`, `iagon_download_and_save`, `iagon_delete_file`, `iagon_search_files`, `iagon_list_files`
+- Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`, `copy_to_library`
+- Library: `list_library_items`, `read_library_content`, `get_library_content_path`, `get_library_subtitle_path`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
+- Media Server: `get_media_server_port`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -419,7 +429,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (45 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (44 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
   - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
   - `fe/src/utils/__tests__/` — formatDate (1 file)
@@ -533,11 +543,11 @@ const json: ApiResponse<YourType> = await res.json();
 - **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
 - **Provider nesting order** — ErrorBoundary → ShutdownOverlay → WalletProvider → NodeProvider → WasmProvider → BrowserRouter → ModalProvider → App (in main.tsx); `initializeTheme()` called before `createRoot()` to prevent flash; order matters for context dependencies
 - **File categories** — Defined in `fe/src/config/categories.ts`. All categories now enabled. `text` uses on-chain storage (capsule only); all other categories (document, audio, image, video, other) use Iagon off-chain storage (AES-256-GCM encrypted before upload). Category stored in CIP-20 metadata. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
-- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes, `delete_library_item` removes the token directory, `export_library_content` opens native save dialog. LibraryContentModal lazy-loads PdfViewer, ImageViewer, AudioPlayer, VideoPlayer via React `lazy()` + `Suspense`. Uses wide modal (`max-w-4xl`) for rich media. View mode determined by `getViewMode()`: prioritizes fileExtension from payload field 3, falls back to category. Modes: text (inline), PDF (PdfViewer), image (ImageViewer), audio (AudioPlayer), video (VideoPlayer), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
+- **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes (text/PDF/image), `getLibraryContentUrl` returns `http://127.0.0.1:{port}/...` URL for streaming (video/audio) via the Axum media server, `delete_library_item` removes the token directory, `export_library_content` opens native save dialog. LibraryContentModal lazy-loads PdfViewer, ImageViewer, AudioPlayer, VideoPlayer via React `lazy()` + `Suspense`. Video/audio use URL-based streaming to avoid IPC serialization bottleneck; text/PDF/image read into memory. Uses wide modal (`max-w-4xl`) for rich media. View mode determined by `getViewMode()`: prioritizes fileExtension from payload field 3, falls back to category. Modes: text (inline), PDF (PdfViewer), image (ImageViewer), audio (AudioPlayer), video (VideoPlayer), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
 - **PdfViewer** — Uses `react-pdf` (pdfjs-dist worker). Renders decrypted PDFs from `Uint8Array` via Blob URL. Zoom 0.5x-3.0x, page navigation, fullscreen overlay at `z-[60]` (above modal `z-50`). Blob URL created in useEffect to handle React StrictMode double-mount
 - **ImageViewer** — Renders decrypted images from `Uint8Array` via Blob URL with MIME type derived from fileExtension. Zoom and fullscreen overlay at `z-[60]` (above modal `z-50`). Supports PNG, JPEG, GIF, WebP, SVG, BMP
-- **AudioPlayer** — Winamp-style player using native `<audio>` element for GStreamer playback (bypasses broken WebKitGTK Web Audio API). Custom FFT visualization (32 bars, Cooley-Tukey radix-2). Transport controls: play, pause, stop, skip ±10s. Volume slider. Graceful fallback if PCM decode fails. Supports: mp3, wav, flac, ogg, aac, m4a, opus
-- **VideoPlayer** — Native `<video>` element with FFmpeg.wasm remux fallback. Attempts native playback first; if unsupported format detected, remuxes to MP4 via FFmpeg.wasm in-browser. Fullscreen overlay at `z-[60]` (above modal `z-50`). Supports common video formats
+- **AudioPlayer** — Winamp-style player using native `<audio>` element for GStreamer playback (bypasses broken WebKitGTK Web Audio API). Streams from disk via `http://127.0.0.1:{port}/...` URL served by the Axum media server in lib.rs. Custom FFT visualization (32 bars, Cooley-Tukey radix-2). Transport controls: play, pause, stop, skip ±10s. Volume slider. Supports: mp3, wav, flac, ogg, aac, m4a, opus
+- **VideoPlayer** — Native `<video>` element with `<source src={url} type={mimeType}>` streaming from disk via `http://127.0.0.1:{port}/...` URL served by the Axum media server in lib.rs. Uses `<source>` child element (not `src` attribute on `<video>`) to provide explicit MIME type — required for correct GStreamer codec selection. No in-memory blob loading — avoids Tauri IPC serialization bottleneck for large files. Single unified return path with CSS-based fullscreen toggle (`display: contents` ↔ `fixed inset-0 z-[60]`) to preserve playback state across fullscreen transitions. Auto-hide controls with 5s initial delay on fullscreen entry. Subtitle support via `<track>` element with media server URL. Shows conversion hints for unsupported formats. Supports common video formats
 - **WebKitGTK Web Audio API broken** — `AnalyserNode` and `AudioContext` don't work reliably in WebKitGTK; AudioPlayer uses native `<audio>` element (which routes through GStreamer) instead of Web Audio API
 - **Iagon requires internet** — Iagon operations (upload, download, auth) require internet access. Unlike on-chain text listings, file-based listings fail if `gw.iagon.com` is unreachable. The `reqwest` client has a 60s timeout
 - **Listing drafts persist across WebView resets** — Stored as encrypted JSON in `secrets/listing-drafts/` (filesystem), not IndexedDB (which WebKitGTK can clear). This is why `listingDraftStorage` uses Tauri invoke instead of localStorage
@@ -560,4 +570,5 @@ const json: ApiResponse<YourType> = await res.json();
 - **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout
 - **Pagination** — Backend `pagination.ts` middleware provides offset-based pagination (default 50, max 200 items) with `{ total, limit, offset, hasMore }` meta
 - **cardano-cli as primary sync source** — `cardano-cli conway query tip` is the primary sync data source (runs as sidecar every 5s poll). Works as soon as the node socket exists (~10-60s before Ogmios connects). Provides exact `syncProgress`, `epoch`, `era`, `slotInEpoch`, `slotsToEpochEnd`. Ogmios is fallback only. Kupo metrics (`/metrics`) provide indexing progress + `kupo_connection_status` + `kupo_seconds_since_last_block` for stall/disconnect detection
+- **Media server streaming** — Video and audio files are streamed from disk via an Axum HTTP server embedded in lib.rs, listening on a random `127.0.0.1` port. This replaces the previous `asset://` protocol approach because WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes (`asset://`, `media://`). The server supports HTTP range requests (206 Partial Content, 2 MB max chunk) and maps file extensions to correct MIME types. `get_library_content_path` and `get_library_subtitle_path` Rust commands return relative file paths; `libraryService.ts` wraps them with `getLibraryContentUrl()` which constructs `http://127.0.0.1:{port}/{path}` URLs. Text, PDF, and image files still use `readLibraryContent()` (small enough for IPC). Avoids the Tauri IPC serialization bottleneck where `Vec<u8>` is serialized as JSON `number[]` (a 100MB file becomes ~300MB of JSON text)
 - **Background cleanup** — Hourly async task in lib.rs: securely deletes orphaned SNARK temp files older than 1 hour, evicts cached images older than 30 days or exceeding 500MB total

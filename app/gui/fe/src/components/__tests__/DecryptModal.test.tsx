@@ -59,6 +59,7 @@ const baseBid: BidDisplay = {
   amount: 50_000_000,
   status: 'accepted',
   createdAt: '2024-06-16T12:00:00Z',
+  lockedUntil: Date.now() + 12 * 60 * 60 * 1000,
   utxo: { txHash: 'b'.repeat(64), outputIndex: 0 },
   datum: {} as BidDisplay['datum'],
 };

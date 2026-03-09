@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // ── Mocks (hoisted before imports) ──────────────────────────────────
@@ -8,10 +8,6 @@ vi.mock('../LoadingSpinner', () => ({
   DelayedSpinner: ({ className }: { className?: string }) => (
     <div data-testid="spinner" className={className}>Loading...</div>
   ),
-}));
-
-vi.mock('music-metadata', () => ({
-  parseBuffer: vi.fn().mockResolvedValue({ common: {} }),
 }));
 
 const mockObjectUrl = 'blob:mock-audio-url';
@@ -33,18 +29,15 @@ globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
 const playMock = vi.fn().mockResolvedValue(undefined);
 const pauseMock = vi.fn();
 
-import { parseBuffer as _parseBuffer } from 'music-metadata';
-const mockParseBuffer = vi.mocked(_parseBuffer);
-
 import AudioPlayer from '../AudioPlayer';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const testAudioData = new Uint8Array([0xFF, 0xFB, 0x90, 0x00]);
+const mockAudioUrl = 'asset://localhost/mock-audio.mp3';
 
-function renderPlayer(overrides: Partial<{ data: Uint8Array; fileExtension: string; onExport: () => void }> = {}) {
+function renderPlayer(overrides: Partial<{ src: string; fileExtension: string; onExport: () => void }> = {}) {
   return render(
-    <AudioPlayer data={testAudioData} fileExtension=".mp3" {...overrides} />,
+    <AudioPlayer src={mockAudioUrl} fileExtension=".mp3" {...overrides} />,
   );
 }
 
@@ -534,15 +527,11 @@ describe('AudioPlayer component', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('creates blob URL from data', () => {
+    it('sets src URL on audio element', () => {
       renderPlayer();
-      expect(createObjectURLSpy).toHaveBeenCalled();
-    });
-
-    it('revokes blob URL on unmount', () => {
-      const { unmount } = renderPlayer();
-      unmount();
-      expect(revokeObjectURLSpy).toHaveBeenCalledWith(mockObjectUrl);
+      const audio = document.querySelector('audio');
+      expect(audio).not.toBeNull();
+      expect(audio!.getAttribute('src')).toBe(mockAudioUrl);
     });
 
     it('shows loading spinner initially', () => {
@@ -630,36 +619,50 @@ describe('AudioPlayer component', () => {
       expect(screen.getByText('WAV')).toBeInTheDocument();
     });
 
-    it('renders error state with conversion hint for unsupported format', async () => {
+    it('renders error state with conversion hint for unsupported format after retries exhausted', async () => {
+      vi.useFakeTimers();
       renderPlayer({ fileExtension: '.flac' });
+      // First error — triggers retry 1 (500ms)
+      await fireAudioError();
+      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
+      // Advance past retry 1
+      await act(async () => { vi.advanceTimersByTime(500); });
+      // Second error — triggers retry 2 (1000ms)
+      await fireAudioError();
+      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
+      // Advance past retry 2
+      await act(async () => { vi.advanceTimersByTime(1000); });
+      // Third error — retries exhausted, show error
       await fireAudioError();
       expect(screen.getByText(/Audio format not supported/)).toBeInTheDocument();
       expect(screen.getByText(/ffmpeg/)).toBeInTheDocument();
+      vi.useRealTimers();
     });
 
     it('shows format badge in error state', async () => {
       renderPlayer({ fileExtension: '.flac' });
-      await fireAudioError();
+      // Use non-retryable error code for immediate error
+      await fireAudioError(MEDIA_ERR_DECODE);
       expect(screen.getByText('FLAC')).toBeInTheDocument();
     });
 
     it('shows Save As button in error state when onExport provided', async () => {
       const onExport = vi.fn();
       renderPlayer({ onExport });
-      await fireAudioError();
+      await fireAudioError(MEDIA_ERR_DECODE);
       expect(screen.getByText(/Save As/)).toBeInTheDocument();
     });
 
     it('hides Save As in error state when onExport not provided', async () => {
       renderPlayer();
-      await fireAudioError();
+      await fireAudioError(MEDIA_ERR_DECODE);
       expect(screen.queryByText(/Save As/)).not.toBeInTheDocument();
     });
 
     it('calls onExport when Save As is clicked in error state', async () => {
       const onExport = vi.fn();
       renderPlayer({ onExport });
-      await fireAudioError();
+      await fireAudioError(MEDIA_ERR_DECODE);
       fireEvent.click(screen.getByText(/Save As/));
       expect(onExport).toHaveBeenCalledOnce();
     });
@@ -850,8 +853,10 @@ describe('AudioPlayer component', () => {
       await act(async () => {
         fireEvent.keyDown(document, { key: 's' });
       });
-      expect(audio.playbackRate).toBe(1.25);
-      expect(screen.getByLabelText('Playback speed: 1.25x')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(audio.playbackRate).toBe(1.25);
+        expect(screen.getByLabelText('Playback speed: 1.25x')).toBeInTheDocument();
+      });
     });
   });
 
@@ -1147,119 +1152,8 @@ describe('AudioPlayer component', () => {
     });
   });
 
-  // ── Metadata rendering tests ────────────────────────────────────────
-
-  describe('metadata display', () => {
-    it('shows title, artist, and album when metadata is present', async () => {
-      mockParseBuffer.mockResolvedValueOnce({
-        common: {
-          title: 'Test Song',
-          artist: 'Test Artist',
-          album: 'Test Album',
-        },
-      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
-
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.getByText('Test Song')).toBeInTheDocument();
-      expect(screen.getByText('Test Artist')).toBeInTheDocument();
-      expect(screen.getByText('Test Album')).toBeInTheDocument();
-    });
-
-    it('shows album art image when metadata contains a picture', async () => {
-      mockParseBuffer.mockResolvedValueOnce({
-        common: {
-          title: 'Art Track',
-          picture: [{
-            data: new Uint8Array([0x89, 0x50, 0x4E, 0x47]),
-            format: 'image/png',
-          }],
-        },
-      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
-
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.getByAltText('Album art')).toBeInTheDocument();
-    });
-
-    it('does not show metadata section when no metadata fields are present', async () => {
-      // Default mock returns { common: {} } — no title, artist, or album
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.queryByAltText('Album art')).not.toBeInTheDocument();
-      // The metadata section is conditionally rendered, so no title/artist text should appear
-      expect(screen.queryByText('Test Song')).not.toBeInTheDocument();
-    });
-
-    it('shows year and track number when available', async () => {
-      mockParseBuffer.mockResolvedValueOnce({
-        common: {
-          title: 'Numbered Track',
-          album: 'Greatest Hits',
-          year: 2024,
-          track: { no: 5, of: 12 },
-        },
-      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
-
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.getByText('Numbered Track')).toBeInTheDocument();
-      // Album + year + track rendered as: "Greatest Hits — 2024 (Track 5)"
-      expect(screen.getByText(/Greatest Hits.*2024.*Track 5/)).toBeInTheDocument();
-    });
-
-    it('shows bitrate, sample rate, and stereo indicator when format info is present', async () => {
-      mockParseBuffer.mockResolvedValueOnce({
-        common: { title: 'Format Track' },
-        format: { bitrate: 128000, sampleRate: 44100, numberOfChannels: 2 },
-      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
-
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.getByText('128kbps')).toBeInTheDocument();
-      expect(screen.getByText('44kHz')).toBeInTheDocument();
-      expect(screen.getByText('STEREO')).toBeInTheDocument();
-    });
-
-    it('shows MONO for single-channel audio', async () => {
-      mockParseBuffer.mockResolvedValueOnce({
-        common: { title: 'Mono Track' },
-        format: { bitrate: 64000, sampleRate: 22050, numberOfChannels: 1 },
-      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
-
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.getByText('64kbps')).toBeInTheDocument();
-      expect(screen.getByText('22kHz')).toBeInTheDocument();
-      expect(screen.getByText('MONO')).toBeInTheDocument();
-    });
-
-    it('shows channel count for multi-channel audio', async () => {
-      mockParseBuffer.mockResolvedValueOnce({
-        common: {},
-        format: { numberOfChannels: 6 },
-      } as ReturnType<typeof mockParseBuffer> extends Promise<infer T> ? T : never);
-
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.getByText('6ch')).toBeInTheDocument();
-    });
-
-    it('does not show format info when no format fields are present', async () => {
-      // Default mock returns { common: {} } with no format data
-      renderPlayer();
-      await flushMicrotasks();
-
-      expect(screen.queryByLabelText('Audio format info')).not.toBeInTheDocument();
-    });
-  });
+  // Note: metadata display tests removed — metadata parsing (music-metadata)
+  // was removed when AudioPlayer switched from Uint8Array data to URL-based streaming.
 
   // ── Buffering state transition tests ────────────────────────────────
 
@@ -1274,13 +1168,14 @@ describe('AudioPlayer component', () => {
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
       });
+      await waitFor(() => expect(screen.getByText('Playing')).toBeInTheDocument());
 
       // Fire waiting event
       await act(async () => {
         audio.dispatchEvent(new Event('waiting'));
       });
 
-      expect(screen.getByText('Buffering')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('Buffering')).toBeInTheDocument());
     });
 
     it('clears Buffering when playing event fires after waiting', async () => {
@@ -1293,17 +1188,21 @@ describe('AudioPlayer component', () => {
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
       });
+      await waitFor(() => expect(screen.getByText('Playing')).toBeInTheDocument());
+
       await act(async () => {
         audio.dispatchEvent(new Event('waiting'));
       });
-      expect(screen.getByText('Buffering')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('Buffering')).toBeInTheDocument());
 
       await act(async () => {
         audio.dispatchEvent(new Event('playing'));
       });
       // Should now show Playing, not Buffering
-      expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
-      expect(screen.getByText('Playing')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
+        expect(screen.getByText('Playing')).toBeInTheDocument();
+      });
     });
 
     it('shows Buffering on stalled when readyState < 3', async () => {
@@ -1336,6 +1235,7 @@ describe('AudioPlayer component', () => {
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
       });
+      await waitFor(() => expect(screen.getByText('Playing')).toBeInTheDocument());
 
       // Set readyState >= 3 (HAVE_FUTURE_DATA = 3)
       Object.defineProperty(audio, 'readyState', { value: 3, configurable: true });
@@ -1344,17 +1244,100 @@ describe('AudioPlayer component', () => {
       });
 
       // Should show Playing, not Buffering
-      expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
-      expect(screen.getByText('Playing')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
+        expect(screen.getByText('Playing')).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ── Retry on error tests ────────────────────────────────────────────
+
+  describe('retry on transient error', () => {
+    it('does not show error on first SRC_NOT_SUPPORTED (retries transparently)', async () => {
+      vi.useFakeTimers();
+      renderPlayer();
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      // Error should not be shown — retry is pending
+      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
+      // Loading spinner should still be visible
+      expect(screen.getByTestId('spinner')).toBeInTheDocument();
+      vi.useRealTimers();
+    });
+
+    it('retries loading after 500ms delay on first error', async () => {
+      vi.useFakeTimers();
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      const loadSpy = vi.spyOn(audio, 'load');
+
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      expect(loadSpy).not.toHaveBeenCalled();
+
+      // Advance past retry delay
+      await act(async () => { vi.advanceTimersByTime(500); });
+      expect(loadSpy).toHaveBeenCalledOnce();
+
+      loadSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('shows error after all retries are exhausted', async () => {
+      vi.useFakeTimers();
+      renderPlayer();
+
+      // Error 1 → retry 1
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      await act(async () => { vi.advanceTimersByTime(500); });
+
+      // Error 2 → retry 2
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      await act(async () => { vi.advanceTimersByTime(1000); });
+
+      // Error 3 → retries exhausted
+      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      expect(screen.getByText(/Audio format not supported/)).toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('shows non-retryable errors immediately', async () => {
+      renderPlayer();
+      await fireAudioError(MEDIA_ERR_DECODE);
+      expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
     });
   });
 
   // ── Visualization failure fallback test ─────────────────────────────
 
   describe('visualization failure fallback', () => {
+    it('shows fallback text when fetch for PCM decode fails', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      // Flush the rejected fetch promise
+      await flushMicrotasks();
+
+      expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
+
+      globalThis.fetch = originalFetch;
+    });
+
     it('shows fallback text when PCM decodeAudioData rejects', async () => {
-      // Override OfflineAudioContext to reject decodeAudioData
+      const originalFetch = globalThis.fetch;
       const originalOAC = globalThis.OfflineAudioContext;
+
+      // fetch succeeds but decodeAudioData fails
+      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
+        if (opts?.method === 'HEAD') {
+          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': '1000' }) });
+        }
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(1000)) });
+      });
       globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
         decodeAudioData: vi.fn().mockRejectedValue(new Error('decode failed')),
       })) as unknown as typeof OfflineAudioContext;
@@ -1363,20 +1346,57 @@ describe('AudioPlayer component', () => {
       const audio = document.querySelector('audio')!;
       makeAudioControllable(audio);
       await fireCanPlay();
-      // Flush the rejected decode promise
       await flushMicrotasks();
 
       expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
 
-      // Restore
+      globalThis.fetch = originalFetch;
       globalThis.OfflineAudioContext = originalOAC;
     });
 
+    it('shows fallback for files exceeding 100MB size limit', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
+        if (opts?.method === 'HEAD') {
+          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': String(150 * 1024 * 1024) }) });
+        }
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) });
+      });
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      await flushMicrotasks();
+
+      expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
+
+      globalThis.fetch = originalFetch;
+    });
+
+    it('does not show fallback when PCM decode succeeds', async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
+        if (opts?.method === 'HEAD') {
+          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': '1000' }) });
+        }
+        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(1000)) });
+      });
+
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      await flushMicrotasks();
+
+      expect(screen.queryByText('Visualization unavailable for this format')).not.toBeInTheDocument();
+
+      globalThis.fetch = originalFetch;
+    });
+
     it('keeps playback controls functional when visualization fails', async () => {
-      const originalOAC = globalThis.OfflineAudioContext;
-      globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
-        decodeAudioData: vi.fn().mockRejectedValue(new Error('decode failed')),
-      })) as unknown as typeof OfflineAudioContext;
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
 
       renderPlayer();
       const audio = document.querySelector('audio')!;
@@ -1392,7 +1412,7 @@ describe('AudioPlayer component', () => {
       });
       expect(playMock).toHaveBeenCalled();
 
-      globalThis.OfflineAudioContext = originalOAC;
+      globalThis.fetch = originalFetch;
     });
   });
 

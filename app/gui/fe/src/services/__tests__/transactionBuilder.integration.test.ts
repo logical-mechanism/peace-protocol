@@ -38,6 +38,8 @@ const {
     spendingTxInReference: vi.fn().mockReturnThis(),
     txInInlineDatumPresent: vi.fn().mockReturnThis(),
     txInRedeemerValue: vi.fn().mockReturnThis(),
+    invalidBefore: vi.fn().mockReturnThis(),
+    invalidHereafter: vi.fn().mockReturnThis(),
     // Property set by createTxBuilder
     txEvaluationMultiplier: 1.0,
   };
@@ -107,12 +109,11 @@ vi.mock('../metadata', () => ({
 }));
 
 vi.mock('../crypto/fileEncryption', () => ({
-  encryptFileForUpload: vi.fn(),
   encodeFileSecret: vi.fn(),
 }));
 
 vi.mock('../iagonApi', () => ({
-  uploadFile: vi.fn(),
+  encryptAndUpload: vi.fn(),
   listFiles: vi.fn(),
 }));
 
@@ -218,6 +219,12 @@ beforeEach(() => {
   mockWallet.submitTx.mockResolvedValue('submitted_tx_hash_abc123');
   mockCreateBidArtifacts.mockResolvedValue(bidArtifacts);
   mockFetcher.fetchAddressUTxOs.mockResolvedValue([genesisRefUtxo]);
+
+  // Mock fetch for Ogmios health endpoint (fetchCurrentSlot)
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve({ lastKnownTip: { slot: 100_000 } }),
+  }));
 
   // Reset tx builder chain
   Object.values(mockTxBuilder).forEach(fn => {
@@ -411,7 +418,7 @@ describe('placeBid integration', () => {
     const datum = datumCall[0];
 
     expect(datum.constructor).toBe(0);
-    expect(datum.fields).toHaveLength(4);
+    expect(datum.fields).toHaveLength(5);
     // Field 0: owner_vkh
     expect(datum.fields[0]).toHaveProperty('bytes');
     // Field 1: register (constructor 0 with 2 fields: generator, public_value)
@@ -420,6 +427,8 @@ describe('placeBid integration', () => {
     expect(datum.fields[2]).toHaveProperty('bytes');
     // Field 3: encryption token name
     expect(datum.fields[3].bytes).toBe('enc_token');
+    // Field 4: locked_until (POSIX ms)
+    expect(datum.fields[4]).toHaveProperty('int');
   });
 });
 
@@ -429,7 +438,7 @@ describe('cancelBid integration', () => {
   const bidInput = {
     tokenName: 'bid_token_name_hex',
     utxo: { txHash: 'b'.repeat(64), outputIndex: 0 },
-    datum: { owner_vkh: 'abc123def456abc123def456abc123de' },
+    datum: { owner_vkh: 'abc123def456abc123def456abc123de', locked_until: 0 },
   };
 
   it('returns success with txHash', async () => {
@@ -602,7 +611,7 @@ describe('listing + bid lifecycle', () => {
     await cancelBid(mockWallet as never, {
       tokenName: bidTokenName,
       utxo: { txHash: 'f'.repeat(64), outputIndex: 0 },
-      datum: { owner_vkh: 'abc123def456abc123def456abc123de' },
+      datum: { owner_vkh: 'abc123def456abc123def456abc123de', locked_until: 0 },
     });
 
     const cancelMintCall = mockTxBuilder.mint.mock.calls[0];

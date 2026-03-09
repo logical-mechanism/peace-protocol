@@ -826,9 +826,12 @@ export async function placeBid(
     }
 
     // 8. Build inline datum (BidDatum)
-    // Field order must match Aiken: owner_vkh, owner_g1, pointer, token
+    // Field order must match Aiken: owner_vkh, owner_g1, pointer, token, locked_until
     // pointer = bid token name (validated == token_name on-chain)
     // token = encryption token name (the one being bid on)
+    // locked_until = 2 * minimum_bid_lock (12 hours) from now
+    const MINIMUM_BID_LOCK_MS = 6 * 60 * 60 * 1000; // 6 hours, matches on-chain constant
+    const lockedUntil = Date.now() + 2 * MINIMUM_BID_LOCK_MS;
     const datum = {
       constructor: 0,
       fields: [
@@ -836,6 +839,7 @@ export async function placeBid(
         artifacts.plutusJson.register,           // owner_g1: Register { generator, public_value }
         { bytes: bidTokenName },                 // pointer (bid token name)
         { bytes: encryptionTokenName },          // token (encryption token name)
+        { int: lockedUntil },                    // locked_until (POSIX ms)
       ],
     };
 
@@ -854,6 +858,11 @@ export async function placeBid(
 
     // Bid amount in lovelace (the ADA locked at the script IS the bid)
     const bidAmountLovelace = Math.floor(bidAmountAda * 1_000_000).toString();
+
+    // 10a. Compute validity interval (contract requires finite upper bound for lock check)
+    const currentSlot = await fetchCurrentSlot(blockfrost);
+    const invalidBefore = currentSlot - 60;     // ~1 minute ago
+    const invalidHereafter = currentSlot + 900; // ~15 minutes from now
 
     const txBuilder = new MeshTxBuilder({
       fetcher: blockfrost,
@@ -899,6 +908,9 @@ export async function placeBid(
       )
       // Required signer (validator checks owner_vkh is a signer)
       .requiredSignerHash(ownerPkh)
+      // Validity interval (on-chain lock check needs finite upper bound)
+      .invalidBefore(invalidBefore)
+      .invalidHereafter(invalidHereafter)
       // Change and UTxO selection
       // Exclude firstUtxo from coin selection pool — it's already an explicit input.
       // Including it causes the selector to undercount available ADA.
@@ -1004,6 +1016,12 @@ export async function cancelBid(
 
     // 4. Build transaction
     const blockfrost = getBlockfrostProvider();
+
+    // 5. Set validity interval so on-chain lb > locked_until check passes
+    const currentSlot = await fetchCurrentSlot(blockfrost);
+    const invalidBefore = currentSlot - 60;     // ~1 minute ago
+    const invalidHereafter = currentSlot + 900; // ~15 minutes from now
+
     const txBuilder = new MeshTxBuilder({
       fetcher: blockfrost,
       evaluator: blockfrost,
@@ -1033,6 +1051,9 @@ export async function cancelBid(
       )
       // Required signer (owner must sign)
       .requiredSignerHash(ownerPkh)
+      // Validity interval (on-chain lock check needs finite lower bound)
+      .invalidBefore(invalidBefore)
+      .invalidHereafter(invalidHereafter)
       // Change and UTxO selection
       .changeAddress(changeAddress)
       .selectUtxosFrom(utxos)

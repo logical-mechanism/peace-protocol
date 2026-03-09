@@ -29,8 +29,8 @@ describe('getFriendlyError', () => {
       expect(result.action).toBe('Wait for the node to finish syncing, then try again.');
     });
 
-    it('matches port 1442', () => {
-      expectTitle('connect ECONNREFUSED 127.0.0.1:1442', 'Kupo Unavailable');
+    it('matches port 44203', () => {
+      expectTitle('connect ECONNREFUSED 127.0.0.1:44203', 'Kupo Unavailable');
     });
 
     it('matches kupo keyword', () => {
@@ -76,16 +76,20 @@ describe('getFriendlyError', () => {
       expect(getFriendlyError('Iagon API key expired').action).toContain('Settings');
     });
 
-    it('matches iagon quota error with 413', () => {
-      expectTitle('Iagon upload returned 413', 'Iagon Storage Limit');
+    it('matches iagon 413 error', () => {
+      expectTitle('Iagon upload returned 413', 'File Too Large for Iagon');
     });
 
-    it('matches iagon storage full', () => {
-      expectTitle('Iagon: storage full', 'Iagon Storage Limit');
+    it('matches FILE_TOO_LARGE error code', () => {
+      expectTitle('{"code":"FILE_TOO_LARGE","message":"File exceeds Iagon upload limit"}', 'File Too Large for Iagon');
     });
 
     it('matches iagon file too large', () => {
-      expectTitle('Iagon: file too large for upload', 'Iagon Storage Limit');
+      expectTitle('Iagon: file too large for upload', 'File Too Large for Iagon');
+    });
+
+    it('matches iagon storage full', () => {
+      expectTitle('Iagon: storage full', 'Iagon Storage Full');
     });
 
     it('matches generic iagon keyword', () => {

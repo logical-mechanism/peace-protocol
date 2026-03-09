@@ -4,7 +4,7 @@
  * Implements MeshSDK's IFetcher interface by translating
  * Kupo REST API responses into MeshSDK UTxO format.
  *
- * Kupo runs locally at http://localhost:1442 as a managed
+ * Kupo runs locally at http://localhost:44203 as a managed
  * process (started by Tauri in Phase 2).
  *
  * API reference: https://cardanosolutions.github.io/kupo/
@@ -56,7 +56,7 @@ interface KupoScript {
 export class KupoAdapter implements IFetcher {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://127.0.0.1:1442') {
+  constructor(baseUrl: string = 'http://127.0.0.1:44203') {
     this.baseUrl = baseUrl;
   }
 

@@ -37,7 +37,7 @@ describe('getKupoAdapter', () => {
     const { getKupoAdapter } = await import('../providers');
     const adapter = getKupoAdapter();
     expect(adapter).toBeDefined();
-    expect((adapter as unknown as { url: string }).url).toBe('http://127.0.0.1:1442');
+    expect((adapter as unknown as { url: string }).url).toBe('http://127.0.0.1:44203');
   });
 
   it('returns the same instance on repeated calls (singleton)', async () => {

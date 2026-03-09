@@ -33,7 +33,8 @@ function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: st
 }
 
 interface AudioPlayerProps {
-  data: Uint8Array;
+  /** Direct URL to the audio file (asset:// protocol from Tauri convertFileSrc). */
+  src: string;
   fileExtension: string;
   onExport?: () => void;
 }
@@ -147,33 +148,7 @@ const FFT_SIZE = 1024;
 const SMOOTHING = 0.8;
 const TARGET_FPS = 24;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
-const WAVEFORM_BUCKETS = 200;
-
-/** Downsample audio channels to peak values per bucket for waveform overview.
- *  For stereo, takes the max peak across both channels per sample. */
-function computeWaveformSummary(channels: Float32Array[], buckets: number): Float32Array {
-  if (channels.length === 0 || channels[0].length === 0) return new Float32Array(0);
-  const samplesPerBucket = Math.floor(channels[0].length / buckets);
-  if (samplesPerBucket < 1) return new Float32Array(0);
-  const summary = new Float32Array(buckets);
-  const isStereo = channels.length >= 2;
-  for (let i = 0; i < buckets; i++) {
-    let max = 0;
-    const start = i * samplesPerBucket;
-    for (let j = 0; j < samplesPerBucket; j++) {
-      let abs = Math.abs(channels[0][start + j] || 0);
-      if (isStereo) {
-        const absR = Math.abs(channels[1][start + j] || 0);
-        if (absR > abs) abs = absR;
-      }
-      if (abs > max) max = abs;
-    }
-    summary[i] = max;
-  }
-  return summary;
-}
-
-export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlayerProps) {
+export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -188,6 +163,21 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const [showKeyHints, setShowKeyHints] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [visualizationFailed, setVisualizationFailed] = useState(false);
+
+  // Reset playback state when src changes (React "adjusting state during render" pattern)
+  const [prevSrc, setPrevSrc] = useState(src);
+  if (prevSrc !== src) {
+    setPrevSrc(src);
+    setIsReady(false);
+    setError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setPlaybackRate(1.0);
+    setMetadata(null);
+    setIsBuffering(false);
+    setVisualizationFailed(false);
+  }
 
   // Native <audio> element for playback — no Web Audio API in the output path
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -224,6 +214,8 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   const seekBarTooltipRef = useRef<HTMLDivElement | null>(null);
   const waveformTooltipRef = useRef<HTMLDivElement | null>(null);
   const pcmDecodedRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- Cache CSS gradient colors (avoids getComputedStyle per frame) ---
 
@@ -258,15 +250,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const audio = audioRef.current;
     if (!audio) return;
 
-    setIsReady(false);
-    setError(null);
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setPlaybackRate(1.0);
-    setMetadata(null);
-    setIsBuffering(false);
-    setVisualizationFailed(false);
+    // State resets happen in render (prevSrcRef check above); only reset refs here
     isPlayingRef.current = false;
     vizTimeRef.current = 0;
     lastDrawTimeRef.current = 0;
@@ -276,34 +260,12 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     bufferRef.current = null;
     waveformDataRef.current = null;
     pcmDecodedRef.current = false;
+    retryCountRef.current = 0;
+    if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
 
-    // Blob URL for native <audio> playback — GStreamer handles output directly,
+    // Stream directly from disk via asset:// URL — GStreamer handles output directly,
     // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
-    const blob = new Blob([data], { type: getMimeType(fileExtension) });
-    const url = URL.createObjectURL(blob);
-    audio.src = url;
-
-    // Parse ID3/Vorbis metadata (best-effort, doesn't affect playback)
-    import('music-metadata').then(({ parseBuffer }) => {
-      parseBuffer(new Uint8Array(data), { mimeType: getMimeType(fileExtension) })
-        .then(result => {
-          if (cancelled) return;
-          const { common, format } = result;
-          const pic = common.picture?.[0];
-          setMetadata({
-            title: common.title,
-            artist: common.artist,
-            album: common.album,
-            trackNumber: common.track?.no ?? undefined,
-            year: common.year,
-            picture: pic ? { data: new Uint8Array(pic.data), format: pic.format } : null,
-            bitrate: format?.bitrate,
-            sampleRate: format?.sampleRate,
-            channels: format?.numberOfChannels,
-          });
-        })
-        .catch((err) => { console.warn('AudioPlayer: metadata parse failed', err); });
-    }).catch((err) => { console.warn('AudioPlayer: music-metadata import failed', err); });
+    audio.src = src;
 
     const onLoadedMetadata = () => {
       if (cancelled) return;
@@ -317,6 +279,57 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       const d = audio.duration;
       if (isFinite(d) && d > 0) setDuration(d);
     };
+    // Background PCM decode: fetch audio bytes + decode via OfflineAudioContext
+    // for FFT bar visualization. Playback still uses native <audio> (GStreamer).
+    async function decodePcmForVisualization() {
+      try {
+        // Size guard: skip files > 100 MB to avoid memory pressure
+        const head = await fetch(src, { method: 'HEAD' });
+        if (cancelled) return;
+        const size = parseInt(head.headers.get('content-length') || '0', 10);
+        if (size > 100 * 1024 * 1024) { setVisualizationFailed(true); return; }
+
+        const resp = await fetch(src);
+        if (cancelled) return;
+        if (!resp.ok) { setVisualizationFailed(true); return; }
+        const arrayBuffer = await resp.arrayBuffer();
+        if (cancelled) return;
+
+        // OfflineAudioContext for decoding only — no audio output needed
+        const offlineCtx = new OfflineAudioContext(1, 1, 44100);
+        const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+        if (cancelled) return;
+
+        bufferRef.current = audioBuffer;
+
+        // Generate waveform overview (480 buckets = canvas width)
+        const channel = audioBuffer.getChannelData(0);
+        const bucketCount = 480;
+        const bucketSize = Math.floor(channel.length / bucketCount);
+        if (bucketSize > 0) {
+          const waveform = new Float32Array(bucketCount);
+          for (let i = 0; i < bucketCount; i++) {
+            let sum = 0;
+            const start = i * bucketSize;
+            for (let j = start; j < start + bucketSize && j < channel.length; j++) {
+              sum += Math.abs(channel[j]);
+            }
+            waveform[i] = sum / bucketSize;
+          }
+          let max = 0;
+          for (let i = 0; i < waveform.length; i++) if (waveform[i] > max) max = waveform[i];
+          if (max > 0) for (let i = 0; i < waveform.length; i++) waveform[i] /= max;
+          waveformDataRef.current = waveform;
+        }
+
+        setVisualizationFailed(false);
+        drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
+        startLoopRef.current?.();
+      } catch {
+        if (!cancelled) setVisualizationFailed(true);
+      }
+    }
+
     const onCanPlay = () => {
       if (cancelled) return;
       // Only reset if GStreamer reported a genuinely non-zero start position.
@@ -326,34 +339,10 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
         audio.currentTime = 0;
       }
       setIsReady(true);
-      // Start PCM decode now that GStreamer pipeline is fully ready.
-      // Decoding before canplay contends with GStreamer on the audio thread,
-      // causing skipping/lagging on initial playback.
+      // Kick off background PCM decode for FFT visualization
       if (!pcmDecodedRef.current) {
         pcmDecodedRef.current = true;
-        const offlineCtx = new OfflineAudioContext(2, 1, 44100);
-        const PCM_DECODE_TIMEOUT = 15_000;
-        Promise.race([
-          offlineCtx.decodeAudioData(
-            data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
-          ),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('PCM decode timeout')), PCM_DECODE_TIMEOUT),
-          ),
-        ])
-          .then(buffer => {
-            if (cancelled) return;
-            bufferRef.current = buffer;
-            const channels: Float32Array[] = [];
-            for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-              channels.push(buffer.getChannelData(ch));
-            }
-            waveformDataRef.current = computeWaveformSummary(channels, WAVEFORM_BUCKETS);
-            drawWaveformRef.current?.(0);
-          })
-          .catch(() => {
-            if (!cancelled) setVisualizationFailed(true);
-          });
+        decodePcmForVisualization();
       }
     };
     const onTimeUpdate = () => {
@@ -382,6 +371,16 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     const onError = () => {
       if (cancelled) return;
       const code = audio.error?.code;
+      // Retry on SRC_NOT_SUPPORTED — transient GStreamer/media server race on first load
+      if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED && retryCountRef.current < 2) {
+        retryCountRef.current++;
+        retryTimerRef.current = setTimeout(() => {
+          if (cancelled) return;
+          audio.src = src;
+          audio.load();
+        }, 500 * retryCountRef.current);
+        return;
+      }
       if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
         setError('Audio format not supported. Try converting to MP3 or OGG.');
       } else {
@@ -410,6 +409,7 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
     return () => {
       cancelled = true;
       audio.pause();
+      if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('canplay', onCanPlay);
@@ -420,17 +420,16 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('stalled', onStalled);
       audio.removeEventListener('seeked', onSeeked);
-      // Detach from GStreamer before revoking
+      // Detach from GStreamer
       audio.removeAttribute('src');
       audio.load();
-      URL.revokeObjectURL(url);
       cancelAnimationFrame(rafRef.current);
       // Release decoded PCM data for immediate GC
       bufferRef.current = null;
       waveformDataRef.current = null;
       lastDrawnPixelRef.current = -1;
     };
-  }, [data, fileExtension]);
+  }, [src]);
 
   // --- Waveform overview drawing ---
 
@@ -472,7 +471,9 @@ export default function AudioPlayer({ data, fileExtension, onExport }: AudioPlay
   }, []);
 
   // Keep ref in sync so the data-loading effect can call it without a dependency
-  drawWaveformRef.current = drawWaveform;
+  useEffect(() => {
+    drawWaveformRef.current = drawWaveform;
+  });
 
   // --- Visualization: FFT computed from decoded AudioBuffer ---
 
