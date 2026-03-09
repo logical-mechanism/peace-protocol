@@ -4,6 +4,18 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] - 2026-03-08
+
+### Added
+- Improved GUI with enhanced video player, audio player, and accessibility features
+- Bid timelock to mitigate grief attacks on the smart contracts
+- File upload limit increased from 100 MB to 1 GB
+
+### Changed
+- Kupo port from 1442 to 44203
+- FFmpeg WASM bundled locally (no CDN dependency)
+- Removed proof-of-concept statements as the project matures
+
 ## [0.3.0] - 2026-02-15
 
 ### Added
