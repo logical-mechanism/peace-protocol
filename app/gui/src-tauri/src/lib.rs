@@ -16,6 +16,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+/// Flag to prevent premature node start between mithril download completion
+/// and snapshot-to-LMDB conversion. Checked by `get_node_status`.
+pub struct MithrilConversionPending(pub AtomicBool);
+
 // ── Media streaming server ──────────────────────────────────────────────────
 // WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
 // (asset://, media://) for <video>/<audio> elements. Work around this by
@@ -305,6 +309,10 @@ pub fn run() {
             let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
             app.manage(node_manager);
 
+            // Mithril conversion flag — prevents node from starting between
+            // download completion and LMDB conversion finishing
+            app.manage(MithrilConversionPending(AtomicBool::new(false)));
+
             // App-specific temp directory — wiped on startup to clean crash orphans
             // (SNARK temp files contain secret cryptographic material)
             let app_tmp_dir = app_data_dir.join("tmp");
@@ -440,7 +448,6 @@ pub fn run() {
             commands::node::start_node,
             commands::node::stop_node,
             commands::node::start_mithril_bootstrap,
-            commands::node::convert_ledger_to_lmdb,
             commands::node::get_process_logs,
             // Chain commands (Koios direct)
             commands::chain::get_network_tip,

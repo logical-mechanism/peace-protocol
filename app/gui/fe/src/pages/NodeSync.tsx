@@ -479,9 +479,22 @@ export default function NodeSync() {
     case 'bootstrapping':
       progressPercent = mithrilProgress?.progress_percent ?? 0
       if (mithrilProgress) {
-        const downloaded = formatBytes(mithrilProgress.bytes_downloaded)
-        const total = formatBytes(mithrilProgress.total_bytes)
-        statusMessage = mithrilProgress.message || `Downloading snapshot: ${downloaded} / ${total}`
+        if (mithrilProgress.stage === 'Converting') {
+          statusMessage = 'Converting snapshot to LMDB format...'
+          progressPercent = 100 // Download is done; conversion is indeterminate
+        } else if (mithrilProgress.message?.includes('Files')) {
+          // Files phase: bytes_downloaded/total_bytes contain file counts (not bytes)
+          const filesDown = mithrilProgress.bytes_downloaded
+          const filesTotal = mithrilProgress.total_bytes
+          statusMessage = `Downloading snapshot: ${filesDown.toLocaleString()} / ${filesTotal.toLocaleString()} files`
+        } else if (mithrilProgress.bytes_downloaded > 0) {
+          // Ancillary phase: actual byte counts
+          const downloaded = formatBytes(mithrilProgress.bytes_downloaded)
+          const total = formatBytes(mithrilProgress.total_bytes)
+          statusMessage = `Downloading ledger state: ${downloaded} / ${total}`
+        } else {
+          statusMessage = mithrilProgress.message || 'Downloading snapshot...'
+        }
       } else {
         statusMessage = 'Preparing to download blockchain snapshot...'
       }
@@ -544,7 +557,7 @@ export default function NodeSync() {
                 {stage === 'stopped'
                   ? 'Node Setup'
                   : stage === 'bootstrapping'
-                  ? (mithrilProgress?.stage === 'Converting' ? 'Converting Ledger' : 'Downloading Snapshot')
+                  ? 'Downloading Snapshot'
                   : stage === 'starting'
                   ? 'Starting Node'
                   : stage === 'syncing'

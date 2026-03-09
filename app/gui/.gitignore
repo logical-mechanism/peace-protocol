@@ -14,6 +14,10 @@ target/
 src-tauri/target/
 src-tauri/gen/
 
+# Chain data (should only exist in app_data_dir, not source tree)
+src-tauri/mainnet/
+src-tauri/preprod/
+
 # Sidecar binaries (platform-specific, ~18-100MB each)
 src-tauri/binaries/
 

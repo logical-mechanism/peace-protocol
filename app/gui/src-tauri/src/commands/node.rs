@@ -1,8 +1,10 @@
 use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
 use crate::process::{cardano, cardano_cli, express, kupo, mithril, ogmios};
+use crate::MithrilConversionPending;
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use tauri::Manager;
 
 /// Cached app data directory path, resolved once at startup.
@@ -86,6 +88,16 @@ pub async fn get_node_status(
         ) {
             return Ok(empty_status(OverallNodeState::Bootstrapping));
         }
+    }
+
+    // Check if LMDB conversion is pending (gap between download complete and conversion start/finish).
+    // This prevents the frontend from auto-starting the node prematurely.
+    let conversion_pending = app_handle
+        .try_state::<MithrilConversionPending>()
+        .map(|s| s.0.load(Ordering::SeqCst))
+        .unwrap_or(false);
+    if conversion_pending {
+        return Ok(empty_status(OverallNodeState::Bootstrapping));
     }
 
     // Check if any process has an error
@@ -364,7 +376,7 @@ pub async fn stop_node(manager: tauri::State<'_, NodeManager>) -> Result<(), Str
     Ok(())
 }
 
-/// Trigger a Mithril snapshot download for bootstrapping
+/// Trigger a Mithril snapshot download + LMDB conversion for bootstrapping
 #[tauri::command]
 pub async fn start_mithril_bootstrap(
     manager: tauri::State<'_, NodeManager>,
@@ -372,19 +384,7 @@ pub async fn start_mithril_bootstrap(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let config = app_handle.state::<AppConfig>();
-    mithril::start_mithril_bootstrap(&manager, &config, &app_data_dir.0).await
-}
-
-/// Convert the downloaded Mithril ledger snapshot from InMemory to LMDB format.
-/// Called by the frontend after bootstrap completes, before starting the node.
-/// Blocks until the conversion process exits (not fire-and-forget).
-#[tauri::command]
-pub async fn convert_ledger_to_lmdb(
-    app_data_dir: tauri::State<'_, AppDataDir>,
-    app_handle: tauri::AppHandle,
-) -> Result<(), String> {
-    let config = app_handle.state::<AppConfig>();
-    mithril::convert_to_lmdb(&app_handle, &config, &app_data_dir.0).await
+    mithril::start_mithril_bootstrap(&manager, &config, &app_data_dir.0, &app_handle).await
 }
 
 /// Get recent log lines for a specific process
