@@ -88,7 +88,7 @@ pub async fn start_mithril_bootstrap(
     ];
 
     manager
-        .start("mithril-client", "mithril-client", args)
+        .start("mithril-client", "mithril-client", args, None)
         .await?;
 
     // Spawn background orchestrator: wait for download → run LMDB conversion

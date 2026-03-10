@@ -154,7 +154,9 @@ pub async fn start_cardano_node(
     }
 
     let args = config.build_args();
-    manager.start("cardano-node", "cardano-node", args).await
+    manager
+        .start("cardano-node", "cardano-node", args, Some(&config.db_dir))
+        .await
 }
 
 /// Check if cardano-node has a database (i.e., has been bootstrapped).

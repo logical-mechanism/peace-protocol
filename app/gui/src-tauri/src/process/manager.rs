@@ -63,6 +63,7 @@ enum LaunchInfo {
     Sidecar {
         sidecar_name: String,
         args: Vec<String>,
+        _cwd: Option<std::path::PathBuf>,
     },
     Command {
         _program: String,
@@ -413,6 +414,7 @@ impl NodeManager {
         name: &str,
         sidecar_name: &str,
         args: Vec<String>,
+        cwd: Option<&std::path::PathBuf>,
     ) -> Result<(), String> {
         // Stop existing process gracefully if running
         self.stop(name).await?;
@@ -427,6 +429,7 @@ impl NodeManager {
                 proc.launch_info = Some(LaunchInfo::Sidecar {
                     sidecar_name: sidecar_name.to_string(),
                     args: args.clone(),
+                    _cwd: cwd.cloned(),
                 });
             } else {
                 // Auto-register if not already registered
@@ -446,6 +449,7 @@ impl NodeManager {
                         launch_info: Some(LaunchInfo::Sidecar {
                             sidecar_name: sidecar_name.to_string(),
                             args: args.clone(),
+                            _cwd: cwd.cloned(),
                         }),
                         user_stopped: false,
                         shutdown_timeout_secs: default_shutdown_timeout(name),
@@ -473,6 +477,11 @@ impl NodeManager {
         })?;
 
         let command = command.args(args);
+        let command = if let Some(dir) = cwd {
+            command.current_dir(dir)
+        } else {
+            command
+        };
 
         let (mut rx, child) = command.spawn().map_err(|e| {
             let msg = format!("Failed to spawn '{}': {}", sidecar_name, e);
@@ -641,7 +650,11 @@ impl NodeManager {
                                     drop(procs);
 
                                     // Schedule restart after delay
-                                    if let Some(LaunchInfo::Sidecar { sidecar_name, args }) = launch
+                                    if let Some(LaunchInfo::Sidecar {
+                                        sidecar_name,
+                                        args,
+                                        _cwd,
+                                    }) = launch
                                     {
                                         let app2 = app_handle.clone();
                                         let procs2 = processes.clone();
@@ -676,9 +689,13 @@ impl NodeManager {
 
                                             let shell = app2.shell();
                                             if let Ok(cmd) = shell.sidecar(&sidecar_name) {
-                                                if let Ok((mut rx2, child2)) =
-                                                    cmd.args(&args).spawn()
-                                                {
+                                                let cmd = cmd.args(&args);
+                                                let cmd = if let Some(dir) = &_cwd {
+                                                    cmd.current_dir(dir)
+                                                } else {
+                                                    cmd
+                                                };
+                                                if let Ok((mut rx2, child2)) = cmd.spawn() {
                                                     let pid2 = child2.pid();
                                                     {
                                                         let mut p = procs2.lock().await;
