@@ -58,3 +58,29 @@ pub async fn ogmios_fetch(url: String) -> Result<String, String> {
         .await
         .map_err(|e| format!("Failed to read Ogmios response: {e}"))
 }
+
+/// POST a JSON-RPC request to the local Ogmios instance (port 1337).
+/// Used for evaluateTransaction and submitTransaction — replaces WebSocket
+/// calls that WebKitGTK may block in cross-scheme contexts.
+#[tauri::command]
+pub async fn ogmios_post(body: String) -> Result<String, String> {
+    let url = "http://127.0.0.1:1337";
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+    let resp = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| format!("Ogmios POST request failed: {e}"))?;
+
+    // Don't check status — Ogmios returns HTTP 400 for valid JSON-RPC errors.
+    // The frontend parses json.error and throws with the actual error message.
+    resp.text()
+        .await
+        .map_err(|e| format!("Failed to read Ogmios POST response: {e}"))
+}

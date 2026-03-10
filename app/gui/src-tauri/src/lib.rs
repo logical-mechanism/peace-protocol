@@ -491,6 +491,7 @@ pub fn run() {
             // Kupo/Ogmios HTTP proxy commands (bypass CORS)
             commands::kupo_proxy::kupo_fetch,
             commands::kupo_proxy::ogmios_fetch,
+            commands::kupo_proxy::ogmios_post,
             // Iagon HTTP proxy commands (bypass CORS)
             commands::iagon::iagon_get_nonce,
             commands::iagon::iagon_verify,
