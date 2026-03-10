@@ -79,7 +79,7 @@ enum LaunchInfo {
 ///   SHUTDOWN_TIMEOUT_CARDANO, SHUTDOWN_TIMEOUT_MITHRIL, SHUTDOWN_TIMEOUT_DEFAULT
 fn default_shutdown_timeout(name: &str) -> u64 {
     let (env_key, fallback) = match name {
-        "cardano-node" => ("SHUTDOWN_TIMEOUT_CARDANO", 45),
+        "cardano-node" => ("SHUTDOWN_TIMEOUT_CARDANO", 90),
         "mithril-client" => ("SHUTDOWN_TIMEOUT_MITHRIL", 30),
         _ => ("SHUTDOWN_TIMEOUT_DEFAULT", 10),
     };
@@ -1145,7 +1145,7 @@ impl NodeManager {
     /// Synchronous graceful shutdown of ALL tracked processes.
     /// Called from the RunEvent::Exit handler where async may not work reliably.
     ///
-    /// Sends SIGTERM first and waits up to 30 seconds for processes to exit
+    /// Sends SIGTERM first and waits up to 90 seconds for processes to exit
     /// cleanly (cardano-node needs this to flush its ledger state to disk).
     /// Only falls back to SIGKILL for processes that don't exit in time.
     pub fn kill_all_sync(&self, app_handle: &tauri::AppHandle) {
@@ -1195,10 +1195,10 @@ impl NodeManager {
             send_signal(*pid, libc::SIGTERM);
         }
 
-        // Step 2: Wait up to 30 seconds for all to exit gracefully.
+        // Step 2: Wait up to 90 seconds for all to exit gracefully.
         // cardano-node needs time to flush its in-memory ledger to disk.
         let start_time = std::time::Instant::now();
-        let deadline = start_time + std::time::Duration::from_secs(30);
+        let deadline = start_time + std::time::Duration::from_secs(90);
         loop {
             let still_alive: Vec<u32> = all_pids
                 .iter()
@@ -1212,7 +1212,7 @@ impl NodeManager {
                 "shutdown-progress",
                 serde_json::json!({
                     "elapsed_secs": elapsed,
-                    "timeout_secs": 30u64,
+                    "timeout_secs": 90u64,
                     "remaining_processes": still_alive.len(),
                 }),
             );
@@ -1753,7 +1753,7 @@ mod tests {
         std::env::remove_var("SHUTDOWN_TIMEOUT_MITHRIL");
         std::env::remove_var("SHUTDOWN_TIMEOUT_DEFAULT");
 
-        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        assert_eq!(default_shutdown_timeout("cardano-node"), 90);
         assert_eq!(default_shutdown_timeout("mithril-client"), 30);
         assert_eq!(default_shutdown_timeout("ogmios"), 10);
         assert_eq!(default_shutdown_timeout("kupo"), 10);
@@ -1776,7 +1776,7 @@ mod tests {
 
         // Invalid value falls back to default
         std::env::set_var("SHUTDOWN_TIMEOUT_CARDANO", "not_a_number");
-        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        assert_eq!(default_shutdown_timeout("cardano-node"), 90);
         std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
     }
 
