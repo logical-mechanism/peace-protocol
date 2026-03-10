@@ -374,6 +374,18 @@ export default function NodeSync() {
   useEffect(() => {
     if (stage !== 'bootstrapping' || !mithrilProgress) return
 
+    // Clear samples during non-download phases (Files phase uses file counts not bytes,
+    // Converting/Complete have no meaningful speed)
+    if (
+      mithrilProgress.stage === 'Converting' ||
+      mithrilProgress.stage === 'Complete' ||
+      mithrilProgress.message?.includes('Files')
+    ) {
+      mithrilSamplesRef.current = []
+      lastMithrilBytesRef.current = 0
+      return
+    }
+
     const { bytes_downloaded, total_bytes } = mithrilProgress
     if (bytes_downloaded !== lastMithrilBytesRef.current && bytes_downloaded > 0) {
       lastMithrilBytesRef.current = bytes_downloaded
@@ -403,6 +415,14 @@ export default function NodeSync() {
       }
     }
   }, [stage, mithrilProgress])
+
+  // Hide speed/ETA during non-download phases (Converting, Complete, Files)
+  const isNonDownloadPhase = stage !== 'bootstrapping' || !mithrilProgress ||
+    mithrilProgress.stage === 'Converting' ||
+    mithrilProgress.stage === 'Complete' ||
+    mithrilProgress.message?.includes('Files')
+  const displayMithrilSpeed = isNonDownloadPhase ? null : mithrilSpeed
+  const displayMithrilEta = isNonDownloadPhase ? null : mithrilEta
 
   // Detect when sync is stuck at >= 99% for 60+ seconds
   useEffect(() => {
@@ -479,9 +499,22 @@ export default function NodeSync() {
     case 'bootstrapping':
       progressPercent = mithrilProgress?.progress_percent ?? 0
       if (mithrilProgress) {
-        const downloaded = formatBytes(mithrilProgress.bytes_downloaded)
-        const total = formatBytes(mithrilProgress.total_bytes)
-        statusMessage = mithrilProgress.message || `Downloading snapshot: ${downloaded} / ${total}`
+        if (mithrilProgress.stage === 'Converting') {
+          statusMessage = mithrilProgress.message || 'Converting snapshot to LMDB format...'
+          progressPercent = mithrilProgress.progress_percent
+        } else if (mithrilProgress.message?.includes('Files')) {
+          // Files phase: bytes_downloaded/total_bytes contain file counts (not bytes)
+          const filesDown = mithrilProgress.bytes_downloaded
+          const filesTotal = mithrilProgress.total_bytes
+          statusMessage = `Downloading snapshot: ${filesDown.toLocaleString()} / ${filesTotal.toLocaleString()} files`
+        } else if (mithrilProgress.bytes_downloaded > 0) {
+          // Ancillary phase: actual byte counts
+          const downloaded = formatBytes(mithrilProgress.bytes_downloaded)
+          const total = formatBytes(mithrilProgress.total_bytes)
+          statusMessage = `Downloading ledger state: ${downloaded} / ${total}`
+        } else {
+          statusMessage = mithrilProgress.message || 'Downloading snapshot...'
+        }
       } else {
         statusMessage = 'Preparing to download blockchain snapshot...'
       }
@@ -640,9 +673,9 @@ export default function NodeSync() {
                 <span>{statusMessage}</span>
                 <span>{Math.round(progressPercent)}%</span>
               </div>
-              {(mithrilSpeed || mithrilEta) && (
+              {(displayMithrilSpeed || displayMithrilEta) && (
                 <div className="mt-[var(--space-1)] text-center text-xs text-[var(--text-muted)]">
-                  {mithrilSpeed}{mithrilSpeed && mithrilEta && ' \u2014 '}{mithrilEta}
+                  {displayMithrilSpeed}{displayMithrilSpeed && displayMithrilEta && ' \u2014 '}{displayMithrilEta}
                 </div>
               )}
             </div>

@@ -55,6 +55,14 @@ const {
 
 // ── Mock external dependencies ──────────────────────────────────────
 
+const { mockInvokeForTxBuilder } = vi.hoisted(() => ({
+  mockInvokeForTxBuilder: vi.fn(),
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: mockInvokeForTxBuilder,
+}));
+
 vi.mock('@meshsdk/core', () => ({
   MeshTxBuilder: vi.fn(() => mockTxBuilder),
   deserializeAddress: vi.fn(() => ({
@@ -220,11 +228,10 @@ beforeEach(() => {
   mockCreateBidArtifacts.mockResolvedValue(bidArtifacts);
   mockFetcher.fetchAddressUTxOs.mockResolvedValue([genesisRefUtxo]);
 
-  // Mock fetch for Ogmios health endpoint (fetchCurrentSlot)
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve({ lastKnownTip: { slot: 100_000 } }),
-  }));
+  // Mock invoke for Ogmios health endpoint (fetchCurrentSlot via Tauri IPC)
+  mockInvokeForTxBuilder.mockResolvedValue(
+    JSON.stringify({ lastKnownTip: { slot: 100_000 } })
+  );
 
   // Reset tx builder chain
   Object.values(mockTxBuilder).forEach(fn => {

@@ -1008,22 +1008,19 @@ export default function Dashboard() {
       throw new Error(result.error || 'Failed to create listing')
     }
 
-    // Save content to local library so the creator's own files appear in Library tab
-    if (result.tokenName) {
+    // Save text content to local library (file-based listings are already
+    // saved in transactionBuilder.ts via copyToLibrary)
+    if (result.tokenName && formData.category === 'text') {
       try {
-        const category = formData.category;
-        const contentBytes = category === 'text'
-          ? new TextEncoder().encode(formData.secretMessage)
-          : new Uint8Array(await formData.file!.arrayBuffer());
-
-        await saveDecryptedContent(result.tokenName, category, contentBytes);
+        const contentBytes = new TextEncoder().encode(formData.secretMessage);
+        await saveDecryptedContent(result.tokenName, 'text', contentBytes);
         await saveContentMetadata({
           tokenName: result.tokenName,
           description: formData.description,
           suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
-          storageLayer: category === 'text' ? 'on-chain' : 'iagon',
+          storageLayer: 'on-chain',
           imageLink: formData.imageLink || undefined,
-          category,
+          category: 'text',
           seller: address,
           decryptedAt: new Date().toISOString(),
           fileSize: contentBytes.length,

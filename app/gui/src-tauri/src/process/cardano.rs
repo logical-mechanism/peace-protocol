@@ -12,14 +12,23 @@ pub struct CardanoNodeConfig {
 
 impl CardanoNodeConfig {
     /// Build config paths from app config and data directory.
-    /// Note: Mithril v1 extracts the snapshot into a `db/` subdirectory within
-    /// the download-dir, so cardano-node's database-path must point there.
+    /// Mithril v2 extracts directly into the download-dir.
+    /// Legacy v1 extracted into a `db/` subdirectory — we check for that
+    /// and use it if present (backward compat for existing users).
     pub fn new(app_config: &AppConfig, app_data_dir: &Path) -> Self {
         let config_dir = app_config.config_dir(app_data_dir);
+        let base_db = app_config.node_db_dir(app_data_dir);
+        // v1 extracted into db/ subdirectory; v2 extracts directly.
+        // Use v1 path if it exists (backward compat), otherwise v2 path.
+        let db_dir = if base_db.join("db").join("immutable").exists() {
+            base_db.join("db")
+        } else {
+            base_db
+        };
         Self {
             config_json: config_dir.join("config.json"),
             topology_json: config_dir.join("topology.json"),
-            db_dir: app_config.node_db_dir(app_data_dir).join("db"),
+            db_dir,
             socket_path: app_config.node_socket_path(app_data_dir),
         }
     }
@@ -62,10 +71,12 @@ impl CardanoNodeConfig {
             .filter(|p| p.exists())
             .collect();
 
-        // List of config files to copy
-        let files = [
-            "config.json",
-            "topology.json",
+        // Config files to copy from resources.
+        // config.json and topology.json are always overwritten so that changes
+        // (e.g. V2InMemory → V1LMDB ledger backend) take effect on upgrade.
+        // Genesis files are large and stable — only copied if missing.
+        let always_overwrite = ["config.json", "topology.json"];
+        let copy_if_missing = [
             "byron-genesis.json",
             "shelley-genesis.json",
             "alonzo-genesis.json",
@@ -73,9 +84,15 @@ impl CardanoNodeConfig {
             "peer-snapshot.json",
         ];
 
-        for file in &files {
+        let all_files: Vec<(&str, bool)> = always_overwrite
+            .iter()
+            .map(|f| (*f, true))
+            .chain(copy_if_missing.iter().map(|f| (*f, false)))
+            .collect();
+
+        for (file, overwrite) in &all_files {
             let dst = config_dir.join(file);
-            if !dst.exists() {
+            if *overwrite || !dst.exists() {
                 let found = source_dirs.iter().find_map(|dir| {
                     let src = dir.join(file);
                     if src.exists() {
@@ -141,8 +158,9 @@ pub async fn start_cardano_node(
 }
 
 /// Check if cardano-node has a database (i.e., has been bootstrapped).
-/// Mithril v1 extracts to `node-db/db/`, so we check for markers there.
+/// Checks both v2 path (node-db/) and legacy v1 path (node-db/db/).
 pub fn has_chain_data(app_config: &AppConfig, app_data_dir: &Path) -> bool {
-    let db_dir = app_config.node_db_dir(app_data_dir).join("db");
-    db_dir.join("protocolMagicId").exists() || db_dir.join("immutable").exists()
+    let base_db = app_config.node_db_dir(app_data_dir);
+    let check = |dir: &Path| dir.join("protocolMagicId").exists() || dir.join("immutable").exists();
+    check(&base_db) || check(&base_db.join("db"))
 }

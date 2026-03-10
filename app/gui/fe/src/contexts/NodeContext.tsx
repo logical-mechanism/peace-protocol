@@ -117,6 +117,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const [kupoConnected, setKupoConnected] = useState<boolean | null>(null)
   const [kupoSecondsSinceLastBlock, setKupoSecondsSinceLastBlock] = useState<number | null>(null)
   const mountedRef = useRef(true)
+  const bootstrapInFlightRef = useRef(false)
 
   // Listen for Tauri events from Rust backend
   useEffect(() => {
@@ -141,14 +142,11 @@ export function NodeProvider({ children }: { children: ReactNode }) {
       })
     )
 
-    // Mithril progress events
+    // Mithril progress events (download progress)
     unlisteners.push(
       listen<MithrilProgress>('mithril-progress', (event) => {
         if (!mountedRef.current) return
         setMithrilProgress(event.payload)
-        if (event.payload.stage === 'Complete') {
-          setStage('starting')
-        }
       })
     )
 
@@ -188,7 +186,12 @@ export function NodeProvider({ children }: { children: ReactNode }) {
         Synced: 'synced',
         Error: 'error',
       }
-      setStage(stageMap[status.overall] || 'stopped')
+      // Don't let the poll override an optimistic bootstrapping stage
+      // while the invoke is still in flight (avoids flash back to 'stopped')
+      const newStage = stageMap[status.overall] || 'stopped'
+      if (!(bootstrapInFlightRef.current && newStage === 'stopped')) {
+        setStage(newStage)
+      }
 
       // Clear error when things are running fine
       if (status.overall !== 'Error') {
@@ -226,12 +229,15 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   const startBootstrap = useCallback(async () => {
     setError(null)
     setStage('bootstrapping')
+    bootstrapInFlightRef.current = true
     try {
       await invoke('start_mithril_bootstrap')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)
       setStage('error')
+    } finally {
+      bootstrapInFlightRef.current = false
     }
   }, [])
 

@@ -558,6 +558,15 @@ impl NodeManager {
                             }
                         }
 
+                        // Emit structured mithril-progress events (download progress comes on stderr)
+                        if process_name == "mithril-client" {
+                            if let Some(progress) =
+                                crate::process::mithril::parse_mithril_output(&line)
+                            {
+                                let _ = app_handle.emit("mithril-progress", progress);
+                            }
+                        }
+
                         let _ = app_handle.emit(
                             "process-status",
                             ProcessEvent {
@@ -756,6 +765,12 @@ impl NodeManager {
                                                                             proc.append_log(
                                                                                 log_line.clone(),
                                                                             );
+                                                                        }
+                                                                    }
+                                                                    // Emit structured mithril-progress events (download progress comes on stderr)
+                                                                    if pname3 == "mithril-client" {
+                                                                        if let Some(progress) = crate::process::mithril::parse_mithril_output(&line) {
+                                                                            let _ = app3.emit("mithril-progress", progress);
                                                                         }
                                                                     }
                                                                     let _ = app3.emit("process-status", ProcessEvent {

@@ -12,6 +12,7 @@
  * - ENCRYPTION_REF_OUTPUT_INDEX_PREPROD=1
  */
 
+import { invoke } from '@tauri-apps/api/core';
 import { MeshTxBuilder, deserializeAddress } from '@meshsdk/core';
 import type { IWallet } from '@meshsdk/core';
 import { getKupoAdapter, getOgmiosProvider } from './providers';
@@ -61,6 +62,17 @@ function excludeUtxos<T extends { input: { txHash: string; outputIndex: number }
       u.input.txHash === e.input.txHash && u.input.outputIndex === e.input.outputIndex
     )
   );
+}
+
+/** Race a promise against a timeout. Turns silent hangs into visible errors. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
 }
 
 // Cardano protocol parameter (preprod/mainnet)
@@ -531,39 +543,44 @@ export async function createListing(
     const encryptionAddress = config.contracts.encryptionAddress;
     const refScript = config.referenceScripts.encryption;
 
-    const unsignedTx = await txBuilder
-      .txIn(
-        firstUtxo.input.txHash,
-        firstUtxo.input.outputIndex,
-        firstUtxo.output.amount,
-        firstUtxo.output.address
-      )
-      .mintPlutusScriptV3()
-      .mint('1', policyId, tokenName)
-      .mintTxInReference(refScript.txHash, refScript.outputIndex)
-      .mintRedeemerValue(mintRedeemer, 'JSON')
-      .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
-        { unit: policyId + tokenName, quantity: '1' },
-      ])
-      .txOutInlineDatumValue(datum, 'JSON')
-      .txInCollateral(
-        collateral[0].input.txHash,
-        collateral[0].input.outputIndex,
-        collateral[0].output.amount,
-        collateral[0].output.address
-      )
-      .requiredSignerHash(ownerPkh)
-      .metadataValue(674, buildEncryptionMetadata(
-        formData.description,
-        formData.suggestedPrice || '0',
-        getStorageLayerUri(formData),
-        formData.imageLink || '',
-        formData.category,
-      ))
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
-      .complete();
+    const unsignedTx = await withTimeout(
+      txBuilder
+        .txIn(
+          firstUtxo.input.txHash,
+          firstUtxo.input.outputIndex,
+          firstUtxo.output.amount,
+          firstUtxo.output.address
+        )
+        .mintPlutusScriptV3()
+        .mint('1', policyId, tokenName)
+        .mintTxInReference(refScript.txHash, refScript.outputIndex)
+        .mintRedeemerValue(mintRedeemer, 'JSON')
+        .txOut(encryptionAddress, [
+          { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
+          { unit: policyId + tokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(datum, 'JSON')
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        .requiredSignerHash(ownerPkh)
+        .metadataValue(674, buildEncryptionMetadata(
+          formData.description,
+          formData.suggestedPrice || '0',
+          getStorageLayerUri(formData),
+          formData.imageLink || '',
+          formData.category,
+        ))
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
+        .complete(),
+      180_000,
+      'createListing tx build',
+    );
+
 
     onProgress?.('signing');
     const signedTx = await wallet.signTx(unsignedTx);
@@ -777,39 +794,43 @@ export async function retryListingFromDraft(
     const encryptionAddress = config.contracts.encryptionAddress;
     const refScript = config.referenceScripts.encryption;
 
-    const unsignedTx = await txBuilder
-      .txIn(
-        firstUtxo.input.txHash,
-        firstUtxo.input.outputIndex,
-        firstUtxo.output.amount,
-        firstUtxo.output.address
-      )
-      .mintPlutusScriptV3()
-      .mint('1', policyId, tokenName)
-      .mintTxInReference(refScript.txHash, refScript.outputIndex)
-      .mintRedeemerValue(mintRedeemer, 'JSON')
-      .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
-        { unit: policyId + tokenName, quantity: '1' },
-      ])
-      .txOutInlineDatumValue(datum, 'JSON')
-      .txInCollateral(
-        collateral[0].input.txHash,
-        collateral[0].input.outputIndex,
-        collateral[0].output.amount,
-        collateral[0].output.address
-      )
-      .requiredSignerHash(ownerPkh)
-      .metadataValue(674, buildEncryptionMetadata(
-        draft.description,
-        draft.suggestedPrice || '0',
-        'iagon',
+    const unsignedTx = await withTimeout(
+      txBuilder
+        .txIn(
+          firstUtxo.input.txHash,
+          firstUtxo.input.outputIndex,
+          firstUtxo.output.amount,
+          firstUtxo.output.address
+        )
+        .mintPlutusScriptV3()
+        .mint('1', policyId, tokenName)
+        .mintTxInReference(refScript.txHash, refScript.outputIndex)
+        .mintRedeemerValue(mintRedeemer, 'JSON')
+        .txOut(encryptionAddress, [
+          { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
+          { unit: policyId + tokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(datum, 'JSON')
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        .requiredSignerHash(ownerPkh)
+        .metadataValue(674, buildEncryptionMetadata(
+          draft.description,
+          draft.suggestedPrice || '0',
+          'iagon',
         draft.imageLink || '',
         draft.category,
       ))
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
-      .complete();
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
+        .complete(),
+      180_000,
+      'retryListingFromDraft tx build',
+    );
 
     onProgress?.('signing');
     const signedTx = await wallet.signTx(unsignedTx);
@@ -915,34 +936,38 @@ export async function removeListing(
     // 4. Build transaction
     const txBuilder = createTxBuilder();
 
-    const unsignedTx = await txBuilder
-      // Spend the encryption contract UTxO
-      .spendingPlutusScriptV3()
-      .txIn(
-        encryption.utxo.txHash,
-        encryption.utxo.outputIndex
-      )
-      .spendingTxInReference(refScript.txHash, refScript.outputIndex)
-      .txInInlineDatumPresent()
-      .txInRedeemerValue(spendRedeemer, 'JSON')
-      // Burn -1 encryption token using reference script
-      .mintPlutusScriptV3()
-      .mint('-1', policyId, encryption.tokenName)
-      .mintTxInReference(refScript.txHash, refScript.outputIndex)
-      .mintRedeemerValue(mintRedeemer, 'JSON')
-      // Collateral
-      .txInCollateral(
-        collateral[0].input.txHash,
-        collateral[0].input.outputIndex,
-        collateral[0].output.amount,
-        collateral[0].output.address
-      )
-      // Required signer (owner must sign)
-      .requiredSignerHash(ownerPkh)
-      // Change and UTxO selection
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
-      .complete();
+    const unsignedTx = await withTimeout(
+      txBuilder
+        // Spend the encryption contract UTxO
+        .spendingPlutusScriptV3()
+        .txIn(
+          encryption.utxo.txHash,
+          encryption.utxo.outputIndex
+        )
+        .spendingTxInReference(refScript.txHash, refScript.outputIndex)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(spendRedeemer, 'JSON')
+        // Burn -1 encryption token using reference script
+        .mintPlutusScriptV3()
+        .mint('-1', policyId, encryption.tokenName)
+        .mintTxInReference(refScript.txHash, refScript.outputIndex)
+        .mintRedeemerValue(mintRedeemer, 'JSON')
+        // Collateral
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        // Required signer (owner must sign)
+        .requiredSignerHash(ownerPkh)
+        // Change and UTxO selection
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
+        .complete(),
+      180_000,
+      'removeListing tx build',
+    );
 
     // 5. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
@@ -1058,35 +1083,39 @@ export async function cancelPendingListing(
     // 5. Build transaction
     const txBuilder = createTxBuilder();
 
-    const unsignedTx = await txBuilder
-      .spendingPlutusScriptV3()
-      .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
-      .spendingTxInReference(refScript.txHash, refScript.outputIndex)
-      .txInInlineDatumPresent()
-      .txInRedeemerValue(spendRedeemer, 'JSON')
-      // Output: encryption with Open status
-      .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
-        { unit: policyId + encryption.tokenName, quantity: '1' },
-      ])
-      .txOutInlineDatumValue(outputDatum, 'JSON')
-      .txInCollateral(
-        collateral[0].input.txHash,
-        collateral[0].input.outputIndex,
-        collateral[0].output.amount,
-        collateral[0].output.address
-      )
-      .requiredSignerHash(ownerPkh)
-      .metadataValue(674, buildEncryptionMetadata(
-        encryption.description || '',
-        encryption.suggestedPrice?.toString() || '0',
-        encryption.storageLayer || '',
-        encryption.imageLink || '',
-        encryption.category || '',
-      ))
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
-      .complete();
+    const unsignedTx = await withTimeout(
+      txBuilder
+        .spendingPlutusScriptV3()
+        .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
+        .spendingTxInReference(refScript.txHash, refScript.outputIndex)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(spendRedeemer, 'JSON')
+        // Output: encryption with Open status
+        .txOut(encryptionAddress, [
+          { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
+          { unit: policyId + encryption.tokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(outputDatum, 'JSON')
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        .requiredSignerHash(ownerPkh)
+        .metadataValue(674, buildEncryptionMetadata(
+          encryption.description || '',
+          encryption.suggestedPrice?.toString() || '0',
+          encryption.storageLayer || '',
+          encryption.imageLink || '',
+          encryption.category || '',
+        ))
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
+        .complete(),
+      180_000,
+      'cancelPendingListing tx build',
+    );
 
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
@@ -1283,59 +1312,63 @@ export async function placeBid(
 
     const txBuilder = createTxBuilder();
 
-    const unsignedTx = await txBuilder
-      // Explicit first input (bid token name is derived from this UTxO)
-      .txIn(
-        firstUtxo.input.txHash,
-        firstUtxo.input.outputIndex,
-        firstUtxo.output.amount,
-        firstUtxo.output.address
-      )
-      // Read-only reference: genesis token UTxO (provides ReferenceDatum)
-      .readOnlyTxInReference(
-        genesisUtxo.input.txHash,
-        genesisUtxo.input.outputIndex
-      )
-      // Read-only reference: encryption UTxO (validates encryption exists)
-      .readOnlyTxInReference(
-        encryptionUtxo.txHash,
-        encryptionUtxo.outputIndex
-      )
-      // Mint +1 bid token using reference script
-      .mintPlutusScriptV3()
-      .mint('1', biddingPolicyId, bidTokenName)
-      .mintTxInReference(refScript.txHash, refScript.outputIndex)
-      .mintRedeemerValue(mintRedeemer, 'JSON')
-      // Output to bidding contract with inline datum
-      // The lovelace locked here IS the bid amount
-      .txOut(biddingAddress, [
-        { unit: 'lovelace', quantity: bidAmountLovelace },
-        { unit: biddingPolicyId + bidTokenName, quantity: '1' },
-      ])
-      .txOutInlineDatumValue(datum, 'JSON')
-      // Collateral for script execution
-      .txInCollateral(
-        collateral[0].input.txHash,
-        collateral[0].input.outputIndex,
-        collateral[0].output.amount,
-        collateral[0].output.address
-      )
-      // Required signer (validator checks owner_vkh is a signer)
-      .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata: only the bidder's desired future listing price
-      // Description and storageLayer are the seller's data — carried forward
-      // in Phase 12e/12f from the encryption UTxO, not from the bid.
-      .metadataValue(674, buildBidMetadata(
-        metadata?.futurePrice?.toString() || '',
-      ))
-      // Validity interval (on-chain lock check needs finite upper bound)
-      .invalidBefore(invalidBefore)
-      .invalidHereafter(invalidHereafter)
-      // Change and UTxO selection
-      // Exclude firstUtxo (explicit input) and collateral from coin selection.
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
-      .complete();
+    const unsignedTx = await withTimeout(
+      txBuilder
+        // Explicit first input (bid token name is derived from this UTxO)
+        .txIn(
+          firstUtxo.input.txHash,
+          firstUtxo.input.outputIndex,
+          firstUtxo.output.amount,
+          firstUtxo.output.address
+        )
+        // Read-only reference: genesis token UTxO (provides ReferenceDatum)
+        .readOnlyTxInReference(
+          genesisUtxo.input.txHash,
+          genesisUtxo.input.outputIndex
+        )
+        // Read-only reference: encryption UTxO (validates encryption exists)
+        .readOnlyTxInReference(
+          encryptionUtxo.txHash,
+          encryptionUtxo.outputIndex
+        )
+        // Mint +1 bid token using reference script
+        .mintPlutusScriptV3()
+        .mint('1', biddingPolicyId, bidTokenName)
+        .mintTxInReference(refScript.txHash, refScript.outputIndex)
+        .mintRedeemerValue(mintRedeemer, 'JSON')
+        // Output to bidding contract with inline datum
+        // The lovelace locked here IS the bid amount
+        .txOut(biddingAddress, [
+          { unit: 'lovelace', quantity: bidAmountLovelace },
+          { unit: biddingPolicyId + bidTokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(datum, 'JSON')
+        // Collateral for script execution
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        // Required signer (validator checks owner_vkh is a signer)
+        .requiredSignerHash(ownerPkh)
+        // CIP-20 metadata: only the bidder's desired future listing price
+        // Description and storageLayer are the seller's data — carried forward
+        // in Phase 12e/12f from the encryption UTxO, not from the bid.
+        .metadataValue(674, buildBidMetadata(
+          metadata?.futurePrice?.toString() || '',
+        ))
+        // Validity interval (on-chain lock check needs finite upper bound)
+        .invalidBefore(invalidBefore)
+        .invalidHereafter(invalidHereafter)
+        // Change and UTxO selection
+        // Exclude firstUtxo (explicit input) and collateral from coin selection.
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
+        .complete(),
+      180_000,
+      'placeBid tx build',
+    );
 
     // 11. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
@@ -1444,37 +1477,41 @@ export async function cancelBid(
     // 6. Build transaction
     const txBuilder = createTxBuilder();
 
-    const unsignedTx = await txBuilder
-      // Spend the bid contract UTxO
-      .spendingPlutusScriptV3()
-      .txIn(
-        bid.utxo.txHash,
-        bid.utxo.outputIndex
-      )
-      .spendingTxInReference(refScript.txHash, refScript.outputIndex)
-      .txInInlineDatumPresent()
-      .txInRedeemerValue(spendRedeemer, 'JSON')
-      // Burn -1 bid token using reference script
-      .mintPlutusScriptV3()
-      .mint('-1', policyId, bid.tokenName)
-      .mintTxInReference(refScript.txHash, refScript.outputIndex)
-      .mintRedeemerValue(mintRedeemer, 'JSON')
-      // Validity interval: lower bound must be past locked_until
-      .invalidBefore(invalidBeforeSlot)
-      .invalidHereafter(invalidHereafterSlot)
-      // Collateral
-      .txInCollateral(
-        collateral[0].input.txHash,
-        collateral[0].input.outputIndex,
-        collateral[0].output.amount,
-        collateral[0].output.address
-      )
-      // Required signer (owner must sign)
-      .requiredSignerHash(ownerPkh)
-      // Change and UTxO selection
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
-      .complete();
+    const unsignedTx = await withTimeout(
+      txBuilder
+        // Spend the bid contract UTxO
+        .spendingPlutusScriptV3()
+        .txIn(
+          bid.utxo.txHash,
+          bid.utxo.outputIndex
+        )
+        .spendingTxInReference(refScript.txHash, refScript.outputIndex)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(spendRedeemer, 'JSON')
+        // Burn -1 bid token using reference script
+        .mintPlutusScriptV3()
+        .mint('-1', policyId, bid.tokenName)
+        .mintTxInReference(refScript.txHash, refScript.outputIndex)
+        .mintRedeemerValue(mintRedeemer, 'JSON')
+        // Validity interval: lower bound must be past locked_until
+        .invalidBefore(invalidBeforeSlot)
+        .invalidHereafter(invalidHereafterSlot)
+        // Collateral
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        // Required signer (owner must sign)
+        .requiredSignerHash(ownerPkh)
+        // Change and UTxO selection
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
+        .complete(),
+      180_000,
+      'cancelBid tx build',
+    );
 
     // 5. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
@@ -1773,7 +1810,7 @@ export async function acceptBidSnark(
 
     let unsignedTx: string;
     try {
-      unsignedTx = await txBuilder.complete();
+      unsignedTx = await withTimeout(txBuilder.complete(), 180_000, 'acceptBidSnark tx build');
     } catch (evalError) {
       console.error('[acceptBidSnark] .complete() FAILED - evaluation error:', evalError);
       // Try to get the raw CBOR without evaluation for manual debugging
@@ -2092,53 +2129,57 @@ export async function completeReEncryption(
 
     const txBuilder = createTxBuilder();
 
-    const unsignedTx = await txBuilder
-      // Spend encryption UTxO with UseEncryption redeemer
-      .spendingPlutusScriptV3()
-      .txIn(currentEncUtxo.input.txHash, currentEncUtxo.input.outputIndex)
-      .spendingTxInReference(encRefScript.txHash, encRefScript.outputIndex)
-      .txInInlineDatumPresent()
-      .txInRedeemerValue(encryptionRedeemer, 'JSON')
-      // Spend bid UTxO with UseBid redeemer
-      .spendingPlutusScriptV3()
-      .txIn(bid.utxo.txHash, bid.utxo.outputIndex)
-      .spendingTxInReference(bidRefScript.txHash, bidRefScript.outputIndex)
-      .txInInlineDatumPresent()
-      .txInRedeemerValue(bidRedeemer, 'JSON')
-      // Output: encryption with new owner, new level, Open status
-      .txOut(encryptionAddress, [
-        { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
-        { unit: encPolicyId + encryption.tokenName, quantity: '1' },
-      ])
-      .txOutInlineDatumValue(outputDatum, 'JSON')
-      // Burn -1 bid token
-      .mintPlutusScriptV3()
-      .mint('-1', bidPolicyId, bid.tokenName)
-      .mintTxInReference(bidRefScript.txHash, bidRefScript.outputIndex)
-      .mintRedeemerValue(bidBurnRedeemer, 'JSON')
-      // Read-only reference: genesis token UTxO
-      .readOnlyTxInReference(genesisUtxo.input.txHash, genesisUtxo.input.outputIndex)
-      // Collateral
-      .txInCollateral(
-        collateral[0].input.txHash,
-        collateral[0].input.outputIndex,
-        collateral[0].output.amount,
-        collateral[0].output.address
-      )
-      // Required signer
-      .requiredSignerHash(ownerPkh)
-      // CIP-20 metadata: carry forward description, storageLayer, category; use bidder's future price
-      .metadataValue(674, buildEncryptionMetadata(
-        encryption.description || '',
-        (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
-        encryption.storageLayer || '',
-        encryption.imageLink || '',
-        encryption.category || '',
-      ))
-      // Change and UTxO selection
-      .changeAddress(changeAddress)
-      .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
-      .complete();
+    const unsignedTx = await withTimeout(
+      txBuilder
+        // Spend encryption UTxO with UseEncryption redeemer
+        .spendingPlutusScriptV3()
+        .txIn(currentEncUtxo.input.txHash, currentEncUtxo.input.outputIndex)
+        .spendingTxInReference(encRefScript.txHash, encRefScript.outputIndex)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(encryptionRedeemer, 'JSON')
+        // Spend bid UTxO with UseBid redeemer
+        .spendingPlutusScriptV3()
+        .txIn(bid.utxo.txHash, bid.utxo.outputIndex)
+        .spendingTxInReference(bidRefScript.txHash, bidRefScript.outputIndex)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(bidRedeemer, 'JSON')
+        // Output: encryption with new owner, new level, Open status
+        .txOut(encryptionAddress, [
+          { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
+          { unit: encPolicyId + encryption.tokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(outputDatum, 'JSON')
+        // Burn -1 bid token
+        .mintPlutusScriptV3()
+        .mint('-1', bidPolicyId, bid.tokenName)
+        .mintTxInReference(bidRefScript.txHash, bidRefScript.outputIndex)
+        .mintRedeemerValue(bidBurnRedeemer, 'JSON')
+        // Read-only reference: genesis token UTxO
+        .readOnlyTxInReference(genesisUtxo.input.txHash, genesisUtxo.input.outputIndex)
+        // Collateral
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        // Required signer
+        .requiredSignerHash(ownerPkh)
+        // CIP-20 metadata: carry forward description, storageLayer, category; use bidder's future price
+        .metadataValue(674, buildEncryptionMetadata(
+          encryption.description || '',
+          (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
+          encryption.storageLayer || '',
+          encryption.imageLink || '',
+          encryption.category || '',
+        ))
+        // Change and UTxO selection
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
+        .complete(),
+      180_000,
+      'completeReEncryption tx build',
+    );
 
     // 17. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
@@ -2204,12 +2245,11 @@ async function fetchRewardBalance(
  * Ogmios /health returns JSON with lastKnownTip.slot.
  */
 async function fetchCurrentSlot(): Promise<number> {
-  const response = await fetch('http://127.0.0.1:1337/health');
-  if (!response.ok) {
-    throw new Error(`Ogmios health check failed: ${response.statusText}`);
-  }
-
-  const data = await response.json();
+  // Routed through Tauri IPC to bypass WebKitGTK CORS enforcement.
+  const body = await invoke<string>('ogmios_fetch', {
+    url: 'http://127.0.0.1:1337/health',
+  });
+  const data = JSON.parse(body);
   return data.lastKnownTip?.slot || 0;
 }
 

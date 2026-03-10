@@ -5,6 +5,8 @@
  * Tracks pending, confirmed, and failed transactions submitted via the dApp.
  */
 
+import { invoke } from '@tauri-apps/api/core';
+
 export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
 
@@ -193,23 +195,22 @@ export async function resolvePendingTxs(walletPkh: string): Promise<TransactionR
     // Skip stub tx hashes
     if (rec.txHash.startsWith('stub_')) continue;
     try {
-      // Check if Kupo has indexed any output from this transaction
-      const res = await fetch(
-        `http://127.0.0.1:44203/matches/*@${rec.txHash}`
-      );
-      if (res.ok) {
-        const matches = await res.json();
-        if (Array.isArray(matches) && matches.length > 0) {
-          rec.status = 'confirmed';
-          changed = true;
-        } else if (Date.now() - rec.timestamp > 5 * 60 * 1000) {
-          // No matches after 5 minutes — likely failed
-          rec.status = 'failed';
-          changed = true;
-        }
+      // Check if Kupo has indexed any output from this transaction.
+      // Routed through Tauri IPC to bypass WebKitGTK CORS enforcement.
+      const body = await invoke<string>('kupo_fetch', {
+        url: `http://127.0.0.1:44203/matches/*@${rec.txHash}`,
+      });
+      const matches = JSON.parse(body);
+      if (Array.isArray(matches) && matches.length > 0) {
+        rec.status = 'confirmed';
+        changed = true;
+      } else if (Date.now() - rec.timestamp > 5 * 60 * 1000) {
+        // No matches after 5 minutes — likely failed
+        rec.status = 'failed';
+        changed = true;
       }
     } catch {
-      // Network error, skip
+      // Network error or Kupo not ready, skip
     }
   }
 

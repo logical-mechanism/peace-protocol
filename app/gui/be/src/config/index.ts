@@ -66,18 +66,6 @@ export const config = {
       grothRefOutputIndex: parseOutputIndex(process.env.GROTH_REF_OUTPUT_INDEX_MAINNET, '1'),
     },
   },
-
-  // CORS — always allow local origins since this is a desktop app.
-  // In dev: Vite serves on 127.0.0.1:5173
-  // In prod: Tauri webview uses tauri://localhost or https://tauri.localhost
-  cors: {
-    origins: [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'tauri://localhost',
-      'https://tauri.localhost',
-    ] as string[],
-  },
 } as const;
 
 // Helper to get network-specific config
