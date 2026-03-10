@@ -81,18 +81,8 @@ export function useModalStack(
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, disabled, id, isTopModal, onClose]);
 
-  // Body scroll lock (based on shouldRender, not isOpen, to cover exit animation).
-  // Lock both <html> and <body> — WebKitGTK can scroll on either element.
-  useEffect(() => {
-    if (shouldRender) {
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
-    };
-  }, [shouldRender]);
+  // Body scroll lock is managed centrally by ModalContext (based on stack size)
+  // to avoid race conditions when multiple modals are open.
 
   return { zIndex: isOpen ? getZIndex(id) : 50, shouldRender, animationState };
 }
