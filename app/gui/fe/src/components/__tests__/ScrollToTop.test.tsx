@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import React from 'react';
 import ScrollToTop from '../ScrollToTop';
+import { ModalProvider } from '../../contexts/ModalContext';
+
+function renderScrollToTop(props: { threshold?: number } = {}) {
+  return render(
+    React.createElement(ModalProvider, null,
+      React.createElement(ScrollToTop, props),
+    ),
+  );
+}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -17,18 +27,18 @@ function simulateScroll(y: number) {
 
 describe('ScrollToTop', () => {
   it('is hidden when scroll position is below threshold', () => {
-    render(<ScrollToTop />);
+    renderScrollToTop();
     expect(screen.queryByLabelText('Scroll to top')).not.toBeInTheDocument();
   });
 
   it('appears when scroll exceeds default threshold (300px)', () => {
-    render(<ScrollToTop />);
+    renderScrollToTop();
     simulateScroll(301);
     expect(screen.getByLabelText('Scroll to top')).toBeInTheDocument();
   });
 
   it('respects custom threshold', () => {
-    render(<ScrollToTop threshold={100} />);
+    renderScrollToTop({ threshold: 100 });
     simulateScroll(50);
     expect(screen.queryByLabelText('Scroll to top')).not.toBeInTheDocument();
     simulateScroll(101);
@@ -36,7 +46,7 @@ describe('ScrollToTop', () => {
   });
 
   it('hides again when scrolling back up', () => {
-    render(<ScrollToTop />);
+    renderScrollToTop();
     simulateScroll(400);
     expect(screen.getByLabelText('Scroll to top')).toBeInTheDocument();
     simulateScroll(100);
@@ -45,7 +55,7 @@ describe('ScrollToTop', () => {
 
   it('calls window.scrollTo on click', () => {
     const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-    render(<ScrollToTop />);
+    renderScrollToTop();
     simulateScroll(500);
     fireEvent.click(screen.getByLabelText('Scroll to top'));
     expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });

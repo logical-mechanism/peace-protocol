@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useModal } from '../contexts/ModalContext';
 
 interface ScrollToTopProps {
   threshold?: number;  // Scroll distance before button appears (default: 300px)
@@ -6,6 +7,7 @@ interface ScrollToTopProps {
 
 export default function ScrollToTop({ threshold = 300 }: ScrollToTopProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const { hasOpenModal } = useModal();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,7 +29,7 @@ export default function ScrollToTop({ threshold = 300 }: ScrollToTopProps) {
     });
   }, []);
 
-  if (!isVisible) return null;
+  if (!isVisible || hasOpenModal) return null;
 
   return (
     <button

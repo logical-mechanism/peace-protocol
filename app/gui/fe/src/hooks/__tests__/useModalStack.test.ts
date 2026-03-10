@@ -92,7 +92,7 @@ describe('useModalStack', () => {
     expect(result.current.shouldRender).toBe(false);
   });
 
-  it('locks body and html scroll when shouldRender is true', () => {
+  it('locks body and html scroll when modal is open (via ModalContext)', () => {
     const { rerender } = renderModalStackHook(false);
     expect(document.body.style.overflow).not.toBe('hidden');
     expect(document.documentElement.style.overflow).not.toBe('hidden');
@@ -101,12 +101,8 @@ describe('useModalStack', () => {
     expect(document.body.style.overflow).toBe('hidden');
     expect(document.documentElement.style.overflow).toBe('hidden');
 
-    // Start closing — stays locked during exit animation
+    // Closing removes from stack, ModalContext unlocks scroll
     rerender({ isOpen: false, disabled: false });
-    expect(document.body.style.overflow).toBe('hidden');
-    expect(document.documentElement.style.overflow).toBe('hidden');
-
-    // After exit animation, unlocks
     act(() => { vi.advanceTimersByTime(150); });
     expect(document.body.style.overflow).toBe('');
     expect(document.documentElement.style.overflow).toBe('');
