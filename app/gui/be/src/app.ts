@@ -16,16 +16,10 @@ export function createApp() {
   app.use(requestTimeout());
 
   // CORS — allow all origins. This is a desktop-only app where the backend
-  // listens exclusively on 127.0.0.1:3001. WebKitGTK sends an unpredictable
-  // Origin header from the Tauri webview in production builds.
-  app.use(
-    cors({
-      origin: true,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    })
-  );
+  // listens exclusively on 127.0.0.1:3001. No cookies or credentials are used.
+  // Using '*' instead of origin-reflection avoids issues with WebKitGTK sending
+  // null or unpredictable Origin headers from custom Tauri schemes in production.
+  app.use(cors({ origin: '*' }));
 
   // Health check endpoint — returns 503 when unhealthy, 200 for healthy/degraded
   app.get('/health', async (_req: Request, res: Response) => {

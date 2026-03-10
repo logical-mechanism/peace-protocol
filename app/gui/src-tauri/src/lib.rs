@@ -488,6 +488,9 @@ pub fn run() {
             commands::iagon::get_iagon_api_key,
             commands::iagon::remove_iagon_api_key,
             commands::iagon::has_iagon_api_key,
+            // Kupo/Ogmios HTTP proxy commands (bypass CORS)
+            commands::kupo_proxy::kupo_fetch,
+            commands::kupo_proxy::ogmios_fetch,
             // Iagon HTTP proxy commands (bypass CORS)
             commands::iagon::iagon_get_nonce,
             commands::iagon::iagon_verify,

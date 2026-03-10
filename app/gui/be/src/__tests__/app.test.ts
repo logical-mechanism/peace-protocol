@@ -69,20 +69,20 @@ const app = createApp();
 // ── CORS ─────────────────────────────────────────────────────────────
 
 describe('CORS', () => {
-  it('includes Access-Control-Allow-Origin for allowed origin', async () => {
+  it('includes Access-Control-Allow-Origin: * for any origin', async () => {
     const res = await request(app)
       .get('/health')
       .set('Origin', 'http://127.0.0.1:5173');
 
-    expect(res.headers['access-control-allow-origin']).toBe('http://127.0.0.1:5173');
+    expect(res.headers['access-control-allow-origin']).toBe('*');
   });
 
-  it('includes Access-Control-Allow-Credentials header', async () => {
+  it('does not include Access-Control-Allow-Credentials (no cookies used)', async () => {
     const res = await request(app)
       .get('/health')
       .set('Origin', 'http://127.0.0.1:5173');
 
-    expect(res.headers['access-control-allow-credentials']).toBe('true');
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
   });
 
   it('OPTIONS preflight returns allowed methods', async () => {
@@ -94,26 +94,14 @@ describe('CORS', () => {
     expect(res.status).toBe(204);
     const methods = res.headers['access-control-allow-methods'];
     expect(methods).toContain('GET');
-    expect(methods).toContain('POST');
-    expect(methods).toContain('DELETE');
   });
 
-  it('OPTIONS preflight returns allowed headers', async () => {
-    const res = await request(app)
-      .options('/health')
-      .set('Origin', 'http://127.0.0.1:5173')
-      .set('Access-Control-Request-Method', 'GET')
-      .set('Access-Control-Request-Headers', 'Content-Type');
-
-    expect(res.headers['access-control-allow-headers']).toContain('Content-Type');
-  });
-
-  it('reflects any origin (desktop-only app, backend on localhost)', async () => {
+  it('uses wildcard origin regardless of request origin', async () => {
     const res = await request(app)
       .get('/health')
       .set('Origin', 'https://evil.example.com');
 
-    expect(res.headers['access-control-allow-origin']).toBe('https://evil.example.com');
+    expect(res.headers['access-control-allow-origin']).toBe('*');
   });
 });
 

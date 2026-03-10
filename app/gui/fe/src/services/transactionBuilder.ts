@@ -12,6 +12,7 @@
  * - ENCRYPTION_REF_OUTPUT_INDEX_PREPROD=1
  */
 
+import { invoke } from '@tauri-apps/api/core';
 import { MeshTxBuilder, deserializeAddress } from '@meshsdk/core';
 import type { IWallet } from '@meshsdk/core';
 import { getKupoAdapter, getOgmiosProvider } from './providers';
@@ -2204,12 +2205,11 @@ async function fetchRewardBalance(
  * Ogmios /health returns JSON with lastKnownTip.slot.
  */
 async function fetchCurrentSlot(): Promise<number> {
-  const response = await fetch('http://127.0.0.1:1337/health');
-  if (!response.ok) {
-    throw new Error(`Ogmios health check failed: ${response.statusText}`);
-  }
-
-  const data = await response.json();
+  // Routed through Tauri IPC to bypass WebKitGTK CORS enforcement.
+  const body = await invoke<string>('ogmios_fetch', {
+    url: 'http://127.0.0.1:1337/health',
+  });
+  const data = JSON.parse(body);
   return data.lastKnownTip?.slot || 0;
 }
 

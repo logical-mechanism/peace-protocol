@@ -4,12 +4,17 @@
  * Implements MeshSDK's IFetcher interface by translating
  * Kupo REST API responses into MeshSDK UTxO format.
  *
- * Kupo runs locally at http://localhost:44203 as a managed
+ * Kupo runs locally at http://127.0.0.1:44203 as a managed
  * process (started by Tauri in Phase 2).
+ *
+ * All HTTP requests are routed through Tauri IPC (invoke → reqwest)
+ * to bypass WebKitGTK CORS enforcement. Kupo serves no CORS headers,
+ * and different WebKitGTK versions handle cross-scheme requests differently.
  *
  * API reference: https://cardanosolutions.github.io/kupo/
  */
 
+import { invoke } from '@tauri-apps/api/core';
 import type { IFetcher } from '@meshsdk/core';
 import type {
   UTxO,
@@ -89,13 +94,10 @@ export class KupoAdapter implements IFetcher {
     return Promise.all(matches.map((m) => this.matchToUtxo(m)));
   }
 
-  /** Raw HTTP GET passthrough. */
+  /** Raw HTTP GET passthrough (routed through Tauri IPC). */
   async get(url: string): Promise<unknown> {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP GET failed: ${response.status} ${response.statusText}`);
-    }
-    return response.json();
+    const body = await invoke<string>('kupo_fetch', { url });
+    return JSON.parse(body);
   }
 
   // --- Unimplemented IFetcher methods (not used in this codebase) ---
@@ -146,11 +148,8 @@ export class KupoAdapter implements IFetcher {
    */
   private async queryMatches(pattern: string): Promise<KupoMatch[]> {
     const url = `${this.baseUrl}/matches/${pattern}?unspent&resolve_hashes`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Kupo query failed for ${pattern}: ${response.status} ${response.statusText}`);
-    }
-    return response.json();
+    const body = await invoke<string>('kupo_fetch', { url });
+    return JSON.parse(body);
   }
 
   /**
@@ -159,10 +158,13 @@ export class KupoAdapter implements IFetcher {
    */
   private async fetchScript(scriptHash: string): Promise<string | undefined> {
     const url = `${this.baseUrl}/scripts/${scriptHash}`;
-    const response = await fetch(url);
-    if (!response.ok) return undefined;
-    const data: KupoScript = await response.json();
-    return data.script ?? undefined;
+    try {
+      const body = await invoke<string>('kupo_fetch', { url });
+      const data: KupoScript = JSON.parse(body);
+      return data.script ?? undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
