@@ -1,9 +1,7 @@
-use crate::process::manager::NodeManager;
+use crate::process::manager::{spawn_clean_sidecar, NodeManager};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::Manager;
-use tauri_plugin_shell::process::CommandEvent;
-use tauri_plugin_shell::ShellExt;
 
 /// Managed state holding the app-specific temp directory.
 /// Created at startup, wiped on each launch to clean up crash orphans.
@@ -80,60 +78,36 @@ fn setup_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
 /// Spawn the snark sidecar, collect stdout, and return it on successful exit.
 /// Returns an error if the process exits with a non-zero code.
 async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
-    let shell = app.shell();
-    let command = shell
-        .sidecar("snark")
-        .map_err(|e| format!("Failed to create snark sidecar: {e}"))?;
-    let command = command.args(args);
+    let mut command = spawn_clean_sidecar("binaries/snark", &args)?;
 
-    let (mut rx, child) = command
+    let child = command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to spawn snark: {e}"))?;
 
     // Register the PID with NodeManager so the process is killed on app shutdown.
-    let pid = child.pid();
+    let pid = child.id().unwrap_or(0);
     let manager = app.state::<NodeManager>();
     manager.set_snark_pid(pid);
-    drop(child); // Process continues running; PID is tracked for cleanup.
 
-    let mut stdout_lines = Vec::new();
-    let mut stderr_lines = Vec::new();
-
-    while let Some(event) = rx.recv().await {
-        match event {
-            CommandEvent::Stdout(data) => {
-                let line = String::from_utf8_lossy(&data).trim().to_string();
-                if !line.is_empty() {
-                    stdout_lines.push(line);
-                }
-            }
-            CommandEvent::Stderr(data) => {
-                let line = String::from_utf8_lossy(&data).trim().to_string();
-                if !line.is_empty() {
-                    stderr_lines.push(line);
-                }
-            }
-            CommandEvent::Error(err) => {
-                manager.clear_snark_pid(pid);
-                return Err(format!("snark process error: {err}"));
-            }
-            CommandEvent::Terminated(payload) => {
-                manager.clear_snark_pid(pid);
-                if payload.code != Some(0) {
-                    let stderr = stderr_lines.join("\n");
-                    return Err(format!(
-                        "snark exited with code {:?}: {}",
-                        payload.code, stderr
-                    ));
-                }
-                break;
-            }
-            _ => {}
-        }
-    }
+    let output = child
+        .wait_with_output()
+        .await
+        .map_err(|e| format!("Failed to wait for snark: {e}"))?;
 
     manager.clear_snark_pid(pid);
-    Ok(stdout_lines.join("\n"))
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!(
+            "snark exited with code {:?}: {}",
+            output.status.code(),
+            stderr
+        ));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 /// Check if the SNARK setup files (pk.bin + ccs.bin) exist in the app data directory.

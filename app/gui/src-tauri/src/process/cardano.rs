@@ -155,7 +155,7 @@ pub async fn start_cardano_node(
 
     let args = config.build_args();
     manager
-        .start("cardano-node", "cardano-node", args, Some(&config.db_dir))
+        .start_sidecar("cardano-node", "cardano-node", args, Some(&config.db_dir))
         .await
 }
 

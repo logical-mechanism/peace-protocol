@@ -6,7 +6,9 @@
 /// (`invoke` → `reqwest`) bypasses browser CORS entirely.
 fn build_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(5))
         .timeout(std::time::Duration::from_secs(30))
+        .no_proxy()
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))
 }
@@ -48,7 +50,7 @@ pub async fn ogmios_fetch(url: String) -> Result<String, String> {
         .get(&url)
         .send()
         .await
-        .map_err(|e| format!("Ogmios request failed: {e}"))?;
+        .map_err(|e| format!("Ogmios request failed: {e:?}"))?;
 
     if !resp.status().is_success() {
         return Err(format!("Ogmios returned {}", resp.status()));
@@ -67,7 +69,9 @@ pub async fn ogmios_post(body: String) -> Result<String, String> {
     let url = "http://127.0.0.1:1337";
 
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(30))
+        .no_proxy()
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
     let resp = client
@@ -76,11 +80,19 @@ pub async fn ogmios_post(body: String) -> Result<String, String> {
         .body(body)
         .send()
         .await
-        .map_err(|e| format!("Ogmios POST request failed: {e}"))?;
+        .map_err(|e| {
+            if e.is_timeout() {
+                format!("Ogmios POST timed out: the node connection may be degraded ({e:?})")
+            } else if e.is_connect() {
+                format!("Ogmios POST connect failed: cannot reach Ogmios on port 1337 ({e:?})")
+            } else {
+                format!("Ogmios POST request failed: {e:?}")
+            }
+        })?;
 
     // Don't check status — Ogmios returns HTTP 400 for valid JSON-RPC errors.
     // The frontend parses json.error and throws with the actual error message.
     resp.text()
         .await
-        .map_err(|e| format!("Failed to read Ogmios POST response: {e}"))
+        .map_err(|e| format!("Failed to read Ogmios POST response: {e:?}"))
 }

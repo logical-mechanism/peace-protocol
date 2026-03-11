@@ -111,7 +111,7 @@ pub async fn start_kupo(
     manager.ensure_port_available(app_config.kupo_port)?;
 
     let args = build_kupo_args(app_config, app_data_dir, &patterns);
-    manager.start("kupo", "kupo", args, None).await
+    manager.start_sidecar("kupo", "kupo", args, None).await
 }
 
 /// Health check: GET http://127.0.0.1:{port}/health

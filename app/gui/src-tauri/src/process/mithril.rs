@@ -88,7 +88,7 @@ pub async fn start_mithril_bootstrap(
     ];
 
     manager
-        .start("mithril-client", "mithril-client", args, None)
+        .start_sidecar("mithril-client", "mithril-client", args, None)
         .await?;
 
     // Spawn background orchestrator: wait for download → run LMDB conversion
@@ -180,24 +180,25 @@ async fn run_conversion_after_download(
         // Run mithril-client as a one-shot command (not through NodeManager) to download
         // the cardano-node distribution. The conversion itself will fail (known mithril-client
         // 0.12.x bug with node 10.6+ snapshot-converter CLI), but the binary gets downloaded.
-        // Using shell().sidecar().output() avoids NodeManager auto-restart.
-        use tauri_plugin_shell::ShellExt;
-        let shell = app_handle.shell();
-        let command = shell
-            .sidecar("mithril-client")
-            .map_err(|e| format!("Failed to create mithril-client sidecar command: {e}"))?;
-        let output = command
-            .args([
-                "tools",
-                "utxo-hd",
-                "snapshot-converter",
-                "--db-directory",
-                &actual_db_dir.to_string_lossy(),
-                "--cardano-node-version",
-                "10.6.2",
-                "--utxo-hd-flavor",
-                "LMDB",
-            ])
+        use crate::process::manager::spawn_clean_sidecar;
+        let args: Vec<String> = [
+            "tools",
+            "utxo-hd",
+            "snapshot-converter",
+            "--db-directory",
+            &actual_db_dir.to_string_lossy(),
+            "--cardano-node-version",
+            "10.6.2",
+            "--utxo-hd-flavor",
+            "LMDB",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+        let mut cmd = spawn_clean_sidecar("binaries/mithril-client", &args)
+            .map_err(|e| format!("Failed to create mithril-client command: {e}"))?;
+        let output = cmd
             .output()
             .await
             .map_err(|e| format!("Failed to run mithril-client for distribution download: {e}"))?;
@@ -206,7 +207,7 @@ async fn run_conversion_after_download(
         if !output.status.success() {
             eprintln!(
                 "[mithril] mithril-client converter exited with status {} (expected — using binary directly)",
-                output.status.code().unwrap_or(-1)
+                output.status.code().map(|c| c.to_string()).unwrap_or_else(|| "signal".to_string())
             );
         }
 

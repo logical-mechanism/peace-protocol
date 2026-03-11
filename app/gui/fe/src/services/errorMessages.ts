@@ -38,7 +38,27 @@ const ERROR_PATTERNS: ErrorPattern[] = [
       recoverable: true,
     },
   },
-  // Ogmios (tx submission) — must be before generic network
+  // Ogmios POST timeout — node connection degraded (must be before generic Ogmios)
+  {
+    test: (e) => /ogmios post timed out/i.test(e),
+    result: {
+      title: 'Ogmios Request Timed Out',
+      message: 'The transaction service did not respond in time. The node connection may be degraded.',
+      action: 'Try restarting the node from Settings, or wait for the node to fully sync.',
+      recoverable: true,
+    },
+  },
+  // Ogmios POST connect failure (must be before generic Ogmios)
+  {
+    test: (e) => /ogmios post connect failed/i.test(e),
+    result: {
+      title: 'Cannot Reach Ogmios',
+      message: 'The transaction service is not reachable on its expected port.',
+      action: 'Ensure the node is running, or restart from Settings.',
+      recoverable: true,
+    },
+  },
+  // Ogmios (tx submission) — generic fallback
   {
     test: (e) => /1337|ogmios/i.test(e),
     result: {

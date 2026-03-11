@@ -1,8 +1,6 @@
 use crate::config::{AppConfig, Network};
 use serde::Deserialize;
 use std::path::Path;
-use tauri_plugin_shell::process::CommandEvent;
-use tauri_plugin_shell::ShellExt;
 
 /// Parsed response from `cardano-cli conway query tip --output-json`.
 #[derive(Debug, Clone, Deserialize)]
@@ -86,53 +84,28 @@ pub async fn query_tip(
         .map_err(|e| format!("Failed to parse cardano-cli tip JSON: {e}"))
 }
 
-/// Spawn the cardano-cli sidecar, collect stdout, and return it on success.
-async fn run_cardano_cli(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
-    let shell = app.shell();
-    let command = shell
-        .sidecar("cardano-cli")
-        .map_err(|e| format!("Failed to create cardano-cli sidecar: {e}"))?;
-    let command = command.args(args);
+/// Spawn the cardano-cli sidecar with a clean environment, collect output.
+async fn run_cardano_cli(_app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
+    use crate::process::manager::spawn_clean_sidecar;
 
-    let (mut rx, _child) = command
-        .spawn()
+    let mut cmd = spawn_clean_sidecar("binaries/cardano-cli", &args)
+        .map_err(|e| format!("Failed to create cardano-cli command: {e}"))?;
+
+    let output = cmd
+        .output()
+        .await
         .map_err(|e| format!("Failed to spawn cardano-cli: {e}"))?;
 
-    let mut stdout_lines = Vec::new();
-    let mut stderr_lines = Vec::new();
-
-    while let Some(event) = rx.recv().await {
-        match event {
-            CommandEvent::Stdout(data) => {
-                let line = String::from_utf8_lossy(&data).trim().to_string();
-                if !line.is_empty() {
-                    stdout_lines.push(line);
-                }
-            }
-            CommandEvent::Stderr(data) => {
-                let line = String::from_utf8_lossy(&data).trim().to_string();
-                if !line.is_empty() {
-                    stderr_lines.push(line);
-                }
-            }
-            CommandEvent::Error(err) => {
-                return Err(format!("cardano-cli process error: {err}"));
-            }
-            CommandEvent::Terminated(payload) => {
-                if payload.code != Some(0) {
-                    let stderr = stderr_lines.join("\n");
-                    return Err(format!(
-                        "cardano-cli exited with code {:?}: {}",
-                        payload.code, stderr
-                    ));
-                }
-                break;
-            }
-            _ => {}
-        }
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "cardano-cli exited with code {:?}: {}",
+            output.status.code(),
+            stderr.trim()
+        ));
     }
 
-    Ok(stdout_lines.join("\n"))
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 #[cfg(test)]
