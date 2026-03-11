@@ -214,17 +214,27 @@ pub fn resolve_sidecar_path(sidecar_name: &str) -> Result<std::path::PathBuf, St
 
     let target = env!("TARGET_TRIPLE");
 
+    // Extract the binary basename (strip "binaries/" prefix if present).
+    // In dev/source: sidecar_name is "binaries/cardano-node" → file at src-tauri/binaries/cardano-node-{triple}
+    // In production: Tauri copies sidecars next to the exe as just "cardano-node-{triple}" (no binaries/ dir)
+    let basename = std::path::Path::new(sidecar_name)
+        .file_name()
+        .unwrap_or(std::ffi::OsStr::new(sidecar_name))
+        .to_string_lossy();
+
     // Candidate paths in priority order:
-    // 1. Next to exe with target triple (production AppImage)
-    // 2. Next to exe without target triple (production fallback)
-    // 3. Dev mode: src-tauri/binaries/ (exe is at target/debug/ or target/release/)
+    // 1. Next to exe using basename (production AppImage — sidecars sit next to exe)
+    // 2. Next to exe with full sidecar_name path (unlikely but safe fallback)
+    // 3. Dev mode: src-tauri/{sidecar_name} (exe is at target/debug/ or target/release/)
     let mut candidates = vec![
+        exe_dir.join(format!("{}-{}", basename, target)),
+        exe_dir.join(basename.as_ref()),
         exe_dir.join(format!("{}-{}", sidecar_name, target)),
         exe_dir.join(sidecar_name),
     ];
 
     // In dev mode, exe_dir is target/debug/ or target/release/.
-    // Walk up to src-tauri/ and check binaries/ there.
+    // Walk up to src-tauri/ and check the full sidecar_name path there.
     if let Some(target_dir) = exe_dir.parent() {
         if let Some(src_tauri_dir) = target_dir.parent() {
             candidates.push(src_tauri_dir.join(format!("{}-{}", sidecar_name, target)));
