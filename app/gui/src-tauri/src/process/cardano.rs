@@ -153,6 +153,19 @@ pub async fn start_cardano_node(
         let _ = std::fs::remove_file(&lock_file);
     }
 
+    // Remove stale peer snapshot written by previous node run.
+    // cardano-node caches discovered peers in peer-snapshot.json (referenced by
+    // topology.json). On restart, stale cached peers prevent fresh bootstrap
+    // peer discovery, causing the node to hang indefinitely.
+    // Deleting it lets ensure_config_files re-copy the bundled version, and the
+    // node falls back to bootstrap peer discovery from topology.json.
+    if let Some(config_dir) = config.config_json.parent() {
+        let peer_snapshot = config_dir.join("peer-snapshot.json");
+        if peer_snapshot.exists() {
+            let _ = std::fs::remove_file(&peer_snapshot);
+        }
+    }
+
     let args = config.build_args();
     manager
         .start_sidecar("cardano-node", "cardano-node", args, Some(&config.db_dir))
