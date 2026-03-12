@@ -279,8 +279,9 @@ pub fn spawn_clean_sidecar(
 }
 
 /// Consecutive stale-tip checks before restarting a process.
-/// At 10s intervals, 6 checks = 60 seconds of stale data.
-const STALL_DETECTION_THRESHOLD: u32 = 6;
+/// At 10s intervals, 12 checks = 120 seconds of stale data.
+/// Generous threshold to avoid false positives on slow hardware or preprod block gaps.
+const STALL_DETECTION_THRESHOLD: u32 = 12;
 
 /// The central process manager, held in Tauri state.
 /// Manages the lifecycle of all sidecar processes.
@@ -294,7 +295,8 @@ pub struct NodeManager {
 }
 
 /// Maximum consecutive HTTP health check failures before marking a process as Error.
-const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 3;
+/// At 10s intervals, 6 checks = 60 seconds of unresponsive health checks.
+const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 6;
 
 impl NodeManager {
     pub fn new(app_handle: tauri::AppHandle, ogmios_port: u16, kupo_port: u16) -> Self {
@@ -646,6 +648,7 @@ impl NodeManager {
                 proc.info.pid = Some(pid);
                 proc.info.status = ProcessStatus::Running;
                 proc.info.last_error = None;
+                proc.info.restart_count = 0; // Reset so future crashes get full retry budget
             }
             Self::save_pids_sync(&self.pid_file, &procs);
         }
@@ -857,6 +860,7 @@ impl NodeManager {
                                     if let Some(proc) = p.get_mut(&pname2) {
                                         proc.info.pid = Some(pid2);
                                         proc.info.status = ProcessStatus::Running;
+                                        proc.info.restart_count = 0; // Reset so future crashes get full retry budget
                                     }
                                     Self::save_pids_sync(&pid_file2, &p);
                                 }
@@ -1351,6 +1355,7 @@ impl NodeManager {
                 let mut ogmios_tip_slot: Option<u64> = None;
                 let mut ogmios_network_sync: Option<f64> = None;
                 let mut kupo_seconds_since_block: Option<f64> = None;
+                let mut kupo_sync_ratio: Option<f64> = None;
 
                 for (name, port) in &health_targets {
                     if name == "ogmios" {
@@ -1381,11 +1386,27 @@ impl NodeManager {
                             let metrics_url = format!("http://127.0.0.1:{}/metrics", port);
                             if let Ok(resp) = http_client.get(&metrics_url).send().await {
                                 if let Ok(text) = resp.text().await {
+                                    let mut checkpoint: Option<f64> = None;
+                                    let mut node_tip: Option<f64> = None;
                                     for line in text.lines() {
-                                        if line.starts_with("kupo_seconds_since_last_block ") {
-                                            if let Some(val) = line.split_whitespace().nth(1) {
-                                                kupo_seconds_since_block = val.parse::<f64>().ok();
-                                            }
+                                        if let Some(v) =
+                                            line.strip_prefix("kupo_seconds_since_last_block")
+                                        {
+                                            kupo_seconds_since_block = v.trim().parse::<f64>().ok();
+                                        } else if let Some(v) =
+                                            line.strip_prefix("kupo_most_recent_checkpoint")
+                                        {
+                                            checkpoint = v.trim().parse::<f64>().ok();
+                                        } else if let Some(v) =
+                                            line.strip_prefix("kupo_most_recent_node_tip")
+                                        {
+                                            node_tip = v.trim().parse::<f64>().ok();
+                                        }
+                                    }
+                                    // Kupo sync ratio: how far Kupo has indexed vs node tip
+                                    if let (Some(cp), Some(tip)) = (checkpoint, node_tip) {
+                                        if tip > 0.0 {
+                                            kupo_sync_ratio = Some((cp / tip).min(1.0));
                                         }
                                     }
                                 }
@@ -1525,30 +1546,37 @@ impl NodeManager {
                         } else if name == "ogmios" && !is_syncing {
                             // At tip — reset stall counters to avoid accumulation
                             proc.tip_unchanged_count = 0;
-                        } else if name == "kupo" && is_syncing {
-                            // Only check for stalls during active sync.
-                            // At tip, seconds_since_last_block naturally exceeds 120s
-                            // on preprod (blocks every 20s-3min with gaps).
-                            if let Some(seconds) = kupo_seconds_since_block {
-                                if seconds > 120.0 {
-                                    proc.tip_unchanged_count += 1;
-                                    if proc.tip_unchanged_count >= STALL_DETECTION_THRESHOLD {
-                                        if let Some(pid) = proc.info.pid {
-                                            eprintln!(
-                                                "[Liveness] Kupo stalled ({:.0}s since last block) for {}s (sync {:.4}), killing for restart",
-                                                seconds, proc.tip_unchanged_count * 10,
-                                                ogmios_network_sync.unwrap_or(0.0)
-                                            );
-                                            pids_to_kill.push((name.clone(), pid));
-                                            proc.tip_unchanged_count = 0;
+                        } else if name == "kupo" {
+                            // Kupo stall detection uses its OWN sync ratio, not Ogmios's.
+                            // kupo_sync_ratio = checkpoint / node_tip (Kupo's indexing progress).
+                            let kupo_is_syncing =
+                                kupo_sync_ratio.map(|r| r < 0.999).unwrap_or(false);
+                            if kupo_is_syncing {
+                                // Only check for stalls during active sync.
+                                // At tip, seconds_since_last_block naturally exceeds 300s
+                                // on preprod (blocks every 20s-3min with gaps).
+                                if let Some(seconds) = kupo_seconds_since_block {
+                                    if seconds > 300.0 {
+                                        proc.tip_unchanged_count += 1;
+                                        if proc.tip_unchanged_count >= STALL_DETECTION_THRESHOLD {
+                                            if let Some(pid) = proc.info.pid {
+                                                eprintln!(
+                                                    "[Liveness] Kupo stalled ({:.0}s since last block) for {}s (kupo sync {:.4}), killing for restart",
+                                                    seconds, proc.tip_unchanged_count * 10,
+                                                    kupo_sync_ratio.unwrap_or(0.0)
+                                                );
+                                                pids_to_kill.push((name.clone(), pid));
+                                                proc.tip_unchanged_count = 0;
+                                            }
                                         }
+                                    } else {
+                                        proc.tip_unchanged_count = 0;
                                     }
-                                } else {
-                                    proc.tip_unchanged_count = 0;
                                 }
+                            } else {
+                                // At tip or no data yet — reset stall counters
+                                proc.tip_unchanged_count = 0;
                             }
-                        } else if name == "kupo" && !is_syncing {
-                            proc.tip_unchanged_count = 0;
                         }
                     }
                 }
@@ -1560,13 +1588,30 @@ impl NodeManager {
                 // Drop lock before killing (kill triggers exit handler which needs the lock)
                 drop(procs);
 
-                // Kill stalled processes — auto-restart will be triggered by the exit handler
+                // Gracefully stop stalled processes — SIGTERM first, then SIGKILL after 10s.
+                // Auto-restart will be triggered by the exit handler.
                 for (name, pid) in pids_to_kill {
                     eprintln!(
-                        "[Liveness] Sending SIGKILL to stalled {} (pid {})",
+                        "[Liveness] Sending SIGTERM to stalled {} (pid {})",
                         name, pid
                     );
-                    send_signal(pid, libc::SIGKILL);
+                    send_signal(pid, libc::SIGTERM);
+
+                    // Give the process up to 10s to exit gracefully before escalating
+                    let pid_copy = pid;
+                    tauri::async_runtime::spawn(async move {
+                        for _ in 0..20 {
+                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                            if !send_signal(pid_copy, 0) {
+                                return; // Process exited
+                            }
+                        }
+                        eprintln!(
+                            "[Liveness] Stalled process pid {} did not exit after SIGTERM, sending SIGKILL",
+                            pid_copy
+                        );
+                        send_signal(pid_copy, libc::SIGKILL);
+                    });
                 }
             }
         });
