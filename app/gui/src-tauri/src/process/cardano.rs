@@ -73,7 +73,7 @@ impl CardanoNodeConfig {
 
         // Config files to copy from resources.
         // config.json and topology.json are always overwritten so that changes
-        // (e.g. V2InMemory → V1LMDB ledger backend) take effect on upgrade.
+        // (e.g. ledger backend, trace flags) take effect on upgrade.
         // Genesis files are large and stable — only copied if missing.
         let always_overwrite = ["config.json", "topology.json"];
         let copy_if_missing = [
@@ -137,7 +137,38 @@ pub async fn start_cardano_node(
     app_handle: &tauri::AppHandle,
 ) -> Result<(), String> {
     let config = CardanoNodeConfig::new(app_config, app_data_dir);
+
+    // Remove stale peer snapshot BEFORE ensure_config_files so the bundled
+    // version gets re-copied. cardano-node overwrites peer-snapshot.json with
+    // discovered peers; stale cached peers prevent fresh bootstrap discovery.
+    if let Some(config_dir) = config.config_json.parent() {
+        let peer_snapshot = config_dir.join("peer-snapshot.json");
+        if peer_snapshot.exists() {
+            let _ = std::fs::remove_file(&peer_snapshot);
+        }
+    }
+
     config.ensure_config_files(app_handle)?;
+
+    // Fix peerSnapshotFile path in topology.json to use an absolute path.
+    // Known bug in cardano-node 10.6.x: relative paths in peerSnapshotFile are
+    // resolved from the binary's directory, not the topology file's directory.
+    // In AppImage the binary lives in /tmp/.mount_*/usr/bin/ so the relative
+    // path never resolves. Rewriting to absolute after copying ensures the node
+    // always finds the bundled snapshot.
+    if let Some(config_dir) = config.config_json.parent() {
+        let topo_path = config_dir.join("topology.json");
+        let snapshot_abs = config_dir.join("peer-snapshot.json");
+        if topo_path.exists() && snapshot_abs.exists() {
+            if let Ok(topo) = std::fs::read_to_string(&topo_path) {
+                let fixed = topo.replace(
+                    "\"peer-snapshot.json\"",
+                    &format!("\"{}\"", snapshot_abs.display()),
+                );
+                let _ = std::fs::write(&topo_path, fixed);
+            }
+        }
+    }
 
     // Ensure db directory exists
     std::fs::create_dir_all(&config.db_dir)
@@ -151,19 +182,6 @@ pub async fn start_cardano_node(
     let lock_file = config.db_dir.join("lock");
     if lock_file.exists() {
         let _ = std::fs::remove_file(&lock_file);
-    }
-
-    // Remove stale peer snapshot written by previous node run.
-    // cardano-node caches discovered peers in peer-snapshot.json (referenced by
-    // topology.json). On restart, stale cached peers prevent fresh bootstrap
-    // peer discovery, causing the node to hang indefinitely.
-    // Deleting it lets ensure_config_files re-copy the bundled version, and the
-    // node falls back to bootstrap peer discovery from topology.json.
-    if let Some(config_dir) = config.config_json.parent() {
-        let peer_snapshot = config_dir.join("peer-snapshot.json");
-        if peer_snapshot.exists() {
-            let _ = std::fs::remove_file(&peer_snapshot);
-        }
     }
 
     let args = config.build_args();
