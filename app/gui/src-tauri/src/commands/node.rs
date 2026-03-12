@@ -283,6 +283,74 @@ pub async fn start_node(
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }
 
+    // 2b. Wait for node to finish initialization (poll Prometheus every 5s).
+    // The socket appears early in initialization, BEFORE the node finishes
+    // loading the ledger and replaying volatile blocks. Connecting chain-sync
+    // clients (Ogmios/Kupo) during this window can deadlock the node.
+    // Poll Prometheus (HTTP on port 12798, doesn't touch the node socket) for
+    // connectionManager_outgoingConns > 0 — this metric appears after ChainDB
+    // is fully initialized and the node has connected to peers.
+    // Note: with all Trace* flags disabled, chain metrics like slotNum_int are
+    // never populated. connectionManager metrics are always available.
+    eprintln!("[startup] Socket exists, waiting for node to finish initialization...");
+    let prom_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .unwrap_or_default();
+    loop {
+        let ready = match prom_client
+            .get("http://127.0.0.1:12798/metrics")
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                if let Ok(text) = resp.text().await {
+                    // Check for outgoing peer connections — indicates ChainDB is
+                    // initialized and the node is actively participating in the network.
+                    let has_conns = text.lines().any(|l| {
+                        if let Some(rest) =
+                            l.strip_prefix("cardano_node_metrics_connectionManager_outgoingConns ")
+                        {
+                            rest.trim().parse::<f64>().unwrap_or(0.0) > 0.0
+                        } else {
+                            false
+                        }
+                    });
+                    if has_conns {
+                        eprintln!("[startup] Node initialized: outgoing connections established");
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            Err(_) => false,
+        };
+        if ready {
+            break;
+        }
+
+        // Check if the process is still alive
+        let status = manager.get_status("cardano-node").await;
+        let still_running = status
+            .as_ref()
+            .map(|s| {
+                matches!(
+                    s.status,
+                    ProcessStatus::Starting
+                        | ProcessStatus::Running
+                        | ProcessStatus::Syncing { .. }
+                )
+            })
+            .unwrap_or(false);
+        if !still_running {
+            return Err("cardano-node exited before becoming ready".to_string());
+        }
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    }
+
     // 3. Start Ogmios
     ogmios::start_ogmios(&manager, &config, app_data_dir).await?;
 
