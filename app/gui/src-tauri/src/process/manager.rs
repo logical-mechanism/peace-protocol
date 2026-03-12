@@ -63,6 +63,7 @@ enum LaunchInfo {
         args: Vec<String>,
         cwd: Option<std::path::PathBuf>,
         env_vars: Vec<(String, String)>,
+        suppress_output: bool,
     },
 }
 
@@ -524,11 +525,12 @@ impl NodeManager {
         sidecar_name: &str,
         args: Vec<String>,
         cwd: Option<&std::path::PathBuf>,
+        suppress_output: bool,
     ) -> Result<(), String> {
         let binary_path = resolve_sidecar_path(&format!("binaries/{}", sidecar_name))?;
         let program = binary_path.to_string_lossy().to_string();
         let env_vars = build_clean_env();
-        self.start_command(name, &program, args, cwd, env_vars)
+        self.start_command(name, &program, args, cwd, env_vars, suppress_output)
             .await
     }
 
@@ -547,6 +549,7 @@ impl NodeManager {
         args: Vec<String>,
         cwd: Option<&std::path::PathBuf>,
         env_vars: Vec<(String, String)>,
+        suppress_output: bool,
     ) -> Result<(), String> {
         // Stop existing process gracefully if running
         self.stop(name).await?;
@@ -557,6 +560,7 @@ impl NodeManager {
             args: args.clone(),
             cwd: cwd.cloned(),
             env_vars: env_vars.clone(),
+            suppress_output,
         };
         {
             let mut procs = self.processes.lock().await;
@@ -605,11 +609,15 @@ impl NodeManager {
             }
         }
         let mut cmd = tokio::process::Command::new(program);
-        cmd.args(&args)
-            .env_clear()
-            .envs(merged_env.iter().cloned())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        cmd.args(&args).env_clear().envs(merged_env.iter().cloned());
+
+        if suppress_output {
+            cmd.stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+        } else {
+            cmd.stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped());
+        }
 
         if let Some(dir) = cwd {
             cmd.current_dir(dir);
@@ -783,6 +791,7 @@ impl NodeManager {
                         args,
                         cwd,
                         env_vars,
+                        suppress_output,
                     },
                     delay,
                 )) = restart_info
@@ -825,9 +834,15 @@ impl NodeManager {
                         let mut cmd = tokio::process::Command::new(&program);
                         cmd.args(&args)
                             .env_clear()
-                            .envs(restart_env.iter().cloned())
-                            .stdout(std::process::Stdio::piped())
-                            .stderr(std::process::Stdio::piped());
+                            .envs(restart_env.iter().cloned());
+
+                        if suppress_output {
+                            cmd.stdout(std::process::Stdio::null())
+                                .stderr(std::process::Stdio::null());
+                        } else {
+                            cmd.stdout(std::process::Stdio::piped())
+                                .stderr(std::process::Stdio::piped());
+                        }
                         if let Some(dir) = &cwd {
                             cmd.current_dir(dir);
                         }

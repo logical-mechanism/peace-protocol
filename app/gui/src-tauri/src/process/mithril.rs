@@ -88,7 +88,7 @@ pub async fn start_mithril_bootstrap(
     ];
 
     manager
-        .start_sidecar("mithril-client", "mithril-client", args, None)
+        .start_sidecar("mithril-client", "mithril-client", args, None, false)
         .await?;
 
     // Spawn background orchestrator: wait for download → run LMDB conversion
