@@ -28,7 +28,7 @@ pub async fn start_ogmios(
     manager.ensure_port_available(app_config.ogmios_port)?;
     let args = build_ogmios_args(app_config, app_data_dir);
     manager
-        .start_sidecar("ogmios", "ogmios", args, None, false)
+        .start_sidecar("ogmios", "ogmios", args, None, true)
         .await
 }
 

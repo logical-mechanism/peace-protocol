@@ -112,7 +112,7 @@ pub async fn start_kupo(
 
     let args = build_kupo_args(app_config, app_data_dir, &patterns);
     manager
-        .start_sidecar("kupo", "kupo", args, None, false)
+        .start_sidecar("kupo", "kupo", args, None, true)
         .await
 }
 
