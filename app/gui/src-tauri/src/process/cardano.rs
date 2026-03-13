@@ -209,7 +209,7 @@ pub async fn start_cardano_node(
             "cardano-node",
             args,
             Some(&config.db_dir),
-            true,
+            false,
         )
         .await
 }
