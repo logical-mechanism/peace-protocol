@@ -295,8 +295,10 @@ pub struct NodeManager {
 }
 
 /// Maximum consecutive HTTP health check failures before marking a process as Error.
-/// At 10s intervals, 6 checks = 60 seconds of unresponsive health checks.
-const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 6;
+/// At 10s intervals, 18 checks = 180 seconds of unresponsive health checks.
+/// Kupo connecting through Ogmios (WebSocket) needs extra startup time for
+/// protocol negotiation + initial chain-sync handshake.
+const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 18;
 
 impl NodeManager {
     pub fn new(app_handle: tauri::AppHandle, ogmios_port: u16, kupo_port: u16) -> Self {
@@ -1650,9 +1652,10 @@ mod tests {
     #[test]
     fn health_check_failure_threshold_is_reasonable() {
         // Threshold should be > 1 (avoid false positives from a single failed check)
-        // and not too high (detect real outages within ~30s at 10s intervals)
+        // and not too high (detect real outages within ~3 min at 10s intervals).
+        // 18 checks = 180s — gives Kupo time to connect through Ogmios.
         assert!(HEALTH_CHECK_FAILURE_THRESHOLD > 1);
-        assert!(HEALTH_CHECK_FAILURE_THRESHOLD <= 5);
+        assert!(HEALTH_CHECK_FAILURE_THRESHOLD <= 20);
     }
 
     #[test]

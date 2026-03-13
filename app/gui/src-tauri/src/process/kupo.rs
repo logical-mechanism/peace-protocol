@@ -2,21 +2,24 @@ use crate::config::AppConfig;
 use crate::process::manager::NodeManager;
 use std::path::Path;
 
-/// Build Kupo command-line arguments
+/// Build Kupo command-line arguments.
+///
+/// Kupo connects through Ogmios (WebSocket) instead of directly to the node socket.
+/// This avoids opening multiple concurrent chain-sync connections to cardano-node,
+/// which can deadlock the node's mini-protocol multiplexer (especially with V1LMDB).
+/// With this approach, only Ogmios holds a direct node socket connection.
 pub fn build_kupo_args(
     app_config: &AppConfig,
     app_data_dir: &Path,
     match_patterns: &[String],
 ) -> Vec<String> {
-    let socket = app_config.node_socket_path(app_data_dir);
-    let config_json = app_config.config_dir(app_data_dir).join("config.json");
     let kupo_dir = app_config.kupo_db_dir(app_data_dir);
 
     let mut args = vec![
-        "--node-socket".to_string(),
-        socket.to_string_lossy().into(),
-        "--node-config".to_string(),
-        config_json.to_string_lossy().into(),
+        "--ogmios-host".to_string(),
+        "127.0.0.1".to_string(),
+        "--ogmios-port".to_string(),
+        app_config.ogmios_port.to_string(),
         "--host".to_string(),
         "127.0.0.1".to_string(),
         "--port".to_string(),

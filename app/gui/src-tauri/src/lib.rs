@@ -20,6 +20,12 @@ use tauri::{Emitter, Manager};
 /// and snapshot-to-LMDB conversion. Checked by `get_node_status`.
 pub struct MithrilConversionPending(pub AtomicBool);
 
+/// Flag set to `true` once cardano-node has finished initialization (Prometheus
+/// shows outgoing peer connections). Prevents `get_node_status` from spawning
+/// cardano-cli queries while the node is still initializing — each query opens
+/// a local socket connection that can deadlock the node's mini-protocol mux.
+pub struct NodeSocketReady(pub AtomicBool);
+
 // ── Media streaming server ──────────────────────────────────────────────────
 // WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
 // (asset://, media://) for <video>/<audio> elements. Work around this by
@@ -364,6 +370,10 @@ pub fn run() {
             // Mithril conversion flag — prevents node from starting between
             // download completion and LMDB conversion finishing
             app.manage(MithrilConversionPending(AtomicBool::new(false)));
+
+            // Node socket readiness flag — prevents cardano-cli queries before
+            // the node has finished initialization (outgoing peer connections).
+            app.manage(NodeSocketReady(AtomicBool::new(false)));
 
             // App-specific temp directory — wiped on startup to clean crash orphans
             // (SNARK temp files contain secret cryptographic material)
