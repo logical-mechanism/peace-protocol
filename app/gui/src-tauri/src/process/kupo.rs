@@ -6,7 +6,7 @@ use std::path::Path;
 ///
 /// Kupo connects through Ogmios (WebSocket) instead of directly to the node socket.
 /// This avoids opening multiple concurrent chain-sync connections to cardano-node,
-/// which can deadlock the node's mini-protocol multiplexer (especially with V1LMDB).
+/// which can deadlock the node's mini-protocol multiplexer.
 /// With this approach, only Ogmios holds a direct node socket connection.
 pub fn build_kupo_args(
     app_config: &AppConfig,

@@ -170,24 +170,6 @@ pub async fn start_cardano_node(
         }
     }
 
-    // Fix LiveTablesPath in config.json to use an absolute path.
-    // V1LMDB needs a writable path for its live UTxO database. The bundled config
-    // uses a relative "lmdb" placeholder which would resolve from the binary's
-    // directory (broken in AppImage). Rewrite to an absolute path inside the db dir.
-    {
-        let config_path = &config.config_json;
-        if config_path.exists() {
-            if let Ok(cfg) = std::fs::read_to_string(config_path) {
-                let lmdb_abs = config.db_dir.join("lmdb");
-                let fixed = cfg.replace(
-                    "\"LiveTablesPath\": \"lmdb\"",
-                    &format!("\"LiveTablesPath\": \"{}\"", lmdb_abs.display()),
-                );
-                let _ = std::fs::write(config_path, fixed);
-            }
-        }
-    }
-
     // Ensure db directory exists
     std::fs::create_dir_all(&config.db_dir)
         .map_err(|e| format!("Failed to create node db dir: {e}"))?;

@@ -16,10 +16,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
-/// Flag to prevent premature node start between mithril download completion
-/// and snapshot-to-LMDB conversion. Checked by `get_node_status`.
-pub struct MithrilConversionPending(pub AtomicBool);
-
 /// Flag set to `true` once cardano-node has finished initialization (Prometheus
 /// shows outgoing peer connections). Prevents `get_node_status` from spawning
 /// cardano-cli queries while the node is still initializing — each query opens
@@ -366,10 +362,6 @@ pub fn run() {
             // Node manager (Phase 2) — pass service ports for periodic health checks
             let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
             app.manage(node_manager);
-
-            // Mithril conversion flag — prevents node from starting between
-            // download completion and LMDB conversion finishing
-            app.manage(MithrilConversionPending(AtomicBool::new(false)));
 
             // Node socket readiness flag — prevents cardano-cli queries before
             // the node has finished initialization (outgoing peer connections).

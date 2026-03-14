@@ -1,7 +1,7 @@
 use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
 use crate::process::{cardano, cardano_cli, express, kupo, mithril, ogmios};
-use crate::{MithrilConversionPending, NodeSocketReady};
+use crate::NodeSocketReady;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
@@ -88,16 +88,6 @@ pub async fn get_node_status(
         ) {
             return Ok(empty_status(OverallNodeState::Bootstrapping));
         }
-    }
-
-    // Check if LMDB conversion is pending (gap between download complete and conversion start/finish).
-    // This prevents the frontend from auto-starting the node prematurely.
-    let conversion_pending = app_handle
-        .try_state::<MithrilConversionPending>()
-        .map(|s| s.0.load(Ordering::SeqCst))
-        .unwrap_or(false);
-    if conversion_pending {
-        return Ok(empty_status(OverallNodeState::Bootstrapping));
     }
 
     // Check if any process has an error
@@ -266,8 +256,7 @@ pub async fn start_node(
     cardano::start_cardano_node(&manager, &config, app_data_dir, &app_handle).await?;
 
     // 2. Wait for node socket to appear (poll every 5s, no fixed timeout).
-    // With --include-ancillary + LMDB conversion, startup should be fast.
-    // Legacy v1 bootstraps without ancillary files may still replay (10+ min).
+    // With --include-ancillary ledger snapshots, startup should be fast.
     let socket_path = config.node_socket_path(app_data_dir);
     loop {
         if socket_path.exists() {
@@ -464,7 +453,7 @@ pub async fn stop_node(
     Ok(())
 }
 
-/// Trigger a Mithril snapshot download + LMDB conversion for bootstrapping
+/// Trigger a Mithril snapshot download for bootstrapping
 #[tauri::command]
 pub async fn start_mithril_bootstrap(
     manager: tauri::State<'_, NodeManager>,
@@ -472,7 +461,7 @@ pub async fn start_mithril_bootstrap(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let config = app_handle.state::<AppConfig>();
-    mithril::start_mithril_bootstrap(&manager, &config, &app_data_dir.0, &app_handle).await
+    mithril::start_mithril_bootstrap(&manager, &config, &app_data_dir.0).await
 }
 
 /// Get recent log lines for a specific process
