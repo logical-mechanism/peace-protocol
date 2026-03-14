@@ -16,12 +16,13 @@ import { useDebounce } from '../hooks/useDebounce';
 interface LibraryTabProps {
   refreshSignal?: number;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
+  onLocalRefresh?: () => void;
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
   onBulkDeleteResult?: (message: string, hadErrors: boolean) => void;
 }
 
-function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDeleteResult }: LibraryTabProps) {
+function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispatch, onBulkDeleteResult }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -296,7 +297,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
           description={error}
           action={
             <button
-              onClick={fetchItems}
+              onClick={() => { fetchItems(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
               Try Again
@@ -473,7 +474,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, filters, dispatch, onBulkDelet
 
           {/* Refresh */}
           <button
-            onClick={fetchItems}
+            onClick={() => { fetchItems(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh library"
             aria-label="Refresh library"

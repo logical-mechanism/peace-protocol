@@ -18,12 +18,13 @@ interface MarketplaceTabProps {
   lovelace?: string | null;
   onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   onCreateListing?: () => void;
+  onLocalRefresh?: () => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
@@ -317,7 +318,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
       </svg>
       <span>Showing cached listings — data may be outdated.</span>
       <button
-        onClick={fetchEncryptions}
+        onClick={() => { fetchEncryptions(); onLocalRefresh?.(); }}
         className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
         style={{
           background: 'var(--warning)',
@@ -359,7 +360,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
           description={error}
           action={
             <button
-              onClick={fetchEncryptions}
+              onClick={() => { fetchEncryptions(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
               Try Again
@@ -472,7 +473,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, refres
 
           {/* Refresh */}
           <button
-            onClick={fetchEncryptions}
+            onClick={() => { fetchEncryptions(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh listings"
             aria-label="Refresh listings"
