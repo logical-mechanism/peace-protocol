@@ -173,6 +173,12 @@ export default function Dashboard() {
     setTimeout(() => setIsRefreshing(false), 2000)
   }, [isRefreshing, triggerRefresh])
 
+  // Handler for tab-level refresh buttons to update the timestamp without triggering all tabs
+  const handleLocalRefresh = useCallback(() => {
+    setLastRefreshTime(Date.now())
+    setRelativeTime('just now')
+  }, [])
+
   // Update relative time display every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1501,6 +1507,7 @@ export default function Dashboard() {
                 lovelace={lovelace}
                 onPlaceBid={handlePlaceBid}
                 onCreateListing={handleOpenCreateListing}
+                onLocalRefresh={handleLocalRefresh}
                 filters={marketplaceFilters}
                 dispatch={marketplaceDispatch}
               />
@@ -1527,6 +1534,7 @@ export default function Dashboard() {
                 onCompleteSale={handleCompleteSale}
                 onCreateListing={handleOpenCreateListing}
                 onBidsViewed={bidNotifications.markListingSeen}
+                onLocalRefresh={handleLocalRefresh}
                 filters={mySalesFilters}
                 dispatch={mySalesDispatch}
               />
@@ -1551,6 +1559,7 @@ export default function Dashboard() {
                 onDecrypt={handleDecrypt}
                 onDecryptEncryption={handleDecryptEncryption}
                 onSwitchTab={setActiveTab}
+                onLocalRefresh={handleLocalRefresh}
                 filters={myPurchasesFilters}
                 dispatch={myPurchasesDispatch}
                 failedDecryptTokens={failedDecryptTokens}
@@ -1576,6 +1585,7 @@ export default function Dashboard() {
                 onClearHistory={triggerHistoryRefresh}
                 onHistoryUpdated={setTxHistory}
                 onRetryListing={handleRetryListing}
+                onLocalRefresh={handleLocalRefresh}
                 filters={historyFilters}
                 dispatch={historyDispatch}
               />
@@ -1596,6 +1606,7 @@ export default function Dashboard() {
               <LibraryTab
                 refreshSignal={refreshSignal}
                 onSwitchTab={setActiveTab}
+                onLocalRefresh={handleLocalRefresh}
                 filters={libraryFilters}
                 dispatch={libraryDispatch}
                 onBulkDeleteResult={(message, hadErrors) =>

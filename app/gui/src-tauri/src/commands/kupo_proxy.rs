@@ -4,11 +4,22 @@
 /// are third-party binaries that serve no CORS headers, so direct `fetch()`
 /// from the webview fails on some Linux distros. Routing through Tauri IPC
 /// (`invoke` → `reqwest`) bypasses browser CORS entirely.
-fn build_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {e}"))
+///
+/// Uses a shared reqwest::Client to avoid per-call TLS/connection setup overhead
+/// and to benefit from connection pooling.
+use std::sync::OnceLock;
+
+static SHARED_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn shared_client() -> &'static reqwest::Client {
+    SHARED_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(30))
+            .no_proxy()
+            .build()
+            .expect("Failed to create shared HTTP client")
+    })
 }
 
 /// Fetch a URL from the local Kupo instance (port 44203).
@@ -19,8 +30,7 @@ pub async fn kupo_fetch(url: String) -> Result<String, String> {
         return Err("Invalid Kupo URL: must target 127.0.0.1:44203".to_string());
     }
 
-    let client = build_client()?;
-    let resp = client
+    let resp = shared_client()
         .get(&url)
         .send()
         .await
@@ -43,12 +53,11 @@ pub async fn ogmios_fetch(url: String) -> Result<String, String> {
         return Err("Invalid Ogmios URL: must target 127.0.0.1:1337".to_string());
     }
 
-    let client = build_client()?;
-    let resp = client
+    let resp = shared_client()
         .get(&url)
         .send()
         .await
-        .map_err(|e| format!("Ogmios request failed: {e}"))?;
+        .map_err(|e| format!("Ogmios request failed: {e:?}"))?;
 
     if !resp.status().is_success() {
         return Err(format!("Ogmios returned {}", resp.status()));
@@ -66,21 +75,25 @@ pub async fn ogmios_fetch(url: String) -> Result<String, String> {
 pub async fn ogmios_post(body: String) -> Result<String, String> {
     let url = "http://127.0.0.1:1337";
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
-    let resp = client
+    let resp = shared_client()
         .post(url)
         .header("Content-Type", "application/json")
         .body(body)
         .send()
         .await
-        .map_err(|e| format!("Ogmios POST request failed: {e}"))?;
+        .map_err(|e| {
+            if e.is_timeout() {
+                format!("Ogmios POST timed out: the node connection may be degraded ({e:?})")
+            } else if e.is_connect() {
+                format!("Ogmios POST connect failed: cannot reach Ogmios on port 1337 ({e:?})")
+            } else {
+                format!("Ogmios POST request failed: {e:?}")
+            }
+        })?;
 
     // Don't check status — Ogmios returns HTTP 400 for valid JSON-RPC errors.
     // The frontend parses json.error and throws with the actual error message.
     resp.text()
         .await
-        .map_err(|e| format!("Failed to read Ogmios POST response: {e}"))
+        .map_err(|e| format!("Failed to read Ogmios POST response: {e:?}"))
 }

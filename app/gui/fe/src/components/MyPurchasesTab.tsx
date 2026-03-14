@@ -20,6 +20,7 @@ interface MyPurchasesTabProps {
   onDecrypt?: (bid: BidDisplay) => void;
   onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
+  onLocalRefresh?: () => void;
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
@@ -32,6 +33,7 @@ function MyPurchasesTab({
   onDecrypt,
   onDecryptEncryption,
   onSwitchTab,
+  onLocalRefresh,
   refreshSignal,
   filters,
   dispatch,
@@ -267,7 +269,7 @@ function MyPurchasesTab({
           description={error}
           action={
             <button
-              onClick={fetchData}
+              onClick={() => { fetchData(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
               Try Again
@@ -496,7 +498,7 @@ function MyPurchasesTab({
 
           {/* Refresh */}
           <button
-            onClick={fetchData}
+            onClick={() => { fetchData(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh bids"
           >

@@ -3,25 +3,30 @@
   "AlonzoGenesisHash": "7e94a15f55d1e82d10f09203fa1d40f8eede58fd8066542cf6566008068ed874",
   "ByronGenesisFile": "byron-genesis.json",
   "ByronGenesisHash": "d4b8de7a11d929a323373cbab6c1a9bdc931beffff11db111cf9d57356ee1937",
-  "ConsensusMode": "GenesisMode",
+  "ConsensusMode": "PraosMode",
   "ConwayGenesisFile": "conway-genesis.json",
   "ConwayGenesisHash": "0eb6adaec3fcb1fe286c1b4ae0da2a117eafc3add51e17577d36dd39eddfc3db",
+  "DiffusionMode": "InitiatorOnly",
   "EnableP2P": true,
   "LastKnownBlockVersion-Alt": 0,
   "LastKnownBlockVersion-Major": 2,
   "LastKnownBlockVersion-Minor": 0,
   "LedgerDB": {
-    "Backend": "V1LMDB",
+    "Backend": "V2InMemory",
     "NumOfDiskSnapshots": 2,
     "QueryBatchSize": 100000,
     "SnapshotInterval": 4320
   },
-  "MinNodeVersion": "10.4.0",
+  "MinNodeVersion": "10.6.2",
   "PeerSharing": true,
   "Protocol": "Cardano",
   "RequiresNetworkMagic": "RequiresMagic",
   "ShelleyGenesisFile": "shelley-genesis.json",
   "ShelleyGenesisHash": "162d29c4e1cf6b8a84f2d692e67a3ac6bc7851bc3e6e4afe64d15778bed8bd86",
+  "TargetNumberOfActivePeers": 15,
+  "TargetNumberOfEstablishedPeers": 40,
+  "TargetNumberOfKnownPeers": 85,
+  "TargetNumberOfRootPeers": 60,
   "TraceAcceptPolicy": false,
   "TraceBlockFetchClient": false,
   "TraceBlockFetchDecisions": false,
@@ -47,6 +52,7 @@
   "TraceLocalConnectionManager": false,
   "TraceLocalErrorPolicy": false,
   "TraceLocalHandshake": false,
+  "TraceLocalInboundGovernor": false,
   "TraceLocalRootPeers": false,
   "TraceLocalTxSubmissionProtocol": false,
   "TraceLocalTxSubmissionServer": false,
@@ -54,6 +60,7 @@
   "TraceMux": false,
   "TracePeerSelection": false,
   "TracePeerSelectionActions": false,
+  "TracePeerSelectionCounters": false,
   "TracePublicRootPeers": false,
   "TraceServer": false,
   "TraceTxInbound": false,
@@ -90,6 +97,9 @@
     "mapSubtrace": {
       "cardano.node.metrics": {
         "subtrace": "Neutral"
+      },
+      "cardano.node.DNS": {
+        "subtrace": "NoTrace"
       }
     }
   },

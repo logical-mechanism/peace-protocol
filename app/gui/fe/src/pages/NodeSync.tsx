@@ -375,9 +375,8 @@ export default function NodeSync() {
     if (stage !== 'bootstrapping' || !mithrilProgress) return
 
     // Clear samples during non-download phases (Files phase uses file counts not bytes,
-    // Converting/Complete have no meaningful speed)
+    // Complete has no meaningful speed)
     if (
-      mithrilProgress.stage === 'Converting' ||
       mithrilProgress.stage === 'Complete' ||
       mithrilProgress.message?.includes('Files')
     ) {
@@ -416,9 +415,8 @@ export default function NodeSync() {
     }
   }, [stage, mithrilProgress])
 
-  // Hide speed/ETA during non-download phases (Converting, Complete, Files)
+  // Hide speed/ETA during non-download phases (Complete, Files)
   const isNonDownloadPhase = stage !== 'bootstrapping' || !mithrilProgress ||
-    mithrilProgress.stage === 'Converting' ||
     mithrilProgress.stage === 'Complete' ||
     mithrilProgress.message?.includes('Files')
   const displayMithrilSpeed = isNonDownloadPhase ? null : mithrilSpeed
@@ -499,10 +497,7 @@ export default function NodeSync() {
     case 'bootstrapping':
       progressPercent = mithrilProgress?.progress_percent ?? 0
       if (mithrilProgress) {
-        if (mithrilProgress.stage === 'Converting') {
-          statusMessage = mithrilProgress.message || 'Converting snapshot to LMDB format...'
-          progressPercent = mithrilProgress.progress_percent
-        } else if (mithrilProgress.message?.includes('Files')) {
+        if (mithrilProgress.message?.includes('Files')) {
           // Files phase: bytes_downloaded/total_bytes contain file counts (not bytes)
           const filesDown = mithrilProgress.bytes_downloaded
           const filesTotal = mithrilProgress.total_bytes
