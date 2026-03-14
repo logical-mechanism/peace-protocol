@@ -1,8 +1,10 @@
 use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
 use crate::process::{cardano, cardano_cli, express, kupo, mithril, ogmios};
+use crate::NodeSocketReady;
 use serde::Serialize;
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use tauri::Manager;
 
 /// Cached app data directory path, resolved once at startup.
@@ -139,33 +141,42 @@ pub async fn get_node_status(
     let kupo_connection = kupo_result.as_ref().map(|m| m.connected);
     let kupo_last_block = kupo_result.as_ref().map(|m| m.seconds_since_last_block);
 
-    // Primary sync source: cardano-cli query tip (works as soon as socket exists)
-    if let Ok(cli_tip) = cardano_cli::query_tip(&app_handle, &config, app_data_dir).await {
-        let sync = cli_tip.sync_progress_f64();
+    // Primary sync source: cardano-cli query tip.
+    // Guard: only query if the node has finished initialization (NodeSocketReady flag).
+    // Each cardano-cli invocation opens a local socket connection. During early startup,
+    // these connections can deadlock the node's mini-protocol multiplexer.
+    let socket_ready = app_handle
+        .try_state::<NodeSocketReady>()
+        .map(|s| s.0.load(Ordering::SeqCst))
+        .unwrap_or(false);
+    if socket_ready {
+        if let Ok(cli_tip) = cardano_cli::query_tip(&app_handle, &config, app_data_dir).await {
+            let sync = cli_tip.sync_progress_f64();
 
-        let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
-            OverallNodeState::Synced
-        } else {
-            OverallNodeState::Syncing
-        };
+            let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
+                OverallNodeState::Synced
+            } else {
+                OverallNodeState::Syncing
+            };
 
-        return Ok(NodeStatus {
-            overall,
-            sync_progress: sync,
-            kupo_sync_progress: kupo_sync,
-            tip_slot: Some(cli_tip.slot),
-            tip_height: Some(cli_tip.block),
-            network: config.network.to_string(),
-            processes,
-            needs_bootstrap: needs_bootstrap_check,
-            epoch: Some(cli_tip.epoch),
-            era: Some(cli_tip.era),
-            slot_in_epoch: Some(cli_tip.slot_in_epoch),
-            slots_to_epoch_end: Some(cli_tip.slots_to_epoch_end),
-            kupo_connection_status: kupo_connection,
-            kupo_seconds_since_last_block: kupo_last_block,
-        });
-    }
+            return Ok(NodeStatus {
+                overall,
+                sync_progress: sync,
+                kupo_sync_progress: kupo_sync,
+                tip_slot: Some(cli_tip.slot),
+                tip_height: Some(cli_tip.block),
+                network: config.network.to_string(),
+                processes,
+                needs_bootstrap: needs_bootstrap_check,
+                epoch: Some(cli_tip.epoch),
+                era: Some(cli_tip.era),
+                slot_in_epoch: Some(cli_tip.slot_in_epoch),
+                slots_to_epoch_end: Some(cli_tip.slots_to_epoch_end),
+                kupo_connection_status: kupo_connection,
+                kupo_seconds_since_last_block: kupo_last_block,
+            });
+        }
+    } // socket_ready guard
 
     // Fallback: try Ogmios if cardano-cli failed (e.g. socket busy, CLI not available)
     let ogmios_active = ogmios_status
@@ -245,8 +256,7 @@ pub async fn start_node(
     cardano::start_cardano_node(&manager, &config, app_data_dir, &app_handle).await?;
 
     // 2. Wait for node socket to appear (poll every 5s, no fixed timeout).
-    // After a Mithril bootstrap, ledger replay can take 10+ minutes (preprod)
-    // or hours (mainnet). We wait as long as cardano-node is still running.
+    // With --include-ancillary ledger snapshots, startup should be fast.
     let socket_path = config.node_socket_path(app_data_dir);
     loop {
         if socket_path.exists() {
@@ -267,6 +277,78 @@ pub async fn start_node(
             .unwrap_or(false);
         if !still_running {
             return Err("cardano-node exited before creating its socket".to_string());
+        }
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    }
+
+    // 2b. Wait for node to finish initialization (poll Prometheus every 5s).
+    // The socket appears early in initialization, BEFORE the node finishes
+    // loading the ledger and replaying volatile blocks. Connecting chain-sync
+    // clients (Ogmios/Kupo) during this window can deadlock the node.
+    // Poll Prometheus (HTTP on port 12798, doesn't touch the node socket) for
+    // connectionManager_outgoingConns > 0 — this metric appears after ChainDB
+    // is fully initialized and the node has connected to peers.
+    // Note: with all Trace* flags disabled, chain metrics like slotNum_int are
+    // never populated. connectionManager metrics are always available.
+    eprintln!("[startup] Socket exists, waiting for node to finish initialization...");
+    let prom_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .unwrap_or_default();
+    loop {
+        let ready = match prom_client
+            .get("http://127.0.0.1:12798/metrics")
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                if let Ok(text) = resp.text().await {
+                    // Check for outgoing peer connections — indicates ChainDB is
+                    // initialized and the node is actively participating in the network.
+                    let has_conns = text.lines().any(|l| {
+                        if let Some(rest) =
+                            l.strip_prefix("cardano_node_metrics_connectionManager_outgoingConns ")
+                        {
+                            rest.trim().parse::<f64>().unwrap_or(0.0) > 0.0
+                        } else {
+                            false
+                        }
+                    });
+                    if has_conns {
+                        eprintln!("[startup] Node initialized: outgoing connections established");
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            Err(_) => false,
+        };
+        if ready {
+            // Mark node socket as ready for local queries (cardano-cli)
+            if let Some(flag) = app_handle.try_state::<NodeSocketReady>() {
+                flag.0.store(true, Ordering::SeqCst);
+            }
+            break;
+        }
+
+        // Check if the process is still alive
+        let status = manager.get_status("cardano-node").await;
+        let still_running = status
+            .as_ref()
+            .map(|s| {
+                matches!(
+                    s.status,
+                    ProcessStatus::Starting
+                        | ProcessStatus::Running
+                        | ProcessStatus::Syncing { .. }
+                )
+            })
+            .unwrap_or(false);
+        if !still_running {
+            return Err("cardano-node exited before becoming ready".to_string());
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }
@@ -356,7 +438,14 @@ pub async fn start_node(
 
 /// Stop all node infrastructure processes in reverse dependency order
 #[tauri::command]
-pub async fn stop_node(manager: tauri::State<'_, NodeManager>) -> Result<(), String> {
+pub async fn stop_node(
+    manager: tauri::State<'_, NodeManager>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    // Reset socket readiness flag — prevents stale cardano-cli queries
+    if let Some(flag) = app_handle.try_state::<NodeSocketReady>() {
+        flag.0.store(false, Ordering::SeqCst);
+    }
     manager.stop("express").await?;
     manager.stop("kupo").await?;
     manager.stop("ogmios").await?;

@@ -41,6 +41,7 @@ interface HistoryTabProps {
   onClearHistory?: () => void;
   onHistoryUpdated?: (records: TransactionRecord[]) => void;
   onRetryListing?: (draftId: string) => void;
+  onLocalRefresh?: () => void;
   historySignal?: number;
   filters: HistoryFilters;
   dispatch: React.Dispatch<HistoryAction>;
@@ -52,6 +53,7 @@ function HistoryTab({
   onClearHistory,
   onHistoryUpdated,
   onRetryListing,
+  onLocalRefresh,
   historySignal,
   filters,
   dispatch,
@@ -298,7 +300,7 @@ function HistoryTab({
       </svg>
       <span>Showing cached transaction history. Data may be outdated.</span>
       <button
-        onClick={refresh}
+        onClick={() => { refresh(); onLocalRefresh?.(); }}
         className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
         style={{
           background: 'var(--warning)',
@@ -425,7 +427,7 @@ function HistoryTab({
 
           {/* Action buttons */}
           <button
-            onClick={refresh}
+            onClick={() => { refresh(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh history"
             aria-label="Refresh history"

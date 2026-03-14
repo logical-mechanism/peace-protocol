@@ -20,6 +20,7 @@ interface MySalesTabProps {
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   onCreateListing?: () => void;
   onBidsViewed?: (encryptionTokenName: string) => void;
+  onLocalRefresh?: () => void;
   refreshSignal?: number;
   filters: MySalesFilters;
   dispatch: React.Dispatch<MySalesAction>;
@@ -33,6 +34,7 @@ function MySalesTab({
   onCompleteSale,
   onCreateListing,
   onBidsViewed,
+  onLocalRefresh,
   refreshSignal,
   filters,
   dispatch,
@@ -285,7 +287,7 @@ function MySalesTab({
           description={error}
           action={
             <button
-              onClick={fetchData}
+              onClick={() => { fetchData(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
               Try Again
@@ -464,7 +466,7 @@ function MySalesTab({
 
           {/* Refresh */}
           <button
-            onClick={fetchData}
+            onClick={() => { fetchData(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
             title="Refresh listings"
             aria-label="Refresh listings"

@@ -16,6 +16,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+/// Flag set to `true` once cardano-node has finished initialization (Prometheus
+/// shows outgoing peer connections). Prevents `get_node_status` from spawning
+/// cardano-cli queries while the node is still initializing — each query opens
+/// a local socket connection that can deadlock the node's mini-protocol mux.
+pub struct NodeSocketReady(pub AtomicBool);
+
 // ── Media streaming server ──────────────────────────────────────────────────
 // WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
 // (asset://, media://) for <video>/<audio> elements. Work around this by
@@ -241,6 +247,58 @@ pub fn run() {
         // Workaround for WebKitGTK DMA-BUF crashes on newer kernels (6.17+)
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 
+        // AppImage's linuxdeploy launcher injects many environment variables
+        // ($APPDIR/usr/lib paths, GTK/GIO/GST overrides, etc.). Child processes
+        // (cardano-node, ogmios, kupo — all sidecar binaries) inherit these and
+        // may load incompatible bundled libraries or have their runtime behavior
+        // altered. Ogmios (Haskell) is especially affected: the Ouroboros
+        // mini-protocol stalls, causing ALL JSON-RPC methods to hang.
+        //
+        // Note: We cannot strip GTK/GIO/GST vars at the process level because
+        // WebKitGTK (in-process) needs them. Instead, sidecar processes are
+        // spawned with env_clear() in manager.rs (see start_sidecar / start_command).
+        // Here we only fix LD_* vars which are unsafe for ALL child processes.
+        if let Ok(appdir) = std::env::var("APPDIR") {
+            // Diagnostic: log all AppImage-injected env vars for debugging
+            eprintln!("[AppImage] Detected APPDIR={}", appdir);
+            for (key, value) in std::env::vars() {
+                if value.contains(&appdir)
+                    || key.starts_with("LD_")
+                    || key.starts_with("GTK_")
+                    || key.starts_with("GDK_")
+                    || key.starts_with("GIO_")
+                    || key.starts_with("GST_")
+                {
+                    eprintln!("[AppImage] ENV: {}={}", key, value);
+                }
+            }
+
+            // Strip LD_LIBRARY_PATH entries that point into the AppImage mount.
+            // IMPORTANT: use remove_var when empty — set_var("", "") tells glibc
+            // to search CWD for libraries, which finds incompatible AppImage libs.
+            if let Ok(ld_path) = std::env::var("LD_LIBRARY_PATH") {
+                let filtered: Vec<&str> = ld_path
+                    .split(':')
+                    .filter(|p| !p.is_empty() && !p.starts_with(&appdir))
+                    .collect();
+                if filtered.is_empty() {
+                    std::env::remove_var("LD_LIBRARY_PATH");
+                    eprintln!("[AppImage] Removed LD_LIBRARY_PATH (was all AppImage paths)");
+                } else {
+                    let joined = filtered.join(":");
+                    std::env::set_var("LD_LIBRARY_PATH", &joined);
+                    eprintln!("[AppImage] Filtered LD_LIBRARY_PATH={}", joined);
+                }
+            }
+
+            // Remove LD_PRELOAD entirely — AppImage may preload libraries that
+            // interfere with Haskell runtime in sidecar binaries.
+            if std::env::var("LD_PRELOAD").is_ok() {
+                std::env::remove_var("LD_PRELOAD");
+                eprintln!("[AppImage] Removed LD_PRELOAD");
+            }
+        }
+
         // AppImage's linuxdeploy launcher sets GST_PLUGIN_SYSTEM_PATH_1_0 to
         // "$APPDIR/usr/lib/gstreamer-1.0:" which overrides GStreamer's compiled-in
         // default plugin search paths. The AppImage bundles GStreamer libraries but
@@ -304,6 +362,10 @@ pub fn run() {
             // Node manager (Phase 2) — pass service ports for periodic health checks
             let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
             app.manage(node_manager);
+
+            // Node socket readiness flag — prevents cardano-cli queries before
+            // the node has finished initialization (outgoing peer connections).
+            app.manage(NodeSocketReady(AtomicBool::new(false)));
 
             // App-specific temp directory — wiped on startup to clean crash orphans
             // (SNARK temp files contain secret cryptographic material)
@@ -480,6 +542,10 @@ pub fn run() {
             commands::iagon::get_iagon_api_key,
             commands::iagon::remove_iagon_api_key,
             commands::iagon::has_iagon_api_key,
+            // Kupo/Ogmios HTTP proxy commands (bypass CORS)
+            commands::kupo_proxy::kupo_fetch,
+            commands::kupo_proxy::ogmios_fetch,
+            commands::kupo_proxy::ogmios_post,
             // Iagon HTTP proxy commands (bypass CORS)
             commands::iagon::iagon_get_nonce,
             commands::iagon::iagon_verify,

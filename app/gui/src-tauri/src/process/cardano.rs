@@ -12,14 +12,23 @@ pub struct CardanoNodeConfig {
 
 impl CardanoNodeConfig {
     /// Build config paths from app config and data directory.
-    /// Note: Mithril v1 extracts the snapshot into a `db/` subdirectory within
-    /// the download-dir, so cardano-node's database-path must point there.
+    /// Mithril v2 extracts directly into the download-dir.
+    /// Legacy v1 extracted into a `db/` subdirectory — we check for that
+    /// and use it if present (backward compat for existing users).
     pub fn new(app_config: &AppConfig, app_data_dir: &Path) -> Self {
         let config_dir = app_config.config_dir(app_data_dir);
+        let base_db = app_config.node_db_dir(app_data_dir);
+        // v1 extracted into db/ subdirectory; v2 extracts directly.
+        // Use v1 path if it exists (backward compat), otherwise v2 path.
+        let db_dir = if base_db.join("db").join("immutable").exists() {
+            base_db.join("db")
+        } else {
+            base_db
+        };
         Self {
             config_json: config_dir.join("config.json"),
             topology_json: config_dir.join("topology.json"),
-            db_dir: app_config.node_db_dir(app_data_dir).join("db"),
+            db_dir,
             socket_path: app_config.node_socket_path(app_data_dir),
         }
     }
@@ -62,10 +71,12 @@ impl CardanoNodeConfig {
             .filter(|p| p.exists())
             .collect();
 
-        // List of config files to copy
-        let files = [
-            "config.json",
-            "topology.json",
+        // Config files to copy from resources.
+        // config.json and topology.json are always overwritten so that changes
+        // (e.g. ledger backend, trace flags) take effect on upgrade.
+        // Genesis files are large and stable — only copied if missing.
+        let always_overwrite = ["config.json", "topology.json"];
+        let copy_if_missing = [
             "byron-genesis.json",
             "shelley-genesis.json",
             "alonzo-genesis.json",
@@ -73,9 +84,15 @@ impl CardanoNodeConfig {
             "peer-snapshot.json",
         ];
 
-        for file in &files {
+        let all_files: Vec<(&str, bool)> = always_overwrite
+            .iter()
+            .map(|f| (*f, true))
+            .chain(copy_if_missing.iter().map(|f| (*f, false)))
+            .collect();
+
+        for (file, overwrite) in &all_files {
             let dst = config_dir.join(file);
-            if !dst.exists() {
+            if *overwrite || !dst.exists() {
                 let found = source_dirs.iter().find_map(|dir| {
                     let src = dir.join(file);
                     if src.exists() {
@@ -120,7 +137,38 @@ pub async fn start_cardano_node(
     app_handle: &tauri::AppHandle,
 ) -> Result<(), String> {
     let config = CardanoNodeConfig::new(app_config, app_data_dir);
+
+    // Remove stale peer snapshot BEFORE ensure_config_files so the bundled
+    // version gets re-copied. cardano-node overwrites peer-snapshot.json with
+    // discovered peers; stale cached peers prevent fresh bootstrap discovery.
+    if let Some(config_dir) = config.config_json.parent() {
+        let peer_snapshot = config_dir.join("peer-snapshot.json");
+        if peer_snapshot.exists() {
+            let _ = std::fs::remove_file(&peer_snapshot);
+        }
+    }
+
     config.ensure_config_files(app_handle)?;
+
+    // Fix peerSnapshotFile path in topology.json to use an absolute path.
+    // Known bug in cardano-node 10.6.x: relative paths in peerSnapshotFile are
+    // resolved from the binary's directory, not the topology file's directory.
+    // In AppImage the binary lives in /tmp/.mount_*/usr/bin/ so the relative
+    // path never resolves. Rewriting to absolute after copying ensures the node
+    // always finds the bundled snapshot.
+    if let Some(config_dir) = config.config_json.parent() {
+        let topo_path = config_dir.join("topology.json");
+        let snapshot_abs = config_dir.join("peer-snapshot.json");
+        if topo_path.exists() && snapshot_abs.exists() {
+            if let Ok(topo) = std::fs::read_to_string(&topo_path) {
+                let fixed = topo.replace(
+                    "\"peer-snapshot.json\"",
+                    &format!("\"{}\"", snapshot_abs.display()),
+                );
+                let _ = std::fs::write(&topo_path, fixed);
+            }
+        }
+    }
 
     // Ensure db directory exists
     std::fs::create_dir_all(&config.db_dir)
@@ -137,12 +185,21 @@ pub async fn start_cardano_node(
     }
 
     let args = config.build_args();
-    manager.start("cardano-node", "cardano-node", args).await
+    manager
+        .start_sidecar(
+            "cardano-node",
+            "cardano-node",
+            args,
+            Some(&config.db_dir),
+            false,
+        )
+        .await
 }
 
 /// Check if cardano-node has a database (i.e., has been bootstrapped).
-/// Mithril v1 extracts to `node-db/db/`, so we check for markers there.
+/// Checks both v2 path (node-db/) and legacy v1 path (node-db/db/).
 pub fn has_chain_data(app_config: &AppConfig, app_data_dir: &Path) -> bool {
-    let db_dir = app_config.node_db_dir(app_data_dir).join("db");
-    db_dir.join("protocolMagicId").exists() || db_dir.join("immutable").exists()
+    let base_db = app_config.node_db_dir(app_data_dir);
+    let check = |dir: &Path| dir.join("protocolMagicId").exists() || dir.join("immutable").exists();
+    check(&base_db) || check(&base_db.join("db"))
 }

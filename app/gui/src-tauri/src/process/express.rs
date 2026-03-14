@@ -22,6 +22,7 @@ pub async fn start_express(
             vec!["dist/index.js".to_string()],
             Some(be_dir),
             env_vars,
+            false,
         )
         .await
 }

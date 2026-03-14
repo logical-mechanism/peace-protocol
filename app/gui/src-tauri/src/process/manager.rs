@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
-use tauri_plugin_shell::process::CommandChild;
-use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex;
 
 /// Status of a managed process
@@ -60,15 +58,12 @@ const LOG_BUFFER_SIZE: usize = 500;
 /// How this process was originally launched (for auto-restart)
 #[derive(Clone)]
 enum LaunchInfo {
-    Sidecar {
-        sidecar_name: String,
-        args: Vec<String>,
-    },
     Command {
-        _program: String,
-        _args: Vec<String>,
-        _cwd: Option<std::path::PathBuf>,
-        _env_vars: Vec<(String, String)>,
+        program: String,
+        args: Vec<String>,
+        cwd: Option<std::path::PathBuf>,
+        env_vars: Vec<(String, String)>,
+        suppress_output: bool,
     },
 }
 
@@ -79,7 +74,7 @@ enum LaunchInfo {
 ///   SHUTDOWN_TIMEOUT_CARDANO, SHUTDOWN_TIMEOUT_MITHRIL, SHUTDOWN_TIMEOUT_DEFAULT
 fn default_shutdown_timeout(name: &str) -> u64 {
     let (env_key, fallback) = match name {
-        "cardano-node" => ("SHUTDOWN_TIMEOUT_CARDANO", 45),
+        "cardano-node" => ("SHUTDOWN_TIMEOUT_CARDANO", 90),
         "mithril-client" => ("SHUTDOWN_TIMEOUT_MITHRIL", 30),
         _ => ("SHUTDOWN_TIMEOUT_DEFAULT", 10),
     };
@@ -99,7 +94,6 @@ fn default_shutdown_timeout(name: &str) -> u64 {
 
 /// A single managed child process with its metadata
 struct ManagedProcess {
-    child: Option<CommandChild>,
     info: ProcessInfo,
     restart_policy: RestartPolicy,
     log_buffer: Vec<String>,
@@ -113,6 +107,10 @@ struct ManagedProcess {
     health_check_failures: u32,
     /// Number of log lines dropped due to buffer eviction
     dropped_log_count: u64,
+    /// Last observed tip slot (for stall detection in Ogmios/Kupo)
+    last_seen_tip_slot: Option<u64>,
+    /// How many consecutive liveness checks showed the same tip slot
+    tip_unchanged_count: u32,
 }
 
 impl ManagedProcess {
@@ -175,6 +173,116 @@ fn is_veiled_process(_pid: u32, _expected_names: &[&str]) -> bool {
     true
 }
 
+/// Environment variables that are safe and necessary for sidecar processes.
+/// Everything else (especially AppImage-injected vars) is excluded.
+const SIDECAR_ENV_ALLOWLIST: &[&str] = &[
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TERM",
+    "SHELL",
+    "XDG_RUNTIME_DIR",
+    "TMPDIR",
+    "TZ",
+    "DISPLAY",
+    "WAYLAND_DISPLAY",
+    "CARDANO_NODE_SOCKET_PATH",
+];
+
+/// Build a clean environment for sidecar processes.
+/// Only passes through variables from the allowlist that are currently set.
+fn build_clean_env() -> Vec<(String, String)> {
+    SIDECAR_ENV_ALLOWLIST
+        .iter()
+        .filter_map(|&key| std::env::var(key).ok().map(|val| (key.to_string(), val)))
+        .collect()
+}
+
+/// Resolve the full path to a sidecar binary.
+///
+/// Tauri convention: sidecar binaries are placed next to the main executable
+/// as `{name}-{target_triple}` (e.g., `binaries/ogmios-x86_64-unknown-linux-gnu`).
+pub fn resolve_sidecar_path(sidecar_name: &str) -> Result<std::path::PathBuf, String> {
+    let exe =
+        std::env::current_exe().map_err(|e| format!("Failed to get current exe path: {e}"))?;
+    let exe_dir = exe
+        .parent()
+        .ok_or_else(|| "Failed to get exe parent directory".to_string())?;
+
+    let target = env!("TARGET_TRIPLE");
+
+    // Extract the binary basename (strip "binaries/" prefix if present).
+    // In dev/source: sidecar_name is "binaries/cardano-node" → file at src-tauri/binaries/cardano-node-{triple}
+    // In production: Tauri copies sidecars next to the exe as just "cardano-node-{triple}" (no binaries/ dir)
+    let basename = std::path::Path::new(sidecar_name)
+        .file_name()
+        .unwrap_or(std::ffi::OsStr::new(sidecar_name))
+        .to_string_lossy();
+
+    // Candidate paths in priority order:
+    // 1. Next to exe using basename (production AppImage — sidecars sit next to exe)
+    // 2. Next to exe with full sidecar_name path (unlikely but safe fallback)
+    // 3. Dev mode: src-tauri/{sidecar_name} (exe is at target/debug/ or target/release/)
+    let mut candidates = vec![
+        exe_dir.join(format!("{}-{}", basename, target)),
+        exe_dir.join(basename.as_ref()),
+        exe_dir.join(format!("{}-{}", sidecar_name, target)),
+        exe_dir.join(sidecar_name),
+    ];
+
+    // In dev mode, exe_dir is target/debug/ or target/release/.
+    // Walk up to src-tauri/ and check the full sidecar_name path there.
+    if let Some(target_dir) = exe_dir.parent() {
+        if let Some(src_tauri_dir) = target_dir.parent() {
+            candidates.push(src_tauri_dir.join(format!("{}-{}", sidecar_name, target)));
+            candidates.push(src_tauri_dir.join(sidecar_name));
+        }
+    }
+
+    for candidate in &candidates {
+        if candidate.exists() {
+            return Ok(candidate.clone());
+        }
+    }
+
+    let tried: Vec<String> = candidates.iter().map(|p| p.display().to_string()).collect();
+    Err(format!(
+        "Sidecar binary not found: {} (tried {})",
+        sidecar_name,
+        tried.join(", ")
+    ))
+}
+
+/// Build a `tokio::process::Command` for a one-shot sidecar invocation with a clean env.
+///
+/// Used by cardano-cli (tip queries) and snark (proving/hashing) which are
+/// short-lived processes that don't go through NodeManager's lifecycle.
+pub fn spawn_clean_sidecar(
+    sidecar_name: &str,
+    args: &[String],
+) -> Result<tokio::process::Command, String> {
+    let binary_path = resolve_sidecar_path(sidecar_name)?;
+    let env = build_clean_env();
+
+    let mut cmd = tokio::process::Command::new(binary_path);
+    cmd.args(args)
+        .env_clear()
+        .envs(env)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    Ok(cmd)
+}
+
+/// Consecutive stale-tip checks before restarting a process.
+/// At 10s intervals, 12 checks = 120 seconds of stale data.
+/// Generous threshold to avoid false positives on slow hardware or preprod block gaps.
+const STALL_DETECTION_THRESHOLD: u32 = 12;
+
 /// The central process manager, held in Tauri state.
 /// Manages the lifecycle of all sidecar processes.
 pub struct NodeManager {
@@ -187,7 +295,10 @@ pub struct NodeManager {
 }
 
 /// Maximum consecutive HTTP health check failures before marking a process as Error.
-const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 3;
+/// At 10s intervals, 18 checks = 180 seconds of unresponsive health checks.
+/// Kupo connecting through Ogmios (WebSocket) needs extra startup time for
+/// protocol negotiation + initial chain-sync handshake.
+const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 18;
 
 impl NodeManager {
     pub fn new(app_handle: tauri::AppHandle, ogmios_port: u16, kupo_port: u16) -> Self {
@@ -406,435 +517,35 @@ impl NodeManager {
         Ok(())
     }
 
-    /// Start a process by spawning the sidecar binary.
-    /// If the process is already running, stops it gracefully first.
-    pub async fn start(
+    /// Start a sidecar binary with a clean environment.
+    ///
+    /// Resolves the sidecar binary path and spawns it via `start_command()`
+    /// with only essential env vars (PATH, HOME, LANG, etc.).
+    /// This prevents AppImage-injected environment variables from interfering
+    /// with Haskell-based sidecars (Ogmios, Kupo, cardano-node).
+    pub async fn start_sidecar(
         &self,
         name: &str,
         sidecar_name: &str,
         args: Vec<String>,
+        cwd: Option<&std::path::PathBuf>,
+        suppress_output: bool,
     ) -> Result<(), String> {
-        // Stop existing process gracefully if running
-        self.stop(name).await?;
-
-        // Set status to Starting, store launch info, clear user_stopped
-        {
-            let mut procs = self.processes.lock().await;
-            if let Some(proc) = procs.get_mut(name) {
-                proc.info.status = ProcessStatus::Starting;
-                proc.log_buffer.clear();
-                proc.user_stopped = false;
-                proc.launch_info = Some(LaunchInfo::Sidecar {
-                    sidecar_name: sidecar_name.to_string(),
-                    args: args.clone(),
-                });
-            } else {
-                // Auto-register if not already registered
-                procs.insert(
-                    name.to_string(),
-                    ManagedProcess {
-                        child: None,
-                        info: ProcessInfo {
-                            name: name.to_string(),
-                            status: ProcessStatus::Starting,
-                            pid: None,
-                            restart_count: 0,
-                            last_error: None,
-                        },
-                        restart_policy: RestartPolicy::default(),
-                        log_buffer: Vec::new(),
-                        launch_info: Some(LaunchInfo::Sidecar {
-                            sidecar_name: sidecar_name.to_string(),
-                            args: args.clone(),
-                        }),
-                        user_stopped: false,
-                        shutdown_timeout_secs: default_shutdown_timeout(name),
-                        health_check_failures: 0,
-                        dropped_log_count: 0,
-                    },
-                );
-            }
-        }
-
-        self.emit_status(name, ProcessStatus::Starting, None);
-
-        // Spawn the sidecar
-        let shell = self.app_handle.shell();
-        let command = shell.sidecar(sidecar_name).map_err(|e| {
-            let msg = format!("Failed to create sidecar command '{}': {}", sidecar_name, e);
-            self.emit_status(
-                name,
-                ProcessStatus::Error {
-                    message: msg.clone(),
-                },
-                None,
-            );
-            msg
-        })?;
-
-        let command = command.args(args);
-
-        let (mut rx, child) = command.spawn().map_err(|e| {
-            let msg = format!("Failed to spawn '{}': {}", sidecar_name, e);
-            self.emit_status(
-                name,
-                ProcessStatus::Error {
-                    message: msg.clone(),
-                },
-                None,
-            );
-            msg
-        })?;
-
-        let pid = child.pid();
-
-        // Store the child handle
-        {
-            let mut procs = self.processes.lock().await;
-            if let Some(proc) = procs.get_mut(name) {
-                proc.child = Some(child);
-                proc.info.pid = Some(pid);
-                proc.info.status = ProcessStatus::Running;
-                proc.info.last_error = None;
-            }
-            Self::save_pids_sync(&self.pid_file, &procs);
-        }
-
-        self.emit_status(name, ProcessStatus::Running, None);
-
-        // Spawn a background task to read stdout/stderr
-        let app_handle = self.app_handle.clone();
-        let process_name = name.to_string();
-        let processes = self.processes.clone();
-
-        tauri::async_runtime::spawn(async move {
-            use tauri_plugin_shell::process::CommandEvent;
-
-            while let Some(event) = rx.recv().await {
-                match event {
-                    CommandEvent::Stdout(data) => {
-                        let line = String::from_utf8_lossy(&data).trim().to_string();
-                        if line.is_empty() {
-                            continue;
-                        }
-
-                        // Append to log buffer
-                        {
-                            let mut procs = processes.lock().await;
-                            if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.append_log(line.clone());
-                            }
-                        }
-
-                        // Emit structured mithril-progress events for the download UI
-                        if process_name == "mithril-client" {
-                            if let Some(progress) =
-                                crate::process::mithril::parse_mithril_output(&line)
-                            {
-                                let _ = app_handle.emit("mithril-progress", progress);
-                            }
-                        }
-
-                        let _ = app_handle.emit(
-                            "process-status",
-                            ProcessEvent {
-                                name: process_name.clone(),
-                                status: ProcessStatus::Running,
-                                log_line: Some(line),
-                            },
-                        );
-                    }
-                    CommandEvent::Stderr(data) => {
-                        let line = String::from_utf8_lossy(&data).trim().to_string();
-                        if line.is_empty() {
-                            continue;
-                        }
-
-                        // Append to log buffer
-                        {
-                            let mut procs = processes.lock().await;
-                            if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.append_log(format!("[stderr] {}", line));
-                            }
-                        }
-
-                        let _ = app_handle.emit(
-                            "process-status",
-                            ProcessEvent {
-                                name: process_name.clone(),
-                                status: ProcessStatus::Running,
-                                log_line: Some(format!("[stderr] {}", line)),
-                            },
-                        );
-                    }
-                    CommandEvent::Error(err) => {
-                        let msg = format!("Process error: {}", err);
-                        {
-                            let mut procs = processes.lock().await;
-                            if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.info.status = ProcessStatus::Error {
-                                    message: msg.clone(),
-                                };
-                                proc.info.last_error = Some(msg.clone());
-                                proc.child = None;
-                            }
-                        }
-
-                        let _ = app_handle.emit(
-                            "process-status",
-                            ProcessEvent {
-                                name: process_name.clone(),
-                                status: ProcessStatus::Error { message: msg },
-                                log_line: None,
-                            },
-                        );
-                        break;
-                    }
-                    CommandEvent::Terminated(payload) => {
-                        let msg = format!(
-                            "Process exited with code {:?}, signal {:?}",
-                            payload.code, payload.signal
-                        );
-                        let is_crash = payload.code != Some(0);
-
-                        // Check if auto-restart is appropriate
-                        let should_restart = if is_crash {
-                            let mut procs = processes.lock().await;
-                            if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.child = None;
-                                proc.info.pid = None;
-                                proc.info.last_error = Some(msg.clone());
-
-                                if proc.user_stopped {
-                                    // User intentionally stopped — do not restart
-                                    proc.info.status = ProcessStatus::Stopped;
-                                    false
-                                } else if proc.info.restart_count < proc.restart_policy.max_retries
-                                {
-                                    proc.info.restart_count += 1;
-                                    let base_delay = proc.restart_policy.initial_delay_ms as f64
-                                        * proc
-                                            .restart_policy
-                                            .backoff_multiplier
-                                            .powi((proc.info.restart_count - 1) as i32);
-                                    let delay = apply_jitter(base_delay);
-                                    proc.info.status = ProcessStatus::Error {
-                                        message: format!(
-                                            "{} (restarting in {:.0}s, attempt {}/{})",
-                                            msg,
-                                            delay / 1000.0,
-                                            proc.info.restart_count,
-                                            proc.restart_policy.max_retries
-                                        ),
-                                    };
-                                    // Return delay for restart
-                                    let launch = proc.launch_info.clone();
-                                    drop(procs);
-
-                                    // Schedule restart after delay
-                                    if let Some(LaunchInfo::Sidecar { sidecar_name, args }) = launch
-                                    {
-                                        let app2 = app_handle.clone();
-                                        let procs2 = processes.clone();
-                                        let pname2 = process_name.clone();
-                                        tauri::async_runtime::spawn(async move {
-                                            tokio::time::sleep(tokio::time::Duration::from_millis(
-                                                delay as u64,
-                                            ))
-                                            .await;
-
-                                            // Re-check that user hasn't stopped it during the delay
-                                            let still_should = {
-                                                let p = procs2.lock().await;
-                                                p.get(&pname2)
-                                                    .map(|pr| !pr.user_stopped)
-                                                    .unwrap_or(false)
-                                            };
-                                            if !still_should {
-                                                return;
-                                            }
-
-                                            let _ = app2.emit(
-                                                "process-status",
-                                                ProcessEvent {
-                                                    name: pname2.clone(),
-                                                    status: ProcessStatus::Starting,
-                                                    log_line: Some(
-                                                        "Auto-restarting...".to_string(),
-                                                    ),
-                                                },
-                                            );
-
-                                            let shell = app2.shell();
-                                            if let Ok(cmd) = shell.sidecar(&sidecar_name) {
-                                                if let Ok((mut rx2, child2)) =
-                                                    cmd.args(&args).spawn()
-                                                {
-                                                    let pid2 = child2.pid();
-                                                    {
-                                                        let mut p = procs2.lock().await;
-                                                        if let Some(proc) = p.get_mut(&pname2) {
-                                                            proc.child = Some(child2);
-                                                            proc.info.pid = Some(pid2);
-                                                            proc.info.status =
-                                                                ProcessStatus::Running;
-                                                        }
-                                                    }
-
-                                                    let _ = app2.emit(
-                                                        "process-status",
-                                                        ProcessEvent {
-                                                            name: pname2.clone(),
-                                                            status: ProcessStatus::Running,
-                                                            log_line: Some(format!(
-                                                                "Restarted (pid {})",
-                                                                pid2
-                                                            )),
-                                                        },
-                                                    );
-
-                                                    // Re-attach stdout/stderr reader
-                                                    let app3 = app2.clone();
-                                                    let procs3 = procs2.clone();
-                                                    let pname3 = pname2.clone();
-                                                    tauri::async_runtime::spawn(async move {
-                                                        while let Some(ev) = rx2.recv().await {
-                                                            match ev {
-                                                                CommandEvent::Stdout(data) => {
-                                                                    let line =
-                                                                        String::from_utf8_lossy(
-                                                                            &data,
-                                                                        )
-                                                                        .trim()
-                                                                        .to_string();
-                                                                    if line.is_empty() {
-                                                                        continue;
-                                                                    }
-                                                                    {
-                                                                        let mut p =
-                                                                            procs3.lock().await;
-                                                                        if let Some(proc) =
-                                                                            p.get_mut(&pname3)
-                                                                        {
-                                                                            proc.append_log(
-                                                                                line.clone(),
-                                                                            );
-                                                                        }
-                                                                    }
-                                                                    // Emit structured mithril-progress events for the download UI
-                                                                    if pname3 == "mithril-client" {
-                                                                        if let Some(progress) = crate::process::mithril::parse_mithril_output(&line) {
-                                                                            let _ = app3.emit("mithril-progress", progress);
-                                                                        }
-                                                                    }
-                                                                    let _ = app3.emit("process-status", ProcessEvent {
-                                                                        name: pname3.clone(),
-                                                                        status: ProcessStatus::Running,
-                                                                        log_line: Some(line),
-                                                                    });
-                                                                }
-                                                                CommandEvent::Stderr(data) => {
-                                                                    let line =
-                                                                        String::from_utf8_lossy(
-                                                                            &data,
-                                                                        )
-                                                                        .trim()
-                                                                        .to_string();
-                                                                    if line.is_empty() {
-                                                                        continue;
-                                                                    }
-                                                                    let log_line = format!(
-                                                                        "[stderr] {}",
-                                                                        line
-                                                                    );
-                                                                    {
-                                                                        let mut p =
-                                                                            procs3.lock().await;
-                                                                        if let Some(proc) =
-                                                                            p.get_mut(&pname3)
-                                                                        {
-                                                                            proc.append_log(
-                                                                                log_line.clone(),
-                                                                            );
-                                                                        }
-                                                                    }
-                                                                    let _ = app3.emit("process-status", ProcessEvent {
-                                                                        name: pname3.clone(),
-                                                                        status: ProcessStatus::Running,
-                                                                        log_line: Some(log_line),
-                                                                    });
-                                                                }
-                                                                CommandEvent::Terminated(_)
-                                                                | CommandEvent::Error(_) => break,
-                                                                _ => {}
-                                                            }
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        });
-                                    }
-
-                                    true
-                                } else {
-                                    proc.info.status = ProcessStatus::Error {
-                                        message: format!(
-                                            "{} (max restarts {} reached)",
-                                            msg, proc.restart_policy.max_retries
-                                        ),
-                                    };
-                                    false
-                                }
-                            } else {
-                                false
-                            }
-                        } else {
-                            // Clean exit (code 0) — just mark as stopped
-                            let mut procs = processes.lock().await;
-                            if let Some(proc) = procs.get_mut(&process_name) {
-                                proc.info.status = ProcessStatus::Stopped;
-                                proc.child = None;
-                                proc.info.pid = None;
-                            }
-                            false
-                        };
-
-                        let status = if is_crash && !should_restart {
-                            let procs = processes.lock().await;
-                            procs
-                                .get(&process_name)
-                                .map(|p| p.info.status.clone())
-                                .unwrap_or(ProcessStatus::Error {
-                                    message: msg.clone(),
-                                })
-                        } else if !is_crash {
-                            ProcessStatus::Stopped
-                        } else {
-                            // Restart is scheduled, don't emit final stopped
-                            break;
-                        };
-
-                        let _ = app_handle.emit(
-                            "process-status",
-                            ProcessEvent {
-                                name: process_name.clone(),
-                                status,
-                                log_line: Some(msg),
-                            },
-                        );
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-        });
-
-        Ok(())
+        let binary_path = resolve_sidecar_path(&format!("binaries/{}", sidecar_name))?;
+        let program = binary_path.to_string_lossy().to_string();
+        let env_vars = build_clean_env();
+        self.start_command(name, &program, args, cwd, env_vars, suppress_output)
+            .await
     }
 
-    /// Start a process by spawning an arbitrary command (not a sidecar).
-    /// Used for the Express backend which is a Node.js app, not a bundled binary.
-    /// Supports custom working directory and environment variables.
+    /// Start a process by spawning a command with explicit environment control.
+    ///
+    /// Used for ALL managed processes (sidecars via `start_sidecar()` and Express).
+    /// The environment is set exclusively from `env_vars` — no inheritance from
+    /// the parent process. This prevents AppImage-injected variables from
+    /// reaching child processes.
+    ///
+    /// Includes auto-restart with exponential backoff on non-zero exit.
     pub async fn start_command(
         &self,
         name: &str,
@@ -842,16 +553,18 @@ impl NodeManager {
         args: Vec<String>,
         cwd: Option<&std::path::PathBuf>,
         env_vars: Vec<(String, String)>,
+        suppress_output: bool,
     ) -> Result<(), String> {
         // Stop existing process gracefully if running
         self.stop(name).await?;
 
         // Set status to Starting, store launch info
         let launch = LaunchInfo::Command {
-            _program: program.to_string(),
-            _args: args.clone(),
-            _cwd: cwd.cloned(),
-            _env_vars: env_vars.clone(),
+            program: program.to_string(),
+            args: args.clone(),
+            cwd: cwd.cloned(),
+            env_vars: env_vars.clone(),
+            suppress_output,
         };
         {
             let mut procs = self.processes.lock().await;
@@ -864,7 +577,6 @@ impl NodeManager {
                 procs.insert(
                     name.to_string(),
                     ManagedProcess {
-                        child: None,
                         info: ProcessInfo {
                             name: name.to_string(),
                             status: ProcessStatus::Starting,
@@ -879,6 +591,8 @@ impl NodeManager {
                         shutdown_timeout_secs: default_shutdown_timeout(name),
                         health_check_failures: 0,
                         dropped_log_count: 0,
+                        last_seen_tip_slot: None,
+                        tip_unchanged_count: 0,
                     },
                 );
             }
@@ -886,22 +600,27 @@ impl NodeManager {
 
         self.emit_status(name, ProcessStatus::Starting, None);
 
-        // Build the tokio command
+        // Build the tokio command with a clean environment.
+        // Start with the allowlisted system vars, then overlay caller-provided vars
+        // (so Express can add PORT, NODE_ENV, etc. on top of PATH, HOME, etc.).
+        let mut merged_env = build_clean_env();
+        for (k, v) in &env_vars {
+            // Override or add caller-provided vars
+            if let Some(existing) = merged_env.iter_mut().find(|(ek, _)| ek == k) {
+                existing.1 = v.clone();
+            } else {
+                merged_env.push((k.clone(), v.clone()));
+            }
+        }
         let mut cmd = tokio::process::Command::new(program);
-        cmd.args(&args)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        cmd.args(&args).env_clear().envs(merged_env.iter().cloned());
 
-        // Inherit minimal env so `node` works, then overlay our vars
-        if let Ok(path) = std::env::var("PATH") {
-            cmd.env("PATH", path);
-        }
-        if let Ok(home) = std::env::var("HOME") {
-            cmd.env("HOME", home);
-        }
-
-        for (key, val) in &env_vars {
-            cmd.env(key, val);
+        if suppress_output {
+            cmd.stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+        } else {
+            cmd.stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped());
         }
 
         if let Some(dir) = cwd {
@@ -924,13 +643,14 @@ impl NodeManager {
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
 
-        // Track by PID (no CommandChild for tokio processes)
+        // Track by PID
         {
             let mut procs = self.processes.lock().await;
             if let Some(proc) = procs.get_mut(name) {
                 proc.info.pid = Some(pid);
                 proc.info.status = ProcessStatus::Running;
                 proc.info.last_error = None;
+                proc.info.restart_count = 0; // Reset so future crashes get full retry budget
             }
             Self::save_pids_sync(&self.pid_file, &procs);
         }
@@ -941,6 +661,7 @@ impl NodeManager {
         let app_handle = self.app_handle.clone();
         let processes = self.processes.clone();
         let process_name = name.to_string();
+        let pid_file = self.pid_file.clone();
 
         tauri::async_runtime::spawn(async move {
             use tokio::io::{AsyncBufReadExt, BufReader};
@@ -959,6 +680,14 @@ impl NodeManager {
                             let mut p = procs.lock().await;
                             if let Some(proc) = p.get_mut(&pname) {
                                 proc.append_log(line.clone());
+                            }
+                        }
+                        // Emit structured mithril-progress events for the download UI
+                        if pname == "mithril-client" {
+                            if let Some(progress) =
+                                crate::process::mithril::parse_mithril_output(&line)
+                            {
+                                let _ = app.emit("mithril-progress", progress);
                             }
                         }
                         let _ = app.emit(
@@ -990,6 +719,14 @@ impl NodeManager {
                                 proc.append_log(log_line.clone());
                             }
                         }
+                        // Emit structured mithril-progress events (download progress comes on stderr)
+                        if pname == "mithril-client" {
+                            if let Some(progress) =
+                                crate::process::mithril::parse_mithril_output(&line)
+                            {
+                                let _ = app.emit("mithril-progress", progress);
+                            }
+                        }
                         let _ = app.emit(
                             "process-status",
                             ProcessEvent {
@@ -1008,50 +745,304 @@ impl NodeManager {
                 Ok(s) => (s.code(), format!("Process exited with code {:?}", s.code())),
                 Err(e) => (None, format!("Process wait error: {}", e)),
             };
-            let status = if code == Some(0) {
-                ProcessStatus::Stopped
-            } else {
-                ProcessStatus::Error {
-                    message: msg.clone(),
-                }
-            };
-            {
-                let mut p = processes.lock().await;
-                if let Some(proc) = p.get_mut(&process_name) {
-                    proc.info.status = status.clone();
-                    proc.info.pid = None;
-                    if code != Some(0) {
+            let is_crash = code != Some(0);
+
+            if is_crash {
+                // Check if auto-restart is appropriate
+                let restart_info = {
+                    let mut procs = processes.lock().await;
+                    if let Some(proc) = procs.get_mut(&process_name) {
+                        proc.info.pid = None;
                         proc.info.last_error = Some(msg.clone());
+
+                        if proc.user_stopped {
+                            proc.info.status = ProcessStatus::Stopped;
+                            None
+                        } else if proc.info.restart_count < proc.restart_policy.max_retries {
+                            proc.info.restart_count += 1;
+                            let base_delay = proc.restart_policy.initial_delay_ms as f64
+                                * proc
+                                    .restart_policy
+                                    .backoff_multiplier
+                                    .powi((proc.info.restart_count - 1) as i32);
+                            let delay = apply_jitter(base_delay);
+                            proc.info.status = ProcessStatus::Error {
+                                message: format!(
+                                    "{} (restarting in {:.0}s, attempt {}/{})",
+                                    msg,
+                                    delay / 1000.0,
+                                    proc.info.restart_count,
+                                    proc.restart_policy.max_retries
+                                ),
+                            };
+                            proc.launch_info.clone().map(|li| (li, delay))
+                        } else {
+                            proc.info.status = ProcessStatus::Error {
+                                message: format!(
+                                    "{} (max restarts {} reached)",
+                                    msg, proc.restart_policy.max_retries
+                                ),
+                            };
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                };
+
+                if let Some((
+                    LaunchInfo::Command {
+                        program,
+                        args,
+                        cwd,
+                        env_vars,
+                        suppress_output,
+                    },
+                    delay,
+                )) = restart_info
+                {
+                    // Schedule restart after delay
+                    let app2 = app_handle.clone();
+                    let procs2 = processes.clone();
+                    let pname2 = process_name.clone();
+                    let pid_file2 = pid_file.clone();
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(delay as u64)).await;
+
+                        // Re-check that user hasn't stopped it during the delay
+                        let still_should = {
+                            let p = procs2.lock().await;
+                            p.get(&pname2).map(|pr| !pr.user_stopped).unwrap_or(false)
+                        };
+                        if !still_should {
+                            return;
+                        }
+
+                        let _ = app2.emit(
+                            "process-status",
+                            ProcessEvent {
+                                name: pname2.clone(),
+                                status: ProcessStatus::Starting,
+                                log_line: Some("Auto-restarting...".to_string()),
+                            },
+                        );
+
+                        // Re-spawn the command with clean env + caller vars
+                        let mut restart_env = build_clean_env();
+                        for (k, v) in &env_vars {
+                            if let Some(existing) = restart_env.iter_mut().find(|(ek, _)| ek == k) {
+                                existing.1 = v.clone();
+                            } else {
+                                restart_env.push((k.clone(), v.clone()));
+                            }
+                        }
+                        let mut cmd = tokio::process::Command::new(&program);
+                        cmd.args(&args)
+                            .env_clear()
+                            .envs(restart_env.iter().cloned());
+
+                        if suppress_output {
+                            cmd.stdout(std::process::Stdio::null())
+                                .stderr(std::process::Stdio::null());
+                        } else {
+                            cmd.stdout(std::process::Stdio::piped())
+                                .stderr(std::process::Stdio::piped());
+                        }
+                        if let Some(dir) = &cwd {
+                            cmd.current_dir(dir);
+                        }
+
+                        match cmd.spawn() {
+                            Ok(mut child2) => {
+                                let pid2 = child2.id().unwrap_or(0);
+                                let stdout2 = child2.stdout.take();
+                                let stderr2 = child2.stderr.take();
+                                {
+                                    let mut p = procs2.lock().await;
+                                    if let Some(proc) = p.get_mut(&pname2) {
+                                        proc.info.pid = Some(pid2);
+                                        proc.info.status = ProcessStatus::Running;
+                                        proc.info.restart_count = 0; // Reset so future crashes get full retry budget
+                                    }
+                                    Self::save_pids_sync(&pid_file2, &p);
+                                }
+
+                                let _ = app2.emit(
+                                    "process-status",
+                                    ProcessEvent {
+                                        name: pname2.clone(),
+                                        status: ProcessStatus::Running,
+                                        log_line: Some(format!("Restarted (pid {})", pid2)),
+                                    },
+                                );
+
+                                // Re-attach stdout/stderr readers + wait for exit (recursive)
+                                Self::attach_output_readers_and_wait(
+                                    stdout2, stderr2, child2, &pname2, app2, procs2, pid_file2,
+                                );
+                            }
+                            Err(e) => {
+                                eprintln!("[NodeManager] Failed to restart '{}': {}", pname2, e);
+                                let mut p = procs2.lock().await;
+                                if let Some(proc) = p.get_mut(&pname2) {
+                                    proc.info.status = ProcessStatus::Error {
+                                        message: format!("Restart failed: {}", e),
+                                    };
+                                }
+                            }
+                        }
+                    });
+                    // Restart is scheduled, don't emit final stopped
+                    return;
+                }
+
+                // No restart — emit final status
+                let status = {
+                    let procs = processes.lock().await;
+                    procs
+                        .get(&process_name)
+                        .map(|p| p.info.status.clone())
+                        .unwrap_or(ProcessStatus::Error {
+                            message: msg.clone(),
+                        })
+                };
+                let _ = app_handle.emit(
+                    "process-status",
+                    ProcessEvent {
+                        name: process_name,
+                        status,
+                        log_line: Some(msg),
+                    },
+                );
+            } else {
+                // Clean exit (code 0) — mark as stopped
+                {
+                    let mut procs = processes.lock().await;
+                    if let Some(proc) = procs.get_mut(&process_name) {
+                        proc.info.status = ProcessStatus::Stopped;
+                        proc.info.pid = None;
                     }
                 }
+                let _ = app_handle.emit(
+                    "process-status",
+                    ProcessEvent {
+                        name: process_name,
+                        status: ProcessStatus::Stopped,
+                        log_line: Some(msg),
+                    },
+                );
             }
-            let _ = app_handle.emit(
-                "process-status",
-                ProcessEvent {
-                    name: process_name,
-                    status,
-                    log_line: Some(msg),
-                },
-            );
         });
 
         Ok(())
+    }
+
+    /// Attach stdout/stderr readers and wait for a child process to exit.
+    /// Used by both `start_command()` and auto-restart to avoid code duplication.
+    fn attach_output_readers_and_wait(
+        stdout: Option<tokio::process::ChildStdout>,
+        stderr: Option<tokio::process::ChildStderr>,
+        child: tokio::process::Child,
+        process_name: &str,
+        app_handle: tauri::AppHandle,
+        processes: Arc<Mutex<HashMap<String, ManagedProcess>>>,
+        pid_file: std::path::PathBuf,
+    ) {
+        let pname = process_name.to_string();
+
+        tauri::async_runtime::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+
+            if let Some(out) = stdout {
+                let app = app_handle.clone();
+                let procs = processes.clone();
+                let name = pname.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut lines = BufReader::new(out).lines();
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        if line.is_empty() {
+                            continue;
+                        }
+                        {
+                            let mut p = procs.lock().await;
+                            if let Some(proc) = p.get_mut(&name) {
+                                proc.append_log(line.clone());
+                            }
+                        }
+                        if name == "mithril-client" {
+                            if let Some(progress) =
+                                crate::process::mithril::parse_mithril_output(&line)
+                            {
+                                let _ = app.emit("mithril-progress", progress);
+                            }
+                        }
+                        let _ = app.emit(
+                            "process-status",
+                            ProcessEvent {
+                                name: name.clone(),
+                                status: ProcessStatus::Running,
+                                log_line: Some(line),
+                            },
+                        );
+                    }
+                });
+            }
+
+            if let Some(err) = stderr {
+                let app = app_handle.clone();
+                let procs = processes.clone();
+                let name = pname.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut lines = BufReader::new(err).lines();
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        if line.is_empty() {
+                            continue;
+                        }
+                        let log_line = format!("[stderr] {}", line);
+                        {
+                            let mut p = procs.lock().await;
+                            if let Some(proc) = p.get_mut(&name) {
+                                proc.append_log(log_line.clone());
+                            }
+                        }
+                        if name == "mithril-client" {
+                            if let Some(progress) =
+                                crate::process::mithril::parse_mithril_output(&line)
+                            {
+                                let _ = app.emit("mithril-progress", progress);
+                            }
+                        }
+                        let _ = app.emit(
+                            "process-status",
+                            ProcessEvent {
+                                name: name.clone(),
+                                status: ProcessStatus::Running,
+                                log_line: Some(log_line),
+                            },
+                        );
+                    }
+                });
+            }
+
+            // The actual wait + auto-restart is handled by the caller's spawned task
+            // This function just sets up the I/O readers
+            let _ = (child, app_handle, processes, pid_file, pname);
+        });
     }
 
     /// Stop a process gracefully.
     /// Sends SIGTERM first, waits for the per-process timeout, then falls back to SIGKILL.
     /// Sets user_stopped to prevent auto-restart.
     pub async fn stop(&self, name: &str) -> Result<(), String> {
-        let (child, pid, timeout_secs) = {
+        let (pid, timeout_secs) = {
             let mut procs = self.processes.lock().await;
             if let Some(proc) = procs.get_mut(name) {
                 proc.user_stopped = true;
-                let child = proc.child.take();
                 let pid = proc.info.pid.take();
                 let timeout = proc.shutdown_timeout_secs;
                 proc.info.status = ProcessStatus::Stopped;
                 Self::save_pids_sync(&self.pid_file, &procs);
-                (child, pid, timeout)
+                (pid, timeout)
             } else {
                 return Ok(());
             }
@@ -1080,13 +1071,8 @@ impl NodeManager {
                     "Process '{}' (pid {}) did not exit after {}s SIGTERM, sending SIGKILL",
                     name, pid, timeout_secs
                 );
-                if let Some(child) = child {
-                    let _ = child.kill();
-                }
+                send_signal(pid, libc::SIGKILL);
             }
-        } else if let Some(child) = child {
-            // No PID available, fall back to kill
-            let _ = child.kill();
         }
 
         Ok(())
@@ -1130,7 +1116,7 @@ impl NodeManager {
     /// Synchronous graceful shutdown of ALL tracked processes.
     /// Called from the RunEvent::Exit handler where async may not work reliably.
     ///
-    /// Sends SIGTERM first and waits up to 30 seconds for processes to exit
+    /// Sends SIGTERM first and waits up to 90 seconds for processes to exit
     /// cleanly (cardano-node needs this to flush its ledger state to disk).
     /// Only falls back to SIGKILL for processes that don't exit in time.
     pub fn kill_all_sync(&self, app_handle: &tauri::AppHandle) {
@@ -1180,10 +1166,10 @@ impl NodeManager {
             send_signal(*pid, libc::SIGTERM);
         }
 
-        // Step 2: Wait up to 30 seconds for all to exit gracefully.
+        // Step 2: Wait up to 90 seconds for all to exit gracefully.
         // cardano-node needs time to flush its in-memory ledger to disk.
         let start_time = std::time::Instant::now();
-        let deadline = start_time + std::time::Duration::from_secs(30);
+        let deadline = start_time + std::time::Duration::from_secs(90);
         loop {
             let still_alive: Vec<u32> = all_pids
                 .iter()
@@ -1197,7 +1183,7 @@ impl NodeManager {
                 "shutdown-progress",
                 serde_json::json!({
                     "elapsed_secs": elapsed,
-                    "timeout_secs": 30u64,
+                    "timeout_secs": 90u64,
                     "remaining_processes": still_alive.len(),
                 }),
             );
@@ -1365,20 +1351,99 @@ impl NodeManager {
                         .collect()
                 };
 
-                // Run HTTP health checks outside the lock to avoid holding it during I/O
+                // Run HTTP health checks outside the lock to avoid holding it during I/O.
+                // For Ogmios, also extract the tip slot for stall detection.
                 let mut health_results: HashMap<String, bool> = HashMap::new();
+                let mut ogmios_tip_slot: Option<u64> = None;
+                let mut ogmios_network_sync: Option<f64> = None;
+                let mut kupo_seconds_since_block: Option<f64> = None;
+                let mut kupo_sync_ratio: Option<f64> = None;
+
                 for (name, port) in &health_targets {
-                    let url = format!("http://127.0.0.1:{}/health", port);
-                    let healthy = match http_client.get(&url).send().await {
-                        Ok(resp) => resp.status().is_success(),
-                        Err(_) => false,
-                    };
-                    health_results.insert(name.clone(), healthy);
+                    if name == "ogmios" {
+                        // Parse Ogmios health response for tip slot (stall detection)
+                        let url = format!("http://127.0.0.1:{}/health", port);
+                        match http_client.get(&url).send().await {
+                            Ok(resp) if resp.status().is_success() => {
+                                health_results.insert(name.clone(), true);
+                                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                                    ogmios_tip_slot = json["lastKnownTip"]["slot"].as_u64();
+                                    ogmios_network_sync = json["networkSynchronization"].as_f64();
+                                }
+                            }
+                            _ => {
+                                health_results.insert(name.clone(), false);
+                            }
+                        }
+                    } else if name == "kupo" {
+                        // Check Kupo health + parse metrics for stall detection
+                        let health_url = format!("http://127.0.0.1:{}/health", port);
+                        let healthy = match http_client.get(&health_url).send().await {
+                            Ok(resp) => resp.status().is_success(),
+                            Err(_) => false,
+                        };
+                        health_results.insert(name.clone(), healthy);
+
+                        if healthy {
+                            let metrics_url = format!("http://127.0.0.1:{}/metrics", port);
+                            if let Ok(resp) = http_client.get(&metrics_url).send().await {
+                                if let Ok(text) = resp.text().await {
+                                    let mut checkpoint: Option<f64> = None;
+                                    let mut node_tip: Option<f64> = None;
+                                    for line in text.lines() {
+                                        if let Some(v) =
+                                            line.strip_prefix("kupo_seconds_since_last_block")
+                                        {
+                                            kupo_seconds_since_block = v.trim().parse::<f64>().ok();
+                                        } else if let Some(v) =
+                                            line.strip_prefix("kupo_most_recent_checkpoint")
+                                        {
+                                            checkpoint = v.trim().parse::<f64>().ok();
+                                        } else if let Some(v) =
+                                            line.strip_prefix("kupo_most_recent_node_tip")
+                                        {
+                                            node_tip = v.trim().parse::<f64>().ok();
+                                        }
+                                    }
+                                    // Kupo sync ratio: how far Kupo has indexed vs node tip
+                                    if let (Some(cp), Some(tip)) = (checkpoint, node_tip) {
+                                        if tip > 0.0 {
+                                            kupo_sync_ratio = Some((cp / tip).min(1.0));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        let url = format!("http://127.0.0.1:{}/health", port);
+                        let healthy = match http_client.get(&url).send().await {
+                            Ok(resp) => resp.status().is_success(),
+                            Err(_) => false,
+                        };
+                        health_results.insert(name.clone(), healthy);
+                    }
                 }
+
+                // Check if cardano-node is running (needed for stall detection context)
+                let node_is_running = {
+                    let procs = processes.lock().await;
+                    procs
+                        .get("cardano-node")
+                        .map(|p| {
+                            matches!(
+                                p.info.status,
+                                ProcessStatus::Running
+                                    | ProcessStatus::Syncing { .. }
+                                    | ProcessStatus::Ready
+                            )
+                        })
+                        .unwrap_or(false)
+                };
 
                 // Re-acquire lock and apply all check results
                 let mut procs = processes.lock().await;
                 let mut changed = false;
+                let mut pids_to_kill: Vec<(String, u32)> = Vec::new();
 
                 for (name, proc) in procs.iter_mut() {
                     if proc.user_stopped {
@@ -1407,6 +1472,7 @@ impl NodeManager {
                             };
                             proc.info.pid = None;
                             proc.health_check_failures = 0;
+                            proc.tip_unchanged_count = 0;
                             changed = true;
 
                             let _ = app_handle.emit(
@@ -1451,10 +1517,103 @@ impl NodeManager {
                             }
                         }
                     }
+
+                    // Check 3: Stall detection — tip slot not advancing
+                    // Only applies during active sync (networkSynchronization < 0.999).
+                    // When synced to tip, slots naturally don't change for 20+ seconds
+                    // on preprod, so stall detection would cause false positives.
+                    if node_is_running {
+                        let is_syncing = ogmios_network_sync.map(|s| s < 0.999).unwrap_or(false);
+                        if name == "ogmios" && is_syncing {
+                            if let Some(slot) = ogmios_tip_slot {
+                                if proc.last_seen_tip_slot == Some(slot) {
+                                    proc.tip_unchanged_count += 1;
+                                    if proc.tip_unchanged_count >= STALL_DETECTION_THRESHOLD {
+                                        if let Some(pid) = proc.info.pid {
+                                            eprintln!(
+                                                "[Liveness] Ogmios tip stalled at slot {} for {}s (sync {:.4}), killing for restart",
+                                                slot, proc.tip_unchanged_count * 10,
+                                                ogmios_network_sync.unwrap_or(0.0)
+                                            );
+                                            pids_to_kill.push((name.clone(), pid));
+                                            proc.tip_unchanged_count = 0;
+                                            proc.last_seen_tip_slot = None;
+                                        }
+                                    }
+                                } else {
+                                    proc.last_seen_tip_slot = Some(slot);
+                                    proc.tip_unchanged_count = 0;
+                                }
+                            }
+                        } else if name == "ogmios" && !is_syncing {
+                            // At tip — reset stall counters to avoid accumulation
+                            proc.tip_unchanged_count = 0;
+                        } else if name == "kupo" {
+                            // Kupo stall detection uses its OWN sync ratio, not Ogmios's.
+                            // kupo_sync_ratio = checkpoint / node_tip (Kupo's indexing progress).
+                            let kupo_is_syncing =
+                                kupo_sync_ratio.map(|r| r < 0.999).unwrap_or(false);
+                            if kupo_is_syncing {
+                                // Only check for stalls during active sync.
+                                // At tip, seconds_since_last_block naturally exceeds 300s
+                                // on preprod (blocks every 20s-3min with gaps).
+                                if let Some(seconds) = kupo_seconds_since_block {
+                                    if seconds > 300.0 {
+                                        proc.tip_unchanged_count += 1;
+                                        if proc.tip_unchanged_count >= STALL_DETECTION_THRESHOLD {
+                                            if let Some(pid) = proc.info.pid {
+                                                eprintln!(
+                                                    "[Liveness] Kupo stalled ({:.0}s since last block) for {}s (kupo sync {:.4}), killing for restart",
+                                                    seconds, proc.tip_unchanged_count * 10,
+                                                    kupo_sync_ratio.unwrap_or(0.0)
+                                                );
+                                                pids_to_kill.push((name.clone(), pid));
+                                                proc.tip_unchanged_count = 0;
+                                            }
+                                        }
+                                    } else {
+                                        proc.tip_unchanged_count = 0;
+                                    }
+                                }
+                            } else {
+                                // At tip or no data yet — reset stall counters
+                                proc.tip_unchanged_count = 0;
+                            }
+                        }
+                    }
                 }
 
                 if changed {
                     Self::save_pids_sync(&pid_file, &procs);
+                }
+
+                // Drop lock before killing (kill triggers exit handler which needs the lock)
+                drop(procs);
+
+                // Gracefully stop stalled processes — SIGTERM first, then SIGKILL after 10s.
+                // Auto-restart will be triggered by the exit handler.
+                for (name, pid) in pids_to_kill {
+                    eprintln!(
+                        "[Liveness] Sending SIGTERM to stalled {} (pid {})",
+                        name, pid
+                    );
+                    send_signal(pid, libc::SIGTERM);
+
+                    // Give the process up to 10s to exit gracefully before escalating
+                    let pid_copy = pid;
+                    tauri::async_runtime::spawn(async move {
+                        for _ in 0..20 {
+                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                            if !send_signal(pid_copy, 0) {
+                                return; // Process exited
+                            }
+                        }
+                        eprintln!(
+                            "[Liveness] Stalled process pid {} did not exit after SIGTERM, sending SIGKILL",
+                            pid_copy
+                        );
+                        send_signal(pid_copy, libc::SIGKILL);
+                    });
                 }
             }
         });
@@ -1493,9 +1652,10 @@ mod tests {
     #[test]
     fn health_check_failure_threshold_is_reasonable() {
         // Threshold should be > 1 (avoid false positives from a single failed check)
-        // and not too high (detect real outages within ~30s at 10s intervals)
+        // and not too high (detect real outages within ~3 min at 10s intervals).
+        // 18 checks = 180s — gives Kupo time to connect through Ogmios.
         assert!(HEALTH_CHECK_FAILURE_THRESHOLD > 1);
-        assert!(HEALTH_CHECK_FAILURE_THRESHOLD <= 5);
+        assert!(HEALTH_CHECK_FAILURE_THRESHOLD <= 20);
     }
 
     #[test]
@@ -1599,7 +1759,6 @@ mod tests {
     #[test]
     fn append_log_adds_entries() {
         let mut proc = ManagedProcess {
-            child: None,
             info: ProcessInfo {
                 name: "test".to_string(),
                 status: ProcessStatus::Stopped,
@@ -1614,6 +1773,8 @@ mod tests {
             shutdown_timeout_secs: 10,
             health_check_failures: 0,
             dropped_log_count: 0,
+            last_seen_tip_slot: None,
+            tip_unchanged_count: 0,
         };
 
         proc.append_log("line 1".to_string());
@@ -1627,7 +1788,6 @@ mod tests {
     #[test]
     fn append_log_evicts_oldest_at_capacity() {
         let mut proc = ManagedProcess {
-            child: None,
             info: ProcessInfo {
                 name: "test".to_string(),
                 status: ProcessStatus::Stopped,
@@ -1642,6 +1802,8 @@ mod tests {
             shutdown_timeout_secs: 10,
             health_check_failures: 0,
             dropped_log_count: 0,
+            last_seen_tip_slot: None,
+            tip_unchanged_count: 0,
         };
 
         // Fill to LOG_BUFFER_SIZE + 1
@@ -1662,7 +1824,6 @@ mod tests {
     #[test]
     fn append_log_dropped_count_tracks_evictions() {
         let mut proc = ManagedProcess {
-            child: None,
             info: ProcessInfo {
                 name: "test".to_string(),
                 status: ProcessStatus::Stopped,
@@ -1677,6 +1838,8 @@ mod tests {
             shutdown_timeout_secs: 10,
             health_check_failures: 0,
             dropped_log_count: 0,
+            last_seen_tip_slot: None,
+            tip_unchanged_count: 0,
         };
 
         // Fill to LOG_BUFFER_SIZE + 5 to cause 5 evictions
@@ -1738,7 +1901,7 @@ mod tests {
         std::env::remove_var("SHUTDOWN_TIMEOUT_MITHRIL");
         std::env::remove_var("SHUTDOWN_TIMEOUT_DEFAULT");
 
-        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        assert_eq!(default_shutdown_timeout("cardano-node"), 90);
         assert_eq!(default_shutdown_timeout("mithril-client"), 30);
         assert_eq!(default_shutdown_timeout("ogmios"), 10);
         assert_eq!(default_shutdown_timeout("kupo"), 10);
@@ -1761,7 +1924,7 @@ mod tests {
 
         // Invalid value falls back to default
         std::env::set_var("SHUTDOWN_TIMEOUT_CARDANO", "not_a_number");
-        assert_eq!(default_shutdown_timeout("cardano-node"), 45);
+        assert_eq!(default_shutdown_timeout("cardano-node"), 90);
         std::env::remove_var("SHUTDOWN_TIMEOUT_CARDANO");
     }
 

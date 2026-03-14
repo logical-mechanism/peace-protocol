@@ -1,4 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}));
+
+import { invoke } from '@tauri-apps/api/core';
 import {
   getTransactions,
   addTransaction,
@@ -13,6 +19,8 @@ import {
   toCSV,
   type TransactionRecord,
 } from '../transactionHistory';
+
+const mockInvoke = vi.mocked(invoke);
 
 const WALLET = 'abc123pkh';
 
@@ -313,14 +321,10 @@ describe('transactionHistory', () => {
     const hash = 'b'.repeat(64);
     addTransaction(WALLET, makeRecord({ txHash: hash, status: 'pending' }));
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([{ some: 'match' }]), { status: 200 })
-    );
+    mockInvoke.mockResolvedValue(JSON.stringify([{ some: 'match' }]));
 
     const result = await resolvePendingTxs(WALLET);
     expect(result.find(r => r.txHash === hash)?.status).toBe('confirmed');
-
-    fetchSpy.mockRestore();
   });
 
   it('resolvePendingTxs marks as failed after 5 min with no matches', async () => {
@@ -328,14 +332,10 @@ describe('transactionHistory', () => {
     const sixMinutesAgo = Date.now() - 6 * 60 * 1000;
     addTransaction(WALLET, makeRecord({ txHash: hash, status: 'pending', timestamp: sixMinutesAgo }));
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([]), { status: 200 })
-    );
+    mockInvoke.mockResolvedValue(JSON.stringify([]));
 
     const result = await resolvePendingTxs(WALLET);
     expect(result.find(r => r.txHash === hash)?.status).toBe('failed');
-
-    fetchSpy.mockRestore();
   });
 
   // --- getTypeLabel ---

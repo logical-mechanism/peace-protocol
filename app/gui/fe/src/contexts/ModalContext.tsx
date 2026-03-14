@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useState } from 'react';
+import { createContext, useContext, useCallback, useState, useEffect } from 'react';
 
 /**
  * Modal stacking management — tracks open modals in a stack so only the
@@ -35,6 +35,19 @@ export function useModal(): ModalContextValue {
 
 export function ModalProvider({ children }: { children: React.ReactNode }) {
   const [stack, setStack] = useState<string[]>([]);
+
+  // Centralized scroll lock: lock when any modal is open, unlock when all close.
+  // This avoids the race condition where one modal's cleanup resets overflow
+  // while another modal is still open.
+  useEffect(() => {
+    if (stack.length > 0) {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+  }, [stack.length]);
 
   const openModal = useCallback((id: string) => {
     setStack((prev) => {

@@ -173,6 +173,12 @@ export default function Dashboard() {
     setTimeout(() => setIsRefreshing(false), 2000)
   }, [isRefreshing, triggerRefresh])
 
+  // Handler for tab-level refresh buttons to update the timestamp without triggering all tabs
+  const handleLocalRefresh = useCallback(() => {
+    setLastRefreshTime(Date.now())
+    setRelativeTime('just now')
+  }, [])
+
   // Update relative time display every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1008,22 +1014,19 @@ export default function Dashboard() {
       throw new Error(result.error || 'Failed to create listing')
     }
 
-    // Save content to local library so the creator's own files appear in Library tab
-    if (result.tokenName) {
+    // Save text content to local library (file-based listings are already
+    // saved in transactionBuilder.ts via copyToLibrary)
+    if (result.tokenName && formData.category === 'text') {
       try {
-        const category = formData.category;
-        const contentBytes = category === 'text'
-          ? new TextEncoder().encode(formData.secretMessage)
-          : new Uint8Array(await formData.file!.arrayBuffer());
-
-        await saveDecryptedContent(result.tokenName, category, contentBytes);
+        const contentBytes = new TextEncoder().encode(formData.secretMessage);
+        await saveDecryptedContent(result.tokenName, 'text', contentBytes);
         await saveContentMetadata({
           tokenName: result.tokenName,
           description: formData.description,
           suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
-          storageLayer: category === 'text' ? 'on-chain' : 'iagon',
+          storageLayer: 'on-chain',
           imageLink: formData.imageLink || undefined,
-          category,
+          category: 'text',
           seller: address,
           decryptedAt: new Date().toISOString(),
           fileSize: contentBytes.length,
@@ -1504,6 +1507,7 @@ export default function Dashboard() {
                 lovelace={lovelace}
                 onPlaceBid={handlePlaceBid}
                 onCreateListing={handleOpenCreateListing}
+                onLocalRefresh={handleLocalRefresh}
                 filters={marketplaceFilters}
                 dispatch={marketplaceDispatch}
               />
@@ -1530,6 +1534,7 @@ export default function Dashboard() {
                 onCompleteSale={handleCompleteSale}
                 onCreateListing={handleOpenCreateListing}
                 onBidsViewed={bidNotifications.markListingSeen}
+                onLocalRefresh={handleLocalRefresh}
                 filters={mySalesFilters}
                 dispatch={mySalesDispatch}
               />
@@ -1554,6 +1559,7 @@ export default function Dashboard() {
                 onDecrypt={handleDecrypt}
                 onDecryptEncryption={handleDecryptEncryption}
                 onSwitchTab={setActiveTab}
+                onLocalRefresh={handleLocalRefresh}
                 filters={myPurchasesFilters}
                 dispatch={myPurchasesDispatch}
                 failedDecryptTokens={failedDecryptTokens}
@@ -1579,6 +1585,7 @@ export default function Dashboard() {
                 onClearHistory={triggerHistoryRefresh}
                 onHistoryUpdated={setTxHistory}
                 onRetryListing={handleRetryListing}
+                onLocalRefresh={handleLocalRefresh}
                 filters={historyFilters}
                 dispatch={historyDispatch}
               />
@@ -1599,6 +1606,7 @@ export default function Dashboard() {
               <LibraryTab
                 refreshSignal={refreshSignal}
                 onSwitchTab={setActiveTab}
+                onLocalRefresh={handleLocalRefresh}
                 filters={libraryFilters}
                 dispatch={libraryDispatch}
                 onBulkDeleteResult={(message, hadErrors) =>

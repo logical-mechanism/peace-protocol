@@ -4,6 +4,12 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.1] - 2026-03-09
+
+### Fixed
+- Mithril snapshot playback and CORS issues (HTTP proxy via reqwest, LMDB conversion, node/CLI updates)
+- Modal scroll lock centralized in ModalContext and ScrollToTop hidden behind modals
+
 ## [0.4.0] - 2026-03-08
 
 ### Added
