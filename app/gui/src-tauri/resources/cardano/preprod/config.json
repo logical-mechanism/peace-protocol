@@ -97,6 +97,9 @@
     "mapSubtrace": {
       "cardano.node.metrics": {
         "subtrace": "Neutral"
+      },
+      "cardano.node.DNS": {
+        "subtrace": "NoTrace"
       }
     }
   },
