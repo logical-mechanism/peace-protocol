@@ -1,7 +1,7 @@
 use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
 use crate::process::{cardano, cardano_cli, express, kupo, mithril, ogmios};
-use crate::NodeSocketReady;
+use crate::{ExpressReady, NodeSocketReady};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
@@ -68,8 +68,11 @@ pub async fn get_node_status(
         .as_ref()
         .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
         .unwrap_or(false);
-    // If Express was never started (e.g. dist/index.js missing in dev), don't block Synced
-    let express_ok = express_status.is_none() || express_running;
+    // ExpressReady flag is set in start_node after health check passes (or Express is skipped)
+    let express_ok = app_handle
+        .try_state::<ExpressReady>()
+        .map(|s| s.0.load(Ordering::SeqCst))
+        .unwrap_or(false);
 
     // Helper: build a NodeStatus with no sync data (early exit states)
     let empty_status = |overall: OverallNodeState| NodeStatus {
@@ -438,11 +441,19 @@ pub async fn start_node(
             }
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
+        // Mark Express as ready after health check passes
+        if let Some(flag) = app_handle.try_state::<ExpressReady>() {
+            flag.0.store(true, Ordering::SeqCst);
+        }
     } else {
         eprintln!(
             "Express backend not built ({}), skipping",
             be_dir.join("dist/index.js").display()
         );
+        // Mark as ready (intentionally skipped)
+        if let Some(flag) = app_handle.try_state::<ExpressReady>() {
+            flag.0.store(true, Ordering::SeqCst);
+        }
     }
 
     Ok(())
@@ -454,8 +465,11 @@ pub async fn stop_node(
     manager: tauri::State<'_, NodeManager>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    // Reset socket readiness flag — prevents stale cardano-cli queries
+    // Reset readiness flags — prevents stale queries
     if let Some(flag) = app_handle.try_state::<NodeSocketReady>() {
+        flag.0.store(false, Ordering::SeqCst);
+    }
+    if let Some(flag) = app_handle.try_state::<ExpressReady>() {
         flag.0.store(false, Ordering::SeqCst);
     }
     manager.stop("express").await?;

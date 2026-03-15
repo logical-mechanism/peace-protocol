@@ -788,7 +788,7 @@ export default function NodeSync() {
               </button>
             )}
 
-            {(stage === 'syncing' || stage === 'starting' || stage === 'bootstrapping') && (
+            {!canContinue && (stage === 'syncing' || stage === 'starting' || stage === 'bootstrapping') && (
               <button
                 onClick={() => navigate('/dashboard')}
                 className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
@@ -797,7 +797,7 @@ export default function NodeSync() {
               </button>
             )}
 
-            {stage !== 'stopped' && stage !== 'synced' && (
+            {!canContinue && stage !== 'stopped' && stage !== 'synced' && (
               <button
                 onClick={stopNode}
                 className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-muted)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
