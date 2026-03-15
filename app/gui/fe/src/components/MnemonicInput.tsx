@@ -117,6 +117,9 @@ export default function MnemonicInput({
                   ? 'var(--border-focus)'
                   : 'var(--border-subtle)'
           }`,
+          boxShadow: focused && !isValid && (matches.length > 0 || !trimmed)
+            ? '0 0 0 2px var(--accent-muted)'
+            : 'none',
         }}
       >
         <span
@@ -132,11 +135,11 @@ export default function MnemonicInput({
           onChange={(e) => onChange(index, e.target.value.toLowerCase().replace(/[^a-z]/g, ''))}
           onFocus={() => setFocused(true)}
           onBlur={() => {
-            // Delay to allow click on dropdown item
-            setTimeout(() => setFocused(false), 150)
+            // Short delay to allow onMouseDown on dropdown items (which call preventDefault)
+            setTimeout(() => setFocused(false), 50)
           }}
           onKeyDown={handleKeyDown}
-          className="flex-1 py-1.5 pr-2 text-sm font-mono bg-transparent outline-none"
+          className="flex-1 py-1.5 pr-2 text-sm font-mono bg-transparent mnemonic-input"
           style={{ color: 'var(--text-primary)' }}
           placeholder="..."
           autoComplete="off"
