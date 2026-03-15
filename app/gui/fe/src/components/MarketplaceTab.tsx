@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
@@ -25,6 +26,7 @@ interface MarketplaceTabProps {
 }
 
 function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+  const { expressReady } = useNode();
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
   const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
@@ -97,10 +99,11 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     }
   }, [userPkh]);
 
-  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
+  // Fetch on mount and re-fetch when refreshSignal changes (waits for Express backend)
   useEffect(() => {
+    if (!expressReady) return;
     fetchEncryptions();
-  }, [refreshSignal, fetchEncryptions]);
+  }, [refreshSignal, fetchEncryptions, expressReady]);
 
   // Load favorites from localStorage when user changes
   useEffect(() => {

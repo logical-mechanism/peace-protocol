@@ -216,6 +216,7 @@ export default function NodeSync() {
     slotsToEpochEnd,
     kupoConnected,
     kupoSecondsSinceLastBlock,
+    expressReady,
     startNode,
     stopNode,
     startBootstrap,
@@ -442,8 +443,8 @@ export default function NodeSync() {
     }
   }, [stage, syncProgress])
 
-  // Navigate to dashboard when synced
-  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99)
+  // Navigate to dashboard when synced (including Express backend ready)
+  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99 && expressReady)
 
   const handleContinue = () => {
     navigate('/dashboard')

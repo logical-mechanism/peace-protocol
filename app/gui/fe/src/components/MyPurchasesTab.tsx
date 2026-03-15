@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useNode } from '../contexts/NodeContext';
 import { bidsApi, encryptionsApi } from '../services/api';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
@@ -39,6 +40,7 @@ function MyPurchasesTab({
   dispatch,
   failedDecryptTokens,
 }: MyPurchasesTabProps) {
+  const { expressReady } = useNode();
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
   const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
@@ -125,10 +127,11 @@ function MyPurchasesTab({
     }
   }, [userPkh]);
 
-  // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
+  // Fetch on mount and re-fetch when refreshSignal changes (waits for Express backend)
   useEffect(() => {
+    if (!expressReady) return;
     fetchData();
-  }, [refreshSignal, fetchData]);
+  }, [refreshSignal, fetchData, expressReady]);
 
   // Get encryption for a bid
   const getEncryption = useCallback(

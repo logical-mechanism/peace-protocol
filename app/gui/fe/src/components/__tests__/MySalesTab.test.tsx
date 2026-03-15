@@ -8,6 +8,10 @@ import type { EncryptionDisplay, BidDisplay } from '../../services/api';
 
 // ── Mocks ───────────────────────────────────────────────────────────
 
+vi.mock('../../contexts/NodeContext', () => ({
+  useNode: vi.fn().mockReturnValue({ expressReady: true }),
+}));
+
 vi.mock('../../services/api', () => ({
   encryptionsApi: { getAll: vi.fn() },
   bidsApi: { getAll: vi.fn() },
