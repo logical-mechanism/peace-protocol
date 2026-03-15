@@ -52,6 +52,8 @@ interface NodeStatus {
   // Kupo health details from /metrics
   kupo_connection_status: boolean | null
   kupo_seconds_since_last_block: number | null
+  // Express backend readiness
+  express_ready: boolean
 }
 
 interface ProcessEvent {
@@ -80,6 +82,8 @@ export interface NodeContextValue {
   // Kupo health details
   kupoConnected: boolean | null
   kupoSecondsSinceLastBlock: number | null
+  // Express backend readiness
+  expressReady: boolean
   startNode: (walletAddress: string) => Promise<void>
   stopNode: () => Promise<void>
   startBootstrap: () => Promise<void>
@@ -116,6 +120,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
   // Kupo health details
   const [kupoConnected, setKupoConnected] = useState<boolean | null>(null)
   const [kupoSecondsSinceLastBlock, setKupoSecondsSinceLastBlock] = useState<number | null>(null)
+  const [expressReady, setExpressReady] = useState(false)
   const mountedRef = useRef(true)
   const bootstrapInFlightRef = useRef(false)
 
@@ -176,6 +181,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
       setSlotsToEpochEnd(status.slots_to_epoch_end)
       setKupoConnected(status.kupo_connection_status)
       setKupoSecondsSinceLastBlock(status.kupo_seconds_since_last_block)
+      setExpressReady(status.express_ready)
 
       // Map overall state to stage
       const stageMap: Record<string, NodeStage> = {
@@ -259,6 +265,7 @@ export function NodeProvider({ children }: { children: ReactNode }) {
     slotsToEpochEnd,
     kupoConnected,
     kupoSecondsSinceLastBlock,
+    expressReady,
     startNode,
     stopNode,
     startBootstrap,

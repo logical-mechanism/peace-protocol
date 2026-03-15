@@ -74,7 +74,7 @@ export default function Dashboard() {
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
-  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot } = useNode()
+  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot, expressReady } = useNode()
   const navigate = useNavigate()
   const { hasOpenModal } = useModal()
   const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
@@ -1067,9 +1067,9 @@ export default function Dashboard() {
     setActiveTab('history')
   }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
-  // Fetch user stats
+  // Fetch user stats (waits for Express backend to be ready)
   useEffect(() => {
-    if (!userPkh) return
+    if (!userPkh || !expressReady) return
 
     const fetchStats = async () => {
       try {
@@ -1113,7 +1113,7 @@ export default function Dashboard() {
     }
 
     fetchStats()
-  }, [userPkh, refreshSignal])
+  }, [userPkh, refreshSignal, expressReady])
 
   const handleOpenCreateListing = useCallback(() => setShowCreateListing(true), [])
 

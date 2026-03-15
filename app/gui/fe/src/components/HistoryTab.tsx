@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
@@ -58,6 +59,7 @@ function HistoryTab({
   filters,
   dispatch,
 }: HistoryTabProps) {
+  const { expressReady } = useNode();
   // Destructure filter state from Dashboard-level reducer
   const { statusFilter, typeFilter, dateRange, searchQuery } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -141,10 +143,11 @@ function HistoryTab({
     }
   }, [userPkh, onHistoryUpdated]);
 
-  // Fetch on mount and re-fetch when historySignal changes (background refresh after first load)
+  // Fetch on mount and re-fetch when historySignal changes (waits for Express backend)
   useEffect(() => {
+    if (!expressReady) return;
     refresh();
-  }, [historySignal, refresh]);
+  }, [historySignal, refresh, expressReady]);
 
   // Also update if parent passes new transactions (e.g. after recording a new tx)
   useEffect(() => {

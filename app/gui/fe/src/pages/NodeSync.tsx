@@ -216,6 +216,7 @@ export default function NodeSync() {
     slotsToEpochEnd,
     kupoConnected,
     kupoSecondsSinceLastBlock,
+    expressReady,
     startNode,
     stopNode,
     startBootstrap,
@@ -442,8 +443,8 @@ export default function NodeSync() {
     }
   }, [stage, syncProgress])
 
-  // Navigate to dashboard when synced
-  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99)
+  // Navigate to dashboard when synced (including Express backend ready)
+  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99 && expressReady)
 
   const handleContinue = () => {
     navigate('/dashboard')
@@ -528,7 +529,9 @@ export default function NodeSync() {
     }
     case 'syncing':
       progressPercent = Math.min(syncProgress, kupoSyncProgress)
-      if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
+      if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9 && !expressReady) {
+        statusMessage = `Fully synced, starting backend services...`
+      } else if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
         statusMessage = `Fully synced with ${network} network`
       } else if (syncProgress >= 99.9) {
         statusMessage = `Node synced, waiting for Kupo indexer...`
@@ -787,7 +790,7 @@ export default function NodeSync() {
               </button>
             )}
 
-            {(stage === 'syncing' || stage === 'starting' || stage === 'bootstrapping') && (
+            {!canContinue && (stage === 'syncing' || stage === 'starting' || stage === 'bootstrapping') && (
               <button
                 onClick={() => navigate('/dashboard')}
                 className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
@@ -796,7 +799,7 @@ export default function NodeSync() {
               </button>
             )}
 
-            {stage !== 'stopped' && stage !== 'synced' && (
+            {!canContinue && stage !== 'stopped' && stage !== 'synced' && (
               <button
                 onClick={stopNode}
                 className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-muted)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"

@@ -1,7 +1,7 @@
 use crate::config::AppConfig;
 use crate::process::manager::{NodeManager, ProcessInfo, ProcessStatus};
 use crate::process::{cardano, cardano_cli, express, kupo, mithril, ogmios};
-use crate::NodeSocketReady;
+use crate::{ExpressReady, NodeSocketReady};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
@@ -41,6 +41,8 @@ pub struct NodeStatus {
     // Kupo health details from /metrics
     pub kupo_connection_status: Option<bool>,
     pub kupo_seconds_since_last_block: Option<f64>,
+    // Express backend readiness
+    pub express_ready: bool,
 }
 
 /// Get aggregated node status
@@ -61,6 +63,16 @@ pub async fn get_node_status(
     let mithril_status = manager.get_status("mithril-client").await;
     let node_status = manager.get_status("cardano-node").await;
     let ogmios_status = manager.get_status("ogmios").await;
+    let express_status = manager.get_status("express").await;
+    let express_running = express_status
+        .as_ref()
+        .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
+        .unwrap_or(false);
+    // ExpressReady flag is set in start_node after health check passes (or Express is skipped)
+    let express_ok = app_handle
+        .try_state::<ExpressReady>()
+        .map(|s| s.0.load(Ordering::SeqCst))
+        .unwrap_or(false);
 
     // Helper: build a NodeStatus with no sync data (early exit states)
     let empty_status = |overall: OverallNodeState| NodeStatus {
@@ -78,6 +90,7 @@ pub async fn get_node_status(
         slots_to_epoch_end: None,
         kupo_connection_status: None,
         kupo_seconds_since_last_block: None,
+        express_ready: express_running,
     };
 
     // Check for Mithril bootstrapping
@@ -153,7 +166,7 @@ pub async fn get_node_status(
         if let Ok(cli_tip) = cardano_cli::query_tip(&app_handle, &config, app_data_dir).await {
             let sync = cli_tip.sync_progress_f64();
 
-            let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
+            let overall = if sync >= 0.999 && kupo_sync >= 0.999 && express_ok {
                 OverallNodeState::Synced
             } else {
                 OverallNodeState::Syncing
@@ -174,6 +187,7 @@ pub async fn get_node_status(
                 slots_to_epoch_end: Some(cli_tip.slots_to_epoch_end),
                 kupo_connection_status: kupo_connection,
                 kupo_seconds_since_last_block: kupo_last_block,
+                express_ready: express_running,
             });
         }
     } // socket_ready guard
@@ -195,7 +209,7 @@ pub async fn get_node_status(
                 .await
                 .unwrap_or((0, 0));
 
-            let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
+            let overall = if sync >= 0.999 && kupo_sync >= 0.999 && express_ok {
                 OverallNodeState::Synced
             } else {
                 OverallNodeState::Syncing
@@ -216,6 +230,7 @@ pub async fn get_node_status(
                 slots_to_epoch_end: None,
                 kupo_connection_status: kupo_connection,
                 kupo_seconds_since_last_block: kupo_last_block,
+                express_ready: express_running,
             });
         }
     }
@@ -426,11 +441,19 @@ pub async fn start_node(
             }
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
+        // Mark Express as ready after health check passes
+        if let Some(flag) = app_handle.try_state::<ExpressReady>() {
+            flag.0.store(true, Ordering::SeqCst);
+        }
     } else {
         eprintln!(
             "Express backend not built ({}), skipping",
             be_dir.join("dist/index.js").display()
         );
+        // Mark as ready (intentionally skipped)
+        if let Some(flag) = app_handle.try_state::<ExpressReady>() {
+            flag.0.store(true, Ordering::SeqCst);
+        }
     }
 
     Ok(())
@@ -442,8 +465,11 @@ pub async fn stop_node(
     manager: tauri::State<'_, NodeManager>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    // Reset socket readiness flag — prevents stale cardano-cli queries
+    // Reset readiness flags — prevents stale queries
     if let Some(flag) = app_handle.try_state::<NodeSocketReady>() {
+        flag.0.store(false, Ordering::SeqCst);
+    }
+    if let Some(flag) = app_handle.try_state::<ExpressReady>() {
         flag.0.store(false, Ordering::SeqCst);
     }
     manager.stop("express").await?;
