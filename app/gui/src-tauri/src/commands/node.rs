@@ -41,6 +41,8 @@ pub struct NodeStatus {
     // Kupo health details from /metrics
     pub kupo_connection_status: Option<bool>,
     pub kupo_seconds_since_last_block: Option<f64>,
+    // Express backend readiness
+    pub express_ready: bool,
 }
 
 /// Get aggregated node status
@@ -61,6 +63,13 @@ pub async fn get_node_status(
     let mithril_status = manager.get_status("mithril-client").await;
     let node_status = manager.get_status("cardano-node").await;
     let ogmios_status = manager.get_status("ogmios").await;
+    let express_status = manager.get_status("express").await;
+    let express_running = express_status
+        .as_ref()
+        .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
+        .unwrap_or(false);
+    // If Express was never started (e.g. dist/index.js missing in dev), don't block Synced
+    let express_ok = express_status.is_none() || express_running;
 
     // Helper: build a NodeStatus with no sync data (early exit states)
     let empty_status = |overall: OverallNodeState| NodeStatus {
@@ -78,6 +87,7 @@ pub async fn get_node_status(
         slots_to_epoch_end: None,
         kupo_connection_status: None,
         kupo_seconds_since_last_block: None,
+        express_ready: express_running,
     };
 
     // Check for Mithril bootstrapping
@@ -153,7 +163,7 @@ pub async fn get_node_status(
         if let Ok(cli_tip) = cardano_cli::query_tip(&app_handle, &config, app_data_dir).await {
             let sync = cli_tip.sync_progress_f64();
 
-            let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
+            let overall = if sync >= 0.999 && kupo_sync >= 0.999 && express_ok {
                 OverallNodeState::Synced
             } else {
                 OverallNodeState::Syncing
@@ -174,6 +184,7 @@ pub async fn get_node_status(
                 slots_to_epoch_end: Some(cli_tip.slots_to_epoch_end),
                 kupo_connection_status: kupo_connection,
                 kupo_seconds_since_last_block: kupo_last_block,
+                express_ready: express_running,
             });
         }
     } // socket_ready guard
@@ -195,7 +206,7 @@ pub async fn get_node_status(
                 .await
                 .unwrap_or((0, 0));
 
-            let overall = if sync >= 0.999 && kupo_sync >= 0.999 {
+            let overall = if sync >= 0.999 && kupo_sync >= 0.999 && express_ok {
                 OverallNodeState::Synced
             } else {
                 OverallNodeState::Syncing
@@ -216,6 +227,7 @@ pub async fn get_node_status(
                 slots_to_epoch_end: None,
                 kupo_connection_status: kupo_connection,
                 kupo_seconds_since_last_block: kupo_last_block,
+                express_ready: express_running,
             });
         }
     }
