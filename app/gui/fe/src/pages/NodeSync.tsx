@@ -529,7 +529,9 @@ export default function NodeSync() {
     }
     case 'syncing':
       progressPercent = Math.min(syncProgress, kupoSyncProgress)
-      if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
+      if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9 && !expressReady) {
+        statusMessage = `Fully synced, starting backend services...`
+      } else if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
         statusMessage = `Fully synced with ${network} network`
       } else if (syncProgress >= 99.9) {
         statusMessage = `Node synced, waiting for Kupo indexer...`
