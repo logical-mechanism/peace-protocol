@@ -173,6 +173,14 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   box-shadow: none;
 }
 
+/* Suppress focus ring on inputs inside composite components (e.g. MnemonicInput) */
+.mnemonic-input,
+.mnemonic-input:focus,
+.mnemonic-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* Custom scrollbar styling for WebKitGTK */
 ::-webkit-scrollbar {
   width: 8px;

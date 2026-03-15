@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { MeshWallet } from '@meshsdk/core'
 import { useWalletContext } from '../contexts/WalletContext'
@@ -7,6 +8,7 @@ import MnemonicInput, { validateMnemonicWords } from '../components/MnemonicInpu
 import { usePasswordStrength } from '../hooks/usePasswordStrength'
 import type { PasswordStrength } from '../hooks/usePasswordStrength'
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
+import LoadingSpinner from '../components/LoadingSpinner'
 import { useToast, ToastContainer } from '../components/Toast'
 
 type Mode = 'choose' | 'create' | 'import'
@@ -219,8 +221,13 @@ export default function WalletSetup() {
       return
     }
 
-    setIsSubmitting(true)
-    setError(null)
+    // Force synchronous render so the button disables before the expensive IPC call
+    flushSync(() => {
+      setIsSubmitting(true)
+      setError(null)
+    })
+    // Wait for the browser to paint the disabled state
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     try {
       await createWallet(words, password)
       navigate('/dashboard')
@@ -755,14 +762,16 @@ function PasswordForm({
       <button
         onClick={onSubmit}
         disabled={!passwordValid || isSubmitting}
-        className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         style={{
           background: passwordValid && !isSubmitting
             ? 'var(--accent)'
             : 'var(--bg-elevated)',
           color: '#fff',
+          transition: 'none',
         }}
       >
+        {isSubmitting && <LoadingSpinner size="sm" className="text-white" />}
         {isSubmitting ? 'Creating Wallet...' : 'Create Wallet'}
       </button>
     </div>
