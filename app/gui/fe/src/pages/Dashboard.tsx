@@ -714,6 +714,7 @@ export default function Dashboard() {
         (step: ChainedAcceptStep) => {
           if (step === 'submitting-snark') toast.info('Step 1/2', 'Submitting SNARK proof transaction...')
           else if (step === 'building-reencrypt') toast.info('Step 2/2', 'Building re-encryption transaction...')
+          else if (step === 'waiting-for-mempool') toast.info('Step 2/2', 'Waiting for network to process first transaction...')
           else if (step === 'submitting-reencrypt') toast.info('Step 2/2', 'Submitting re-encryption transaction...')
           else if (step === 'complete') toast.success('Sale Complete', 'Both transactions submitted successfully!')
           else if (step === 'fallback') toast.warning('Partial Success', 'SNARK proof submitted. Re-encryption will need to be completed manually after confirmation.')
