@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 // Mock heavy dependencies
 vi.mock('@meshsdk/core', () => ({ MeshTxBuilder: vi.fn() }))
-vi.mock('../providers', () => ({ getKupoAdapter: vi.fn(), getOgmiosProvider: vi.fn() }))
+vi.mock('../providers', () => ({ getKupoAdapter: vi.fn(), getChainingAdapter: vi.fn(), getOgmiosProvider: vi.fn(), getPendingTxPool: () => ({ registerTx: vi.fn().mockResolvedValue(undefined), confirmTx: vi.fn(), invalidateChain: vi.fn(), clear: vi.fn() }) }))
 
 import {
   cborUintBytes,

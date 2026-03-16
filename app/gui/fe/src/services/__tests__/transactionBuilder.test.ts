@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 // Mock heavy dependencies that pull in libsodium WASM / Tauri APIs
 vi.mock('@meshsdk/core', () => ({ MeshTxBuilder: vi.fn(), deserializeAddress: vi.fn() }));
 vi.mock('@meshsdk/provider', () => ({ OgmiosProvider: vi.fn() }));
-vi.mock('../providers', () => ({ getKupoAdapter: vi.fn(), getOgmiosProvider: vi.fn() }));
+vi.mock('../providers', () => ({ getKupoAdapter: vi.fn(), getChainingAdapter: vi.fn(), getOgmiosProvider: vi.fn(), getPendingTxPool: () => ({ registerTx: vi.fn().mockResolvedValue(undefined), confirmTx: vi.fn(), invalidateChain: vi.fn(), clear: vi.fn() }) }));
 vi.mock('../secretStorage', () => ({ storeSecrets: vi.fn() }));
 vi.mock('../bidSecretStorage', () => ({ storeBidSecrets: vi.fn(), removeBidSecrets: vi.fn() }));
 vi.mock('../acceptBidStorage', () => ({ storeAcceptBidSecrets: vi.fn(), getAcceptBidSecrets: vi.fn() }));

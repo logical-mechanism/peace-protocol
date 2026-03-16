@@ -11,7 +11,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { MeshWallet, EmbeddedWallet } from '@meshsdk/core'
 import type { IWallet } from '@meshsdk/core'
 import { setPaymentKeyHex } from '../services/crypto/zkKeyDerivation'
-import { getKupoAdapter, getOgmiosProvider } from '../services/providers'
+import { getChainingAdapter, getOgmiosProvider, getPendingTxPool } from '../services/providers'
 import { getAutolockMinutes, AUTOLOCK_CHECK_INTERVAL } from '../services/autolock'
 
 export type WalletLifecycle = 'loading' | 'no_wallet' | 'locked' | 'unlocked'
@@ -51,7 +51,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const initializeWallet = useCallback(async (words: string[]) => {
     const wallet = new MeshWallet({
       networkId: 0,
-      fetcher: getKupoAdapter(),
+      fetcher: getChainingAdapter(),
       submitter: getOgmiosProvider(),
       key: { type: 'mnemonic', words },
     })
@@ -105,6 +105,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const lockFn = useCallback(async () => {
     await invoke('lock_wallet')
+    getPendingTxPool().clear()
     setMeshWallet(null)
     setAddress(null)
     setLovelace(null)

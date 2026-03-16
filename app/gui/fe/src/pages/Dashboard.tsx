@@ -29,9 +29,10 @@ import { playNotificationSound } from '../services/notificationSound'
 import { sendDesktopNotification } from '../services/desktopNotifications'
 import {
   createListing, retryListingFromDraft, removeListing, placeBid, cancelBid,
-  cancelPendingListing, acceptBidSnark, prepareSnarkInputs, completeReEncryption,
+  cancelPendingListing, prepareSnarkInputs, completeReEncryption,
+  acceptBidAndReEncrypt,
   getTransactionStubWarning, extractPaymentKeyHash,
-  type ListingCreationStep,
+  type ListingCreationStep, type ChainedAcceptStep,
 } from '../services/transactionBuilder'
 import { getAcceptBidSecrets } from '../services/acceptBidStorage'
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage'
@@ -700,12 +701,24 @@ export default function Dashboard() {
     const savedBid = acceptBidBid
 
     try {
-      // Step 3: Submit SNARK transaction (Phase 12e)
-      toast.info('Submitting', 'Submitting SNARK proof transaction...')
+      // Submit SNARK proof + chain re-encryption in one flow
       if (!acceptBidA0 || !acceptBidR0 || !acceptBidHk) {
         throw new Error('Missing fresh secrets (a0, r0, hk) for SNARK transaction')
       }
-      const result = await acceptBidSnark(wallet, acceptBidEncryption, acceptBidBid, proof, acceptBidA0, acceptBidR0, acceptBidHk)
+
+      toast.info('Submitting', 'Submitting SNARK proof and chaining re-encryption...')
+
+      const result = await acceptBidAndReEncrypt(
+        wallet, acceptBidEncryption, acceptBidBid, proof,
+        acceptBidA0, acceptBidR0, acceptBidHk,
+        (step: ChainedAcceptStep) => {
+          if (step === 'submitting-snark') toast.info('Step 1/2', 'Submitting SNARK proof transaction...')
+          else if (step === 'building-reencrypt') toast.info('Step 2/2', 'Building re-encryption transaction...')
+          else if (step === 'submitting-reencrypt') toast.info('Step 2/2', 'Submitting re-encryption transaction...')
+          else if (step === 'complete') toast.success('Sale Complete', 'Both transactions submitted successfully!')
+          else if (step === 'fallback') toast.warning('Partial Success', 'SNARK proof submitted. Re-encryption will need to be completed manually after confirmation.')
+        }
+      )
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to submit SNARK transaction')
@@ -718,7 +731,10 @@ export default function Dashboard() {
           8000
         )
       } else if (result.txHash) {
-        toast.transactionSuccess('SNARK Proof Submitted!', result.txHash, { type: 'accept-bid', amountLovelace: acceptBidBid.amount })
+        // Determine if this was a full chain or fallback
+        const isChainedSuccess = !result.error
+        const txType = isChainedSuccess ? 'Sale Completed!' : 'SNARK Proof Submitted!'
+        toast.transactionSuccess(txType, result.txHash, { type: 'accept-bid', amountLovelace: acceptBidBid.amount })
       }
 
       // Record in history
@@ -729,7 +745,9 @@ export default function Dashboard() {
           tokenName: acceptBidEncryption.tokenName,
           timestamp: Date.now(),
           status: result.isStub ? 'confirmed' : 'pending',
-          description: `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (SNARK proof)`,
+          description: result.error
+            ? `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (SNARK proof — re-encryption pending)`
+            : `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (chained sale)`,
           amountLovelace: acceptBidBid.amount,
           counterparty: acceptBidBid.bidderPkh,
         })
@@ -739,11 +757,14 @@ export default function Dashboard() {
       triggerTransactionRefresh()
       setActiveTab('history')
 
-      toast.warning(
-        'Next Step',
-        'Once the SNARK transaction confirms on-chain, return to My Sales to complete the re-encryption step.',
-        10000
-      )
+      // If chaining failed, show guidance for manual completion
+      if (result.error) {
+        toast.warning(
+          'Next Step',
+          'Once the SNARK transaction confirms on-chain, return to My Sales to complete the re-encryption step.',
+          10000
+        )
+      }
     } catch (error) {
       console.error('Failed to submit SNARK transaction:', error)
       toast.error(

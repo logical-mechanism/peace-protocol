@@ -37,9 +37,12 @@ app/gui/
 │   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, InfoTooltip, presentational
 │   │   ├── services/
 │   │   │   ├── api.ts               # REST client for backend
-│   │   │   ├── providers.ts         # Kupo + Ogmios singletons
-│   │   │   ├── kupoAdapter.ts       # IFetcher implementation for MeshSDK
-│   │   │   ├── transactionBuilder.ts # All tx building (~2280 lines)
+│   │   │   ├── providers.ts         # Kupo + Ogmios + PendingTxPool + ChainingAdapter singletons
+│   │   │   ├── kupoAdapter.ts       # IFetcher implementation for MeshSDK (real Kupo queries)
+│   │   │   ├── chainingAdapter.ts   # IFetcher overlay: wraps KupoAdapter + PendingTxPool for tx chaining
+│   │   │   ├── pendingTxPool.ts     # Virtual UTxO state: tracks submitted-but-unconfirmed tx inputs/outputs
+│   │   │   ├── txOutputParser.ts    # Extracts UTxO inputs/outputs from signed tx CBOR (@meshsdk/core-cst)
+│   │   │   ├── transactionBuilder.ts # All tx building (~2380 lines)
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
 │   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete/export content + media server URL helpers for streaming)
@@ -146,7 +149,7 @@ app/gui/
 
 ## Frontend Patterns
 
-**Stack:** React 19 + Vite 7.2 + Tailwind v4 + React Router v7 + TypeScript 5.9 + MeshSDK 1.8
+**Stack:** React 19 + Vite 7.2 + Tailwind v4 + React Router v7 + TypeScript 5.9 + MeshSDK 1.8 + @meshsdk/core-cst 1.8
 
 **State management — 4 React Contexts** (nested in main.tsx):
 - `WalletContext` — lifecycle (`loading`→`no_wallet`→`locked`→`unlocked`), MeshWallet instance, address, balance, payment key hex
@@ -165,13 +168,15 @@ app/gui/
 
 **Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactionBuilder.ts ~2240 lines):
+**Transaction building** (fe/src/services/transactionBuilder.ts ~2380 lines):
 - `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
 - `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`
+- `acceptBidAndReEncrypt()` — chains 12e→12f: submits SNARK proof then immediately chains re-encryption tx
 - `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`
 - `extractPaymentKeyHash()`, `isRealTransactionsAvailable()`, `getTransactionStubWarning()`
-- `ListingCreationStep` type exported for multi-step progress UI callbacks
-- Uses MeshTxBuilder with local Kupo (IFetcher) + Ogmios (ISubmitter/IEvaluator)
+- `ListingCreationStep`, `ChainedAcceptStep` types exported for progress UI callbacks
+- Uses MeshTxBuilder with ChainingAdapter (IFetcher overlay) + Ogmios (ISubmitter/IEvaluator)
+- Every `submitTx` call registers the signed tx CBOR with `PendingTxPool` for tx chaining
 
 **Crypto services** (fe/src/services/crypto/):
 - `index.ts` — Barrel export
@@ -427,7 +432,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, walletManagement (35 files)
+  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, walletManagement (38 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
@@ -573,4 +578,5 @@ const json: ApiResponse<YourType> = await res.json();
 - **Pagination** — Backend `pagination.ts` middleware provides offset-based pagination (default 50, max 200 items) with `{ total, limit, offset, hasMore }` meta
 - **cardano-cli as primary sync source** — `cardano-cli conway query tip` is the primary sync data source (runs as sidecar every 5s poll). Works as soon as the node socket exists (~10-60s before Ogmios connects). Provides exact `syncProgress`, `epoch`, `era`, `slotInEpoch`, `slotsToEpochEnd`. Ogmios is fallback only. Kupo metrics (`/metrics`) provide indexing progress + `kupo_connection_status` + `kupo_seconds_since_last_block` for stall/disconnect detection
 - **Media server streaming** — Video and audio files are streamed from disk via an Axum HTTP server embedded in lib.rs, listening on a random `127.0.0.1` port. This replaces the previous `asset://` protocol approach because WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes (`asset://`, `media://`). The server supports HTTP range requests (206 Partial Content, 2 MB max chunk) and maps file extensions to correct MIME types. `get_library_content_path` and `get_library_subtitle_path` Rust commands return relative file paths; `libraryService.ts` wraps them with `getLibraryContentUrl()` which constructs `http://127.0.0.1:{port}/{path}` URLs. Text, PDF, and image files still use `readLibraryContent()` (small enough for IPC). Avoids the Tauri IPC serialization bottleneck where `Vec<u8>` is serialized as JSON `number[]` (a 100MB file becomes ~300MB of JSON text)
+- **Transaction chaining** — `ChainingAdapter` wraps `KupoAdapter` to overlay pending UTxO state from `PendingTxPool`. After submitting tx A, its outputs are immediately available as inputs for tx B without waiting for Kupo to index the on-chain state. Works because Ogmios evaluates/accepts txs referencing mempool UTxOs from the same instance. `acceptBidAndReEncrypt()` chains the SNARK proof tx (12e) → re-encryption tx (12f) automatically. Pool cleans up on: tx confirmation (`confirmTx`), tx failure (`invalidateChain`), wallet lock (`clear`), and staleness (5 min auto-prune). `txOutputParser.ts` uses `@meshsdk/core-cst` `deserializeTx()` to extract UTxO inputs/outputs from signed tx CBOR
 - **Background cleanup** — Hourly async task in lib.rs: securely deletes orphaned SNARK temp files older than 1 hour, evicts cached images older than 30 days or exceeding 500MB total
