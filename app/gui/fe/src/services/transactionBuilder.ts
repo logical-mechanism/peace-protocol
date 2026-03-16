@@ -2124,6 +2124,10 @@ export async function completeReEncryption(
 
     const encUnit = encPolicyId + encryption.tokenName;
     const encryptionUtxos = await fetcher.fetchAddressUTxOs(encryptionAddress);
+    console.log('[completeReEncryption] encryptionUtxos count:', encryptionUtxos.length,
+      'pending pool size:', getPendingTxPool().size,
+      'looking for unit:', encUnit,
+      'at address:', encryptionAddress);
     const currentEncUtxo = encryptionUtxos.find(u =>
       u.output.amount.some(a => a.unit === encUnit && parseInt(a.quantity) >= 1)
     );
@@ -2207,6 +2211,7 @@ export async function completeReEncryption(
     };
   } catch (error) {
     console.error('Failed to complete re-encryption:', error);
+    console.error('[completeReEncryption] Full error:', error instanceof Error ? error.stack : error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -2345,6 +2350,7 @@ export async function acceptBidAndReEncrypt(
   try {
     onStep?.('submitting-reencrypt');
     const reEncryptResult = await completeReEncryption(wallet, encryption, bid);
+    console.log('[acceptBidAndReEncrypt] Re-encryption result:', reEncryptResult.success, reEncryptResult.error || 'no error');
 
     if (reEncryptResult.success) {
       onStep?.('complete');

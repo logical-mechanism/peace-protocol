@@ -110,7 +110,10 @@ export class PendingTxPool {
         if (this.isSpent(output.input.txHash, output.input.outputIndex)) continue;
 
         // Address filter
-        if (address && output.output.address !== address) continue;
+        if (address && output.output.address !== address) {
+          console.log('[PendingTxPool] Address mismatch — pending:', output.output.address, '!== filter:', address);
+          continue;
+        }
 
         // Asset filter
         if (asset && !output.output.amount.some((a) => a.unit === asset)) continue;
