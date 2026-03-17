@@ -41,7 +41,7 @@ export default function DescriptionModal({
               Description
             </h2>
             {tokenName && (
-              <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5">
+              <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5" title={tokenName ?? ''}>
                 {truncateHex(tokenName ?? '', 12, 6)}
               </p>
             )}

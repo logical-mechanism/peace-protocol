@@ -117,7 +117,7 @@ function SalesListingCard({
 
               <div className="min-w-0">
                 <div className="flex items-center gap-[var(--space-2)] mb-0.5 flex-wrap">
-                  <span className="text-xs font-mono text-[var(--text-muted)]">
+                  <span className="text-xs font-mono text-[var(--text-muted)]" title={encryption.tokenName}>
                     {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
                   <EncryptionStatusBadge status={encryption.status} />
@@ -232,7 +232,7 @@ function SalesListingCard({
         <div className="flex items-start justify-between mb-[var(--space-md)]">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-1)]">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0">
+              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0" title={encryption.tokenName}>
                 {truncateHex(encryption.tokenName, 8, 4)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />

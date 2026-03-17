@@ -117,7 +117,7 @@ function LibraryCard({
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <span className="text-xs font-mono text-[var(--text-muted)]">
+                  <span className="text-xs font-mono text-[var(--text-muted)]" title={item.tokenName}>
                     {truncateHex(item.tokenName, 8, 4)}
                   </span>
                   <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
@@ -139,7 +139,7 @@ function LibraryCard({
             {/* Middle: Seller & Date */}
             <div className="flex items-center gap-6 flex-shrink-0">
               <div className="text-right">
-                <p className="text-xs font-mono text-[var(--text-muted)]">
+                <p className="text-xs font-mono text-[var(--text-muted)]" title={item.seller ?? ''}>
                   {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
                 </p>
                 <p className="text-xs text-[var(--text-muted)]">
@@ -211,7 +211,7 @@ function LibraryCard({
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate">
+              <span className="text-xs font-mono text-[var(--text-muted)] truncate" title={item.tokenName}>
                 {truncateHex(item.tokenName, 8, 4)}
               </span>
               <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
@@ -257,7 +257,7 @@ function LibraryCard({
         {/* Seller Info */}
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-          <span className="text-xs font-mono text-[var(--text-secondary)]">
+          <span className="text-xs font-mono text-[var(--text-secondary)]" title={item.seller ?? ''}>
             {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
           </span>
         </div>
