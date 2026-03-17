@@ -360,7 +360,32 @@ export const chainApi = {
       return null;
     }
   },
+
+  /**
+   * Recover transaction history from Koios for a payment credential.
+   * Expensive query — backend caches for 60s. Used on-demand, not for polling.
+   */
+  async getHistory(pkh: string): Promise<HistoryRecoveryRecord[]> {
+    try {
+      const response = await apiFetch<ApiResponse<HistoryRecoveryRecord[]>>(`/api/chain/history/${pkh}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
 };
+
+export interface HistoryRecoveryRecord {
+  txHash: string;
+  type: string;
+  tokenName?: string;
+  timestamp: number;
+  status: 'confirmed';
+  description?: string;
+  amountLovelace?: number;
+  counterparty?: string;
+  confirmedAtBlock?: number;
+}
 
 // Health check
 export interface DependencyHealth {
