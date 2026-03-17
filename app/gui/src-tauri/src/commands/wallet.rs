@@ -25,15 +25,17 @@ pub fn wallet_exists(state: tauri::State<'_, WalletState>) -> bool {
 
 /// Create a new wallet by encrypting the mnemonic with the password.
 /// Also initializes the KDF v3 salt for secrets encryption.
+///
+/// Runs Argon2id KDF on a blocking thread to keep the UI responsive.
 #[tauri::command]
-pub fn create_wallet(
+pub async fn create_wallet(
     state: tauri::State<'_, WalletState>,
     secrets_dir_state: tauri::State<'_, SecretsDir>,
     audit: tauri::State<'_, AuditLog>,
     mnemonic: String,
     password: String,
 ) -> Result<(), String> {
-    // Wrap in Zeroizing so the plaintext mnemonic is zeroed on drop
+    // Validate inputs before the expensive blocking work
     let mnemonic = Zeroizing::new(mnemonic);
     let words: Vec<&str> = mnemonic.split_whitespace().collect();
     if words.len() != 24 {
@@ -43,7 +45,6 @@ pub fn create_wallet(
         ));
     }
 
-    // Validate BIP39 checksum (catches typos in imported mnemonics)
     bip39::Mnemonic::parse_in_normalized(bip39::Language::English, &mnemonic).map_err(|_| {
         "Invalid mnemonic: checksum verification failed. Please double-check your recovery phrase for typos.".to_string()
     })?;
@@ -52,28 +53,38 @@ pub fn create_wallet(
         return Err("Password must be at least 12 characters".to_string());
     }
 
-    let encrypted = encrypt_mnemonic(&mnemonic, &password)?;
-    let json = serde_json::to_string_pretty(&encrypted)
-        .map_err(|e| format!("Failed to serialize: {e}"))?;
+    // Extract values from State before the blocking closure (State is !Send)
+    let wallet_path = state.wallet_path.clone();
+    let secrets_dir = secrets_dir_state.0.clone();
 
-    if let Some(parent) = state.wallet_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create data directory: {e}"))?;
-    }
+    // Offload Argon2id KDF to a blocking thread
+    let mnemonic_str = mnemonic.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let encrypted = encrypt_mnemonic(&mnemonic_str, &password)?;
+        let json = serde_json::to_string_pretty(&encrypted)
+            .map_err(|e| format!("Failed to serialize: {e}"))?;
 
-    std::fs::write(&state.wallet_path, json)
-        .map_err(|e| format!("Failed to write wallet file: {e}"))?;
+        if let Some(parent) = wallet_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create data directory: {e}"))?;
+        }
 
-    // Restrict wallet file to owner-only read/write (0o600 on Unix)
-    set_owner_only_file(&state.wallet_path)?;
+        std::fs::write(&wallet_path, json)
+            .map_err(|e| format!("Failed to write wallet file: {e}"))?;
 
-    // Initialize KDF v3 salt for this new wallet
-    let new_salt = generate_kdf_salt();
-    let meta = KdfMeta {
-        version: 3,
-        salt: to_hex(&new_salt),
-    };
-    save_kdf_meta(&secrets_dir_state.0, &meta)?;
+        set_owner_only_file(&wallet_path)?;
+
+        let new_salt = generate_kdf_salt();
+        let meta = KdfMeta {
+            version: 3,
+            salt: to_hex(&new_salt),
+        };
+        save_kdf_meta(&secrets_dir, &meta)?;
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Create wallet task failed: {e}"))??;
 
     audit.log("WALLET_CREATED", "wallet.json");
     Ok(())
@@ -84,65 +95,75 @@ pub fn create_wallet(
 /// Also derives the secrets encryption key from the mnemonic.
 ///
 /// On first unlock after a KDF upgrade, transparently re-encrypts all secrets
-/// from v1 (4 MiB, fixed salt) to v2 (32 MiB, random per-user salt).
+/// from v1/v2 to v3 (64 MiB, random per-user salt).
+///
+/// Runs Argon2id KDF on a blocking thread to keep the UI responsive.
 #[tauri::command]
-pub fn unlock_wallet(
+pub async fn unlock_wallet(
     state: tauri::State<'_, WalletState>,
     secrets_key_state: tauri::State<'_, SecretsKey>,
     secrets_dir_state: tauri::State<'_, SecretsDir>,
     audit: tauri::State<'_, AuditLog>,
     password: String,
 ) -> Result<Vec<String>, String> {
-    let json = std::fs::read_to_string(&state.wallet_path)
-        .map_err(|e| format!("Failed to read wallet file: {e}"))?;
+    // Extract values from State before the blocking closure (State is !Send)
+    let wallet_path = state.wallet_path.clone();
+    let secrets_dir = secrets_dir_state.0.clone();
+    let audit_dir = audit.data_dir();
 
-    let encrypted: EncryptedWallet =
-        serde_json::from_str(&json).map_err(|e| format!("Invalid wallet file format: {e}"))?;
+    // Offload all Argon2id KDF work to a blocking thread
+    let (words, secrets_key) = tokio::task::spawn_blocking(move || -> Result<(Vec<String>, Zeroizing<[u8; 32]>), String> {
+        let json = std::fs::read_to_string(&wallet_path)
+            .map_err(|e| format!("Failed to read wallet file: {e}"))?;
 
-    let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
-    let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
+        let encrypted: EncryptedWallet =
+            serde_json::from_str(&json).map_err(|e| format!("Invalid wallet file format: {e}"))?;
 
-    let secrets_dir = &secrets_dir_state.0;
-    let (kdf_meta, needs_migration) = load_kdf_meta(secrets_dir)?;
+        let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
+        let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
 
-    let secrets_key = if needs_migration {
-        // Derive old key based on the stored KDF version
-        let old_key = match kdf_meta.version {
-            1 => derive_secrets_key_v1(&mnemonic)?,
-            2 => {
-                let salt = from_hex(&kdf_meta.salt)?;
-                derive_secrets_key_v2(&mnemonic, &salt)?
-            }
-            v => return Err(format!("Unknown KDF version {v} in kdf_meta.json")),
+        let (kdf_meta, needs_migration) = load_kdf_meta(&secrets_dir)?;
+
+        let secrets_key = if needs_migration {
+            let old_key = match kdf_meta.version {
+                1 => derive_secrets_key_v1(&mnemonic)?,
+                2 => {
+                    let salt = from_hex(&kdf_meta.salt)?;
+                    derive_secrets_key_v2(&mnemonic, &salt)?
+                }
+                v => return Err(format!("Unknown KDF version {v} in kdf_meta.json")),
+            };
+
+            let new_salt = generate_kdf_salt();
+            let new_key = derive_secrets_key_v3(&mnemonic, &new_salt)?;
+
+            let from_ver = kdf_meta.version;
+            let audit_log = AuditLog::new(&audit_dir);
+            audit_log.log("MIGRATE", &format!("kdf_v{from_ver}_to_v3_start"));
+            let count = migrate_secrets(&secrets_dir, &old_key, &new_key, &audit_log)?;
+            audit_log.log(
+                "MIGRATE",
+                &format!("kdf_v{from_ver}_to_v3_complete ({count} files)"),
+            );
+
+            let meta = KdfMeta {
+                version: 3,
+                salt: to_hex(&new_salt),
+            };
+            save_kdf_meta(&secrets_dir, &meta)?;
+
+            new_key
+        } else {
+            let salt = from_hex(&kdf_meta.salt)?;
+            derive_secrets_key_v3(&mnemonic, &salt)?
         };
 
-        // Generate new salt and derive new key (v3)
-        let new_salt = generate_kdf_salt();
-        let new_key = derive_secrets_key_v3(&mnemonic, &new_salt)?;
+        Ok((words, secrets_key))
+    })
+    .await
+    .map_err(|e| format!("Unlock task failed: {e}"))??;
 
-        // Re-encrypt all secrets
-        let from_ver = kdf_meta.version;
-        audit.log("MIGRATE", &format!("kdf_v{from_ver}_to_v3_start"));
-        let count = migrate_secrets(secrets_dir, &old_key, &new_key, &audit)?;
-        audit.log(
-            "MIGRATE",
-            &format!("kdf_v{from_ver}_to_v3_complete ({count} files)"),
-        );
-
-        // Write KDF metadata
-        let meta = KdfMeta {
-            version: 3,
-            salt: to_hex(&new_salt),
-        };
-        save_kdf_meta(secrets_dir, &meta)?;
-
-        new_key
-    } else {
-        // Normal path: derive with stored salt
-        let salt = from_hex(&kdf_meta.salt)?;
-        derive_secrets_key_v3(&mnemonic, &salt)?
-    };
-
+    // Write secrets key to state (fast, no blocking needed)
     *secrets_key_state
         .0
         .lock()
@@ -193,20 +214,28 @@ pub fn delete_wallet(
 /// Reveal the mnemonic by re-verifying the password.
 /// This re-decrypts from disk rather than using the in-memory copy,
 /// ensuring the password is correct before showing sensitive data.
+///
+/// Runs Argon2id KDF on a blocking thread to keep the UI responsive.
 #[tauri::command]
-pub fn reveal_mnemonic(
+pub async fn reveal_mnemonic(
     state: tauri::State<'_, WalletState>,
     audit: tauri::State<'_, AuditLog>,
     password: String,
 ) -> Result<Vec<String>, String> {
-    let json = std::fs::read_to_string(&state.wallet_path)
-        .map_err(|e| format!("Failed to read wallet file: {e}"))?;
+    let wallet_path = state.wallet_path.clone();
 
-    let encrypted: EncryptedWallet =
-        serde_json::from_str(&json).map_err(|e| format!("Invalid wallet file format: {e}"))?;
+    let words = tokio::task::spawn_blocking(move || -> Result<Vec<String>, String> {
+        let json = std::fs::read_to_string(&wallet_path)
+            .map_err(|e| format!("Failed to read wallet file: {e}"))?;
 
-    let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
-    let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
+        let encrypted: EncryptedWallet =
+            serde_json::from_str(&json).map_err(|e| format!("Invalid wallet file format: {e}"))?;
+
+        let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
+        Ok(mnemonic.split_whitespace().map(String::from).collect())
+    })
+    .await
+    .map_err(|e| format!("Reveal mnemonic task failed: {e}"))??;
 
     audit.log("MNEMONIC_REVEALED", "wallet.json");
     Ok(words)

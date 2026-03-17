@@ -25,6 +25,12 @@ impl AuditLog {
         }
     }
 
+    /// Returns the directory containing the audit log file.
+    /// Used to create a new AuditLog instance in blocking tasks.
+    pub fn data_dir(&self) -> PathBuf {
+        self.path.parent().unwrap_or(&self.path).to_path_buf()
+    }
+
     /// Log an operation.
     ///
     /// Format: `{unix_timestamp} | {op} | {target}\n`
