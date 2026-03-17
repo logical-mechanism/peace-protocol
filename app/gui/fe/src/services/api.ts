@@ -109,6 +109,8 @@ export interface EncryptionDisplay {
     outputIndex: number;
   };
   datum: EncryptionDatum;
+  /** True when this entry is an optimistic prediction, not yet confirmed on-chain. */
+  _optimistic?: boolean;
 }
 
 // Bid types
@@ -135,6 +137,8 @@ export interface BidDisplay {
     outputIndex: number;
   };
   datum: BidDatum;
+  /** True when this entry is an optimistic prediction, not yet confirmed on-chain. */
+  _optimistic?: boolean;
 }
 
 // Protocol types
@@ -193,7 +197,7 @@ async function cachedApiFetch<T>(endpoint: string, ttlMs?: number): Promise<T> {
   return result;
 }
 
-const CACHE_TTL_DATA = 15_000;     // 15s for marketplace data
+const CACHE_TTL_DATA = 5_000;      // 5s for marketplace data (Kupo is local)
 const CACHE_TTL_PROTOCOL = 60_000; // 60s for protocol config (rarely changes)
 
 // Encryption API

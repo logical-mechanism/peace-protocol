@@ -16,7 +16,7 @@ import type { EncryptionLevel } from '../types/index.js';
 
 const router = Router();
 
-const CACHE_DATA = 'max-age=10, stale-while-revalidate=30';
+const CACHE_DATA = 'max-age=5, stale-while-revalidate=15';
 
 /**
  * GET /api/encryptions

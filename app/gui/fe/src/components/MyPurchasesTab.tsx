@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useNode } from '../contexts/NodeContext';
 import { bidsApi, encryptionsApi } from '../services/api';
+import { optimisticStore } from '../services/optimisticStore';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
 import { listLibraryItems } from '../services/libraryService';
@@ -64,7 +65,7 @@ function MyPurchasesTab({
     setError(null);
     try {
       // Fetch all bids and filter by bidder PKH from datum
-      const allBids = await bidsApi.getAll();
+      const allBids = optimisticStore.mergeBids(await bidsApi.getAll());
       const userBids = userPkh
         ? allBids.filter((b) => b.bidderPkh === userPkh)
         : [];
@@ -73,7 +74,7 @@ function MyPurchasesTab({
       hasDataRef.current = true;
 
       // Fetch all encryptions (needed for both bids and purchased encryptions)
-      const allEncryptions = await encryptionsApi.getAll();
+      const allEncryptions = optimisticStore.mergeEncryptions(await encryptionsApi.getAll());
 
       // Build encryption map for user bids
       const newEncryptionsMap = new Map<string, EncryptionDisplay>();

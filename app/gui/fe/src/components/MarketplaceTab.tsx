@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi } from '../services/api';
+import { optimisticStore } from '../services/optimisticStore';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
 import { SkeletonGrid } from './SkeletonCard';
@@ -64,8 +65,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
         encryptionsApi.getAllWithWarnings(),
         bidsApi.getAllWithWarnings(),
       ]);
-      setEncryptions(encResult.data);
-      setAllBids(bidResult.data);
+      setEncryptions(optimisticStore.mergeEncryptions(encResult.data));
+      setAllBids(optimisticStore.mergeBids(bidResult.data));
       setPrevDataCount(encResult.data.length);
       hasDataRef.current = true;
 

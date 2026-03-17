@@ -12,6 +12,7 @@ import { MeshWallet, EmbeddedWallet } from '@meshsdk/core'
 import type { IWallet } from '@meshsdk/core'
 import { setPaymentKeyHex } from '../services/crypto/zkKeyDerivation'
 import { getChainingAdapter, getOgmiosProvider, getPendingTxPool } from '../services/providers'
+import { optimisticStore } from '../services/optimisticStore'
 import { getAutolockMinutes, AUTOLOCK_CHECK_INTERVAL } from '../services/autolock'
 
 export type WalletLifecycle = 'loading' | 'no_wallet' | 'locked' | 'unlocked'
@@ -106,6 +107,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const lockFn = useCallback(async () => {
     await invoke('lock_wallet')
     getPendingTxPool().clear()
+    optimisticStore.clear()
     setMeshWallet(null)
     setAddress(null)
     setLovelace(null)

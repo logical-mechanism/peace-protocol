@@ -238,7 +238,7 @@ describe('useBidNotifications', () => {
 
     // Advance past throttle (15s) by waiting then triggering via tipSlot change
     await act(async () => {
-      await new Promise(r => setTimeout(r, 16_000));
+      await new Promise(r => setTimeout(r, 11_000));
     });
 
     rerender({ tipSlot: 200 });
@@ -249,7 +249,7 @@ describe('useBidNotifications', () => {
 
     // Should still be 1 (from initial call only)
     expect(onDataChanged).toHaveBeenCalledTimes(1);
-  }, 20_000);
+  }, 15_000);
 
   it('pre-warms apiCache when data changes', async () => {
     const encryptions = [{ tokenName: 'enc1', sellerPkh: 'other' }];
@@ -265,12 +265,12 @@ describe('useBidNotifications', () => {
       expect(mockApiCacheSet).toHaveBeenCalledWith(
         '/api/encryptions',
         { data: encryptions },
-        15_000,
+        5_000,
       );
       expect(mockApiCacheSet).toHaveBeenCalledWith(
         '/api/bids',
         { data: bids },
-        15_000,
+        5_000,
       );
     }, WAIT_OPTS);
   });

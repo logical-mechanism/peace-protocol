@@ -23,6 +23,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import { cleanupStaleSecrets } from '../services/secretCleanup'
+import { optimisticStore } from '../services/optimisticStore'
 import { isIagonConnected, connectIagon } from '../services/iagonAuth'
 import { useBidNotifications } from '../hooks/useBidNotifications'
 import { playNotificationSound } from '../services/notificationSound'
@@ -567,10 +568,28 @@ export default function Dashboard() {
       })
     }
 
+    // Optimistic update — bid appears immediately in tabs
+    if (result.txHash && result.tokenName && userPkh && address) {
+      optimisticStore.addBid(result.tokenName, result.txHash, {
+        tokenName: result.tokenName,
+        bidder: address,
+        bidderPkh: userPkh,
+        encryptionToken: encryptionTokenName,
+        amount: Math.round(bidAmountAda * 1_000_000),
+        futurePrice: futurePrice,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        lockedUntil: 0,
+        utxo: { txHash: result.txHash, outputIndex: 0 },
+        datum: { owner_vkh: userPkh, owner_g1: { generator: '', public_value: '' }, pointer: result.tokenName, token: encryptionTokenName, locked_until: 0 },
+        _optimistic: true,
+      })
+    }
+
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption, userPkh, address])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -617,6 +636,11 @@ export default function Dashboard() {
               status: result.isStub ? 'confirmed' : 'pending',
               description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
             })
+          }
+
+          // Optimistic update — listing disappears immediately
+          if (result.txHash) {
+            optimisticStore.removeEncryption(encryption.tokenName, result.txHash)
           }
 
           triggerTransactionRefresh()
@@ -762,6 +786,11 @@ export default function Dashboard() {
           amountLovelace: acceptBidBid.amount,
           counterparty: acceptBidBid.bidderPkh,
         })
+      }
+
+      // Optimistic update — listing status changes to pending
+      if (result.txHash || result.snarkTxHash) {
+        optimisticStore.updateEncryption(acceptBidEncryption.tokenName, result.txHash || result.snarkTxHash!, { status: 'pending' })
       }
 
       // Refresh and switch to history
@@ -977,6 +1006,11 @@ export default function Dashboard() {
             })
           }
 
+          // Optimistic update — bid disappears immediately
+          if (result.txHash) {
+            optimisticStore.removeBid(bid.tokenName, result.txHash)
+          }
+
           triggerTransactionRefresh()
           setActiveTab('history')
         } catch (error) {
@@ -1094,10 +1128,37 @@ export default function Dashboard() {
       })
     }
 
+    // Optimistic update — listing appears immediately in tabs
+    if (result.txHash && result.tokenName && userPkh && address) {
+      optimisticStore.addEncryption(result.tokenName, result.txHash, {
+        tokenName: result.tokenName,
+        seller: address,
+        sellerPkh: userPkh,
+        status: 'active',
+        description: formData.description,
+        suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
+        storageLayer: formData.category === 'text' ? 'on-chain' : 'iagon',
+        imageLink: formData.imageLink || undefined,
+        category: formData.category,
+        createdAt: new Date().toISOString(),
+        utxo: { txHash: result.txHash, outputIndex: 0 },
+        datum: {
+          owner_vkh: userPkh,
+          owner_g1: { generator: '', public_value: '' },
+          token: result.tokenName,
+          half_level: { r1b: '', r2_g1b: '', r4b: '' },
+          full_level: null,
+          capsule: { nonce: '', aad: '', ct: '' },
+          status: { type: 'Open' },
+        },
+        _optimistic: true,
+      })
+    }
+
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   // Fetch user stats (waits for Express backend to be ready)
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
+import { optimisticStore } from '../services/optimisticStore';
 import SalesListingCard from './SalesListingCard';
 import BidsModal from './BidsModal';
 import { SkeletonGrid } from './SkeletonCard';
@@ -65,7 +66,7 @@ function MySalesTab({
     setError(null);
     try {
       // Fetch all encryptions and filter by owner PKH from datum
-      const allEncryptions = await encryptionsApi.getAll();
+      const allEncryptions = optimisticStore.mergeEncryptions(await encryptionsApi.getAll());
       const userEncryptions = userPkh
         ? allEncryptions.filter((e) => e.sellerPkh === userPkh)
         : [];
@@ -80,7 +81,7 @@ function MySalesTab({
 
       // Fetch bids for all user listings
       if (userEncryptions.length > 0) {
-        const allBids = await bidsApi.getAll();
+        const allBids = optimisticStore.mergeBids(await bidsApi.getAll());
         const newBidsMap = new Map<string, BidDisplay[]>();
 
         userEncryptions.forEach((encryption) => {

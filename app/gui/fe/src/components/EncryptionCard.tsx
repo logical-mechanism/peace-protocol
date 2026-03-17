@@ -59,7 +59,8 @@ function EncryptionCard({
   };
 
   const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);
-  const canBid = encryption.status === 'active' && !isOwnListing && !hasBid;
+  const isOptimistic = encryption._optimistic === true;
+  const canBid = encryption.status === 'active' && !isOwnListing && !hasBid && !isOptimistic;
 
   // Get category label, defaulting to "Text" for backward compatibility
   const getCategoryLabel = (category?: string): string => {
@@ -113,6 +114,11 @@ function EncryptionCard({
                 {getCategoryLabel(encryption.category)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />
+              {isOptimistic && (
+                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+                  Awaiting confirmation
+                </span>
+              )}
               {bidCount > 0 && (
                 <span
                   key={bidPulseKey}
@@ -196,6 +202,11 @@ function EncryptionCard({
                 />
               </span>
               <EncryptionStatusBadge status={encryption.status} />
+              {isOptimistic && (
+                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+                  Awaiting confirmation
+                </span>
+              )}
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
                 {getCategoryLabel(encryption.category)}
               </span>

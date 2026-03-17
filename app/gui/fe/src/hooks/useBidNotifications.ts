@@ -11,7 +11,7 @@ import {
 import type { NodeStage } from '../contexts/NodeContext';
 
 /** Minimum interval between bid checks (ms) */
-const THROTTLE_MS = 15_000;
+const THROTTLE_MS = 10_000;
 
 export interface BidNotificationState {
   /** Count of unseen bids across all seller listings */
@@ -83,8 +83,8 @@ export function useBidNotifications(
         // Pre-warm the apiCache so tabs hit warm cache on re-fetch
         const encResponse: ApiResponse<EncryptionDisplay[]> = { data: allEncryptions };
         const bidResponse: ApiResponse<BidDisplay[]> = { data: allBids };
-        apiCache.set('/api/encryptions', encResponse, 15_000);
-        apiCache.set('/api/bids', bidResponse, 15_000);
+        apiCache.set('/api/encryptions', encResponse, 5_000);
+        apiCache.set('/api/bids', bidResponse, 5_000);
         onDataChangedRef.current?.();
       }
 
