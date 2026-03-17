@@ -12,7 +12,7 @@ export class ApiCache {
   private store = new Map<string, CacheEntry<unknown>>();
   private defaultTtlMs: number;
 
-  constructor(defaultTtlMs: number = 15_000) {
+  constructor(defaultTtlMs: number = 5_000) {
     this.defaultTtlMs = defaultTtlMs;
   }
 
@@ -46,5 +46,5 @@ export class ApiCache {
   }
 }
 
-/** Shared singleton for frontend API layer (15s default TTL). */
-export const apiCache = new ApiCache(15_000);
+/** Shared singleton for frontend API layer (5s default TTL). */
+export const apiCache = new ApiCache(5_000);

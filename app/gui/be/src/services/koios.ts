@@ -1,6 +1,7 @@
 import { getNetworkConfig } from '../config/index.js';
 import { fetchWithRetry } from './fetchWithRetry.js';
 import { CircuitBreaker } from './circuitBreaker.js';
+import { logger } from './logger.js';
 
 interface KoiosUtxo {
   tx_hash: string;
@@ -43,7 +44,24 @@ interface TxOutput {
 interface TxInfo {
   tx_hash: string;
   block_height: number;
+  tx_block_index?: number;
   outputs: TxOutput[];
+}
+
+interface TxAsset {
+  policy_id: string;
+  asset_name: string;
+  quantity: string;
+}
+
+interface TxInfoWithAssets {
+  tx_hash: string;
+  block_height: number;
+  block_time: number;
+  tx_block_index?: number;
+  inputs?: Array<{ tx_hash: string; tx_index: number; payment_addr?: { cred: string } }>;
+  outputs: Array<TxOutput & { asset_list?: TxAsset[] }>;
+  metadata?: Record<string, unknown> | null;
 }
 
 class KoiosClient {
@@ -83,7 +101,9 @@ class KoiosClient {
 
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        throw new Error(`Koios API error: ${response.status} ${response.statusText} - ${body}`);
+        const msg = `Koios API error: ${response.status} ${response.statusText} - ${body.slice(0, 500)}`;
+        logger.error('Koios request failed', { endpoint: url, status: response.status, body: body.slice(0, 500) });
+        throw new Error(msg);
       }
 
       return response.json();
@@ -251,6 +271,42 @@ class KoiosClient {
     return result[0];
   }
 
+  /**
+   * Get all transaction hashes for a payment credential.
+   * Returns ALL txs where this credential appeared as input or output.
+   */
+  async getCredentialTxs(pkh: string, signal?: AbortSignal): Promise<Array<{ tx_hash: string; block_height: number; block_time: number }>> {
+    return this.request<Array<{ tx_hash: string; block_height: number; block_time: number }>>(
+      '/credential_txs',
+      {
+        method: 'POST',
+        body: JSON.stringify({ _payment_credentials: [pkh] }),
+      },
+      signal,
+    );
+  }
+
+  /**
+   * Get full transaction info for multiple tx hashes including asset data.
+   * Used for history recovery — classifies txs by minted/burned assets.
+   */
+  async getTxInfoWithAssets(txHashes: string[], signal?: AbortSignal): Promise<TxInfoWithAssets[]> {
+    if (txHashes.length === 0) return [];
+    return this.request<TxInfoWithAssets[]>('/tx_info', {
+      method: 'POST',
+      body: JSON.stringify({
+        _tx_hashes: txHashes,
+        _inputs: true,
+        _metadata: true,
+        _assets: true,
+        _withdrawals: false,
+        _certs: false,
+        _scripts: false,
+        _bytecode: false,
+      }),
+    }, signal);
+  }
+
   getCircuitBreakerState() {
     return {
       state: this.circuitBreaker.currentState,
@@ -269,4 +325,4 @@ export function getKoiosClient(): KoiosClient {
   return koiosInstance;
 }
 
-export type { KoiosUtxo };
+export type { KoiosUtxo, TxInfoWithAssets };

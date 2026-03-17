@@ -23,6 +23,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { encryptionsApi, bidsApi } from '../services/api'
 import { cleanupStaleSecrets } from '../services/secretCleanup'
+import { optimisticStore } from '../services/optimisticStore'
 import { isIagonConnected, connectIagon } from '../services/iagonAuth'
 import { useBidNotifications } from '../hooks/useBidNotifications'
 import { playNotificationSound } from '../services/notificationSound'
@@ -147,7 +148,7 @@ export default function Dashboard() {
   const [selectedBidCount, setSelectedBidCount] = useState(0)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
   const [failedDecryptTokens, setFailedDecryptTokens] = useState<Set<string>>(new Set())
-  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
+  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh, triggerSoftRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -309,7 +310,7 @@ export default function Dashboard() {
   }, [userPkh, marketplaceFilters])
 
   // Bid notification system — watches tipSlot for new bids on seller's listings
-  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
+  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage, triggerSoftRefresh)
 
   // Fire toast when new bids arrive mid-session (not on initial load).
   // Groups multiple bid arrivals within a 5-second window into a single notification.
@@ -415,7 +416,16 @@ export default function Dashboard() {
     }
 
     try {
-      const result = await retryListingFromDraft(wallet, recoverableDraft)
+      const result = await retryListingFromDraft(wallet, recoverableDraft, undefined, (txHash, tokenName) => {
+        recordTransaction({
+          txHash,
+          type: 'create-listing',
+          tokenName,
+          timestamp: Date.now(),
+          status: 'pending',
+          description: recoverableDraft.description,
+        })
+      })
       if (!result.success) {
         toast.error('Retry Failed', result.error || 'Failed to retry listing')
         return
@@ -423,14 +433,6 @@ export default function Dashboard() {
 
       if (result.txHash) {
         toast.transactionSuccess('Listing Resumed!', result.txHash, { type: 'create-listing' })
-        recordTransaction({
-          txHash: result.txHash,
-          type: 'create-listing',
-          tokenName: result.tokenName,
-          timestamp: Date.now(),
-          status: 'pending',
-          description: recoverableDraft.description,
-        })
       }
       setRecoverableDraft(null)
       triggerTransactionRefresh()
@@ -458,7 +460,17 @@ export default function Dashboard() {
         return
       }
 
-      const result = await retryListingFromDraft(wallet, draft)
+      const result = await retryListingFromDraft(wallet, draft, undefined, (txHash, tokenName) => {
+        recordTransaction({
+          txHash,
+          type: 'create-listing',
+          tokenName,
+          timestamp: Date.now(),
+          status: 'pending',
+          description: draft.description,
+          draftId,
+        })
+      })
       if (!result.success) {
         toast.error('Retry Failed', result.error || 'Failed to retry listing')
         return
@@ -466,15 +478,6 @@ export default function Dashboard() {
 
       if (result.txHash) {
         toast.transactionSuccess('Listing Retried!', result.txHash, { type: 'create-listing' })
-        recordTransaction({
-          txHash: result.txHash,
-          type: 'create-listing',
-          tokenName: result.tokenName,
-          timestamp: Date.now(),
-          status: 'pending',
-          description: draft.description,
-          draftId,
-        })
       }
       triggerTransactionRefresh()
     } catch (error) {
@@ -534,6 +537,17 @@ export default function Dashboard() {
 
     const result = await placeBid(wallet, encryptionTokenName, bidAmountAda, encryptionUtxo, {
       futurePrice,
+    }, (txHash, tokenName) => {
+      recordTransaction({
+        txHash,
+        type: 'place-bid',
+        tokenName,
+        timestamp: Date.now(),
+        status: 'pending',
+        description: `Bid ${bidAmountAda} ADA on ${encryptionTokenName.slice(0, 12)}...`,
+        amountLovelace: Math.round(bidAmountAda * 1_000_000),
+        counterparty: selectedEncryption?.sellerPkh,
+      })
     })
 
     if (!result.success) {
@@ -553,24 +567,42 @@ export default function Dashboard() {
       toast.success('Bid Placed!', 'Transaction submitted successfully')
     }
 
-    // Record in history
-    if (result.txHash) {
+    // Record stub in history (real txs are recorded via onSubmitted callback)
+    if (result.txHash && result.isStub) {
       recordTransaction({
         txHash: result.txHash,
         type: 'place-bid',
         tokenName: result.tokenName,
         timestamp: Date.now(),
-        status: result.isStub ? 'confirmed' : 'pending',
+        status: 'confirmed',
         description: `Bid ${bidAmountAda} ADA on ${encryptionTokenName.slice(0, 12)}...`,
         amountLovelace: Math.round(bidAmountAda * 1_000_000),
         counterparty: selectedEncryption?.sellerPkh,
       })
     }
 
+    // Optimistic update — bid appears immediately in tabs
+    if (result.txHash && result.tokenName && userPkh && address) {
+      optimisticStore.addBid(result.tokenName, result.txHash, {
+        tokenName: result.tokenName,
+        bidder: address,
+        bidderPkh: userPkh,
+        encryptionToken: encryptionTokenName,
+        amount: Math.round(bidAmountAda * 1_000_000),
+        futurePrice: futurePrice,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        lockedUntil: 0,
+        utxo: { txHash: result.txHash, outputIndex: 0 },
+        datum: { owner_vkh: userPkh, owner_g1: { generator: '', public_value: '' }, pointer: result.tokenName, token: encryptionTokenName, locked_until: 0 },
+        _optimistic: true,
+      })
+    }
+
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption, userPkh, address])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -590,6 +622,15 @@ export default function Dashboard() {
             tokenName: encryption.tokenName,
             utxo: encryption.utxo,
             datum: encryption.datum,
+          }, (txHash) => {
+            recordTransaction({
+              txHash,
+              type: 'remove-listing',
+              tokenName: encryption.tokenName,
+              timestamp: Date.now(),
+              status: 'pending',
+              description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
+            })
           })
 
           if (!result.success) {
@@ -602,21 +643,25 @@ export default function Dashboard() {
               `Listing removed in stub mode. No real transaction submitted.`,
               8000
             )
+            if (result.txHash) {
+              recordTransaction({
+                txHash: result.txHash,
+                type: 'remove-listing',
+                tokenName: encryption.tokenName,
+                timestamp: Date.now(),
+                status: 'confirmed',
+                description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
+              })
+            }
           } else if (result.txHash) {
             toast.transactionSuccess('Listing Removed!', result.txHash, { type: 'remove-listing' })
           } else {
             toast.success('Listing Removed!', 'Transaction submitted successfully')
           }
 
+          // Optimistic update — listing disappears immediately
           if (result.txHash) {
-            recordTransaction({
-              txHash: result.txHash,
-              type: 'remove-listing',
-              tokenName: encryption.tokenName,
-              timestamp: Date.now(),
-              status: result.isStub ? 'confirmed' : 'pending',
-              description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
-            })
+            optimisticStore.removeEncryption(encryption.tokenName, result.txHash)
           }
 
           triggerTransactionRefresh()
@@ -708,6 +753,7 @@ export default function Dashboard() {
 
       toast.info('Submitting', 'Submitting SNARK proof and chaining re-encryption...')
 
+      const amount = (acceptBidBid.amount / 1_000_000).toLocaleString()
       const result = await acceptBidAndReEncrypt(
         wallet, acceptBidEncryption, acceptBidBid, proof,
         acceptBidA0, acceptBidR0, acceptBidHk,
@@ -717,7 +763,33 @@ export default function Dashboard() {
           else if (step === 'submitting-reencrypt') toast.info('Step 2/2', 'Submitting re-encryption transaction...')
           else if (step === 'complete') toast.success('Sale Complete', 'Both transactions submitted successfully!')
           else if (step === 'fallback') toast.warning('Partial Success', 'SNARK proof submitted. Re-encryption will need to be completed manually after confirmation.')
-        }
+        },
+        // onSnarkSubmitted — record SNARK tx immediately after submit
+        (txHash) => {
+          recordTransaction({
+            txHash,
+            type: 'accept-bid',
+            tokenName: acceptBidEncryption.tokenName,
+            timestamp: Date.now(),
+            status: 'pending',
+            description: `Accept bid SNARK proof of ${amount} ADA (Step 1/2)`,
+            amountLovelace: acceptBidBid.amount,
+            counterparty: acceptBidBid.bidderPkh,
+          })
+        },
+        // onReEncryptSubmitted — record re-encryption tx immediately after submit
+        (txHash) => {
+          recordTransaction({
+            txHash,
+            type: 'accept-bid',
+            tokenName: acceptBidEncryption.tokenName,
+            timestamp: Date.now(),
+            status: 'pending',
+            description: `Complete re-encryption of ${amount} ADA (Step 2/2)`,
+            amountLovelace: acceptBidBid.amount,
+            counterparty: acceptBidBid.bidderPkh,
+          })
+        },
       )
 
       if (!result.success) {
@@ -737,31 +809,9 @@ export default function Dashboard() {
         toast.transactionSuccess(txType, result.txHash, { type: 'accept-bid', amountLovelace: acceptBidBid.amount })
       }
 
-      // Record both transactions in history
-      const amount = (acceptBidBid.amount / 1_000_000).toLocaleString()
-      if (result.snarkTxHash) {
-        recordTransaction({
-          txHash: result.snarkTxHash,
-          type: 'accept-bid',
-          tokenName: acceptBidEncryption.tokenName,
-          timestamp: Date.now(),
-          status: result.isStub ? 'confirmed' : 'pending',
-          description: `Accept bid SNARK proof of ${amount} ADA (Step 1/2)`,
-          amountLovelace: acceptBidBid.amount,
-          counterparty: acceptBidBid.bidderPkh,
-        })
-      }
-      if (result.txHash && result.txHash !== result.snarkTxHash) {
-        recordTransaction({
-          txHash: result.txHash,
-          type: 'accept-bid',
-          tokenName: acceptBidEncryption.tokenName,
-          timestamp: Date.now(),
-          status: result.isStub ? 'confirmed' : 'pending',
-          description: `Complete re-encryption of ${amount} ADA (Step 2/2)`,
-          amountLovelace: acceptBidBid.amount,
-          counterparty: acceptBidBid.bidderPkh,
-        })
+      // Optimistic update — listing status changes to pending
+      if (result.txHash || result.snarkTxHash) {
+        optimisticStore.updateEncryption(acceptBidEncryption.tokenName, result.txHash || result.snarkTxHash!, { status: 'pending' })
       }
 
       // Refresh and switch to history
@@ -809,7 +859,16 @@ export default function Dashboard() {
       confirmLabel: 'Cancel Sale',
       onConfirm: async () => {
         try {
-          const result = await cancelPendingListing(wallet, encryption)
+          const result = await cancelPendingListing(wallet, encryption, (txHash) => {
+            recordTransaction({
+              txHash,
+              type: 'cancel-pending',
+              tokenName: encryption.tokenName,
+              timestamp: Date.now(),
+              status: 'pending',
+              description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
+            })
+          })
 
           if (!result.success) {
             throw new Error(result.error || 'Failed to cancel pending listing')
@@ -821,19 +880,18 @@ export default function Dashboard() {
               `Pending listing cancelled in stub mode. No real transaction submitted.`,
               8000
             )
+            if (result.txHash) {
+              recordTransaction({
+                txHash: result.txHash,
+                type: 'cancel-pending',
+                tokenName: encryption.tokenName,
+                timestamp: Date.now(),
+                status: 'confirmed',
+                description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
+              })
+            }
           } else if (result.txHash) {
             toast.transactionSuccess('Pending Listing Cancelled!', result.txHash, { type: 'cancel-pending' })
-          }
-
-          if (result.txHash) {
-            recordTransaction({
-              txHash: result.txHash,
-              type: 'cancel-pending',
-              tokenName: encryption.tokenName,
-              timestamp: Date.now(),
-              status: result.isStub ? 'confirmed' : 'pending',
-              description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
-            })
           }
 
           triggerTransactionRefresh()
@@ -882,7 +940,18 @@ export default function Dashboard() {
       console.log('[handleCompleteSale] acceptedBid:', JSON.stringify({ tokenName: acceptedBid.tokenName, futurePrice: acceptedBid.futurePrice, amount: acceptedBid.amount }))
 
       toast.info('Submitting', 'Submitting re-encryption transaction...')
-      const result = await completeReEncryption(wallet, encryption, acceptedBid)
+      const result = await completeReEncryption(wallet, encryption, acceptedBid, (txHash) => {
+        recordTransaction({
+          txHash,
+          type: 'complete-sale',
+          tokenName: encryption.tokenName,
+          timestamp: Date.now(),
+          status: 'pending',
+          description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
+          amountLovelace: acceptedBid.amount,
+          counterparty: acceptedBid.bidderPkh,
+        })
+      })
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to complete re-encryption')
@@ -894,22 +963,20 @@ export default function Dashboard() {
           'Re-encryption submitted in stub mode. No real transaction submitted.',
           8000
         )
+        if (result.txHash) {
+          recordTransaction({
+            txHash: result.txHash,
+            type: 'complete-sale',
+            tokenName: encryption.tokenName,
+            timestamp: Date.now(),
+            status: 'confirmed',
+            description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
+            amountLovelace: acceptedBid.amount,
+            counterparty: acceptedBid.bidderPkh,
+          })
+        }
       } else if (result.txHash) {
         toast.transactionSuccess('Sale Completed!', result.txHash, { type: 'complete-sale', amountLovelace: acceptedBid.amount })
-      }
-
-      // Record in history
-      if (result.txHash) {
-        recordTransaction({
-          txHash: result.txHash,
-          type: 'complete-sale',
-          tokenName: encryption.tokenName,
-          timestamp: Date.now(),
-          status: result.isStub ? 'confirmed' : 'pending',
-          description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
-          amountLovelace: acceptedBid.amount,
-          counterparty: acceptedBid.bidderPkh,
-        })
       }
 
       triggerTransactionRefresh()
@@ -947,6 +1014,16 @@ export default function Dashboard() {
             tokenName: bid.tokenName,
             utxo: bid.utxo,
             datum: bid.datum,
+          }, (txHash) => {
+            recordTransaction({
+              txHash,
+              type: 'cancel-bid',
+              tokenName: bid.tokenName,
+              timestamp: Date.now(),
+              status: 'pending',
+              description: `Cancel bid of ${amountAda} ADA`,
+              amountLovelace: bid.amount,
+            })
           })
 
           if (!result.success) {
@@ -959,22 +1036,26 @@ export default function Dashboard() {
               `Bid cancelled in stub mode. No real transaction submitted. Amount: ${amountAda} ADA`,
               8000
             )
+            if (result.txHash) {
+              recordTransaction({
+                txHash: result.txHash,
+                type: 'cancel-bid',
+                tokenName: bid.tokenName,
+                timestamp: Date.now(),
+                status: 'confirmed',
+                description: `Cancel bid of ${amountAda} ADA`,
+                amountLovelace: bid.amount,
+              })
+            }
           } else if (result.txHash) {
             toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount })
           } else {
             toast.success('Bid Cancelled!', 'Transaction submitted successfully')
           }
 
+          // Optimistic update — bid disappears immediately
           if (result.txHash) {
-            recordTransaction({
-              txHash: result.txHash,
-              type: 'cancel-bid',
-              tokenName: bid.tokenName,
-              timestamp: Date.now(),
-              status: result.isStub ? 'confirmed' : 'pending',
-              description: `Cancel bid of ${amountAda} ADA`,
-              amountLovelace: bid.amount,
-            })
+            optimisticStore.removeBid(bid.tokenName, result.txHash)
           }
 
           triggerTransactionRefresh()
@@ -1040,7 +1121,17 @@ export default function Dashboard() {
       console.warn(stubWarning)
     }
 
-    const result = await createListing(wallet, formData, onProgress)
+    const result = await createListing(wallet, formData, onProgress, (txHash, tokenName) => {
+      recordTransaction({
+        txHash,
+        type: 'create-listing',
+        tokenName,
+        timestamp: Date.now(),
+        status: 'pending',
+        description: formData.description,
+        draftId: undefined, // will be set by builder return
+      })
+    })
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to create listing')
@@ -1081,23 +1172,50 @@ export default function Dashboard() {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }
 
-    // Record in history (include draftId for file listings so retry is possible)
-    if (result.txHash) {
+    // Record stub in history (real txs are recorded via onSubmitted callback)
+    if (result.txHash && result.isStub) {
       recordTransaction({
         txHash: result.txHash,
         type: 'create-listing',
         tokenName: result.tokenName,
         timestamp: Date.now(),
-        status: result.isStub ? 'confirmed' : 'pending',
+        status: 'confirmed',
         description: formData.description,
         draftId: result.draftId,
+      })
+    }
+
+    // Optimistic update — listing appears immediately in tabs
+    if (result.txHash && result.tokenName && userPkh && address) {
+      optimisticStore.addEncryption(result.tokenName, result.txHash, {
+        tokenName: result.tokenName,
+        seller: address,
+        sellerPkh: userPkh,
+        status: 'active',
+        description: formData.description,
+        suggestedPrice: formData.suggestedPrice ? parseFloat(formData.suggestedPrice) : undefined,
+        storageLayer: formData.category === 'text' ? 'on-chain' : 'iagon',
+        imageLink: formData.imageLink || undefined,
+        category: formData.category,
+        createdAt: new Date().toISOString(),
+        utxo: { txHash: result.txHash, outputIndex: 0 },
+        datum: {
+          owner_vkh: userPkh,
+          owner_g1: { generator: '', public_value: '' },
+          token: result.tokenName,
+          half_level: { r1b: '', r2_g1b: '', r4b: '' },
+          full_level: null,
+          capsule: { nonce: '', aad: '', ct: '' },
+          status: { type: 'Open' },
+        },
+        _optimistic: true,
       })
     }
 
     // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
     setActiveTab('history')
-  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   // Fetch user stats (waits for Express backend to be ready)
   useEffect(() => {

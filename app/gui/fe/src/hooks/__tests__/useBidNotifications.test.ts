@@ -10,6 +10,13 @@ vi.mock('../../services/api', () => ({
   bidsApi: { getAll: (...args: unknown[]) => mockBidsGetAll(...args) },
 }));
 
+const mockApiCacheSet = vi.fn();
+vi.mock('../../services/apiCache', () => ({
+  apiCache: {
+    set: (...args: unknown[]) => mockApiCacheSet(...args),
+  },
+}));
+
 const mockGetSeenBidsState = vi.fn();
 const mockGetUnseenBids = vi.fn();
 const mockMarkAllBidsAsSeen = vi.fn();
@@ -130,6 +137,7 @@ describe('useBidNotifications', () => {
     mockGetAll.mockResolvedValue([
       { tokenName: 'enc1', sellerPkh: 'other_user' },
     ]);
+    mockBidsGetAll.mockResolvedValue([]);
 
     const { result } = renderHook(() =>
       useBidNotifications(PKH, null, 'synced')
@@ -140,7 +148,6 @@ describe('useBidNotifications', () => {
     }, WAIT_OPTS);
 
     expect(result.current.unseenBidCount).toBe(0);
-    expect(mockBidsGetAll).not.toHaveBeenCalled();
   });
 
   it('handles API errors without crashing', async () => {
@@ -187,5 +194,84 @@ describe('useBidNotifications', () => {
     expect(result.current.unseenBidsPerListing.has('enc1')).toBe(false);
     expect(result.current.unseenBidsPerListing.get('enc2')).toBe(1);
     expect(mockMarkBidsAsSeen).toHaveBeenCalledWith(PKH, ['bid1']);
+  });
+
+  it('calls onDataChanged when data fingerprint changes', async () => {
+    const onDataChanged = vi.fn();
+    mockGetAll.mockResolvedValue([
+      { tokenName: 'enc1', sellerPkh: PKH },
+    ]);
+    mockBidsGetAll.mockResolvedValue([
+      { tokenName: 'bid1', encryptionToken: 'enc1' },
+    ]);
+    mockGetSeenBidsState.mockReturnValue({ lastKnownBidCount: -1, seenBids: new Set() });
+
+    renderHook(() =>
+      useBidNotifications(PKH, null, 'synced', onDataChanged)
+    );
+
+    await waitFor(() => {
+      expect(onDataChanged).toHaveBeenCalledTimes(1);
+    }, WAIT_OPTS);
+  });
+
+  it('does not call onDataChanged when data fingerprint is unchanged', async () => {
+    const onDataChanged = vi.fn();
+    const encryptions = [{ tokenName: 'enc1', sellerPkh: PKH }];
+    const bids = [{ tokenName: 'bid1', encryptionToken: 'enc1' }];
+    mockGetAll.mockResolvedValue(encryptions);
+    mockBidsGetAll.mockResolvedValue(bids);
+    mockGetSeenBidsState.mockReturnValue({ lastKnownBidCount: -1, seenBids: new Set() });
+
+    const { rerender } = renderHook(
+      ({ tipSlot }) => useBidNotifications(PKH, tipSlot, 'synced', onDataChanged),
+      { initialProps: { tipSlot: null as number | null } }
+    );
+
+    await waitFor(() => {
+      expect(onDataChanged).toHaveBeenCalledTimes(1);
+    }, WAIT_OPTS);
+
+    // Same data on second check — should not call onDataChanged again
+    mockGetSeenBidsState.mockReturnValue({ lastKnownBidCount: 1, seenBids: new Set(['bid1']) });
+    mockGetUnseenBids.mockReturnValue([]);
+
+    // Advance past throttle (15s) by waiting then triggering via tipSlot change
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 11_000));
+    });
+
+    rerender({ tipSlot: 200 });
+
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 50));
+    });
+
+    // Should still be 1 (from initial call only)
+    expect(onDataChanged).toHaveBeenCalledTimes(1);
+  }, 15_000);
+
+  it('pre-warms apiCache when data changes', async () => {
+    const encryptions = [{ tokenName: 'enc1', sellerPkh: 'other' }];
+    const bids = [{ tokenName: 'bid1', encryptionToken: 'enc1' }];
+    mockGetAll.mockResolvedValue(encryptions);
+    mockBidsGetAll.mockResolvedValue(bids);
+
+    renderHook(() =>
+      useBidNotifications(PKH, null, 'synced')
+    );
+
+    await waitFor(() => {
+      expect(mockApiCacheSet).toHaveBeenCalledWith(
+        '/api/encryptions',
+        { data: encryptions },
+        5_000,
+      );
+      expect(mockApiCacheSet).toHaveBeenCalledWith(
+        '/api/bids',
+        { data: bids },
+        5_000,
+      );
+    }, WAIT_OPTS);
   });
 });

@@ -31,6 +31,7 @@ function MyPurchaseBidCard({
 }: MyPurchaseBidCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
 
+  const isOptimistic = bid._optimistic === true;
   const isPending = bid.status === 'pending';
   const isAccepted = bid.status === 'accepted';
   const isRejected = bid.status === 'rejected';
@@ -103,6 +104,11 @@ function MyPurchaseBidCard({
                   Bid on {truncateHex(bid.encryptionToken, 8, 4)}
                 </span>
                 <BidStatusBadge status={bid.status} />
+                {isOptimistic && (
+                  <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+                    Awaiting confirmation
+                  </span>
+                )}
                 <InfoTooltip text={getStatusTooltip()} position="bottom" />
               </div>
               {encryption?.description && (
@@ -145,7 +151,7 @@ function MyPurchaseBidCard({
 
             {/* Actions */}
             <div className="flex gap-2">
-              {isPending && (
+              {isPending && !isOptimistic && (
                 <button
                   onClick={() => onCancel?.(bid)}
                   disabled={isLocked}
@@ -198,6 +204,11 @@ function MyPurchaseBidCard({
               {truncateHex(bid.encryptionToken, 8, 4)}
             </span>
             <BidStatusBadge status={bid.status} />
+            {isOptimistic && (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+                Awaiting confirmation
+              </span>
+            )}
             <InfoTooltip text={getStatusTooltip()} position="bottom" />
           </div>
           <p className="text-xs text-[var(--text-muted)]">
@@ -325,7 +336,7 @@ function MyPurchaseBidCard({
 
       {/* Action Buttons */}
       <div className="mt-4 space-y-2">
-        {isPending && (
+        {isPending && !isOptimistic && (
           <button
             onClick={() => onCancel?.(bid)}
             disabled={isLocked}

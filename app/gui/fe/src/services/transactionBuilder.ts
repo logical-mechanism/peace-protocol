@@ -324,6 +324,7 @@ export async function createListing(
   wallet: IWallet,
   formData: CreateListingFormData,
   onProgress?: (step: ListingCreationStep) => void,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   let draftId: string | undefined;
 
@@ -590,6 +591,7 @@ export async function createListing(
     onProgress?.('submitting');
     const txHash = await wallet.submitTx(signedTx);
     await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, tokenName); } catch { /* don't break tx flow */ }
 
     if (draftId) {
       await updateListingDraft(draftId, { txHash, status: 'submitted' });
@@ -664,6 +666,7 @@ export async function retryListingFromDraft(
   wallet: IWallet,
   draft: ListingDraft,
   onProgress?: (step: ListingCreationStep) => void,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   if (!draft.iagonFileId || !draft.fileKey || !draft.fileNonce || !draft.fileDigest) {
     return {
@@ -841,6 +844,7 @@ export async function retryListingFromDraft(
     onProgress?.('submitting');
     const txHash = await wallet.submitTx(signedTx);
     await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, tokenName); } catch { /* don't break tx flow */ }
 
     await updateListingDraft(draft.id, { txHash, status: 'submitted' });
 
@@ -888,7 +892,8 @@ export async function retryListingFromDraft(
  */
 export async function removeListing(
   wallet: IWallet,
-  encryption: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string } }
+  encryption: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string } },
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -977,6 +982,7 @@ export async function removeListing(
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
     await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, encryption.tokenName); } catch { /* don't break tx flow */ }
 
     return {
       success: true,
@@ -1004,7 +1010,8 @@ export async function removeListing(
  */
 export async function cancelPendingListing(
   wallet: IWallet,
-  encryption: EncryptionDisplay
+  encryption: EncryptionDisplay,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -1125,6 +1132,7 @@ export async function cancelPendingListing(
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
     await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, encryption.tokenName); } catch { /* don't break tx flow */ }
 
     // Accept-bid secrets are cleaned up by secretCleanup after confirmed ownership change
 
@@ -1165,7 +1173,8 @@ export async function placeBid(
   encryptionTokenName: string,
   bidAmountAda: number,
   encryptionUtxo: { txHash: string; outputIndex: number },
-  metadata?: { futurePrice?: number }
+  metadata?: { futurePrice?: number },
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   try {
     // STUB MODE
@@ -1380,6 +1389,7 @@ export async function placeBid(
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
     await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, bidTokenName); } catch { /* don't break tx flow */ }
 
     return {
       success: true,
@@ -1413,7 +1423,8 @@ export async function placeBid(
  */
 export async function cancelBid(
   wallet: IWallet,
-  bid: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string; locked_until: number } }
+  bid: { tokenName: string; utxo: { txHash: string; outputIndex: number }; datum: { owner_vkh: string; locked_until: number } },
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -1524,6 +1535,7 @@ export async function cancelBid(
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
     await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, bid.tokenName); } catch { /* don't break tx flow */ }
 
     // 6. Clean up bid secrets from IndexedDB
     try {
@@ -1577,7 +1589,8 @@ export async function acceptBidSnark(
   snarkProof: SnarkProof,
   a0: bigint,
   r0: bigint,
-  hk: bigint
+  hk: bigint,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -1837,6 +1850,7 @@ export async function acceptBidSnark(
     try {
       txHash = await wallet.submitTx(signedTx);
       await getPendingTxPool().registerTx(signedTx, txHash);
+      try { onSubmitted?.(txHash, encryption.tokenName); } catch { /* don't break tx flow */ }
     } catch (submitError) {
       console.error('[acceptBidSnark] submitTx FAILED:', submitError);
       throw submitError;
@@ -1940,7 +1954,8 @@ export async function prepareSnarkInputs(
 export async function completeReEncryption(
   wallet: IWallet,
   encryption: EncryptionDisplay,
-  bid: BidDisplay
+  bid: BidDisplay,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   try {
     if (USE_STUBS) {
@@ -2194,6 +2209,7 @@ export async function completeReEncryption(
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
     await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, encryption.tokenName); } catch { /* don't break tx flow */ }
 
     // Store (a0, r0) as seller secrets so secretCleanup can track this token.
     // These match the new encryption's half-level and will be deleted after
@@ -2331,10 +2347,12 @@ export async function acceptBidAndReEncrypt(
   r0: bigint,
   hk: bigint,
   onStep?: (step: ChainedAcceptStep) => void,
+  onSnarkSubmitted?: (txHash: string, tokenName?: string) => void,
+  onReEncryptSubmitted?: (txHash: string, tokenName?: string) => void,
 ): Promise<TransactionResult> {
   // Phase 12e: Submit SNARK proof tx
   onStep?.('submitting-snark');
-  const snarkResult = await acceptBidSnark(wallet, encryption, bid, snarkProof, a0, r0, hk);
+  const snarkResult = await acceptBidSnark(wallet, encryption, bid, snarkProof, a0, r0, hk, onSnarkSubmitted);
 
   if (!snarkResult.success) {
     return snarkResult;
@@ -2347,7 +2365,7 @@ export async function acceptBidAndReEncrypt(
 
   try {
     onStep?.('submitting-reencrypt');
-    const reEncryptResult = await completeReEncryption(wallet, encryption, bid);
+    const reEncryptResult = await completeReEncryption(wallet, encryption, bid, onReEncryptSubmitted);
 
     if (reEncryptResult.success) {
       onStep?.('complete');
