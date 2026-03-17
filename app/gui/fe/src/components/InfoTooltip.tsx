@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 interface InfoTooltipProps {
@@ -18,24 +18,10 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const show = useCallback(() => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
-    setIsVisible(true);
-  }, []);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
 
-  const hide = useCallback(() => {
-    hideTimeoutRef.current = setTimeout(() => setIsVisible(false), 100);
-  }, []);
-
-  const toggle = useCallback(() => {
-    setIsVisible((prev) => !prev);
-  }, []);
-
-  const tooltipStyle = useMemo((): React.CSSProperties => {
-    if (!isVisible || !buttonRef.current) return {};
+  const computePosition = useCallback(() => {
+    if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     const style: React.CSSProperties = { position: 'fixed' };
 
@@ -45,18 +31,32 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
       style.top = rect.bottom + GAP;
     }
 
-    // Center on button, clamp to viewport
     const centerX = rect.left + rect.width / 2;
     style.left = Math.max(VIEWPORT_PADDING, centerX);
     style.transform = 'translateX(-50%)';
 
-    return style;
-  }, [isVisible, position]);
+    setTooltipStyle(style);
+  }, [position]);
 
-  const arrowStyle = useMemo((): React.CSSProperties => {
-    if (!isVisible || !buttonRef.current) return {};
-    return { position: 'absolute', left: '50%', transform: 'translateX(-50%)' };
-  }, [isVisible]);
+  const show = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    computePosition();
+    setIsVisible(true);
+  }, [computePosition]);
+
+  const hide = useCallback(() => {
+    hideTimeoutRef.current = setTimeout(() => setIsVisible(false), 100);
+  }, []);
+
+  const toggle = useCallback(() => {
+    setIsVisible((prev) => {
+      if (!prev) computePosition();
+      return !prev;
+    });
+  }, [computePosition]);
 
   const arrowPositionClasses =
     position === 'top'
@@ -92,8 +92,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
         >
           {text}
           <span
-            style={arrowStyle}
-            className={`${arrowPositionClasses} w-0 h-0 border-[5px]`}
+            className={`${arrowPositionClasses} absolute left-1/2 -translate-x-1/2 w-0 h-0 border-[5px]`}
             aria-hidden="true"
           />
         </span>,
