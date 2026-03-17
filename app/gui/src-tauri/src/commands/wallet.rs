@@ -112,54 +112,56 @@ pub async fn unlock_wallet(
     let audit_dir = audit.data_dir();
 
     // Offload all Argon2id KDF work to a blocking thread
-    let (words, secrets_key) = tokio::task::spawn_blocking(move || -> Result<(Vec<String>, Zeroizing<[u8; 32]>), String> {
-        let json = std::fs::read_to_string(&wallet_path)
-            .map_err(|e| format!("Failed to read wallet file: {e}"))?;
+    let (words, secrets_key) = tokio::task::spawn_blocking(
+        move || -> Result<(Vec<String>, Zeroizing<[u8; 32]>), String> {
+            let json = std::fs::read_to_string(&wallet_path)
+                .map_err(|e| format!("Failed to read wallet file: {e}"))?;
 
-        let encrypted: EncryptedWallet =
-            serde_json::from_str(&json).map_err(|e| format!("Invalid wallet file format: {e}"))?;
+            let encrypted: EncryptedWallet = serde_json::from_str(&json)
+                .map_err(|e| format!("Invalid wallet file format: {e}"))?;
 
-        let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
-        let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
+            let mnemonic = decrypt_mnemonic(&encrypted, &password)?;
+            let words: Vec<String> = mnemonic.split_whitespace().map(String::from).collect();
 
-        let (kdf_meta, needs_migration) = load_kdf_meta(&secrets_dir)?;
+            let (kdf_meta, needs_migration) = load_kdf_meta(&secrets_dir)?;
 
-        let secrets_key = if needs_migration {
-            let old_key = match kdf_meta.version {
-                1 => derive_secrets_key_v1(&mnemonic)?,
-                2 => {
-                    let salt = from_hex(&kdf_meta.salt)?;
-                    derive_secrets_key_v2(&mnemonic, &salt)?
-                }
-                v => return Err(format!("Unknown KDF version {v} in kdf_meta.json")),
+            let secrets_key = if needs_migration {
+                let old_key = match kdf_meta.version {
+                    1 => derive_secrets_key_v1(&mnemonic)?,
+                    2 => {
+                        let salt = from_hex(&kdf_meta.salt)?;
+                        derive_secrets_key_v2(&mnemonic, &salt)?
+                    }
+                    v => return Err(format!("Unknown KDF version {v} in kdf_meta.json")),
+                };
+
+                let new_salt = generate_kdf_salt();
+                let new_key = derive_secrets_key_v3(&mnemonic, &new_salt)?;
+
+                let from_ver = kdf_meta.version;
+                let audit_log = AuditLog::new(&audit_dir);
+                audit_log.log("MIGRATE", &format!("kdf_v{from_ver}_to_v3_start"));
+                let count = migrate_secrets(&secrets_dir, &old_key, &new_key, &audit_log)?;
+                audit_log.log(
+                    "MIGRATE",
+                    &format!("kdf_v{from_ver}_to_v3_complete ({count} files)"),
+                );
+
+                let meta = KdfMeta {
+                    version: 3,
+                    salt: to_hex(&new_salt),
+                };
+                save_kdf_meta(&secrets_dir, &meta)?;
+
+                new_key
+            } else {
+                let salt = from_hex(&kdf_meta.salt)?;
+                derive_secrets_key_v3(&mnemonic, &salt)?
             };
 
-            let new_salt = generate_kdf_salt();
-            let new_key = derive_secrets_key_v3(&mnemonic, &new_salt)?;
-
-            let from_ver = kdf_meta.version;
-            let audit_log = AuditLog::new(&audit_dir);
-            audit_log.log("MIGRATE", &format!("kdf_v{from_ver}_to_v3_start"));
-            let count = migrate_secrets(&secrets_dir, &old_key, &new_key, &audit_log)?;
-            audit_log.log(
-                "MIGRATE",
-                &format!("kdf_v{from_ver}_to_v3_complete ({count} files)"),
-            );
-
-            let meta = KdfMeta {
-                version: 3,
-                salt: to_hex(&new_salt),
-            };
-            save_kdf_meta(&secrets_dir, &meta)?;
-
-            new_key
-        } else {
-            let salt = from_hex(&kdf_meta.salt)?;
-            derive_secrets_key_v3(&mnemonic, &salt)?
-        };
-
-        Ok((words, secrets_key))
-    })
+            Ok((words, secrets_key))
+        },
+    )
     .await
     .map_err(|e| format!("Unlock task failed: {e}"))??;
 
