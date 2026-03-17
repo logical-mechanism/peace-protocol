@@ -76,7 +76,9 @@ vi.mock('@meshsdk/provider', () => ({
 
 vi.mock('../providers', () => ({
   getKupoAdapter: () => mockFetcher,
+  getChainingAdapter: () => mockFetcher,
   getOgmiosProvider: vi.fn(),
+  getPendingTxPool: () => ({ registerTx: vi.fn().mockResolvedValue(undefined), confirmTx: vi.fn(), invalidateChain: vi.fn(), clear: vi.fn() }),
 }));
 
 vi.mock('../secretStorage', () => ({

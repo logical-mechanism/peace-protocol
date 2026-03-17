@@ -221,8 +221,16 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
   const { contracts } = getNetworkConfig();
   const koios = getKoiosClient();
 
-  // Step 1: Get all transaction hashes for this encryption token
-  const assetTxs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
+  // Step 1: Get all transaction hashes for this encryption token.
+  // Primary: asset_txs (efficient, token-specific).
+  // Fallback: address_txs (all txs at encryption address — filtered by token in step 4).
+  let assetTxs: Array<{ tx_hash: string; block_height: number }>;
+  try {
+    assetTxs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
+  } catch (err) {
+    logger.warn('asset_txs failed, falling back to address_txs', { error: String(err), tokenName });
+    assetTxs = await koios.getAddressTxs(contracts.encryptionAddress);
+  }
   if (assetTxs.length === 0) {
     throw new Error(`No transactions found for encryption token ${tokenName}`);
   }
@@ -237,6 +245,7 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
 
   // Step 4-5: Extract levels from inline datums at the encryption contract address
   const levels: EncryptionLevel[] = [];
+  let isNewest = true; // Track first matching tx (not just i===0, since address_txs fallback includes other tokens)
 
   for (let i = 0; i < txInfos.length; i++) {
     const tx = txInfos[i];
@@ -254,9 +263,20 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
 
     // The datum is a Plutus constructor: fields[3] = half_level, fields[4] = full_level
     const datumValue = encOutput.inline_datum.value as { constructor: number; fields: unknown[] };
+    logger.info('Parsing datum for tx', {
+      txHash: tx.tx_hash,
+      fieldCount: datumValue.fields?.length,
+      constructor: datumValue.constructor,
+      blockHeight: tx.block_height,
+    });
     if (!datumValue.fields || datumValue.fields.length < 5) continue;
 
-    if (i === 0) {
+    // Verify this datum is for the requested token (essential for address_txs fallback,
+    // which returns all txs at the address, not just for this token)
+    const datumToken = (datumValue.fields[2] as { bytes?: string })?.bytes;
+    if (datumToken !== tokenName) continue;
+
+    if (isNewest) {
       // Newest tx: extract half_level (fields[3])
       try {
         const halfLevel = parseHalfEncryptionLevel(datumValue.fields[3] as never);
@@ -265,8 +285,13 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
           r2_g1: halfLevel.r2_g1b,
         });
       } catch (err) {
-        logger.warn('Failed to parse half_level', { txHash: tx.tx_hash, error: String(err) });
+        logger.warn('Failed to parse half_level', {
+          txHash: tx.tx_hash,
+          error: String(err),
+          field3: JSON.stringify(datumValue.fields[3]).slice(0, 200),
+        });
       }
+      isNewest = false;
     }
 
     // All txs (including newest): extract full_level if Some (fields[4])
@@ -289,7 +314,11 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
         }
       }
     } catch (err) {
-      logger.warn('Failed to parse full_level', { txHash: tx.tx_hash, error: String(err) });
+      logger.warn('Failed to parse full_level', {
+        txHash: tx.tx_hash,
+        error: String(err),
+        field4: JSON.stringify(datumValue.fields[4]).slice(0, 200),
+      });
     }
   }
 

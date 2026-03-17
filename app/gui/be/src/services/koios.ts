@@ -192,6 +192,21 @@ class KoiosClient {
   }
 
   /**
+   * Get all transaction hashes at an address (fallback when asset_txs is unavailable).
+   * Returns ALL txs at the address — caller must filter by token.
+   */
+  async getAddressTxs(address: string, signal?: AbortSignal): Promise<Array<{ tx_hash: string; block_height: number }>> {
+    return this.request<Array<{ tx_hash: string; block_height: number }>>(
+      '/address_txs',
+      {
+        method: 'POST',
+        body: JSON.stringify({ _addresses: [address] }),
+      },
+      signal,
+    );
+  }
+
+  /**
    * Get transaction info for multiple tx hashes (batch).
    * Returns outputs with inline datums for extracting encryption levels.
    * Matches the flags used in commands/08_decryptMessage.sh.

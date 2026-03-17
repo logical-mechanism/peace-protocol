@@ -15,7 +15,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { MeshTxBuilder, deserializeAddress } from '@meshsdk/core';
 import type { IWallet } from '@meshsdk/core';
-import { getKupoAdapter, getOgmiosProvider } from './providers';
+import { getChainingAdapter, getOgmiosProvider, getPendingTxPool } from './providers';
 import { createEncryptionWithWallet, getStubWarning, createBidArtifactsFromWallet } from './crypto';
 import {
   rng, g1Point, g2Point, scale, combine, invertG2, toInt, generate,
@@ -187,6 +187,8 @@ export interface TransactionResult {
   /** Draft ID for file listings — used for retry/recovery. */
   draftId?: string;
   isStub?: boolean;
+  /** For chained accept-bid: the SNARK tx hash (step 1/2), distinct from txHash (re-encryption, step 2/2). */
+  snarkTxHash?: string;
 }
 
 /**
@@ -281,7 +283,7 @@ async function buildPayloadForIagon(filePath: string, fileName: string, tokenNam
 /** Create a MeshTxBuilder wired to local Kupo + Ogmios. */
 function createTxBuilder(): MeshTxBuilder {
   const txBuilder = new MeshTxBuilder({
-    fetcher: getKupoAdapter(),
+    fetcher: getChainingAdapter(),
     evaluator: getOgmiosProvider(),
   });
   txBuilder.txEvaluationMultiplier = 1.0;
@@ -587,6 +589,7 @@ export async function createListing(
 
     onProgress?.('submitting');
     const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
 
     if (draftId) {
       await updateListingDraft(draftId, { txHash, status: 'submitted' });
@@ -837,6 +840,7 @@ export async function retryListingFromDraft(
 
     onProgress?.('submitting');
     const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
 
     await updateListingDraft(draft.id, { txHash, status: 'submitted' });
 
@@ -972,6 +976,7 @@ export async function removeListing(
     // 5. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
 
     return {
       success: true,
@@ -1119,6 +1124,7 @@ export async function cancelPendingListing(
 
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
 
     // Accept-bid secrets are cleaned up by secretCleanup after confirmed ownership change
 
@@ -1256,7 +1262,7 @@ export async function placeBid(
     await storeBidSecrets(bidTokenName, encryptionTokenName, artifacts.b);
 
     // 7. Find the genesis token UTxO for read-only reference
-    const fetcher = getKupoAdapter();
+    const fetcher = getChainingAdapter();
     const referenceUtxos = await fetcher.fetchAddressUTxOs(
       config.contracts.referenceAddress
     );
@@ -1373,6 +1379,7 @@ export async function placeBid(
     // 11. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
 
     return {
       success: true,
@@ -1516,6 +1523,7 @@ export async function cancelBid(
     // 5. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
 
     // 6. Clean up bid secrets from IndexedDB
     try {
@@ -1731,7 +1739,7 @@ export async function acceptBidSnark(
     };
 
     // 9. Find genesis token UTxO for read-only reference
-    const fetcher = getKupoAdapter();
+    const fetcher = getChainingAdapter();
     const referenceUtxos = await fetcher.fetchAddressUTxOs(
       config.contracts.referenceAddress
     );
@@ -1828,6 +1836,7 @@ export async function acceptBidSnark(
     let txHash: string;
     try {
       txHash = await wallet.submitTx(signedTx);
+      await getPendingTxPool().registerTx(signedTx, txHash);
     } catch (submitError) {
       console.error('[acceptBidSnark] submitTx FAILED:', submitError);
       throw submitError;
@@ -2094,7 +2103,7 @@ export async function completeReEncryption(
     };
 
     // 15. Find genesis token UTxO
-    const fetcher = getKupoAdapter();
+    const fetcher = getChainingAdapter();
     const referenceUtxos = await fetcher.fetchAddressUTxOs(
       config.contracts.referenceAddress
     );
@@ -2184,6 +2193,7 @@ export async function completeReEncryption(
     // 17. Sign and submit
     const signedTx = await wallet.signTx(unsignedTx);
     const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
 
     // Store (a0, r0) as seller secrets so secretCleanup can track this token.
     // These match the new encryption's half-level and will be deleted after
@@ -2279,4 +2289,99 @@ export function getTransactionStubWarning(): string {
     );
   }
   return '';
+}
+
+/** Progress steps for the chained accept-bid + re-encryption flow. */
+export type ChainedAcceptStep =
+  | 'submitting-snark'
+  | 'building-reencrypt'
+  | 'submitting-reencrypt'
+  | 'complete'
+  | 'fallback';
+
+/**
+ * Accept a bid and immediately chain the re-encryption transaction.
+ *
+ * Combines Phase 12e (acceptBidSnark) and Phase 12f (completeReEncryption)
+ * into a single operation using transaction chaining. After the SNARK tx
+ * is submitted, its outputs are tracked in the PendingTxPool, allowing
+ * the re-encryption tx to be built and submitted without waiting for
+ * on-chain confirmation.
+ *
+ * If the chained re-encryption fails (e.g. Ogmios rejects the mempool
+ * reference), the SNARK tx (12e) is already submitted and will confirm
+ * on-chain. The user can manually complete re-encryption later.
+ *
+ * @param wallet - Connected wallet
+ * @param encryption - The encryption being sold
+ * @param bid - The accepted bid
+ * @param snarkProof - Generated SNARK proof
+ * @param a0 - Fresh secret for re-encryption
+ * @param r0 - Fresh random for re-encryption
+ * @param hk - Hash key derived from a0
+ * @param onStep - Progress callback for UI updates
+ * @returns Transaction result with the final txHash (from re-encryption)
+ */
+export async function acceptBidAndReEncrypt(
+  wallet: IWallet,
+  encryption: EncryptionDisplay,
+  bid: BidDisplay,
+  snarkProof: SnarkProof,
+  a0: bigint,
+  r0: bigint,
+  hk: bigint,
+  onStep?: (step: ChainedAcceptStep) => void,
+): Promise<TransactionResult> {
+  // Phase 12e: Submit SNARK proof tx
+  onStep?.('submitting-snark');
+  const snarkResult = await acceptBidSnark(wallet, encryption, bid, snarkProof, a0, r0, hk);
+
+  if (!snarkResult.success) {
+    return snarkResult;
+  }
+
+  // Phase 12f: Chain the re-encryption tx.
+  // evaluateTx now passes additionalUtxo from PendingTxPool so Ogmios can
+  // resolve the SNARK tx's outputs without waiting for on-chain confirmation.
+  onStep?.('building-reencrypt');
+
+  try {
+    onStep?.('submitting-reencrypt');
+    const reEncryptResult = await completeReEncryption(wallet, encryption, bid);
+
+    if (reEncryptResult.success) {
+      onStep?.('complete');
+      return { ...reEncryptResult, snarkTxHash: snarkResult.txHash };
+    }
+
+    // Re-encryption failed but SNARK tx is already submitted
+    console.warn(
+      '[acceptBidAndReEncrypt] Re-encryption failed, SNARK tx still pending:',
+      snarkResult.txHash,
+      'Error:', reEncryptResult.error,
+    );
+    onStep?.('fallback');
+    return {
+      success: true,
+      txHash: snarkResult.txHash,
+      snarkTxHash: snarkResult.txHash,
+      tokenName: encryption.tokenName,
+      error: `SNARK proof submitted (${snarkResult.txHash}), but re-encryption failed: ${reEncryptResult.error}. You can complete the sale manually after the SNARK tx confirms.`,
+    };
+  } catch (chainError) {
+    const errorMsg = chainError instanceof Error ? chainError.message : 'Unknown error';
+    console.warn(
+      '[acceptBidAndReEncrypt] Re-encryption threw, SNARK tx still pending:',
+      snarkResult.txHash,
+      'Error:', errorMsg,
+    );
+    onStep?.('fallback');
+    return {
+      success: true,
+      txHash: snarkResult.txHash,
+      snarkTxHash: snarkResult.txHash,
+      tokenName: encryption.tokenName,
+      error: `SNARK proof submitted (${snarkResult.txHash}), but re-encryption failed: ${errorMsg}. You can complete the sale manually after the SNARK tx confirms.`,
+    };
+  }
 }

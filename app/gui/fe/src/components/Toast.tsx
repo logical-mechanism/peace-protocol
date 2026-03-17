@@ -72,27 +72,27 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
     switch (toast.type) {
       case 'success':
         return {
-          bg: 'bg-[var(--success)]/10',
-          border: 'border-[var(--success)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--success)]/50',
           icon: 'text-[var(--success)]',
         };
       case 'error':
         return {
-          bg: 'bg-[var(--error)]/10',
-          border: 'border-[var(--error)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--error)]/50',
           icon: 'text-[var(--error)]',
         };
       case 'warning':
         return {
-          bg: 'bg-[var(--warning)]/10',
-          border: 'border-[var(--warning)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--warning)]/50',
           icon: 'text-[var(--warning)]',
         };
       case 'info':
       default:
         return {
-          bg: 'bg-[var(--accent)]/10',
-          border: 'border-[var(--accent)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--accent)]/50',
           icon: 'text-[var(--accent)]',
         };
     }

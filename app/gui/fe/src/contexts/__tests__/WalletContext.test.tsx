@@ -20,7 +20,9 @@ vi.mock('@meshsdk/core', () => ({
 
 vi.mock('../../services/providers', () => ({
   getKupoAdapter: vi.fn(),
+  getChainingAdapter: vi.fn(),
   getOgmiosProvider: vi.fn(),
+  getPendingTxPool: () => ({ registerTx: vi.fn().mockResolvedValue(undefined), confirmTx: vi.fn(), invalidateChain: vi.fn(), clear: vi.fn() }),
 }));
 
 vi.mock('../../services/crypto/zkKeyDerivation', () => ({

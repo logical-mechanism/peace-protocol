@@ -799,7 +799,7 @@ export default function NodeSync() {
               </button>
             )}
 
-            {!canContinue && stage !== 'stopped' && stage !== 'synced' && (
+            {!canContinue && stage !== 'stopped' && (
               <button
                 onClick={stopNode}
                 className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-muted)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
