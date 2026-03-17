@@ -187,6 +187,8 @@ export interface TransactionResult {
   /** Draft ID for file listings — used for retry/recovery. */
   draftId?: string;
   isStub?: boolean;
+  /** For chained accept-bid: the SNARK tx hash (step 1/2), distinct from txHash (re-encryption, step 2/2). */
+  snarkTxHash?: string;
 }
 
 /**
@@ -2293,7 +2295,6 @@ export function getTransactionStubWarning(): string {
 export type ChainedAcceptStep =
   | 'submitting-snark'
   | 'building-reencrypt'
-  | 'waiting-for-mempool'
   | 'submitting-reencrypt'
   | 'complete'
   | 'fallback';
@@ -2339,57 +2340,48 @@ export async function acceptBidAndReEncrypt(
     return snarkResult;
   }
 
-  // Phase 12f: Chain the re-encryption tx with retry.
-  // Ogmios needs time to process the SNARK tx into its mempool before it can
-  // evaluate a second tx that references its outputs. Retry with backoff.
-  const CHAIN_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s between retries
-  let reEncryptResult: TransactionResult | null;
-  let lastError: string | undefined;
-
+  // Phase 12f: Chain the re-encryption tx.
+  // evaluateTx now passes additionalUtxo from PendingTxPool so Ogmios can
+  // resolve the SNARK tx's outputs without waiting for on-chain confirmation.
   onStep?.('building-reencrypt');
 
-  for (let attempt = 0; attempt <= CHAIN_DELAYS.length; attempt++) {
-    if (attempt > 0) {
-      console.log(`[acceptBidAndReEncrypt] Ogmios mempool retry ${attempt}/${CHAIN_DELAYS.length}, waiting ${CHAIN_DELAYS[attempt - 1]}ms`);
-      onStep?.('waiting-for-mempool');
-      await new Promise(r => setTimeout(r, CHAIN_DELAYS[attempt - 1]));
+  try {
+    onStep?.('submitting-reencrypt');
+    const reEncryptResult = await completeReEncryption(wallet, encryption, bid);
+
+    if (reEncryptResult.success) {
+      onStep?.('complete');
+      return { ...reEncryptResult, snarkTxHash: snarkResult.txHash };
     }
 
-    try {
-      onStep?.('submitting-reencrypt');
-      reEncryptResult = await completeReEncryption(wallet, encryption, bid);
-
-      if (reEncryptResult.success) {
-        onStep?.('complete');
-        return reEncryptResult;
-      }
-
-      lastError = reEncryptResult.error;
-
-      // Only retry on Ogmios timing errors (tx not yet in mempool)
-      const isTimingError = lastError?.includes('Unknown transaction input')
-        || lastError?.includes('missing from UTxO set');
-      if (!isTimingError) break;
-    } catch (chainError) {
-      lastError = chainError instanceof Error ? chainError.message : 'Unknown error';
-      // Only retry on Ogmios timing errors
-      const isTimingError = lastError.includes('Unknown transaction input')
-        || lastError.includes('missing from UTxO set');
-      if (!isTimingError) break;
-    }
+    // Re-encryption failed but SNARK tx is already submitted
+    console.warn(
+      '[acceptBidAndReEncrypt] Re-encryption failed, SNARK tx still pending:',
+      snarkResult.txHash,
+      'Error:', reEncryptResult.error,
+    );
+    onStep?.('fallback');
+    return {
+      success: true,
+      txHash: snarkResult.txHash,
+      snarkTxHash: snarkResult.txHash,
+      tokenName: encryption.tokenName,
+      error: `SNARK proof submitted (${snarkResult.txHash}), but re-encryption failed: ${reEncryptResult.error}. You can complete the sale manually after the SNARK tx confirms.`,
+    };
+  } catch (chainError) {
+    const errorMsg = chainError instanceof Error ? chainError.message : 'Unknown error';
+    console.warn(
+      '[acceptBidAndReEncrypt] Re-encryption threw, SNARK tx still pending:',
+      snarkResult.txHash,
+      'Error:', errorMsg,
+    );
+    onStep?.('fallback');
+    return {
+      success: true,
+      txHash: snarkResult.txHash,
+      snarkTxHash: snarkResult.txHash,
+      tokenName: encryption.tokenName,
+      error: `SNARK proof submitted (${snarkResult.txHash}), but re-encryption failed: ${errorMsg}. You can complete the sale manually after the SNARK tx confirms.`,
+    };
   }
-
-  // All retries exhausted or non-timing error — SNARK tx is still valid
-  console.warn(
-    '[acceptBidAndReEncrypt] Re-encryption chaining failed after retries, SNARK tx still pending:',
-    snarkResult.txHash,
-    'Error:', lastError,
-  );
-  onStep?.('fallback');
-  return {
-    success: true,
-    txHash: snarkResult.txHash,
-    tokenName: encryption.tokenName,
-    error: `SNARK proof submitted (${snarkResult.txHash}), but chained re-encryption failed: ${lastError}. You can complete the sale manually after the SNARK tx confirms.`,
-  };
 }

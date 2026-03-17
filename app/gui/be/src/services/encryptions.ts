@@ -254,6 +254,12 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
 
     // The datum is a Plutus constructor: fields[3] = half_level, fields[4] = full_level
     const datumValue = encOutput.inline_datum.value as { constructor: number; fields: unknown[] };
+    logger.info('Parsing datum for tx', {
+      txHash: tx.tx_hash,
+      fieldCount: datumValue.fields?.length,
+      constructor: datumValue.constructor,
+      blockHeight: tx.block_height,
+    });
     if (!datumValue.fields || datumValue.fields.length < 5) continue;
 
     if (i === 0) {
@@ -265,7 +271,11 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
           r2_g1: halfLevel.r2_g1b,
         });
       } catch (err) {
-        logger.warn('Failed to parse half_level', { txHash: tx.tx_hash, error: String(err) });
+        logger.warn('Failed to parse half_level', {
+          txHash: tx.tx_hash,
+          error: String(err),
+          field3: JSON.stringify(datumValue.fields[3]).slice(0, 200),
+        });
       }
     }
 
@@ -289,7 +299,11 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
         }
       }
     } catch (err) {
-      logger.warn('Failed to parse full_level', { txHash: tx.tx_hash, error: String(err) });
+      logger.warn('Failed to parse full_level', {
+        txHash: tx.tx_hash,
+        error: String(err),
+        field4: JSON.stringify(datumValue.fields[4]).slice(0, 200),
+      });
     }
   }
 

@@ -81,25 +81,27 @@ export async function parseTxOutputs(signedTxCbor: string, txHash: string): Prom
     }
 
     // Extract inline datum CBOR if present
+    // datum() returns the DatumOption which wraps the actual data.
+    // toCbor() on the DatumOption gives "8201<data>" (CBOR [1, <data>] for inline datum).
+    // Ogmios expects just the raw Plutus Data CBOR without the DatumOption wrapper.
     let plutusData: string | undefined;
+    let dataHash: string | undefined;
     const datum = output.datum();
     if (datum) {
-      // datum could be a DataHash or inline PlutusData
-      // Try to get the CBOR representation
       try {
-        plutusData = datum.toCbor();
+        const datumCbor = datum.toCbor();
+        // DatumOption CBOR: 8201<data> = [1, <inline_datum>], 8200<hash> = [0, <datum_hash>]
+        // Strip the 8201 prefix to get raw Plutus Data CBOR
+        if (datumCbor.startsWith('8201')) {
+          plutusData = datumCbor.slice(4);
+        } else if (datumCbor.startsWith('8200')) {
+          dataHash = datumCbor.slice(4);
+        } else {
+          // Fallback: use as-is (might already be raw data)
+          plutusData = datumCbor;
+        }
       } catch {
-        // datum might be a hash reference, not inline data
-      }
-    }
-
-    // Extract datum hash if present (separate from inline datum)
-    let dataHash: string | undefined;
-    if (!plutusData && datum) {
-      try {
-        dataHash = datum.toString();
-      } catch {
-        // ignore
+        // datum might not be serializable
       }
     }
 

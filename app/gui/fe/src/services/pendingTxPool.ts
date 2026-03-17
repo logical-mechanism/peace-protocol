@@ -207,4 +207,48 @@ export class PendingTxPool {
   getPendingTxHashes(): string[] {
     return [...this.pendingTxs.keys()];
   }
+
+  /**
+   * Format all unspent pending outputs as Ogmios v6 additionalUtxo entries.
+   * Ogmios expects a flat array of Utxo objects (not tuples):
+   *   { transaction: { id }, index, address, value: { ada: { lovelace }, ... }, datum?, datumHash? }
+   */
+  toOgmiosAdditionalUtxo(): object[] {
+    const utxos: object[] = [];
+    for (const pending of this.pendingTxs.values()) {
+      for (const output of pending.createdOutputs) {
+        if (this.isSpent(output.input.txHash, output.input.outputIndex)) continue;
+
+        const value: Record<string, unknown> = {
+          ada: { lovelace: parseInt(output.output.amount.find(a => a.unit === 'lovelace')?.quantity || '0') },
+        };
+        for (const asset of output.output.amount) {
+          if (asset.unit === 'lovelace') continue;
+          const policyId = asset.unit.slice(0, 56);
+          const assetName = asset.unit.slice(56);
+          if (!value[policyId]) {
+            value[policyId] = {} as Record<string, number>;
+          }
+          (value[policyId] as Record<string, number>)[assetName] = parseInt(asset.quantity);
+        }
+
+        const entry: Record<string, unknown> = {
+          transaction: { id: output.input.txHash },
+          index: output.input.outputIndex,
+          address: output.output.address,
+          value,
+        };
+
+        if (output.output.plutusData) {
+          entry.datum = output.output.plutusData;
+        }
+        if (output.output.dataHash) {
+          entry.datumHash = output.output.dataHash;
+        }
+
+        utxos.push(entry);
+      }
+    }
+    return utxos;
+  }
 }

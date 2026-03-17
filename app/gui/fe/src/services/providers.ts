@@ -48,9 +48,17 @@ class IpcOgmiosProvider {
   }
 
   async evaluateTx(tx: string): Promise<Omit<Action, 'data'>[]> {
-    const result = await this.rpc('evaluateTransaction', {
+    const pool = getPendingTxPool();
+    const params: Record<string, unknown> = {
       transaction: { cbor: tx },
-    }) as Record<string, { validator: { index: number; purpose: string }; budget: { memory: number; cpu: number } }>;
+    };
+    if (pool.hasPendingTxs()) {
+      const additionalUtxos = pool.toOgmiosAdditionalUtxo();
+      console.log('[evaluateTx] providing', additionalUtxos.length, 'additional UTxOs to Ogmios');
+      params.additionalUtxo = additionalUtxos;
+    }
+
+    const result = await this.rpc('evaluateTransaction', params) as Record<string, { validator: { index: number; purpose: string }; budget: { memory: number; cpu: number } }>;
 
     return Object.values(result).map((val) => ({
       index: val.validator.index,

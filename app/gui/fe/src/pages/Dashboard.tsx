@@ -714,7 +714,6 @@ export default function Dashboard() {
         (step: ChainedAcceptStep) => {
           if (step === 'submitting-snark') toast.info('Step 1/2', 'Submitting SNARK proof transaction...')
           else if (step === 'building-reencrypt') toast.info('Step 2/2', 'Building re-encryption transaction...')
-          else if (step === 'waiting-for-mempool') toast.info('Step 2/2', 'Waiting for network to process first transaction...')
           else if (step === 'submitting-reencrypt') toast.info('Step 2/2', 'Submitting re-encryption transaction...')
           else if (step === 'complete') toast.success('Sale Complete', 'Both transactions submitted successfully!')
           else if (step === 'fallback') toast.warning('Partial Success', 'SNARK proof submitted. Re-encryption will need to be completed manually after confirmation.')
@@ -738,17 +737,28 @@ export default function Dashboard() {
         toast.transactionSuccess(txType, result.txHash, { type: 'accept-bid', amountLovelace: acceptBidBid.amount })
       }
 
-      // Record in history
-      if (result.txHash) {
+      // Record both transactions in history
+      const amount = (acceptBidBid.amount / 1_000_000).toLocaleString()
+      if (result.snarkTxHash) {
+        recordTransaction({
+          txHash: result.snarkTxHash,
+          type: 'accept-bid',
+          tokenName: acceptBidEncryption.tokenName,
+          timestamp: Date.now(),
+          status: result.isStub ? 'confirmed' : 'pending',
+          description: `Accept bid SNARK proof of ${amount} ADA (Step 1/2)`,
+          amountLovelace: acceptBidBid.amount,
+          counterparty: acceptBidBid.bidderPkh,
+        })
+      }
+      if (result.txHash && result.txHash !== result.snarkTxHash) {
         recordTransaction({
           txHash: result.txHash,
           type: 'accept-bid',
           tokenName: acceptBidEncryption.tokenName,
           timestamp: Date.now(),
           status: result.isStub ? 'confirmed' : 'pending',
-          description: result.error
-            ? `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (SNARK proof — re-encryption pending)`
-            : `Accept bid of ${(acceptBidBid.amount / 1_000_000).toLocaleString()} ADA (chained sale)`,
+          description: `Complete re-encryption of ${amount} ADA (Step 2/2)`,
           amountLovelace: acceptBidBid.amount,
           counterparty: acceptBidBid.bidderPkh,
         })
