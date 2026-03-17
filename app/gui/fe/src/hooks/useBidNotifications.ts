@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { encryptionsApi, bidsApi } from '../services/api';
+import type { ApiResponse, EncryptionDisplay, BidDisplay } from '../services/api';
+import { apiCache } from '../services/apiCache';
 import {
   getSeenBidsState,
   getUnseenBids,
@@ -9,10 +11,7 @@ import {
 import type { NodeStage } from '../contexts/NodeContext';
 
 /** Minimum interval between bid checks (ms) */
-const THROTTLE_MS = 30_000;
-
-/** Re-fetch seller's encryption list every N bid checks */
-const ENCRYPTION_REFRESH_INTERVAL = 5;
+const THROTTLE_MS = 15_000;
 
 export interface BidNotificationState {
   /** Count of unseen bids across all seller listings */
@@ -27,10 +26,18 @@ export interface BidNotificationState {
   isReady: boolean;
 }
 
+/** Build a lightweight fingerprint from a list of items with tokenName. */
+function fingerprint(items: { tokenName: string }[]): string {
+  if (items.length === 0) return '0:';
+  const sorted = items.map(i => i.tokenName).sort();
+  return items.length + ':' + sorted.join(',');
+}
+
 export function useBidNotifications(
   userPkh: string | undefined,
   tipSlot: number | null,
   nodeStage: NodeStage,
+  onDataChanged?: () => void,
 ): BidNotificationState {
   const [unseenBidCount, setUnseenBidCount] = useState(0);
   const [unseenBidsPerListing, setUnseenBidsPerListing] = useState<Map<string, number>>(new Map());
@@ -39,10 +46,16 @@ export function useBidNotifications(
   // Refs for throttle and caching
   const prevTipRef = useRef<number | null>(null);
   const lastCheckTimeRef = useRef(0);
-  const checkCountRef = useRef(0);
-  const cachedEncryptionTokensRef = useRef<string[]>([]);
   const allBidTokenNamesRef = useRef<string[]>([]);
   const bidsByEncryptionRef = useRef<Map<string, string[]>>(new Map());
+
+  // Fingerprint refs for change detection
+  const prevEncFingerprintRef = useRef<string>('');
+  const prevBidFingerprintRef = useRef<string>('');
+  const onDataChangedRef = useRef(onDataChanged);
+  useEffect(() => {
+    onDataChangedRef.current = onDataChanged;
+  }, [onDataChanged]);
 
   const checkBids = useCallback(async () => {
     if (!userPkh) return;
@@ -52,32 +65,43 @@ export function useBidNotifications(
     lastCheckTimeRef.current = now;
 
     try {
-      // Decide whether to re-fetch encryptions
-      const shouldRefreshEncryptions =
-        cachedEncryptionTokensRef.current.length === 0 ||
-        checkCountRef.current % ENCRYPTION_REFRESH_INTERVAL === 0;
+      // Always fetch all encryptions and bids (cache-backed, usually a no-op)
+      const allEncryptions = await encryptionsApi.getAll();
+      const allBids = await bidsApi.getAll();
 
-      let sellerEncryptionTokens = cachedEncryptionTokensRef.current;
+      // --- Change detection: fingerprint full datasets ---
+      const encFingerprint = fingerprint(allEncryptions);
+      const bidFingerprint = fingerprint(allBids);
+      const dataChanged =
+        encFingerprint !== prevEncFingerprintRef.current ||
+        bidFingerprint !== prevBidFingerprintRef.current;
 
-      if (shouldRefreshEncryptions) {
-        const allEncryptions = await encryptionsApi.getAll();
-        sellerEncryptionTokens = allEncryptions
-          .filter(e => e.sellerPkh === userPkh)
-          .map(e => e.tokenName);
-        cachedEncryptionTokensRef.current = sellerEncryptionTokens;
+      prevEncFingerprintRef.current = encFingerprint;
+      prevBidFingerprintRef.current = bidFingerprint;
+
+      if (dataChanged) {
+        // Pre-warm the apiCache so tabs hit warm cache on re-fetch
+        const encResponse: ApiResponse<EncryptionDisplay[]> = { data: allEncryptions };
+        const bidResponse: ApiResponse<BidDisplay[]> = { data: allBids };
+        apiCache.set('/api/encryptions', encResponse, 15_000);
+        apiCache.set('/api/bids', bidResponse, 15_000);
+        onDataChangedRef.current?.();
       }
+
+      // --- Bid notification logic (unchanged) ---
+      const sellerEncryptionTokens = allEncryptions
+        .filter(e => e.sellerPkh === userPkh)
+        .map(e => e.tokenName);
 
       // No listings = no bids to check
       if (sellerEncryptionTokens.length === 0) {
         setUnseenBidCount(0);
         setUnseenBidsPerListing(new Map());
         setIsReady(true);
-        checkCountRef.current++;
         return;
       }
 
-      // Fetch all bids and filter for seller's listings
-      const allBids = await bidsApi.getAll();
+      // Filter bids for seller's listings
       const sellerTokenSet = new Set(sellerEncryptionTokens);
       const relevantBids = allBids.filter(b => sellerTokenSet.has(b.encryptionToken));
 
@@ -100,13 +124,7 @@ export function useBidNotifications(
         setUnseenBidCount(0);
         setUnseenBidsPerListing(new Map());
         setIsReady(true);
-        checkCountRef.current++;
         return;
-      }
-
-      // Quick check: if count hasn't changed, likely no new bids
-      if (currentBidTokenNames.length === state.lastKnownBidCount) {
-        // Still do the full diff in case bids were replaced (cancelled + new)
       }
 
       // Compute unseen bids
@@ -125,7 +143,6 @@ export function useBidNotifications(
       setUnseenBidCount(unseenTokens.length);
       setUnseenBidsPerListing(perListing);
       setIsReady(true);
-      checkCountRef.current++;
     } catch (error) {
       console.error('[useBidNotifications] Failed to check bids:', error);
       // Don't update state on error — keep showing last known values
@@ -150,8 +167,8 @@ export function useBidNotifications(
     // Reset refs for new PKH
     prevTipRef.current = null;
     lastCheckTimeRef.current = 0;
-    checkCountRef.current = 0;
-    cachedEncryptionTokensRef.current = [];
+    prevEncFingerprintRef.current = '';
+    prevBidFingerprintRef.current = '';
     allBidTokenNamesRef.current = [];
     bidsByEncryptionRef.current = new Map();
     const id = setTimeout(() => {

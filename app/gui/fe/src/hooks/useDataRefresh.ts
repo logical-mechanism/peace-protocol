@@ -15,6 +15,8 @@ export interface DataRefreshState {
   triggerHistoryRefresh: () => void
   /** Trigger refresh + schedule escalating retries (after tx submission). */
   triggerTransactionRefresh: () => void
+  /** Trigger refresh without clearing cache (use when cache is already warm). */
+  triggerSoftRefresh: () => void
 }
 
 export function useDataRefresh(): DataRefreshState {
@@ -37,6 +39,11 @@ export function useDataRefresh(): DataRefreshState {
   }, [])
 
   const triggerHistoryRefresh = useCallback(() => {
+    setHistorySignal(prev => prev + 1)
+  }, [])
+
+  const triggerSoftRefresh = useCallback(() => {
+    setRefreshSignal(prev => prev + 1)
     setHistorySignal(prev => prev + 1)
   }, [])
 
@@ -67,5 +74,6 @@ export function useDataRefresh(): DataRefreshState {
     triggerRefresh,
     triggerHistoryRefresh,
     triggerTransactionRefresh,
+    triggerSoftRefresh,
   }
 }

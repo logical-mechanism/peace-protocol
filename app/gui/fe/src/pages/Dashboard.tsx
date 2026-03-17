@@ -147,7 +147,7 @@ export default function Dashboard() {
   const [selectedBidCount, setSelectedBidCount] = useState(0)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
   const [failedDecryptTokens, setFailedDecryptTokens] = useState<Set<string>>(new Set())
-  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh } = useDataRefresh()
+  const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh, triggerSoftRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -309,7 +309,7 @@ export default function Dashboard() {
   }, [userPkh, marketplaceFilters])
 
   // Bid notification system — watches tipSlot for new bids on seller's listings
-  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage)
+  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage, triggerSoftRefresh)
 
   // Fire toast when new bids arrive mid-session (not on initial load).
   // Groups multiple bid arrivals within a 5-second window into a single notification.
