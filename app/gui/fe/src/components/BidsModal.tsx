@@ -72,7 +72,7 @@ export default function BidsModal({
             <h2 id="bids-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
               Bids for Listing
             </h2>
-            <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5">
+            <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5" title={encryption.tokenName}>
               {truncateHex(encryption.tokenName, 12, 6)}
             </p>
           </div>
@@ -208,7 +208,7 @@ function BidCard({
         <div className="flex-1 min-w-0">
           {/* Bidder Address */}
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-mono text-[var(--text-secondary)]">
+            <span className="text-xs font-mono text-[var(--text-secondary)]" title={bid.bidder}>
               {truncateHex(bid.bidder, 12, 8)}
             </span>
             <BidStatusBadge status={bid.status} />
@@ -254,7 +254,7 @@ function BidCard({
         )}
         <div className="flex items-center justify-between">
           <span className="text-xs text-[var(--text-muted)]">Bid Token</span>
-          <span className="text-xs font-mono text-[var(--text-muted)]">
+          <span className="text-xs font-mono text-[var(--text-muted)]" title={bid.tokenName}>
             {bid.tokenName.slice(0, 16)}...
           </span>
         </div>

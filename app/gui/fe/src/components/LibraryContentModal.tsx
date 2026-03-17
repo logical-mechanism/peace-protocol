@@ -422,7 +422,7 @@ export default function LibraryContentModal({
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-[var(--text-muted)] mt-1">
+                <p className="text-sm text-[var(--text-muted)] mt-1" title={item.tokenName}>
                   {truncateHex(item.tokenName, 12, 6)}
                 </p>
               </div>
@@ -465,12 +465,12 @@ export default function LibraryContentModal({
                 )}
                 {item.contentMissing && <Badge variant="warning">Content Missing</Badge>}
                 {item.description && (
-                  <span className="text-xs text-[var(--text-secondary)] truncate ml-1">{item.description}</span>
+                  <span className="text-xs text-[var(--text-secondary)] truncate ml-1" title={item.description}>{item.description}</span>
                 )}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-[var(--text-muted)]">
                 {item.seller && (<>
-                  <span><span className="text-[var(--accent)] opacity-70">Seller:</span> <span className="font-mono text-[var(--text-secondary)]">{truncateHex(item.seller, 10, 6)}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">Seller:</span> <span className="font-mono text-[var(--text-secondary)]" title={item.seller}>{truncateHex(item.seller, 10, 6)}</span></span>
                   <span className="opacity-30">&middot;</span>
                 </>)}
                 {item.createdAt && (<>

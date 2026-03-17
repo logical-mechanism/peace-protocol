@@ -100,7 +100,7 @@ function MyPurchaseBidCard({
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                <span className="text-xs font-mono text-[var(--text-muted)]">
+                <span className="text-xs font-mono text-[var(--text-muted)]" title={bid.encryptionToken}>
                   Bid on {truncateHex(bid.encryptionToken, 8, 4)}
                 </span>
                 <BidStatusBadge status={bid.status} />
@@ -143,7 +143,7 @@ function MyPurchaseBidCard({
                 {formatAda(bid.amount)} ADA
               </span>
               {encryption && (
-                <p className="text-xs text-[var(--text-muted)]">
+                <p className="text-xs text-[var(--text-muted)]" title={encryption.seller}>
                   Seller: {truncateHex(encryption.seller, 12, 8)}
                 </p>
               )}
@@ -200,7 +200,7 @@ function MyPurchaseBidCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-xs text-[var(--text-muted)]">Bid on</span>
-            <span className="text-xs font-mono text-[var(--text-secondary)] truncate">
+            <span className="text-xs font-mono text-[var(--text-secondary)] truncate" title={bid.encryptionToken}>
               {truncateHex(bid.encryptionToken, 8, 4)}
             </span>
             <BidStatusBadge status={bid.status} />
@@ -284,7 +284,7 @@ function MyPurchaseBidCard({
       {encryption && (
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-          <span className="text-sm font-mono text-[var(--text-secondary)]">
+          <span className="text-sm font-mono text-[var(--text-secondary)]" title={encryption.seller}>
             {truncateHex(encryption.seller, 12, 8)}
           </span>
         </div>
