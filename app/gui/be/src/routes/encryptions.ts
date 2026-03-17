@@ -90,7 +90,12 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
       requestId: req.requestId,
     });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels', requestId: req.requestId },
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch encryption levels',
+        detail: error instanceof Error ? error.message : String(error),
+        requestId: req.requestId,
+      },
     });
   }
 });

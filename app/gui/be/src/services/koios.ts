@@ -1,6 +1,7 @@
 import { getNetworkConfig } from '../config/index.js';
 import { fetchWithRetry } from './fetchWithRetry.js';
 import { CircuitBreaker } from './circuitBreaker.js';
+import { logger } from './logger.js';
 
 interface KoiosUtxo {
   tx_hash: string;
@@ -43,6 +44,7 @@ interface TxOutput {
 interface TxInfo {
   tx_hash: string;
   block_height: number;
+  tx_block_index?: number;
   outputs: TxOutput[];
 }
 
@@ -83,7 +85,9 @@ class KoiosClient {
 
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        throw new Error(`Koios API error: ${response.status} ${response.statusText} - ${body}`);
+        const msg = `Koios API error: ${response.status} ${response.statusText} - ${body.slice(0, 500)}`;
+        logger.error('Koios request failed', { endpoint: url, status: response.status, body: body.slice(0, 500) });
+        throw new Error(msg);
       }
 
       return response.json();

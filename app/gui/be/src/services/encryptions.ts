@@ -225,12 +225,19 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
   // Primary: asset_txs (efficient, token-specific).
   // Fallback: address_txs (all txs at encryption address — filtered by token in step 4).
   let assetTxs: Array<{ tx_hash: string; block_height: number }>;
+  let usedFallback = false;
   try {
     assetTxs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
   } catch (err) {
     logger.warn('asset_txs failed, falling back to address_txs', { error: String(err), tokenName });
+    usedFallback = true;
     assetTxs = await koios.getAddressTxs(contracts.encryptionAddress);
   }
+  logger.info('getEncryptionLevels: fetched tx hashes', {
+    tokenName,
+    usedFallback,
+    txCount: assetTxs.length,
+  });
   if (assetTxs.length === 0) {
     throw new Error(`No transactions found for encryption token ${tokenName}`);
   }
@@ -239,13 +246,30 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
 
   // Step 2: Get transaction info with inline datums
   const txInfos = await koios.getTxInfoBatch(txHashes);
+  logger.info('getEncryptionLevels: fetched tx info batch', {
+    tokenName,
+    requestedCount: txHashes.length,
+    returnedCount: txInfos.length,
+    txs: txInfos.map(tx => ({
+      hash: tx.tx_hash.slice(0, 16) + '...',
+      blockHeight: tx.block_height,
+      blockIndex: tx.tx_block_index,
+    })),
+  });
 
-  // Step 3: Sort by block_height descending (newest first)
-  txInfos.sort((a, b) => b.block_height - a.block_height);
+  // Step 3: Sort by block_height descending (newest first).
+  // Use tx_block_index as tiebreaker for chained txs in the same block
+  // (e.g., acceptBidAndReEncrypt chains 12e→12f in one block).
+  txInfos.sort((a, b) => {
+    const heightDiff = b.block_height - a.block_height;
+    if (heightDiff !== 0) return heightDiff;
+    return (b.tx_block_index ?? 0) - (a.tx_block_index ?? 0);
+  });
 
   // Step 4-5: Extract levels from inline datums at the encryption contract address
   const levels: EncryptionLevel[] = [];
   let isNewest = true; // Track first matching tx (not just i===0, since address_txs fallback includes other tokens)
+  const skipped = { noEncOutput: 0, noInlineDatum: 0, tooFewFields: 0, wrongToken: 0 };
 
   for (let i = 0; i < txInfos.length; i++) {
     const tx = txInfos[i];
@@ -255,26 +279,34 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
       o => o.payment_addr?.bech32 === contracts.encryptionAddress
     );
     if (!encOutput) {
+      skipped.noEncOutput++;
       continue;
     }
     if (!encOutput.inline_datum?.value) {
+      skipped.noInlineDatum++;
       continue;
     }
 
     // The datum is a Plutus constructor: fields[3] = half_level, fields[4] = full_level
     const datumValue = encOutput.inline_datum.value as { constructor: number; fields: unknown[] };
-    logger.info('Parsing datum for tx', {
+    logger.debug('Parsing datum for tx', {
       txHash: tx.tx_hash,
       fieldCount: datumValue.fields?.length,
       constructor: datumValue.constructor,
       blockHeight: tx.block_height,
     });
-    if (!datumValue.fields || datumValue.fields.length < 5) continue;
+    if (!datumValue.fields || datumValue.fields.length < 5) {
+      skipped.tooFewFields++;
+      continue;
+    }
 
     // Verify this datum is for the requested token (essential for address_txs fallback,
     // which returns all txs at the address, not just for this token)
     const datumToken = (datumValue.fields[2] as { bytes?: string })?.bytes;
-    if (datumToken !== tokenName) continue;
+    if (datumToken !== tokenName) {
+      skipped.wrongToken++;
+      continue;
+    }
 
     if (isNewest) {
       // Newest tx: extract half_level (fields[3])
@@ -321,6 +353,20 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
       });
     }
   }
+
+  logger.info('getEncryptionLevels: completed', {
+    tokenName,
+    levelsFound: levels.length,
+    txsProcessed: txInfos.length,
+    skipped,
+    levels: levels.map((l, i) => ({
+      index: i,
+      r1: l.r1?.slice(0, 16) + '...',
+      r2_g1: l.r2_g1?.slice(0, 16) + '...',
+      r2_g2: l.r2_g2 ? l.r2_g2.slice(0, 16) + '...' : undefined,
+      hasR2G2: !!l.r2_g2,
+    })),
+  });
 
   return levels;
 }
