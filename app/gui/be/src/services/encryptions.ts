@@ -20,6 +20,19 @@ export interface ParsedCip20 {
 }
 
 /**
+ * Permanent in-memory cache: tx_hash → parsed CIP-20 metadata.
+ * Metadata is immutable (never changes after tx creation), so entries
+ * never need to be re-fetched. This survives Koios outages — once
+ * fetched, prices/descriptions persist until the process restarts.
+ */
+const metadataCache = new Map<string, ParsedCip20>();
+
+/** Clear the persistent metadata cache (for testing only). */
+export function clearMetadataCache(): void {
+  metadataCache.clear();
+}
+
+/**
  * Parse CIP-20 metadata into structured fields.
  *
  * Supports two formats:
@@ -147,19 +160,30 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
       }
     }
 
-    // Phase 2: Batch fetch all CIP-20 metadata in a single request
-    const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
-    let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
-    try {
-      metadataMap = await koios.getTxMetadataBatch(txHashes);
-    } catch (err) {
-      logger.warn('Failed to batch fetch CIP-20 metadata', { error: String(err) });
+    // Phase 2: Fetch CIP-20 metadata — only for tx_hashes not already in the persistent cache
+    const allTxHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+    const uncachedHashes = allTxHashes.filter(h => !metadataCache.has(h));
+
+    if (uncachedHashes.length > 0) {
+      try {
+        const metadataMap = await koios.getTxMetadataBatch(uncachedHashes);
+        for (const hash of uncachedHashes) {
+          const cip20 = extractCip20FromMetadata(metadataMap.get(hash) || []);
+          metadataCache.set(hash, cip20);
+        }
+      } catch (err) {
+        logger.warn('Failed to batch fetch CIP-20 metadata; using cached data for known tx hashes', {
+          error: String(err),
+          uncachedCount: uncachedHashes.length,
+          cachedCount: allTxHashes.length - uncachedHashes.length,
+        });
+      }
     }
 
-    // Phase 3: Assemble results
+    // Phase 3: Assemble results (read from persistent cache)
     const encryptions: EncryptionDisplay[] = [];
     for (const { utxo, datum } of parsed) {
-      const cip20 = extractCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+      const cip20 = metadataCache.get(utxo.tx_hash) || {};
       encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     }
 

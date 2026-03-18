@@ -12,6 +12,17 @@ export interface ParsedBidCip20 {
 }
 
 /**
+ * Permanent in-memory cache: tx_hash → parsed bid CIP-20 metadata.
+ * Metadata is immutable, so entries never need re-fetching.
+ */
+const bidMetadataCache = new Map<string, ParsedBidCip20>();
+
+/** Clear the persistent bid metadata cache (for testing only). */
+export function clearBidMetadataCache(): void {
+  bidMetadataCache.clear();
+}
+
+/**
  * Parse bid CIP-20 msg array into structured metadata fields.
  * Format: [futurePrice]
  */
@@ -106,19 +117,30 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
       }
     }
 
-    // Phase 2: Batch fetch all CIP-20 metadata in a single request
-    const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
-    let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
-    try {
-      metadataMap = await koios.getTxMetadataBatch(txHashes);
-    } catch (err) {
-      logger.warn('Failed to batch fetch bid CIP-20 metadata', { error: String(err) });
+    // Phase 2: Fetch CIP-20 metadata — only for tx_hashes not already in the persistent cache
+    const allTxHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+    const uncachedHashes = allTxHashes.filter(h => !bidMetadataCache.has(h));
+
+    if (uncachedHashes.length > 0) {
+      try {
+        const metadataMap = await koios.getTxMetadataBatch(uncachedHashes);
+        for (const hash of uncachedHashes) {
+          const cip20 = extractBidCip20FromMetadata(metadataMap.get(hash) || []);
+          bidMetadataCache.set(hash, cip20);
+        }
+      } catch (err) {
+        logger.warn('Failed to batch fetch bid CIP-20 metadata; using cached data for known tx hashes', {
+          error: String(err),
+          uncachedCount: uncachedHashes.length,
+          cachedCount: allTxHashes.length - uncachedHashes.length,
+        });
+      }
     }
 
-    // Phase 3: Assemble results
+    // Phase 3: Assemble results (read from persistent cache)
     const bids: BidDisplay[] = [];
     for (const { utxo, datum } of parsed) {
-      const cip20 = extractBidCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+      const cip20 = bidMetadataCache.get(utxo.tx_hash) || {};
       bids.push(utxoToBidDisplay(utxo, datum, cip20));
     }
 

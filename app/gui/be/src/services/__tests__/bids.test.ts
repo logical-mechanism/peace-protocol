@@ -66,6 +66,7 @@ import {
   getBidsByStatus,
   parseBidCip20Fields,
   extractBidCip20FromMetadata,
+  clearBidMetadataCache,
 } from '../bids.js';
 
 // ── Plutus JSON builders (same as parsers.test.ts) ──────────────────
@@ -121,6 +122,7 @@ let mockKoios: { getTxMetadataBatch: ReturnType<typeof vi.fn> };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearBidMetadataCache();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (apiCache as any)._store.clear();
 
@@ -215,7 +217,7 @@ describe('getAllBids', () => {
     );
   });
 
-  it('returns bids without CIP-20 fields when Koios metadata fails', async () => {
+  it('returns bids without CIP-20 fields when Koios metadata fails and no persistent cache', async () => {
     mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
     mockKoios.getTxMetadataBatch.mockRejectedValue(new Error('Koios down'));
 
@@ -224,7 +226,7 @@ describe('getAllBids', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0].futurePrice).toBeUndefined();
     expect(logger.warn).toHaveBeenCalledWith(
-      'Failed to batch fetch bid CIP-20 metadata',
+      'Failed to batch fetch bid CIP-20 metadata; using cached data for known tx hashes',
       expect.any(Object)
     );
   });
@@ -239,6 +241,22 @@ describe('getAllBids', () => {
 
     const result = await getAllBids();
 
+    expect(result.data[0].futurePrice).toBe(15.5);
+  });
+
+  it('preserves bid metadata from persistent cache when Koios fails on subsequent call', async () => {
+    // First call: Koios returns metadata successfully
+    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
+    const metaMap = new Map();
+    metaMap.set('a'.repeat(64), [{ key: '674', json: { msg: ['15.5'] } }]);
+    mockKoios.getTxMetadataBatch.mockResolvedValue(metaMap);
+    await getAllBids(true);
+
+    // Second call: Koios is down — metadata should survive from persistent cache
+    mockKoios.getTxMetadataBatch.mockRejectedValue(new Error('Koios down'));
+    const result = await getAllBids(true);
+
+    expect(result.data).toHaveLength(1);
     expect(result.data[0].futurePrice).toBe(15.5);
   });
 
