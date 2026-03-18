@@ -4,6 +4,7 @@ import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
 import { parseBidDatum } from './parsers.js';
+import { MetadataDiskCache } from './metadataDiskCache.js';
 import type { BidDisplay, BidDatum, ResponseWarnings } from '../types/index.js';
 import type { ServiceResult } from './encryptions.js';
 
@@ -12,10 +13,11 @@ export interface ParsedBidCip20 {
 }
 
 /**
- * Permanent in-memory cache: tx_hash → parsed bid CIP-20 metadata.
+ * Disk-backed cache: tx_hash → parsed bid CIP-20 metadata.
  * Metadata is immutable, so entries never need re-fetching.
+ * Persisted to disk so the cache survives Express restarts.
  */
-const bidMetadataCache = new Map<string, ParsedBidCip20>();
+const bidMetadataCache = new MetadataDiskCache<ParsedBidCip20>('bid_metadata_cache.json');
 
 /** Clear the persistent bid metadata cache (for testing only). */
 export function clearBidMetadataCache(): void {
@@ -144,7 +146,7 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
       bids.push(utxoToBidDisplay(utxo, datum, cip20));
     }
 
-    apiCache.set(CACHE_KEY_ALL_BIDS, bids);
+    apiCache.set(CACHE_KEY_ALL_BIDS, bids, 15_000);
     const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
     return { data: bids, warnings };
   } catch (err) {

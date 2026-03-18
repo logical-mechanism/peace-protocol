@@ -38,6 +38,7 @@ vi.mock('../cache.js', () => {
 });
 
 vi.mock('../../config/index.js', () => ({
+  config: { dataDir: '' },
   getNetworkConfig: () => ({
     contracts: {
       biddingAddress: 'addr_test1_bidding',

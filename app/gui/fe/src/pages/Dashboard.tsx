@@ -76,7 +76,7 @@ export default function Dashboard() {
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
-  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot, expressReady } = useNode()
+  const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot, tipHeight, expressReady } = useNode()
   const navigate = useNavigate()
   const { hasOpenModal } = useModal()
   const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
@@ -1245,7 +1245,7 @@ export default function Dashboard() {
         setAcceptedBidCount(accepted.length)
 
         // Best-effort cleanup of stale secrets after confirmed ownership changes
-        cleanupStaleSecrets(userPkh, encryptions).catch((err) => console.warn('Stale secret cleanup failed:', err))
+        cleanupStaleSecrets(userPkh, encryptions, tipHeight ?? undefined).catch((err) => console.warn('Stale secret cleanup failed:', err))
       } catch (error) {
         console.error('Failed to fetch stats:', error)
         setMyListingsCount(0)
@@ -1263,7 +1263,7 @@ export default function Dashboard() {
     }
 
     fetchStats()
-  }, [userPkh, refreshSignal, expressReady])
+  }, [userPkh, refreshSignal, expressReady, tipHeight])
 
   const handleOpenCreateListing = useCallback(() => setShowCreateListing(true), [])
 

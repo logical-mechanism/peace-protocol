@@ -1,6 +1,6 @@
 use crate::config::AppConfig;
 use crate::process::manager::NodeManager;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Start the Express backend as a child process.
 /// Unlike the sidecar-based processes, Express is spawned via tokio::process::Command
@@ -12,9 +12,14 @@ pub async fn start_express(
     manager: &NodeManager,
     app_config: &AppConfig,
     be_dir: &PathBuf,
+    app_data_dir: &Path,
 ) -> Result<(), String> {
     manager.ensure_port_available(3001)?;
-    let env_vars = app_config.express_env_vars();
+    let mut env_vars = app_config.express_env_vars();
+    env_vars.push((
+        "DATA_DIR".to_string(),
+        app_data_dir.to_string_lossy().to_string(),
+    ));
     manager
         .start_command(
             "express",

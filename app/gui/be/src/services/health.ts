@@ -4,9 +4,18 @@ import { getKoiosClient } from './koios.js';
 
 const startTime = Date.now();
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const KOIOS_HEALTH_CACHE_MS = 5 * 60 * 1000; // 5 minutes — avoid frequent /tip pings
 
 let lastKupoSuccess: string | null = null;
 let lastKoiosSuccess: string | null = null;
+let cachedKoiosResult: { ok: boolean; latencyMs: number; error?: string } | null = null;
+let koiosResultCachedAt = 0;
+
+/** Reset cached Koios health result (for testing only). */
+export function resetKoiosHealthCache(): void {
+  cachedKoiosResult = null;
+  koiosResultCachedAt = 0;
+}
 
 export interface CircuitBreakerInfo {
   state: string;
@@ -57,9 +66,30 @@ async function checkDependency(
 export async function getHealthStatus(network: string, useStubs: boolean): Promise<HealthStatus> {
   const { kupoUrl, koiosUrl } = getNetworkConfig();
 
-  const [kupoResult, koiosResult] = await Promise.all([
+  // Use circuit breaker state as primary Koios health signal to avoid frequent /tip calls.
+  // Only ping Koios directly if the cached result has expired (every 5 minutes).
+  let koiosResult: { ok: boolean; latencyMs: number; error?: string };
+  const now = Date.now();
+  if (cachedKoiosResult && now - koiosResultCachedAt < KOIOS_HEALTH_CACHE_MS) {
+    koiosResult = cachedKoiosResult;
+  } else {
+    // Check circuit breaker first — if it's OPEN, Koios is known-bad, skip the ping
+    try {
+      const cbState = getKoiosClient().getCircuitBreakerState();
+      if (cbState.state === 'OPEN') {
+        koiosResult = { ok: false, latencyMs: 0, error: 'Circuit breaker OPEN' };
+      } else {
+        koiosResult = await checkDependency(`${koiosUrl}/tip`);
+      }
+    } catch {
+      koiosResult = await checkDependency(`${koiosUrl}/tip`);
+    }
+    cachedKoiosResult = koiosResult;
+    koiosResultCachedAt = now;
+  }
+
+  const [kupoResult] = await Promise.all([
     checkDependency(`${kupoUrl}/health`),
-    checkDependency(`${koiosUrl}/tip`),
   ]);
 
   if (kupoResult.ok) lastKupoSuccess = new Date().toISOString();

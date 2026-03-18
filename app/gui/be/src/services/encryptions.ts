@@ -4,6 +4,7 @@ import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
+import { MetadataDiskCache } from './metadataDiskCache.js';
 import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel, ResponseWarnings } from '../types/index.js';
 
 export interface ServiceResult<T> {
@@ -20,12 +21,12 @@ export interface ParsedCip20 {
 }
 
 /**
- * Permanent in-memory cache: tx_hash → parsed CIP-20 metadata.
+ * Disk-backed cache: tx_hash → parsed CIP-20 metadata.
  * Metadata is immutable (never changes after tx creation), so entries
- * never need to be re-fetched. This survives Koios outages — once
- * fetched, prices/descriptions persist until the process restarts.
+ * never need to be re-fetched. Persisted to disk so the cache survives
+ * Express process restarts, avoiding expensive Koios re-fetches.
  */
-const metadataCache = new Map<string, ParsedCip20>();
+const metadataCache = new MetadataDiskCache<ParsedCip20>('metadata_cache.json');
 
 /** Clear the persistent metadata cache (for testing only). */
 export function clearMetadataCache(): void {
@@ -187,7 +188,7 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
       encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     }
 
-    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
+    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions, 15_000);
     const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
     return { data: encryptions, warnings };
   } catch (err) {
