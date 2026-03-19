@@ -77,7 +77,7 @@ Difficulty ratings:
   - **How**: In `cbor.ts` (lines 83, 111, 133), the `while (data[pos] !== 0xff)` loops have no guard against `pos >= data.length`. If the CBOR input is malformed (missing `0xff` break byte), this causes an infinite loop reading `undefined` values. Add `if (pos >= data.length) throw new Error('Malformed CBOR: missing break byte')` at the top of each while loop body.
   - **Why**: A malicious or corrupted on-chain datum could crash the backend Express server. This is a denial-of-service vector via crafted CBOR data.
 
-- [ ] 🟢 **Log missing tx hashes in metadata batch fetch**
+- [x] 🟢 **Log missing tx hashes in metadata batch fetch**
   - **How**: In `encryptions.ts` (line ~169–181), when `getTxMetadataBatch()` returns fewer results than requested, the missing tx hashes get empty `{}` metadata silently. After the batch call, compute `const missing = uncachedHashes.filter(h => !result[h])` and log: `logger.warn('Missing metadata for tx hashes', { missing, count: missing.length })`.
   - **Why**: Operators can't tell when listings are missing metadata. Silent fallback to empty makes debugging impossible.
 

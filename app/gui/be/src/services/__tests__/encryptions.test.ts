@@ -427,6 +427,31 @@ describe('getAllEncryptions', () => {
     mockKupo.getAddressUtxos.mockRejectedValue(new Error('Kupo offline'));
     await expect(getAllEncryptions()).rejects.toThrow('Kupo offline');
   });
+
+  it('logs warning when metadata batch returns fewer results than requested', async () => {
+    const txHashA = 'a'.repeat(64);
+    const txHashB = 'b'.repeat(64);
+    const utxoA = mkKoiosUtxo({ tx_hash: txHashA });
+    const utxoB = mkKoiosUtxo({ tx_hash: txHashB });
+    mockKupo.getAddressUtxos.mockResolvedValue([utxoA, utxoB]);
+
+    // Koios returns metadata for only one of the two hashes
+    const metaMap = new Map();
+    metaMap.set(txHashA, [{ key: '674', json: { msg: ['Listing A'], p: '5', s: 'on-chain', i: [], c: 'text' } }]);
+    // txHashB is missing from the response
+    mockKoios.getTxMetadataBatch.mockResolvedValue(metaMap);
+
+    await getAllEncryptions(true);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Missing metadata for tx hashes in batch fetch',
+      expect.objectContaining({
+        missing: [txHashB],
+        count: 1,
+        requested: 2,
+      })
+    );
+  });
 });
 
 // ── Filter functions ─────────────────────────────────────────────────

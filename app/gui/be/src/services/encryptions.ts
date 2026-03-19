@@ -168,6 +168,14 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
     if (uncachedHashes.length > 0) {
       try {
         const metadataMap = await koios.getTxMetadataBatch(uncachedHashes);
+        const missingHashes = uncachedHashes.filter(h => !metadataMap.has(h));
+        if (missingHashes.length > 0) {
+          logger.warn('Missing metadata for tx hashes in batch fetch', {
+            missing: missingHashes,
+            count: missingHashes.length,
+            requested: uncachedHashes.length,
+          });
+        }
         for (const hash of uncachedHashes) {
           const cip20 = extractCip20FromMetadata(metadataMap.get(hash) || []);
           metadataCache.set(hash, cip20);
