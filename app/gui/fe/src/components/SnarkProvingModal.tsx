@@ -33,6 +33,7 @@ export default function SnarkProvingModal({
   const [elapsedTime, setElapsedTime] = useState(0)
   const [proof, setProof] = useState<SnarkProof | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const cancelledRef = useRef(false)
   const canClose = state === 'success' || state === 'error' || state === 'idle'
 
   // Stack-aware Escape key + body scroll lock + animation
@@ -74,6 +75,8 @@ export default function SnarkProvingModal({
       return
     }
 
+    cancelledRef.current = false
+
     const generateProof = async () => {
       setState('initializing')
       setError(null)
@@ -82,15 +85,18 @@ export default function SnarkProvingModal({
         const prover = getSnarkProver()
 
         const generatedProof = await prover.generateProof(inputs, (progress) => {
+          if (cancelledRef.current) return
           setProgress(progress)
           if (progress.stage === 'proving') {
             setState('proving')
           }
         })
 
+        if (cancelledRef.current) return
         setProof(generatedProof)
         setState('success')
       } catch (err) {
+        if (cancelledRef.current) return
         console.error('SNARK proof generation error:', err)
         const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Proof generation failed'
         setError(message)
@@ -99,6 +105,10 @@ export default function SnarkProvingModal({
     }
 
     generateProof()
+
+    return () => {
+      cancelledRef.current = true
+    }
   }, [isOpen, inputs])
 
   const handleContinue = useCallback(() => {
@@ -110,9 +120,10 @@ export default function SnarkProvingModal({
 
   const handleRetry = useCallback(() => {
     if (inputs) {
+      cancelledRef.current = false
       setState('idle')
       setError(null)
-      // Trigger a re-run by toggling a flag
+
       const generateProof = async () => {
         setState('initializing')
 
@@ -120,15 +131,18 @@ export default function SnarkProvingModal({
           const prover = getSnarkProver()
 
           const generatedProof = await prover.generateProof(inputs, (progress) => {
+            if (cancelledRef.current) return
             setProgress(progress)
             if (progress.stage === 'proving') {
               setState('proving')
             }
           })
 
+          if (cancelledRef.current) return
           setProof(generatedProof)
           setState('success')
         } catch (err) {
+          if (cancelledRef.current) return
           console.error('SNARK proof generation error:', err)
           const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Proof generation failed'
           setError(message)

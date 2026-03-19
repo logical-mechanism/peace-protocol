@@ -27,7 +27,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/SnarkProvingModal.tsx`
 
-- [ ] 🟡 **Add cancellation guard to SnarkProvingModal on unmount**
+- [x] 🟡 **Add cancellation guard to SnarkProvingModal on unmount**
   - **How**: In `SnarkProvingModal.tsx`, the `useEffect` at line 66 calls `generateProof()` which spawns a sidecar process via `prover.generateProof(inputs, ...)`. If the modal closes mid-proof (parent unmounts, navigation change), the async function continues and calls `setState` after unmount. Add a `cancelled` flag in the effect cleanup: `let cancelled = false; return () => { cancelled = true }`, then guard all `setState` calls inside `generateProof()` with `if (cancelled) return`. The sidecar process will finish naturally, but the component won't attempt state updates. Same pattern used in `DecryptModal.tsx` line 241.
   - **Why**: Prevents React "setState on unmounted component" warnings and avoids orphaned state updates if the user navigates away during the ~3 minute proof generation.
 
