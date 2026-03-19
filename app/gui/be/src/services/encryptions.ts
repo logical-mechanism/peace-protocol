@@ -117,7 +117,7 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
     storageLayer: cip20.storageLayer,
     imageLink: cip20.imageLink,
     category: cip20.category,
-    createdAt: new Date(utxo.block_time * 1000).toISOString(),
+    createdAt: utxo.block_time > 0 ? new Date(utxo.block_time * 1000).toISOString() : null,
     utxo: {
       txHash: utxo.tx_hash,
       outputIndex: utxo.tx_index,

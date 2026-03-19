@@ -428,6 +428,20 @@ describe('getAllEncryptions', () => {
     await expect(getAllEncryptions()).rejects.toThrow('Kupo offline');
   });
 
+  it('sets createdAt to null when block_time is 0', async () => {
+    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo({ block_time: 0 })]);
+
+    const result = await getAllEncryptions();
+    expect(result.data[0].createdAt).toBeNull();
+  });
+
+  it('sets createdAt to valid ISO string when block_time is valid', async () => {
+    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo({ block_time: 1718438400 })]);
+
+    const result = await getAllEncryptions();
+    expect(result.data[0].createdAt).toBe('2024-06-15T08:00:00.000Z');
+  });
+
   it('logs warning when metadata batch returns fewer results than requested', async () => {
     const txHashA = 'a'.repeat(64);
     const txHashB = 'b'.repeat(64);

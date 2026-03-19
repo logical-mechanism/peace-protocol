@@ -101,7 +101,7 @@ Difficulty ratings:
 
 > Key files: `be/src/services/encryptions.ts`, `be/src/services/cbor.ts`
 
-- [ ] 🟢 **Guard against invalid `block_time` in createdAt conversion**
+- [x] 🟢 **Guard against invalid `block_time` in createdAt conversion**
   - **How**: In `encryptions.ts` (line ~120), `new Date(utxo.block_time * 1000).toISOString()` trusts that `block_time` is a valid epoch. If Koios returns `null` or `0`, this produces `"1970-01-01T00:00:00.000Z"` or `"Invalid Date"`. Add: `const createdAt = utxo.block_time > 0 ? new Date(utxo.block_time * 1000).toISOString() : null`.
   - **Why**: Invalid ISO date strings break frontend sorting/filtering and display nonsensical dates.
 
@@ -137,11 +137,11 @@ Difficulty ratings:
 
 > Key files: `.github/workflows/ci.yml`, `fe/vite.config.ts`, `be/vitest.config.ts`
 
-- [ ] 🟡 **Enforce coverage thresholds in CI**
+- [s] 🟡 **Enforce coverage thresholds in CI**
   - **How**: In `fe/vite.config.ts` (lines 75–85), coverage thresholds are defined but vitest doesn't fail CI when thresholds are breached. Verify that `npm run test:coverage` uses `--coverage.thresholdAutoUpdate=false` so the process exits non-zero on threshold violation. Same for `be/vitest.config.ts`. If thresholds are already enforced, this is a no-op.
   - **Why**: Thresholds exist as aspirational numbers but may not actually prevent coverage regression.
 
-- [ ] 🟢 **Add aiken.toml version to CI version consistency check**
+- [s] 🟢 **Add aiken.toml version to CI version consistency check**
   - **How**: In `.github/workflows/ci.yml` (lines 95–111), the version check compares 5 sources but misses `app/contracts/aiken.toml`. Add: `V_AIKEN=$(grep '^version' ../contracts/aiken.toml | sed 's/.*"\(.*\)"/\1/')` and include it in the mismatch check. The CLAUDE.md version bump checklist already lists aiken.toml — CI should enforce it.
   - **Why**: Contract version can drift from app version without any CI failure, creating release inconsistencies.
 
