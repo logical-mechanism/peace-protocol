@@ -73,7 +73,7 @@ Difficulty ratings:
 
 > Key files: `be/src/services/cbor.ts`, `be/src/services/health.ts`, `be/src/services/encryptions.ts`
 
-- [ ] 🟢 **Add bounds check to CBOR indefinite-length parsing**
+- [x] 🟢 **Add bounds check to CBOR indefinite-length parsing**
   - **How**: In `cbor.ts` (lines 83, 111, 133), the `while (data[pos] !== 0xff)` loops have no guard against `pos >= data.length`. If the CBOR input is malformed (missing `0xff` break byte), this causes an infinite loop reading `undefined` values. Add `if (pos >= data.length) throw new Error('Malformed CBOR: missing break byte')` at the top of each while loop body.
   - **Why**: A malicious or corrupted on-chain datum could crash the backend Express server. This is a denial-of-service vector via crafted CBOR data.
 

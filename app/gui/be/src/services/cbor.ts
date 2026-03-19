@@ -81,6 +81,7 @@ export function decodeCborItem(data: Uint8Array, offset: number): [unknown, numb
         let hex = '';
         let pos = offset + 1;
         while (data[pos] !== 0xff) {
+          if (pos >= data.length) throw new Error('Malformed CBOR: missing break byte in indefinite-length byte string');
           const chunkAdditional = data[pos] & 0x1f;
           const [chunkLen, chunkDataOffset] = decodeRawUint(chunkAdditional, data, pos + 1);
           hex += Array.from(data.slice(chunkDataOffset, chunkDataOffset + chunkLen))
@@ -109,6 +110,7 @@ export function decodeCborItem(data: Uint8Array, offset: number): [unknown, numb
         const items: unknown[] = [];
         let pos = offset + 1;
         while (data[pos] !== 0xff) {
+          if (pos >= data.length) throw new Error('Malformed CBOR: missing break byte in indefinite-length array');
           const [item, newPos] = decodeCborItem(data, pos);
           items.push(item);
           pos = newPos;
@@ -132,6 +134,7 @@ export function decodeCborItem(data: Uint8Array, offset: number): [unknown, numb
         const entries: { k: unknown; v: unknown }[] = [];
         let pos = offset + 1;
         while (data[pos] !== 0xff) {
+          if (pos >= data.length) throw new Error('Malformed CBOR: missing break byte in indefinite-length map');
           const [key, keyEnd] = decodeCborItem(data, pos);
           const [val, valEnd] = decodeCborItem(data, keyEnd);
           entries.push({ k: key, v: val });
