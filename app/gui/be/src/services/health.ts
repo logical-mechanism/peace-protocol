@@ -70,6 +70,20 @@ export async function getHealthStatus(network: string, useStubs: boolean): Promi
   // Only ping Koios directly if the cached result has expired (every 5 minutes).
   let koiosResult: { ok: boolean; latencyMs: number; error?: string };
   const now = Date.now();
+
+  // Invalidate cached "unhealthy" result if the circuit breaker has left OPEN state
+  // (i.e., transitioned to HALF_OPEN after cooldown). This ensures recovery is detected
+  // promptly rather than waiting up to 5 minutes for the cache to expire.
+  if (cachedKoiosResult && !cachedKoiosResult.ok) {
+    try {
+      const cbState = getKoiosClient().getCircuitBreakerState();
+      if (cbState.state !== 'OPEN') {
+        cachedKoiosResult = null;
+        koiosResultCachedAt = 0;
+      }
+    } catch { /* client not initialized yet — keep cache */ }
+  }
+
   if (cachedKoiosResult && now - koiosResultCachedAt < KOIOS_HEALTH_CACHE_MS) {
     koiosResult = cachedKoiosResult;
   } else {

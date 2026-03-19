@@ -81,7 +81,7 @@ Difficulty ratings:
   - **How**: In `encryptions.ts` (line ~169–181), when `getTxMetadataBatch()` returns fewer results than requested, the missing tx hashes get empty `{}` metadata silently. After the batch call, compute `const missing = uncachedHashes.filter(h => !result[h])` and log: `logger.warn('Missing metadata for tx hashes', { missing, count: missing.length })`.
   - **Why**: Operators can't tell when listings are missing metadata. Silent fallback to empty makes debugging impossible.
 
-- [ ] 🟡 **Reset cached health status when circuit breaker transitions from OPEN to HALF_OPEN**
+- [x] 🟡 **Reset cached health status when circuit breaker transitions from OPEN to HALF_OPEN**
   - **How**: In `health.ts` (line ~76–88), when the circuit breaker is OPEN, the health check skips the Koios ping and caches the "unhealthy" result. But when the breaker transitions to HALF_OPEN (after cooldown), the cached result may still say "unhealthy" for up to 5 minutes. Either reduce the cache TTL for unhealthy results or subscribe to circuit state changes and invalidate the cached Koios result.
   - **Why**: The health endpoint reports "unhealthy" even after Koios recovers, giving operators a false impression of prolonged outage.
 
