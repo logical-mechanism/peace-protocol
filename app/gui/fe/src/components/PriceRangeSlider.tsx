@@ -28,7 +28,7 @@ function PriceRangeSlider({ min, max, valueMin, valueMax, onChangeMin, onChangeM
   const rightPercent = ((effectiveMax - min) / range) * 100;
 
   return (
-    <div className="flex flex-col gap-1 min-w-[180px]">
+    <div role="group" aria-label="Price range filter" className="flex flex-col gap-1 min-w-[180px]">
       <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
         <span>{effectiveMin} ADA</span>
         <span>{effectiveMax} ADA</span>

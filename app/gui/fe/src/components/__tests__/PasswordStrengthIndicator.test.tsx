@@ -85,4 +85,15 @@ describe('PasswordStrengthIndicator', () => {
       expect(segments[2]).toHaveStyle({ background: 'var(--success)' });
     });
   });
+
+  describe('accessibility', () => {
+    it('has aria-live="polite" on the container for screen reader announcements', () => {
+      const { container } = renderIndicator('abc');
+      const liveRegion = container.querySelector('[aria-live="polite"]');
+      expect(liveRegion).not.toBeNull();
+      // The live region contains both requirements and strength bar
+      expect(liveRegion!.textContent).toContain('Weak');
+      expect(liveRegion!.textContent).toContain('One lowercase letter');
+    });
+  });
 });

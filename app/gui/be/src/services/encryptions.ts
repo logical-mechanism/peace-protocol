@@ -26,7 +26,7 @@ export interface ParsedCip20 {
  * never need to be re-fetched. Persisted to disk so the cache survives
  * Express process restarts, avoiding expensive Koios re-fetches.
  */
-const metadataCache = new MetadataDiskCache<ParsedCip20>('metadata_cache.json');
+export const metadataCache = new MetadataDiskCache<ParsedCip20>('metadata_cache.json');
 
 /** Clear the persistent metadata cache (for testing only). */
 export function clearMetadataCache(): void {
@@ -117,7 +117,7 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
     storageLayer: cip20.storageLayer,
     imageLink: cip20.imageLink,
     category: cip20.category,
-    createdAt: new Date(utxo.block_time * 1000).toISOString(),
+    createdAt: utxo.block_time > 0 ? new Date(utxo.block_time * 1000).toISOString() : null,
     utxo: {
       txHash: utxo.tx_hash,
       outputIndex: utxo.tx_index,
@@ -168,8 +168,16 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
     if (uncachedHashes.length > 0) {
       try {
         const metadataMap = await koios.getTxMetadataBatch(uncachedHashes);
-        for (const hash of uncachedHashes) {
-          const cip20 = extractCip20FromMetadata(metadataMap.get(hash) || []);
+        const missingHashes = uncachedHashes.filter(h => !metadataMap.has(h));
+        if (missingHashes.length > 0) {
+          logger.warn('Missing metadata for tx hashes in batch fetch', {
+            missing: missingHashes,
+            count: missingHashes.length,
+            requested: uncachedHashes.length,
+          });
+        }
+        for (const [hash, entries] of metadataMap) {
+          const cip20 = extractCip20FromMetadata(entries);
           metadataCache.set(hash, cip20);
         }
       } catch (err) {
@@ -215,7 +223,7 @@ export async function getEncryptionByToken(tokenName: string): Promise<ServiceRe
 export async function getEncryptionsByUser(pkh: string): Promise<ServiceResult<EncryptionDisplay[]>> {
   const result = await getAllEncryptions();
   return {
-    data: result.data.filter(e => e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())),
+    data: result.data.filter(e => e.sellerPkh.toLowerCase() === pkh.toLowerCase()),
     warnings: result.warnings,
   };
 }

@@ -498,7 +498,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 : 'bg-[var(--bg-secondary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {selectMode ? 'Cancel' : 'Select'}
+            {selectMode ? <><span>Cancel</span> <kbd className="ml-1 text-xs text-[var(--text-muted)]">Esc</kbd></> : 'Select'}
           </button>
         </div>
       </div>

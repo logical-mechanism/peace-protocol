@@ -101,6 +101,8 @@ export default function MnemonicInput({
   )
 
   const isValid = trimmed && WORDLIST.includes(trimmed)
+  const hasError = trimmed.length > 0 && !isValid && matches.length === 0
+  const errorId = `mnemonic-error-${index}`
 
   return (
     <div className="relative">
@@ -146,8 +148,15 @@ export default function MnemonicInput({
           spellCheck={false}
           disabled={disabled}
           autoFocus={autoFocus}
+          aria-invalid={hasError || undefined}
+          aria-describedby={hasError ? errorId : undefined}
         />
       </div>
+      {hasError && (
+        <span id={errorId} className="sr-only">
+          Not a valid BIP-39 word
+        </span>
+      )}
 
       {/* Dropdown */}
       {showDropdown && (

@@ -35,6 +35,7 @@ export function useUpdateCheck(autoCheck = false) {
 
   // Listen for download progress events
   useEffect(() => {
+    let mounted = true
     let unlisten: UnlistenFn | undefined
     listen<DownloadProgress>('update-download-progress', (event) => {
       setState((prev) => {
@@ -44,9 +45,14 @@ export function useUpdateCheck(autoCheck = false) {
         return prev
       })
     }).then((fn) => {
-      unlisten = fn
+      if (mounted) {
+        unlisten = fn
+      } else {
+        fn() // already unmounted, clean up immediately
+      }
     })
     return () => {
+      mounted = false
       unlisten?.()
     }
   }, [])

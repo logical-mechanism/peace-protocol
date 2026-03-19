@@ -109,7 +109,7 @@ export interface EncryptionDisplay {
   storageLayer?: string;          // Storage layer info (e.g., "on-chain", "data-layer")
   imageLink?: string;             // Optional preview image URL (from CIP-20 metadata msg[3])
   category?: string;              // File category (from CIP-20 metadata msg[4])
-  createdAt: string;              // ISO date
+  createdAt: string | null;       // ISO date, null if block_time unavailable
   utxo: {
     txHash: string;
     outputIndex: number;

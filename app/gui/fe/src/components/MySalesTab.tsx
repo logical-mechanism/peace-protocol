@@ -228,10 +228,7 @@ function MySalesTab({
       if (onRemoveListing) {
         onRemoveListing(encryption);
       } else {
-        // Placeholder for Phase 9
-        alert(
-          `Remove listing coming in Phase 9!\n\nThis will require a transaction to remove the encryption from the contract.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`
-        );
+        console.warn('onRemoveListing callback not provided');
       }
     },
     [onRemoveListing]
@@ -242,10 +239,7 @@ function MySalesTab({
       if (onAcceptBid) {
         onAcceptBid(encryption, bid);
       } else {
-        // Placeholder for Phase 12
-        alert(
-          `Accept bid coming in Phase 12!\n\nThis will trigger the SNARK proof generation followed by re-encryption transaction.\n\nBid: ${bid.amount.toLocaleString()} lovelace\nBidder: ${bid.bidder.slice(0, 16)}...`
-        );
+        console.warn('onAcceptBid callback not provided');
       }
       handleCloseBidsModal();
     },
@@ -257,10 +251,7 @@ function MySalesTab({
       if (onCancelPending) {
         onCancelPending(encryption);
       } else {
-        // Placeholder for Phase 9
-        alert(
-          `Cancel pending coming in Phase 9!\n\nThis will cancel the pending sale and return the encryption to active status.\n\nToken: ${encryption.tokenName.slice(0, 16)}...`
-        );
+        console.warn('onCancelPending callback not provided');
       }
     },
     [onCancelPending]

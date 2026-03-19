@@ -42,6 +42,7 @@ app/gui/
 │   │   │   ├── settings/            # Settings page section components
 │   │   │   │   ├── NetworkSection.tsx, NodeSection.tsx, WalletSection.tsx
 │   │   │   │   ├── DataLayerSection.tsx, StorageSection.tsx, LogsSection.tsx
+│   │   │   │   ├── UpdateSection.tsx       # App update checker and downloader
 │   │   │   │   ├── settingsTypes.ts     # Settings type definitions
 │   │   │   │   └── settingsSearch.ts    # Settings search/filter logic
 │   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, InfoTooltip, presentational
@@ -91,7 +92,7 @@ app/gui/
 │   │   │   ├── walletManagement.ts  # Collateral creation + UTxO defragmentation (MeshTxBuilder)
 │   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
-│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth
+│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth, useUpdateCheck
 │   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, time, logClassification, contentType, formatDate
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
@@ -147,7 +148,8 @@ app/gui/
 │   │       ├── iagon.rs             # Iagon API key storage + HTTP proxy (reqwest, CORS bypass)
 │   │       ├── kupo_proxy.rs        # Kupo/Ogmios HTTP proxy (reqwest, bypasses WebKitGTK CORS)
 │   │       ├── media.rs             # image download, cache, ban/unban, delete, content save, library CRUD
-│   │       └── chain.rs             # get_network_tip (Koios direct)
+│   │       ├── chain.rs             # get_network_tip (Koios direct)
+│   │       └── updater.rs           # get_current_version, check_for_update, download_update
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
 │   │   ├── cardano/{network}/       # Node configs (topology, genesis files)
@@ -280,7 +282,7 @@ app/gui/
 - `GET /api/encryptions[/:tokenName|/user/:pkh|/status/:status|/:tokenName/levels]`
 - `GET /api/bids[/:tokenName|/user/:pkh|/encryption/:token|/status/:status]`
 - `GET /api/protocol[/config|/reference|/scripts|/params]`
-- `GET /api/chain[/confirmations/:txHash|/tip]`
+- `GET /api/chain[/confirmations/:txHash|/tip|/history/:pkh]`
 - `GET /health` — status (healthy/degraded/unhealthy), uptimeSeconds, kupo/koios dependency health (reachable, latencyMs, lastSuccess, error?), network, useStubs
 - `GET /health/ready` — readiness probe (returns 503 if unhealthy)
 
@@ -411,7 +413,7 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (77 commands, invoke from frontend):
+**Tauri commands** (94 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
@@ -425,6 +427,7 @@ app/gui/
 - Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`, `copy_to_library`
 - Library: `list_library_items`, `read_library_content`, `get_library_content_path`, `get_library_subtitle_path`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
 - Media Server: `get_media_server_port`
+- Updater: `get_current_version`, `check_for_update`, `download_update`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -456,10 +459,11 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
   - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, walletManagement (39 files)
   - `fe/src/config/__tests__/` — categories (1 file)
-  - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
+  - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (12 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
   - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (45 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
+  - `fe/src/pages/settings/__tests__/` — UpdateSection (1 file)
   - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
   - `fe/src/utils/__tests__/` — formatDate (1 file)
   - `fe/src/test/factories.ts` — Test data factory helpers
