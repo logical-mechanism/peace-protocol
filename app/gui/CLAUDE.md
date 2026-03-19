@@ -34,6 +34,16 @@ app/gui/
 │   │   │   └── categories.ts      # File category definitions + integration flags
 │   │   ├── contexts/               # WalletContext, NodeContext, WasmContext, ModalContext
 │   │   ├── pages/                   # WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings
+│   │   │   ├── dashboard/           # Dashboard extracted hooks
+│   │   │   │   ├── dashboardTypes.ts    # Shared Dashboard type definitions
+│   │   │   │   ├── useBuyerActions.ts   # Buyer-side transaction callbacks
+│   │   │   │   ├── useSellerActions.ts  # Seller-side transaction callbacks
+│   │   │   │   └── useDashboardEffects.ts # Dashboard side effects and polling
+│   │   │   ├── settings/            # Settings page section components
+│   │   │   │   ├── NetworkSection.tsx, NodeSection.tsx, WalletSection.tsx
+│   │   │   │   ├── DataLayerSection.tsx, StorageSection.tsx, LogsSection.tsx
+│   │   │   │   ├── settingsTypes.ts     # Settings type definitions
+│   │   │   │   └── settingsSearch.ts    # Settings search/filter logic
 │   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, InfoTooltip, presentational
 │   │   ├── services/
 │   │   │   ├── api.ts               # REST client for backend
@@ -42,10 +52,17 @@ app/gui/
 │   │   │   ├── chainingAdapter.ts   # IFetcher overlay: wraps KupoAdapter + PendingTxPool for tx chaining
 │   │   │   ├── pendingTxPool.ts     # Virtual UTxO state: tracks submitted-but-unconfirmed tx inputs/outputs
 │   │   │   ├── txOutputParser.ts    # Extracts UTxO inputs/outputs from signed tx CBOR (@meshsdk/core-cst)
-│   │   │   ├── transactionBuilder.ts # All tx building (~2380 lines)
+│   │   │   ├── transactionBuilder.ts # Compatibility shim → re-exports from transactions/
+│   │   │   ├── transactions/        # Modular tx building (~2514 lines total)
+│   │   │   │   ├── index.ts         # Barrel re-export
+│   │   │   │   ├── txUtils.ts       # Shared utilities, types, constants
+│   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel)
+│   │   │   │   ├── bids.ts          # Bidding lifecycle (place, cancel)
+│   │   │   │   └── acceptBid.ts     # Accept-bid SNARK proof + re-encryption
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
 │   │   │   ├── libraryService.ts    # Tauri IPC client for library (list/read/delete/export content + media server URL helpers for streaming)
+│   │   │   ├── optimisticStore.ts    # Optimistic UI state for pending tx entries (auto-prune 5 min)
 │   │   │   ├── secretCleanup.ts     # Deferred secret deletion after on-chain confirmation
 │   │   │   ├── metadata.ts          # CIP-20 metadata: 64-byte string chunking + structured builders
 │   │   │   ├── iagonApi.ts          # Iagon HTTP endpoints via Tauri invoke (CORS bypass)
@@ -99,7 +116,8 @@ app/gui/
 │   │   │   ├── circuitBreaker.ts    # Circuit breaker (5 failures → 30s cooldown → half-open probe)
 │   │   │   ├── fetchWithRetry.ts    # Exponential backoff fetch (3 retries, 1s initial, 2x multiplier)
 │   │   │   ├── health.ts            # Health check with Kupo/Koios dependency latency tracking
-│   │   │   └── logger.ts            # JSON structured logger (configurable level via LOG_LEVEL env)
+│   │   │   ├── logger.ts            # JSON structured logger (configurable level via LOG_LEVEL env)
+│   │   │   └── metadataDiskCache.ts # Disk-backed metadata cache (immutable on-chain data, debounced writes)
 │   │   ├── types/index.ts           # All backend type definitions
 │   │   └── stubs/                   # Hardcoded sample data for dev mode
 │   └── dist/                        # Compiled JS (tsc output) — Tauri runs this
@@ -168,13 +186,14 @@ app/gui/
 
 **Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactionBuilder.ts ~2380 lines):
-- `createListing()`, `placeBid()`, `cancelBid()`, `removeListing()`, `cancelPendingListing()`
-- `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`
+**Transaction building** (fe/src/services/transactions/ ~2514 lines, re-exported via transactionBuilder.ts shim):
+- Split into domain modules: `txUtils.ts` (shared), `listings.ts`, `bids.ts`, `acceptBid.ts`
+- Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`
+- Bids: `placeBid()`, `cancelBid()`
+- Accept-bid: `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`, `acceptBidAndReEncrypt()`
 - `acceptBidAndReEncrypt()` — chains 12e→12f: submits SNARK proof then immediately chains re-encryption tx
-- `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`
-- `extractPaymentKeyHash()`, `isRealTransactionsAvailable()`, `getTransactionStubWarning()`
-- `ListingCreationStep`, `ChainedAcceptStep` types exported for progress UI callbacks
+- Utils: `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`, `extractPaymentKeyHash()`, `isRealTransactionsAvailable()`, `getTransactionStubWarning()`
+- `TransactionResult`, `ListingCreationStep`, `ChainedAcceptStep` types exported for progress UI callbacks
 - Uses MeshTxBuilder with ChainingAdapter (IFetcher overlay) + Ogmios (ISubmitter/IEvaluator)
 - Every `submitTx` call registers the signed tx CBOR with `PendingTxPool` for tx chaining
 
@@ -212,6 +231,7 @@ app/gui/
 - `onboardingStorage` — multi-step onboarding tour state (4 steps)
 - `toastSettings` — toast auto-dismiss duration in ms (localStorage, default 5000, 0 = never)
 - `themeStorage` — dark/light theme preference (localStorage, default dark); applied before first paint via `initializeTheme()`
+- `optimisticStore` — in-memory optimistic UI state for pending tx entries (add/remove/update actions, 5-min auto-prune, graduates when tokenName appears in chain data)
 
 **Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`); dark is default. All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
@@ -273,6 +293,8 @@ app/gui/
 - Backend `parseCip20Fields()` in `be/src/services/encryptions.ts` handles both formats via backward-compatible detection.
 
 **Error responses:** All routes return `{ error: { code, message } }` on failure. 400 for invalid params (validate middleware), 500 for internal errors (real message in dev, generic in prod), 404 for missing endpoints. Malformed datums at contract addresses are silently skipped with a console warning — frontend sees incomplete data.
+
+**Metadata caching:** `MetadataDiskCache` persists immutable on-chain tx metadata to a JSON file in `{dataDir}/cache/`. In-memory Map for fast reads; disk writes debounced (5s default). Survives Express restarts, avoids expensive Koios re-fetches on cold start.
 
 **Resilience:** Koios requests use a circuit breaker (5 consecutive failures → 30s OPEN cooldown → HALF_OPEN probe) with TTL cache (15s default) providing stale fallback when the circuit is open. `fetchWithRetry` provides exponential backoff (3 retries, 1s initial delay, 2x multiplier) for transient failures. JSON structured logging via `logger.ts` (configurable level via LOG_LEVEL env).
 
@@ -432,7 +454,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, walletManagement (38 files)
+  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, walletManagement (39 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useVisibility, useWalletHealth (11 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
