@@ -9,34 +9,70 @@ import { validateTxHashParam, validatePkhParam } from '../middleware/validate.js
 const router = Router();
 
 /**
- * GET /confirmations/:txHash
+ * Permanent cache: txHash → block_height.
+ * Once a tx is in a block, its block_height never changes.
+ * Eliminates repeated Koios getTxInfo calls for confirmed txs.
+ */
+const txBlockHeightCache = new Map<string, number>();
+
+/** Clear the tx block height cache (for testing only). */
+export function clearTxBlockHeightCache(): void {
+  txBlockHeightCache.clear();
+}
+
+/**
+ * GET /confirmations/:txHash?tipHeight=N
  *
  * Returns the number of block confirmations for a transaction.
  * Used by the frontend to decide when it's safe to securely delete
  * spent cryptographic secrets (seller a/r, hop a0/r0/hk).
+ *
+ * tipHeight query param: current chain tip height from local cardano-cli.
+ * When provided, avoids a Koios /tip call. Falls back to Koios if missing.
  *
  * Returns { confirmations: 0 } if the tx is not yet in a block.
  */
 router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
   try {
     const txHash = req.params.txHash as string;
-    const koios = getKoiosClient();
+    const tipHeightParam = req.query.tipHeight ? parseInt(req.query.tipHeight as string, 10) : null;
 
-    const [txInfo, tip] = await Promise.all([
-      koios.getTxInfo(txHash).catch(() => null),
-      koios.getTip(),
-    ]);
+    // 1. Resolve the tx's block height (cached or Koios)
+    let blockHeight = txBlockHeightCache.get(txHash);
 
-    if (!txInfo) {
-      return res.json({ data: { confirmations: 0, status: 'pending' } });
+    if (blockHeight === undefined) {
+      // Check if we recently determined this tx is pending (avoid hammering Koios)
+      const pendingCacheKey = `pending_tx_${txHash}`;
+      const isPendingCached = apiCache.get<boolean>(pendingCacheKey);
+      if (isPendingCached) {
+        return res.json({ data: { confirmations: 0, status: 'pending' } });
+      }
+
+      // Fetch from Koios
+      const koios = getKoiosClient();
+      const txInfo = await koios.getTxInfo(txHash).catch(() => null);
+
+      if (!txInfo || typeof txInfo.block_height !== 'number') {
+        // Cache "pending" for 15 seconds to avoid repeated Koios calls
+        apiCache.set(pendingCacheKey, true, 15_000);
+        return res.json({ data: { confirmations: 0, status: 'pending' } });
+      }
+
+      blockHeight = txInfo.block_height;
+      txBlockHeightCache.set(txHash, blockHeight);
     }
 
-    const blockHeight = txInfo.block_height;
-    if (typeof blockHeight !== 'number') {
-      return res.json({ data: { confirmations: 0, status: 'pending' } });
+    // 2. Resolve the current tip height (prefer local, fall back to Koios)
+    let tipHeight: number;
+    if (tipHeightParam && !isNaN(tipHeightParam) && tipHeightParam > 0) {
+      tipHeight = tipHeightParam;
+    } else {
+      const koios = getKoiosClient();
+      const tip = await koios.getTip();
+      tipHeight = tip.block_no;
     }
 
-    const confirmations = Math.max(0, tip.block_no - blockHeight);
+    const confirmations = Math.max(0, tipHeight - blockHeight);
     res.set('Cache-Control', 'no-cache');
     return res.json({ data: { confirmations, blockHeight, status: 'confirmed' } });
   } catch (error) {
@@ -57,7 +93,7 @@ router.get('/tip', async (_req, res) => {
   try {
     const koios = getKoiosClient();
     const tip = await koios.getTip();
-    res.set('Cache-Control', 'max-age=5');
+    res.set('Cache-Control', 'max-age=30');
     return res.json({
       data: {
         block_no: tip.block_no,

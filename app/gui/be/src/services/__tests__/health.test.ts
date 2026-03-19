@@ -27,8 +27,11 @@ vi.mock('../koios.js', () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
+  // Reset Koios health cache between tests to avoid cross-test contamination
+  const { resetKoiosHealthCache } = await import('../health.js');
+  resetKoiosHealthCache();
 });
 
 describe('getHealthStatus', () => {
@@ -49,9 +52,10 @@ describe('getHealthStatus', () => {
   });
 
   it('returns degraded when kupo is down', async () => {
-    mockFetch
-      .mockRejectedValueOnce(new Error('ECONNREFUSED'))  // kupo
-      .mockResolvedValueOnce({ ok: true, status: 200 }); // koios
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('kupo') || url.includes('127.0.0.1:44203')) return Promise.reject(new Error('ECONNREFUSED'));
+      return Promise.resolve({ ok: true, status: 200 });
+    });
 
     const { getHealthStatus } = await import('../health.js');
     const health = await getHealthStatus('preprod', false);
@@ -63,9 +67,10 @@ describe('getHealthStatus', () => {
   });
 
   it('returns degraded when koios is down', async () => {
-    mockFetch
-      .mockResolvedValueOnce({ ok: true, status: 200 })  // kupo
-      .mockRejectedValueOnce(new Error('timeout'));        // koios
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('koios')) return Promise.reject(new Error('timeout'));
+      return Promise.resolve({ ok: true, status: 200 });
+    });
 
     const { getHealthStatus } = await import('../health.js');
     const health = await getHealthStatus('preprod', false);

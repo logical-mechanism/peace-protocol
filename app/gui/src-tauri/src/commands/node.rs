@@ -423,7 +423,7 @@ pub async fn start_node(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../be")
         });
     if be_dir.join("dist/index.js").exists() {
-        express::start_express(&manager, &config, &be_dir).await?;
+        express::start_express(&manager, &config, &be_dir, app_data_dir).await?;
 
         // 6b. Wait for Express health (poll every 2s — starts fast).
         // Stop waiting if the express process dies.

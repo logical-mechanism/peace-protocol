@@ -59,7 +59,7 @@ function HistoryTab({
   filters,
   dispatch,
 }: HistoryTabProps) {
-  const { expressReady } = useNode();
+  const { expressReady, tipHeight } = useNode();
   // Destructure filter state from Dashboard-level reducer
   const { statusFilter, typeFilter, dateRange, searchQuery } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -213,7 +213,7 @@ function HistoryTab({
       for (const tx of pendingTxs) {
         if (cancelled) break;
         try {
-          const { confirmations: count, blockHeight } = await chainApi.getConfirmations(tx.txHash);
+          const { confirmations: count, blockHeight } = await chainApi.getConfirmations(tx.txHash, tipHeight ?? undefined);
           updated.set(tx.txHash, count);
 
           if (count >= 15) {

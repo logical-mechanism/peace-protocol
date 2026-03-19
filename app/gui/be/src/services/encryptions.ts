@@ -4,6 +4,7 @@ import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
+import { MetadataDiskCache } from './metadataDiskCache.js';
 import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel, ResponseWarnings } from '../types/index.js';
 
 export interface ServiceResult<T> {
@@ -17,6 +18,19 @@ export interface ParsedCip20 {
   storageLayer?: string;
   imageLink?: string;
   category?: string;
+}
+
+/**
+ * Disk-backed cache: tx_hash → parsed CIP-20 metadata.
+ * Metadata is immutable (never changes after tx creation), so entries
+ * never need to be re-fetched. Persisted to disk so the cache survives
+ * Express process restarts, avoiding expensive Koios re-fetches.
+ */
+const metadataCache = new MetadataDiskCache<ParsedCip20>('metadata_cache.json');
+
+/** Clear the persistent metadata cache (for testing only). */
+export function clearMetadataCache(): void {
+  metadataCache.clear();
 }
 
 /**
@@ -147,23 +161,34 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
       }
     }
 
-    // Phase 2: Batch fetch all CIP-20 metadata in a single request
-    const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
-    let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
-    try {
-      metadataMap = await koios.getTxMetadataBatch(txHashes);
-    } catch (err) {
-      logger.warn('Failed to batch fetch CIP-20 metadata', { error: String(err) });
+    // Phase 2: Fetch CIP-20 metadata — only for tx_hashes not already in the persistent cache
+    const allTxHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+    const uncachedHashes = allTxHashes.filter(h => !metadataCache.has(h));
+
+    if (uncachedHashes.length > 0) {
+      try {
+        const metadataMap = await koios.getTxMetadataBatch(uncachedHashes);
+        for (const hash of uncachedHashes) {
+          const cip20 = extractCip20FromMetadata(metadataMap.get(hash) || []);
+          metadataCache.set(hash, cip20);
+        }
+      } catch (err) {
+        logger.warn('Failed to batch fetch CIP-20 metadata; using cached data for known tx hashes', {
+          error: String(err),
+          uncachedCount: uncachedHashes.length,
+          cachedCount: allTxHashes.length - uncachedHashes.length,
+        });
+      }
     }
 
-    // Phase 3: Assemble results
+    // Phase 3: Assemble results (read from persistent cache)
     const encryptions: EncryptionDisplay[] = [];
     for (const { utxo, datum } of parsed) {
-      const cip20 = extractCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+      const cip20 = metadataCache.get(utxo.tx_hash) || {};
       encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     }
 
-    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
+    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions, 15_000);
     const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
     return { data: encryptions, warnings };
   } catch (err) {

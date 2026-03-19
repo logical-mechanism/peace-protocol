@@ -16,6 +16,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   network: (process.env.NETWORK || 'preprod') as Network,
   useStubs: process.env.USE_STUBS === 'true',
+  dataDir: process.env.DATA_DIR || '',
 
   // Koios URLs and auth tokens
   koios: {

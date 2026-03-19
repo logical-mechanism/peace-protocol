@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app.js';
+import { clearTxBlockHeightCache } from '../../routes/chain.js';
+import { apiCache } from '../../services/cache.js';
 
 const mockKoiosClient = {
   getTxInfo: vi.fn(),
@@ -52,6 +54,8 @@ const app = createApp();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearTxBlockHeightCache();
+  apiCache.clear();
 });
 
 describe('GET /api/chain/confirmations/:txHash', () => {
@@ -115,9 +119,21 @@ describe('GET /api/chain/confirmations/:txHash', () => {
     expect(res.body.data.status).toBe('confirmed');
   });
 
-  it('returns 503 when Koios is unreachable', async () => {
+  it('returns pending when tx lookup fails (Koios unreachable)', async () => {
     mockKoiosClient.getTxInfo.mockRejectedValue(new Error('network error'));
-    mockKoiosClient.getTip.mockRejectedValue(new Error('network error'));
+
+    const res = await request(app).get(`/api/chain/confirmations/${validTxHash}`);
+
+    // When getTxInfo fails, the tx is treated as pending (not yet on-chain)
+    expect(res.status).toBe(200);
+    expect(res.body.data.confirmations).toBe(0);
+    expect(res.body.data.status).toBe('pending');
+  });
+
+  it('returns 503 when confirmed tx tip lookup fails without tipHeight param', async () => {
+    // First call: tx is found and cached with block_height=100
+    mockKoiosClient.getTxInfo.mockResolvedValueOnce({ block_height: 100 });
+    mockKoiosClient.getTip.mockRejectedValueOnce(new Error('network error'));
 
     const res = await request(app).get(`/api/chain/confirmations/${validTxHash}`);
 

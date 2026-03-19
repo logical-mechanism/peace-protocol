@@ -22,6 +22,15 @@ import { getAcceptBidSecrets, removeAcceptBidSecrets } from './acceptBidStorage'
  */
 const MIN_CONFIRMATION_DEPTH = 15;
 
+/** Minimum interval between cleanup runs (5 minutes). */
+const CLEANUP_THROTTLE_MS = 5 * 60 * 1000;
+let lastCleanupAt = 0;
+
+/** Reset the throttle timer (for testing only). */
+export function resetCleanupThrottle(): void {
+  lastCleanupAt = 0;
+}
+
 /**
  * Cleanup stale secrets after confirmed on-chain state changes.
  *
@@ -42,9 +51,15 @@ const MIN_CONFIRMATION_DEPTH = 15;
  */
 export async function cleanupStaleSecrets(
   userPkh: string,
-  encryptions: EncryptionDisplay[]
+  encryptions: EncryptionDisplay[],
+  tipHeight?: number
 ): Promise<void> {
   try {
+    // Throttle: skip if last cleanup was less than 5 minutes ago
+    const now = Date.now();
+    if (now - lastCleanupAt < CLEANUP_THROTTLE_MS) return;
+    lastCleanupAt = now;
+
     const sellerSecrets = await listSecrets();
     if (sellerSecrets.length === 0) return;
 
@@ -65,7 +80,7 @@ export async function cleanupStaleSecrets(
         // Path 1: Ownership changed — verify confirmation depth
         try {
           const { confirmations } = await chainApi.getConfirmations(
-            encryption.utxo.txHash
+            encryption.utxo.txHash, tipHeight
           );
 
           if (confirmations >= MIN_CONFIRMATION_DEPTH) {
@@ -97,7 +112,7 @@ export async function cleanupStaleSecrets(
           if (Date.now() < hopSecrets.ttl) continue;
 
           const { confirmations } = await chainApi.getConfirmations(
-            encryption.utxo.txHash
+            encryption.utxo.txHash, tipHeight
           );
 
           if (confirmations >= MIN_CONFIRMATION_DEPTH) {
