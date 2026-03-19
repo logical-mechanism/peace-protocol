@@ -197,7 +197,9 @@ fn start_media_server(media_dir: std::path::PathBuf) -> Option<u16> {
     };
     let port = std_listener.local_addr().unwrap().port();
     if let Err(e) = std_listener.set_nonblocking(true) {
-        eprintln!("[media-server] Failed to set non-blocking: {e} — media streaming will be unavailable");
+        eprintln!(
+            "[media-server] Failed to set non-blocking: {e} — media streaming will be unavailable"
+        );
         return None;
     }
 
