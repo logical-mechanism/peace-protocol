@@ -123,7 +123,7 @@ Difficulty ratings:
   - **How**: In `config.rs` `validate()` (line ~262–350), validation only runs when `self.contracts` is `Some`. If `contracts` is absent from `config.json`, the app starts with no contract addresses and all API calls fail cryptically. Add: `if self.contracts.is_none() { errors.push("contracts configuration is required".into()) }` at the start of `validate()`.
   - **Why**: The app starts but silently fails on every transaction operation. An early validation error with a clear message saves hours of debugging.
 
-- [ ] 🟢 **Add missing MIME types for multimedia formats**
+- [x] 🟢 **Add missing MIME types for multimedia formats**
   - **How**: In `lib.rs` `media_mime_type()` (line ~41–61), add entries for `.3gp` → `"video/3gpp"`, `.m2ts` → `"video/mp2t"`, `.wma` → `"audio/x-ms-wma"`, `.wmv` → `"video/x-ms-wmv"`. Currently these fall through to `application/octet-stream`, which prevents GStreamer from selecting the correct codec pipeline.
   - **Why**: Users who store these formats in their library see broken playback because the media server doesn't advertise the correct content type.
 
