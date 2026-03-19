@@ -91,7 +91,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/BidTimeline.tsx`, `fe/src/components/EncryptionCard.tsx`
 
-- [ ] 🟢 **Add ARIA progress semantics to BidTimeline**
+- [x] 🟢 **Add ARIA progress semantics to BidTimeline**
   - **How**: In `BidTimeline.tsx`, the component renders a visual timeline of bid stages but has no ARIA attributes. Add `role="progressbar"` with `aria-valuetext` describing the current stage (e.g., "Bid placed, awaiting acceptance") and `aria-label="Bid progress"`. The stages are already computed — just expose them to assistive tech.
   - **Why**: Screen readers see the timeline as meaningless divs. Users who can't see the visual progression have no way to understand bid status.
 
