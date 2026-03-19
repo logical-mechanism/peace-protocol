@@ -13,12 +13,13 @@ import type { IWallet } from '@meshsdk/core'
 import type { useToast } from '../../components/Toast'
 import type { TabId } from './dashboardTypes'
 import type { MarketplaceFilters, MarketplaceAction } from '../../hooks/useTabFilterState'
+import type { NodeStage } from '../../contexts/NodeContext'
 
 interface UseDashboardEffectsParams {
   userPkh: string | undefined
   tipSlot: number | null
   tipHeight: number | null
-  nodeStage: string
+  nodeStage: NodeStage
   expressReady: boolean
   refreshSignal: number
   historySignal: number

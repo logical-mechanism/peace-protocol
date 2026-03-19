@@ -202,7 +202,7 @@ export default function Settings() {
             walletState={walletState}
             wallet={wallet}
             address={address}
-            lovelace={lovelace}
+            lovelace={lovelace ?? null}
             userPkh={userPkh}
             stage={stage}
             tipSlot={tipSlot}

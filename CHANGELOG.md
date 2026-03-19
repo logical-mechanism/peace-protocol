@@ -20,8 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - Improved wallet login flow (#60)
 - Improved marketplace loading flow (#61)
-- Refactored large frontend files for improved maintainability
-- Updated copyright headers to 2025-2026 across all source files
+- Refactored large frontend files for improved maintainability (#66)
+- Updated copyright headers to 2025-2026 across all source files (#66)
 
 ## [0.4.1] - 2026-03-09
 
