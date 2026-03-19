@@ -1,83 +1,103 @@
 ---
 name: update-gui-goals
-description: Regenerate app/gui/video_goals.md with a fresh comprehensive analysis of the VideoPlayer component
+description: Regenerate app/gui/goals.md with a fresh comprehensive analysis of the Veiled desktop app (excluding AudioPlayer and VideoPlayer internals)
 ---
 
-# Update Video Goals
+# Update GUI Goals
 
-Delete `video_goals.md` and regenerate it from scratch with a comprehensive analysis of every possible improvement across the VideoPlayer component. Do not carry over completed items or skipped items from the previous round — this is a fresh audit against the current state of the code.
+Delete `goals.md` and regenerate it from scratch with a comprehensive analysis of every possible improvement across the Veiled desktop app. Do not carry over completed items or skipped items from the previous round — this is a fresh audit against the current state of the code.
 
-**Design intent:** The VideoPlayer is a desktop video viewer integrated into the Veiled library modal. It uses a native `<video>` element with FFmpeg.wasm remux fallback for unsupported containers. Styling uses Tailwind utilities with CSS variable theming (dark/light). Suggestions should feel native to a polished desktop media library app — not a web-first SPA.
+**Design intent:** Veiled is a three-layer Tauri v2 desktop app for the PEACE Protocol encrypted data marketplace. The frontend uses React 19 + Vite + Tailwind v4. The backend is Express v5. The core is Rust (Tauri). Suggestions should feel native to a polished desktop application — not a web-first SPA.
+
+**Scope:** Everything EXCEPT AudioPlayer.tsx and VideoPlayer.tsx component internals — those have dedicated skills (`update-audio-goals`, `update-video-goals`). Integration points with media players ARE in scope (e.g., how LibraryContentModal launches them, how data is passed to them, format detection).
 
 ## Process
 
 1. **Read CLAUDE.md** to understand the current architecture, conventions, and gotchas
-2. **Read the current video_goals.md** (if it exists) to understand what was previously identified — but do NOT preserve it. The output is a clean slate. Note any items marked `[s]` (skipped) — these were intentionally declined and must NOT be re-suggested in the new goals.
-3. **Launch parallel Explore subagents** (all "very thorough") to audit the VideoPlayer:
+2. **Read the current goals.md** (if it exists) to understand what was previously identified — but do NOT preserve it. The output is a clean slate. Note any items marked `[s]` (skipped) — these were intentionally declined and must NOT be re-suggested in the new goals.
+3. **Launch parallel Explore subagents** (all "very thorough") to audit the app:
 
-   **Agent 1 — Playback, Seeking & Transport:**
-   - Read the full `VideoPlayer.tsx` component line by line
-   - Read the `AudioPlayer.tsx` component for feature parity comparison
-   - Read `LibraryContentModal.tsx` for integration point (how data is passed, how the player is mounted)
-   - Read `fe/src/config/categories.ts` for supported video formats
+   **Agent 1 — Frontend UX (tabs, modals, cards, overlays, pages):**
+   - Read all tab components: `MarketplaceTab.tsx`, `MySalesTab.tsx`, `MyPurchasesTab.tsx`, `HistoryTab.tsx`, `LibraryTab.tsx`
+   - Read all modal components: `CreateListingModal.tsx`, `PlaceBidModal.tsx`, `BidsModal.tsx`, `DecryptModal.tsx`, `SnarkProvingModal.tsx`, `SnarkDownloadModal.tsx`, `LibraryContentModal.tsx`, `ConfirmModal.tsx`, `DescriptionModal.tsx`
+   - Read all card components: `EncryptionCard.tsx`, `SalesListingCard.tsx`, `MyPurchaseBidCard.tsx`, `LibraryCard.tsx`, `ListingImage.tsx`
+   - Read overlays and banners: `OnboardingOverlay.tsx`, `KeyboardShortcutsOverlay.tsx`, `ShutdownOverlay.tsx`, `OfflineBanner.tsx`, `SessionWarningBanner.tsx`
+   - Read `Toast.tsx`, `ErrorBoundary.tsx`
+   - Read all pages: `Dashboard.tsx`, `Settings.tsx`, `WalletSetup.tsx`, `WalletUnlock.tsx`, `NodeSync.tsx`
+   - Read Dashboard extracted hooks: `useBuyerActions.ts`, `useSellerActions.ts`, `useDashboardEffects.ts`
+   - Do NOT read AudioPlayer.tsx or VideoPlayer.tsx internals
    - Identify gaps using this checklist:
-     - **Playback reliability**: Does the `<video>` element handle all lifecycle events? Check for `stalled`, `waiting`, `suspend`, `abort`, `emptied`. Is the probe mechanism (8s timeout) robust? Are there race conditions between Blob creation, probe resolution, and FFmpeg remux?
-     - **FFmpeg remux reliability**: What happens if CDN is unreachable? Is the WASM load retried on failure? Does the remux handle corrupted input gracefully? Is progress reporting accurate? What happens if remux produces an unplayable output?
-     - **Seeking UX**: Can users seek via progress bar click/drag? Is there a visible playback position indicator? Does the seek bar have adequate click target size? Is there a hover time preview? Does seeking work during pause?
-     - **Transport completeness**: Play, pause, skip ±5s, speed, mute, volume, fullscreen, PiP, captions — is anything missing? Are keyboard shortcuts comprehensive and discoverable? Does the AudioPlayer have transport features the VideoPlayer lacks?
-     - **Format handling**: Are all 6 supported formats (mp4, mkv, avi, mov, webm, m4v) handled correctly? Are MIME types accurate? Does the probe → remux fallback work for each format? Are error messages helpful when a format fails?
-     - **Edge cases**: What happens at video end? What about zero-length files? Corrupted files? Files with no video track (audio-only in video container)? Very large files and memory pressure?
+     - **Marketplace**: Search/filter UX, sorting, pagination, empty states, loading states, error recovery, card interaction patterns, favorite toggling, refresh behavior
+     - **Modals**: Form validation quality, error display, unsaved-changes handling, loading/submitting states, keyboard accessibility (Escape, Tab trapping), visual consistency across all modals
+     - **Cards**: Information density, truncation handling, hover states, action affordances, grid/compact mode consistency
+     - **History**: Transaction status display, confirmation tracking, stale data handling, clear history flow
+     - **Library**: File management UX, select mode, delete confirmation, export flow, content modal integration (how it opens players/viewers)
+     - **Create listing**: Multi-step flow, draft recovery, file upload progress, validation feedback, Iagon auth flow
+     - **Settings**: Section organization, search/filter, toggle behaviors, destructive action confirmations
+     - **Pages**: Wallet setup/unlock flow, node sync progress display, dashboard layout, routing guards
+     - **Overlays/Banners**: Onboarding flow, offline detection, session warnings, shutdown UX
+     - **Toast**: Consistency of usage across the app, duration appropriateness, action buttons
 
-   **Agent 2 — Performance & Memory:**
-   - Read the FFmpeg.wasm setup and remux pipeline
-   - Read the Blob URL lifecycle management
-   - Read the probe mechanism implementation
-   - Read `fe/src/index.css` for CSS variables, transitions, animations used by the player
+   **Agent 2 — Backend + Rust Core:**
+   - Read all routes: `encryptions.ts`, `bids.ts`, `protocol.ts`, `chain.ts`, and the routes `index.ts`
+   - Read all services: `encryptions.ts`, `bids.ts`, `kupo.ts`, `koios.ts`, `parsers.ts`, `cache.ts`, `circuitBreaker.ts`, `fetchWithRetry.ts`, `health.ts`, `logger.ts`, `cbor.ts`, `metadataDiskCache.ts`
+   - Read all middleware: `validate.ts`, `pagination.ts`, `requestLogger.ts`, `timeout.ts`
+   - Read `app.ts` and `be/src/index.ts`
+   - Read Tauri core: `lib.rs`, `config.rs`
+   - Read process management: `manager.rs`, `cardano.rs`, `ogmios.rs`, `kupo.rs`, `express.rs`, `mithril.rs`, `cardano_cli.rs`
+   - Read commands: `secrets.rs`, `wallet.rs`, `node.rs`, `snark.rs`, `media.rs`, `iagon.rs`, `kupo_proxy.rs`, `chain.rs`
+   - Read crypto: `wallet.rs`, `secrets.rs`, `audit.rs`, `migration.rs`
    - Identify gaps using this checklist:
-     - **Remux performance**: How large a file can be remuxed before hitting memory limits? Is progress reporting smooth or chunky? Could the WASM core be bundled locally instead of fetched from CDN? Is the remuxed output cleaned up from FFmpeg's virtual filesystem?
-     - **Blob URL lifecycle**: Are Blob URLs revoked on unmount? On re-render with new data? Are there leak paths where URLs survive component teardown?
-     - **Video element lifecycle**: Is the video element properly cleaned up? Are event listeners removed? Is `video.src` cleared on unmount to release GStreamer resources?
-     - **Fullscreen performance**: Does the fullscreen overlay cause layout thrash? Is the placeholder text approach efficient? Are control bar re-renders minimized?
-     - **Theme support**: Do all CSS variables have light-theme overrides? Does the progress bar, control bar, and error state render correctly in light mode?
-     - **Memory management**: Are Uint8Array inputs released after Blob creation? Is the FFmpeg virtual filesystem cleaned up after remux? What's the peak memory usage for a large video file (original + remuxed copy in memory)?
+     - **API routes**: Response consistency, error shapes, missing validation, edge cases in datum parsing, pagination correctness, stub/production alignment
+     - **Resilience**: Circuit breaker tuning, cache TTLs, retry behavior, stale data transparency to frontend
+     - **Process management**: Restart reliability, orphan cleanup, health checks for all processes, log buffer overflow, shutdown ordering
+     - **Security**: Secret lifecycle (creation, access, deletion, zeroization), IPC command input validation, file path traversal protections, env var handling
+     - **Config**: Consistency between stub and production modes, environment variable validation
+     - **Media server**: Range request edge cases, MIME type coverage, directory traversal prevention
 
-   **Agent 3 — UX, Accessibility & Display:**
-   - Read all UI rendering sections of `VideoPlayer.tsx` (the JSX return block)
-   - Read the subtitle parsing and display logic
-   - Read the error state rendering
-   - Read the test file at `fe/src/components/__tests__/VideoPlayer.test.tsx`
+   **Agent 3 — Design System, Accessibility, Testing, CI/CD:**
+   - Read `fe/src/index.css` (CSS variables, theme tokens, animations)
+   - Read `fe/src/fonts.css`
+   - Read UI primitives: `InfoTooltip.tsx`, `Badge.tsx`, `LoadingSpinner.tsx`, `DelayedSpinner.tsx`, `EmptyState.tsx`, `EmptyStateIllustrations.tsx`, `SkeletonCard.tsx`, `ScrollToTop.tsx`, `HighlightText.tsx`, `TransactionLink.tsx`, `MnemonicInput.tsx`, `PasswordStrengthIndicator.tsx`, `PriceRangeSlider.tsx`, `RefreshIndicator.tsx`, `BidTimeline.tsx`
+   - Read hooks: `useFocusTrap.ts`, `useModalStack.ts`, `useAsyncAction.ts`, `useDataRefresh.ts`, `useTabFilterState.ts`, `useWalletHealth.ts`
+   - Read `errorMessages.ts`, `themeStorage.ts`
+   - Read `.github/workflows/` (all CI files)
+   - Read `app/gui/test.sh`, `app/gui/lint.sh`
+   - Read `fe/vite.config.ts` and `be/vitest.config.ts` (coverage configs)
+   - Spot-check 3-4 test files from `fe/src/components/__tests__/` to assess test quality patterns
    - Identify gaps using this checklist:
-     - **Accessibility**: Does the seek bar have `role="slider"` + ARIA attributes? Are playback state changes announced via `aria-live`? Do toggle buttons use `aria-pressed`? Are all interactive elements keyboard-reachable? Is tab order logical? Is the keyboard shortcut overlay accessible?
-     - **Loading states**: Is there a loading indicator during probe? During FFmpeg remux? During video buffering? Is the user informed of what's happening at each stage?
-     - **Error states**: Are error messages actionable? Do they mention GStreamer plugins, format incompatibility, or suggest exporting? Is the error UI visually distinct? Are there error states that are silently swallowed?
-     - **Subtitle UX**: Can users toggle captions on/off? Is the SRT→VTT conversion robust? Are subtitle timing edge cases handled? Is there visual feedback when captions are enabled?
-     - **Fullscreen UX**: Does Escape reliably exit fullscreen without closing the modal? Are controls visible/auto-hiding in fullscreen? Is the transition smooth?
-     - **Visual polish**: Are transitions smooth? Do buttons have proper hover/active/focus states? Is spacing consistent with the design system? Is the progress bar visually clear?
-     - **Test coverage**: What utility functions are tested? What's NOT tested? Are edge cases covered (NaN, Infinity, empty arrays, zero-length video)? Is the probe mechanism tested? Is FFmpeg remux tested?
+     - **Design system**: CSS variable completeness (dark + light), token naming consistency, spacing/radius/shadow tokens used consistently, animation patterns, font usage
+     - **Accessibility**: Focus management across modals, ARIA attributes on interactive elements, screen reader announcements, keyboard navigation completeness, color contrast, focus indicators
+     - **Testing**: Coverage gaps (untested components/services/hooks), test quality (behavioral vs trivial render-only tests), mock patterns, factory completeness
+     - **CI/CD**: Workflow correctness (paths, steps), coverage enforcement, lint enforcement, build validation
 
-4. **Synthesize findings** from all agents into a single `video_goals.md` file. Cross-reference between agents to eliminate duplicates. If an area has no genuine issues, do not pad it with filler items.
+4. **Synthesize findings** from all agents into a single `goals.md` file. Cross-reference between agents to eliminate duplicates. If an area has no genuine issues, do not pad it with filler items.
 
 ## Output Format
 
-Write `video_goals.md` with this structure:
+Write `goals.md` with this structure:
 
 ```markdown
-# VideoPlayer Goals & Improvements
+# Veiled Desktop App — Goals & Improvements
 
-A comprehensive backlog for making the VideoPlayer exceptional. Pick any item, implement it, check it off, and submit a PR.
+A comprehensive backlog for making Veiled exceptional. Pick any item, implement it, check it off, and submit a PR.
 
-**Architecture context:**
-- Native `<video>` element for playback (routes through GStreamer via WebKitGTK)
-- FFmpeg.wasm remux fallback for unsupported containers (MKV, AVI → MP4)
-- Format probe mechanism: temporary `<video>` element with 8s timeout
-- SRT/VTT subtitle support with automatic format conversion
-- Fullscreen overlay mode with capture-phase Escape handling
-- Styling uses Tailwind utilities + CSS variables defined in `fe/src/index.css`
+Each item has:
+- **What**: A brief description of the feature or improvement
+- **How**: Implementation ideas and key files involved
+- **Why**: The value it provides
 
-Each item:
-- `🔴` Critical — bugs, broken features
-- `🟡` Important — UX improvements, user-requested features
-- `🟢` Nice-to-have — polish, optimization
+Difficulty ratings:
+- 🟢 Small — isolated change, single file, < 1 hour
+- 🟡 Medium — touches 2-4 files, may need testing, < half day
+- 🔴 Large — cross-cutting, multiple components/services, needs design thought
+
+---
+
+## Table of Contents
+
+1. [Section Name](#1-section-name)
+...
 
 ---
 
@@ -91,49 +111,61 @@ Each item:
 
 ---
 
-## Priority Summary
+## Priority Guide
 
-| Priority | Count | Items |
-|----------|-------|-------|
-| 🔴 Critical | N | ... |
-| 🟡 Important | N | ... |
-| 🟢 Nice-to-have | N | ... |
+### Must-Have (blocks production readiness)
+- ...
 
-### Implementation Order (suggested)
-[ordered list of recommended implementation sequence]
+### Should-Have (significant UX/reliability improvement)
+- ...
+
+### Nice-to-Have (polish and delight)
+- ...
+
+### Craft (the details that make users say "this is well built")
+- ...
+
+### Infrastructure (developer productivity)
+- ...
 ```
 
 ## Section Categories
 
 Organize items into these sections (merge or split as findings dictate). If a section has no genuine issues, omit it entirely.
 
-1. Playback & Stability
-2. Seeking & Navigation
-3. Transport Controls
-4. Format Support & Remuxing
-5. Performance & Memory
-6. Accessibility
-7. Subtitle Support
-8. Display & UX
+1. Marketplace
+2. Modals & Forms
+3. History & Transactions
+4. Library
+5. Settings
+6. Error Handling & User Feedback
+7. Design System & Styling
+8. Accessibility
+9. Backend API & Resilience
+10. Rust Core & Security
+11. Testing
+12. CI/CD
 
 ## Quality Standards
 
-- **Every item must reference specific files** — no vague "improve the player" items
+- **Every item must reference specific files** — no vague "improve the app" items
 - **How sections must be actionable** — describe the approach concretely enough that a developer can start implementing without ambiguity
 - **No duplicates** — each improvement appears exactly once in the most relevant section
 - **Verify before suggesting** — read the actual code to confirm something is missing before adding it as a goal. Do not guess based on file names alone. If the component already handles a state/feature, do not suggest adding it
-- **Specific over generic** — "Add `aria-pressed={isMuted}` to the mute button at line 504" is better than "Improve accessibility". Name the file, the line, the prop
-- **User-observable value** — every item should describe a change that a user would notice. Internal refactors must explain the observable benefit (smoother playback, fewer glitches, better errors)
+- **Specific over generic** — "Add `title={encryption.tokenName}` to the `<span>` at line 261" is better than "Improve tooltips". Name the file, the line, the prop
+- **User-observable value** — every item should describe a change that a user would notice. Internal refactors must explain the observable benefit
+- **Meaningful and useful** — every item must make the application genuinely better. No padding, no filler. If you can't articulate why a user or developer would care, don't include it
+- **Do NOT include AudioPlayer or VideoPlayer internals** — those have dedicated skills. Only include integration-boundary items (how the app launches/passes data to those components)
 
 ## Rules
 
-- Delete the existing `video_goals.md` before writing — this is always a fresh analysis
-- Do NOT carry over checked items (`[x]`) from the previous `video_goals.md`
-- Do NOT carry over skipped items (`[s]`) from the previous `video_goals.md` — these were intentionally declined and must not reappear
+- Delete the existing `goals.md` before writing — this is always a fresh analysis
+- Do NOT carry over checked items (`[x]`) from the previous `goals.md`
+- Do NOT carry over skipped items (`[s]`) from the previous `goals.md` — these were intentionally declined and must not reappear
 - Do NOT add items that are already implemented in the codebase — verify by reading the actual code
 - Do NOT pad sections — if a section has no real issues, omit it or include only 1-2 genuine items. Quality over quantity
 - Match the terse, reference-style tone of CLAUDE.md
 - Include every genuine finding — no artificial item count target. Let the findings emerge naturally from the current state of the code
 - Run the Explore agents in parallel to minimize wall-clock time
 - After writing, count the total items with `grep -c '^\- \[ \]'` and report the count
-- Report per-priority breakdown: `grep -c '🔴'`, `grep -c '🟡'`, `grep -c '🟢'`
+- Report per-difficulty breakdown: `grep -c '🟢'`, `grep -c '🟡'`, `grep -c '🔴'`
