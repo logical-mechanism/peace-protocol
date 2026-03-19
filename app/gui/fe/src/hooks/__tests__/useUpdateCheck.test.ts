@@ -203,4 +203,26 @@ describe('useUpdateCheck', () => {
     unmount()
     expect(mockUnlisten).toHaveBeenCalled()
   })
+
+  it('cleans up event listener when unmount happens before listen resolves', async () => {
+    const mockUnlisten = vi.fn()
+    let resolveListenPromise: (fn: () => void) => void
+    ;(listen as Mock).mockReturnValueOnce(
+      new Promise<() => void>((resolve) => {
+        resolveListenPromise = resolve
+      })
+    )
+
+    const { unmount } = renderHook(() => useUpdateCheck())
+
+    // Unmount before listen promise resolves
+    unmount()
+
+    // Now resolve the listen promise — unlisten should be called immediately
+    await act(async () => {
+      resolveListenPromise(mockUnlisten)
+    })
+
+    expect(mockUnlisten).toHaveBeenCalled()
+  })
 })

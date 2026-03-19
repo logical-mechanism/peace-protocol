@@ -69,7 +69,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/hooks/useUpdateCheck.ts`
 
-- [ ] 🟢 **Fix event listener leak in useUpdateCheck on fast unmount**
+- [x] 🟢 **Fix event listener leak in useUpdateCheck on fast unmount**
   - **How**: In `useUpdateCheck.ts` lines 37–52, the `listen()` call returns a Promise. If the component unmounts before the promise resolves, `unlisten` is still `undefined` in the cleanup function, and the listener is never removed. Fix by tracking a `mounted` flag: `let mounted = true; listen(...).then(fn => { if (mounted) unlisten = fn; else fn() }); return () => { mounted = false; unlisten?.() }`.
   - **Why**: If the Settings page or Dashboard mounts and unmounts quickly (e.g., during rapid navigation), the Tauri event listener for `update-download-progress` is orphaned and continues receiving events with no cleanup path.
 
