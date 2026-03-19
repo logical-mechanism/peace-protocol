@@ -8,7 +8,7 @@ export class TtlCache {
   private defaultTtlMs: number;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(defaultTtlMs: number = 15_000, autoCleanupIntervalMs?: number) {
+  constructor(defaultTtlMs: number = 5_000, autoCleanupIntervalMs?: number) {
     this.defaultTtlMs = defaultTtlMs;
     if (autoCleanupIntervalMs && autoCleanupIntervalMs > 0) {
       this.cleanupTimer = setInterval(() => this.cleanupExpired(), autoCleanupIntervalMs);
@@ -75,5 +75,5 @@ export class TtlCache {
   }
 }
 
-/** Shared singleton for the API layer (15s default TTL, 60s cleanup cycle). */
-export const apiCache = new TtlCache(15_000, 60_000);
+/** Shared singleton for the API layer (5s default TTL, 30s cleanup cycle). */
+export const apiCache = new TtlCache(5_000, 30_000);

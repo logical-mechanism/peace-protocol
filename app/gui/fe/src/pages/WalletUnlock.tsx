@@ -39,7 +39,7 @@ export default function WalletUnlock() {
       setError(null)
     })
     // Wait for the browser to paint the disabled state
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     try {
       await unlockWallet(password)
       navigate('/dashboard')
@@ -220,7 +220,7 @@ export default function WalletUnlock() {
             style={{
               background:
                 password && !isUnlocking ? undefined : 'var(--bg-elevated)',
-              transition: isUnlocking ? 'none' : undefined,
+              transition: 'none',
             }}
           >
             {isUnlocking && <LoadingSpinner size="sm" className="text-white" />}
@@ -286,15 +286,30 @@ export default function WalletUnlock() {
                 Without your recovery phrase, your funds will be permanently lost.
               </div>
               <label
-                className="flex items-start gap-2 mb-4 text-sm cursor-pointer"
+                className="flex items-start gap-3 mb-4 text-sm cursor-pointer select-none"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 <input
                   type="checkbox"
                   checked={backupAcknowledged}
                   onChange={(e) => setBackupAcknowledged(e.target.checked)}
-                  className="mt-0.5 accent-[var(--accent)]"
+                  className="sr-only"
+                  aria-label="I have backed up my 24-word recovery phrase"
                 />
+                <span
+                  className="mt-0.5 w-5 h-5 flex-shrink-0 flex items-center justify-center transition-colors"
+                  style={{
+                    background: backupAcknowledged ? 'var(--accent)' : 'transparent',
+                    border: backupAcknowledged ? '1px solid var(--accent)' : '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-sm)',
+                  }}
+                >
+                  {backupAcknowledged && (
+                    <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </span>
                 I have backed up my 24-word recovery phrase
               </label>
               <div className="flex gap-3">

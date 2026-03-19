@@ -18,6 +18,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { Action } from '@meshsdk/core';
 import { KupoAdapter } from './kupoAdapter';
+import { PendingTxPool } from './pendingTxPool';
+import { ChainingAdapter } from './chainingAdapter';
 
 /**
  * Ogmios provider that uses Tauri IPC (HTTP POST via reqwest) instead of
@@ -46,9 +48,17 @@ class IpcOgmiosProvider {
   }
 
   async evaluateTx(tx: string): Promise<Omit<Action, 'data'>[]> {
-    const result = await this.rpc('evaluateTransaction', {
+    const pool = getPendingTxPool();
+    const params: Record<string, unknown> = {
       transaction: { cbor: tx },
-    }) as Record<string, { validator: { index: number; purpose: string }; budget: { memory: number; cpu: number } }>;
+    };
+    if (pool.hasPendingTxs()) {
+      const additionalUtxos = pool.toOgmiosAdditionalUtxo();
+      console.log('[evaluateTx] providing', additionalUtxos.length, 'additional UTxOs to Ogmios');
+      params.additionalUtxo = additionalUtxos;
+    }
+
+    const result = await this.rpc('evaluateTransaction', params) as Record<string, { validator: { index: number; purpose: string }; budget: { memory: number; cpu: number } }>;
 
     return Object.values(result).map((val) => ({
       index: val.validator.index,
@@ -76,6 +86,8 @@ class IpcOgmiosProvider {
 
 let _kupo: KupoAdapter | null = null;
 let _ogmios: IpcOgmiosProvider | null = null;
+let _pendingPool: PendingTxPool | null = null;
+let _chainingAdapter: ChainingAdapter | null = null;
 
 /** Local Kupo adapter — implements IFetcher for UTxO queries. */
 export function getKupoAdapter(): KupoAdapter {
@@ -91,4 +103,20 @@ export function getOgmiosProvider(): IpcOgmiosProvider {
     _ogmios = new IpcOgmiosProvider();
   }
   return _ogmios;
+}
+
+/** Pending transaction pool — tracks submitted-but-unconfirmed tx UTxO effects. */
+export function getPendingTxPool(): PendingTxPool {
+  if (!_pendingPool) {
+    _pendingPool = new PendingTxPool();
+  }
+  return _pendingPool;
+}
+
+/** Chaining adapter — IFetcher that overlays pending state on top of Kupo. */
+export function getChainingAdapter(): ChainingAdapter {
+  if (!_chainingAdapter) {
+    _chainingAdapter = new ChainingAdapter(getKupoAdapter(), getPendingTxPool());
+  }
+  return _chainingAdapter;
 }

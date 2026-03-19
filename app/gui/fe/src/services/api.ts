@@ -109,6 +109,8 @@ export interface EncryptionDisplay {
     outputIndex: number;
   };
   datum: EncryptionDatum;
+  /** True when this entry is an optimistic prediction, not yet confirmed on-chain. */
+  _optimistic?: boolean;
 }
 
 // Bid types
@@ -135,6 +137,8 @@ export interface BidDisplay {
     outputIndex: number;
   };
   datum: BidDatum;
+  /** True when this entry is an optimistic prediction, not yet confirmed on-chain. */
+  _optimistic?: boolean;
 }
 
 // Protocol types
@@ -175,7 +179,7 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
     const errorData = await response.json().catch(() => ({
       error: { code: 'UNKNOWN', message: response.statusText },
     }));
-    throw new Error(errorData.error?.message || 'API request failed');
+    throw new Error(errorData.error?.detail || errorData.error?.message || 'API request failed');
   }
 
   return response.json();
@@ -193,7 +197,7 @@ async function cachedApiFetch<T>(endpoint: string, ttlMs?: number): Promise<T> {
   return result;
 }
 
-const CACHE_TTL_DATA = 15_000;     // 15s for marketplace data
+const CACHE_TTL_DATA = 5_000;      // 5s for marketplace data (Kupo is local)
 const CACHE_TTL_PROTOCOL = 60_000; // 60s for protocol config (rarely changes)
 
 // Encryption API
@@ -339,8 +343,9 @@ export const chainApi = {
    * Get the number of block confirmations for a transaction.
    * Returns 0 if the tx is not yet in a block or not found.
    */
-  async getConfirmations(txHash: string): Promise<{ confirmations: number; blockHeight?: number }> {
-    const response = await apiFetch<ApiResponse<{ confirmations: number; blockHeight?: number }>>(`/api/chain/confirmations/${txHash}`);
+  async getConfirmations(txHash: string, tipHeight?: number): Promise<{ confirmations: number; blockHeight?: number }> {
+    const query = tipHeight ? `?tipHeight=${tipHeight}` : '';
+    const response = await apiFetch<ApiResponse<{ confirmations: number; blockHeight?: number }>>(`/api/chain/confirmations/${txHash}${query}`);
     return response.data;
   },
 
@@ -356,7 +361,32 @@ export const chainApi = {
       return null;
     }
   },
+
+  /**
+   * Recover transaction history from Koios for a payment credential.
+   * Expensive query — backend caches for 60s. Used on-demand, not for polling.
+   */
+  async getHistory(pkh: string): Promise<HistoryRecoveryRecord[]> {
+    try {
+      const response = await apiFetch<ApiResponse<HistoryRecoveryRecord[]>>(`/api/chain/history/${pkh}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
 };
+
+export interface HistoryRecoveryRecord {
+  txHash: string;
+  type: string;
+  tokenName?: string;
+  timestamp: number;
+  status: 'confirmed';
+  description?: string;
+  amountLovelace?: number;
+  counterparty?: string;
+  confirmedAtBlock?: number;
+}
 
 // Health check
 export interface DependencyHealth {

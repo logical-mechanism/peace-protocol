@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Veiled",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "identifier": "com.peace-protocol.veiled-desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -34,7 +34,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["appimage"],
     "icon": [
       "icons/icon.png"
     ],

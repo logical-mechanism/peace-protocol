@@ -20,7 +20,7 @@ export default function OfflineBanner() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-50"
+      className="fixed top-0 left-0 right-0 z-[80]"
       role="alert"
       aria-live="assertive"
     >

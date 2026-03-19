@@ -1,6 +1,6 @@
 //go:build !js || !wasm
 
-// Copyright (C) 2025 Logical Mechanism LLC
+// Copyright (C) 2025-2026 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
 // main.go - CLI entry point (excluded from WASM builds)

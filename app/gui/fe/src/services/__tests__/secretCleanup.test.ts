@@ -15,7 +15,7 @@ vi.mock('../acceptBidStorage', () => ({
   removeAcceptBidSecrets: vi.fn(),
 }));
 
-import { cleanupStaleSecrets } from '../secretCleanup';
+import { cleanupStaleSecrets, resetCleanupThrottle } from '../secretCleanup';
 import { chainApi } from '../api';
 import { listSecrets, removeSecrets } from '../secretStorage';
 import { getAcceptBidSecrets, removeAcceptBidSecrets } from '../acceptBidStorage';
@@ -42,6 +42,7 @@ function makeEncryption(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetCleanupThrottle();
 });
 
 describe('cleanupStaleSecrets', () => {

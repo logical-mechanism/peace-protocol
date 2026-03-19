@@ -4,6 +4,7 @@ import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
 import { logger } from './logger.js';
 import { parseEncryptionDatum, parseHalfEncryptionLevel, parseOptionalFullLevel } from './parsers.js';
+import { MetadataDiskCache } from './metadataDiskCache.js';
 import type { EncryptionDisplay, EncryptionDatum, EncryptionLevel, ResponseWarnings } from '../types/index.js';
 
 export interface ServiceResult<T> {
@@ -17,6 +18,19 @@ export interface ParsedCip20 {
   storageLayer?: string;
   imageLink?: string;
   category?: string;
+}
+
+/**
+ * Disk-backed cache: tx_hash → parsed CIP-20 metadata.
+ * Metadata is immutable (never changes after tx creation), so entries
+ * never need to be re-fetched. Persisted to disk so the cache survives
+ * Express process restarts, avoiding expensive Koios re-fetches.
+ */
+const metadataCache = new MetadataDiskCache<ParsedCip20>('metadata_cache.json');
+
+/** Clear the persistent metadata cache (for testing only). */
+export function clearMetadataCache(): void {
+  metadataCache.clear();
 }
 
 /**
@@ -147,23 +161,34 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
       }
     }
 
-    // Phase 2: Batch fetch all CIP-20 metadata in a single request
-    const txHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
-    let metadataMap = new Map<string, Array<{ key: string; json: unknown }>>();
-    try {
-      metadataMap = await koios.getTxMetadataBatch(txHashes);
-    } catch (err) {
-      logger.warn('Failed to batch fetch CIP-20 metadata', { error: String(err) });
+    // Phase 2: Fetch CIP-20 metadata — only for tx_hashes not already in the persistent cache
+    const allTxHashes = [...new Set(parsed.map(p => p.utxo.tx_hash))];
+    const uncachedHashes = allTxHashes.filter(h => !metadataCache.has(h));
+
+    if (uncachedHashes.length > 0) {
+      try {
+        const metadataMap = await koios.getTxMetadataBatch(uncachedHashes);
+        for (const hash of uncachedHashes) {
+          const cip20 = extractCip20FromMetadata(metadataMap.get(hash) || []);
+          metadataCache.set(hash, cip20);
+        }
+      } catch (err) {
+        logger.warn('Failed to batch fetch CIP-20 metadata; using cached data for known tx hashes', {
+          error: String(err),
+          uncachedCount: uncachedHashes.length,
+          cachedCount: allTxHashes.length - uncachedHashes.length,
+        });
+      }
     }
 
-    // Phase 3: Assemble results
+    // Phase 3: Assemble results (read from persistent cache)
     const encryptions: EncryptionDisplay[] = [];
     for (const { utxo, datum } of parsed) {
-      const cip20 = extractCip20FromMetadata(metadataMap.get(utxo.tx_hash) || []);
+      const cip20 = metadataCache.get(utxo.tx_hash) || {};
       encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     }
 
-    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions);
+    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions, 15_000);
     const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
     return { data: encryptions, warnings };
   } catch (err) {
@@ -221,8 +246,23 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
   const { contracts } = getNetworkConfig();
   const koios = getKoiosClient();
 
-  // Step 1: Get all transaction hashes for this encryption token
-  const assetTxs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
+  // Step 1: Get all transaction hashes for this encryption token.
+  // Primary: asset_txs (efficient, token-specific).
+  // Fallback: address_txs (all txs at encryption address — filtered by token in step 4).
+  let assetTxs: Array<{ tx_hash: string; block_height: number }>;
+  let usedFallback = false;
+  try {
+    assetTxs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
+  } catch (err) {
+    logger.warn('asset_txs failed, falling back to address_txs', { error: String(err), tokenName });
+    usedFallback = true;
+    assetTxs = await koios.getAddressTxs(contracts.encryptionAddress);
+  }
+  logger.info('getEncryptionLevels: fetched tx hashes', {
+    tokenName,
+    usedFallback,
+    txCount: assetTxs.length,
+  });
   if (assetTxs.length === 0) {
     throw new Error(`No transactions found for encryption token ${tokenName}`);
   }
@@ -231,12 +271,30 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
 
   // Step 2: Get transaction info with inline datums
   const txInfos = await koios.getTxInfoBatch(txHashes);
+  logger.info('getEncryptionLevels: fetched tx info batch', {
+    tokenName,
+    requestedCount: txHashes.length,
+    returnedCount: txInfos.length,
+    txs: txInfos.map(tx => ({
+      hash: tx.tx_hash.slice(0, 16) + '...',
+      blockHeight: tx.block_height,
+      blockIndex: tx.tx_block_index,
+    })),
+  });
 
-  // Step 3: Sort by block_height descending (newest first)
-  txInfos.sort((a, b) => b.block_height - a.block_height);
+  // Step 3: Sort by block_height descending (newest first).
+  // Use tx_block_index as tiebreaker for chained txs in the same block
+  // (e.g., acceptBidAndReEncrypt chains 12e→12f in one block).
+  txInfos.sort((a, b) => {
+    const heightDiff = b.block_height - a.block_height;
+    if (heightDiff !== 0) return heightDiff;
+    return (b.tx_block_index ?? 0) - (a.tx_block_index ?? 0);
+  });
 
   // Step 4-5: Extract levels from inline datums at the encryption contract address
   const levels: EncryptionLevel[] = [];
+  let isNewest = true; // Track first matching tx (not just i===0, since address_txs fallback includes other tokens)
+  const skipped = { noEncOutput: 0, noInlineDatum: 0, tooFewFields: 0, wrongToken: 0 };
 
   for (let i = 0; i < txInfos.length; i++) {
     const tx = txInfos[i];
@@ -246,17 +304,36 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
       o => o.payment_addr?.bech32 === contracts.encryptionAddress
     );
     if (!encOutput) {
+      skipped.noEncOutput++;
       continue;
     }
     if (!encOutput.inline_datum?.value) {
+      skipped.noInlineDatum++;
       continue;
     }
 
     // The datum is a Plutus constructor: fields[3] = half_level, fields[4] = full_level
     const datumValue = encOutput.inline_datum.value as { constructor: number; fields: unknown[] };
-    if (!datumValue.fields || datumValue.fields.length < 5) continue;
+    logger.debug('Parsing datum for tx', {
+      txHash: tx.tx_hash,
+      fieldCount: datumValue.fields?.length,
+      constructor: datumValue.constructor,
+      blockHeight: tx.block_height,
+    });
+    if (!datumValue.fields || datumValue.fields.length < 5) {
+      skipped.tooFewFields++;
+      continue;
+    }
 
-    if (i === 0) {
+    // Verify this datum is for the requested token (essential for address_txs fallback,
+    // which returns all txs at the address, not just for this token)
+    const datumToken = (datumValue.fields[2] as { bytes?: string })?.bytes;
+    if (datumToken !== tokenName) {
+      skipped.wrongToken++;
+      continue;
+    }
+
+    if (isNewest) {
       // Newest tx: extract half_level (fields[3])
       try {
         const halfLevel = parseHalfEncryptionLevel(datumValue.fields[3] as never);
@@ -265,8 +342,13 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
           r2_g1: halfLevel.r2_g1b,
         });
       } catch (err) {
-        logger.warn('Failed to parse half_level', { txHash: tx.tx_hash, error: String(err) });
+        logger.warn('Failed to parse half_level', {
+          txHash: tx.tx_hash,
+          error: String(err),
+          field3: JSON.stringify(datumValue.fields[3]).slice(0, 200),
+        });
       }
+      isNewest = false;
     }
 
     // All txs (including newest): extract full_level if Some (fields[4])
@@ -289,9 +371,27 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
         }
       }
     } catch (err) {
-      logger.warn('Failed to parse full_level', { txHash: tx.tx_hash, error: String(err) });
+      logger.warn('Failed to parse full_level', {
+        txHash: tx.tx_hash,
+        error: String(err),
+        field4: JSON.stringify(datumValue.fields[4]).slice(0, 200),
+      });
     }
   }
+
+  logger.info('getEncryptionLevels: completed', {
+    tokenName,
+    levelsFound: levels.length,
+    txsProcessed: txInfos.length,
+    skipped,
+    levels: levels.map((l, i) => ({
+      index: i,
+      r1: l.r1?.slice(0, 16) + '...',
+      r2_g1: l.r2_g1?.slice(0, 16) + '...',
+      r2_g2: l.r2_g2 ? l.r2_g2.slice(0, 16) + '...' : undefined,
+      hasR2G2: !!l.r2_g2,
+    })),
+  });
 
   return levels;
 }

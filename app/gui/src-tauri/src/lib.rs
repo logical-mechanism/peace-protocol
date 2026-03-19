@@ -22,6 +22,12 @@ use tauri::{Emitter, Manager};
 /// a local socket connection that can deadlock the node's mini-protocol mux.
 pub struct NodeSocketReady(pub AtomicBool);
 
+/// Set to `true` once the Express backend has passed its health check
+/// (or was intentionally skipped because `dist/index.js` is missing).
+/// Prevents `get_node_status` from reporting `Synced` before the frontend
+/// can reach the backend API.
+pub struct ExpressReady(pub AtomicBool);
+
 // ── Media streaming server ──────────────────────────────────────────────────
 // WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
 // (asset://, media://) for <video>/<audio> elements. Work around this by
@@ -366,6 +372,7 @@ pub fn run() {
             // Node socket readiness flag — prevents cardano-cli queries before
             // the node has finished initialization (outgoing peer connections).
             app.manage(NodeSocketReady(AtomicBool::new(false)));
+            app.manage(ExpressReady(AtomicBool::new(false)));
 
             // App-specific temp directory — wiped on startup to clean crash orphans
             // (SNARK temp files contain secret cryptographic material)

@@ -1,17 +1,41 @@
 # The PEACE Protocol MVP
 
-The MVP runs on Ubuntu 24 and requires a fully synced Cardano node.
+This directory is a monorepo containing all components of the PEACE Protocol: smart contracts, cryptographic tooling, a SNARK prover, and the Veiled desktop application.
 
-## Virtual Environment
+## Repository Layout
 
-Activate the virtual environment before starting the happy path.
+```
+app/
+├── gui/            # Veiled desktop app (Tauri v2 + React 19) ← active development
+├── contracts/      # Aiken smart contracts (Plutus v3)
+├── snark/          # Go/gnark Groth16 SNARK prover (+ WASM)
+├── src/            # Python CLI modules (crypto, tx building)
+├── tests/          # Python test suite
+├── commands/       # Happy path shell scripts
+├── ui/             # Legacy TypeScript web UI
+└── node/           # Cardano node helpers
+```
+
+## Veiled Desktop App
+
+[Veiled](./gui/) is the first product built on top of the PEACE Protocol. It is an encrypted data marketplace where users can list, bid on, and trade decryption rights — all on Cardano.
+
+**Stack:** Tauri v2 (Rust core) + React 19 frontend (Vite + Tailwind) + Express v5 backend, backed by Cardano node, Ogmios, Kupo, and Mithril.
+
+All active development is focused here. See [gui/CLAUDE.md](./gui/CLAUDE.md) for the full architecture reference and [gui/goals.md](./gui/goals.md) for the feature backlog.
+
+## CLI Happy Path
+
+The CLI happy path runs on Ubuntu 24 and requires a fully synced Cardano node. It demonstrates the protocol flow using shell scripts and Python tooling.
+
+### Virtual Environment
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-## Happy Path Setup
+### Setup
 
 Create wallets and fund them with Lovelace.
 
@@ -51,7 +75,7 @@ Proceed to set up the contracts next.
 
 Start the happy path after contracts are set up. Access a fully synced Cardano node. Locate all happy path commands in the commands folder.
 
-## Happy Path Usage
+### Usage
 
 All of the happy path commands are located in [commands](https://github.com/logical-mechanism/peace-protocol/blob/main/app/commands/README.md).
 
@@ -75,6 +99,6 @@ Running all tests may take a while.
 ./lint.sh
 ```
 
-**Copyright (C) 2025 Logical Mechanism LLC**
+**Copyright (C) 2025-2026 Logical Mechanism LLC**
 
 **SPDX-License-Identifier: CC-BY-4.0**

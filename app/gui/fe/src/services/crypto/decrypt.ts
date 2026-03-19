@@ -639,9 +639,19 @@ export async function decryptEncryption(
     console.error('[decryptEncryption] Failed to fetch encryption levels:', err);
     return {
       success: false,
-      error: 'Failed to fetch encryption history from backend. Please try again.',
+      error: `Failed to fetch encryption history: ${err instanceof Error ? err.message : 'Unknown error'}`,
     };
   }
+
+  console.info('[decryptEncryption] Levels fetched:', {
+    count: levels.length,
+    levels: levels.map((l, i) => ({
+      index: i,
+      r1: l.r1.slice(0, 16) + '...',
+      r2_g1: l.r2_g1.slice(0, 16) + '...',
+      r2_g2: l.r2_g2 ? l.r2_g2.slice(0, 16) + '...' : undefined,
+    })),
+  });
 
   if (levels.length === 0) {
     return {
@@ -676,6 +686,15 @@ export async function decryptEncryption(
     // so we use the LAST level's r1 (matching Python recursive_decrypt).
     const capsule = encryption.datum.capsule;
     const contextR1 = levels[levels.length - 1].r1;
+
+    console.info('[decryptEncryption] ECIES decrypt inputs:', {
+      kemPrefix: kem.slice(0, 16) + '...',
+      kemLength: kem.length,
+      contextR1Prefix: contextR1.slice(0, 16) + '...',
+      capsuleNonce: capsule.nonce,
+      capsuleAad: capsule.aad,
+      capsuleCtLength: capsule.ct.length,
+    });
 
     const rawBytes = await eciesDecrypt(
       contextR1,

@@ -16,7 +16,7 @@ import type { EncryptionLevel } from '../types/index.js';
 
 const router = Router();
 
-const CACHE_DATA = 'max-age=10, stale-while-revalidate=30';
+const CACHE_DATA = 'max-age=5, stale-while-revalidate=15';
 
 /**
  * GET /api/encryptions
@@ -83,9 +83,19 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
         error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
       });
     }
-    logger.error('Error fetching encryption levels', { error: String(error), requestId: req.requestId });
+    logger.error('Error fetching encryption levels', {
+      error: String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      tokenName: req.params.tokenName,
+      requestId: req.requestId,
+    });
     return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption levels', requestId: req.requestId },
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch encryption levels',
+        detail: error instanceof Error ? error.message : String(error),
+        requestId: req.requestId,
+      },
     });
   }
 });

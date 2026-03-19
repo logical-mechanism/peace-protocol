@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Logical Mechanism LLC
+// Copyright (C) 2025-2026 Logical Mechanism LLC
 // SPDX-License-Identifier: GPL-3.0-only
 
 // kappa.go implements the core cryptographic circuits and helpers for the Peace Protocol

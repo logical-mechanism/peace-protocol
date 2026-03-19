@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface InfoTooltipProps {
   /** The tooltip text content */
@@ -9,35 +10,58 @@ interface InfoTooltipProps {
   className?: string;
 }
 
+const GAP = 8; // px between button and tooltip
+const VIEWPORT_PADDING = 8; // px from viewport edges
+
 export default function InfoTooltip({ text, position = 'top', className = '' }: InfoTooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+
+  const computePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const style: React.CSSProperties = { position: 'fixed' };
+
+    if (position === 'top') {
+      style.bottom = window.innerHeight - rect.top + GAP;
+    } else {
+      style.top = rect.bottom + GAP;
+    }
+
+    const centerX = rect.left + rect.width / 2;
+    style.left = Math.max(VIEWPORT_PADDING, centerX);
+    style.transform = 'translateX(-50%)';
+
+    setTooltipStyle(style);
+  }, [position]);
 
   const show = useCallback(() => {
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current);
       hideTimeoutRef.current = null;
     }
+    computePosition();
     setIsVisible(true);
-  }, []);
+  }, [computePosition]);
 
   const hide = useCallback(() => {
     hideTimeoutRef.current = setTimeout(() => setIsVisible(false), 100);
   }, []);
 
   const toggle = useCallback(() => {
-    setIsVisible((prev) => !prev);
-  }, []);
+    setIsVisible((prev) => {
+      if (!prev) computePosition();
+      return !prev;
+    });
+  }, [computePosition]);
 
-  const positionClasses =
+  const arrowPositionClasses =
     position === 'top'
-      ? 'bottom-full left-1/2 -translate-x-1/2 mb-2'
-      : 'top-full left-1/2 -translate-x-1/2 mt-2';
-
-  const arrowClasses =
-    position === 'top'
-      ? 'top-full left-1/2 -translate-x-1/2 border-t-[var(--bg-elevated)] border-x-transparent border-b-transparent'
-      : 'bottom-full left-1/2 -translate-x-1/2 border-b-[var(--bg-elevated)] border-x-transparent border-t-transparent';
+      ? 'top-full border-t-[var(--bg-elevated)] border-x-transparent border-b-transparent'
+      : 'bottom-full border-b-[var(--bg-elevated)] border-x-transparent border-t-transparent';
 
   return (
     <span
@@ -46,6 +70,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
       onMouseLeave={hide}
     >
       <button
+        ref={buttonRef}
         type="button"
         onClick={toggle}
         onFocus={show}
@@ -59,17 +84,19 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
         </svg>
       </button>
 
-      {isVisible && (
+      {isVisible && createPortal(
         <span
           role="tooltip"
-          className={`absolute ${positionClasses} z-50 w-max max-w-[250px] px-3 py-2 text-xs leading-relaxed text-[var(--text-secondary)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-[var(--shadow-md)] tooltip-enter pointer-events-none`}
+          style={tooltipStyle}
+          className="fixed z-[9999] w-max max-w-[250px] px-3 py-2 text-xs leading-relaxed text-[var(--text-secondary)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-[var(--shadow-md)] tooltip-enter pointer-events-none"
         >
           {text}
           <span
-            className={`absolute ${arrowClasses} w-0 h-0 border-[5px]`}
+            className={`${arrowPositionClasses} absolute left-1/2 -translate-x-1/2 w-0 h-0 border-[5px]`}
             aria-hidden="true"
           />
-        </span>
+        </span>,
+        document.body
       )}
     </span>
   );

@@ -33,6 +33,7 @@ function SalesListingCard({
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [prevBidCount, setPrevBidCount] = useState(bidCount);
   const [bidPulseKey, setBidPulseKey] = useState(0);
+  const isOptimistic = encryption._optimistic === true;
 
   if (bidCount > prevBidCount) {
     setPrevBidCount(bidCount);
@@ -116,10 +117,15 @@ function SalesListingCard({
 
               <div className="min-w-0">
                 <div className="flex items-center gap-[var(--space-2)] mb-0.5 flex-wrap">
-                  <span className="text-xs font-mono text-[var(--text-muted)]">
+                  <span className="text-xs font-mono text-[var(--text-muted)]" title={encryption.tokenName}>
                     {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
                   <EncryptionStatusBadge status={encryption.status} />
+                  {isOptimistic && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+                      Awaiting confirmation
+                    </span>
+                  )}
                   <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
                     {getCategoryLabel(encryption.category)}
                   </span>
@@ -162,7 +168,7 @@ function SalesListingCard({
 
               {/* Actions */}
               <div className="flex gap-[var(--space-2)]">
-                {isActive && (
+                {isActive && !isOptimistic && (
                   <>
                     <button
                       onClick={() => onViewBids?.(encryption)}
@@ -226,7 +232,7 @@ function SalesListingCard({
         <div className="flex items-start justify-between mb-[var(--space-md)]">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-1)]">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0">
+              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0" title={encryption.tokenName}>
                 {truncateHex(encryption.tokenName, 8, 4)}
               </span>
               <EncryptionStatusBadge status={encryption.status} />
@@ -324,7 +330,7 @@ function SalesListingCard({
 
         {/* Action Buttons */}
         <div className="mt-[var(--space-md)] space-y-[var(--space-2)]">
-          {isActive && (
+          {isActive && !isOptimistic && (
             <>
               <button
                 onClick={() => onViewBids?.(encryption)}

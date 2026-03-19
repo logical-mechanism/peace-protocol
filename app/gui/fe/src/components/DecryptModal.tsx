@@ -192,7 +192,7 @@ export default function DecryptModal({
                 : 'Decrypt Content'}
             </h2>
             {(bid || encryption) && (
-              <p className="text-sm text-[var(--text-muted)] mt-1">
+              <p className="text-sm text-[var(--text-muted)] mt-1" title={bid ? bid.encryptionToken : encryption!.tokenName}>
                 Token: {truncateHex(bid ? bid.encryptionToken : encryption!.tokenName, 12, 8)}
               </p>
             )}

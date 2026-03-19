@@ -1,4 +1,4 @@
-//// Copyright (C) 2025 Logical Mechanism LLC
+//// Copyright (C) 2025-2026 Logical Mechanism LLC
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 //// Groth16 verifier (gnark variant with commitment extension)

@@ -72,27 +72,27 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
     switch (toast.type) {
       case 'success':
         return {
-          bg: 'bg-[var(--success)]/10',
-          border: 'border-[var(--success)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--success)]/50',
           icon: 'text-[var(--success)]',
         };
       case 'error':
         return {
-          bg: 'bg-[var(--error)]/10',
-          border: 'border-[var(--error)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--error)]/50',
           icon: 'text-[var(--error)]',
         };
       case 'warning':
         return {
-          bg: 'bg-[var(--warning)]/10',
-          border: 'border-[var(--warning)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--warning)]/50',
           icon: 'text-[var(--warning)]',
         };
       case 'info':
       default:
         return {
-          bg: 'bg-[var(--accent)]/10',
-          border: 'border-[var(--accent)]/30',
+          bg: 'bg-[var(--bg-elevated)]',
+          border: 'border-[var(--accent)]/50',
           icon: 'text-[var(--accent)]',
         };
     }
@@ -246,7 +246,7 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full" aria-live="polite" role="status">
+    <div className="fixed top-4 right-4 z-[80] flex flex-col gap-2 max-w-sm w-full" aria-live="polite" role="status">
       {toasts.length >= 2 && onDismissAll && (
         <button
           onClick={onDismissAll}

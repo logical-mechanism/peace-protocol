@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { apiCache } from '../services/apiCache'
+import { optimisticStore } from '../services/optimisticStore'
 
 /** Escalating delays after a transaction is submitted (ms). */
 const TX_CONFIRMATION_DELAYS = [20_000, 45_000, 90_000, 180_000]
@@ -15,6 +16,8 @@ export interface DataRefreshState {
   triggerHistoryRefresh: () => void
   /** Trigger refresh + schedule escalating retries (after tx submission). */
   triggerTransactionRefresh: () => void
+  /** Trigger refresh without clearing cache (use when cache is already warm). */
+  triggerSoftRefresh: () => void
 }
 
 export function useDataRefresh(): DataRefreshState {
@@ -40,7 +43,14 @@ export function useDataRefresh(): DataRefreshState {
     setHistorySignal(prev => prev + 1)
   }, [])
 
+  const triggerSoftRefresh = useCallback(() => {
+    setRefreshSignal(prev => prev + 1)
+    setHistorySignal(prev => prev + 1)
+  }, [])
+
   const triggerTransactionRefresh = useCallback(() => {
+    // Prune stale optimistic entries before refreshing
+    optimisticStore.pruneStale()
     // Immediate refresh — clear cache so each retry gets fresh data
     apiCache.clear()
     setRefreshSignal(prev => prev + 1)
@@ -67,5 +77,6 @@ export function useDataRefresh(): DataRefreshState {
     triggerRefresh,
     triggerHistoryRefresh,
     triggerTransactionRefresh,
+    triggerSoftRefresh,
   }
 }

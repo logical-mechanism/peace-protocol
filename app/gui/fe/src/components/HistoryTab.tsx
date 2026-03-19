@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
@@ -58,6 +59,7 @@ function HistoryTab({
   filters,
   dispatch,
 }: HistoryTabProps) {
+  const { expressReady, tipHeight } = useNode();
   // Destructure filter state from Dashboard-level reducer
   const { statusFilter, typeFilter, dateRange, searchQuery } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -68,8 +70,40 @@ function HistoryTab({
   const [confirmations, setConfirmations] = useState<Map<string, number>>(new Map());
   const confirmationsRef = useRef<Map<string, number>>(new Map());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const hasRecoveredRef = useRef(false);
 
   const hasDataRef = useRef(false);
+
+  // Recover historical transactions from Koios (on-demand or auto-triggered)
+  const recoverHistory = useCallback(async () => {
+    if (!userPkh || recovering) return;
+    setRecovering(true);
+    try {
+      const recovered = await chainApi.getHistory(userPkh);
+      if (recovered.length > 0) {
+        const asRecords: TransactionRecord[] = recovered.map(r => ({
+          txHash: r.txHash,
+          type: (r.type as TransactionRecord['type']) || 'create-listing',
+          tokenName: r.tokenName,
+          timestamp: r.timestamp,
+          status: 'confirmed' as const,
+          description: r.description,
+          amountLovelace: r.amountLovelace,
+          counterparty: r.counterparty,
+          confirmedAtBlock: r.confirmedAtBlock,
+        }));
+        const { records } = reconcileWithOnChain(userPkh, asRecords);
+        setAllRecords(records);
+        onHistoryUpdated?.(records);
+      }
+      hasRecoveredRef.current = true;
+    } catch (err) {
+      console.error('Failed to recover history:', err);
+    } finally {
+      setRecovering(false);
+    }
+  }, [userPkh, recovering, onHistoryUpdated]);
 
   // Reconcile local history with on-chain data and check pending txs
   const refresh = useCallback(async () => {
@@ -141,10 +175,20 @@ function HistoryTab({
     }
   }, [userPkh, onHistoryUpdated]);
 
-  // Fetch on mount and re-fetch when historySignal changes (background refresh after first load)
+  // Fetch on mount and re-fetch when historySignal changes (waits for Express backend)
   useEffect(() => {
+    if (!expressReady) return;
     refresh();
-  }, [historySignal, refresh]);
+  }, [historySignal, refresh, expressReady]);
+
+  // Auto-trigger Koios recovery when history looks sparse (< 5 records)
+  useEffect(() => {
+    if (!expressReady || !userPkh || hasRecoveredRef.current || recovering) return;
+    const localRecords = getTransactions(userPkh);
+    if (localRecords.length < 5) {
+      recoverHistory();
+    }
+  }, [expressReady, userPkh, recovering, recoverHistory]);
 
   // Also update if parent passes new transactions (e.g. after recording a new tx)
   useEffect(() => {
@@ -169,7 +213,7 @@ function HistoryTab({
       for (const tx of pendingTxs) {
         if (cancelled) break;
         try {
-          const { confirmations: count, blockHeight } = await chainApi.getConfirmations(tx.txHash);
+          const { confirmations: count, blockHeight } = await chainApi.getConfirmations(tx.txHash, tipHeight ?? undefined);
           updated.set(tx.txHash, count);
 
           if (count >= 15) {
@@ -426,6 +470,24 @@ function HistoryTab({
           <div className="flex-1" />
 
           {/* Action buttons */}
+          <button
+            onClick={recoverHistory}
+            disabled={recovering}
+            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
+            title="Recover missing transactions from chain history"
+            aria-label="Recover history from chain"
+          >
+            {recovering ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+              </svg>
+            )}
+          </button>
           <button
             onClick={() => { refresh(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"

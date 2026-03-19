@@ -38,6 +38,7 @@ vi.mock('../cache.js', () => {
 });
 
 vi.mock('../../config/index.js', () => ({
+  config: { dataDir: '' },
   getNetworkConfig: () => ({
     contracts: {
       biddingAddress: 'addr_test1_bidding',
@@ -67,6 +68,7 @@ import {
   getEncryptionLevels,
   parseCip20Fields,
   extractCip20FromMetadata,
+  clearMetadataCache,
 } from '../encryptions.js';
 
 // ── Plutus JSON builders ─────────────────────────────────────────────
@@ -170,11 +172,13 @@ let mockKupo: { getAddressUtxos: ReturnType<typeof vi.fn> };
 let mockKoios: {
   getTxMetadataBatch: ReturnType<typeof vi.fn>;
   getAssetTxs: ReturnType<typeof vi.fn>;
+  getAddressTxs: ReturnType<typeof vi.fn>;
   getTxInfoBatch: ReturnType<typeof vi.fn>;
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearMetadataCache();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (apiCache as any)._store.clear();
 
@@ -182,6 +186,7 @@ beforeEach(() => {
   mockKoios = {
     getTxMetadataBatch: vi.fn().mockResolvedValue(new Map()),
     getAssetTxs: vi.fn().mockResolvedValue([]),
+    getAddressTxs: vi.fn().mockResolvedValue([]),
     getTxInfoBatch: vi.fn().mockResolvedValue([]),
   };
 
@@ -319,7 +324,7 @@ describe('getAllEncryptions', () => {
     );
   });
 
-  it('returns encryptions without CIP-20 when Koios fails', async () => {
+  it('returns encryptions without CIP-20 when Koios fails and no persistent cache', async () => {
     mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
     mockKoios.getTxMetadataBatch.mockRejectedValue(new Error('Koios down'));
 
@@ -338,6 +343,52 @@ describe('getAllEncryptions', () => {
     const result = await getAllEncryptions();
     expect(result.data[0].description).toBe('My listing');
     expect(result.data[0].suggestedPrice).toBe(10);
+  });
+
+  it('preserves metadata from persistent cache when Koios fails on subsequent call', async () => {
+    // First call: Koios returns metadata successfully
+    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
+    const metaMap = new Map();
+    metaMap.set('a'.repeat(64), [{ key: '674', json: { msg: ['My listing'], p: '10', s: 'on-chain', i: [], c: 'text' } }]);
+    mockKoios.getTxMetadataBatch.mockResolvedValue(metaMap);
+    await getAllEncryptions(true);
+
+    // Second call: Koios is down — metadata should survive from persistent cache
+    mockKoios.getTxMetadataBatch.mockRejectedValue(new Error('Koios down'));
+    const result = await getAllEncryptions(true);
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].description).toBe('My listing');
+    expect(result.data[0].suggestedPrice).toBe(10);
+  });
+
+  it('only fetches metadata for uncached tx hashes', async () => {
+    const txHashA = 'a'.repeat(64);
+    const txHashB = 'b'.repeat(64);
+
+    // First call: one UTxO
+    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
+    const metaMapA = new Map();
+    metaMapA.set(txHashA, [{ key: '674', json: { msg: ['Listing A'], p: '5', s: 'on-chain', i: [], c: 'text' } }]);
+    mockKoios.getTxMetadataBatch.mockResolvedValue(metaMapA);
+    await getAllEncryptions(true);
+
+    // Second call: two UTxOs (one new)
+    const utxoB = mkKoiosUtxo({ tx_hash: txHashB });
+    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo(), utxoB]);
+    const metaMapB = new Map();
+    metaMapB.set(txHashB, [{ key: '674', json: { msg: ['Listing B'], p: '20', s: 'iagon', i: [], c: 'document' } }]);
+    mockKoios.getTxMetadataBatch.mockResolvedValue(metaMapB);
+    const result = await getAllEncryptions(true);
+
+    // Koios should only be called with the NEW hash
+    expect(mockKoios.getTxMetadataBatch).toHaveBeenLastCalledWith([txHashB]);
+    expect(result.data).toHaveLength(2);
+    // First listing still has its metadata from persistent cache
+    const listingA = result.data.find(e => e.description === 'Listing A');
+    expect(listingA?.suggestedPrice).toBe(5);
+    const listingB = result.data.find(e => e.description === 'Listing B');
+    expect(listingB?.suggestedPrice).toBe(20);
   });
 
   it('returns cached data on cache hit', async () => {
@@ -453,7 +504,7 @@ describe('getEncryptionLevels', () => {
 
   it('throws when no transactions found', async () => {
     mockKoios.getAssetTxs.mockResolvedValue([]);
-    await expect(getEncryptionLevels('sometoken')).rejects.toThrow('No transactions found');
+    await expect(getEncryptionLevels(TOKEN_HEX)).rejects.toThrow('No transactions found');
   });
 
   it('extracts half_level from newest transaction', async () => {
@@ -474,7 +525,7 @@ describe('getEncryptionLevels', () => {
       ]),
     ]);
 
-    const levels = await getEncryptionLevels('sometoken');
+    const levels = await getEncryptionLevels(TOKEN_HEX);
 
     expect(levels).toHaveLength(1);
     expect(levels[0].r1).toBe(r1);
@@ -518,7 +569,7 @@ describe('getEncryptionLevels', () => {
       ]),
     ]);
 
-    const levels = await getEncryptionLevels('sometoken');
+    const levels = await getEncryptionLevels(TOKEN_HEX);
 
     // half_level from newest + full_level from older
     expect(levels).toHaveLength(2);
@@ -553,7 +604,7 @@ describe('getEncryptionLevels', () => {
       ]),
     ]);
 
-    const levels = await getEncryptionLevels('sometoken');
+    const levels = await getEncryptionLevels(TOKEN_HEX);
 
     // half_level + one full_level (duplicate removed)
     expect(levels).toHaveLength(2);
@@ -571,7 +622,7 @@ describe('getEncryptionLevels', () => {
       }],
     }]);
 
-    const levels = await getEncryptionLevels('sometoken');
+    const levels = await getEncryptionLevels(TOKEN_HEX);
     expect(levels).toHaveLength(0);
   });
 
@@ -587,7 +638,7 @@ describe('getEncryptionLevels', () => {
       }],
     }]);
 
-    const levels = await getEncryptionLevels('sometoken');
+    const levels = await getEncryptionLevels(TOKEN_HEX);
     expect(levels).toHaveLength(0);
   });
 
@@ -614,11 +665,81 @@ describe('getEncryptionLevels', () => {
       }],
     }]);
 
-    const levels = await getEncryptionLevels('sometoken');
+    const levels = await getEncryptionLevels(TOKEN_HEX);
     expect(levels).toHaveLength(0);
     expect(logger.warn).toHaveBeenCalledWith(
       'Failed to parse half_level',
       expect.objectContaining({ txHash: 'a'.repeat(64) })
     );
+  });
+
+  it('falls back to address_txs when asset_txs fails', async () => {
+    const r1 = '11'.repeat(48);
+    const r2g1 = '22'.repeat(48);
+    const r4 = '33'.repeat(96);
+
+    mockKoios.getAssetTxs.mockRejectedValue(new Error('Koios API error: 400'));
+    mockKoios.getAddressTxs.mockResolvedValue([{ tx_hash: 'a'.repeat(64), block_height: 100 }]);
+    mockKoios.getTxInfoBatch.mockResolvedValue([
+      mkTxInfo(100, [
+        { bytes: VKH_HEX },
+        mkRegister(),
+        { bytes: TOKEN_HEX },
+        mkHalfLevel(r1, r2g1, r4),
+        mkNone(),
+        mkCapsule(),
+        mkStatusOpen(),
+      ]),
+    ]);
+
+    const levels = await getEncryptionLevels(TOKEN_HEX);
+
+    expect(mockKoios.getAddressTxs).toHaveBeenCalled();
+    expect(levels).toHaveLength(1);
+    expect(levels[0].r1).toBe(r1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'asset_txs failed, falling back to address_txs',
+      expect.objectContaining({ error: expect.stringContaining('400') })
+    );
+  });
+
+  it('filters out outputs for other tokens in fallback mode', async () => {
+    const r1 = '11'.repeat(48);
+    const r2g1 = '22'.repeat(48);
+    const r4 = '33'.repeat(96);
+    const OTHER_TOKEN = 'ab'.repeat(32);
+
+    mockKoios.getAssetTxs.mockRejectedValue(new Error('Koios API error: 400'));
+    mockKoios.getAddressTxs.mockResolvedValue([
+      { tx_hash: 'b'.repeat(64), block_height: 200 },
+      { tx_hash: 'a'.repeat(64), block_height: 100 },
+    ]);
+    mockKoios.getTxInfoBatch.mockResolvedValue([
+      // Newer tx for a DIFFERENT token (should be skipped)
+      mkTxInfo(200, [
+        { bytes: VKH_HEX },
+        mkRegister(),
+        { bytes: OTHER_TOKEN },
+        mkHalfLevel(),
+        mkNone(),
+        mkCapsule(),
+        mkStatusOpen(),
+      ]),
+      // Older tx for OUR token (should be treated as newest match)
+      mkTxInfo(100, [
+        { bytes: VKH_HEX },
+        mkRegister(),
+        { bytes: TOKEN_HEX },
+        mkHalfLevel(r1, r2g1, r4),
+        mkNone(),
+        mkCapsule(),
+        mkStatusOpen(),
+      ]),
+    ]);
+
+    const levels = await getEncryptionLevels(TOKEN_HEX);
+
+    expect(levels).toHaveLength(1);
+    expect(levels[0].r1).toBe(r1); // half_level from our token, not the other one
   });
 });

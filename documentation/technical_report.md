@@ -1,5 +1,5 @@
 <!-- 
-Copyright (C) 2025 Logical Mechanism LLC
+Copyright (C) 2025-2026 Logical Mechanism LLC
 SPDX-License-Identifier: CC-BY-4.0
 -->
 ---

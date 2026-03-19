@@ -81,6 +81,15 @@ describe('useDataRefresh', () => {
     expect(result.current.refreshSignal).toBe(3)
   })
 
+  it('triggerSoftRefresh increments both signals without clearing cache', () => {
+    const { result } = renderHook(() => useDataRefresh())
+    act(() => result.current.triggerSoftRefresh())
+    expect(result.current.refreshSignal).toBe(1)
+    expect(result.current.historySignal).toBe(1)
+    // Note: unlike triggerRefresh, this does NOT call apiCache.clear()
+    // (verified by the absence of the clear call in implementation)
+  })
+
   it('cleans up timers on unmount', () => {
     const { result, unmount } = renderHook(() => useDataRefresh())
 

@@ -86,22 +86,40 @@ describe('InfoTooltip', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('uses bottom positioning when specified', () => {
-    render(<InfoTooltip text="Test tooltip" position="bottom" />);
-    const wrapper = screen.getByLabelText('More information').parentElement!;
-    fireEvent.mouseEnter(wrapper);
-    const tooltip = screen.getByRole('tooltip');
-    expect(tooltip.className).toContain('top-full');
-    expect(tooltip.className).not.toContain('bottom-full');
-  });
-
-  it('uses top positioning by default', () => {
+  it('renders tooltip in a portal (document.body)', () => {
     render(<InfoTooltip text="Test tooltip" />);
     const wrapper = screen.getByLabelText('More information').parentElement!;
     fireEvent.mouseEnter(wrapper);
     const tooltip = screen.getByRole('tooltip');
-    expect(tooltip.className).toContain('bottom-full');
-    expect(tooltip.className).not.toContain('top-full');
+    // Portal renders tooltip as a child of document.body, not inside the wrapper
+    expect(tooltip.parentElement).toBe(document.body);
+  });
+
+  it('uses fixed positioning with z-[9999]', () => {
+    render(<InfoTooltip text="Test tooltip" />);
+    const wrapper = screen.getByLabelText('More information').parentElement!;
+    fireEvent.mouseEnter(wrapper);
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip.className).toContain('z-[9999]');
+    expect(tooltip.className).toContain('fixed');
+  });
+
+  it('sets bottom style for top position (default)', () => {
+    render(<InfoTooltip text="Test tooltip" />);
+    const wrapper = screen.getByLabelText('More information').parentElement!;
+    fireEvent.mouseEnter(wrapper);
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip.style.bottom).toBeTruthy();
+    expect(tooltip.style.top).toBeFalsy();
+  });
+
+  it('sets top style for bottom position', () => {
+    render(<InfoTooltip text="Test tooltip" position="bottom" />);
+    const wrapper = screen.getByLabelText('More information').parentElement!;
+    fireEvent.mouseEnter(wrapper);
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip.style.top).toBeTruthy();
+    expect(tooltip.style.bottom).toBeFalsy();
   });
 
   it('applies custom className to wrapper', () => {
