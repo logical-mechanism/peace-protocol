@@ -607,7 +607,7 @@ export default function CreateListingModal({
                   <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <p className="text-sm text-[var(--text-primary)] truncate" title={formData.fileName}>{formData.fileName}</p>
+                        <p className="text-sm text-[var(--text-primary)] truncate" title={formData.fileName ?? undefined}>{formData.fileName}</p>
                         <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
                           {getCategoryConfig(formData.category)?.label || 'Other'}
                         </span>

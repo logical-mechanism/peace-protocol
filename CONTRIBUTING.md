@@ -145,4 +145,4 @@ By contributing, you agree that your contributions will be licensed under:
 - **Code:** GPL-3.0-only
 - **Documentation:** CC-BY-4.0
 
-Copyright (C) 2025 Logical Mechanism LLC
+Copyright (C) 2025-2026 Logical Mechanism LLC

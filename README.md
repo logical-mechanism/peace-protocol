@@ -11,7 +11,7 @@ PEACE consists of five on-chain validators and an off-chain toolchain:
 | Smart Contracts | Aiken (Plutus v3) | On-chain validation |
 | CLI | Python | Wallet management, encryption, transaction building |
 | SNARK Prover | Go (gnark) | Groth16 proof generation |
-| Web UI | TypeScript (React + MeshJS) | Browser-based interface |
+| Desktop App (Veiled) | TypeScript (React 19 + MeshJS), Rust (Tauri v2) | Encrypted data marketplace |
 
 ### Validators
 
@@ -38,9 +38,9 @@ Re-encryption hops can repeat: Bob can sell to Carol, Carol to Dave, and so on.
 .
 ├── app/
 │   ├── contracts/    # Aiken smart contracts (validators + types + tests)
+│   ├── gui/          # Veiled desktop app (Tauri v2 + React 19)
 │   ├── src/          # Python CLI modules
 │   ├── snark/        # Go/gnark SNARK prover
-│   ├── ui/           # TypeScript web UI (React frontend + Node.js backend)
 │   ├── commands/     # Happy path shell scripts
 │   └── tests/        # Python test suite
 └── documentation/    # Technical report, milestones, use cases
@@ -78,7 +78,6 @@ cd app/ui/fe && npx vitest run
 
 - [Technical Report (PDF)](./documentation/technical_report.pdf)
 - [Architecture and Data Model](./documentation/architecture.md)
-- [Use Cases](./documentation/use-cases.md)
 - [Smart Contract Audit](./app/contracts/claude-audit.md)
 - [Groth Optimization History](./app/contracts/groth-optimization.md)
 - [Encrypted Payload CDDL](./app/peace-payload.cddl)
@@ -95,4 +94,4 @@ cd app/ui/fe && npx vitest run
 - **Code:** GPL-3.0-only
 - **Documentation:** CC-BY-4.0
 
-**Copyright (C) 2025 Logical Mechanism LLC**
+**Copyright (C) 2025-2026 Logical Mechanism LLC**

@@ -7,7 +7,7 @@
  * Uses canonical CBOR encoding (RFC 8949 §4.2) via cborg to produce
  * byte-identical output to Python's cbor2 with canonical=True.
  *
- * Copyright (C) 2025 Logical Mechanism LLC
+ * Copyright (C) 2025-2026 Logical Mechanism LLC
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
