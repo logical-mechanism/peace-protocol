@@ -51,15 +51,15 @@ Difficulty ratings:
 
 > Key files: `be/src/services/encryptions.ts`, `be/src/services/bids.ts`, `be/src/index.ts`
 
-- [ ] 🟢 **Fix PKH filtering to use exact match instead of substring match**
+- [x] 🟢 **Fix PKH filtering to use exact match instead of substring match**
   - **How**: In `encryptions.ts` line 226, change `e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())` to `e.sellerPkh.toLowerCase() === pkh.toLowerCase()`. Same fix in `bids.ts` line 176: change `b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())` to `b.bidderPkh.toLowerCase() === pkh.toLowerCase()`. The `validate.ts` middleware already enforces that `pkh` is exactly 56 hex chars, so exact match is the correct semantic.
   - **Why**: Substring matching means a request with a partial PKH could return data belonging to other users. While the 56-char validation makes exploitation unlikely with the current middleware, the service layer should enforce exact semantics as defense-in-depth.
 
-- [ ] 🟢 **Don't persist empty metadata to disk cache for missing tx hashes**
+- [x] 🟢 **Don't persist empty metadata to disk cache for missing tx hashes**
   - **How**: In `encryptions.ts` lines 179–182, the loop iterates over `uncachedHashes` (all hashes sent to Koios) instead of only the hashes that Koios actually returned. Change `for (const hash of uncachedHashes)` to `for (const [hash, entries] of metadataMap)` and adjust: `const cip20 = extractCip20FromMetadata(entries); metadataCache.set(hash, cip20)`. Same fix in `bids.ts` lines 129–131: change `for (const hash of uncachedHashes)` to `for (const [hash, entries] of metadataMap)` and `const cip20 = extractBidCip20FromMetadata(entries); bidMetadataCache.set(hash, cip20)`.
   - **Why**: Missing hashes get `{}` cached permanently in the disk cache. Since the cache treats on-chain metadata as immutable, these empty entries are never refreshed — even if Koios was temporarily behind and the metadata becomes available later. Listings permanently lose their description, price, and image.
 
-- [ ] 🟢 **Flush metadata disk caches on Express shutdown**
+- [x] 🟢 **Flush metadata disk caches on Express shutdown**
   - **How**: In `be/src/index.ts`, import the metadata cache singletons from their respective service modules and call `.flush()` in `gracefulShutdown()` before `process.exit(0)`. The `MetadataDiskCache` uses debounced writes (5s default), so any metadata fetched within 5s of shutdown is lost without an explicit flush. Add: `import { metadataCache } from './services/encryptions.js'; import { bidMetadataCache } from './services/bids.js';` then in `gracefulShutdown`: `metadataCache.flush(); bidMetadataCache.flush();` before `server.close()`.
   - **Why**: Metadata fetched shortly before a restart is lost and must be re-fetched from Koios on the next cold start. With the disk cache meant to be permanent for immutable on-chain data, this causes unnecessary Koios load and slower startup.
 

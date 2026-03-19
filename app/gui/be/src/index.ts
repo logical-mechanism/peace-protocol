@@ -1,6 +1,8 @@
 import { createApp } from './app.js';
 import { config } from './config/index.js';
 import { logger } from './services/logger.js';
+import { metadataCache } from './services/encryptions.js';
+import { bidMetadataCache } from './services/bids.js';
 
 const app = createApp();
 
@@ -22,6 +24,10 @@ function gracefulShutdown(signal: string) {
     process.exit(1);
   }, 10_000);
   forceTimeout.unref();
+
+  // Flush disk-backed metadata caches before closing (debounced writes may be pending)
+  metadataCache.flush();
+  bidMetadataCache.flush();
 
   server.close(() => {
     logger.info('Server closed');

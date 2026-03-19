@@ -26,7 +26,7 @@ export interface ParsedCip20 {
  * never need to be re-fetched. Persisted to disk so the cache survives
  * Express process restarts, avoiding expensive Koios re-fetches.
  */
-const metadataCache = new MetadataDiskCache<ParsedCip20>('metadata_cache.json');
+export const metadataCache = new MetadataDiskCache<ParsedCip20>('metadata_cache.json');
 
 /** Clear the persistent metadata cache (for testing only). */
 export function clearMetadataCache(): void {
@@ -176,8 +176,8 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
             requested: uncachedHashes.length,
           });
         }
-        for (const hash of uncachedHashes) {
-          const cip20 = extractCip20FromMetadata(metadataMap.get(hash) || []);
+        for (const [hash, entries] of metadataMap) {
+          const cip20 = extractCip20FromMetadata(entries);
           metadataCache.set(hash, cip20);
         }
       } catch (err) {
@@ -223,7 +223,7 @@ export async function getEncryptionByToken(tokenName: string): Promise<ServiceRe
 export async function getEncryptionsByUser(pkh: string): Promise<ServiceResult<EncryptionDisplay[]>> {
   const result = await getAllEncryptions();
   return {
-    data: result.data.filter(e => e.sellerPkh.toLowerCase().includes(pkh.toLowerCase())),
+    data: result.data.filter(e => e.sellerPkh.toLowerCase() === pkh.toLowerCase()),
     warnings: result.warnings,
   };
 }
