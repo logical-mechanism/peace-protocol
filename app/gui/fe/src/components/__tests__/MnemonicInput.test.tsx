@@ -153,6 +153,39 @@ describe('MnemonicInput', () => {
       expect(wrapper!.getAttribute('style')).toContain('var(--error)');
     });
   });
+
+  describe('ARIA validation attributes', () => {
+    it('sets aria-invalid on invalid word with no matches', () => {
+      renderInput({ value: 'zzzzz' });
+      const input = screen.getByPlaceholderText('...');
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('sets aria-describedby pointing to error hint', () => {
+      renderInput({ value: 'zzzzz' });
+      const input = screen.getByPlaceholderText('...');
+      expect(input).toHaveAttribute('aria-describedby', 'mnemonic-error-0');
+      expect(document.getElementById('mnemonic-error-0')).toHaveTextContent('Not a valid BIP-39 word');
+    });
+
+    it('does not set aria-invalid for valid word', () => {
+      renderInput({ value: 'abandon' });
+      const input = screen.getByPlaceholderText('...');
+      expect(input).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('does not set aria-invalid when input is empty', () => {
+      renderInput({ value: '' });
+      const input = screen.getByPlaceholderText('...');
+      expect(input).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('does not set aria-invalid for partial match with suggestions', () => {
+      renderInput({ value: 'ab' });
+      const input = screen.getByPlaceholderText('...');
+      expect(input).not.toHaveAttribute('aria-invalid');
+    });
+  });
 });
 
 describe('validateMnemonicWords', () => {
