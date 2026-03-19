@@ -4,6 +4,25 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.2] - 2026-03-18
+
+### Added
+- Transaction chaining for accept-bid + re-encryption flow (#62)
+- Block-based background polling for transaction confirmation (#63)
+
+### Fixed
+- Wallet unlock hang caused by CPU-intensive sync operations (#65)
+- Reduced Koios API calls by over 90% (#65)
+- Modal background scroll prevention (#57)
+- Helper text / tooltip z-index layering (#64)
+- AppImage Ogmios connection issues (#58)
+
+### Changed
+- Improved wallet login flow (#60)
+- Improved marketplace loading flow (#61)
+- Refactored large frontend files for improved maintainability
+- Updated copyright headers to 2025-2026 across all source files
+
 ## [0.4.1] - 2026-03-09
 
 ### Fixed

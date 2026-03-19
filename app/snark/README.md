@@ -86,6 +86,6 @@ The `-beacon` value should be a publicly verifiable source of randomness committ
 
 The ceremony directory contains sequentially numbered contribution files (`phase1_0000.bin`, `phase1_0001.bin`, ...) that form a verifiable chain. After finalization, `pk.bin`, `vk.bin`, and `vk.json` are written to the same directory.
 
-**Copyright (C) 2025 Logical Mechanism LLC**
+**Copyright (C) 2025-2026 Logical Mechanism LLC**
 
 **SPDX-License-Identifier: CC-BY-4.0**
