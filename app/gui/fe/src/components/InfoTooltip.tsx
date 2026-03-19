@@ -75,6 +75,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
         onClick={toggle}
         onFocus={show}
         onBlur={hide}
+        onKeyDown={(e) => { if (e.key === 'Escape' && isVisible) { e.stopPropagation(); setIsVisible(false); } }}
         aria-label="More information"
         className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] focus-visible:text-[var(--accent)] focus-visible:shadow-[var(--focus-ring)] transition-colors duration-[var(--transition-fast)] cursor-help"
       >

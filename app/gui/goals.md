@@ -45,7 +45,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/InfoTooltip.tsx`, `fe/src/components/MnemonicInput.tsx`, `fe/src/components/PasswordStrengthIndicator.tsx`
 
-- [ ] 🟢 **Add Escape key to dismiss InfoTooltip**
+- [x] 🟢 **Add Escape key to dismiss InfoTooltip**
   - **How**: In `InfoTooltip.tsx`, the tooltip opens on click/focus but has no `onKeyDown` handler for Escape. Add a `useEffect` or inline `onKeyDown` on the button: when `isVisible && event.key === 'Escape'`, call `setIsVisible(false)`. The component already handles show/hide via `onFocus`/`onBlur` (lines 76–77), so Escape just adds parity with the modal Escape pattern.
   - **Why**: Keyboard-only users who open a tooltip via Tab+Enter have no way to dismiss it without tabbing away. Escape is the expected pattern.
 
