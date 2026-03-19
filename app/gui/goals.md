@@ -31,7 +31,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/EncryptionCard.tsx`, `fe/src/components/MySalesTab.tsx`, `fe/src/components/MyPurchasesTab.tsx`
 
-- [ ] 🟢 **Add `aria-pressed` to EncryptionCard favorite button**
+- [x] 🟢 **Add `aria-pressed` to EncryptionCard favorite button**
   - **How**: In `EncryptionCard.tsx` (line 93–98), the favorite toggle button has `aria-label` but no `aria-pressed={isFavorite}`. Add `aria-pressed={isFavorite}` to the `<button>` element.
   - **Why**: Screen readers can't distinguish between active/inactive favorite state. The button already toggles visual fill — ARIA should match.
 
