@@ -34,8 +34,8 @@ pub struct ExpressReady(pub AtomicBool);
 // running a lightweight HTTP server on localhost that serves media files
 // with correct MIME types and full range-request support.
 
-/// Tauri state: the port the media server is listening on.
-pub struct MediaServerPort(pub u16);
+/// Tauri state: the port the media server is listening on (None if bind failed).
+pub struct MediaServerPort(pub Option<u16>);
 
 /// Map file extension to MIME type for media streaming.
 fn media_mime_type(path: &str) -> &'static str {
@@ -184,15 +184,22 @@ async fn serve_media_file(
         .into_response()
 }
 
-/// Start the media HTTP server on a random port. Returns the port number.
-fn start_media_server(media_dir: std::path::PathBuf) -> u16 {
+/// Start the media HTTP server on a random port. Returns the port number,
+/// or `None` if binding failed (media streaming degrades but app continues).
+fn start_media_server(media_dir: std::path::PathBuf) -> Option<u16> {
     // Bind synchronously to get the port before returning
-    let std_listener =
-        std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind media server");
+    let std_listener = match std::net::TcpListener::bind("127.0.0.1:0") {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("[media-server] Failed to bind: {e} — media streaming will be unavailable");
+            return None;
+        }
+    };
     let port = std_listener.local_addr().unwrap().port();
-    std_listener
-        .set_nonblocking(true)
-        .expect("Failed to set non-blocking");
+    if let Err(e) = std_listener.set_nonblocking(true) {
+        eprintln!("[media-server] Failed to set non-blocking: {e} — media streaming will be unavailable");
+        return None;
+    }
 
     let router = axum::Router::new()
         .fallback(serve_media_file)
@@ -207,13 +214,15 @@ fn start_media_server(media_dir: std::path::PathBuf) -> u16 {
     });
 
     eprintln!("[media-server] Listening on 127.0.0.1:{port}");
-    port
+    Some(port)
 }
 
 /// Tauri command: return the media server port so the frontend can construct URLs.
 #[tauri::command]
-fn get_media_server_port(state: tauri::State<'_, MediaServerPort>) -> u16 {
-    state.0
+fn get_media_server_port(state: tauri::State<'_, MediaServerPort>) -> Result<u16, String> {
+    state
+        .0
+        .ok_or_else(|| "Media server is not available — video/audio streaming is disabled".into())
 }
 
 /// Global flag to prevent duplicate shutdown attempts.
@@ -474,7 +483,7 @@ pub fn run() {
                 .unwrap_or(&content_dir)
                 .to_path_buf();
             let port = start_media_server(media_dir);
-            app.manage(MediaServerPort(port));
+            app.manage(MediaServerPort(port));  // None if bind failed — streaming degrades gracefully
 
             // Warn frontend if config fell back to defaults
             if config_used_defaults {

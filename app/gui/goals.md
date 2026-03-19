@@ -111,7 +111,7 @@ Difficulty ratings:
 
 > Key files: `src-tauri/src/lib.rs`, `src-tauri/src/commands/secrets.rs`, `src-tauri/src/config.rs`
 
-- [ ] 🟡 **Handle media server bind failure gracefully**
+- [x] 🟡 **Handle media server bind failure gracefully**
   - **How**: In `lib.rs` (line ~174), `TcpListener::bind("127.0.0.1:0").expect(...)` panics if binding fails. Replace with `match` that logs an error and skips media server startup. Store `Option<u16>` in `MediaServerPort` state. Frontend `get_media_server_port()` already returns `Result` — return an error when port is `None`. Video/audio streaming degrades gracefully (user sees "media server unavailable" instead of app crash).
   - **Why**: Port exhaustion or race conditions during startup shouldn't crash the entire app. Library text/PDF/image content still works without the media server.
 
