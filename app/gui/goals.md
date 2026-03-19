@@ -35,7 +35,7 @@ Difficulty ratings:
   - **How**: In `EncryptionCard.tsx` (line 93–98), the favorite toggle button has `aria-label` but no `aria-pressed={isFavorite}`. Add `aria-pressed={isFavorite}` to the `<button>` element.
   - **Why**: Screen readers can't distinguish between active/inactive favorite state. The button already toggles visual fill — ARIA should match.
 
-- [ ] 🟡 **Replace `alert()` fallbacks in MySalesTab and MyPurchasesTab with no-ops or logging**
+- [x] 🟡 **Replace `alert()` fallbacks in MySalesTab and MyPurchasesTab with no-ops or logging**
   - **How**: `MySalesTab.tsx` lines 232, 246, 261 and `MyPurchasesTab.tsx` lines 229, 243 use `alert()` as fallbacks when optional callbacks aren't provided. Replace with `console.warn('callback not provided')` or remove the else branches entirely. These fire only when components are used outside Dashboard (where callbacks are always wired), but alert() in a desktop app is jarring if ever triggered.
   - **Why**: Native `alert()` dialogs look foreign in a Tauri app and can't be dismissed normally. Even as defensive fallbacks, they should fail silently or log.
 
