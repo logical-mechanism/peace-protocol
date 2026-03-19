@@ -587,6 +587,10 @@ pub fn run() {
             commands::media::open_with_system,
             // Media streaming server
             get_media_server_port,
+            // Updater commands
+            commands::updater::get_current_version,
+            commands::updater::check_for_update,
+            commands::updater::download_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

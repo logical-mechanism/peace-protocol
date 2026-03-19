@@ -24,6 +24,7 @@ import { useToast, ToastContainer } from '../components/Toast'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
 import { useDataRefresh } from '../hooks/useDataRefresh'
+import { useUpdateCheck } from '../hooks/useUpdateCheck'
 import { useWalletHealth } from '../hooks/useWalletHealth'
 import {
   marketplaceReducer, MARKETPLACE_INITIAL,
@@ -111,6 +112,37 @@ export default function Dashboard() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [relativeTime, setRelativeTime] = useState('just now')
   const toast = useToast()
+
+  // ── Update check (auto-check on startup) ────────────────────────
+  const { state: updateState, downloadUpdate: downloadAppUpdate } = useUpdateCheck(true)
+  const updateToastShownRef = useRef(false)
+
+  useEffect(() => {
+    if (updateState.status === 'available' && !updateToastShownRef.current) {
+      updateToastShownRef.current = true
+      toast.info(
+        `Update available: v${updateState.info.latest_version}`,
+        `You are running v${updateState.info.current_version}`,
+        0,
+        {
+          label: 'Download',
+          onClick: () => {
+            downloadAppUpdate(updateState.info.download_url)
+          },
+        }
+      )
+    }
+    if (updateState.status === 'downloaded') {
+      toast.success(
+        'Update downloaded',
+        `Saved to: ${updateState.filePath}. Close and reopen the app to use the new version.`,
+        0
+      )
+    }
+    if (updateState.status === 'error' && updateToastShownRef.current) {
+      toast.error('Update check failed', updateState.message)
+    }
+  }, [updateState.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Confirmation modal state for destructive actions
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
