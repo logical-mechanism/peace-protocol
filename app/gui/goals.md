@@ -119,7 +119,7 @@ Difficulty ratings:
   - **How**: In `secrets.rs` (line ~29–48), `acquire_file_lock()` creates `.lock` files but doesn't handle stale locks from crashed processes. Before acquiring, check the `.lock` file's modification time: if older than 1 hour, remove it and recreate. The advisory lock via `File::lock()` is released when the process exits, but the `.lock` file persists on disk.
   - **Why**: After an app crash while holding a secret lock, users can't access secrets until they manually find and delete `.lock` files — an invisible failure with no error guidance.
 
-- [ ] 🟢 **Validate contracts section exists in config**
+- [x] 🟢 **Validate contracts section exists in config**
   - **How**: In `config.rs` `validate()` (line ~262–350), validation only runs when `self.contracts` is `Some`. If `contracts` is absent from `config.json`, the app starts with no contract addresses and all API calls fail cryptically. Add: `if self.contracts.is_none() { errors.push("contracts configuration is required".into()) }` at the start of `validate()`.
   - **Why**: The app starts but silently fails on every transaction operation. An early validation error with a clear message saves hours of debugging.
 
@@ -145,7 +145,7 @@ Difficulty ratings:
   - **How**: In `.github/workflows/ci.yml` (lines 95–111), the version check compares 5 sources but misses `app/contracts/aiken.toml`. Add: `V_AIKEN=$(grep '^version' ../contracts/aiken.toml | sed 's/.*"\(.*\)"/\1/')` and include it in the mismatch check. The CLAUDE.md version bump checklist already lists aiken.toml — CI should enforce it.
   - **Why**: Contract version can drift from app version without any CI failure, creating release inconsistencies.
 
-- [ ] 🟢 **Cache backend npm dependencies in CI**
+- [x] 🟢 **Cache backend npm dependencies in CI**
   - **How**: In `.github/workflows/ci.yml` (line ~120–124), `actions/setup-node` caches only `app/gui/package-lock.json`. Add a second cache entry or change `cache-dependency-path` to a list: `["app/gui/package-lock.json", "app/gui/be/package-lock.json", "app/gui/fe/package-lock.json"]`.
   - **Why**: Backend `npm ci` re-downloads all dependencies on every CI run. Caching saves ~30s per workflow.
 
