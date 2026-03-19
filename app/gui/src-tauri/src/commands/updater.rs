@@ -111,7 +111,7 @@ pub async fn download_update(
     use tokio::io::AsyncWriteExt;
 
     // Security: only allow downloads from the project's GitHub repo
-    if !download_url.starts_with("https://github.com/logical-mechanism/") {
+    if !is_valid_download_url(&download_url) {
         return Err("Invalid download URL: must be from the project repository".to_string());
     }
 
@@ -227,6 +227,11 @@ fn get_appimage_dir() -> Option<PathBuf> {
         .and_then(|p| Path::new(&p).parent().map(|d| d.to_path_buf()))
 }
 
+/// Validates that a download URL is from the project repository.
+fn is_valid_download_url(url: &str) -> bool {
+    url.starts_with("https://github.com/logical-mechanism/")
+}
+
 /// Returns true if `latest` is a newer semver than `current`.
 fn is_newer(latest: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u32> {
@@ -247,4 +252,82 @@ fn is_newer(latest: &str, current: &str) -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn newer_patch() {
+        assert!(is_newer("0.4.3", "0.4.2"));
+    }
+
+    #[test]
+    fn newer_minor() {
+        assert!(is_newer("0.5.0", "0.4.9"));
+    }
+
+    #[test]
+    fn newer_major() {
+        assert!(is_newer("1.0.0", "0.99.99"));
+    }
+
+    #[test]
+    fn same_version() {
+        assert!(!is_newer("0.4.2", "0.4.2"));
+    }
+
+    #[test]
+    fn older_version() {
+        assert!(!is_newer("0.4.1", "0.4.2"));
+    }
+
+    #[test]
+    fn double_digit_patch() {
+        assert!(is_newer("0.4.10", "0.4.9"));
+    }
+
+    #[test]
+    fn double_digit_not_lexicographic() {
+        // "0.4.9" > "0.4.10" lexicographically, but numerically 10 > 9
+        assert!(is_newer("0.4.10", "0.4.9"));
+        assert!(!is_newer("0.4.9", "0.4.10"));
+    }
+
+    #[test]
+    fn missing_patch() {
+        assert!(is_newer("1.0", "0.4.2"));
+        assert!(!is_newer("0.4", "0.4.2"));
+    }
+
+    #[test]
+    fn valid_download_url() {
+        assert!(is_valid_download_url(
+            "https://github.com/logical-mechanism/peace-protocol/releases/download/v0.4.3/Veiled_0.4.3_amd64.AppImage"
+        ));
+    }
+
+    #[test]
+    fn invalid_download_url() {
+        assert!(!is_valid_download_url("https://evil.com/malware.AppImage"));
+        assert!(!is_valid_download_url(
+            "https://github.com/other-org/repo/releases/download/v1.0/app.AppImage"
+        ));
+    }
+
+    #[test]
+    fn appimage_dir_without_env() {
+        // When APPIMAGE is not set, should return None
+        std::env::remove_var("APPIMAGE");
+        assert!(get_appimage_dir().is_none());
+    }
+
+    #[test]
+    fn appimage_dir_with_env() {
+        std::env::set_var("APPIMAGE", "/home/user/Desktop/Veiled_0.4.2_amd64.AppImage");
+        let dir = get_appimage_dir();
+        assert_eq!(dir, Some(PathBuf::from("/home/user/Desktop")));
+        std::env::remove_var("APPIMAGE");
+    }
 }
