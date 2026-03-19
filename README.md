@@ -1,4 +1,4 @@
-# The PRE-ECIES-AES-GCM Encryption (PEACE) Protocol
+# The PEACE Protocol
 
 PEACE is a re-encryption protocol that enables the transfer of decryption rights on Cardano. Data remains encrypted at all times. The right to decrypt may be traded through a multi-hop, unidirectional proxy re-encryption scheme. PEACE is data-layer-agnostic — it provides the rails for re-encryption while projects build their own UI/UX on top.
 
@@ -70,8 +70,8 @@ cd app && python -m pytest -s -vv
 # Go (gnark prover)
 cd app/snark && go test ./... -count=1 -v -timeout 60m
 
-# TypeScript (UI)
-cd app/ui/fe && npx vitest run
+# TypeScript (GUI)
+cd app/gui/fe && npx vitest run
 ```
 
 ## Documentation

@@ -1,0 +1,243 @@
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useBidNotifications } from '../../hooks/useBidNotifications'
+import { playNotificationSound } from '../../services/notificationSound'
+import { sendDesktopNotification } from '../../services/desktopNotifications'
+import { cleanupStaleSecrets } from '../../services/secretCleanup'
+import { encryptionsApi, bidsApi } from '../../services/api'
+import { listLibraryItems } from '../../services/libraryService'
+import { isIagonConnected, connectIagon } from '../../services/iagonAuth'
+import { getTransactions, addTransaction } from '../../services/transactionHistory'
+import { getPersistedFilters, persistFilters } from '../../services/filterStorage'
+import type { TransactionRecord } from '../../services/transactionHistory'
+import type { IWallet } from '@meshsdk/core'
+import type { useToast } from '../../components/Toast'
+import type { TabId } from './dashboardTypes'
+import type { MarketplaceFilters, MarketplaceAction } from '../../hooks/useTabFilterState'
+
+interface UseDashboardEffectsParams {
+  userPkh: string | undefined
+  tipSlot: number | null
+  tipHeight: number | null
+  nodeStage: string
+  expressReady: boolean
+  refreshSignal: number
+  historySignal: number
+  triggerSoftRefresh: () => void
+  refreshBalance: () => void
+  activeTab: TabId
+  toast: ReturnType<typeof useToast>
+  wallet: IWallet | null
+  address: string | undefined
+  marketplaceFilters: MarketplaceFilters
+  marketplaceDispatch: React.Dispatch<MarketplaceAction>
+}
+
+export function useDashboardEffects({
+  userPkh, tipSlot, tipHeight, nodeStage, expressReady,
+  refreshSignal, historySignal, triggerSoftRefresh, refreshBalance,
+  activeTab, toast, wallet, address,
+  marketplaceFilters, marketplaceDispatch,
+}: UseDashboardEffectsParams) {
+  // Stats state
+  const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
+  const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
+  const [acceptedBidCount, setAcceptedBidCount] = useState(0)
+  const [libraryCount, setLibraryCount] = useState<number | null>(null)
+
+  // Transaction history state
+  const [txHistory, setTxHistory] = useState<TransactionRecord[]>([])
+
+  // Iagon connection state
+  const [iagonConnected, setIagonConnected] = useState(false)
+
+  const pendingTxCount = useMemo(
+    () => txHistory.filter(tx => tx.status === 'pending').length,
+    [txHistory]
+  )
+
+  // Bid notification system
+  const bidNotifications = useBidNotifications(userPkh, tipSlot, nodeStage, triggerSoftRefresh)
+
+  // Fire toast when new bids arrive mid-session (not on initial load).
+  const isInitialBidCheck = useRef(true)
+  const lastNotifiedCountRef = useRef(0)
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => {
+    if (!bidNotifications.isReady) return
+    if (isInitialBidCheck.current) {
+      isInitialBidCheck.current = false
+      lastNotifiedCountRef.current = bidNotifications.unseenBidCount
+      return
+    }
+
+    const newCount = bidNotifications.unseenBidCount
+
+    // Count dropped (user viewed My Sales) or unchanged — sync ref, skip notification
+    if (newCount <= lastNotifiedCountRef.current) {
+      lastNotifiedCountRef.current = newCount
+      return
+    }
+
+    // Debounce: clear any pending timer and wait 5s for more bids to arrive
+    if (notificationTimerRef.current) {
+      clearTimeout(notificationTimerRef.current)
+    }
+
+    notificationTimerRef.current = setTimeout(() => {
+      const delta = newCount - lastNotifiedCountRef.current
+      lastNotifiedCountRef.current = newCount
+      if (delta <= 0) return
+
+      const label = delta === 1 ? 'bid' : 'bids'
+      toast.info(
+        'New Bids Received',
+        `You have ${delta} new ${label} on your listings`,
+        8000
+      )
+      playNotificationSound()
+      sendDesktopNotification('New Bids Received', `You have ${delta} new ${label} on your listings`)
+    }, 5000)
+
+    return () => {
+      if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
+
+  // Mark bids as seen when user switches to My Sales tab
+  const { markAllSeen } = bidNotifications
+  useEffect(() => {
+    if (activeTab === 'my-sales') {
+      markAllSeen()
+    }
+  }, [activeTab, markAllSeen])
+
+  // Load transaction history when PKH changes
+  useEffect(() => {
+    if (userPkh) {
+      setTxHistory(getTransactions(userPkh))
+    } else {
+      setTxHistory([])
+    }
+  }, [userPkh, historySignal])
+
+  // Eagerly refresh balance when Dashboard mounts and node is synced.
+  const initialBalanceFetched = useRef(false)
+  useEffect(() => {
+    if (nodeStage === 'synced' && !initialBalanceFetched.current) {
+      initialBalanceFetched.current = true
+      refreshBalance()
+    }
+  }, [nodeStage, refreshBalance])
+
+  // Hydrate marketplace filters from localStorage once PKH is known
+  const hydratedRef = useRef(false)
+  useEffect(() => {
+    if (!userPkh || hydratedRef.current) return
+    hydratedRef.current = true
+    const saved = getPersistedFilters(userPkh)
+    if (saved) {
+      marketplaceDispatch({ type: 'HYDRATE', payload: saved })
+    }
+  }, [userPkh, marketplaceDispatch])
+
+  // Debounced persistence of marketplace filters to localStorage
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => {
+    if (!userPkh || !hydratedRef.current) return
+    clearTimeout(persistTimeoutRef.current)
+    persistTimeoutRef.current = setTimeout(() => {
+      persistFilters(userPkh, marketplaceFilters)
+    }, 300)
+    return () => clearTimeout(persistTimeoutRef.current)
+  }, [userPkh, marketplaceFilters])
+
+  // Check Iagon connection status; silently auto-connect if not yet connected
+  useEffect(() => {
+    let cancelled = false
+    isIagonConnected()
+      .then(connected => {
+        if (cancelled) return
+        if (connected) {
+          setIagonConnected(true)
+        } else if (wallet && address) {
+          // Silently attempt CIP-8 auth — succeeds if wallet has an Iagon account
+          connectIagon(wallet, address)
+            .then(() => { if (!cancelled) setIagonConnected(true) })
+            .catch(() => { if (!cancelled) setIagonConnected(false) })
+        } else {
+          setIagonConnected(false)
+        }
+      })
+      .catch(() => { if (!cancelled) setIagonConnected(false) })
+    return () => { cancelled = true }
+  }, [wallet, address])
+
+  // Fetch user stats (waits for Express backend to be ready)
+  useEffect(() => {
+    if (!userPkh || !expressReady) return
+
+    const fetchStats = async () => {
+      try {
+        const encryptions = await encryptionsApi.getAll()
+        const bids = await bidsApi.getAll()
+
+        // Count listings owned by this wallet (PKH from datum)
+        const userListings = encryptions.filter(
+          e => e.sellerPkh === userPkh && e.status === 'active'
+        )
+        setMyListingsCount(userListings.length)
+
+        // Count pending bids placed by this wallet (PKH from datum)
+        const userBids = bids.filter(
+          b => b.bidderPkh === userPkh && b.status === 'pending'
+        )
+        setMyBidsCount(userBids.length)
+
+        // Count accepted bids where user can decrypt
+        const accepted = bids.filter(
+          b => b.bidderPkh === userPkh && b.status === 'accepted'
+        )
+        setAcceptedBidCount(accepted.length)
+
+        // Best-effort cleanup of stale secrets after confirmed ownership changes
+        cleanupStaleSecrets(userPkh, encryptions, tipHeight ?? undefined).catch((err) => console.warn('Stale secret cleanup failed:', err))
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+        setMyListingsCount(0)
+        setMyBidsCount(0)
+        setAcceptedBidCount(0)
+      }
+
+      // Fetch library count (Tauri command, independent of API)
+      try {
+        const items = await listLibraryItems()
+        setLibraryCount(items.length)
+      } catch {
+        setLibraryCount(0)
+      }
+    }
+
+    fetchStats()
+  }, [userPkh, refreshSignal, expressReady, tipHeight])
+
+  // Record a transaction in local history
+  const recordTransaction = (record: TransactionRecord) => {
+    if (!userPkh) return
+    addTransaction(userPkh, record)
+    setTxHistory(getTransactions(userPkh))
+  }
+
+  return {
+    bidNotifications,
+    txHistory,
+    setTxHistory,
+    pendingTxCount,
+    myListingsCount,
+    myBidsCount,
+    acceptedBidCount,
+    libraryCount,
+    iagonConnected,
+    recordTransaction,
+  }
+}

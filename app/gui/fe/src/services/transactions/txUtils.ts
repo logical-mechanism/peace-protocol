@@ -8,7 +8,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { MeshTxBuilder, deserializeAddress } from '@meshsdk/core';
 import { getChainingAdapter, getOgmiosProvider } from '../providers';
 import { getStubWarning } from '../crypto';
-import { bech32 } from '@scure/base';
 import type { CreateListingFormData } from '../../components/CreateListingModal';
 
 // Environment flag for stub mode
