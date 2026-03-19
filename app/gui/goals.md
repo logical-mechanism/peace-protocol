@@ -53,7 +53,7 @@ Difficulty ratings:
   - **How**: In `MnemonicInput.tsx` (line ~131–150), the `<input>` element lacks ARIA validation attributes. Add `aria-invalid={!isValid && trimmed.length > 0}` and `aria-describedby` pointing to an error hint `<span>`. The component already computes `isValid` (line 103) — just expose it to assistive tech.
   - **Why**: Screen reader users can't tell whether a mnemonic word is valid. Visual border color changes aren't announced.
 
-- [ ] 🟢 **Add `aria-live="polite"` to PasswordStrengthIndicator**
+- [x] 🟢 **Add `aria-live="polite"` to PasswordStrengthIndicator**
   - **How**: In `PasswordStrengthIndicator.tsx`, wrap the requirements list or strength level text in `<div aria-live="polite">`. The component dynamically shows/hides requirement checkmarks (lines 30–73) and changes strength bar color (lines 76–93), but none of this is announced.
   - **Why**: Screen reader users get no feedback as they type — they can't tell which requirements are met or the overall strength level.
 

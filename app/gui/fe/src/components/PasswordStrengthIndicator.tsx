@@ -25,7 +25,7 @@ export default function PasswordStrengthIndicator({ strength, password }: Props)
   const config = levelConfig[strength.level]
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className="mt-3 space-y-3" aria-live="polite">
       {/* Requirements checklist */}
       <div className="space-y-1.5">
         {requirementLabels.map(({ key, label }) => {
