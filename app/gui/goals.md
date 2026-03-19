@@ -115,7 +115,7 @@ Difficulty ratings:
   - **How**: In `lib.rs` (line ~174), `TcpListener::bind("127.0.0.1:0").expect(...)` panics if binding fails. Replace with `match` that logs an error and skips media server startup. Store `Option<u16>` in `MediaServerPort` state. Frontend `get_media_server_port()` already returns `Result` — return an error when port is `None`. Video/audio streaming degrades gracefully (user sees "media server unavailable" instead of app crash).
   - **Why**: Port exhaustion or race conditions during startup shouldn't crash the entire app. Library text/PDF/image content still works without the media server.
 
-- [ ] 🟢 **Detect stale lock files in secrets file locking**
+- [x] 🟢 **Detect stale lock files in secrets file locking**
   - **How**: In `secrets.rs` (line ~29–48), `acquire_file_lock()` creates `.lock` files but doesn't handle stale locks from crashed processes. Before acquiring, check the `.lock` file's modification time: if older than 1 hour, remove it and recreate. The advisory lock via `File::lock()` is released when the process exits, but the `.lock` file persists on disk.
   - **Why**: After an app crash while holding a secret lock, users can't access secrets until they manually find and delete `.lock` files — an invisible failure with no error guidance.
 

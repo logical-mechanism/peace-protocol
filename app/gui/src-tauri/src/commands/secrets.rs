@@ -26,10 +26,32 @@ fn get_secrets_key(key_state: &SecretsKey) -> Result<Zeroizing<[u8; 32]>, String
 
 /// Acquire an advisory file lock on a `.lock` sibling of the given path.
 /// Returns the lock file handle — the lock is held until this handle is dropped.
+/// Removes stale lock files older than 1 hour (leftover from crashed processes).
 fn acquire_file_lock(path: &std::path::Path, exclusive: bool) -> Result<std::fs::File, String> {
     let mut lock_os = path.as_os_str().to_owned();
     lock_os.push(".lock");
     let lock_path = std::path::PathBuf::from(lock_os);
+
+    // Remove stale lock files left behind by crashed processes.
+    // The advisory lock (File::lock) is released on process exit, but the
+    // .lock file itself persists on disk.
+    if lock_path.exists() {
+        if let Ok(meta) = std::fs::metadata(&lock_path) {
+            if let Ok(modified) = meta.modified() {
+                if let Ok(age) = std::time::SystemTime::now().duration_since(modified) {
+                    if age > std::time::Duration::from_secs(3600) {
+                        eprintln!(
+                            "[secrets] Removing stale lock file (age: {}s): {}",
+                            age.as_secs(),
+                            lock_path.display()
+                        );
+                        let _ = std::fs::remove_file(&lock_path);
+                    }
+                }
+            }
+        }
+    }
+
     let lock_file = std::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
