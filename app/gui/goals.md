@@ -127,7 +127,7 @@ Difficulty ratings:
   - **How**: In `lib.rs` `media_mime_type()` (line ~41–61), add entries for `.3gp` → `"video/3gpp"`, `.m2ts` → `"video/mp2t"`, `.wma` → `"audio/x-ms-wma"`, `.wmv` → `"video/x-ms-wmv"`. Currently these fall through to `application/octet-stream`, which prevents GStreamer from selecting the correct codec pipeline.
   - **Why**: Users who store these formats in their library see broken playback because the media server doesn't advertise the correct content type.
 
-- [ ] 🟡 **Distinguish file-open error types in media server**
+- [x] 🟡 **Distinguish file-open error types in media server**
   - **How**: In `lib.rs` (line ~123–126), all file-open errors return 404. Distinguish: `Err(e) if e.kind() == io::ErrorKind::NotFound => 404`, `Err(e) if e.kind() == io::ErrorKind::PermissionDenied => 403`, `Err(_) => 500`. Log the actual error kind for debugging.
   - **Why**: Permission errors masquerading as "not found" make debugging library playback failures confusing. The current catch-all hides real issues.
 

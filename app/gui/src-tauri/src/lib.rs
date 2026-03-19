@@ -126,7 +126,20 @@ async fn serve_media_file(
 
     let mut file = match std::fs::File::open(&canonical) {
         Ok(f) => f,
-        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            let status = match e.kind() {
+                std::io::ErrorKind::NotFound => StatusCode::NOT_FOUND,
+                std::io::ErrorKind::PermissionDenied => StatusCode::FORBIDDEN,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            eprintln!(
+                "[media-server] Failed to open {}: {} ({})",
+                canonical.display(),
+                e,
+                status.as_u16()
+            );
+            return status.into_response();
+        }
     };
     let len = file.metadata().map(|m| m.len()).unwrap_or(0);
 
