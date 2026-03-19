@@ -49,7 +49,7 @@ Difficulty ratings:
   - **How**: In `InfoTooltip.tsx`, the tooltip opens on click/focus but has no `onKeyDown` handler for Escape. Add a `useEffect` or inline `onKeyDown` on the button: when `isVisible && event.key === 'Escape'`, call `setIsVisible(false)`. The component already handles show/hide via `onFocus`/`onBlur` (lines 76–77), so Escape just adds parity with the modal Escape pattern.
   - **Why**: Keyboard-only users who open a tooltip via Tab+Enter have no way to dismiss it without tabbing away. Escape is the expected pattern.
 
-- [ ] 🟢 **Add `aria-invalid` and `aria-describedby` to MnemonicInput**
+- [x] 🟢 **Add `aria-invalid` and `aria-describedby` to MnemonicInput**
   - **How**: In `MnemonicInput.tsx` (line ~131–150), the `<input>` element lacks ARIA validation attributes. Add `aria-invalid={!isValid && trimmed.length > 0}` and `aria-describedby` pointing to an error hint `<span>`. The component already computes `isValid` (line 103) — just expose it to assistive tech.
   - **Why**: Screen reader users can't tell whether a mnemonic word is valid. Visual border color changes aren't announced.
 
@@ -63,7 +63,7 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/LibraryTab.tsx`
 
-- [ ] 🟢 **Show keyboard hint for select mode Escape**
+- [x] 🟢 **Show keyboard hint for select mode Escape**
   - **How**: In `LibraryTab.tsx`, when `selectMode` is true, the toolbar already shows a "Cancel" button. Add a subtle `<kbd>Esc</kbd>` hint next to it (e.g., `<span className="text-xs text-[var(--text-muted)]"><kbd>Esc</kbd></span>`). Escape already works (line 217–221) — this just makes it discoverable.
   - **Why**: Users don't know Escape exits select mode unless they try it. A visible hint prevents confusion.
 
