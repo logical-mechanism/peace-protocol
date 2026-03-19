@@ -37,11 +37,11 @@ Difficulty ratings:
 
 > Key files: `fe/src/components/PriceRangeSlider.tsx`, `fe/src/components/Badge.tsx`
 
-- [ ] 🟢 **Add `role="group"` to PriceRangeSlider container**
+- [x] 🟢 **Add `role="group"` to PriceRangeSlider container**
   - **How**: In `PriceRangeSlider.tsx` line 31, the wrapping `<div>` contains two `<input type="range">` elements with individual `aria-label` attributes ("Minimum price" / "Maximum price") but no semantic grouping. Add `role="group"` and `aria-label="Price range filter"` to the outermost `<div>`.
   - **Why**: Screen readers don't associate the two range inputs as a single price range control. Users hear two independent sliders with no relationship.
 
-- [ ] 🟢 **Add `aria-hidden` to Badge dot indicators**
+- [x] 🟢 **Add `aria-hidden` to Badge dot indicators**
   - **How**: In `Badge.tsx` lines 38–40, the colored dot `<span>` is decorative (the text label already conveys status). Add `aria-hidden="true"` to the dot span to prevent screen readers from announcing it as an empty element.
   - **Why**: Screen readers may announce the dot as a blank interactive element, adding noise without information.
 
