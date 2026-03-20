@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ChainingAdapter } from '../chainingAdapter';
 import { PendingTxPool } from '../pendingTxPool';
 import type { KupoAdapter } from '../kupoAdapter';
-import type { UTxO } from '@meshsdk/core';
+import type { UTxO, AccountInfo, AssetMetadata, BlockInfo, Protocol, TransactionInfo, GovernanceProposalInfo } from '@meshsdk/core';
 
 // Mock the txOutputParser so PendingTxPool.registerTx works in isolation
 vi.mock('../txOutputParser', () => ({
@@ -154,6 +154,62 @@ describe('ChainingAdapter', () => {
       (mockAdapter.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: 'test' });
       const result = await adapter.get('/test');
       expect(result).toEqual({ data: 'test' });
+    });
+
+    it('delegates fetchAccountInfo to real adapter', async () => {
+      const info: AccountInfo = { balance: '1000', active: true, rewards: '0', withdrawals: '0' };
+      (mockAdapter.fetchAccountInfo as ReturnType<typeof vi.fn>).mockResolvedValue(info);
+      const result = await adapter.fetchAccountInfo('stake_addr');
+      expect(result).toEqual(info);
+    });
+
+    it('delegates fetchAssetAddresses to real adapter', async () => {
+      const addrs = [{ address: 'addr1', quantity: '1' }];
+      (mockAdapter.fetchAssetAddresses as ReturnType<typeof vi.fn>).mockResolvedValue(addrs);
+      const result = await adapter.fetchAssetAddresses('policyToken');
+      expect(result).toEqual(addrs);
+    });
+
+    it('delegates fetchAssetMetadata to real adapter', async () => {
+      const meta = { name: 'test' } as AssetMetadata;
+      (mockAdapter.fetchAssetMetadata as ReturnType<typeof vi.fn>).mockResolvedValue(meta);
+      const result = await adapter.fetchAssetMetadata('asset');
+      expect(result).toEqual(meta);
+    });
+
+    it('delegates fetchBlockInfo to real adapter', async () => {
+      const block = { hash: 'abc', height: 100 } as unknown as BlockInfo;
+      (mockAdapter.fetchBlockInfo as ReturnType<typeof vi.fn>).mockResolvedValue(block);
+      const result = await adapter.fetchBlockInfo('abc');
+      expect(result).toEqual(block);
+    });
+
+    it('delegates fetchCollectionAssets to real adapter', async () => {
+      const assets = { assets: [], next: null };
+      (mockAdapter.fetchCollectionAssets as ReturnType<typeof vi.fn>).mockResolvedValue(assets);
+      const result = await adapter.fetchCollectionAssets('policy1');
+      expect(result).toEqual(assets);
+    });
+
+    it('delegates fetchProtocolParameters to real adapter', async () => {
+      const params = { minFee: 44 } as unknown as Protocol;
+      (mockAdapter.fetchProtocolParameters as ReturnType<typeof vi.fn>).mockResolvedValue(params);
+      const result = await adapter.fetchProtocolParameters(100);
+      expect(result).toEqual(params);
+    });
+
+    it('delegates fetchTxInfo to real adapter', async () => {
+      const txInfo = { hash: 'tx1' } as TransactionInfo;
+      (mockAdapter.fetchTxInfo as ReturnType<typeof vi.fn>).mockResolvedValue(txInfo);
+      const result = await adapter.fetchTxInfo('tx1');
+      expect(result).toEqual(txInfo);
+    });
+
+    it('delegates fetchGovernanceProposal to real adapter', async () => {
+      const proposal = { txHash: 'tx1', certIndex: 0 } as GovernanceProposalInfo;
+      (mockAdapter.fetchGovernanceProposal as ReturnType<typeof vi.fn>).mockResolvedValue(proposal);
+      const result = await adapter.fetchGovernanceProposal('tx1', 0);
+      expect(result).toEqual(proposal);
     });
   });
 });

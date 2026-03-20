@@ -269,6 +269,10 @@ impl AppConfig {
             errors.push("kupo_port must be > 0".to_string());
         }
 
+        if self.contracts.is_none() {
+            errors.push("contracts configuration is required".to_string());
+        }
+
         if let Some(ref c) = self.contracts {
             // Addresses must be non-empty
             for (name, val) in [
@@ -410,8 +414,9 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_default_config() {
-        assert!(AppConfig::default().validate().is_ok());
+    fn test_validate_default_config_requires_contracts() {
+        let err = AppConfig::default().validate().unwrap_err();
+        assert!(err.contains("contracts configuration is required"));
     }
 
     #[test]
@@ -482,12 +487,13 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_no_contracts_ok() {
+    fn test_validate_no_contracts_fails() {
         let config = AppConfig {
             contracts: None,
             ..Default::default()
         };
-        assert!(config.validate().is_ok());
+        let err = config.validate().unwrap_err();
+        assert!(err.contains("contracts configuration is required"));
     }
 
     #[test]

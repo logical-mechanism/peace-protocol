@@ -19,6 +19,7 @@ import NetworkSection from './settings/NetworkSection'
 import DataLayerSection from './settings/DataLayerSection'
 import StorageSection from './settings/StorageSection'
 import LogsSection from './settings/LogsSection'
+import UpdateSection from './settings/UpdateSection'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -84,6 +85,13 @@ export default function Settings() {
       { id: 'storage', label: 'Storage', icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+        </svg>
+      )},
+    ]},
+    { label: 'About', sections: [
+      { id: 'update', label: 'Updates', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
         </svg>
       )},
     ]},
@@ -241,6 +249,11 @@ export default function Settings() {
           <LogsSection
             processes={processes}
           />
+        )}
+
+        {/* Updates Section */}
+        {!searchResults && activeSection === 'update' && (
+          <UpdateSection />
         )}
 
       </main>

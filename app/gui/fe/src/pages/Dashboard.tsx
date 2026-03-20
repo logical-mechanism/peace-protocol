@@ -16,6 +16,7 @@ import { SkeletonGrid } from '../components/SkeletonCard'
 import ScrollToTop from '../components/ScrollToTop'
 import KeyboardShortcutsOverlay from '../components/KeyboardShortcutsOverlay'
 import CreateListingModal from '../components/CreateListingModal'
+import ImportListingModal from '../components/ImportListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
 const SnarkProvingModal = lazy(() => import('../components/SnarkProvingModal'))
@@ -24,6 +25,7 @@ import { useToast, ToastContainer } from '../components/Toast'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
 import { useDataRefresh } from '../hooks/useDataRefresh'
+import { useUpdateCheck } from '../hooks/useUpdateCheck'
 import { useWalletHealth } from '../hooks/useWalletHealth'
 import {
   marketplaceReducer, MARKETPLACE_INITIAL,
@@ -49,6 +51,8 @@ export default function Dashboard() {
   const { hasOpenModal } = useModal()
   const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
   const [copied, setCopied] = useState(false)
+  const [createListingDropdownOpen, setCreateListingDropdownOpen] = useState(false)
+  const createListingDropdownRef = useRef<HTMLDivElement>(null)
   const [activeTab, setActiveTabRaw] = useState<TabId>(() => getLastActiveTab())
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([getLastActiveTab()]))
   const setActiveTab = useCallback((tab: TabId) => {
@@ -111,6 +115,37 @@ export default function Dashboard() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [relativeTime, setRelativeTime] = useState('just now')
   const toast = useToast()
+
+  // ── Update check (auto-check on startup) ────────────────────────
+  const { state: updateState, downloadUpdate: downloadAppUpdate } = useUpdateCheck(true)
+  const updateToastShownRef = useRef(false)
+
+  useEffect(() => {
+    if (updateState.status === 'available' && !updateToastShownRef.current) {
+      updateToastShownRef.current = true
+      toast.info(
+        `Update available: v${updateState.info.latest_version}`,
+        `You are running v${updateState.info.current_version}`,
+        0,
+        {
+          label: 'Download',
+          onClick: () => {
+            downloadAppUpdate(updateState.info.download_url)
+          },
+        }
+      )
+    }
+    if (updateState.status === 'downloaded') {
+      toast.success(
+        'Update downloaded',
+        `Saved to: ${updateState.filePath}. Close and reopen the app to use the new version.`,
+        0
+      )
+    }
+    if (updateState.status === 'error' && updateToastShownRef.current) {
+      toast.error('Update check failed', updateState.message)
+    }
+  }, [updateState.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Confirmation modal state for destructive actions
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
@@ -238,6 +273,18 @@ export default function Dashboard() {
 
   const handleOpenCreateListing = useCallback(() => seller.setShowCreateListing(true), [seller])
 
+  // Close create-listing dropdown on outside click
+  useEffect(() => {
+    if (!createListingDropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (createListingDropdownRef.current && !createListingDropdownRef.current.contains(e.target as Node)) {
+        setCreateListingDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [createListingDropdownOpen])
+
   const tabPanelClass = (tabId: TabId) =>
     activeTab !== tabId ? 'hidden' : undefined
 
@@ -352,16 +399,53 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          {/* Create Listing Button */}
-          <button
-            onClick={() => seller.setShowCreateListing(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create Listing
-          </button>
+          {/* Create Listing Split Button */}
+          <div className="relative" ref={createListingDropdownRef}>
+            <div className="flex">
+              <button
+                onClick={() => seller.setShowCreateListing(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-[var(--radius-md)] btn-base btn-primary"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create Listing
+              </button>
+              <button
+                onClick={() => setCreateListingDropdownOpen((prev) => !prev)}
+                className="flex items-center px-2 py-2 text-sm font-medium rounded-r-[var(--radius-md)] border-l border-white/20 btn-base btn-primary"
+                aria-label="More listing options"
+                aria-expanded={createListingDropdownOpen}
+                aria-haspopup="true"
+              >
+                <svg className={`w-3.5 h-3.5 transition-transform ${createListingDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+            {createListingDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-lg overflow-hidden z-50">
+                <button
+                  onClick={() => { setCreateListingDropdownOpen(false); seller.setShowCreateListing(true); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors text-left"
+                >
+                  <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  New Listing
+                </button>
+                <button
+                  onClick={() => { setCreateListingDropdownOpen(false); seller.setShowImportListing(true); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors text-left border-t border-[var(--border-subtle)]"
+                >
+                  <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Import from Iagon
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* ADA Balance */}
           {lovelace ? (
@@ -733,6 +817,7 @@ export default function Dashboard() {
                 onBulkDeleteResult={(message, hadErrors) =>
                   hadErrors ? toast.warning('Bulk Delete', message) : toast.success('Bulk Delete', message)
                 }
+                onRelist={seller.handleRelistFromLibrary}
               />
             </Suspense>
           </div>
@@ -745,9 +830,21 @@ export default function Dashboard() {
       {/* Create Listing Modal */}
       <CreateListingModal
         isOpen={seller.showCreateListing}
-        onClose={() => seller.setShowCreateListing(false)}
+        onClose={() => {
+          seller.setShowCreateListing(false)
+          seller.setRelistPrefill(null)
+        }}
         onSubmit={seller.handleCreateListing}
         isIagonConnected={effects.iagonConnected}
+        prefill={seller.relistPrefill}
+        title={seller.relistPrefill ? 'Relist from Library' : undefined}
+      />
+
+      {/* Import Listing Modal */}
+      <ImportListingModal
+        isOpen={seller.showImportListing}
+        onClose={() => seller.setShowImportListing(false)}
+        onSubmit={seller.handleImportListing}
       />
 
       {/* Place Bid Modal */}

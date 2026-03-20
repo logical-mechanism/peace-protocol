@@ -36,7 +36,7 @@ export default function Badge({
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-[var(--radius-sm)] ${variantClasses[variant]} ${className}`}
     >
       {dot && (
-        <span className={`w-1.5 h-1.5 rounded-full ${dotColors[variant]}`} />
+        <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${dotColors[variant]}`} />
       )}
       {children}
     </span>

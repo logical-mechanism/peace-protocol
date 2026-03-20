@@ -133,4 +133,22 @@ describe('InfoTooltip', () => {
     const btn = screen.getByLabelText('More information');
     expect(btn.getAttribute('type')).toBe('button');
   });
+
+  it('dismisses tooltip on Escape key', () => {
+    render(<InfoTooltip text="Test tooltip" />);
+    const btn = screen.getByLabelText('More information');
+    fireEvent.focus(btn);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.keyDown(btn, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('does not dismiss tooltip on other keys', () => {
+    render(<InfoTooltip text="Test tooltip" />);
+    const btn = screen.getByLabelText('More information');
+    fireEvent.focus(btn);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.keyDown(btn, { key: 'a' });
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+  });
 });

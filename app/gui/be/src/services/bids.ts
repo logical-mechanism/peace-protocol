@@ -17,7 +17,7 @@ export interface ParsedBidCip20 {
  * Metadata is immutable, so entries never need re-fetching.
  * Persisted to disk so the cache survives Express restarts.
  */
-const bidMetadataCache = new MetadataDiskCache<ParsedBidCip20>('bid_metadata_cache.json');
+export const bidMetadataCache = new MetadataDiskCache<ParsedBidCip20>('bid_metadata_cache.json');
 
 /** Clear the persistent bid metadata cache (for testing only). */
 export function clearBidMetadataCache(): void {
@@ -126,8 +126,8 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
     if (uncachedHashes.length > 0) {
       try {
         const metadataMap = await koios.getTxMetadataBatch(uncachedHashes);
-        for (const hash of uncachedHashes) {
-          const cip20 = extractBidCip20FromMetadata(metadataMap.get(hash) || []);
+        for (const [hash, entries] of metadataMap) {
+          const cip20 = extractBidCip20FromMetadata(entries);
           bidMetadataCache.set(hash, cip20);
         }
       } catch (err) {
@@ -173,7 +173,7 @@ export async function getBidByToken(tokenName: string, skipCache = false): Promi
 export async function getBidsByUser(pkh: string, skipCache = false): Promise<ServiceResult<BidDisplay[]>> {
   const result = await getAllBids(skipCache);
   return {
-    data: result.data.filter(b => b.bidderPkh.toLowerCase().includes(pkh.toLowerCase())),
+    data: result.data.filter(b => b.bidderPkh.toLowerCase() === pkh.toLowerCase()),
     warnings: result.warnings,
   };
 }

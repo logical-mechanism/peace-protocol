@@ -453,4 +453,38 @@ describe('error handling', () => {
   it('decodePlutusData throws on invalid hex chars', () => {
     expect(() => decodePlutusData('zzzz')).toThrow('invalid hex chars');
   });
+
+  it('throws on truncated indefinite-length byte string (missing 0xff break)', () => {
+    // 0x5f 0x42 0xaa 0xbb → indefinite bstr, one chunk, but no 0xff break
+    expect(() => decodeCborItem(bytes(0x5f, 0x42, 0xaa, 0xbb), 0))
+      .toThrow('Malformed CBOR: missing break byte in indefinite-length byte string');
+  });
+
+  it('throws on truncated indefinite-length array (missing 0xff break)', () => {
+    // 0x9f 0x01 0x02 → indefinite array with two items but no 0xff break
+    expect(() => decodeCborItem(bytes(0x9f, 0x01, 0x02), 0))
+      .toThrow('Malformed CBOR: missing break byte in indefinite-length array');
+  });
+
+  it('throws on truncated indefinite-length map (missing 0xff break)', () => {
+    // 0xbf 0x01 0x02 → indefinite map with one pair but no 0xff break
+    expect(() => decodeCborItem(bytes(0xbf, 0x01, 0x02), 0))
+      .toThrow('Malformed CBOR: missing break byte in indefinite-length map');
+  });
+
+  it('throws on empty indefinite-length byte string (no break, no data)', () => {
+    // 0x5f only — immediate end of data with no break byte
+    expect(() => decodeCborItem(bytes(0x5f), 0))
+      .toThrow('Malformed CBOR: missing break byte in indefinite-length byte string');
+  });
+
+  it('throws on empty indefinite-length array (no break, no data)', () => {
+    expect(() => decodeCborItem(bytes(0x9f), 0))
+      .toThrow('Malformed CBOR: missing break byte in indefinite-length array');
+  });
+
+  it('throws on empty indefinite-length map (no break, no data)', () => {
+    expect(() => decodeCborItem(bytes(0xbf), 0))
+      .toThrow('Malformed CBOR: missing break byte in indefinite-length map');
+  });
 });

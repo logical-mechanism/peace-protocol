@@ -20,9 +20,10 @@ interface LibraryTabProps {
   filters: LibraryFilters;
   dispatch: React.Dispatch<LibraryAction>;
   onBulkDeleteResult?: (message: string, hadErrors: boolean) => void;
+  onRelist?: (item: LibraryItem) => void;
 }
 
-function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispatch, onBulkDeleteResult }: LibraryTabProps) {
+function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispatch, onBulkDeleteResult, onRelist }: LibraryTabProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -498,7 +499,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 : 'bg-[var(--bg-secondary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {selectMode ? 'Cancel' : 'Select'}
+            {selectMode ? <><span>Cancel</span> <kbd className="ml-1 text-xs text-[var(--text-muted)]">Esc</kbd></> : 'Select'}
           </button>
         </div>
       </div>
@@ -543,6 +544,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 item={item}
                 onView={handleView}
                 onDelete={handleDeleteFromCard}
+                onRelist={onRelist}
                 selectMode={selectMode}
                 selected={selectedItems.has(item.tokenName)}
                 onToggleSelect={handleToggleSelect}
@@ -558,6 +560,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 item={item}
                 onView={handleView}
                 onDelete={handleDeleteFromCard}
+                onRelist={onRelist}
                 compact
                 selectMode={selectMode}
                 selected={selectedItems.has(item.tokenName)}
@@ -574,6 +577,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         onClose={handleCloseModal}
         item={selectedItem}
         onDelete={handleDeleteFromModal}
+        onRelist={onRelist}
         items={filteredAndSorted}
         currentIndex={selectedIndex}
         onNavigate={handleNavigate}

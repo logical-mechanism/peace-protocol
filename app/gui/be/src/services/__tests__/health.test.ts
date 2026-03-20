@@ -160,6 +160,52 @@ describe('getHealthStatus', () => {
     expect(health.kupo.reachable).toBe(true);
   });
 
+  it('invalidates cached unhealthy result when circuit breaker leaves OPEN state', async () => {
+    // First call: circuit breaker is OPEN → cached as unhealthy (skip ping)
+    mockKoiosCBState.state = 'OPEN';
+    mockKoiosCBState.failureCount = 5;
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('koios')) return Promise.reject(new Error('should not be called'));
+      return Promise.resolve({ ok: true, status: 200 });
+    });
+
+    const { getHealthStatus } = await import('../health.js');
+    const health1 = await getHealthStatus('preprod', false);
+    expect(health1.koios.reachable).toBe(false);
+    expect(health1.koios.error).toBe('Circuit breaker OPEN');
+
+    // Circuit breaker transitions to HALF_OPEN (cooldown expired)
+    mockKoiosCBState.state = 'HALF_OPEN';
+    mockKoiosCBState.failureCount = 5;
+    // Now Koios is actually reachable
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+
+    // Second call: should invalidate cache and re-ping Koios
+    const health2 = await getHealthStatus('preprod', false);
+    expect(health2.koios.reachable).toBe(true);
+    expect(health2.status).toBe('healthy');
+
+    // Reset
+    mockKoiosCBState.state = 'CLOSED';
+    mockKoiosCBState.failureCount = 0;
+  });
+
+  it('keeps cached healthy result even when circuit breaker is HALF_OPEN', async () => {
+    // First call: Koios is healthy → cached as ok
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    const { getHealthStatus } = await import('../health.js');
+    await getHealthStatus('preprod', false);
+
+    // Circuit breaker moves to HALF_OPEN but cached result is ok — should keep cache
+    mockKoiosCBState.state = 'HALF_OPEN';
+    mockFetch.mockRejectedValue(new Error('should use cache'));
+
+    const health = await getHealthStatus('preprod', false);
+    expect(health.koios.reachable).toBe(true); // from cache
+
+    mockKoiosCBState.state = 'CLOSED';
+  });
+
   it('includes circuit breaker state for both dependencies', async () => {
     mockFetch.mockResolvedValue({ ok: true, status: 200 });
     mockKupoCBState.state = 'OPEN';

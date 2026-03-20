@@ -225,10 +225,7 @@ function MyPurchasesTab({
       if (onCancelBid) {
         onCancelBid(bid);
       } else {
-        // Placeholder for Phase 10
-        alert(
-          `Cancel bid coming in Phase 10!\n\nThis will require a transaction to remove the bid from the contract.\n\nBid: ${(bid.amount / 1_000_000).toLocaleString()} ADA\nToken: ${bid.tokenName.slice(0, 16)}...`
-        );
+        console.warn('onCancelBid callback not provided');
       }
     },
     [onCancelBid]
@@ -239,10 +236,7 @@ function MyPurchasesTab({
       if (onDecrypt) {
         onDecrypt(bid);
       } else {
-        // Placeholder for Phase 13
-        alert(
-          `Decryption coming in Phase 13!\n\nAfter your bid is accepted, you'll be able to decrypt the message using your private key.\n\nEncryption: ${bid.encryptionToken.slice(0, 16)}...`
-        );
+        console.warn('onDecrypt callback not provided');
       }
     },
     [onDecrypt]

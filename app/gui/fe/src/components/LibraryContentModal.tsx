@@ -21,6 +21,7 @@ interface LibraryContentModalProps {
   onClose: () => void;
   item: LibraryItem | null;
   onDelete: (item: LibraryItem) => void;
+  onRelist?: (item: LibraryItem) => void;
   items?: LibraryItem[];
   currentIndex?: number;
   onNavigate?: (item: LibraryItem, index: number) => void;
@@ -199,6 +200,7 @@ export default function LibraryContentModal({
   onClose,
   item,
   onDelete,
+  onRelist,
   items,
   currentIndex,
   onNavigate,
@@ -608,6 +610,17 @@ export default function LibraryContentModal({
               >
                 Delete from Library
               </button>
+              {onRelist && item && !item.contentMissing && (
+                <button
+                  onClick={() => { onRelist(item); onClose(); }}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--accent-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Relist
+                </button>
+              )}
               {showSaveAs && (
                 <>
                   <button

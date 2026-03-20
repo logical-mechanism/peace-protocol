@@ -188,4 +188,171 @@ describe('NodeContext', () => {
       renderHook(() => useNode());
     }).toThrow('useNode must be used within NodeProvider');
   });
+
+  it('process-status event with Error sets error state', async () => {
+    let processStatusCallback: ((event: { payload: unknown }) => void) | null = null;
+
+    (listen as ReturnType<typeof vi.fn>).mockImplementation(
+      async (eventName: string, callback: (event: { payload: unknown }) => void) => {
+        if (eventName === 'process-status') {
+          processStatusCallback = callback;
+        }
+        return vi.fn();
+      }
+    );
+
+    const { result } = renderHook(() => useNode(), { wrapper });
+
+    await waitFor(() => {
+      expect(processStatusCallback).not.toBeNull();
+    });
+
+    act(() => {
+      processStatusCallback!({
+        payload: {
+          name: 'cardano-node',
+          status: { type: 'Error', message: 'Socket closed' },
+          log_line: 'error log line',
+        },
+      });
+    });
+
+    expect(result.current.error).toBe('cardano-node: Socket closed');
+    expect(result.current.logs.length).toBeGreaterThan(0);
+  });
+
+  it('process-status event with null log_line does not append', async () => {
+    let processStatusCallback: ((event: { payload: unknown }) => void) | null = null;
+
+    (listen as ReturnType<typeof vi.fn>).mockImplementation(
+      async (eventName: string, callback: (event: { payload: unknown }) => void) => {
+        if (eventName === 'process-status') {
+          processStatusCallback = callback;
+        }
+        return vi.fn();
+      }
+    );
+
+    const { result } = renderHook(() => useNode(), { wrapper });
+
+    await waitFor(() => {
+      expect(processStatusCallback).not.toBeNull();
+    });
+
+    const logsBefore = result.current.logs.length;
+
+    act(() => {
+      processStatusCallback!({
+        payload: {
+          name: 'ogmios',
+          status: { type: 'Running' },
+          log_line: null,
+        },
+      });
+    });
+
+    expect(result.current.logs.length).toBe(logsBefore);
+  });
+
+  it('stopNode error with non-Error object still sets error', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: string) => {
+      if (cmd === 'stop_node') throw 'string error';
+      return {
+        overall: 'Stopped', sync_progress: 0, kupo_sync_progress: 0,
+        tip_slot: null, tip_height: null, network: 'preprod',
+        processes: [], needs_bootstrap: false,
+        epoch: null, era: null, slot_in_epoch: null, slots_to_epoch_end: null,
+        kupo_connection_status: null, kupo_seconds_since_last_block: null,
+      };
+    });
+
+    const { result } = renderHook(() => useNode(), { wrapper });
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('get_node_status');
+    });
+
+    await act(async () => {
+      await result.current.stopNode();
+    });
+
+    expect(result.current.error).toBe('string error');
+  });
+
+  it('startNode error with non-Error object still sets error', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: string) => {
+      if (cmd === 'start_node') throw 42;
+      return {
+        overall: 'Stopped', sync_progress: 0, kupo_sync_progress: 0,
+        tip_slot: null, tip_height: null, network: 'preprod',
+        processes: [], needs_bootstrap: false,
+        epoch: null, era: null, slot_in_epoch: null, slots_to_epoch_end: null,
+        kupo_connection_status: null, kupo_seconds_since_last_block: null,
+      };
+    });
+
+    const { result } = renderHook(() => useNode(), { wrapper });
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('get_node_status');
+    });
+
+    await act(async () => {
+      await result.current.startNode('addr');
+    });
+
+    expect(result.current.stage).toBe('error');
+    expect(result.current.error).toBe('42');
+  });
+
+  it('startBootstrap error with non-Error sets error', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: string) => {
+      if (cmd === 'start_mithril_bootstrap') throw 'bootstrap failed';
+      return {
+        overall: 'Stopped', sync_progress: 0, kupo_sync_progress: 0,
+        tip_slot: null, tip_height: null, network: 'preprod',
+        processes: [], needs_bootstrap: false,
+        epoch: null, era: null, slot_in_epoch: null, slots_to_epoch_end: null,
+        kupo_connection_status: null, kupo_seconds_since_last_block: null,
+      };
+    });
+
+    const { result } = renderHook(() => useNode(), { wrapper });
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('get_node_status');
+    });
+
+    await act(async () => {
+      await result.current.startBootstrap();
+    });
+
+    expect(result.current.stage).toBe('error');
+    expect(result.current.error).toBe('bootstrap failed');
+  });
+
+  it('maps Error status from poll to error stage', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+      overall: 'Error',
+      sync_progress: 0,
+      kupo_sync_progress: 0,
+      tip_slot: null,
+      tip_height: null,
+      network: 'preprod',
+      processes: [],
+      needs_bootstrap: false,
+      epoch: null,
+      era: null,
+      slot_in_epoch: null,
+      slots_to_epoch_end: null,
+      kupo_connection_status: null,
+      kupo_seconds_since_last_block: null,
+    });
+
+    const { result } = renderHook(() => useNode(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.stage).toBe('error');
+    });
+  });
 });

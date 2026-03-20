@@ -22,6 +22,13 @@ const STAGE_INDEX: Record<PurchaseStage, number> = {
   complete: 3,
 };
 
+const STAGE_TEXT: Record<PurchaseStage, string> = {
+  placed: 'Bid placed, awaiting acceptance',
+  accepted: 'Bid accepted, awaiting decryption',
+  complete: 'Complete',
+  failed: 'Decryption failed',
+};
+
 export default function BidTimeline({ stage, bidStatus, compact = false }: BidTimelineProps) {
   // Don't show timeline for terminal non-success states
   if (bidStatus === 'rejected' || bidStatus === 'cancelled') return null;
@@ -29,7 +36,15 @@ export default function BidTimeline({ stage, bidStatus, compact = false }: BidTi
   const currentIdx = STAGE_INDEX[stage];
 
   return (
-    <div className="flex items-center w-full">
+    <div
+      role="progressbar"
+      aria-label="Bid progress"
+      aria-valuemin={0}
+      aria-valuemax={3}
+      aria-valuenow={currentIdx}
+      aria-valuetext={STAGE_TEXT[stage]}
+      className="flex items-center w-full"
+    >
       {STEPS.map((step, i) => {
         const isCompleted = stage === 'complete' ? true : i < currentIdx;
         const isCurrent = stage === 'failed' ? i === 2 : i === currentIdx;

@@ -295,4 +295,119 @@ describe('PendingTxPool', () => {
       expect(hashes).toContain('tx2');
     });
   });
+
+  describe('toOgmiosAdditionalUtxo', () => {
+    it('returns empty array when pool is empty', () => {
+      expect(pool.toOgmiosAdditionalUtxo()).toEqual([]);
+    });
+
+    it('formats lovelace-only output as Ogmios v6 entry', async () => {
+      const outputs = [makeUtxo('tx1', 0, 'addr_test1abc', '5000000')];
+      mockParseTxInputs.mockResolvedValue([]);
+      mockParseTxOutputs.mockResolvedValue(outputs);
+
+      await pool.registerTx('cbor1', 'tx1');
+      const result = pool.toOgmiosAdditionalUtxo();
+
+      expect(result).toHaveLength(1);
+      const entry = result[0] as Record<string, unknown>;
+      expect(entry.transaction).toEqual({ id: 'tx1' });
+      expect(entry.index).toBe(0);
+      expect(entry.address).toBe('addr_test1abc');
+      expect(entry.value).toEqual({ ada: { lovelace: 5000000 } });
+    });
+
+    it('formats multi-asset output with policy grouping', async () => {
+      const policyId = 'a'.repeat(56);
+      const assetName = 'ff01';
+      const outputs = [makeUtxo('tx1', 0, 'addr1', '2000000', [
+        { unit: policyId + assetName, quantity: '1' },
+      ])];
+      mockParseTxInputs.mockResolvedValue([]);
+      mockParseTxOutputs.mockResolvedValue(outputs);
+
+      await pool.registerTx('cbor1', 'tx1');
+      const result = pool.toOgmiosAdditionalUtxo();
+
+      const entry = result[0] as Record<string, unknown>;
+      const value = entry.value as Record<string, unknown>;
+      expect(value.ada).toEqual({ lovelace: 2000000 });
+      expect(value[policyId]).toEqual({ [assetName]: 1 });
+    });
+
+    it('includes plutusData when present', async () => {
+      const outputs: UTxO[] = [{
+        input: { txHash: 'tx1', outputIndex: 0 },
+        output: {
+          address: 'addr1',
+          amount: [{ unit: 'lovelace', quantity: '1000000' }],
+          plutusData: '{"constructor":0,"fields":[]}',
+        },
+      }];
+      mockParseTxInputs.mockResolvedValue([]);
+      mockParseTxOutputs.mockResolvedValue(outputs);
+
+      await pool.registerTx('cbor1', 'tx1');
+      const result = pool.toOgmiosAdditionalUtxo();
+
+      const entry = result[0] as Record<string, unknown>;
+      expect(entry.datum).toBe('{"constructor":0,"fields":[]}');
+    });
+
+    it('includes dataHash when present', async () => {
+      const outputs: UTxO[] = [{
+        input: { txHash: 'tx1', outputIndex: 0 },
+        output: {
+          address: 'addr1',
+          amount: [{ unit: 'lovelace', quantity: '1000000' }],
+          dataHash: 'aa'.repeat(32),
+        },
+      }];
+      mockParseTxInputs.mockResolvedValue([]);
+      mockParseTxOutputs.mockResolvedValue(outputs);
+
+      await pool.registerTx('cbor1', 'tx1');
+      const result = pool.toOgmiosAdditionalUtxo();
+
+      const entry = result[0] as Record<string, unknown>;
+      expect(entry.datumHash).toBe('aa'.repeat(32));
+    });
+
+    it('excludes spent outputs', async () => {
+      const outputs = [
+        makeUtxo('tx1', 0, 'addr1', '3000000'),
+        makeUtxo('tx1', 1, 'addr1', '2000000'),
+      ];
+      mockParseTxInputs.mockResolvedValue([]);
+      mockParseTxOutputs.mockResolvedValue(outputs);
+      await pool.registerTx('cbor1', 'tx1');
+
+      // Register a second tx that spends output 0 of tx1
+      mockParseTxInputs.mockResolvedValue([{ txHash: 'tx1', outputIndex: 0 }]);
+      mockParseTxOutputs.mockResolvedValue([makeUtxo('tx2', 0, 'addr1', '1000000')]);
+      await pool.registerTx('cbor2', 'tx2');
+
+      const result = pool.toOgmiosAdditionalUtxo();
+      // tx1 output 0 is spent, tx1 output 1 and tx2 output 0 remain
+      const txHashes = result.map((e) => (e as { transaction: { id: string } }).transaction.id);
+      expect(txHashes).not.toContain('tx1-spent');
+      expect(result.length).toBe(2);
+    });
+
+    it('handles multiple assets from same policy', async () => {
+      const policyId = 'b'.repeat(56);
+      const outputs = [makeUtxo('tx1', 0, 'addr1', '2000000', [
+        { unit: policyId + 'aa', quantity: '10' },
+        { unit: policyId + 'bb', quantity: '20' },
+      ])];
+      mockParseTxInputs.mockResolvedValue([]);
+      mockParseTxOutputs.mockResolvedValue(outputs);
+
+      await pool.registerTx('cbor1', 'tx1');
+      const result = pool.toOgmiosAdditionalUtxo();
+
+      const value = (result[0] as { value: Record<string, Record<string, number>> }).value;
+      expect(value[policyId]).toEqual({ aa: 10, bb: 20 });
+    });
+  });
 });
