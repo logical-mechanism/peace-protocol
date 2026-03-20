@@ -6,7 +6,7 @@ A comprehensive backlog for making the AudioPlayer exceptional. Pick any item, i
 - Native `<audio>` element for playback (routes through GStreamer via WebKitGTK)
 - Separate PCM decode via `OfflineAudioContext` for FFT visualization only
 - Custom Cooley-Tukey radix-2 FFT (1024 samples, 32 bars)
-- Waveform overview (200 buckets, peak-detection downsampling)
+- Waveform overview (480 buckets, peak-detection downsampling)
 - WebKitGTK Web Audio API is broken (no AnalyserNode, no AudioWorklet)
 - Styling uses Winamp-themed CSS variables defined in `fe/src/index.css`
 
@@ -17,55 +17,63 @@ Each item:
 
 ---
 
-## 1. Visualization
+## 1. Playback & Stability
 
-> Key files: `fe/src/components/AudioPlayer.tsx`, `fe/src/index.css`
+> Key files: `fe/src/components/AudioPlayer.tsx`, `src-tauri/src/lib.rs`
 
-- [x] 🟡 **Add peak hold indicators to FFT bars**
-  - **How**: Classic Winamp 2.x signature: a single bright segment sits at each bar's peak and slowly descends. Add a `peakBarsRef = useRef(new Float32Array(BAR_COUNT))` alongside `prevBarsRef`. In `drawFrame()` (line 511), after computing `prevBarsRef.current[i]`, update the peak: `if (prevBarsRef.current[i] > peakBarsRef.current[i]) peakBarsRef.current[i] = prevBarsRef.current[i]; else peakBarsRef.current[i] *= 0.97;`. After drawing each bar's segments (line 519-525), draw the peak dot: `const peakY = height - peakBarsRef.current[i] * height; ctx.fillStyle = gradEnd; ctx.fillRect(x, peakY, barWidth, segH);`. Reset peaks to 0 alongside `prevBarsRef` in the data-loading effect (line 270). In the decay branch (line 529-546), decay peaks too: `peakBarsRef.current[i] *= 0.97;` and draw them the same way.
-  - **Why**: Peak hold dots are the single most recognizable Winamp visual element. Without them, the spectrum analyzer looks generic. Every Winamp clone is defined by these floating peak indicators.
+- [x] 🔴 **WAV playback fails with GStreamer `gstwavparse` internal stream error**
+  - **How**: GStreamer's WAV parser reports `streaming stopped, reason error (-5)` at `gst_wavparse_loop`. The AudioPlayer sets `audio.src = src` directly (line 268) on the `<audio>` element (line 1013) without a `<source>` child element providing an explicit `type` attribute. GStreamer's demuxer uses the MIME type hint for codec selection. Fix: render the `<audio>` element with a `<source>` child: `<audio ref={audioRef} preload="auto" style={{ display: 'none' }}><source src={src} type={getMimeType(fileExtension)} /></audio>`. The `getMimeType()` function (lines 42-53) already returns `'audio/wav'`. Pass `fileExtension` as a prop (it's already available in `LibraryContentModal.tsx`). If this doesn't resolve it, investigate whether the WAV files use non-PCM encoding (ADPCM, A-law, mu-law) that GStreamer's installed plugins don't support — add a more specific error message for WAV failures mentioning `gst-plugins-good`.
+  - **Why**: WAV files are a supported format but fail to play. The error is a GStreamer pipeline failure in WebKitGTK's audio backend.
 
-- [x] 🟢 **Respect `prefers-reduced-motion` in canvas animation loop**
-  - **How**: In the RAF effect (line 563), read the media query once: `const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;`. If true, skip `startLoop()` at line 603, draw a single static frame of the waveform via `drawWaveformRef.current?.(0)`, and return. The `<audio>` element plays normally — only the canvas FFT bars and waveform animation are suppressed. Users who toggle the OS setting mid-session won't see the change until remount, which is acceptable.
-  - **Why**: The existing `@media (prefers-reduced-motion)` rule in index.css (line 688) disables CSS animations but doesn't affect the JS-driven canvas loop. Users who set reduced motion for vestibular comfort still get 24fps animated bars.
+- [x] 🟡 **PCM decode fetch not aborted on unmount**
+  - **How**: The `decodePcmForVisualization()` function (line 284) uses `fetch(src)` (line 292) without an `AbortController`. If the component unmounts during the fetch, the request completes in the background, wasting bandwidth and memory. Add `const abortCtrl = new AbortController();` before the fetch calls, pass `{ signal: abortCtrl.signal }` to both `fetch(src, { method: 'HEAD' })` (line 287) and `fetch(src)` (line 292), and call `abortCtrl.abort()` in the cleanup function (after line 409: `cancelled = true`).
+  - **Why**: Navigating away from a large audio file mid-decode wastes a full file fetch that's no longer needed.
 
----
-
-## 2. Transport Controls
-
-> Key files: `fe/src/components/AudioPlayer.tsx`
-
-- [x] 🟡 **Add `L` keyboard shortcut for loop toggle**
-  - **How**: In the global `handleKeyDown` switch statement (line 692-728), add a case after the `m`/`M` case: `case 'l': case 'L': handleToggleLoop(); break;`. Update the key hints overlay (line 1020-1025) to add a new row: `<span><kbd>L</kbd> Loop</span>`. Update the loop button's `title` to include `(L)`: line 1153 → `title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}`.
-  - **Why**: Every other toggle has a keyboard shortcut (Space for play, M for mute) but loop requires a mouse click. Keyboard-only users can't toggle repeat mode.
-
-- [x] 🟡 **Add `S` keyboard shortcut for speed cycling**
-  - **How**: In the same switch statement, add: `case 's': case 'S': handleSpeedChange(); break;`. Update key hints to add `<span><kbd>S</kbd> Speed</span>`. Update the speed button's `title` at line 1166 to append `(S)`. Add `handleSpeedChange` to the `useEffect` dependency array at line 733.
-  - **Why**: Same reasoning as loop — speed cycling is mouse-only. Keyboard users (especially visually impaired) benefit from being able to change speed without finding the small button.
+- [x] 🟡 **OfflineAudioContext decode has no timeout**
+  - **How**: `offlineCtx.decodeAudioData(arrayBuffer)` (line 300) can hang indefinitely on malformed file headers. Wrap it with `Promise.race([offlineCtx.decodeAudioData(arrayBuffer), new Promise((_, reject) => setTimeout(() => reject(new Error('Decode timeout')), 30_000))])`. On timeout, set `visualizationFailed = true` — playback continues unaffected since the native `<audio>` element handles playback independently.
+  - **Why**: A corrupted file header could hang the visualization pipeline indefinitely, showing a perpetual loading state for the waveform/FFT.
 
 ---
 
-## 3. Metadata & Display
+## 2. Visualization & FFT
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [x] 🟢 **Show bitrate and sample rate in LED display area**
-  - **How**: The `music-metadata` result (line 284) includes `result.format.bitrate` (number, bps) and `result.format.sampleRate` (number, Hz). Extend the `AudioMetadata` interface (line 4) with `bitrate?: number; sampleRate?: number;`. Populate them at line 288: `bitrate: result.format.bitrate, sampleRate: result.format.sampleRate`. Display in the LED row (line 1042-1063) — add a small info section between the time display and status text: `{metadata?.bitrate && <span className="text-[10px] font-mono text-[var(--winamp-led)] opacity-40">{Math.round(metadata.bitrate / 1000)}kbps</span>}` and similarly for sample rate `{Math.round(sampleRate / 1000)}kHz`. Use the `winamp-led-text` class at reduced opacity for the retro look.
-  - **Why**: Winamp 2.x always showed kbps and kHz in the main display. This is expected metadata in a retro audio player and helps users verify file quality at a glance.
+- [ ] 🟡 **Move PCM decode to Rust side so all formats get waveform/FFT visualization**
+  - **How**: WebKitGTK's `OfflineAudioContext.decodeAudioData()` (line 300) only supports a narrow set of codecs (MP3, PCM WAV, OGG Vorbis). Formats like FLAC, AAC/M4A, Opus, and non-PCM WAV silently fail — `decodeAudioData` throws, line 328-329 catches it, and visualization disappears while playback works fine (GStreamer handles it). Fix: add a Tauri command `decode_audio_waveform(path: String, bucket_count: u32) -> Vec<f32>` in `src-tauri/src/commands/media.rs` using the `symphonia` crate (pure Rust, supports MP3, FLAC, WAV, OGG, AAC, Opus). The command reads the file, decodes to PCM f32 samples, downsamples into `bucket_count` buckets (480), normalizes to [0,1], and returns the waveform data. On the frontend, replace the `decodePcmForVisualization()` function (lines 284-331) with an `invoke('decode_audio_waveform', { path, bucketCount: 480 })` call. For FFT, also return the raw PCM buffer (or a chunked subset) so the frontend can still run `fftInPlace()` against it during playback. Alternative: compute FFT bins on the Rust side too and return both waveform + a time-indexed FFT magnitude array, eliminating the need for `OfflineAudioContext` entirely.
+  - **Why**: Currently FLAC, AAC, M4A, Opus, and non-PCM WAV files play fine but show "Visualization unavailable" because WebKitGTK's Web Audio decoder doesn't support them. Moving to Rust-side decode via `symphonia` gives format parity — every file GStreamer can play also gets waveform and FFT visualization.
 
-- [x] 🟢 **Add mono/stereo indicator**
-  - **How**: `music-metadata` provides `result.format.numberOfChannels`. Add `channels?: number` to `AudioMetadata`. Display next to bitrate: `{metadata?.channels === 1 ? 'MONO' : metadata?.channels === 2 ? 'STEREO' : null}` using the same `winamp-led-text` class at reduced opacity. Alternatively, use two small LED dots (like Winamp's stereo indicator) — a `<span>` with `bg-[var(--winamp-led)]` when stereo, `opacity-20` when mono.
-  - **Why**: Classic Winamp had a prominent MONO/STEREO indicator in the main display. Fits the retro aesthetic and provides useful technical info.
+- [ ] 🟢 **Distinguish "file too large" from "format not decodable" in visualization fallback**
+  - **How**: Currently line 1109-1113 shows a generic "Visualization unavailable for this format" tooltip for all visualization failures. Track the reason: add a `vizFailReason` state (`'size' | 'decode' | null`). Set `'size'` at line 290 when file > 100 MB, `'decode'` at line 329 when decode fails. Display different messages: `'size'` → "File too large for visualization (>100 MB)", `'decode'` → "Visualization unavailable for this format".
+  - **Why**: Users seeing "unavailable for this format" on a large MP3 may think the format is unsupported when it's purely a size limit.
 
 ---
 
-## 4. Playback & Stability
+## 3. Performance & Memory
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [x] 🟢 **Guard against division by zero in drawFrame waveform progress**
-  - **How**: At line 552, `const progressRatio = vizTimeRef.current / duration` can produce `Infinity` if `duration` is 0 but `vizTimeRef.current` is non-zero (theoretically possible with zero-length or corrupt files). Add `if (!isFinite(progressRatio)) return;` after the calculation, before the pixel comparison at line 554. The `duration > 0` guard at line 550 should prevent this, but the Infinity check is a cheap safety net.
-  - **Why**: Prevents a corrupt or zero-length file from causing the waveform to render with an Infinity progress ratio, which would produce NaN pixel values in `drawWaveform`.
+- [ ] 🟡 **Canvas not scaled for HiDPI displays**
+  - **How**: The waveform canvas (line 1071-1072) and FFT canvas (line 1079-1080) use hardcoded `width={480} height={120}` without accounting for `window.devicePixelRatio`. On HiDPI screens (2x, 3x), canvas content appears blurry. Fix: in the canvas setup, multiply the canvas element's `width`/`height` attributes by `devicePixelRatio`, set CSS `width`/`height` to the logical size via `style={{ width: 480, height: 120 }}`, and call `ctx.scale(dpr, dpr)` on the canvas contexts. Update `drawFrame()` and `drawWaveform()` to use logical coordinates (they already do — the scale transform handles the conversion). Read `devicePixelRatio` once in the color-reading effect (line 222) and store it in a ref.
+  - **Why**: On HiDPI displays (common on modern laptops), the FFT bars and waveform look blurry compared to the crisp text and UI elements around them.
+
+---
+
+## 4. Accessibility
+
+> Key files: `fe/src/components/AudioPlayer.tsx`
+
+- [ ] 🟡 **Volume slider missing ARIA slider attributes**
+  - **How**: The volume `<input type="range">` (line 1280-1289) has `aria-label="Volume"` but lacks explicit `role="slider"`, `aria-valuemin="0"`, `aria-valuemax="1"`, `aria-valuenow={volume}`, and `aria-valuetext={`${Math.round(volume * 100)}%`}`. Add these attributes. Compare with the seek bar (lines 1161-1167) which has full ARIA slider attributes already.
+  - **Why**: Screen readers can announce the volume level numerically ("Volume: 75%") instead of just "Volume slider" with no value context.
+
+- [ ] 🟢 **LED time display uses `<div role="button">` instead of `<button>`**
+  - **How**: The LED time display (line 1119) is `<div role="button" tabIndex={0}>` with manual `onKeyDown` for Enter/Space. Replace with `<button type="button" className="..." onClick={...}>`. Remove the `onKeyDown` handler (lines 1127-1130) and `tabIndex={0}` — native `<button>` handles Enter/Space and focus natively. Keep the existing `aria-label`.
+  - **Why**: Native `<button>` is semantically correct, keyboard-accessible by default, and doesn't need manual Enter/Space handling — reducing fragile code.
+
+- [ ] 🟢 **Volume slider lacks visible focus ring**
+  - **How**: The volume slider (line 1287) has `focus-visible:shadow-[var(--focus-ring)]` but `<input type="range">` often needs explicit `outline: none` + custom focus styling to override browser defaults. Verify the focus ring is visible on keyboard Tab in WebKitGTK. If not, add `[&:focus-visible]:ring-2 [&:focus-visible]:ring-[var(--accent)]` or equivalent.
+  - **Why**: Keyboard users tabbing through controls can't see when the volume slider is focused if the browser's default focus ring is suppressed by the custom styling.
 
 ---
 
@@ -73,17 +81,21 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/AudioPlayer.test.tsx`
 
-- [x] 🟡 **Add LED time toggle interaction test**
-  - **How**: The LED display at lines 1043-1059 has `role="button"` and `tabIndex={0}` with `onClick` and `onKeyDown` handlers. Add tests in a new `describe('AudioPlayer component → LED time toggle')` block: (1) Click the LED display and verify text changes from total to remaining format (look for the `\u2212` minus sign prefix). (2) Press Enter on the focused LED display and verify the same toggle. (3) Press Space on the LED display. Follow the existing keyboard interaction test patterns (lines ~678-730 in the test file). The LED display can be found via `role="button"` and `title="Click to toggle remaining time"`.
-  - **Why**: The time toggle is an interactive element with keyboard support but has zero test coverage. A regression breaking the toggle or keyboard handler would go undetected.
+- [ ] 🟡 **Add unit tests for `fftInPlace()` algorithm**
+  - **How**: Export `fftInPlace` (line 79) or extract it to a testable utility. Test with known input→output: (1) DC signal (all 1.0 real, 0 imag) should produce energy only in bin 0. (2) Pure sine at bin frequency should produce energy in that bin. (3) Power-of-2 length validation. (4) Impulse signal `[1, 0, 0, ...]` should produce flat magnitude spectrum. Use `Float32Array` inputs matching `FFT_SIZE = 1024`.
+  - **Why**: The FFT is a custom implementation (not a library) — any subtle bug (twiddle factor sign, bit-reversal order) would produce visually wrong spectrum bars with no test to catch the regression.
 
-- [x] 🟢 **Verify speed button cycles `audio.playbackRate`**
-  - **How**: In the existing `describe('AudioPlayer component → button interactions')` block, add a test that: clicks the speed button (find by `aria-label` matching `/playback speed/i`), then asserts the mock audio element's `playbackRate` was set to the next speed value (1.25 after first click from default 1.0). The mock audio element at line ~74 of the test file needs a `playbackRate` property added if not present.
-  - **Why**: The test file verifies the speed button renders "1x" and changes label on click, but never verifies the audio element's `playbackRate` is actually updated. `handleSpeedChange()` (line 893) sets both state and `audioRef.current.playbackRate` — only the state side is implicitly tested.
+- [ ] 🟡 **Add tests for `computeWaveformBuckets()` edge cases**
+  - **How**: The waveform downsampling (line 305-322 area) converts decoded PCM to 480 buckets. Test: (1) Empty/zero-length audio buffer → returns empty or zeroed array. (2) Very short buffer (fewer samples than buckets) → handles gracefully. (3) Single-sample buffer. (4) Normalization — max value should be 1.0. (5) All-zero input → all-zero output. If the function isn't exported, extract the bucket computation into a named function.
+  - **Why**: Edge cases like very short files or silent audio could produce NaN/Infinity in the normalization step (division by max where max=0).
 
-- [x] 🟢 **Verify loop toggle syncs `audio.loop`**
-  - **How**: Similar to speed: in the button interactions block, click the loop button (find by `aria-label` matching `/repeat/i`), then assert `audio.loop` was set to `true`. Click again, assert `audio.loop` is `false`. The `handleToggleLoop` (line 881-887) and the sync effect (line 615-617) both set `audio.loop` — test should verify the element property changes.
-  - **Why**: `aria-pressed` is tested but the actual audio element property sync isn't. A regression in `handleToggleLoop` that updates state but forgets `audioRef.current.loop = next` (line 884) would be invisible.
+- [ ] 🟢 **Add tests for seek bar mouse interactions**
+  - **How**: The seek bar has `onMouseDown`, `onMouseMove`, `onMouseUp` handlers for scrubbing (lines around 960-967). Test: (1) `mousedown` on seek bar starts seeking. (2) `mousemove` during seek updates tooltip position. (3) `mouseup` commits the seek to `audio.currentTime`. (4) Clicking outside the bar after mousedown doesn't crash. Mock `getBoundingClientRect()` to return known dimensions.
+  - **Why**: The seek interaction is the primary way users navigate audio, but has zero test coverage — only the keyboard seek (Home/End/Arrow) is tested.
+
+- [ ] 🟢 **Add tests for waveform mouse seek**
+  - **How**: The waveform canvas has `onMouseDown` (line ~930) for click-to-seek. Test: (1) Click at 50% width → `audio.currentTime` set to 50% of duration. (2) Click at 0% → seeks to start. (3) Click at 100% → seeks to end. Mock canvas `getBoundingClientRect()`.
+  - **Why**: Waveform click-to-seek is a key navigation feature with no test coverage.
 
 ---
 
@@ -91,14 +103,16 @@ Each item:
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| 🔴 Critical | 0 | — |
-| 🟡 Important | 4 | Peak hold indicators, L key loop shortcut, S key speed shortcut, LED toggle test |
-| 🟢 Nice-to-have | 6 | prefers-reduced-motion, bitrate/samplerate display, mono/stereo indicator, division-by-zero guard, speed playbackRate test, loop sync test |
+| 🔴 Critical | 1 | WAV playback GStreamer error |
+| 🟡 Important | 7 | Rust PCM decode, fetch abort, decode timeout, HiDPI canvas, volume ARIA, FFT tests, waveform bucket tests |
+| 🟢 Nice-to-have | 5 | Viz fail reason, LED button semantics, focus ring, seek tests, waveform click tests |
 
 ### Implementation Order (suggested)
 
-1. Peak hold indicators (§1) — highest visual impact, signature Winamp feature
-2. L key loop shortcut (§2) — one-line addition in switch statement
-3. S key speed shortcut (§2) — same pattern as loop shortcut
-4. LED toggle test (§5) — covers untested interactive element
-5. Everything else — in any order
+1. WAV playback fix (S1) — critical bug, likely a `<source>` element fix
+2. Rust PCM decode (S2) — unlocks visualization for all formats
+3. Volume slider ARIA (S4) — small change, big accessibility win
+4. HiDPI canvas (S3) — visible quality improvement on modern displays
+5. FFT unit tests (S5) — protects custom algorithm from regressions
+6. PCM fetch abort + decode timeout (S1) — resilience improvements
+7. Everything else — in any order

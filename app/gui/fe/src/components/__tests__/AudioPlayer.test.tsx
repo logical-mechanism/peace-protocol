@@ -527,11 +527,12 @@ describe('AudioPlayer component', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('sets src URL on audio element', () => {
+    it('sets src URL on audio source element with MIME type', () => {
       renderPlayer();
-      const audio = document.querySelector('audio');
-      expect(audio).not.toBeNull();
-      expect(audio!.getAttribute('src')).toBe(mockAudioUrl);
+      const source = document.querySelector('audio source');
+      expect(source).not.toBeNull();
+      expect(source!.getAttribute('src')).toBe(mockAudioUrl);
+      expect(source!.getAttribute('type')).toBe('audio/mpeg');
     });
 
     it('shows loading spinner initially', () => {

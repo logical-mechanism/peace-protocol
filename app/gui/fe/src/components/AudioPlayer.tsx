@@ -247,6 +247,7 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
 
   useEffect(() => {
     let cancelled = false;
+    const abortCtrl = new AbortController();
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -263,9 +264,9 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
     retryCountRef.current = 0;
     if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
 
-    // Stream directly from disk via asset:// URL — GStreamer handles output directly,
-    // completely bypassing AudioContext.destination (which is broken on WebKitGTK)
-    audio.src = src;
+    // The <source> element in JSX provides src + MIME type hint for GStreamer codec
+    // selection. Calling load() tells the <audio> element to re-read its <source> children.
+    audio.load();
 
     const onLoadedMetadata = () => {
       if (cancelled) return;
@@ -284,12 +285,12 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
     async function decodePcmForVisualization() {
       try {
         // Size guard: skip files > 100 MB to avoid memory pressure
-        const head = await fetch(src, { method: 'HEAD' });
+        const head = await fetch(src, { method: 'HEAD', signal: abortCtrl.signal });
         if (cancelled) return;
         const size = parseInt(head.headers.get('content-length') || '0', 10);
         if (size > 100 * 1024 * 1024) { setVisualizationFailed(true); return; }
 
-        const resp = await fetch(src);
+        const resp = await fetch(src, { signal: abortCtrl.signal });
         if (cancelled) return;
         if (!resp.ok) { setVisualizationFailed(true); return; }
         const arrayBuffer = await resp.arrayBuffer();
@@ -297,7 +298,10 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
 
         // OfflineAudioContext for decoding only — no audio output needed
         const offlineCtx = new OfflineAudioContext(1, 1, 44100);
-        const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+        const audioBuffer = await Promise.race([
+          offlineCtx.decodeAudioData(arrayBuffer),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Decode timeout')), 30_000)),
+        ]);
         if (cancelled) return;
 
         bufferRef.current = audioBuffer;
@@ -376,7 +380,6 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
         retryCountRef.current++;
         retryTimerRef.current = setTimeout(() => {
           if (cancelled) return;
-          audio.src = src;
           audio.load();
         }, 500 * retryCountRef.current);
         return;
@@ -408,6 +411,7 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
 
     return () => {
       cancelled = true;
+      abortCtrl.abort();
       audio.pause();
       if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
@@ -420,8 +424,9 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('stalled', onStalled);
       audio.removeEventListener('seeked', onSeeked);
-      // Detach from GStreamer
-      audio.removeAttribute('src');
+      // Detach from GStreamer — clear <source> src and reload to release pipeline
+      const source = audio.querySelector('source');
+      if (source) source.removeAttribute('src');
       audio.load();
       cancelAnimationFrame(rafRef.current);
       // Release decoded PCM data for immediate GC
@@ -1010,7 +1015,9 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
   return (
     <div className="bg-[var(--winamp-bg)] border border-[var(--winamp-border-dark)] rounded-[var(--radius-sm)] overflow-hidden shadow-lg">
       {/* Hidden audio element — native GStreamer output, no Web Audio API */}
-      <audio ref={audioRef} preload="auto" style={{ display: 'none' }} />
+      <audio ref={audioRef} preload="auto" style={{ display: 'none' }}>
+        <source src={src} type={getMimeType(fileExtension)} />
+      </audio>
 
       {/* Title Bar */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-[var(--winamp-bg-dark)] to-[var(--winamp-bg)] border-b border-[var(--winamp-border-dark)]">
