@@ -1,7 +1,18 @@
 import { describe, it, expect, vi } from 'vitest'
 
+const { mockComplete, mockTxBuilderInstance } = vi.hoisted(() => {
+  const mockComplete = vi.fn().mockResolvedValue('unsigned_tx_hex')
+  const mockTxBuilderInstance = {
+    txIn: vi.fn().mockReturnThis(),
+    txOut: vi.fn().mockReturnThis(),
+    changeAddress: vi.fn().mockReturnThis(),
+    complete: mockComplete,
+  }
+  return { mockComplete, mockTxBuilderInstance }
+})
+
 // Mock heavy dependencies
-vi.mock('@meshsdk/core', () => ({ MeshTxBuilder: vi.fn() }))
+vi.mock('@meshsdk/core', () => ({ MeshTxBuilder: vi.fn(() => mockTxBuilderInstance) }))
 vi.mock('../providers', () => ({ getKupoAdapter: vi.fn(), getChainingAdapter: vi.fn(), getOgmiosProvider: vi.fn(), getPendingTxPool: () => ({ registerTx: vi.fn().mockResolvedValue(undefined), confirmTx: vi.fn(), invalidateChain: vi.fn(), clear: vi.fn() }) }))
 
 import {
@@ -577,6 +588,61 @@ describe('defragWallet', () => {
     const result = await defragWallet(wallet)
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/fetch failed/)
+  })
+
+  it('returns error when insufficient ADA for token UTxOs + collateral + fees', async () => {
+    // Two UTxOs with tokens but very little ADA
+    const utxos = [
+      tokenUtxo(1_500_000, [{ unit: POLICY_A + 'aa', quantity: '1' }], 'a'.repeat(64), 0),
+      tokenUtxo(1_500_000, [{ unit: POLICY_B + 'bb', quantity: '1' }], 'b'.repeat(64), 0),
+    ]
+    const result = await defragWallet(mockWallet(utxos))
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/insufficient ada/i)
+  })
+
+  it('successfully defragments two pure ADA UTxOs', async () => {
+    mockComplete.mockResolvedValue('unsigned_hex')
+    const utxos = [
+      pureAdaUtxo(50_000_000, 'a'.repeat(64), 0),
+      pureAdaUtxo(30_000_000, 'a'.repeat(64), 1),
+    ]
+    const wallet = mockWallet(utxos)
+    const result = await defragWallet(wallet)
+
+    expect(result.success).toBe(true)
+    expect(result.txHash).toBe('tx_hash_hex')
+    expect(mockTxBuilderInstance.txIn).toHaveBeenCalledTimes(2)
+    expect(mockTxBuilderInstance.txOut).toHaveBeenCalled()
+    expect(mockTxBuilderInstance.changeAddress).toHaveBeenCalledWith('addr_test1qz')
+  })
+
+  it('adds warning when UTxOs exceed MAX_DEFRAG_INPUTS', async () => {
+    mockComplete.mockResolvedValue('unsigned_hex')
+    // Create 201 UTxOs (MAX_DEFRAG_INPUTS = 200)
+    const utxos = Array.from({ length: 201 }, (_, i) =>
+      pureAdaUtxo(5_000_000, (i.toString(16).padStart(64, '0')), 0),
+    )
+    const wallet = mockWallet(utxos)
+    const result = await defragWallet(wallet)
+
+    expect(result.success).toBe(true)
+    expect(result.error).toMatch(/200 of 201/)
+  })
+
+  it('defragments with token-bearing UTxOs', async () => {
+    mockComplete.mockResolvedValue('unsigned_hex')
+    const utxos = [
+      pureAdaUtxo(50_000_000, 'a'.repeat(64), 0),
+      tokenUtxo(10_000_000, [{ unit: POLICY_A + 'aa', quantity: '5' }], 'b'.repeat(64), 0),
+    ]
+    const wallet = mockWallet(utxos)
+    const result = await defragWallet(wallet)
+
+    expect(result.success).toBe(true)
+    expect(result.txHash).toBe('tx_hash_hex')
+    // Collateral output + token output = at least 2 txOut calls
+    expect(mockTxBuilderInstance.txOut.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 })
 

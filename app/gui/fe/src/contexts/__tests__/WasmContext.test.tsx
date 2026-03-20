@@ -105,4 +105,117 @@ describe('WasmContext', () => {
 
     expect(cached).toBe(true);
   });
+
+  it('checkCache returns false when invoke throws', async () => {
+    // First: setup exists (ready), then checkCache call throws
+    (invoke as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(true) // auto-init
+      .mockRejectedValueOnce(new Error('no binary'));
+
+    const { result } = renderHook(() => useWasm(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isReady).toBe(true);
+    });
+
+    let cached: boolean | undefined;
+    await act(async () => {
+      cached = await result.current.checkCache();
+    });
+
+    expect(cached).toBe(false);
+  });
+
+  it('startLoading returns early when already ready', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    const { result } = renderHook(() => useWasm(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isReady).toBe(true);
+    });
+
+    // Reset mock to track new calls
+    (invoke as ReturnType<typeof vi.fn>).mockClear();
+
+    await act(async () => {
+      await result.current.startLoading();
+    });
+
+    // Should not call snark_check_setup again
+    expect(invoke).not.toHaveBeenCalledWith('snark_check_setup');
+  });
+
+  it('clearError does nothing when not in error state', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    const { result } = renderHook(() => useWasm(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.stage).toBe('ready');
+    });
+
+    act(() => {
+      result.current.clearError();
+    });
+
+    // Stage should still be ready, not idle
+    expect(result.current.stage).toBe('ready');
+  });
+
+  it('handles non-Error exception in startLoading', async () => {
+    (invoke as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(false)  // check: not cached
+      .mockRejectedValueOnce('string error'); // decompress fails
+
+    const { result } = renderHook(() => useWasm(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.stage).toBe('error');
+    });
+
+    expect(result.current.error).toBe('string error');
+  });
+
+  it('snark-setup-progress event updates progress', async () => {
+    let progressCallback: ((event: { payload: { stage: string; message: string; percent: number } }) => void) | null = null;
+
+    (listen as ReturnType<typeof vi.fn>).mockImplementation(
+      async (eventName: string, callback: (event: { payload: unknown }) => void) => {
+        if (eventName === 'snark-setup-progress') {
+          progressCallback = callback as typeof progressCallback;
+        }
+        return vi.fn();
+      }
+    );
+
+    // Start decompressing (not found → decompress which we'll never resolve)
+    (invoke as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(false)  // check: not cached
+      .mockImplementationOnce(() => new Promise(() => {})); // decompress hangs
+
+    const { result } = renderHook(() => useWasm(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.stage).toBe('decompressing');
+    });
+
+    // Simulate progress event
+    act(() => {
+      progressCallback?.({
+        payload: { stage: 'decompressing', message: 'Extracting...', percent: 50 },
+      });
+    });
+
+    expect(result.current.progress).toBe(50);
+
+    // Simulate complete event
+    act(() => {
+      progressCallback?.({
+        payload: { stage: 'complete', message: 'Done', percent: 100 },
+      });
+    });
+
+    expect(result.current.stage).toBe('ready');
+  });
 });
