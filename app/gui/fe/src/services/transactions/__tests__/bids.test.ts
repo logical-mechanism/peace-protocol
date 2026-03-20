@@ -144,7 +144,14 @@ function mockWallet() {
     getCollateral: vi.fn().mockResolvedValue([collateralUtxo]),
     signTx: vi.fn().mockResolvedValue('signed_tx_hex'),
     submitTx: vi.fn().mockResolvedValue('tx_hash_bid'),
-  } as unknown as IWallet;
+  } as unknown as IWallet & {
+    getUtxos: ReturnType<typeof vi.fn>;
+    getUsedAddresses: ReturnType<typeof vi.fn>;
+    getChangeAddress: ReturnType<typeof vi.fn>;
+    getCollateral: ReturnType<typeof vi.fn>;
+    signTx: ReturnType<typeof vi.fn>;
+    submitTx: ReturnType<typeof vi.fn>;
+  };
 }
 
 beforeEach(() => {

@@ -178,7 +178,7 @@ describe('ChainingAdapter', () => {
     });
 
     it('delegates fetchBlockInfo to real adapter', async () => {
-      const block = { hash: 'abc', height: 100 } as BlockInfo;
+      const block = { hash: 'abc', height: 100 } as unknown as BlockInfo;
       (mockAdapter.fetchBlockInfo as ReturnType<typeof vi.fn>).mockResolvedValue(block);
       const result = await adapter.fetchBlockInfo('abc');
       expect(result).toEqual(block);
@@ -192,7 +192,7 @@ describe('ChainingAdapter', () => {
     });
 
     it('delegates fetchProtocolParameters to real adapter', async () => {
-      const params = { minFee: 44 } as Protocol;
+      const params = { minFee: 44 } as unknown as Protocol;
       (mockAdapter.fetchProtocolParameters as ReturnType<typeof vi.fn>).mockResolvedValue(params);
       const result = await adapter.fetchProtocolParameters(100);
       expect(result).toEqual(params);

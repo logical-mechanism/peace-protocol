@@ -7,7 +7,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { IWallet } from '@meshsdk/core';
 import type { CreateListingFormData } from '../../../components/CreateListingModal';
-import type { EncryptionStatus } from '../../api';
 import type { ListingDraft } from '../../listingDraftStorage';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────
@@ -209,7 +208,14 @@ function mockWallet() {
     getCollateral: vi.fn().mockResolvedValue([collateralUtxo]),
     signTx: vi.fn().mockResolvedValue('signed_tx_hex'),
     submitTx: vi.fn().mockResolvedValue('tx_hash_abc'),
-  } as unknown as IWallet;
+  } as unknown as IWallet & {
+    getUtxos: ReturnType<typeof vi.fn>;
+    getUsedAddresses: ReturnType<typeof vi.fn>;
+    getChangeAddress: ReturnType<typeof vi.fn>;
+    getCollateral: ReturnType<typeof vi.fn>;
+    signTx: ReturnType<typeof vi.fn>;
+    submitTx: ReturnType<typeof vi.fn>;
+  };
 }
 
 const mockArtifacts = {
@@ -339,7 +345,7 @@ describe('createListing', () => {
         category: 'document',
         secretMessage: '',
         filePath: undefined,
-      } as CreateListingFormData;
+      } as unknown as CreateListingFormData;
 
       const result = await createListing(wallet, formData);
 
@@ -526,7 +532,7 @@ describe('removeListing', () => {
 
 describe('cancelPendingListing', () => {
   const pendingEnc = createEncryption({
-    status: { type: 'Pending' } as EncryptionStatus,
+    status: 'pending',
     description: 'Test desc',
     suggestedPrice: 10,
     storageLayer: 'ipfs',

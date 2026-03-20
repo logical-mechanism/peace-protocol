@@ -344,7 +344,7 @@ export default function ImportListingModal({
               <div>
                 <label htmlFor="iagonFileId" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
                   File ID <span className="text-[var(--error)]">*</span>
-                  <InfoTooltip content="The Iagon file _id returned from the upload API." />
+                  <InfoTooltip text="The Iagon file _id returned from the upload API." />
                 </label>
                 <input
                   ref={fileIdRef}
@@ -366,7 +366,7 @@ export default function ImportListingModal({
                 <div>
                   <label htmlFor="aesKeyHex" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
                     AES Key <span className="text-[var(--error)]">*</span>
-                    <InfoTooltip content="The 32-byte AES-256 encryption key (64 hex characters) used to encrypt the file." />
+                    <InfoTooltip text="The 32-byte AES-256 encryption key (64 hex characters) used to encrypt the file." />
                   </label>
                   <input
                     type="text"
@@ -385,7 +385,7 @@ export default function ImportListingModal({
                 <div>
                   <label htmlFor="gcmNonceHex" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
                     GCM Nonce <span className="text-[var(--error)]">*</span>
-                    <InfoTooltip content="The 12-byte GCM initialization vector (24 hex characters) used during encryption." />
+                    <InfoTooltip text="The 12-byte GCM initialization vector (24 hex characters) used during encryption." />
                   </label>
                   <input
                     type="text"
@@ -408,7 +408,7 @@ export default function ImportListingModal({
                 <div className="col-span-2">
                   <label htmlFor="sha256DigestHex" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
                     SHA-256 Digest <span className="text-[var(--error)]">*</span>
-                    <InfoTooltip content="SHA-256 hash of the original (unencrypted) file (64 hex characters). Used to verify integrity after decryption." />
+                    <InfoTooltip text="SHA-256 hash of the original (unencrypted) file (64 hex characters). Used to verify integrity after decryption." />
                   </label>
                   <input
                     type="text"
@@ -427,7 +427,7 @@ export default function ImportListingModal({
                 <div>
                   <label htmlFor="fileExtension" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
                     Extension
-                    <InfoTooltip content="Original file extension (e.g. .pdf, .mp3). Determines how buyers view the file." />
+                    <InfoTooltip text="Original file extension (e.g. .pdf, .mp3). Determines how buyers view the file." />
                   </label>
                   <input
                     type="text"
