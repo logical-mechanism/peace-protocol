@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import {
   saveDecryptedContent,
   saveContentMetadata,
+  copyToLibrary,
   type ContentMetadata,
 } from '../contentStorage';
 
@@ -175,5 +176,50 @@ describe('saveContentMetadata', () => {
     const jsonStr = new TextDecoder().decode(new Uint8Array(callArgs.data));
     const parsed = JSON.parse(jsonStr);
     expect(parsed.fileSize).toBe(1048576);
+  });
+});
+
+describe('copyToLibrary', () => {
+  it('uses explicit file extension when provided', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue('/library/path/token.docx');
+
+    const result = await copyToLibrary('/source/file.docx', 'token1', 'document', '.docx');
+
+    expect(invoke).toHaveBeenCalledWith('copy_to_library', {
+      sourcePath: '/source/file.docx',
+      tokenName: 'token1',
+      category: 'document',
+      fileName: 'token1.docx',
+    });
+    expect(result).toBe('/library/path/token.docx');
+  });
+
+  it('falls back to category-default extension when none provided', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue('/path');
+
+    await copyToLibrary('/source/file', 'tok', 'audio');
+
+    expect(invoke).toHaveBeenCalledWith('copy_to_library', {
+      sourcePath: '/source/file',
+      tokenName: 'tok',
+      category: 'audio',
+      fileName: 'tok.mp3',
+    });
+  });
+
+  it('uses .bin for unknown category without explicit extension', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue('/path');
+
+    await copyToLibrary('/src', 'tok', 'unknown');
+
+    expect(invoke).toHaveBeenCalledWith('copy_to_library', expect.objectContaining({
+      fileName: 'tok.bin',
+    }));
+  });
+
+  it('propagates invoke errors', async () => {
+    (invoke as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('disk full'));
+
+    await expect(copyToLibrary('/src', 'tok', 'text')).rejects.toThrow('disk full');
   });
 });

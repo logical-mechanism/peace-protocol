@@ -1,5 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { createBidArtifacts, verifyBidArtifacts } from '../createBid';
+import { describe, it, expect, vi } from 'vitest';
+import type { IWallet } from '@meshsdk/core';
+
+const { mockDeriveSecret } = vi.hoisted(() => ({
+  mockDeriveSecret: vi.fn(),
+}));
+
+vi.mock('../walletSecret', () => ({
+  deriveSecretFromWallet: mockDeriveSecret,
+}));
+
+import {
+  createBidArtifacts,
+  createBidArtifactsFromWallet,
+  getBidCryptoExplanation,
+  verifyBidArtifacts,
+} from '../createBid';
 import { G1_GENERATOR } from '../bls12381';
 
 describe('createBidArtifacts', () => {
@@ -47,5 +62,39 @@ describe('verifyBidArtifacts', () => {
     const other = createBidArtifacts();
     artifacts.register = { ...artifacts.register, u: other.register.u };
     expect(verifyBidArtifacts(artifacts)).toBe(false);
+  });
+});
+
+describe('createBidArtifactsFromWallet', () => {
+  it('derives secret from wallet and returns valid artifacts', async () => {
+    // Use a known secret scalar for deterministic output
+    mockDeriveSecret.mockResolvedValue(12345n);
+
+    const wallet = {} as IWallet;
+    const artifacts = await createBidArtifactsFromWallet(wallet);
+
+    expect(mockDeriveSecret).toHaveBeenCalledWith(wallet);
+    expect(artifacts.b).toBe(12345n);
+    expect(artifacts.register).toBeDefined();
+    expect(artifacts.register.g).toBe(G1_GENERATOR);
+    expect(artifacts.schnorr).toBeDefined();
+    expect(artifacts.plutusJson.register).toBeDefined();
+    expect(artifacts.plutusJson.schnorr).toBeDefined();
+    expect(verifyBidArtifacts(artifacts)).toBe(true);
+  });
+
+  it('propagates wallet derivation errors', async () => {
+    mockDeriveSecret.mockRejectedValue(new Error('Signature rejected'));
+
+    const wallet = {} as IWallet;
+    await expect(createBidArtifactsFromWallet(wallet)).rejects.toThrow('Signature rejected');
+  });
+});
+
+describe('getBidCryptoExplanation', () => {
+  it('returns a description of bid crypto', () => {
+    const explanation = getBidCryptoExplanation();
+    expect(explanation).toContain('bidding key');
+    expect(explanation).toContain('deterministic');
   });
 });
