@@ -85,6 +85,14 @@ export interface WaveformResult {
   sampleRate: number;
   durationSecs: number;
   channels: number;
+  /** Absolute path to raw PCM file (f32 LE) for FFT visualization. */
+  fftPcmPath?: string;
+}
+
+/** Build a media server URL for a raw PCM file path returned by Rust. */
+export async function getPcmUrl(absolutePath: string): Promise<string> {
+  const port = await getMediaPort();
+  return `http://127.0.0.1:${port}/${encodeURIComponent(absolutePath)}`;
 }
 
 /** Decode an audio file from the library and return waveform data.

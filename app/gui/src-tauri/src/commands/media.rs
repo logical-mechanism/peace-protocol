@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::DecoderOptions;
@@ -843,12 +844,22 @@ pub struct WaveformResult {
     pub sample_rate: u32,
     pub duration_secs: f64,
     pub channels: u32,
+    /// Absolute path to a raw PCM file (f32 LE) for FFT visualization.
+    /// Present when `pcm_output_path` was provided during decode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fft_pcm_path: Option<String>,
 }
 
 /// Decode an audio file and produce a waveform overview with `bucket_count` buckets.
 /// Each bucket is the normalized (0.0–1.0) average absolute amplitude of the samples
-/// falling into that time slice. Runs synchronously — call from a blocking thread.
-fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResult, String> {
+/// falling into that time slice. Optionally writes mono PCM (f32 LE) to `pcm_output_path`
+/// for FFT visualization, with an 8-byte header: [sample_rate: u32 LE, total_samples: u32 LE].
+/// Runs synchronously — call from a blocking thread.
+fn decode_waveform_sync(
+    path: &Path,
+    bucket_count: usize,
+    pcm_output_path: Option<&Path>,
+) -> Result<WaveformResult, String> {
     let file = std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -891,6 +902,19 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
     // Reuse a single SampleBuffer across packets to avoid per-packet allocation.
     let mut sample_buf: Option<SampleBuffer<f32>> = None;
     let mut buf_capacity: u64 = 0;
+
+    // Optional PCM writer for FFT visualization data
+    let mut pcm_writer: Option<BufWriter<std::fs::File>> = None;
+    let mut pcm_sample_count: u32 = 0;
+    if let Some(pcm_path) = pcm_output_path {
+        if let Ok(f) = std::fs::File::create(pcm_path) {
+            let mut w = BufWriter::new(f);
+            // Write 8-byte header placeholder: [sample_rate: u32 LE, total_samples: u32 LE]
+            let _ = w.write_all(&sample_rate.to_le_bytes());
+            let _ = w.write_all(&0u32.to_le_bytes()); // placeholder, patched after decode
+            pcm_writer = Some(w);
+        }
+    }
 
     // Streaming path: direct bucket assignment when total frame count is known
     if let Some(n_frames) = total_frames {
@@ -955,15 +979,33 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
                 for ch in 0..num_channels {
                     sum += interleaved[frame * num_channels + ch];
                 }
-                let mono_abs = (sum / num_channels as f32).abs();
+                let mono = sum / num_channels as f32;
+                let mono_abs = mono.abs();
                 let bucket_idx = ((global_idx / samples_per_bucket) as usize).min(bucket_count - 1);
                 bucket_sums[bucket_idx] += mono_abs as f64;
                 bucket_counts[bucket_idx] += 1;
+
+                // Write signed mono sample to PCM file (FFT needs signed values)
+                if let Some(ref mut w) = pcm_writer {
+                    let _ = w.write_all(&mono.to_le_bytes());
+                    pcm_sample_count = pcm_sample_count.saturating_add(1);
+                }
+
                 global_idx += 1;
             }
 
             if global_idx >= MAX_SAMPLES {
                 break;
+            }
+        }
+
+        // Finalize PCM file: patch total_samples in header
+        if let Some(ref mut w) = pcm_writer {
+            let _ = w.flush();
+            if let Ok(inner) = w.get_mut().seek(SeekFrom::Start(4)) {
+                if inner == 4 {
+                    let _ = w.get_mut().write_all(&pcm_sample_count.to_le_bytes());
+                }
             }
         }
 
@@ -993,6 +1035,7 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
             sample_rate,
             duration_secs,
             channels,
+            fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
         });
     }
 
@@ -1049,11 +1092,28 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
             for ch in 0..num_channels {
                 sum += interleaved[frame * num_channels + ch];
             }
-            samples.push((sum / num_channels as f32).abs());
+            let mono = sum / num_channels as f32;
+            samples.push(mono.abs());
+
+            // Write signed mono sample to PCM file
+            if let Some(ref mut w) = pcm_writer {
+                let _ = w.write_all(&mono.to_le_bytes());
+                pcm_sample_count = pcm_sample_count.saturating_add(1);
+            }
         }
 
         if samples.len() as u64 >= MAX_SAMPLES {
             break;
+        }
+    }
+
+    // Finalize PCM file: patch total_samples in header
+    if let Some(ref mut w) = pcm_writer {
+        let _ = w.flush();
+        if let Ok(inner) = w.get_mut().seek(SeekFrom::Start(4)) {
+            if inner == 4 {
+                let _ = w.get_mut().write_all(&pcm_sample_count.to_le_bytes());
+            }
         }
     }
 
@@ -1097,6 +1157,7 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
         sample_rate,
         duration_secs,
         channels,
+        fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
     })
 }
 
@@ -1121,10 +1182,13 @@ pub async fn decode_audio_waveform(
         .ok_or_else(|| "Content file not found".to_string())?;
 
     const BUCKET_COUNT: usize = 480;
+    let pcm_path = token_dir.join("pcm.raw");
 
-    tokio::task::spawn_blocking(move || decode_waveform_sync(&content_path, BUCKET_COUNT))
-        .await
-        .map_err(|e| format!("Waveform decode task failed: {e}"))?
+    tokio::task::spawn_blocking(move || {
+        decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))
+    })
+    .await
+    .map_err(|e| format!("Waveform decode task failed: {e}"))?
 }
 
 #[cfg(test)]

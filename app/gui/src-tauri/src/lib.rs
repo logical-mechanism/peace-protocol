@@ -59,6 +59,7 @@ fn media_mime_type(path: &str) -> &'static str {
         "m2ts" => "video/mp2t",
         "wmv" => "video/x-ms-wmv",
         "wma" => "audio/x-ms-wma",
+        "raw" | "bin" => "application/octet-stream",
         "vtt" => "text/vtt",
         "srt" => "text/plain; charset=utf-8",
         _ => "application/octet-stream",

@@ -15,10 +15,14 @@ const mockDecodeAudioWaveform = vi.fn().mockResolvedValue({
   sampleRate: 44100,
   durationSecs: 120,
   channels: 2,
+  fftPcmPath: '/mock/path/pcm.raw',
 });
+
+const mockGetPcmUrl = vi.fn().mockResolvedValue('http://127.0.0.1:9999/mock-pcm.raw');
 
 vi.mock('../../services/libraryService', () => ({
   decodeAudioWaveform: (...args: unknown[]) => mockDecodeAudioWaveform(...args),
+  getPcmUrl: (...args: unknown[]) => mockGetPcmUrl(...args),
 }));
 
 const mockObjectUrl = 'blob:mock-audio-url';
@@ -1335,20 +1339,11 @@ describe('AudioPlayer component', () => {
       expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
     });
 
-    it('shows "FFT bars unavailable for this format" when OfflineAudioContext fails but waveform works', async () => {
+    it('shows "FFT bars unavailable for this format" when PCM fetch fails', async () => {
       const originalFetch = globalThis.fetch;
-      const originalOAC = globalThis.OfflineAudioContext;
 
-      // Rust waveform succeeds (default mock), but OfflineAudioContext fails
-      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
-        if (opts?.method === 'HEAD') {
-          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': '1000' }) });
-        }
-        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(1000)) });
-      });
-      globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
-        decodeAudioData: vi.fn().mockRejectedValue(new Error('decode failed')),
-      })) as unknown as typeof OfflineAudioContext;
+      // Rust waveform succeeds (default mock with fftPcmPath), but PCM fetch fails
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('fetch failed'));
 
       renderPlayer();
       const audio = document.querySelector('audio')!;
@@ -1359,17 +1354,15 @@ describe('AudioPlayer component', () => {
       expect(screen.getByText('FFT bars unavailable for this format')).toBeInTheDocument();
 
       globalThis.fetch = originalFetch;
-      globalThis.OfflineAudioContext = originalOAC;
     });
 
-    it('shows "FFT bars unavailable (file too large)" for files exceeding 100MB', async () => {
-      const originalFetch = globalThis.fetch;
-      // Rust waveform succeeds (default mock), but fetch HEAD returns >100MB
-      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
-        if (opts?.method === 'HEAD') {
-          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': String(150 * 1024 * 1024) }) });
-        }
-        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) });
+    it('skips FFT when fftPcmPath is not returned by Rust', async () => {
+      mockDecodeAudioWaveform.mockResolvedValueOnce({
+        waveform: Array(480).fill(0.5),
+        sampleRate: 44100,
+        durationSecs: 120,
+        channels: 2,
+        // no fftPcmPath — Rust didn't write a PCM file
       });
 
       renderPlayer();
@@ -1378,18 +1371,20 @@ describe('AudioPlayer component', () => {
       await fireCanPlay();
       await flushMicrotasks();
 
-      expect(screen.getByText('FFT bars unavailable (file too large)')).toBeInTheDocument();
-
-      globalThis.fetch = originalFetch;
+      // Waveform works, FFT is silently skipped (no error shown)
+      expect(screen.queryByText('Visualization unavailable for this format')).not.toBeInTheDocument();
     });
 
-    it('does not show fallback when both waveform and FFT decode succeed', async () => {
+    it('does not show fallback when both waveform and PCM fetch succeed', async () => {
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
-        if (opts?.method === 'HEAD') {
-          return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': '1000' }) });
-        }
-        return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(1000)) });
+      // Build a valid PCM buffer: 8-byte header + f32 samples
+      const pcmBuffer = new ArrayBuffer(8 + 100 * 4);
+      const view = new DataView(pcmBuffer);
+      view.setUint32(0, 44100, true);  // sample_rate
+      view.setUint32(4, 100, true);    // total_samples
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(pcmBuffer),
       });
 
       renderPlayer();

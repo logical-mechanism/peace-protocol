@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
-import { decodeAudioWaveform } from '../services/libraryService';
+import { decodeAudioWaveform, getPcmUrl } from '../services/libraryService';
 import { DelayedSpinner } from './LoadingSpinner';
 import { fftInPlace, normalizeWaveform } from './audioPlayerUtils';
 
@@ -156,8 +156,9 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
 
   // Native <audio> element for playback — no Web Audio API in the output path
   const audioRef = useRef<HTMLAudioElement>(null);
-  // Decoded PCM buffer for FFT visualization (not for playback)
-  const bufferRef = useRef<AudioBuffer | null>(null);
+  // Decoded PCM from Rust (mono f32 array) for FFT visualization (not for playback)
+  const fftPcmRef = useRef<Float32Array | null>(null);
+  const fftSampleRateRef = useRef(44100);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number>(0);
   const seekBarRef = useRef<HTMLDivElement | null>(null);
@@ -244,7 +245,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     lastDrawnPixelRef.current = -1;
     prevBarsRef.current.fill(0);
     peakBarsRef.current.fill(0);
-    bufferRef.current = null;
+    fftPcmRef.current = null;
     waveformDataRef.current = null;
     pcmDecodedRef.current = false;
     retryCountRef.current = 0;
@@ -271,10 +272,11 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     // Phase B: FFT PCM from OfflineAudioContext — best-effort, some formats fail
     async function loadVisualizationData() {
       // Phase A: Waveform via Rust-side symphonia decode (handles all formats)
+      let waveformResult: Awaited<ReturnType<typeof decodeAudioWaveform>>;
       try {
-        const result = await decodeAudioWaveform(tokenName, category);
+        waveformResult = await decodeAudioWaveform(tokenName, category);
         if (cancelled) return;
-        const waveform = normalizeWaveform(new Float32Array(result.waveform));
+        const waveform = normalizeWaveform(new Float32Array(waveformResult.waveform));
         waveformDataRef.current = waveform;
         setVizFailReason(null);
         if (audio) drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
@@ -284,33 +286,32 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
         return; // If Rust decode fails, skip FFT attempt too
       }
 
-      // Phase B: FFT PCM via OfflineAudioContext (best-effort, only MP3/WAV/OGG)
-      try {
-        // Size guard: skip files > 100 MB for the JS-side decode
-        const head = await fetch(src, { method: 'HEAD', signal: abortCtrl.signal });
-        if (cancelled) return;
-        const size = parseInt(head.headers.get('content-length') || '0', 10);
-        if (size > 100 * 1024 * 1024) { setVizFailReason('fft-size'); return; }
+      // Phase B: FFT PCM from Rust-decoded raw file (avoids second HTTP fetch + OfflineAudioContext)
+      if (waveformResult?.fftPcmPath) {
+        try {
+          const pcmUrl = await getPcmUrl(waveformResult.fftPcmPath!);
+          if (cancelled) return;
+          const resp = await fetch(pcmUrl, { signal: abortCtrl.signal });
+          if (cancelled) return;
+          if (!resp.ok) { setVizFailReason('fft-decode'); return; }
+          const buf = await resp.arrayBuffer();
+          if (cancelled) return;
 
-        const resp = await fetch(src, { signal: abortCtrl.signal });
-        if (cancelled) return;
-        if (!resp.ok) { setVizFailReason('fft-decode'); return; }
-        const arrayBuffer = await resp.arrayBuffer();
-        if (cancelled) return;
+          // Parse 8-byte header: [sample_rate: u32 LE, total_samples: u32 LE]
+          const headerView = new DataView(buf, 0, 8);
+          const pcmSampleRate = headerView.getUint32(0, true);
+          const totalSamples = headerView.getUint32(4, true);
 
-        const offlineCtx = new OfflineAudioContext(1, 1, 44100);
-        const audioBuffer = await Promise.race([
-          offlineCtx.decodeAudioData(arrayBuffer),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Decode timeout')), 30_000)),
-        ]);
-        if (cancelled) return;
-
-        bufferRef.current = audioBuffer;
-        // FFT now available — clear any fft-specific failure reason
-        setVizFailReason(null);
-      } catch {
-        // Waveform still works; only FFT bars are unavailable
-        if (!cancelled) setVizFailReason('fft-decode');
+          if (totalSamples > 0 && buf.byteLength >= 8 + totalSamples * 4) {
+            fftSampleRateRef.current = pcmSampleRate;
+            fftPcmRef.current = new Float32Array(buf, 8, totalSamples);
+            setVizFailReason(null);
+          } else {
+            setVizFailReason('fft-decode');
+          }
+        } catch {
+          if (!cancelled) setVizFailReason('fft-decode');
+        }
       }
     }
 
@@ -410,7 +411,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
       audio.load();
       cancelAnimationFrame(rafRef.current);
       // Release decoded PCM data for immediate GC
-      bufferRef.current = null;
+      fftPcmRef.current = null;
       waveformDataRef.current = null;
       lastDrawnPixelRef.current = -1;
     };
@@ -481,7 +482,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     barGradient.addColorStop(0.5, gradMid);
     barGradient.addColorStop(1, gradEnd);
 
-    const buffer = bufferRef.current;
+    const pcmData = fftPcmRef.current;
     const audio = audioRef.current;
     const gap = 2;
     const barWidth = (CANVAS_W - gap * (BAR_COUNT - 1)) / BAR_COUNT;
@@ -493,9 +494,8 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     }
     lastDrawTimeRef.current = now;
 
-    if (buffer && audio && isPlayingRef.current) {
-      const channel = buffer.getChannelData(0);
-      const startSample = Math.floor(vizTimeRef.current * buffer.sampleRate);
+    if (pcmData && audio && isPlayingRef.current) {
+      const startSample = Math.floor(vizTimeRef.current * fftSampleRateRef.current);
 
       const re = fftReRef.current;
       const im = fftImRef.current;
@@ -505,7 +505,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
       // Hann-windowed samples
       for (let i = 0; i < FFT_SIZE; i++) {
         const idx = startSample + i;
-        const sample = idx >= 0 && idx < channel.length ? channel[idx] : 0;
+        const sample = idx >= 0 && idx < pcmData.length ? pcmData[idx] : 0;
         re[i] = sample * 0.5 * (1 - Math.cos(2 * Math.PI * i / (FFT_SIZE - 1)));
       }
 
