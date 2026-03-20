@@ -1140,12 +1140,10 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
 
       {/* LED Display Row */}
       <div className="flex items-center justify-between px-3 py-2">
-        <div
+        <button
+          type="button"
           className="winamp-groove px-3 py-1 bg-[var(--winamp-bg-dark)] cursor-pointer select-none"
           onClick={() => setShowRemaining(r => !r)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowRemaining(r => !r); } }}
-          role="button"
-          tabIndex={0}
           title="Click to toggle remaining time"
           aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}
         >
@@ -1156,7 +1154,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
           <span className="winamp-led-text text-sm opacity-60">
             {showRemaining ? `\u2212${formatTime(Math.max(0, duration - currentTime))}` : formatTime(duration)}
           </span>
-        </div>
+        </button>
         {(metadata?.bitrate || metadata?.sampleRate || metadata?.channels) && (
           <div className="flex items-center gap-2" aria-label="Audio format info">
             {metadata.bitrate != null && (
@@ -1311,6 +1309,11 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
             onChange={handleVolumeChange}
             className="winamp-slider w-20"
             aria-label="Volume"
+            role="slider"
+            aria-valuemin={0}
+            aria-valuemax={1}
+            aria-valuenow={volume}
+            aria-valuetext={`${Math.round(volume * 100)}%`}
           />
         </div>
       </div>

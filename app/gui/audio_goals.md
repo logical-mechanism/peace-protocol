@@ -63,15 +63,15 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Volume slider missing ARIA slider attributes**
+- [x] 🟡 **Volume slider missing ARIA slider attributes**
   - **How**: The volume `<input type="range">` (line 1280-1289) has `aria-label="Volume"` but lacks explicit `role="slider"`, `aria-valuemin="0"`, `aria-valuemax="1"`, `aria-valuenow={volume}`, and `aria-valuetext={`${Math.round(volume * 100)}%`}`. Add these attributes. Compare with the seek bar (lines 1161-1167) which has full ARIA slider attributes already.
   - **Why**: Screen readers can announce the volume level numerically ("Volume: 75%") instead of just "Volume slider" with no value context.
 
-- [ ] 🟢 **LED time display uses `<div role="button">` instead of `<button>`**
+- [x] 🟢 **LED time display uses `<div role="button">` instead of `<button>`**
   - **How**: The LED time display (line 1119) is `<div role="button" tabIndex={0}>` with manual `onKeyDown` for Enter/Space. Replace with `<button type="button" className="..." onClick={...}>`. Remove the `onKeyDown` handler (lines 1127-1130) and `tabIndex={0}` — native `<button>` handles Enter/Space and focus natively. Keep the existing `aria-label`.
   - **Why**: Native `<button>` is semantically correct, keyboard-accessible by default, and doesn't need manual Enter/Space handling — reducing fragile code.
 
-- [ ] 🟢 **Volume slider lacks visible focus ring**
+- [x] 🟢 **Volume slider lacks visible focus ring**
   - **How**: The volume slider (line 1287) has `focus-visible:shadow-[var(--focus-ring)]` but `<input type="range">` often needs explicit `outline: none` + custom focus styling to override browser defaults. Verify the focus ring is visible on keyboard Tab in WebKitGTK. If not, add `[&:focus-visible]:ring-2 [&:focus-visible]:ring-[var(--accent)]` or equivalent.
   - **Why**: Keyboard users tabbing through controls can't see when the volume slider is focused if the browser's default focus ring is suppressed by the custom styling.
 

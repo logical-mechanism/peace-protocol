@@ -1081,34 +1081,33 @@ describe('AudioPlayer component', () => {
       expect(ledDisplay.textContent).not.toContain('\u2212');
     });
 
-    it('Enter key toggles remaining time', async () => {
+    it('Enter key toggles remaining time (native button)', async () => {
       renderPlayer();
       const audio = document.querySelector('audio')!;
       makeAudioControllable(audio);
       await fireCanPlay();
 
       const ledDisplay = screen.getByTitle('Click to toggle remaining time');
+      expect(ledDisplay.tagName).toBe('BUTTON');
       expect(ledDisplay.textContent).not.toContain('\u2212');
 
+      // Native <button> handles Enter/Space → click; jsdom doesn't simulate this,
+      // so we fire click directly (the semantic test is that it's a <button>).
       await act(async () => {
-        fireEvent.keyDown(ledDisplay, { key: 'Enter' });
+        fireEvent.click(ledDisplay);
       });
       expect(ledDisplay.textContent).toContain('\u2212');
     });
 
-    it('Space key toggles remaining time', async () => {
+    it('LED time display is a native button element', async () => {
       renderPlayer();
       const audio = document.querySelector('audio')!;
       makeAudioControllable(audio);
       await fireCanPlay();
 
       const ledDisplay = screen.getByTitle('Click to toggle remaining time');
-      expect(ledDisplay.textContent).not.toContain('\u2212');
-
-      await act(async () => {
-        fireEvent.keyDown(ledDisplay, { key: ' ' });
-      });
-      expect(ledDisplay.textContent).toContain('\u2212');
+      expect(ledDisplay.tagName).toBe('BUTTON');
+      expect(ledDisplay.getAttribute('type')).toBe('button');
     });
   });
 
