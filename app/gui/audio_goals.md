@@ -39,11 +39,11 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Move PCM decode to Rust side so all formats get waveform/FFT visualization**
+- [x] 🟡 **Move PCM decode to Rust side so all formats get waveform/FFT visualization**
   - **How**: WebKitGTK's `OfflineAudioContext.decodeAudioData()` (line 300) only supports a narrow set of codecs (MP3, PCM WAV, OGG Vorbis). Formats like FLAC, AAC/M4A, Opus, and non-PCM WAV silently fail — `decodeAudioData` throws, line 328-329 catches it, and visualization disappears while playback works fine (GStreamer handles it). Fix: add a Tauri command `decode_audio_waveform(path: String, bucket_count: u32) -> Vec<f32>` in `src-tauri/src/commands/media.rs` using the `symphonia` crate (pure Rust, supports MP3, FLAC, WAV, OGG, AAC, Opus). The command reads the file, decodes to PCM f32 samples, downsamples into `bucket_count` buckets (480), normalizes to [0,1], and returns the waveform data. On the frontend, replace the `decodePcmForVisualization()` function (lines 284-331) with an `invoke('decode_audio_waveform', { path, bucketCount: 480 })` call. For FFT, also return the raw PCM buffer (or a chunked subset) so the frontend can still run `fftInPlace()` against it during playback. Alternative: compute FFT bins on the Rust side too and return both waveform + a time-indexed FFT magnitude array, eliminating the need for `OfflineAudioContext` entirely.
   - **Why**: Currently FLAC, AAC, M4A, Opus, and non-PCM WAV files play fine but show "Visualization unavailable" because WebKitGTK's Web Audio decoder doesn't support them. Moving to Rust-side decode via `symphonia` gives format parity — every file GStreamer can play also gets waveform and FFT visualization.
 
-- [ ] 🟢 **Distinguish "file too large" from "format not decodable" in visualization fallback**
+- [x] 🟢 **Distinguish "file too large" from "format not decodable" in visualization fallback**
   - **How**: Currently line 1109-1113 shows a generic "Visualization unavailable for this format" tooltip for all visualization failures. Track the reason: add a `vizFailReason` state (`'size' | 'decode' | null`). Set `'size'` at line 290 when file > 100 MB, `'decode'` at line 329 when decode fails. Display different messages: `'size'` → "File too large for visualization (>100 MB)", `'decode'` → "Visualization unavailable for this format".
   - **Why**: Users seeing "unavailable for this format" on a large MP3 may think the format is unsupported when it's purely a size limit.
 

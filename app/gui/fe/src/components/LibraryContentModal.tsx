@@ -554,7 +554,7 @@ export default function LibraryContentModal({
             {/* Loaded state — Audio player */}
             {state === 'loaded' && viewMode === 'audio' && contentUrl && (
               <Suspense fallback={<ContentSkeleton viewMode="audio" />}>
-                <AudioPlayer src={contentUrl} fileExtension={item.fileExtension || '.mp3'} onExport={handleExport} />
+                <AudioPlayer src={contentUrl} fileExtension={item.fileExtension || '.mp3'} tokenName={item.tokenName} category={item.category} onExport={handleExport} />
               </Suspense>
             )}
 

@@ -80,6 +80,23 @@ export async function getLibrarySubtitleUrl(
   return path ? `http://127.0.0.1:${port}/${encodeURIComponent(path)}` : null;
 }
 
+export interface WaveformResult {
+  waveform: number[];
+  sampleRate: number;
+  durationSecs: number;
+  channels: number;
+}
+
+/** Decode an audio file from the library and return waveform data.
+ *  Uses symphonia (Rust) so all common formats are supported, unlike
+ *  WebKitGTK's OfflineAudioContext which only handles MP3/WAV/OGG. */
+export async function decodeAudioWaveform(
+  tokenName: string,
+  category: string
+): Promise<WaveformResult> {
+  return invoke<WaveformResult>('decode_audio_waveform', { tokenName, category });
+}
+
 export async function openWithSystem(
   tokenName: string,
   category: string

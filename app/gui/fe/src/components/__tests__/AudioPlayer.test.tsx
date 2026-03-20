@@ -10,6 +10,17 @@ vi.mock('../LoadingSpinner', () => ({
   ),
 }));
 
+const mockDecodeAudioWaveform = vi.fn().mockResolvedValue({
+  waveform: Array(480).fill(0.5),
+  sampleRate: 44100,
+  durationSecs: 120,
+  channels: 2,
+});
+
+vi.mock('../../services/libraryService', () => ({
+  decodeAudioWaveform: (...args: unknown[]) => mockDecodeAudioWaveform(...args),
+}));
+
 const mockObjectUrl = 'blob:mock-audio-url';
 const createObjectURLSpy = vi.fn().mockReturnValue(mockObjectUrl);
 const revokeObjectURLSpy = vi.fn();
@@ -35,9 +46,9 @@ import AudioPlayer from '../AudioPlayer';
 
 const mockAudioUrl = 'asset://localhost/mock-audio.mp3';
 
-function renderPlayer(overrides: Partial<{ src: string; fileExtension: string; onExport: () => void }> = {}) {
+function renderPlayer(overrides: Partial<{ src: string; fileExtension: string; tokenName: string; category: string; onExport: () => void }> = {}) {
   return render(
-    <AudioPlayer src={mockAudioUrl} fileExtension=".mp3" {...overrides} />,
+    <AudioPlayer src={mockAudioUrl} fileExtension=".mp3" tokenName="abc123" category="audio" {...overrides} />,
   );
 }
 
@@ -1309,30 +1320,26 @@ describe('AudioPlayer component', () => {
     });
   });
 
-  // ── Visualization failure fallback test ─────────────────────────────
+  // ── Visualization failure fallback tests ────────────────────────────
 
   describe('visualization failure fallback', () => {
-    it('shows fallback text when fetch for PCM decode fails', async () => {
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
+    it('shows "Visualization unavailable" when Rust waveform decode fails', async () => {
+      mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
 
       renderPlayer();
       const audio = document.querySelector('audio')!;
       makeAudioControllable(audio);
       await fireCanPlay();
-      // Flush the rejected fetch promise
       await flushMicrotasks();
 
       expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
-
-      globalThis.fetch = originalFetch;
     });
 
-    it('shows fallback text when PCM decodeAudioData rejects', async () => {
+    it('shows "FFT bars unavailable for this format" when OfflineAudioContext fails but waveform works', async () => {
       const originalFetch = globalThis.fetch;
       const originalOAC = globalThis.OfflineAudioContext;
 
-      // fetch succeeds but decodeAudioData fails
+      // Rust waveform succeeds (default mock), but OfflineAudioContext fails
       globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
         if (opts?.method === 'HEAD') {
           return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': '1000' }) });
@@ -1349,14 +1356,15 @@ describe('AudioPlayer component', () => {
       await fireCanPlay();
       await flushMicrotasks();
 
-      expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
+      expect(screen.getByText('FFT bars unavailable for this format')).toBeInTheDocument();
 
       globalThis.fetch = originalFetch;
       globalThis.OfflineAudioContext = originalOAC;
     });
 
-    it('shows fallback for files exceeding 100MB size limit', async () => {
+    it('shows "FFT bars unavailable (file too large)" for files exceeding 100MB', async () => {
       const originalFetch = globalThis.fetch;
+      // Rust waveform succeeds (default mock), but fetch HEAD returns >100MB
       globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
         if (opts?.method === 'HEAD') {
           return Promise.resolve({ ok: true, headers: new Headers({ 'content-length': String(150 * 1024 * 1024) }) });
@@ -1370,12 +1378,12 @@ describe('AudioPlayer component', () => {
       await fireCanPlay();
       await flushMicrotasks();
 
-      expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
+      expect(screen.getByText('FFT bars unavailable (file too large)')).toBeInTheDocument();
 
       globalThis.fetch = originalFetch;
     });
 
-    it('does not show fallback when PCM decode succeeds', async () => {
+    it('does not show fallback when both waveform and FFT decode succeed', async () => {
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockImplementation((_url: string, opts?: RequestInit) => {
         if (opts?.method === 'HEAD') {
@@ -1391,13 +1399,13 @@ describe('AudioPlayer component', () => {
       await flushMicrotasks();
 
       expect(screen.queryByText('Visualization unavailable for this format')).not.toBeInTheDocument();
+      expect(screen.queryByText(/FFT bars unavailable/)).not.toBeInTheDocument();
 
       globalThis.fetch = originalFetch;
     });
 
     it('keeps playback controls functional when visualization fails', async () => {
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
+      mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
 
       renderPlayer();
       const audio = document.querySelector('audio')!;
@@ -1412,8 +1420,6 @@ describe('AudioPlayer component', () => {
         fireEvent.click(playBtn);
       });
       expect(playMock).toHaveBeenCalled();
-
-      globalThis.fetch = originalFetch;
     });
   });
 

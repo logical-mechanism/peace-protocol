@@ -9,6 +9,7 @@ import {
   exportLibraryContent,
   getLibraryContentUrl,
   getLibrarySubtitleUrl,
+  decodeAudioWaveform,
 } from '../libraryService';
 import type { LibraryItem } from '../libraryService';
 
@@ -176,6 +177,29 @@ describe('libraryService', () => {
     it('exportLibraryContent propagates invoke rejection', async () => {
       mockInvoke.mockRejectedValueOnce(new Error('disk full'));
       await expect(exportLibraryContent('token1', 'document', 'f.pdf')).rejects.toThrow('disk full');
+    });
+  });
+
+  describe('decodeAudioWaveform', () => {
+    it('calls decode_audio_waveform and returns waveform result', async () => {
+      const waveformResult = {
+        waveform: Array(480).fill(0.5),
+        sampleRate: 44100,
+        durationSecs: 120,
+        channels: 2,
+      };
+      mockInvoke.mockResolvedValueOnce(waveformResult);
+      const result = await decodeAudioWaveform('token1', 'audio');
+      expect(mockInvoke).toHaveBeenCalledWith('decode_audio_waveform', {
+        tokenName: 'token1',
+        category: 'audio',
+      });
+      expect(result).toEqual(waveformResult);
+    });
+
+    it('propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('unsupported format'));
+      await expect(decodeAudioWaveform('token1', 'audio')).rejects.toThrow('unsupported format');
     });
   });
 });

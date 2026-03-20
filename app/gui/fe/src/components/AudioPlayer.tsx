@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
+import { decodeAudioWaveform } from '../services/libraryService';
 import { DelayedSpinner } from './LoadingSpinner';
 
 interface AudioMetadata {
@@ -36,6 +37,10 @@ interface AudioPlayerProps {
   /** Direct URL to the audio file (asset:// protocol from Tauri convertFileSrc). */
   src: string;
   fileExtension: string;
+  /** Token name for Rust-side waveform decode via symphonia. */
+  tokenName: string;
+  /** Content category for Rust-side waveform decode. */
+  category: string;
   onExport?: () => void;
 }
 
@@ -148,7 +153,7 @@ const FFT_SIZE = 1024;
 const SMOOTHING = 0.8;
 const TARGET_FPS = 24;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
-export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlayerProps) {
+export default function AudioPlayer({ src, fileExtension, tokenName, category, onExport }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -162,7 +167,7 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
   const [isMuted, setIsMuted] = useState(false);
   const [showKeyHints, setShowKeyHints] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [visualizationFailed, setVisualizationFailed] = useState(false);
+  const [vizFailReason, setVizFailReason] = useState<'fft-size' | 'fft-decode' | 'decode' | null>(null);
 
   // Reset playback state when src changes (React "adjusting state during render" pattern)
   const [prevSrc, setPrevSrc] = useState(src);
@@ -176,7 +181,7 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
     setPlaybackRate(1.0);
     setMetadata(null);
     setIsBuffering(false);
-    setVisualizationFailed(false);
+    setVizFailReason(null);
   }
 
   // Native <audio> element for playback — no Web Audio API in the output path
@@ -280,23 +285,42 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
       const d = audio.duration;
       if (isFinite(d) && d > 0) setDuration(d);
     };
-    // Background PCM decode: fetch audio bytes + decode via OfflineAudioContext
-    // for FFT bar visualization. Playback still uses native <audio> (GStreamer).
-    async function decodePcmForVisualization() {
+    // Two-phase visualization decode:
+    // Phase A: Waveform from Rust (symphonia) — works for all audio formats
+    // Phase B: FFT PCM from OfflineAudioContext — best-effort, some formats fail
+    async function loadVisualizationData() {
+      // Phase A: Waveform via Rust-side symphonia decode (handles all formats)
       try {
-        // Size guard: skip files > 100 MB to avoid memory pressure
+        const result = await decodeAudioWaveform(tokenName, category);
+        if (cancelled) return;
+        const waveform = new Float32Array(result.waveform);
+        // Defensive normalization (Rust already normalizes, but guard against edge cases)
+        let max = 0;
+        for (let i = 0; i < waveform.length; i++) if (waveform[i] > max) max = waveform[i];
+        if (max > 0) for (let i = 0; i < waveform.length; i++) waveform[i] /= max;
+        waveformDataRef.current = waveform;
+        setVizFailReason(null);
+        if (audio) drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
+        startLoopRef.current?.();
+      } catch {
+        if (!cancelled) setVizFailReason('decode');
+        return; // If Rust decode fails, skip FFT attempt too
+      }
+
+      // Phase B: FFT PCM via OfflineAudioContext (best-effort, only MP3/WAV/OGG)
+      try {
+        // Size guard: skip files > 100 MB for the JS-side decode
         const head = await fetch(src, { method: 'HEAD', signal: abortCtrl.signal });
         if (cancelled) return;
         const size = parseInt(head.headers.get('content-length') || '0', 10);
-        if (size > 100 * 1024 * 1024) { setVisualizationFailed(true); return; }
+        if (size > 100 * 1024 * 1024) { setVizFailReason('fft-size'); return; }
 
         const resp = await fetch(src, { signal: abortCtrl.signal });
         if (cancelled) return;
-        if (!resp.ok) { setVisualizationFailed(true); return; }
+        if (!resp.ok) { setVizFailReason('fft-decode'); return; }
         const arrayBuffer = await resp.arrayBuffer();
         if (cancelled) return;
 
-        // OfflineAudioContext for decoding only — no audio output needed
         const offlineCtx = new OfflineAudioContext(1, 1, 44100);
         const audioBuffer = await Promise.race([
           offlineCtx.decodeAudioData(arrayBuffer),
@@ -305,32 +329,11 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
         if (cancelled) return;
 
         bufferRef.current = audioBuffer;
-
-        // Generate waveform overview (480 buckets = canvas width)
-        const channel = audioBuffer.getChannelData(0);
-        const bucketCount = 480;
-        const bucketSize = Math.floor(channel.length / bucketCount);
-        if (bucketSize > 0) {
-          const waveform = new Float32Array(bucketCount);
-          for (let i = 0; i < bucketCount; i++) {
-            let sum = 0;
-            const start = i * bucketSize;
-            for (let j = start; j < start + bucketSize && j < channel.length; j++) {
-              sum += Math.abs(channel[j]);
-            }
-            waveform[i] = sum / bucketSize;
-          }
-          let max = 0;
-          for (let i = 0; i < waveform.length; i++) if (waveform[i] > max) max = waveform[i];
-          if (max > 0) for (let i = 0; i < waveform.length; i++) waveform[i] /= max;
-          waveformDataRef.current = waveform;
-        }
-
-        setVisualizationFailed(false);
-        if (audio) drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
-        startLoopRef.current?.();
+        // FFT now available — clear any fft-specific failure reason
+        setVizFailReason(null);
       } catch {
-        if (!cancelled) setVisualizationFailed(true);
+        // Waveform still works; only FFT bars are unavailable
+        if (!cancelled) setVizFailReason('fft-decode');
       }
     }
 
@@ -343,10 +346,10 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
         audio.currentTime = 0;
       }
       setIsReady(true);
-      // Kick off background PCM decode for FFT visualization
+      // Kick off background waveform + FFT decode
       if (!pcmDecodedRef.current) {
         pcmDecodedRef.current = true;
-        decodePcmForVisualization();
+        loadVisualizationData();
       }
     };
     const onTimeUpdate = () => {
@@ -434,7 +437,7 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
       waveformDataRef.current = null;
       lastDrawnPixelRef.current = -1;
     };
-  }, [src]);
+  }, [src, tokenName, category]);
 
   // --- Waveform overview drawing ---
 
@@ -1113,9 +1116,13 @@ export default function AudioPlayer({ src, fileExtension, onExport }: AudioPlaye
           style={{ opacity: 0 }}
           aria-hidden="true"
         />
-        {visualizationFailed && isReady && (
+        {vizFailReason && isReady && (
           <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-muted)] pointer-events-none select-none">
-            Visualization unavailable for this format
+            {vizFailReason === 'decode'
+              ? 'Visualization unavailable for this format'
+              : vizFailReason === 'fft-size'
+                ? 'FFT bars unavailable (file too large)'
+                : 'FFT bars unavailable for this format'}
           </div>
         )}
       </div>

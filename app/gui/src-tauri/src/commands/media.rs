@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use symphonia::core::audio::SampleBuffer;
+use symphonia::core::codecs::DecoderOptions;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::probe::Hint;
 
 /// Managed state holding the base directory for cached images.
 pub struct MediaDir(pub PathBuf);
@@ -826,6 +832,188 @@ pub async fn open_with_system(
     app.opener()
         .open_path(&path_str, None::<&str>)
         .map_err(|e| format!("Failed to open with system player: {e}"))
+}
+
+// ── Audio waveform decode (symphonia) ──────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WaveformResult {
+    pub waveform: Vec<f32>,
+    pub sample_rate: u32,
+    pub duration_secs: f64,
+    pub channels: u32,
+}
+
+/// Decode an audio file and produce a waveform overview with `bucket_count` buckets.
+/// Each bucket is the normalized (0.0–1.0) average absolute amplitude of the samples
+/// falling into that time slice. Runs synchronously — call from a blocking thread.
+fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResult, String> {
+    let file =
+        std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|e| format!("Failed to probe audio format: {e}"))?;
+
+    let mut format = probed.format;
+
+    let track = format
+        .default_track()
+        .ok_or_else(|| "No audio track found".to_string())?;
+
+    let codec_params = track.codec_params.clone();
+    let track_id = track.id;
+
+    let sample_rate = codec_params.sample_rate.unwrap_or(44100);
+    let channels = codec_params
+        .channels
+        .map(|c| c.count() as u32)
+        .unwrap_or(1);
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&codec_params, &DecoderOptions::default())
+        .map_err(|e| format!("Failed to create audio decoder: {e}"))?;
+
+    // Accumulate mono absolute sample values — cap at 50M samples (~18 min @ 44.1kHz)
+    // to prevent unbounded memory use.
+    const MAX_SAMPLES: usize = 50_000_000;
+    let mut samples: Vec<f32> = Vec::new();
+
+    loop {
+        let packet = match format.next_packet() {
+            Ok(p) => p,
+            Err(symphonia::core::errors::Error::IoError(ref e))
+                if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+            {
+                break; // End of stream
+            }
+            Err(symphonia::core::errors::Error::ResetRequired) => {
+                decoder.reset();
+                continue;
+            }
+            Err(e) => return Err(format!("Error reading audio packet: {e}")),
+        };
+
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        let decoded = match decoder.decode(&packet) {
+            Ok(d) => d,
+            Err(symphonia::core::errors::Error::DecodeError(_)) => continue, // skip bad frames
+            Err(e) => return Err(format!("Decode error: {e}")),
+        };
+
+        let spec = *decoded.spec();
+        let num_frames = decoded.frames();
+        let num_channels = spec.channels.count();
+
+        if num_frames == 0 || num_channels == 0 {
+            continue;
+        }
+
+        let mut sample_buf = SampleBuffer::<f32>::new(num_frames as u64, spec);
+        sample_buf.copy_interleaved_ref(decoded);
+        let interleaved = sample_buf.samples();
+
+        // Mix to mono by averaging channels, take absolute value
+        for frame in 0..num_frames {
+            if samples.len() >= MAX_SAMPLES {
+                break;
+            }
+            let mut sum = 0.0f32;
+            for ch in 0..num_channels {
+                sum += interleaved[frame * num_channels + ch];
+            }
+            samples.push((sum / num_channels as f32).abs());
+        }
+
+        if samples.len() >= MAX_SAMPLES {
+            break;
+        }
+    }
+
+    if samples.is_empty() {
+        return Err("No audio samples decoded".to_string());
+    }
+
+    let duration_secs = samples.len() as f64 / sample_rate as f64;
+
+    // Downsample into buckets
+    let mut waveform = vec![0.0f32; bucket_count];
+    let bucket_size = samples.len() / bucket_count;
+
+    if bucket_size > 0 {
+        for (i, bucket) in waveform.iter_mut().enumerate() {
+            let start = i * bucket_size;
+            let end = (start + bucket_size).min(samples.len());
+            let mut sum = 0.0f32;
+            for &s in &samples[start..end] {
+                sum += s;
+            }
+            *bucket = sum / (end - start) as f32;
+        }
+    } else {
+        // Fewer samples than buckets — spread samples across buckets
+        for (i, &s) in samples.iter().enumerate() {
+            let bucket_idx = (i * bucket_count) / samples.len();
+            waveform[bucket_idx] = waveform[bucket_idx].max(s);
+        }
+    }
+
+    // Normalize to [0, 1]
+    let max = waveform.iter().copied().fold(0.0f32, f32::max);
+    if max > 0.0 {
+        for v in &mut waveform {
+            *v /= max;
+        }
+    }
+
+    Ok(WaveformResult {
+        waveform,
+        sample_rate,
+        duration_secs,
+        channels,
+    })
+}
+
+/// Decode an audio file from the library and return waveform data for visualization.
+/// Uses symphonia (pure Rust) so all common audio formats are supported, unlike
+/// WebKitGTK's OfflineAudioContext which only handles MP3/WAV/OGG.
+#[tauri::command]
+pub async fn decode_audio_waveform(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<WaveformResult, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    const BUCKET_COUNT: usize = 480;
+
+    tokio::task::spawn_blocking(move || decode_waveform_sync(&content_path, BUCKET_COUNT))
+        .await
+        .map_err(|e| format!("Waveform decode task failed: {e}"))?
 }
 
 #[cfg(test)]

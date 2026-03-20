@@ -36,6 +36,7 @@ sha2 = "0.10"
 zeroize = "1"
 percent-encoding = "2"
 bip39 = { version = "2", default-features = false }
+symphonia = { version = "0.5", default-features = false, features = ["mp3", "wav", "flac", "ogg", "aac", "isomp4", "pcm", "vorbis"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
