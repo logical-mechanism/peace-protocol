@@ -800,4 +800,53 @@ describe('CreateListingModal', () => {
     expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
     expect(mockOnClose).toHaveBeenCalled();
   });
+
+  // --- Prefill props (relist from library) ---
+
+  it('uses custom title when title prop is provided', () => {
+    renderModal({ title: 'Relist from Library' });
+    expect(screen.getByText('Relist from Library')).toBeInTheDocument();
+    expect(screen.queryByText('Create New Listing')).not.toBeInTheDocument();
+  });
+
+  it('shows relist subtitle when prefill is provided', () => {
+    renderModal({
+      prefill: { category: 'audio', description: 'A song' },
+    });
+    expect(screen.getByText(/Re-encrypt and list content from your library/)).toBeInTheDocument();
+  });
+
+  it('pre-fills description from prefill prop', () => {
+    renderModal({
+      prefill: { category: 'document', description: 'Test document', suggestedPrice: '10' },
+    });
+    const descTextarea = screen.getByPlaceholderText(/Brief description/) as HTMLTextAreaElement;
+    expect(descTextarea.value).toBe('Test document');
+  });
+
+  it('pre-fills file info from prefill prop and shows file name', () => {
+    renderModal({
+      prefill: {
+        category: 'audio',
+        filePath: '/home/user/music/song.mp3',
+        fileName: 'song.mp3',
+        fileSize: 5000000,
+        description: 'My song',
+      },
+    });
+    // Should show the file name in the file info display
+    expect(screen.getByText('song.mp3')).toBeInTheDocument();
+  });
+
+  it('skips draft prompt when prefill is provided even if draft exists', () => {
+    mockGetDraft.mockReturnValue({ description: 'old draft', secretMessage: '', suggestedPrice: '' });
+    renderModal({
+      prefill: { category: 'document', description: 'Pre-filled desc' },
+    });
+    // Should NOT show draft prompt
+    expect(screen.queryByText(/unsaved draft/)).not.toBeInTheDocument();
+    // Should have the prefilled description
+    const descTextarea = screen.getByPlaceholderText(/Brief description/) as HTMLTextAreaElement;
+    expect(descTextarea.value).toBe('Pre-filled desc');
+  });
 });

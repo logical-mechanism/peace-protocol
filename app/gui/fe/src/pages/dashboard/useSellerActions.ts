@@ -2,11 +2,12 @@ import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../../contexts/WasmContext'
 import {
-  createListing, retryListingFromDraft, removeListing,
+  createListing, createListingFromImport, retryListingFromDraft, removeListing,
   cancelPendingListing, prepareSnarkInputs,
   acceptBidAndReEncrypt, completeReEncryption,
   getTransactionStubWarning,
   type ListingCreationStep, type ChainedAcceptStep,
+  type ImportListingData,
 } from '../../services/transactionBuilder'
 import { getAcceptBidSecrets } from '../../services/acceptBidStorage'
 import { bidsApi } from '../../services/api'
@@ -17,6 +18,8 @@ import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../../services/snark'
 import type { CreateListingFormData } from '../../components/CreateListingModal'
+import type { LibraryItem } from '../../services/libraryService'
+import { invoke } from '@tauri-apps/api/core'
 
 interface UseSellerActionsParams {
   actions: DashboardActions
@@ -30,6 +33,12 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
 
   // Create listing modal state
   const [showCreateListing, setShowCreateListing] = useState(false)
+
+  // Relist from library state
+  const [relistPrefill, setRelistPrefill] = useState<Partial<CreateListingFormData> | null>(null)
+
+  // Import from Iagon modal state
+  const [showImportListing, setShowImportListing] = useState(false)
 
   // Draft recovery state
   const [recoverableDraft, setRecoverableDraft] = useState<ListingDraft | null>(null)
@@ -252,6 +261,96 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     // Refresh and switch to History tab to show pending tx
+    triggerTransactionRefresh()
+    setActiveTab('history')
+  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
+
+  const handleRelistFromLibrary = useCallback(async (item: LibraryItem) => {
+    try {
+      const contentPath = await invoke<string>('get_library_content_path', {
+        tokenName: item.tokenName,
+        category: item.category,
+      })
+
+      const fileName = contentPath.split('/').pop() || contentPath.split('\\').pop() || item.tokenName
+      const prefill: Partial<CreateListingFormData> = {
+        category: (item.category || 'other') as CreateListingFormData['category'],
+        description: item.description || '',
+        suggestedPrice: item.suggestedPrice != null ? String(item.suggestedPrice / 1_000_000) : '',
+        imageLink: item.imageLink || '',
+        filePath: contentPath,
+        fileName,
+        fileSize: item.fileSize ?? null,
+      }
+
+      setRelistPrefill(prefill)
+      setShowCreateListing(true)
+    } catch (err) {
+      toast.error('Relist Failed', err instanceof Error ? err.message : 'Could not find library content file')
+    }
+  }, [toast])
+
+  const handleImportListing = useCallback(async (
+    data: ImportListingData,
+    onProgress?: (step: ListingCreationStep) => void,
+  ) => {
+    if (!wallet) {
+      throw new Error('Wallet not connected')
+    }
+
+    const stubWarning = getTransactionStubWarning()
+    if (stubWarning) console.warn(stubWarning)
+
+    const result = await createListingFromImport(wallet, data, onProgress, (txHash, tokenName) => {
+      recordTransaction({
+        txHash,
+        type: 'create-listing',
+        tokenName,
+        timestamp: Date.now(),
+        status: 'pending',
+        description: data.description,
+      })
+    })
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create listing from import')
+    }
+
+    if (result.isStub) {
+      toast.warning('Listing Created (Stub Mode)', `Import listing created in stub mode.`, 8000)
+    } else if (result.txHash) {
+      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' })
+    } else {
+      toast.success('Listing Created!', 'Transaction submitted successfully')
+    }
+
+    // Optimistic update
+    if (result.txHash && result.tokenName && userPkh && address) {
+      optimisticStore.addEncryption(result.tokenName, result.txHash, {
+        tokenName: result.tokenName,
+        seller: address,
+        sellerPkh: userPkh,
+        status: 'active',
+        description: data.description,
+        suggestedPrice: data.suggestedPrice ? parseFloat(data.suggestedPrice) : undefined,
+        storageLayer: 'iagon',
+        imageLink: data.imageLink || undefined,
+        category: data.category,
+        createdAt: new Date().toISOString(),
+        utxo: { txHash: result.txHash, outputIndex: 0 },
+        datum: {
+          owner_vkh: userPkh,
+          owner_g1: { generator: '', public_value: '' },
+          token: result.tokenName,
+          half_level: { r1b: '', r2_g1b: '', r4b: '' },
+          full_level: null,
+          capsule: { nonce: '', aad: '', ct: '' },
+          status: { type: 'Open' },
+        },
+        _optimistic: true,
+      })
+    }
+
     triggerTransactionRefresh()
     setActiveTab('history')
   }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
@@ -659,6 +758,14 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     showCreateListing,
     setShowCreateListing,
     handleCreateListing,
+    // Relist from library
+    relistPrefill,
+    setRelistPrefill,
+    handleRelistFromLibrary,
+    // Import from Iagon
+    showImportListing,
+    setShowImportListing,
+    handleImportListing,
     // Draft recovery
     recoverableDraft,
     setRecoverableDraft,
