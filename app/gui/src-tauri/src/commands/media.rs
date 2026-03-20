@@ -849,8 +849,7 @@ pub struct WaveformResult {
 /// Each bucket is the normalized (0.0–1.0) average absolute amplitude of the samples
 /// falling into that time slice. Runs synchronously — call from a blocking thread.
 fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResult, String> {
-    let file =
-        std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
+    let file = std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
     let mut hint = Hint::new();
@@ -877,10 +876,7 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
     let track_id = track.id;
 
     let sample_rate = codec_params.sample_rate.unwrap_or(44100);
-    let channels = codec_params
-        .channels
-        .map(|c| c.count() as u32)
-        .unwrap_or(1);
+    let channels = codec_params.channels.map(|c| c.count() as u32).unwrap_or(1);
 
     let mut decoder = symphonia::default::get_codecs()
         .make(&codec_params, &DecoderOptions::default())

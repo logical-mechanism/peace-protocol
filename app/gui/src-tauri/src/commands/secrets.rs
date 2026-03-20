@@ -40,11 +40,11 @@ fn acquire_file_lock(path: &std::path::Path, exclusive: bool) -> Result<std::fs:
             if let Ok(modified) = meta.modified() {
                 if let Ok(age) = std::time::SystemTime::now().duration_since(modified) {
                     if age > std::time::Duration::from_secs(3600) {
-                        eprintln!(
-                            "[secrets] Removing stale lock file (age: {}s): {}",
-                            age.as_secs(),
-                            lock_path.display()
-                        );
+                        // eprintln!(
+                        //     "[secrets] Removing stale lock file (age: {}s): {}",
+                        //     age.as_secs(),
+                        //     lock_path.display()
+                        // );
                         let _ = std::fs::remove_file(&lock_path);
                     }
                 }
