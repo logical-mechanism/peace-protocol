@@ -33,7 +33,7 @@ Each item:
   - **How**: Currently the frontend waits for the entire `decodeAudioWaveform` invoke to resolve (line 275) before drawing anything. If the Rust command is refactored to stream buckets (via Tauri events or chunked responses), the frontend could draw partial waveforms incrementally. Simpler alternative: split the decode into two passes — a fast low-resolution pass (48 buckets from seeking to evenly-spaced positions) that resolves in <1s, followed by a full-resolution pass (480 buckets) that refines the waveform.
   - **Why**: Users see "Loading audio..." with a spinner for the entire decode duration. A fast initial waveform gives immediate visual feedback while the full decode runs in the background.
 
-- [ ] 🟡 **Cache waveform results to avoid re-decoding on re-open**
+- [x] 🟡 **Cache waveform results to avoid re-decoding on re-open**
   - **How**: The Rust `decode_audio_waveform` command decodes the full file every time the AudioPlayer mounts. Add a disk cache: after computing the waveform, write the 480-float result to `media/content/{category}/{tokenName}/waveform.bin` (1,920 bytes). On subsequent opens, check for the cache file first and return it immediately. The `WaveformResult` already contains `sample_rate`, `duration_secs`, `channels` — include those in the cache header. Invalidation: the audio file is immutable (content-addressed), so no staleness concern.
   - **Why**: Re-opening the same audio file triggers the full symphonia decode again. A 1.9KB cache file eliminates all decode latency on repeat listens.
 

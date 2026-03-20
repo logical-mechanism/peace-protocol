@@ -1161,9 +1161,67 @@ fn decode_waveform_sync(
     })
 }
 
+// ── Waveform cache ──────────────────────────────────────────────────
+// Binary format: magic(4) + version(4) + sample_rate(4) + channels(4) + duration(8) + count(4) + f32×count
+const WAVEFORM_CACHE_MAGIC: &[u8; 4] = b"WAVE";
+const WAVEFORM_CACHE_VERSION: u32 = 1;
+
+fn read_waveform_cache(cache_path: &Path) -> Option<WaveformResult> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(cache_path).ok()?;
+    let mut header = [0u8; 28];
+    f.read_exact(&mut header).ok()?;
+
+    if &header[0..4] != WAVEFORM_CACHE_MAGIC {
+        return None;
+    }
+    let version = u32::from_le_bytes(header[4..8].try_into().ok()?);
+    if version != WAVEFORM_CACHE_VERSION {
+        return None;
+    }
+    let sample_rate = u32::from_le_bytes(header[8..12].try_into().ok()?);
+    let channels = u32::from_le_bytes(header[12..16].try_into().ok()?);
+    let duration_secs = f64::from_le_bytes(header[16..24].try_into().ok()?);
+    let bucket_count = u32::from_le_bytes(header[24..28].try_into().ok()?) as usize;
+
+    let mut waveform_bytes = vec![0u8; bucket_count * 4];
+    f.read_exact(&mut waveform_bytes).ok()?;
+
+    let waveform: Vec<f32> = waveform_bytes
+        .chunks_exact(4)
+        .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
+        .collect();
+
+    Some(WaveformResult {
+        waveform,
+        sample_rate,
+        duration_secs,
+        channels,
+        fft_pcm_path: None, // Caller sets this based on pcm.raw existence
+    })
+}
+
+fn write_waveform_cache(cache_path: &Path, result: &WaveformResult) {
+    let Ok(f) = std::fs::File::create(cache_path) else {
+        return;
+    };
+    let mut w = BufWriter::new(f);
+    let _ = w.write_all(WAVEFORM_CACHE_MAGIC);
+    let _ = w.write_all(&WAVEFORM_CACHE_VERSION.to_le_bytes());
+    let _ = w.write_all(&result.sample_rate.to_le_bytes());
+    let _ = w.write_all(&result.channels.to_le_bytes());
+    let _ = w.write_all(&result.duration_secs.to_le_bytes());
+    let _ = w.write_all(&(result.waveform.len() as u32).to_le_bytes());
+    for &v in &result.waveform {
+        let _ = w.write_all(&v.to_le_bytes());
+    }
+    let _ = w.flush();
+}
+
 /// Decode an audio file from the library and return waveform data for visualization.
 /// Uses symphonia (pure Rust) so all common audio formats are supported, unlike
 /// WebKitGTK's OfflineAudioContext which only handles MP3/WAV/OGG.
+/// Results are cached to disk (~2KB) to avoid re-decoding on subsequent opens.
 #[tauri::command]
 pub async fn decode_audio_waveform(
     state: tauri::State<'_, ContentDir>,
@@ -1182,10 +1240,21 @@ pub async fn decode_audio_waveform(
         .ok_or_else(|| "Content file not found".to_string())?;
 
     const BUCKET_COUNT: usize = 480;
+    let cache_path = token_dir.join("waveform.cache");
     let pcm_path = token_dir.join("pcm.raw");
 
     tokio::task::spawn_blocking(move || {
-        decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))
+        // Check cache first — audio files are immutable (content-addressed), no staleness concern
+        if let Some(mut cached) = read_waveform_cache(&cache_path) {
+            if pcm_path.exists() {
+                cached.fft_pcm_path = Some(pcm_path.to_string_lossy().to_string());
+            }
+            return Ok(cached);
+        }
+
+        let result = decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))?;
+        write_waveform_cache(&cache_path, &result);
+        Ok(result)
     })
     .await
     .map_err(|e| format!("Waveform decode task failed: {e}"))?
