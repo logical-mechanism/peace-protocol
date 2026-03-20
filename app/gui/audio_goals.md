@@ -53,7 +53,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx`
 
-- [ ] 🟡 **Canvas not scaled for HiDPI displays**
+- [x] 🟡 **Canvas not scaled for HiDPI displays**
   - **How**: The waveform canvas (line 1071-1072) and FFT canvas (line 1079-1080) use hardcoded `width={480} height={120}` without accounting for `window.devicePixelRatio`. On HiDPI screens (2x, 3x), canvas content appears blurry. Fix: in the canvas setup, multiply the canvas element's `width`/`height` attributes by `devicePixelRatio`, set CSS `width`/`height` to the logical size via `style={{ width: 480, height: 120 }}`, and call `ctx.scale(dpr, dpr)` on the canvas contexts. Update `drawFrame()` and `drawWaveform()` to use logical coordinates (they already do — the scale transform handles the conversion). Read `devicePixelRatio` once in the color-reading effect (line 222) and store it in a ref.
   - **Why**: On HiDPI displays (common on modern laptops), the FFT bars and waveform look blurry compared to the crisp text and UI elements around them.
 

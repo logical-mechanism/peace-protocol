@@ -150,6 +150,8 @@ const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
 const BAR_COUNT = 32;
 const FFT_SIZE = 1024;
+const CANVAS_W = 480;
+const CANVAS_H = 120;
 const SMOOTHING = 0.8;
 const TARGET_FPS = 24;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -209,6 +211,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     waveformPlayed: 'rgba(34, 211, 238, 0.6)', waveformUnplayed: 'rgba(34, 211, 238, 0.15)',
     indicator: 'rgba(250, 250, 250, 0.9)', indicatorGlow: 'rgba(250, 250, 250, 0.3)',
   });
+  const dprRef = useRef(window.devicePixelRatio || 1);
   const hasShownHintsRef = useRef(false);
   // RAF loop control — stops when paused + bars fully decayed, restarts on play
   const rafActiveRef = useRef(false);
@@ -238,6 +241,16 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
         indicator: styles.getPropertyValue('--waveform-indicator').trim() || 'rgba(250, 250, 250, 0.9)',
         indicatorGlow: styles.getPropertyValue('--waveform-indicator-glow').trim() || 'rgba(250, 250, 250, 0.3)',
       };
+
+      // Scale canvases for HiDPI displays
+      const dpr = window.devicePixelRatio || 1;
+      dprRef.current = dpr;
+      for (const c of [canvasRef.current, waveformCanvasRef.current]) {
+        if (c) {
+          c.width = CANVAS_W * dpr;
+          c.height = CANVAS_H * dpr;
+        }
+      }
     };
 
     readColors();
@@ -448,11 +461,12 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { width, height } = canvas;
-    ctx.clearRect(0, 0, width, height);
+    const dpr = dprRef.current;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-    const barW = width / waveform.length;
-    const mid = height / 2;
+    const barW = CANVAS_W / waveform.length;
+    const mid = CANVAS_H / 2;
 
     const { waveformPlayed, waveformUnplayed, indicator, indicatorGlow } = gradientColorsRef.current;
 
@@ -468,13 +482,13 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
 
     // Playback position indicator — bright vertical line at current position
     if (progressRatio > 0) {
-      const indicatorX = Math.round(progressRatio * width);
+      const indicatorX = Math.round(progressRatio * CANVAS_W);
       // Glow behind
       ctx.fillStyle = indicatorGlow;
-      ctx.fillRect(indicatorX - 2, 0, 6, height);
+      ctx.fillRect(indicatorX - 2, 0, 6, CANVAS_H);
       // Main line
       ctx.fillStyle = indicator;
-      ctx.fillRect(indicatorX, 0, 2, height);
+      ctx.fillRect(indicatorX, 0, 2, CANVAS_H);
     }
   }, []);
 
@@ -491,13 +505,14 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { width, height } = canvas;
-    ctx.clearRect(0, 0, width, height);
+    const dpr = dprRef.current;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
     const { start: gradStart, mid: gradMid, end: gradEnd } = gradientColorsRef.current;
 
     // Single gradient reused for all bars (avoids 768+ gradient allocations/sec)
-    const barGradient = ctx.createLinearGradient(0, height, 0, 0);
+    const barGradient = ctx.createLinearGradient(0, CANVAS_H, 0, 0);
     barGradient.addColorStop(0, gradStart);
     barGradient.addColorStop(0.5, gradMid);
     barGradient.addColorStop(1, gradEnd);
@@ -505,7 +520,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     const buffer = bufferRef.current;
     const audio = audioRef.current;
     const gap = 2;
-    const barWidth = (width - gap * (BAR_COUNT - 1)) / BAR_COUNT;
+    const barWidth = (CANVAS_W - gap * (BAR_COUNT - 1)) / BAR_COUNT;
 
     // Advance interpolated time smoothly between audio.currentTime updates
     const now = performance.now();
@@ -555,14 +570,14 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
           peakBarsRef.current[i] *= 0.97;
         }
 
-        const barHeight = prevBarsRef.current[i] * height;
+        const barHeight = prevBarsRef.current[i] * CANVAS_H;
         const x = i * (barWidth + gap);
-        const y = height - barHeight;
+        const y = CANVAS_H - barHeight;
 
         ctx.fillStyle = barGradient;
 
         const segH = 3, segGap = 1;
-        let curY = height;
+        let curY = CANVAS_H;
         while (curY > y) {
           const top = Math.max(y, curY - segH);
           ctx.fillRect(x, top, barWidth, curY - top);
@@ -571,7 +586,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
 
         // Draw peak hold indicator dot
         if (peakBarsRef.current[i] > 0.005) {
-          const peakY = height - peakBarsRef.current[i] * height;
+          const peakY = CANVAS_H - peakBarsRef.current[i] * CANVAS_H;
           ctx.fillStyle = gradEnd;
           ctx.fillRect(x, peakY, barWidth, segH);
           ctx.fillStyle = barGradient;
@@ -583,15 +598,15 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
         prevBarsRef.current[i] *= 0.92;
         peakBarsRef.current[i] *= 0.97;
 
-        const barHeight = prevBarsRef.current[i] * height;
+        const barHeight = prevBarsRef.current[i] * CANVAS_H;
         const x = i * (barWidth + gap);
-        const y = height - barHeight;
+        const y = CANVAS_H - barHeight;
 
         if (prevBarsRef.current[i] >= 0.005) {
           ctx.fillStyle = barGradient;
 
           const segH = 3, segGap = 1;
-          let curY = height;
+          let curY = CANVAS_H;
           while (curY > y) {
             const top = Math.max(y, curY - segH);
             ctx.fillRect(x, top, barWidth, curY - top);
@@ -601,7 +616,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
 
         // Draw peak hold indicator dot (decays independently of bars)
         if (peakBarsRef.current[i] > 0.005) {
-          const peakY = height - peakBarsRef.current[i] * height;
+          const peakY = CANVAS_H - peakBarsRef.current[i] * CANVAS_H;
           ctx.fillStyle = gradEnd;
           ctx.fillRect(x, peakY, barWidth, 3);
         }
@@ -613,7 +628,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
       const wCanvas = waveformCanvasRef.current;
       const progressRatio = vizTimeRef.current / duration;
       if (!isFinite(progressRatio)) return;
-      const px = wCanvas ? Math.round(progressRatio * wCanvas.width) : -1;
+      const px = wCanvas ? Math.round(progressRatio * CANVAS_W) : -1;
       if (px !== lastDrawnPixelRef.current) {
         lastDrawnPixelRef.current = px;
         drawWaveform(progressRatio);
@@ -1078,18 +1093,14 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
       >
         <canvas
           ref={waveformCanvasRef}
-          width={480}
-          height={120}
           className="w-full block bg-[var(--winamp-bg-dark)] absolute inset-0"
-          style={{ imageRendering: 'pixelated' }}
+          style={{ imageRendering: 'pixelated', height: CANVAS_H }}
           aria-hidden="true"
         />
         <canvas
           ref={canvasRef}
-          width={480}
-          height={120}
           className="w-full block relative opacity-60"
-          style={{ imageRendering: 'pixelated' }}
+          style={{ imageRendering: 'pixelated', height: CANVAS_H }}
           aria-hidden="true"
         />
         {!isReady && (
