@@ -238,6 +238,18 @@ function LibraryCard({
               {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
             </p>
           </div>
+          {onRelist && !item.contentMissing && !selectMode && (
+            <button
+              onClick={() => onRelist(item)}
+              className="flex-shrink-0 p-1.5 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] btn-base"
+              title="Create listing from this item"
+              aria-label="Create listing from this item"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Description */}
@@ -285,17 +297,6 @@ function LibraryCard({
             >
               View Content
             </button>
-            {onRelist && !item.contentMissing && (
-              <button
-                onClick={() => onRelist(item)}
-                className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-secondary flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Relist
-              </button>
-            )}
             <button
               onClick={() => onDelete(item)}
               className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"

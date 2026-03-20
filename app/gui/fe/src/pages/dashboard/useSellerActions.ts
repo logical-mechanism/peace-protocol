@@ -18,7 +18,7 @@ import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 import type { SnarkProofInputs, SnarkProof } from '../../services/snark'
 import type { CreateListingFormData } from '../../components/CreateListingModal'
-import type { LibraryItem } from '../../services/libraryService'
+import { readLibraryContent, type LibraryItem } from '../../services/libraryService'
 import { invoke } from '@tauri-apps/api/core'
 
 interface UseSellerActionsParams {
@@ -276,11 +276,21 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       const prefill: Partial<CreateListingFormData> = {
         category: (item.category || 'other') as CreateListingFormData['category'],
         description: item.description || '',
-        suggestedPrice: item.suggestedPrice != null ? String(item.suggestedPrice / 1_000_000) : '',
+        suggestedPrice: item.suggestedPrice != null ? String(item.suggestedPrice) : '',
         imageLink: item.imageLink || '',
         filePath: contentPath,
         fileName,
         fileSize: item.fileSize ?? null,
+      }
+
+      // For text listings, read the content and pre-fill secretMessage
+      if (item.category === 'text') {
+        try {
+          const bytes = await readLibraryContent(item.tokenName, item.category)
+          prefill.secretMessage = new TextDecoder().decode(bytes)
+        } catch {
+          // Non-fatal — user can still type the message manually
+        }
       }
 
       setRelistPrefill(prefill)
