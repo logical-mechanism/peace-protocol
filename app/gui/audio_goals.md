@@ -81,19 +81,19 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/AudioPlayer.test.tsx`
 
-- [ ] 🟡 **Add unit tests for `fftInPlace()` algorithm**
+- [x] 🟡 **Add unit tests for `fftInPlace()` algorithm**
   - **How**: Export `fftInPlace` (line 79) or extract it to a testable utility. Test with known input→output: (1) DC signal (all 1.0 real, 0 imag) should produce energy only in bin 0. (2) Pure sine at bin frequency should produce energy in that bin. (3) Power-of-2 length validation. (4) Impulse signal `[1, 0, 0, ...]` should produce flat magnitude spectrum. Use `Float32Array` inputs matching `FFT_SIZE = 1024`.
   - **Why**: The FFT is a custom implementation (not a library) — any subtle bug (twiddle factor sign, bit-reversal order) would produce visually wrong spectrum bars with no test to catch the regression.
 
-- [ ] 🟡 **Add tests for `computeWaveformBuckets()` edge cases**
+- [x] 🟡 **Add tests for `computeWaveformBuckets()` edge cases**
   - **How**: The waveform downsampling (line 305-322 area) converts decoded PCM to 480 buckets. Test: (1) Empty/zero-length audio buffer → returns empty or zeroed array. (2) Very short buffer (fewer samples than buckets) → handles gracefully. (3) Single-sample buffer. (4) Normalization — max value should be 1.0. (5) All-zero input → all-zero output. If the function isn't exported, extract the bucket computation into a named function.
   - **Why**: Edge cases like very short files or silent audio could produce NaN/Infinity in the normalization step (division by max where max=0).
 
-- [ ] 🟢 **Add tests for seek bar mouse interactions**
+- [x] 🟢 **Add tests for seek bar mouse interactions**
   - **How**: The seek bar has `onMouseDown`, `onMouseMove`, `onMouseUp` handlers for scrubbing (lines around 960-967). Test: (1) `mousedown` on seek bar starts seeking. (2) `mousemove` during seek updates tooltip position. (3) `mouseup` commits the seek to `audio.currentTime`. (4) Clicking outside the bar after mousedown doesn't crash. Mock `getBoundingClientRect()` to return known dimensions.
   - **Why**: The seek interaction is the primary way users navigate audio, but has zero test coverage — only the keyboard seek (Home/End/Arrow) is tested.
 
-- [ ] 🟢 **Add tests for waveform mouse seek**
+- [x] 🟢 **Add tests for waveform mouse seek**
   - **How**: The waveform canvas has `onMouseDown` (line ~930) for click-to-seek. Test: (1) Click at 50% width → `audio.currentTime` set to 50% of duration. (2) Click at 0% → seeks to start. (3) Click at 100% → seeks to end. Mock canvas `getBoundingClientRect()`.
   - **Why**: Waveform click-to-seek is a key navigation feature with no test coverage.
 

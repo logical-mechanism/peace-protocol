@@ -41,6 +41,7 @@ const playMock = vi.fn().mockResolvedValue(undefined);
 const pauseMock = vi.fn();
 
 import AudioPlayer from '../AudioPlayer';
+import { fftInPlace, normalizeWaveform } from '../audioPlayerUtils';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -1521,6 +1522,332 @@ describe('AudioPlayer component', () => {
 
       // Should have been reset to 0
       expect(_ct).toBe(0);
+    });
+  });
+
+  // ── fftInPlace() algorithm tests ──────────────────────────────────
+
+  describe('fftInPlace', () => {
+    it('DC signal produces energy only in bin 0', () => {
+      const n = 1024;
+      const re = new Float32Array(n).fill(1.0);
+      const im = new Float32Array(n).fill(0);
+      fftInPlace(re, im);
+
+      // Bin 0 should have magnitude = n (sum of all samples)
+      const mag0 = Math.sqrt(re[0] ** 2 + im[0] ** 2);
+      expect(mag0).toBeCloseTo(n, 5);
+
+      // All other bins should be ~0
+      for (let i = 1; i < n; i++) {
+        const mag = Math.sqrt(re[i] ** 2 + im[i] ** 2);
+        expect(mag).toBeLessThan(1e-6);
+      }
+    });
+
+    it('impulse signal produces flat magnitude spectrum', () => {
+      const n = 1024;
+      const re = new Float32Array(n);
+      const im = new Float32Array(n);
+      re[0] = 1.0; // Impulse at t=0
+
+      fftInPlace(re, im);
+
+      // Every bin should have magnitude = 1
+      for (let i = 0; i < n; i++) {
+        const mag = Math.sqrt(re[i] ** 2 + im[i] ** 2);
+        expect(mag).toBeCloseTo(1.0, 5);
+      }
+    });
+
+    it('pure sine at bin frequency produces energy in that bin and its mirror', () => {
+      const n = 1024;
+      const binIndex = 8; // Put energy at bin 8
+      const re = new Float32Array(n);
+      const im = new Float32Array(n);
+
+      // Generate sine: x[t] = sin(2π * binIndex * t / n)
+      for (let t = 0; t < n; t++) {
+        re[t] = Math.sin((2 * Math.PI * binIndex * t) / n);
+      }
+
+      fftInPlace(re, im);
+
+      // Bin `binIndex` and its mirror `n - binIndex` should have energy ≈ n/2
+      const magTarget = Math.sqrt(re[binIndex] ** 2 + im[binIndex] ** 2);
+      const magMirror = Math.sqrt(re[n - binIndex] ** 2 + im[n - binIndex] ** 2);
+      expect(magTarget).toBeCloseTo(n / 2, 1);
+      expect(magMirror).toBeCloseTo(n / 2, 1);
+
+      // All other bins should be ~0
+      for (let i = 0; i < n; i++) {
+        if (i === binIndex || i === n - binIndex) continue;
+        const mag = Math.sqrt(re[i] ** 2 + im[i] ** 2);
+        expect(mag).toBeLessThan(1e-3);
+      }
+    });
+
+    it('Parseval theorem: energy is conserved between time and frequency domains', () => {
+      const n = 256;
+      const re = new Float32Array(n);
+      const im = new Float32Array(n);
+      // Random-ish signal
+      for (let i = 0; i < n; i++) re[i] = Math.sin(i * 0.1) + 0.5 * Math.cos(i * 0.3);
+
+      // Time-domain energy
+      let timeEnergy = 0;
+      for (let i = 0; i < n; i++) timeEnergy += re[i] ** 2;
+
+      fftInPlace(re, im);
+
+      // Frequency-domain energy (scaled by n for unnormalized FFT)
+      let freqEnergy = 0;
+      for (let i = 0; i < n; i++) freqEnergy += re[i] ** 2 + im[i] ** 2;
+      freqEnergy /= n;
+
+      expect(freqEnergy).toBeCloseTo(timeEnergy, 3);
+    });
+
+    it('handles small power-of-2 sizes (n=4)', () => {
+      const re = new Float32Array([1, 2, 3, 4]);
+      const im = new Float32Array(4);
+      fftInPlace(re, im);
+
+      // Bin 0 = sum = 10
+      expect(re[0]).toBeCloseTo(10, 5);
+      expect(im[0]).toBeCloseTo(0, 5);
+      // Bin 2 = alternating sum: (1-3) + (2-4) mapped differently
+      // Just verify it produces finite values and Parseval holds
+      let energy = 0;
+      for (let i = 0; i < 4; i++) energy += re[i] ** 2 + im[i] ** 2;
+      expect(energy / 4).toBeCloseTo(1 ** 2 + 2 ** 2 + 3 ** 2 + 4 ** 2, 3);
+    });
+  });
+
+  // ── normalizeWaveform() tests ─────────────────────────────────────
+
+  describe('normalizeWaveform', () => {
+    it('normalizes peak to 1.0', () => {
+      const data = new Float32Array([0.2, 0.8, 0.4]);
+      const result = normalizeWaveform(data);
+      expect(result[0]).toBeCloseTo(0.25, 5);
+      expect(result[1]).toBeCloseTo(1.0, 5);
+      expect(result[2]).toBeCloseTo(0.5, 5);
+    });
+
+    it('handles empty array', () => {
+      const data = new Float32Array(0);
+      const result = normalizeWaveform(data);
+      expect(result.length).toBe(0);
+    });
+
+    it('handles all-zero input without division by zero', () => {
+      const data = new Float32Array([0, 0, 0, 0]);
+      const result = normalizeWaveform(data);
+      expect(result).toEqual(new Float32Array([0, 0, 0, 0]));
+    });
+
+    it('handles single-sample buffer', () => {
+      const data = new Float32Array([5.0]);
+      const result = normalizeWaveform(data);
+      expect(result[0]).toBeCloseTo(1.0, 5);
+    });
+
+    it('leaves already-normalized data unchanged', () => {
+      const data = new Float32Array([0.5, 1.0, 0.3]);
+      const result = normalizeWaveform(data);
+      expect(result[0]).toBeCloseTo(0.5, 5);
+      expect(result[1]).toBeCloseTo(1.0, 5);
+      expect(result[2]).toBeCloseTo(0.3, 5);
+    });
+
+    it('normalizes values greater than 1.0', () => {
+      const data = new Float32Array([2.0, 4.0, 1.0]);
+      const result = normalizeWaveform(data);
+      expect(result[0]).toBeCloseTo(0.5, 5);
+      expect(result[1]).toBeCloseTo(1.0, 5);
+      expect(result[2]).toBeCloseTo(0.25, 5);
+    });
+
+    it('mutates and returns the input array', () => {
+      const data = new Float32Array([3.0, 6.0]);
+      const result = normalizeWaveform(data);
+      expect(result).toBe(data); // Same reference
+    });
+  });
+
+  // ── Seek bar mouse interaction tests ──────────────────────────────
+
+  describe('Seek bar mouse interactions', () => {
+    async function setupReadyPlayer() {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      await flushMicrotasks();
+      return audio;
+    }
+
+    /**
+     * The seek bar structure:
+     * - Outer div (role="slider", onMouseDown) ← fire events here
+     * - Inner div (ref=seekBarRef) ← mock getBoundingClientRect here
+     * handleSeekMouseDown reads rect from seekBarRef (inner div).
+     */
+    function getSeekElements() {
+      const sliderDiv = screen.getByRole('slider', { name: /seek/i });
+      // seekBarRef is the first child div inside the slider (after the tooltip)
+      const innerBar = sliderDiv.querySelector('.winamp-groove')!;
+      return { sliderDiv, innerBar };
+    }
+
+    function mockSeekBarRect(innerBar: Element, rect: Partial<DOMRect>) {
+      (innerBar as HTMLElement).getBoundingClientRect = vi.fn().mockReturnValue({
+        left: 0, right: 200, width: 200, top: 0, bottom: 20, height: 20, x: 0, y: 0,
+        toJSON: () => ({}),
+        ...rect,
+      });
+    }
+
+    it('mousedown on seek bar sets currentTime based on click position', async () => {
+      const audio = await setupReadyPlayer();
+      const { sliderDiv, innerBar } = getSeekElements();
+      mockSeekBarRect(innerBar, { left: 0, width: 200, right: 200 });
+
+      fireEvent.mouseDown(sliderDiv, { clientX: 100 }); // 50% of 200
+
+      expect(audio.currentTime).toBeCloseTo(60, 0); // 50% of duration=120
+
+      // Clean up document listeners
+      act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
+    });
+
+    it('mousemove during seek updates currentTime', async () => {
+      const audio = await setupReadyPlayer();
+      const { sliderDiv, innerBar } = getSeekElements();
+      mockSeekBarRect(innerBar, { left: 0, width: 200, right: 200 });
+
+      fireEvent.mouseDown(sliderDiv, { clientX: 100 });
+      expect(audio.currentTime).toBeCloseTo(60, 0);
+
+      // Simulate mousemove on document (handler attached to document)
+      act(() => {
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, bubbles: true }));
+      });
+
+      expect(audio.currentTime).toBeCloseTo(90, 0); // 75% of 120
+
+      // Clean up document listeners
+      act(() => {
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      });
+    });
+
+    it('mouseup stops seeking', async () => {
+      const audio = await setupReadyPlayer();
+      const { sliderDiv, innerBar } = getSeekElements();
+      mockSeekBarRect(innerBar, { left: 0, width: 200, right: 200 });
+
+      fireEvent.mouseDown(sliderDiv, { clientX: 100 });
+
+      act(() => {
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      });
+
+      // After mouseup, further mousemove should NOT change currentTime
+      const timeAfterUp = audio.currentTime;
+      act(() => {
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 180, bubbles: true }));
+      });
+
+      expect(audio.currentTime).toBe(timeAfterUp);
+    });
+
+    it('clamps seek ratio to [0, 1]', async () => {
+      const audio = await setupReadyPlayer();
+      const { sliderDiv, innerBar } = getSeekElements();
+      mockSeekBarRect(innerBar, { left: 100, width: 200, right: 300 });
+
+      // Click before the bar (clientX < left)
+      fireEvent.mouseDown(sliderDiv, { clientX: 50 });
+      expect(audio.currentTime).toBe(0);
+
+      act(() => {
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      });
+
+      // Click past the bar (clientX > right)
+      fireEvent.mouseDown(sliderDiv, { clientX: 400 });
+      expect(audio.currentTime).toBe(120); // duration
+
+      act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
+    });
+  });
+
+  // ── Waveform mouse seek tests ─────────────────────────────────────
+
+  describe('Waveform mouse seek', () => {
+    async function setupReadyPlayer() {
+      renderPlayer();
+      const audio = document.querySelector('audio')!;
+      makeAudioControllable(audio);
+      await fireCanPlay();
+      await flushMicrotasks();
+      return audio;
+    }
+
+    function getWaveformContainer(): HTMLElement {
+      // The waveform container has class "cursor-pointer" and contains canvases.
+      // It's the div with ref={waveformContainerRef} and onMouseDown={handleWaveformMouseDown}.
+      const canvases = document.querySelectorAll('canvas');
+      expect(canvases.length).toBeGreaterThan(0);
+      const container = canvases[0].parentElement!;
+      return container;
+    }
+
+    it('click at 50% width seeks to 50% of duration', async () => {
+      const audio = await setupReadyPlayer();
+      const container = getWaveformContainer();
+
+      container.getBoundingClientRect = vi.fn().mockReturnValue({
+        left: 0, right: 480, width: 480, top: 0, bottom: 120, height: 120, x: 0, y: 0,
+        toJSON: () => ({}),
+      });
+
+      fireEvent.mouseDown(container, { clientX: 240 }); // 50%
+      expect(audio.currentTime).toBeCloseTo(60, 0);
+
+      act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
+    });
+
+    it('click at left edge seeks to start', async () => {
+      const audio = await setupReadyPlayer();
+      const container = getWaveformContainer();
+
+      container.getBoundingClientRect = vi.fn().mockReturnValue({
+        left: 0, right: 480, width: 480, top: 0, bottom: 120, height: 120, x: 0, y: 0,
+        toJSON: () => ({}),
+      });
+
+      fireEvent.mouseDown(container, { clientX: 0 }); // 0%
+      expect(audio.currentTime).toBe(0);
+
+      act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
+    });
+
+    it('click at right edge seeks to end', async () => {
+      const audio = await setupReadyPlayer();
+      const container = getWaveformContainer();
+
+      container.getBoundingClientRect = vi.fn().mockReturnValue({
+        left: 0, right: 480, width: 480, top: 0, bottom: 120, height: 120, x: 0, y: 0,
+        toJSON: () => ({}),
+      });
+
+      fireEvent.mouseDown(container, { clientX: 480 }); // 100%
+      expect(audio.currentTime).toBeCloseTo(120, 0);
+
+      act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
     });
   });
 });
