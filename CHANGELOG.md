@@ -4,6 +4,34 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.3] - 2026-03-20
+
+### Added
+- Import from Iagon: create listing and relisting from existing uploads (#71)
+- Relist as icon button for quicker re-listing workflow (#71)
+- App update downloader (#70)
+- ARIA accessibility attributes for screen readers (BidTimeline, PasswordStrengthIndicator, MnemonicInput, EncryptionCard favorites, InfoTooltip) (#71)
+- Keyboard hint for Library select mode Cancel button (#71)
+- Additional MIME types (.3gp, .m2ts, .wma, .wmv) in media server (#71)
+
+### Fixed
+- Price math and text auto-populate for listings (#71)
+- Event listener leak in useUpdateCheck on fast unmount (#71)
+- Backend API resilience: exact PKH match, no empty cache entries, flush on shutdown (#71)
+- SnarkProvingModal setState calls after unmount (#71)
+- Media server bind failure now handled gracefully instead of panicking (#71)
+- File-open error type distinction in media server (#71)
+- Stale lock file detection and removal in secrets file locking (#71)
+- Invalid block_time guard in createdAt conversion (#71)
+- Cached health status invalidation when circuit breaker leaves OPEN state (#71)
+- CBOR indefinite-length parsing bounds checks to prevent infinite loops (#71)
+- Replaced alert() fallbacks with console.warn in sales/purchases tabs (#71)
+
+### Changed
+- Backend metadata batch fetch logs warning when fewer results than requested (#71)
+- CI caches all three package-lock.json files (#71)
+- Config validation requires contracts section (#71)
+
 ## [0.4.2] - 2026-03-18
 
 ### Added
