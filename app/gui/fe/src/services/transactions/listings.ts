@@ -15,6 +15,7 @@ import { buildPayload } from '../crypto/payload';
 import { protocolApi } from '../api';
 import type { EncryptionDisplay } from '../api';
 import type { CreateListingFormData } from '../../components/CreateListingModal';
+import type { FileCategory } from '../../config/categories';
 import { buildEncryptionMetadata } from '../metadata';
 import { encodeFileSecret } from '../crypto/fileEncryption';
 import { encryptAndUpload, listFiles as iagonListFiles } from '../iagonApi';
@@ -981,6 +982,182 @@ export async function cancelPendingListing(
     };
   } catch (error) {
     console.error('Failed to cancel pending listing:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Data required to create a listing from an already-uploaded Iagon file.
+ * The user provides the Iagon file ID and the encryption parameters that
+ * were generated when they originally encrypted and uploaded the file.
+ */
+export interface ImportListingData {
+  iagonFileId: string;
+  aesKeyHex: string;      // 64 hex chars (32 bytes)
+  gcmNonceHex: string;    // 24 hex chars (12 bytes)
+  sha256DigestHex: string; // 64 hex chars (32 bytes)
+  fileExtension: string;   // e.g. ".pdf"
+  description: string;
+  suggestedPrice: string;
+  imageLink: string;
+  category: FileCategory;
+}
+
+/**
+ * Create a listing from an existing Iagon upload.
+ *
+ * Skips file encryption, upload, and verification — the file is already on
+ * Iagon and the user provides the encryption parameters directly.
+ *
+ * Progress steps: building → signing → submitting (same as text listings).
+ */
+export async function createListingFromImport(
+  wallet: IWallet,
+  data: ImportListingData,
+  onProgress?: (step: ListingCreationStep) => void,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
+): Promise<TransactionResult> {
+  try {
+    // STUB MODE
+    if (USE_STUBS) {
+      console.warn('[STUB] createListingFromImport - using stub mode');
+      const fakeUtxo = { txHash: Array(64).fill('b').join(''), outputIndex: 0 };
+      const tokenName = computeTokenName(fakeUtxo.txHash, fakeUtxo.outputIndex);
+      const payloadBytes = buildPayloadFromDraftFields(
+        data.iagonFileId, data.aesKeyHex, data.gcmNonceHex, data.sha256DigestHex, data.fileExtension,
+      );
+      const artifacts = await createEncryptionWithWallet(wallet, payloadBytes, tokenName, true);
+      await storeSecrets(tokenName, artifacts.a, artifacts.r);
+      return {
+        success: true,
+        txHash: `stub_${Date.now().toString(16)}_${tokenName.slice(0, 16)}`,
+        tokenName,
+        isStub: true,
+      };
+    }
+
+    // === REAL IMPLEMENTATION ===
+
+    onProgress?.('building');
+
+    // Build payload from user-provided Iagon data
+    const payloadBytes = buildPayloadFromDraftFields(
+      data.iagonFileId, data.aesKeyHex, data.gcmNonceHex, data.sha256DigestHex, data.fileExtension,
+    );
+
+    // Fetch config
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionAddress || !config.contracts.encryptionPolicyId) {
+      throw new Error('Protocol config missing contract addresses. Ensure backend .env is configured.');
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error('Encryption reference script UTxO not configured.');
+    }
+
+    // Wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet. Fund your wallet with preprod ADA first.');
+    }
+    const usedAddresses = await wallet.getUsedAddresses();
+    if (usedAddresses.length === 0) {
+      throw new Error('No used addresses found in wallet.');
+    }
+    const changeAddress = await wallet.getChangeAddress();
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error('No collateral set in wallet.');
+    }
+
+    const ownerPkh = extractPaymentKeyHash(usedAddresses[0]);
+
+    utxos.sort((a, b) => {
+      const hashCmp = a.input.txHash.localeCompare(b.input.txHash);
+      if (hashCmp !== 0) return hashCmp;
+      return a.input.outputIndex - b.input.outputIndex;
+    });
+
+    const nonCollateral = excludeUtxos(utxos, collateral[0]);
+    if (nonCollateral.length === 0) {
+      throw new Error('No non-collateral UTxOs available. Send more ADA to your wallet.');
+    }
+    const firstUtxo = nonCollateral[0];
+    const tokenName = computeTokenName(firstUtxo.input.txHash, firstUtxo.input.outputIndex);
+
+    // Create encryption artifacts
+    const artifacts = await createEncryptionWithWallet(wallet, payloadBytes, tokenName, false);
+    await storeSecrets(tokenName, artifacts.a, artifacts.r);
+
+    // Build transaction
+    const datum = {
+      constructor: 0,
+      fields: [
+        { bytes: ownerPkh },
+        artifacts.plutusJson.register,
+        { bytes: tokenName },
+        artifacts.plutusJson.halfLevel,
+        artifacts.plutusJson.fullLevel,
+        artifacts.plutusJson.capsule,
+        { constructor: 0, fields: [] },
+      ],
+    };
+
+    const mintRedeemer = {
+      constructor: 0,
+      fields: [
+        artifacts.plutusJson.schnorr,
+        artifacts.plutusJson.binding,
+      ],
+    };
+
+    const txBuilder = createTxBuilder();
+    const policyId = config.contracts.encryptionPolicyId;
+    const encryptionAddress = config.contracts.encryptionAddress;
+    const refScript = config.referenceScripts.encryption;
+
+    const storageLayer = 'iagon';
+    const unsignedTx = await withTimeout(
+      txBuilder
+        .txIn(firstUtxo.input.txHash, firstUtxo.input.outputIndex, firstUtxo.output.amount, firstUtxo.output.address)
+        .mintPlutusScriptV3()
+        .mint('1', policyId, tokenName)
+        .mintTxInReference(refScript.txHash, refScript.outputIndex)
+        .mintRedeemerValue(mintRedeemer, 'JSON')
+        .txOut(encryptionAddress, [
+          { unit: 'lovelace', quantity: estimateMinLovelace(datum) },
+          { unit: policyId + tokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(datum, 'JSON')
+        .txInCollateral(collateral[0].input.txHash, collateral[0].input.outputIndex, collateral[0].output.amount, collateral[0].output.address)
+        .requiredSignerHash(ownerPkh)
+        .metadataValue(674, buildEncryptionMetadata(
+          data.description,
+          data.suggestedPrice || '0',
+          storageLayer,
+          data.imageLink || '',
+          data.category,
+        ))
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
+        .complete(),
+      180_000,
+      'createListingFromImport tx build',
+    );
+
+    onProgress?.('signing');
+    const signedTx = await wallet.signTx(unsignedTx);
+
+    onProgress?.('submitting');
+    const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, tokenName); } catch { /* don't break tx flow */ }
+
+    return { success: true, txHash, tokenName };
+  } catch (error) {
+    console.error('Failed to create listing from import:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

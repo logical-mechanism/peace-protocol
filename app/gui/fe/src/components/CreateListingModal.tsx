@@ -43,6 +43,10 @@ interface CreateListingModalProps {
   onClose: () => void;
   onSubmit: (data: CreateListingFormData, onProgress?: (step: ListingCreationStep) => void) => Promise<void>;
   isIagonConnected?: boolean;
+  /** Pre-fill form fields (e.g. when relisting from Library). Merged with defaults on open. */
+  prefill?: Partial<CreateListingFormData> | null;
+  /** Override modal title (e.g. "Relist from Library"). */
+  title?: string;
 }
 
 /** Files above this threshold show an informational upload time warning. */
@@ -102,6 +106,8 @@ export default function CreateListingModal({
   onClose,
   onSubmit,
   isIagonConnected = false,
+  prefill,
+  title,
 }: CreateListingModalProps) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
@@ -124,15 +130,23 @@ export default function CreateListingModal({
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
     if (isOpen) {
-      const savedDraft = getListingFormDraft();
-      if (savedDraft && (savedDraft.description || savedDraft.secretMessage || savedDraft.suggestedPrice)) {
-        setShowDraftPrompt(true);
-      } else {
-        setFormData(INITIAL_FORM_DATA);
+      if (prefill) {
+        // Pre-fill mode (e.g. relist from Library) — skip draft prompt
+        setFormData({ ...INITIAL_FORM_DATA, ...prefill });
         setShowDraftPrompt(false);
+        setDisplayPrice(formatPrice(prefill.suggestedPrice || ''));
         setTimeout(() => descriptionRef.current?.focus(), 50);
+      } else {
+        const savedDraft = getListingFormDraft();
+        if (savedDraft && (savedDraft.description || savedDraft.secretMessage || savedDraft.suggestedPrice)) {
+          setShowDraftPrompt(true);
+        } else {
+          setFormData(INITIAL_FORM_DATA);
+          setShowDraftPrompt(false);
+          setTimeout(() => descriptionRef.current?.focus(), 50);
+        }
+        setDisplayPrice('');
       }
-      setDisplayPrice('');
       setImagePreviewState('idle');
       setImagePreviewUrl(null);
       setErrors({});
@@ -142,6 +156,7 @@ export default function CreateListingModal({
       setIsDirty(false);
       setShowCloseConfirm(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Auto-save form state on change (debounced 500ms)
@@ -453,10 +468,10 @@ export default function CreateListingModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <div>
             <h2 id="create-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
-              Create New Listing
+              {title ?? 'Create New Listing'}
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Encrypt and list your data for sale
+              {prefill ? 'Re-encrypt and list content from your library' : 'Encrypt and list your data for sale'}
             </p>
           </div>
           <button

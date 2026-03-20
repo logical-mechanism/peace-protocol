@@ -20,9 +20,11 @@ export {
 // Listing lifecycle
 export {
   createListing,
+  createListingFromImport,
   retryListingFromDraft,
   removeListing,
   cancelPendingListing,
+  type ImportListingData,
 } from './listings';
 
 // Bidding lifecycle
