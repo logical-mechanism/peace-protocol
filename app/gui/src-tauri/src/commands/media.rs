@@ -887,6 +887,11 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
     const MAX_SAMPLES: usize = 50_000_000;
     let mut samples: Vec<f32> = Vec::new();
 
+    // Reuse a single SampleBuffer across packets to avoid per-packet allocation.
+    // Reallocated only when a packet has more frames than the current capacity (rare).
+    let mut sample_buf: Option<SampleBuffer<f32>> = None;
+    let mut buf_capacity: u64 = 0;
+
     loop {
         let packet = match format.next_packet() {
             Ok(p) => p,
@@ -920,9 +925,14 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
             continue;
         }
 
-        let mut sample_buf = SampleBuffer::<f32>::new(num_frames as u64, spec);
-        sample_buf.copy_interleaved_ref(decoded);
-        let interleaved = sample_buf.samples();
+        let num_frames_u64 = num_frames as u64;
+        if sample_buf.is_none() || num_frames_u64 > buf_capacity {
+            sample_buf = Some(SampleBuffer::<f32>::new(num_frames_u64, spec));
+            buf_capacity = num_frames_u64;
+        }
+        let sb = sample_buf.as_mut().unwrap();
+        sb.copy_interleaved_ref(decoded);
+        let interleaved = sb.samples();
 
         // Mix to mono by averaging channels, take absolute value
         for frame in 0..num_frames {
