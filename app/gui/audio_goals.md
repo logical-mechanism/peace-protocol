@@ -21,7 +21,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx` (lines 269-315), `src-tauri/src/commands/media.rs` (lines 848-1013), `fe/src/services/libraryService.ts`
 
-- [ ] 🔴 **Waveform decode blocks on full file read — slow for large files**
+- [x] 🔴 **Waveform decode blocks on full file read — slow for large files**
   - **How**: `decode_waveform_sync()` in `media.rs` (line 888) reads ALL samples into a `Vec<f32>` (up to 50M samples = 200MB) before bucketing. For a 10-minute FLAC file this means reading ~50MB of compressed audio, decoding every packet, and accumulating ~100MB of f32 samples — all before the user sees any waveform. Refactor to a streaming approach: compute bucket boundaries from total duration (available from symphonia's track info or first-pass seek), then accumulate per-bucket running averages as packets decode. This avoids storing the full sample vector. Alternatively, use symphonia's seek capability to sample N evenly-spaced chunks (e.g., 480 × 1024-sample windows) instead of decoding the entire file.
   - **Why**: Users report audio loading takes a long time. The Rust waveform decode is the first thing that runs after `canplay` (line 327) and must complete before the waveform appears. Streaming or sampling would show waveform data in seconds instead of tens of seconds for large files.
 

@@ -882,15 +882,122 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
         .make(&codec_params, &DecoderOptions::default())
         .map_err(|e| format!("Failed to create audio decoder: {e}"))?;
 
-    // Accumulate mono absolute sample values — cap at 50M samples (~18 min @ 44.1kHz)
-    // to prevent unbounded memory use.
-    const MAX_SAMPLES: usize = 50_000_000;
-    let mut samples: Vec<f32> = Vec::new();
+    // Streaming bucket assignment: compute bucket boundaries from track metadata
+    // (n_frames) so we never store the full sample vector. Falls back to Vec
+    // accumulation if n_frames is unavailable (rare streaming formats).
+    const MAX_SAMPLES: u64 = 50_000_000;
+    let total_frames = codec_params.n_frames;
 
     // Reuse a single SampleBuffer across packets to avoid per-packet allocation.
-    // Reallocated only when a packet has more frames than the current capacity (rare).
     let mut sample_buf: Option<SampleBuffer<f32>> = None;
     let mut buf_capacity: u64 = 0;
+
+    // Streaming path: direct bucket assignment when total frame count is known
+    if let Some(n_frames) = total_frames {
+        let total_samples = n_frames.min(MAX_SAMPLES);
+        let samples_per_bucket = if total_samples >= bucket_count as u64 {
+            total_samples / bucket_count as u64
+        } else {
+            1
+        };
+
+        let mut bucket_sums = vec![0.0f64; bucket_count];
+        let mut bucket_counts = vec![0u64; bucket_count];
+        let mut global_idx: u64 = 0;
+
+        loop {
+            let packet = match format.next_packet() {
+                Ok(p) => p,
+                Err(symphonia::core::errors::Error::IoError(ref e))
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                {
+                    break;
+                }
+                Err(symphonia::core::errors::Error::ResetRequired) => {
+                    decoder.reset();
+                    continue;
+                }
+                Err(e) => return Err(format!("Error reading audio packet: {e}")),
+            };
+
+            if packet.track_id() != track_id {
+                continue;
+            }
+
+            let decoded = match decoder.decode(&packet) {
+                Ok(d) => d,
+                Err(symphonia::core::errors::Error::DecodeError(_)) => continue,
+                Err(e) => return Err(format!("Decode error: {e}")),
+            };
+
+            let spec = *decoded.spec();
+            let num_frames = decoded.frames();
+            let num_channels = spec.channels.count();
+
+            if num_frames == 0 || num_channels == 0 {
+                continue;
+            }
+
+            let num_frames_u64 = num_frames as u64;
+            if sample_buf.is_none() || num_frames_u64 > buf_capacity {
+                sample_buf = Some(SampleBuffer::<f32>::new(num_frames_u64, spec));
+                buf_capacity = num_frames_u64;
+            }
+            let sb = sample_buf.as_mut().unwrap();
+            sb.copy_interleaved_ref(decoded);
+            let interleaved = sb.samples();
+
+            for frame in 0..num_frames {
+                if global_idx >= MAX_SAMPLES {
+                    break;
+                }
+                let mut sum = 0.0f32;
+                for ch in 0..num_channels {
+                    sum += interleaved[frame * num_channels + ch];
+                }
+                let mono_abs = (sum / num_channels as f32).abs();
+                let bucket_idx = ((global_idx / samples_per_bucket) as usize).min(bucket_count - 1);
+                bucket_sums[bucket_idx] += mono_abs as f64;
+                bucket_counts[bucket_idx] += 1;
+                global_idx += 1;
+            }
+
+            if global_idx >= MAX_SAMPLES {
+                break;
+            }
+        }
+
+        if global_idx == 0 {
+            return Err("No audio samples decoded".to_string());
+        }
+
+        let duration_secs = global_idx as f64 / sample_rate as f64;
+
+        let mut waveform = vec![0.0f32; bucket_count];
+        for (i, v) in waveform.iter_mut().enumerate() {
+            if bucket_counts[i] > 0 {
+                *v = (bucket_sums[i] / bucket_counts[i] as f64) as f32;
+            }
+        }
+
+        // Normalize to [0, 1]
+        let max = waveform.iter().copied().fold(0.0f32, f32::max);
+        if max > 0.0 {
+            for v in &mut waveform {
+                *v /= max;
+            }
+        }
+
+        return Ok(WaveformResult {
+            waveform,
+            sample_rate,
+            duration_secs,
+            channels,
+        });
+    }
+
+    // Fallback path: accumulate all samples when n_frames is unavailable
+    let mut samples: Vec<f32> = Vec::new();
 
     loop {
         let packet = match format.next_packet() {
@@ -898,7 +1005,7 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
             Err(symphonia::core::errors::Error::IoError(ref e))
                 if e.kind() == std::io::ErrorKind::UnexpectedEof =>
             {
-                break; // End of stream
+                break;
             }
             Err(symphonia::core::errors::Error::ResetRequired) => {
                 decoder.reset();
@@ -913,7 +1020,7 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
 
         let decoded = match decoder.decode(&packet) {
             Ok(d) => d,
-            Err(symphonia::core::errors::Error::DecodeError(_)) => continue, // skip bad frames
+            Err(symphonia::core::errors::Error::DecodeError(_)) => continue,
             Err(e) => return Err(format!("Decode error: {e}")),
         };
 
@@ -934,9 +1041,8 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
         sb.copy_interleaved_ref(decoded);
         let interleaved = sb.samples();
 
-        // Mix to mono by averaging channels, take absolute value
         for frame in 0..num_frames {
-            if samples.len() >= MAX_SAMPLES {
+            if samples.len() as u64 >= MAX_SAMPLES {
                 break;
             }
             let mut sum = 0.0f32;
@@ -946,7 +1052,7 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
             samples.push((sum / num_channels as f32).abs());
         }
 
-        if samples.len() >= MAX_SAMPLES {
+        if samples.len() as u64 >= MAX_SAMPLES {
             break;
         }
     }
@@ -972,7 +1078,6 @@ fn decode_waveform_sync(path: &Path, bucket_count: usize) -> Result<WaveformResu
             *bucket = sum / (end - start) as f32;
         }
     } else {
-        // Fewer samples than buckets — spread samples across buckets
         for (i, &s) in samples.iter().enumerate() {
             let bucket_idx = (i * bucket_count) / samples.len();
             waveform[bucket_idx] = waveform[bucket_idx].max(s);
