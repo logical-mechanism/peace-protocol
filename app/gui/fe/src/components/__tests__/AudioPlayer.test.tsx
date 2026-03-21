@@ -15,10 +15,7 @@ const mockDecodeAudioWaveform = vi.fn().mockResolvedValue({
   sampleRate: 44100,
   durationSecs: 120,
   channels: 2,
-  fftPcmPath: '/mock/path/pcm.raw',
 });
-
-const mockGetPcmUrl = vi.fn().mockResolvedValue('http://127.0.0.1:9999/mock-pcm.raw');
 
 const mockDecodeAudioWaveformFast = vi.fn().mockResolvedValue({
   waveform: Array(48).fill(0.5),
@@ -30,7 +27,6 @@ const mockDecodeAudioWaveformFast = vi.fn().mockResolvedValue({
 vi.mock('../../services/libraryService', () => ({
   decodeAudioWaveform: (...args: unknown[]) => mockDecodeAudioWaveform(...args),
   decodeAudioWaveformFast: (...args: unknown[]) => mockDecodeAudioWaveformFast(...args),
-  getPcmUrl: (...args: unknown[]) => mockGetPcmUrl(...args),
 }));
 
 const mockObjectUrl = 'blob:mock-audio-url';
@@ -39,20 +35,10 @@ const revokeObjectURLSpy = vi.fn();
 globalThis.URL.createObjectURL = createObjectURLSpy;
 globalThis.URL.revokeObjectURL = revokeObjectURLSpy;
 
-globalThis.OfflineAudioContext = vi.fn().mockImplementation(() => ({
-  decodeAudioData: vi.fn().mockResolvedValue({
-    getChannelData: () => new Float32Array(1000),
-    numberOfChannels: 2,
-    sampleRate: 44100,
-    length: 1000,
-    duration: 1,
-  }),
-})) as unknown as typeof OfflineAudioContext;
-
 const playMock = vi.fn().mockResolvedValue(undefined);
 const pauseMock = vi.fn();
 
-import AudioPlayer from '../AudioPlayer';
+import AudioPlayer from '../audio';
 import { fftInPlace, normalizeWaveform } from '../audioPlayerUtils';
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -1394,6 +1380,7 @@ describe('AudioPlayer component', () => {
 
   describe('visualization failure fallback', () => {
     it('shows "Visualization unavailable" when Rust waveform decode fails', async () => {
+      mockDecodeAudioWaveformFast.mockRejectedValueOnce(new Error('fast decode failed'));
       mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
 
       renderPlayer();
@@ -1405,54 +1392,7 @@ describe('AudioPlayer component', () => {
       expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
     });
 
-    it('shows "FFT bars unavailable for this format" when PCM fetch fails', async () => {
-      const originalFetch = globalThis.fetch;
-
-      // Rust waveform succeeds (default mock with fftPcmPath), but PCM fetch fails
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error('fetch failed'));
-
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-      await flushMicrotasks();
-
-      expect(screen.getByText('FFT bars unavailable for this format')).toBeInTheDocument();
-
-      globalThis.fetch = originalFetch;
-    });
-
-    it('skips FFT when fftPcmPath is not returned by Rust', async () => {
-      mockDecodeAudioWaveform.mockResolvedValueOnce({
-        waveform: Array(480).fill(0.5),
-        sampleRate: 44100,
-        durationSecs: 120,
-        channels: 2,
-        // no fftPcmPath — Rust didn't write a PCM file
-      });
-
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-      await flushMicrotasks();
-
-      // Waveform works, FFT is silently skipped (no error shown)
-      expect(screen.queryByText('Visualization unavailable for this format')).not.toBeInTheDocument();
-    });
-
-    it('does not show fallback when both waveform and PCM fetch succeed', async () => {
-      const originalFetch = globalThis.fetch;
-      // Build a valid PCM buffer: 8-byte header + f32 samples
-      const pcmBuffer = new ArrayBuffer(8 + 100 * 4);
-      const view = new DataView(pcmBuffer);
-      view.setUint32(0, 44100, true);  // sample_rate
-      view.setUint32(4, 100, true);    // total_samples
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(pcmBuffer),
-      });
-
+    it('does not show fallback when waveform decode succeeds', async () => {
       renderPlayer();
       const audio = document.querySelector('audio')!;
       makeAudioControllable(audio);
@@ -1460,12 +1400,10 @@ describe('AudioPlayer component', () => {
       await flushMicrotasks();
 
       expect(screen.queryByText('Visualization unavailable for this format')).not.toBeInTheDocument();
-      expect(screen.queryByText(/FFT bars unavailable/)).not.toBeInTheDocument();
-
-      globalThis.fetch = originalFetch;
     });
 
     it('keeps playback controls functional when visualization fails', async () => {
+      mockDecodeAudioWaveformFast.mockRejectedValueOnce(new Error('fast decode failed'));
       mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
 
       renderPlayer();
@@ -1758,7 +1696,7 @@ describe('AudioPlayer component', () => {
     function getSeekElements() {
       const sliderDiv = screen.getByRole('slider', { name: /seek/i });
       // seekBarRef is the first child div inside the slider (after the tooltip)
-      const innerBar = sliderDiv.querySelector('.winamp-groove')!;
+      const innerBar = sliderDiv.querySelector('div:last-child')!;
       return { sliderDiv, innerBar };
     }
 
