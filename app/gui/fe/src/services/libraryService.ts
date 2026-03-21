@@ -95,6 +95,15 @@ export async function getPcmUrl(absolutePath: string): Promise<string> {
   return `http://127.0.0.1:${port}/${encodeURIComponent(absolutePath)}`;
 }
 
+/** Fast low-resolution waveform decode via seeking (48 buckets in <1s).
+ *  Used for immediate visual feedback while the full decode runs. */
+export async function decodeAudioWaveformFast(
+  tokenName: string,
+  category: string
+): Promise<WaveformResult> {
+  return invoke<WaveformResult>('decode_audio_waveform_fast', { tokenName, category });
+}
+
 /** Decode an audio file from the library and return waveform data.
  *  Uses symphonia (Rust) so all common formats are supported, unlike
  *  WebKitGTK's OfflineAudioContext which only handles MP3/WAV/OGG. */

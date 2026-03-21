@@ -1161,6 +1161,162 @@ fn decode_waveform_sync(
     })
 }
 
+/// Fast low-resolution waveform: seeks to `bucket_count` evenly-spaced positions,
+/// decodes one packet at each, and returns the average absolute amplitude.
+/// Completes in <1s for most formats, giving immediate visual feedback.
+fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<WaveformResult, String> {
+    use symphonia::core::formats::{SeekMode, SeekTo};
+    use symphonia::core::units::Time;
+
+    let file =
+        std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|e| format!("Failed to probe audio format: {e}"))?;
+
+    let mut format = probed.format;
+
+    let track = format
+        .default_track()
+        .ok_or_else(|| "No audio track found".to_string())?;
+
+    let codec_params = track.codec_params.clone();
+    let track_id = track.id;
+
+    let sample_rate = codec_params.sample_rate.unwrap_or(44100);
+    let channels = codec_params.channels.map(|c| c.count() as u32).unwrap_or(1);
+    let n_frames = codec_params
+        .n_frames
+        .ok_or_else(|| "Track duration unknown — cannot fast-seek".to_string())?;
+
+    let duration_secs = n_frames as f64 / sample_rate as f64;
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&codec_params, &DecoderOptions::default())
+        .map_err(|e| format!("Failed to create audio decoder: {e}"))?;
+
+    let mut waveform = vec![0.0f32; bucket_count];
+    let mut sample_buf: Option<SampleBuffer<f32>> = None;
+    let mut buf_capacity: u64 = 0;
+
+    for i in 0..bucket_count {
+        let seek_time = (i as f64 / bucket_count as f64) * duration_secs;
+
+        // Seek to the target position (coarse mode for speed)
+        if format
+            .seek(
+                SeekMode::Coarse,
+                SeekTo::Time {
+                    time: Time::from(seek_time),
+                    track_id: Some(track_id),
+                },
+            )
+            .is_err()
+        {
+            continue; // Skip this bucket if seek fails
+        }
+
+        // Decode one packet at the seek position
+        let packet = match format.next_packet() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        let decoded = match decoder.decode(&packet) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        let spec = *decoded.spec();
+        let num_frames = decoded.frames();
+        let num_channels = spec.channels.count();
+
+        if num_frames == 0 || num_channels == 0 {
+            continue;
+        }
+
+        let num_frames_u64 = num_frames as u64;
+        if sample_buf.is_none() || num_frames_u64 > buf_capacity {
+            sample_buf = Some(SampleBuffer::<f32>::new(num_frames_u64, spec));
+            buf_capacity = num_frames_u64;
+        }
+        let sb = sample_buf.as_mut().unwrap();
+        sb.copy_interleaved_ref(decoded);
+        let interleaved = sb.samples();
+
+        // Average absolute amplitude of all samples in the packet (mixed to mono)
+        let mut sum = 0.0f64;
+        for frame in 0..num_frames {
+            let mut ch_sum = 0.0f32;
+            for ch in 0..num_channels {
+                ch_sum += interleaved[frame * num_channels + ch];
+            }
+            sum += (ch_sum / num_channels as f32).abs() as f64;
+        }
+        waveform[i] = (sum / num_frames as f64) as f32;
+    }
+
+    // Normalize to [0, 1]
+    let max = waveform.iter().copied().fold(0.0f32, f32::max);
+    if max > 0.0 {
+        for v in &mut waveform {
+            *v /= max;
+        }
+    }
+
+    Ok(WaveformResult {
+        waveform,
+        sample_rate,
+        duration_secs,
+        channels,
+        fft_pcm_path: None,
+    })
+}
+
+/// Fast low-resolution waveform decode via seeking. Returns 48 buckets in <1 second.
+/// Used for immediate visual feedback while the full decode runs in the background.
+#[tauri::command]
+pub async fn decode_audio_waveform_fast(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<WaveformResult, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    const FAST_BUCKET_COUNT: usize = 48;
+
+    tokio::task::spawn_blocking(move || {
+        decode_waveform_fast_sync(&content_path, FAST_BUCKET_COUNT)
+    })
+    .await
+    .map_err(|e| format!("Fast waveform decode task failed: {e}"))?
+}
+
 // ── Waveform cache ──────────────────────────────────────────────────
 // Binary format: magic(4) + version(4) + sample_rate(4) + channels(4) + duration(8) + count(4) + f32×count
 const WAVEFORM_CACHE_MAGIC: &[u8; 4] = b"WAVE";

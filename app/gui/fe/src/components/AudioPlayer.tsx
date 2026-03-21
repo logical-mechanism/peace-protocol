@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
-import { decodeAudioWaveform, getPcmUrl } from '../services/libraryService';
+import { decodeAudioWaveform, decodeAudioWaveformFast, getPcmUrl } from '../services/libraryService';
 import { DelayedSpinner } from './LoadingSpinner';
-import { fftInPlace, normalizeWaveform } from './audioPlayerUtils';
+import { fftInPlace, normalizeWaveform, upsampleWaveform } from './audioPlayerUtils';
 
 interface AudioMetadata {
   title?: string;
@@ -271,7 +271,23 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     // Phase A: Waveform from Rust (symphonia) — works for all audio formats
     // Phase B: FFT PCM from OfflineAudioContext — best-effort, some formats fail
     async function loadVisualizationData() {
-      // Phase A: Waveform via Rust-side symphonia decode (handles all formats)
+      // Phase 0: Fast low-res waveform (<1s) for immediate visual feedback
+      try {
+        const fast = await decodeAudioWaveformFast(tokenName, category);
+        if (cancelled) return;
+        const upsampled = upsampleWaveform(
+          normalizeWaveform(new Float32Array(fast.waveform)),
+          480,
+        );
+        waveformDataRef.current = upsampled;
+        setVizFailReason(null);
+        if (audio) drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
+        startLoopRef.current?.();
+      } catch {
+        // Fast decode failed (e.g., format doesn't support seeking) — continue to full decode
+      }
+
+      // Phase A: Full-resolution waveform (may hit disk cache for instant return)
       let waveformResult: Awaited<ReturnType<typeof decodeAudioWaveform>>;
       try {
         waveformResult = await decodeAudioWaveform(tokenName, category);

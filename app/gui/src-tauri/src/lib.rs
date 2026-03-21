@@ -616,6 +616,7 @@ pub fn run() {
             commands::media::open_with_system,
             // Audio waveform decode (symphonia)
             commands::media::decode_audio_waveform,
+            commands::media::decode_audio_waveform_fast,
             // Media streaming server
             get_media_server_port,
             // Updater commands

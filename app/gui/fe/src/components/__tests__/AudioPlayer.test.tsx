@@ -20,8 +20,16 @@ const mockDecodeAudioWaveform = vi.fn().mockResolvedValue({
 
 const mockGetPcmUrl = vi.fn().mockResolvedValue('http://127.0.0.1:9999/mock-pcm.raw');
 
+const mockDecodeAudioWaveformFast = vi.fn().mockResolvedValue({
+  waveform: Array(48).fill(0.5),
+  sampleRate: 44100,
+  durationSecs: 120,
+  channels: 2,
+});
+
 vi.mock('../../services/libraryService', () => ({
   decodeAudioWaveform: (...args: unknown[]) => mockDecodeAudioWaveform(...args),
+  decodeAudioWaveformFast: (...args: unknown[]) => mockDecodeAudioWaveformFast(...args),
   getPcmUrl: (...args: unknown[]) => mockGetPcmUrl(...args),
 }));
 
