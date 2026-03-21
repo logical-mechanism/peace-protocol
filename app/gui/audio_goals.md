@@ -85,11 +85,11 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx` (lines 1105-1281)
 
-- [ ] 🟢 **LED time toggle could use `role="switch"` semantics**
+- [x] 🟢 **LED time toggle could use `role="switch"` semantics**
   - **How**: The LED time display button (line 1107) uses `aria-label` describing the toggle state but doesn't use `role="switch" aria-checked={showRemaining}`. Adding these attributes lets screen readers announce it as "Showing remaining time, switch, on/off" rather than reading the full descriptive label. The button at line 1109 already has `type="button"`.
   - **Why**: More semantic and concise for screen reader users; consistent with toggle button patterns elsewhere in the app.
 
-- [ ] 🟢 **Error messages not linked to controls via `aria-describedby`**
+- [x] 🟢 **Error messages not linked to controls via `aria-describedby`**
   - **How**: The error message container (line 970) is rendered independently. When an error occurs and the user tabs to the play button, there's no `aria-describedby` linking the button to the error message. Add `id="audio-error-msg"` to the error text container and `aria-describedby={error ? 'audio-error-msg' : undefined}` to the play button.
   - **Why**: Screen reader users tabbing to the play button after an error won't hear the error message unless they navigate to it separately.
 

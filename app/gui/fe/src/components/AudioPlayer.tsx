@@ -1161,7 +1161,9 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
           className="winamp-groove px-3 py-1 bg-[var(--winamp-bg-dark)] cursor-pointer select-none"
           onClick={() => setShowRemaining(r => !r)}
           title="Click to toggle remaining time"
-          aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}
+          role="switch"
+          aria-checked={showRemaining}
+          aria-label="Toggle remaining time"
         >
           <span className="winamp-led-text text-lg font-medium">
             {formatTime(currentTime)}
@@ -1245,6 +1247,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
             title={isPlaying ? 'Pause' : 'Play'}
             aria-label={isPlaying ? 'Pause' : 'Play'}
             aria-pressed={isPlaying}
+            aria-describedby={playError ? 'audio-play-error' : undefined}
             disabled={!isReady}
             style={{ opacity: isReady ? 1 : 0.4 }}
           >
@@ -1336,7 +1339,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
 
       {/* Inline play error — shown when play() fails after audio is loaded */}
       {playError && (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--error)]/10 border-t border-[var(--error)]/20" role="alert">
+        <div id="audio-play-error" className="flex items-center gap-2 px-3 py-1.5 bg-[var(--error)]/10 border-t border-[var(--error)]/20" role="alert">
           <svg className="w-3.5 h-3.5 shrink-0 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
           </svg>
