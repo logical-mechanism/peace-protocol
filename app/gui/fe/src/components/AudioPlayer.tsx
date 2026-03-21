@@ -313,6 +313,22 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
         setVizFailReason(null);
         if (audio) drawWaveformRef.current?.(audio.currentTime / (audio.duration || 1));
         startLoopRef.current?.();
+
+        // Populate metadata from symphonia's tag extraction
+        if (waveformResult.title || waveformResult.artist || waveformResult.album) {
+          setMetadata({
+            title: waveformResult.title,
+            artist: waveformResult.artist,
+            album: waveformResult.album,
+            trackNumber: waveformResult.trackNumber,
+            year: waveformResult.year,
+            sampleRate: waveformResult.sampleRate,
+            channels: waveformResult.channels,
+            picture: waveformResult.picture
+              ? { data: new Uint8Array(waveformResult.picture.data), format: waveformResult.picture.format }
+              : null,
+          });
+        }
       } catch {
         if (!cancelled) setVizFailReason('decode');
         return; // If Rust decode fails, skip FFT attempt too
@@ -831,6 +847,10 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
         case 'S':
           handleSpeedChange();
           break;
+        case 't':
+        case 'T':
+          setShowRemaining(prev => !prev);
+          break;
       }
     };
 
@@ -1113,6 +1133,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
               <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
               <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
               <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
+              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time mode</span>
             </div>
           </div>
         )}

@@ -5,7 +5,7 @@ use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::DecoderOptions;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
-use symphonia::core::meta::MetadataOptions;
+use symphonia::core::meta::{MetadataOptions, StandardTagKey};
 use symphonia::core::probe::Hint;
 
 /// Managed state holding the base directory for cached images.
@@ -839,6 +839,13 @@ pub async fn open_with_system(
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AlbumArt {
+    pub data: Vec<u8>,
+    pub format: String, // MIME type e.g. "image/jpeg"
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WaveformResult {
     pub waveform: Vec<f32>,
     pub sample_rate: u32,
@@ -848,6 +855,114 @@ pub struct WaveformResult {
     /// Present when `pcm_output_path` was provided during decode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fft_pcm_path: Option<String>,
+    // ── Audio metadata (extracted from ID3v2 / Vorbis comments / MP4 atoms) ──
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub album: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub track_number: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub year: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub picture: Option<AlbumArt>,
+}
+
+/// Collect metadata tags from a symphonia `MetadataRevision`.
+fn collect_tags_from_revision(
+    rev: &symphonia::core::meta::MetadataRevision,
+    title: &mut Option<String>,
+    artist: &mut Option<String>,
+    album: &mut Option<String>,
+    track_number: &mut Option<u32>,
+    year: &mut Option<u32>,
+    picture: &mut Option<AlbumArt>,
+) {
+    for tag in rev.tags() {
+        if let Some(std_key) = tag.std_key {
+            match std_key {
+                StandardTagKey::TrackTitle if title.is_none() => {
+                    title.replace(tag.value.to_string());
+                }
+                StandardTagKey::Artist | StandardTagKey::AlbumArtist if artist.is_none() => {
+                    artist.replace(tag.value.to_string());
+                }
+                StandardTagKey::Album if album.is_none() => {
+                    album.replace(tag.value.to_string());
+                }
+                StandardTagKey::TrackNumber if track_number.is_none() => {
+                    // Track numbers can be "3" or "3/12"
+                    let s = tag.value.to_string();
+                    *track_number = s.split('/').next().and_then(|n| n.trim().parse().ok());
+                }
+                StandardTagKey::Date if year.is_none() => {
+                    let s = tag.value.to_string();
+                    // Extract 4-digit year from "2023" or "2023-01-15"
+                    *year = s.get(..4).and_then(|y| y.parse().ok());
+                }
+                _ => {}
+            }
+        }
+    }
+    if picture.is_none() {
+        if let Some(visual) = rev.visuals().first() {
+            if !visual.data.is_empty() {
+                *picture = Some(AlbumArt {
+                    data: visual.data.to_vec(),
+                    format: visual.media_type.clone(),
+                });
+            }
+        }
+    }
+}
+
+/// Quick metadata-only probe — opens the file, reads tags, returns metadata without decoding.
+/// Used when waveform is served from cache but metadata is still needed.
+fn probe_metadata_sync(
+    path: &Path,
+) -> (Option<String>, Option<String>, Option<String>, Option<u32>, Option<u32>, Option<AlbumArt>) {
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return (None, None, None, None, None, None),
+    };
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let mut probed = match symphonia::default::get_probe().format(
+        &hint,
+        mss,
+        &FormatOptions::default(),
+        &MetadataOptions::default(),
+    ) {
+        Ok(p) => p,
+        Err(_) => return (None, None, None, None, None, None),
+    };
+
+    let mut title = None;
+    let mut artist = None;
+    let mut album = None;
+    let mut track_number = None;
+    let mut year = None;
+    let mut picture = None;
+
+    // Probe-level metadata (e.g. ID3v2 tags prepended to MP3)
+    if let Some(log) = probed.metadata.get().as_ref() {
+        if let Some(rev) = log.current() {
+            collect_tags_from_revision(rev, &mut title, &mut artist, &mut album, &mut track_number, &mut year, &mut picture);
+        }
+    }
+    // Format-level metadata (e.g. Vorbis comments in OGG/FLAC, MP4 atoms)
+    if let Some(rev) = probed.format.metadata().current() {
+        collect_tags_from_revision(rev, &mut title, &mut artist, &mut album, &mut track_number, &mut year, &mut picture);
+    }
+
+    (title, artist, album, track_number, year, picture)
 }
 
 /// Decode an audio file and produce a waveform overview with `bucket_count` buckets.
@@ -1036,6 +1151,7 @@ fn decode_waveform_sync(
             duration_secs,
             channels,
             fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
+            title: None, artist: None, album: None, track_number: None, year: None, picture: None,
         });
     }
 
@@ -1158,6 +1274,7 @@ fn decode_waveform_sync(
         duration_secs,
         channels,
         fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
+        title: None, artist: None, album: None, track_number: None, year: None, picture: None,
     })
 }
 
@@ -1286,6 +1403,7 @@ fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<Wavefor
         duration_secs,
         channels,
         fft_pcm_path: None,
+        title: None, artist: None, album: None, track_number: None, year: None, picture: None,
     })
 }
 
@@ -1354,6 +1472,7 @@ fn read_waveform_cache(cache_path: &Path) -> Option<WaveformResult> {
         duration_secs,
         channels,
         fft_pcm_path: None, // Caller sets this based on pcm.raw existence
+        title: None, artist: None, album: None, track_number: None, year: None, picture: None,
     })
 }
 
@@ -1400,16 +1519,33 @@ pub async fn decode_audio_waveform(
     let pcm_path = token_dir.join("pcm.raw");
 
     tokio::task::spawn_blocking(move || {
-        // Check cache first — audio files are immutable (content-addressed), no staleness concern
+        // Extract metadata via a quick probe (no decode — just reads tags).
+        // Done separately so the waveform cache doesn't need to store variable-length metadata.
+        let (title, artist, album, track_number, year, picture) =
+            probe_metadata_sync(&content_path);
+
+        // Check waveform cache first — audio files are immutable, no staleness concern
         if let Some(mut cached) = read_waveform_cache(&cache_path) {
             if pcm_path.exists() {
                 cached.fft_pcm_path = Some(pcm_path.to_string_lossy().to_string());
             }
+            cached.title = title;
+            cached.artist = artist;
+            cached.album = album;
+            cached.track_number = track_number;
+            cached.year = year;
+            cached.picture = picture;
             return Ok(cached);
         }
 
-        let result = decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))?;
+        let mut result = decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))?;
         write_waveform_cache(&cache_path, &result);
+        result.title = title;
+        result.artist = artist;
+        result.album = album;
+        result.track_number = track_number;
+        result.year = year;
+        result.picture = picture;
         Ok(result)
     })
     .await

@@ -71,7 +71,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx` (lines 6-16, 86-115, 1022-1048)
 
-- [ ] 🟡 **Metadata parsing removed — no title/artist/album display**
+- [x] 🟡 **Metadata parsing removed — no title/artist/album display**
   - **How**: The `AudioMetadata` interface (lines 6-16), `MetadataAlbumArt` component (lines 18-35), and `MarqueeText` (lines 86-115) are all implemented but `metadata` is always `null` (set at line 152, never populated). When the player switched from `Uint8Array` to URL-based streaming, the `music-metadata` parsing was removed. Fix: parse metadata on the Rust side using symphonia's metadata API (symphonia already reads ID3v2, Vorbis comments, etc. during `format.metadata()`). Add fields to `WaveformResult`: `title`, `artist`, `album`, `track_number`, `year`, `bitrate`, `sample_rate`, `channels`, and optionally `picture` (album art bytes + MIME type). The frontend already has the display code — just wire up the data from the invoke response.
   - **Why**: The Winamp-style player shows only "Veiled Audio" as the title. With metadata, it could show the actual song name, artist, and album art — significantly better UX for a music player.
 

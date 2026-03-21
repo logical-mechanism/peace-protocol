@@ -87,6 +87,13 @@ export interface WaveformResult {
   channels: number;
   /** Absolute path to raw PCM file (f32 LE) for FFT visualization. */
   fftPcmPath?: string;
+  // Audio metadata (from ID3v2 / Vorbis comments / MP4 atoms)
+  title?: string;
+  artist?: string;
+  album?: string;
+  trackNumber?: number;
+  year?: number;
+  picture?: { data: number[]; format: string };
 }
 
 /** Build a media server URL for a raw PCM file path returned by Rust. */
