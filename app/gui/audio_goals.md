@@ -47,11 +47,11 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx` (lines 466-601), `fe/src/components/audioPlayerUtils.ts`
 
-- [ ] 🟢 **FFT bars silent when OfflineAudioContext fails but waveform works**
+- [x] 🟢 **FFT bars silent when OfflineAudioContext fails but waveform works**
   - **How**: When FFT decode fails (line 311-313, `vizFailReason = 'fft-decode'`), the FFT canvas is completely blank during playback — only the waveform shows. Consider a fallback: if Rust-side FFT samples are available (see item 1.2), use those. If not, show a subtle "no FFT" indicator in the canvas area instead of blank space, or hide the FFT canvas entirely and expand the waveform to fill both canvas areas.
   - **Why**: A blank FFT canvas above an active waveform looks like a rendering bug to users unfamiliar with the two-phase decode architecture.
 
-- [ ] 🟢 **Gradient object created every frame in drawFrame()**
+- [x] 🟢 **Gradient object created every frame in drawFrame()**
   - **How**: `ctx.createLinearGradient()` is called at line 479 inside `drawFrame()`, which runs 24 times/sec. The gradient parameters never change (same canvas height, same colors). Cache the gradient in a ref and only recreate it when theme colors change (detected by the MutationObserver at line 226). Update the ref in the color-reading effect (lines 196-230).
   - **Why**: Minor optimization — `createLinearGradient` is cheap but unnecessary 24x/sec when the gradient is invariant.
 

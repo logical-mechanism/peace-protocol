@@ -180,6 +180,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     waveformPlayed: 'rgba(34, 211, 238, 0.6)', waveformUnplayed: 'rgba(34, 211, 238, 0.15)',
     indicator: 'rgba(250, 250, 250, 0.9)', indicatorGlow: 'rgba(250, 250, 250, 0.3)',
   });
+  const barGradientRef = useRef<CanvasGradient | null>(null);
   const dprRef = useRef(window.devicePixelRatio || 1);
   const hasShownHintsRef = useRef(false);
   // RAF loop control — stops when paused + bars fully decayed, restarts on play
@@ -218,6 +219,19 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
         if (c) {
           c.width = CANVAS_W * dpr;
           c.height = CANVAS_H * dpr;
+        }
+      }
+
+      // Rebuild cached FFT bar gradient with new theme colors (after canvas resize which resets context state)
+      const fftCanvas = canvasRef.current;
+      if (fftCanvas) {
+        const fftCtx = fftCanvas.getContext('2d');
+        if (fftCtx) {
+          const g = fftCtx.createLinearGradient(0, CANVAS_H, 0, 0);
+          g.addColorStop(0, gradientColorsRef.current.start);
+          g.addColorStop(0.5, gradientColorsRef.current.mid);
+          g.addColorStop(1, gradientColorsRef.current.end);
+          barGradientRef.current = g;
         }
       }
     };
@@ -490,13 +504,11 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-    const { start: gradStart, mid: gradMid, end: gradEnd } = gradientColorsRef.current;
+    const { end: gradEnd } = gradientColorsRef.current;
 
-    // Single gradient reused for all bars (avoids 768+ gradient allocations/sec)
-    const barGradient = ctx.createLinearGradient(0, CANVAS_H, 0, 0);
-    barGradient.addColorStop(0, gradStart);
-    barGradient.addColorStop(0.5, gradMid);
-    barGradient.addColorStop(1, gradEnd);
+    // Use cached gradient (created in readColors, recreated on theme change)
+    const barGradient = barGradientRef.current;
+    if (!barGradient) return;
 
     const pcmData = fftPcmRef.current;
     const audio = audioRef.current;
@@ -1080,7 +1092,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
         <canvas
           ref={canvasRef}
           className="w-full block relative opacity-60"
-          style={{ imageRendering: 'pixelated', height: CANVAS_H }}
+          style={{ imageRendering: 'pixelated', height: CANVAS_H, visibility: vizFailReason === 'fft-decode' || vizFailReason === 'fft-size' ? 'hidden' : undefined }}
           aria-hidden="true"
         />
         {!isReady && (
