@@ -107,7 +107,7 @@ async fn serve_media_file(
     use std::io::{Read, Seek, SeekFrom};
 
     let raw_path = request.uri().path();
-    let decoded = percent_encoding::percent_decode(&raw_path.as_bytes()[1..])
+    let decoded = percent_encoding::percent_decode(raw_path.as_bytes())
         .decode_utf8_lossy()
         .to_string();
 

@@ -65,7 +65,7 @@ export async function getLibraryContentUrl(
     invoke<string>('get_library_content_path', { tokenName, category }),
     getMediaPort(),
   ]);
-  return `http://127.0.0.1:${port}/${encodeURIComponent(path)}`;
+  return `http://127.0.0.1:${port}${path}`;
 }
 
 /** Get an HTTP URL for a library item's subtitle file, if one exists. */
@@ -77,7 +77,7 @@ export async function getLibrarySubtitleUrl(
     invoke<string | null>('get_library_subtitle_path', { tokenName, category }),
     getMediaPort(),
   ]);
-  return path ? `http://127.0.0.1:${port}/${encodeURIComponent(path)}` : null;
+  return path ? `http://127.0.0.1:${port}${path}` : null;
 }
 
 export interface WaveformResult {
@@ -99,7 +99,7 @@ export interface WaveformResult {
 /** Build a media server URL for a raw PCM file path returned by Rust. */
 export async function getPcmUrl(absolutePath: string): Promise<string> {
   const port = await getMediaPort();
-  return `http://127.0.0.1:${port}/${encodeURIComponent(absolutePath)}`;
+  return `http://127.0.0.1:${port}${absolutePath}`;
 }
 
 /** Fast low-resolution waveform decode via seeking (48 buckets in <1s).
