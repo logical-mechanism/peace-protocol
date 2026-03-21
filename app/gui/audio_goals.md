@@ -61,7 +61,7 @@ Each item:
 
 > Key files: `fe/src/components/AudioPlayer.tsx` (lines 317-416)
 
-- [ ] 🟢 **Play failure silently sets error string but doesn't render it**
+- [x] 🟢 **Play failure silently sets error string but doesn't render it**
   - **How**: At line 685, `audio.play()` rejection calls `setError('Failed to play audio.')` but the error UI (lines 963-987) only renders when `error` is truthy AND `!isReady` (checked at line 958: `{error && !isReady && ...}`). If `isReady` is already `true` (which it is after `canplay`), the play error is invisible. Fix: either render play errors separately (e.g., as a toast or inline message below the transport controls), or change the guard to `{error && ...}`.
   - **Why**: If GStreamer refuses to play (e.g., pipeline error after initial canplay), the user clicks play and nothing happens with no feedback.
 

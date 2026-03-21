@@ -970,6 +970,64 @@ describe('AudioPlayer component', () => {
       expect(playMock).toHaveBeenCalledOnce();
     });
 
+    it('shows inline error when play() rejects, keeps player controls visible', async () => {
+      playMock.mockRejectedValueOnce(new Error('GStreamer pipeline error'));
+      renderPlayer();
+      makeAudioControllable(document.querySelector('audio')!);
+      await fireCanPlay();
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+      await flushMicrotasks();
+
+      // Play error renders inline (role="alert")
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent('Failed to play audio');
+      // Player controls remain visible (not replaced by full error screen)
+      expect(screen.getByLabelText('Stop')).toBeInTheDocument();
+      expect(screen.getByLabelText('Volume')).toBeInTheDocument();
+    });
+
+    it('clears play error on next successful play', async () => {
+      playMock.mockRejectedValueOnce(new Error('GStreamer fail'));
+      renderPlayer();
+      makeAudioControllable(document.querySelector('audio')!);
+      await fireCanPlay();
+
+      // First play fails
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+      await flushMicrotasks();
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      // Second play succeeds (playMock reverts to default resolved)
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+      await flushMicrotasks();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('dismiss button removes play error', async () => {
+      playMock.mockRejectedValueOnce(new Error('fail'));
+      renderPlayer();
+      makeAudioControllable(document.querySelector('audio')!);
+      await fireCanPlay();
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+      await flushMicrotasks();
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Dismiss play error'));
+      });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('click stop resets currentTime to 0', async () => {
       renderPlayer();
       const audio = document.querySelector('audio')!;

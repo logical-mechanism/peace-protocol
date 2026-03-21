@@ -137,6 +137,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
   const [isMuted, setIsMuted] = useState(false);
   const [showKeyHints, setShowKeyHints] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [playError, setPlayError] = useState<string | null>(null);
   const [vizFailReason, setVizFailReason] = useState<'fft-size' | 'fft-decode' | 'decode' | null>(null);
 
   // Reset playback state when src changes (React "adjusting state during render" pattern)
@@ -151,6 +152,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     setPlaybackRate(1.0);
     setMetadata(null);
     setIsBuffering(false);
+    setPlayError(null);
     setVizFailReason(null);
   }
 
@@ -706,11 +708,12 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
       lastDrawTimeRef.current = performance.now();
       isPlayingRef.current = true;
       setIsPlaying(true);
+      setPlayError(null);
       // Restart animation loop if it was stopped after decay
       startLoopRef.current?.();
     }).catch(err => {
       console.error('Failed to play:', err);
-      setError('Failed to play audio.');
+      setPlayError('Failed to play audio. Try again or save the file to open with an external player.');
     });
   }, [isReady]);
 
@@ -1309,6 +1312,26 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
           />
         </div>
       </div>
+
+      {/* Inline play error — shown when play() fails after audio is loaded */}
+      {playError && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--error)]/10 border-t border-[var(--error)]/20" role="alert">
+          <svg className="w-3.5 h-3.5 shrink-0 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
+          </svg>
+          <p className="text-xs text-[var(--error)] flex-1">{playError}</p>
+          <button
+            type="button"
+            onClick={() => setPlayError(null)}
+            className="text-[var(--error)] hover:text-[var(--text-primary)] cursor-pointer"
+            aria-label="Dismiss play error"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
