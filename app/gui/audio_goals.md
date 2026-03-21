@@ -75,7 +75,7 @@ Each item:
   - **How**: The `AudioMetadata` interface (lines 6-16), `MetadataAlbumArt` component (lines 18-35), and `MarqueeText` (lines 86-115) are all implemented but `metadata` is always `null` (set at line 152, never populated). When the player switched from `Uint8Array` to URL-based streaming, the `music-metadata` parsing was removed. Fix: parse metadata on the Rust side using symphonia's metadata API (symphonia already reads ID3v2, Vorbis comments, etc. during `format.metadata()`). Add fields to `WaveformResult`: `title`, `artist`, `album`, `track_number`, `year`, `bitrate`, `sample_rate`, `channels`, and optionally `picture` (album art bytes + MIME type). The frontend already has the display code — just wire up the data from the invoke response.
   - **Why**: The Winamp-style player shows only "Veiled Audio" as the title. With metadata, it could show the actual song name, artist, and album art — significantly better UX for a music player.
 
-- [ ] 🟢 **No "remaining time" toggle like VideoPlayer**
+- [x] 🟢 **No "remaining time" toggle like VideoPlayer**
   - **How**: AudioPlayer has `showRemaining` state (line 1107) and the LED time toggle button. VideoPlayer has a `T` keyboard shortcut for toggling time display (line 501 in VideoPlayer.tsx). AudioPlayer is missing the `T` shortcut. Add `case 'T': case 't': setShowRemaining(prev => !prev); break;` to the `handleKeyDown` (around line 800) and add it to the keyboard hints display.
   - **Why**: Feature parity with VideoPlayer; discoverable via keyboard hints overlay.
 
