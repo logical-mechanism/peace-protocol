@@ -918,11 +918,18 @@ fn collect_tags_from_revision(
     }
 }
 
+type AudioMetadata = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<u32>,
+    Option<u32>,
+    Option<AlbumArt>,
+);
+
 /// Quick metadata-only probe — opens the file, reads tags, returns metadata without decoding.
 /// Used when waveform is served from cache but metadata is still needed.
-fn probe_metadata_sync(
-    path: &Path,
-) -> (Option<String>, Option<String>, Option<String>, Option<u32>, Option<u32>, Option<AlbumArt>) {
+fn probe_metadata_sync(path: &Path) -> AudioMetadata {
     let file = match std::fs::File::open(path) {
         Ok(f) => f,
         Err(_) => return (None, None, None, None, None, None),
@@ -954,12 +961,28 @@ fn probe_metadata_sync(
     // Probe-level metadata (e.g. ID3v2 tags prepended to MP3)
     if let Some(log) = probed.metadata.get().as_ref() {
         if let Some(rev) = log.current() {
-            collect_tags_from_revision(rev, &mut title, &mut artist, &mut album, &mut track_number, &mut year, &mut picture);
+            collect_tags_from_revision(
+                rev,
+                &mut title,
+                &mut artist,
+                &mut album,
+                &mut track_number,
+                &mut year,
+                &mut picture,
+            );
         }
     }
     // Format-level metadata (e.g. Vorbis comments in OGG/FLAC, MP4 atoms)
     if let Some(rev) = probed.format.metadata().current() {
-        collect_tags_from_revision(rev, &mut title, &mut artist, &mut album, &mut track_number, &mut year, &mut picture);
+        collect_tags_from_revision(
+            rev,
+            &mut title,
+            &mut artist,
+            &mut album,
+            &mut track_number,
+            &mut year,
+            &mut picture,
+        );
     }
 
     (title, artist, album, track_number, year, picture)
@@ -1151,7 +1174,12 @@ fn decode_waveform_sync(
             duration_secs,
             channels,
             fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
-            title: None, artist: None, album: None, track_number: None, year: None, picture: None,
+            title: None,
+            artist: None,
+            album: None,
+            track_number: None,
+            year: None,
+            picture: None,
         });
     }
 
@@ -1274,7 +1302,12 @@ fn decode_waveform_sync(
         duration_secs,
         channels,
         fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
-        title: None, artist: None, album: None, track_number: None, year: None, picture: None,
+        title: None,
+        artist: None,
+        album: None,
+        track_number: None,
+        year: None,
+        picture: None,
     })
 }
 
@@ -1285,8 +1318,7 @@ fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<Wavefor
     use symphonia::core::formats::{SeekMode, SeekTo};
     use symphonia::core::units::Time;
 
-    let file =
-        std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
+    let file = std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
     let mut hint = Hint::new();
@@ -1328,7 +1360,7 @@ fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<Wavefor
     let mut sample_buf: Option<SampleBuffer<f32>> = None;
     let mut buf_capacity: u64 = 0;
 
-    for i in 0..bucket_count {
+    for (i, waveform_val) in waveform.iter_mut().enumerate().take(bucket_count) {
         let seek_time = (i as f64 / bucket_count as f64) * duration_secs;
 
         // Seek to the target position (coarse mode for speed)
@@ -1386,7 +1418,7 @@ fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<Wavefor
             }
             sum += (ch_sum / num_channels as f32).abs() as f64;
         }
-        waveform[i] = (sum / num_frames as f64) as f32;
+        *waveform_val = (sum / num_frames as f64) as f32;
     }
 
     // Normalize to [0, 1]
@@ -1403,7 +1435,12 @@ fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<Wavefor
         duration_secs,
         channels,
         fft_pcm_path: None,
-        title: None, artist: None, album: None, track_number: None, year: None, picture: None,
+        title: None,
+        artist: None,
+        album: None,
+        track_number: None,
+        year: None,
+        picture: None,
     })
 }
 
@@ -1428,11 +1465,9 @@ pub async fn decode_audio_waveform_fast(
 
     const FAST_BUCKET_COUNT: usize = 48;
 
-    tokio::task::spawn_blocking(move || {
-        decode_waveform_fast_sync(&content_path, FAST_BUCKET_COUNT)
-    })
-    .await
-    .map_err(|e| format!("Fast waveform decode task failed: {e}"))?
+    tokio::task::spawn_blocking(move || decode_waveform_fast_sync(&content_path, FAST_BUCKET_COUNT))
+        .await
+        .map_err(|e| format!("Fast waveform decode task failed: {e}"))?
 }
 
 // ── Waveform cache ──────────────────────────────────────────────────
@@ -1472,7 +1507,12 @@ fn read_waveform_cache(cache_path: &Path) -> Option<WaveformResult> {
         duration_secs,
         channels,
         fft_pcm_path: None, // Caller sets this based on pcm.raw existence
-        title: None, artist: None, album: None, track_number: None, year: None, picture: None,
+        title: None,
+        artist: None,
+        album: None,
+        track_number: None,
+        year: None,
+        picture: None,
     })
 }
 
