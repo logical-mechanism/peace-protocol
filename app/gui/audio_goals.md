@@ -99,15 +99,15 @@ Each item:
 
 > Key files: `fe/src/components/__tests__/AudioPlayer.test.tsx`
 
-- [ ] 🟡 **No tests for visualization failure reason display**
+- [x] 🟡 **No tests for visualization failure reason display**
   - **How**: The component shows different messages based on `vizFailReason` ('decode', 'fft-size', 'fft-decode') at lines 1094-1102. Add tests that: (1) trigger Rust waveform decode failure → verify "Visualization unavailable for this format" appears. (2) Mock the HEAD response to return >100MB content-length → verify "FFT bars unavailable (file too large)". (3) Mock OfflineAudioContext to throw → verify "FFT bars unavailable for this format". These states are user-visible but untested.
   - **Why**: Visualization failure messages are the primary feedback when decode pipelines fail; regressions here would leave users confused.
 
-- [ ] 🟡 **No tests for stalled event → buffering state**
+- [x] 🟡 **No tests for stalled event → buffering state**
   - **How**: The `onStalled` handler (line 350) checks `audio.readyState < 3` before setting buffering. Test: (1) fire `stalled` event with `readyState = 2` → verify "Buffering" status shown. (2) fire `stalled` with `readyState = 4` → verify buffering NOT set. Currently only `waiting`/`playing` transitions are tested.
   - **Why**: The `readyState` guard is a subtle correctness check that could regress without test coverage.
 
-- [ ] 🟢 **No tests for play() failure error display**
+- [x] 🟢 **No tests for play() failure error display**
   - **How**: Mock `audio.play()` to reject with an error. Verify `setError('Failed to play audio.')` is called. Currently (as noted in section 3), this error may not render due to the `!isReady` guard — the test would also document this bug.
   - **Why**: Documents the play-error rendering gap and prevents regressions once fixed.
 
