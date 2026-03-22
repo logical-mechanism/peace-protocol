@@ -549,6 +549,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             value={volume}
             onChange={(e) => setVolume(parseFloat(e.target.value))}
             className="audio-volume-slider w-20"
+            style={{ '--volume-pct': `${Math.round(volume * 100)}%` } as CSSProperties}
             aria-label="Volume"
             role="slider"
             aria-valuemin={0}
