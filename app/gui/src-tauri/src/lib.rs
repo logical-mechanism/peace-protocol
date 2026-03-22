@@ -623,9 +623,10 @@ pub fn run() {
             commands::media::export_library_content,
             commands::media::export_text_file,
             commands::media::open_with_system,
-            // Audio waveform decode (symphonia)
+            // Audio waveform decode + metadata (symphonia)
             commands::media::decode_audio_waveform,
             commands::media::decode_audio_waveform_fast,
+            commands::media::decode_audio_metadata,
             // Media streaming server
             get_media_server_port,
             // Updater commands

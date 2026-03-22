@@ -111,7 +111,7 @@ export async function decodeAudioWaveformFast(
   return invoke<WaveformResult>('decode_audio_waveform_fast', { tokenName, category });
 }
 
-/** Decode an audio file from the library and return waveform data.
+/** Decode an audio file from the library and return waveform data (no metadata).
  *  Uses symphonia (Rust) so all common formats are supported, unlike
  *  WebKitGTK's OfflineAudioContext which only handles MP3/WAV/OGG. */
 export async function decodeAudioWaveform(
@@ -119,6 +119,26 @@ export async function decodeAudioWaveform(
   category: string
 ): Promise<WaveformResult> {
   return invoke<WaveformResult>('decode_audio_waveform', { tokenName, category });
+}
+
+export interface AudioMetadataResult {
+  title?: string;
+  artist?: string;
+  album?: string;
+  trackNumber?: number;
+  year?: number;
+  picture?: { data: number[]; format: string };
+  sampleRate?: number;
+  channels?: number;
+}
+
+/** Metadata-only probe: extracts tags + codec info without decoding audio.
+ *  Call in parallel with waveform decode so metadata doesn't block canvas. */
+export async function decodeAudioMetadata(
+  tokenName: string,
+  category: string
+): Promise<AudioMetadataResult> {
+  return invoke<AudioMetadataResult>('decode_audio_metadata', { tokenName, category });
 }
 
 export async function openWithSystem(

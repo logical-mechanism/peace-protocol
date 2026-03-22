@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { decodeAudioWaveform, decodeAudioWaveformFast } from '../../services/libraryService';
+import { decodeAudioWaveform, decodeAudioWaveformFast, decodeAudioMetadata } from '../../services/libraryService';
 import { normalizeWaveform, upsampleWaveform } from '../audioPlayerUtils';
 import { CANVAS_W, CANVAS_H } from './audioConstants';
 import type { AudioMetadata } from './audioTypes';
@@ -75,32 +75,43 @@ export function useAudioWaveform(tokenName: string, category: string) {
         // Fast decode failed — continue to full decode
       }
 
-      // Full-resolution waveform (may hit disk cache)
+      // Full waveform + metadata in parallel (metadata no longer blocks canvas)
+      const waveformPromise = decodeAudioWaveform(tokenName, category);
+      const metadataPromise = decodeAudioMetadata(tokenName, category);
+
+      // Handle waveform
       try {
-        const result = await decodeAudioWaveform(tokenName, category);
+        const result = await waveformPromise;
         if (cancelled) return;
         const waveform = normalizeWaveform(new Float32Array(result.waveform));
         waveformDataRef.current = waveform;
         setVizFailed(false);
         if (result.durationSecs > 0) setWaveformDuration(result.durationSecs);
         drawWaveformRef.current?.(0);
+      } catch {
+        if (!cancelled) setVizFailed(true);
+      }
 
-        if (result.title || result.artist || result.album) {
+      // Handle metadata (independent of waveform)
+      try {
+        const meta = await metadataPromise;
+        if (cancelled) return;
+        if (meta.title || meta.artist || meta.album) {
           setMetadata({
-            title: result.title,
-            artist: result.artist,
-            album: result.album,
-            trackNumber: result.trackNumber,
-            year: result.year,
-            sampleRate: result.sampleRate,
-            channels: result.channels,
-            picture: result.picture
-              ? { data: new Uint8Array(result.picture.data), format: result.picture.format }
+            title: meta.title,
+            artist: meta.artist,
+            album: meta.album,
+            trackNumber: meta.trackNumber,
+            year: meta.year,
+            sampleRate: meta.sampleRate,
+            channels: meta.channels,
+            picture: meta.picture
+              ? { data: new Uint8Array(meta.picture.data), format: meta.picture.format }
               : null,
           });
         }
       } catch {
-        if (!cancelled) setVizFailed(true);
+        // Metadata extraction failed — player still works, just no tags
       }
     }
 

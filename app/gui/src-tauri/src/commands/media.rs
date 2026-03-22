@@ -932,6 +932,25 @@ type AudioMetadata = (
     Option<AlbumArt>,
 );
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioMetadataResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub album: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub track_number: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub year: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub picture: Option<AlbumArt>,
+    pub sample_rate: Option<u32>,
+    pub channels: Option<u32>,
+}
+
 /// Quick metadata-only probe — opens the file, reads tags, returns metadata without decoding.
 /// Used when waveform is served from cache but metadata is still needed.
 fn probe_metadata_sync(path: &Path) -> AudioMetadata {
@@ -1449,6 +1468,62 @@ fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<Wavefor
     })
 }
 
+/// Metadata-only probe: extracts ID3v2/Vorbis/MP4 tags + codec info without decoding.
+/// Called in parallel with waveform decode so metadata doesn't block canvas rendering.
+#[tauri::command]
+pub async fn decode_audio_metadata(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<AudioMetadataResult, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    tokio::task::spawn_blocking(move || {
+        let (title, artist, album, track_number, year, picture) =
+            probe_metadata_sync(&content_path);
+
+        // Also probe codec params for sample_rate and channels
+        let (sample_rate, channels) = {
+            let file = std::fs::File::open(&content_path).ok();
+            file.and_then(|f| {
+                let mss = MediaSourceStream::new(Box::new(f), Default::default());
+                let mut hint = Hint::new();
+                if let Some(ext) = content_path.extension().and_then(|e| e.to_str()) {
+                    hint.with_extension(ext);
+                }
+                let probed = symphonia::default::get_probe()
+                    .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+                    .ok()?;
+                let track = probed.format.default_track()?;
+                Some((track.codec_params.sample_rate, track.codec_params.channels.map(|c| c.count() as u32)))
+            })
+            .unwrap_or((None, None))
+        };
+
+        Ok(AudioMetadataResult {
+            title,
+            artist,
+            album,
+            track_number,
+            year,
+            picture,
+            sample_rate,
+            channels,
+        })
+    })
+    .await
+    .map_err(|e| format!("Metadata probe task failed: {e}"))?
+}
+
 /// Fast low-resolution waveform decode via seeking. Returns 48 buckets in <1 second.
 /// Used for immediate visual feedback while the full decode runs in the background.
 #[tauri::command]
@@ -1564,33 +1639,18 @@ pub async fn decode_audio_waveform(
     let pcm_path = token_dir.join("pcm.raw");
 
     tokio::task::spawn_blocking(move || {
-        // Extract metadata via a quick probe (no decode — just reads tags).
-        // Done separately so the waveform cache doesn't need to store variable-length metadata.
-        let (title, artist, album, track_number, year, picture) =
-            probe_metadata_sync(&content_path);
+        // Metadata is now fetched separately via decode_audio_metadata — skip probing here.
 
         // Check waveform cache first — audio files are immutable, no staleness concern
         if let Some(mut cached) = read_waveform_cache(&cache_path) {
             if pcm_path.exists() {
                 cached.fft_pcm_path = Some(pcm_path.to_string_lossy().to_string());
             }
-            cached.title = title;
-            cached.artist = artist;
-            cached.album = album;
-            cached.track_number = track_number;
-            cached.year = year;
-            cached.picture = picture;
             return Ok(cached);
         }
 
-        let mut result = decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))?;
+        let result = decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))?;
         write_waveform_cache(&cache_path, &result);
-        result.title = title;
-        result.artist = artist;
-        result.album = album;
-        result.track_number = track_number;
-        result.year = year;
-        result.picture = picture;
         Ok(result)
     })
     .await
