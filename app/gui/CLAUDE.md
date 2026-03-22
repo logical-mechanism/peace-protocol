@@ -46,6 +46,14 @@ app/gui/
 │   │   │   │   ├── settingsTypes.ts     # Settings type definitions
 │   │   │   │   └── settingsSearch.ts    # Settings search/filter logic
 │   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, InfoTooltip, presentational
+│   │   │   ├── audio/               # AudioPlayer module (extracted)
+│   │   │   │   ├── AudioPlayer.tsx  # Main player component (Winamp-style, rodio backend)
+│   │   │   │   ├── index.ts        # Barrel export
+│   │   │   │   ├── audioTypes.ts   # Type definitions
+│   │   │   │   ├── audioConstants.ts # Visualization + playback constants
+│   │   │   │   ├── audioUtils.ts   # FFT, formatting, visualization helpers
+│   │   │   │   ├── useAudioPlayback.ts # Rust rodio playback hook (play/pause/stop/seek/volume/speed)
+│   │   │   │   └── useAudioWaveform.ts # Waveform decode hook (Rust symphonia backend)
 │   │   ├── services/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios + PendingTxPool + ChainingAdapter singletons
@@ -54,7 +62,7 @@ app/gui/
 │   │   │   ├── pendingTxPool.ts     # Virtual UTxO state: tracks submitted-but-unconfirmed tx inputs/outputs
 │   │   │   ├── txOutputParser.ts    # Extracts UTxO inputs/outputs from signed tx CBOR (@meshsdk/core-cst)
 │   │   │   ├── transactionBuilder.ts # Compatibility shim → re-exports from transactions/
-│   │   │   ├── transactions/        # Modular tx building (~2514 lines total)
+│   │   │   ├── transactions/        # Modular tx building (~2693 lines total)
 │   │   │   │   ├── index.ts         # Barrel re-export
 │   │   │   │   ├── txUtils.ts       # Shared utilities, types, constants
 │   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel)
@@ -147,9 +155,10 @@ app/gui/
 │   │       ├── secrets.rs           # store/get/remove seller, bid, accept-bid, listing-draft secrets
 │   │       ├── iagon.rs             # Iagon API key storage + HTTP proxy (reqwest, CORS bypass)
 │   │       ├── kupo_proxy.rs        # Kupo/Ogmios HTTP proxy (reqwest, bypasses WebKitGTK CORS)
-│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save, library CRUD
+│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save, library CRUD, audio waveform decode
 │   │       ├── chain.rs             # get_network_tip (Koios direct)
-│   │       └── updater.rs           # get_current_version, check_for_update, download_update
+│   │       ├── updater.rs           # get_current_version, check_for_update, download_update
+│   │       └── audio.rs             # Native audio playback via rodio (play, pause, stop, seek, volume, speed)
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
 │   │   ├── cardano/{network}/       # Node configs (topology, genesis files)
@@ -186,9 +195,9 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactions/ ~2514 lines, re-exported via transactionBuilder.ts shim):
+**Transaction building** (fe/src/services/transactions/ ~2693 lines, re-exported via transactionBuilder.ts shim):
 - Split into domain modules: `txUtils.ts` (shared), `listings.ts`, `bids.ts`, `acceptBid.ts`
 - Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`
 - Bids: `placeBid()`, `cancelBid()`
@@ -413,7 +422,7 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (94 commands, invoke from frontend):
+**Tauri commands** (90 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
@@ -426,8 +435,10 @@ app/gui/
 - Iagon HTTP: `iagon_get_nonce`, `iagon_verify`, `iagon_generate_api_key`, `iagon_verify_api_key`, `iagon_upload`, `iagon_download`, `iagon_encrypt_and_upload`, `iagon_download_and_save`, `iagon_delete_file`, `iagon_search_files`, `iagon_list_files`
 - Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`, `copy_to_library`
 - Library: `list_library_items`, `read_library_content`, `get_library_content_path`, `get_library_subtitle_path`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
+- Audio Waveform: `decode_audio_waveform`, `decode_audio_waveform_fast`
 - Media Server: `get_media_server_port`
 - Updater: `get_current_version`, `check_for_update`, `download_update`
+- Audio: `audio_play`, `audio_pause`, `audio_resume`, `audio_stop`, `audio_seek`, `audio_set_volume`, `audio_set_speed`, `audio_get_status`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -461,7 +472,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (12 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (45 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, audioPlayerUtils, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, ImportListingModal, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (47 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
   - `fe/src/pages/settings/__tests__/` — UpdateSection (1 file)
   - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
@@ -579,9 +590,9 @@ const json: ApiResponse<YourType> = await res.json();
 - **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes (text/PDF/image), `getLibraryContentUrl` returns `http://127.0.0.1:{port}/...` URL for streaming (video/audio) via the Axum media server, `delete_library_item` removes the token directory, `export_library_content` opens native save dialog. LibraryContentModal lazy-loads PdfViewer, ImageViewer, AudioPlayer, VideoPlayer via React `lazy()` + `Suspense`. Video/audio use URL-based streaming to avoid IPC serialization bottleneck; text/PDF/image read into memory. Uses wide modal (`max-w-4xl`) for rich media. View mode determined by `getViewMode()`: prioritizes fileExtension from payload field 3, falls back to category. Modes: text (inline), PDF (PdfViewer), image (ImageViewer), audio (AudioPlayer), video (VideoPlayer), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
 - **PdfViewer** — Uses `react-pdf` (pdfjs-dist worker). Renders decrypted PDFs from `Uint8Array` via Blob URL. Zoom 0.5x-3.0x, page navigation, fullscreen overlay at `z-[60]` (above modal `z-50`). Blob URL created in useEffect to handle React StrictMode double-mount
 - **ImageViewer** — Renders decrypted images from `Uint8Array` via Blob URL with MIME type derived from fileExtension. Zoom and fullscreen overlay at `z-[60]` (above modal `z-50`). Supports PNG, JPEG, GIF, WebP, SVG, BMP
-- **AudioPlayer** — Winamp-style player using native `<audio>` element for GStreamer playback (bypasses broken WebKitGTK Web Audio API). Streams from disk via `http://127.0.0.1:{port}/...` URL served by the Axum media server in lib.rs. Custom FFT visualization (32 bars, Cooley-Tukey radix-2). Transport controls: play, pause, stop, skip ±10s. Volume slider. Supports: mp3, wav, flac, ogg, aac, m4a, opus
+- **AudioPlayer** — Winamp-style player using Rust rodio for native audio playback (bypasses WebKitGTK/GStreamer entirely). Refactored into `components/audio/` subdirectory with extracted hooks: `useAudioPlayback` (rodio IPC via Tauri commands), `useAudioWaveform` (symphonia-based waveform decode). Waveform visualization from pre-decoded samples (not live FFT). Transport controls: play, pause, stop, seek, skip ±10s, variable speed (0.5x-2.0x). Volume slider. Supports: mp3, wav, flac, ogg, aac, m4a, opus
 - **VideoPlayer** — Native `<video>` element with `<source src={url} type={mimeType}>` streaming from disk via `http://127.0.0.1:{port}/...` URL served by the Axum media server in lib.rs. Uses `<source>` child element (not `src` attribute on `<video>`) to provide explicit MIME type — required for correct GStreamer codec selection. No in-memory blob loading — avoids Tauri IPC serialization bottleneck for large files. Single unified return path with CSS-based fullscreen toggle (`display: contents` ↔ `fixed inset-0 z-[60]`) to preserve playback state across fullscreen transitions. Auto-hide controls with 5s initial delay on fullscreen entry. Subtitle support via `<track>` element with media server URL. Shows conversion hints for unsupported formats. Supports common video formats
-- **WebKitGTK Web Audio API broken** — `AnalyserNode` and `AudioContext` don't work reliably in WebKitGTK; AudioPlayer uses native `<audio>` element (which routes through GStreamer) instead of Web Audio API
+- **WebKitGTK Web Audio API broken** — `AnalyserNode` and `AudioContext` don't work reliably in WebKitGTK; AudioPlayer uses Rust rodio for native audio playback, bypassing both Web Audio API and GStreamer entirely
 - **Iagon requires internet** — Iagon operations (upload, download, auth) require internet access. Unlike on-chain text listings, file-based listings fail if `gw.iagon.com` is unreachable. The `reqwest` client has a 60s timeout
 - **Listing drafts persist across WebView resets** — Stored as encrypted JSON in `secrets/listing-drafts/` (filesystem), not IndexedDB (which WebKitGTK can clear). This is why `listingDraftStorage` uses Tauri invoke instead of localStorage
 - **File encryption key in capsule** — The peace-payload capsule for file listings contains: field 0 (Iagon file ID), field 1 (AES key + nonce, 44 bytes), field 2 (SHA-256 digest), field 3 (original file extension). Losing the capsule means losing access to the file
