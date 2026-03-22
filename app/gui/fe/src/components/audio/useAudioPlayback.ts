@@ -92,6 +92,8 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
 
   // Use waveform duration as fallback (rodio returns 0 for MP3/VBR)
   const effectiveDuration = duration > 0 ? duration : (waveformDuration ?? 0);
+  const effectiveDurationRef = useRef(effectiveDuration);
+  useEffect(() => { effectiveDurationRef.current = effectiveDuration; });
 
   // ── Polling for playback status ────────────────────────────────────
 
@@ -104,7 +106,7 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
 
         setCurrentTime(status.position_secs);
         if (status.duration_secs > 0) setDuration(status.duration_secs);
-        onTimeUpdateRef.current?.(status.position_secs, status.duration_secs || effectiveDuration);
+        onTimeUpdateRef.current?.(status.position_secs, status.duration_secs || effectiveDurationRef.current);
 
         if (!status.playing && isPlayingRef.current) {
           // Playback ended
@@ -123,7 +125,7 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
         }
       } catch { /* ignore poll errors during teardown */ }
     }, 100);
-  }, [effectiveDuration]);
+  }, []);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
