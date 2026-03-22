@@ -151,10 +151,7 @@ pub fn audio_seek(
 
 /// Set playback volume (0.0 – 1.0).
 #[tauri::command]
-pub fn audio_set_volume(
-    state: tauri::State<'_, AudioPlayback>,
-    volume: f32,
-) -> Result<(), String> {
+pub fn audio_set_volume(state: tauri::State<'_, AudioPlayback>, volume: f32) -> Result<(), String> {
     let guard = state.inner.lock().map_err(|e| e.to_string())?;
     if let Some(inner) = guard.as_ref() {
         inner.sink.set_volume(volume.clamp(0.0, 1.0));
@@ -164,10 +161,7 @@ pub fn audio_set_volume(
 
 /// Set playback speed (0.25 – 4.0).
 #[tauri::command]
-pub fn audio_set_speed(
-    state: tauri::State<'_, AudioPlayback>,
-    speed: f32,
-) -> Result<(), String> {
+pub fn audio_set_speed(state: tauri::State<'_, AudioPlayback>, speed: f32) -> Result<(), String> {
     let guard = state.inner.lock().map_err(|e| e.to_string())?;
     if let Some(inner) = guard.as_ref() {
         inner.sink.set_speed(speed.clamp(0.25, 4.0));

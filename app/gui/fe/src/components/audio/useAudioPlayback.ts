@@ -141,19 +141,20 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     invoke('audio_stop').catch(() => {});
     stopPolling();
 
-    // Reset state
-    setIsReady(false);
-    setError(null);
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setPlaybackRate(1.0);
-    setIsBuffering(false);
-    setPlayError(null);
+    // Reset state via ref — actual state updates happen in the async callback
     isPlayingRef.current = false;
 
     // Resolve file path via Tauri and tell rodio to load it
     (async () => {
+      setIsReady(false);
+      setError(null);
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      setPlaybackRate(1.0);
+      setIsBuffering(false);
+      setPlayError(null);
+
       try {
         const path = await invoke<string>('get_library_content_path', { tokenName, category });
         if (cancelled) return;

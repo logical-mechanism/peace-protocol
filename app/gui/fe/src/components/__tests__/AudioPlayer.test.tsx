@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // ── Mocks (hoisted before imports) ──────────────────────────────────
@@ -47,7 +47,7 @@ const defaultAudioStatus = {
 };
 
 function setupDefaultInvokeMock() {
-  mockInvoke.mockImplementation((cmd: string, args?: Record<string, unknown>) => {
+  mockInvoke.mockImplementation((cmd: string, _args?: Record<string, unknown>) => {
     switch (cmd) {
       case 'get_library_content_path':
         return Promise.resolve('/mock/path/to/audio.mp3');
