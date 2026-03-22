@@ -39,21 +39,36 @@ function MarqueeText({ text, className }: { text: string; className?: string }) 
   );
 }
 
+/** Musical note placeholder for tracks without album art. */
+function AlbumArtPlaceholder() {
+  return (
+    <div className="w-14 h-14 rounded-[var(--radius-md)] bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+      <svg className="w-6 h-6 text-[var(--text-muted)]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+      </svg>
+    </div>
+  );
+}
+
 function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: string } }) {
+  // Cap at 5MB to prevent memory bloat from large embedded art
   const url = useMemo(() => {
+    if (picture.data.length > 5_000_000) return null;
     const blob = new Blob([picture.data as BlobPart], { type: picture.format });
     return URL.createObjectURL(blob);
   }, [picture]);
 
   useEffect(() => {
-    return () => URL.revokeObjectURL(url);
+    return () => { if (url) URL.revokeObjectURL(url); };
   }, [url]);
+
+  if (!url) return <AlbumArtPlaceholder />;
 
   return (
     <img
       src={url}
       alt="Album art"
-      className="w-10 h-10 rounded-[var(--radius-sm)] object-cover flex-shrink-0"
+      className="w-14 h-14 rounded-[var(--radius-md)] object-cover flex-shrink-0 shadow-md"
     />
   );
 }
@@ -316,7 +331,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
       {/* Metadata + Format Badge */}
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          {metadata?.picture && <MetadataAlbumArt picture={metadata.picture} />}
+          {metadata?.picture ? <MetadataAlbumArt picture={metadata.picture} /> : <AlbumArtPlaceholder />}
           {metadata && (metadata.title || metadata.artist || metadata.album) ? (
             <div className="flex-1 min-w-0">
               {metadata.title && (
