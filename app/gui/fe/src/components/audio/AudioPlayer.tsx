@@ -91,8 +91,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
 
   const [showRemaining, setShowRemaining] = useState(false);
 
-  // Keyboard hints
-  const hasShownHintsRef = useRef(false);
+  // Keyboard hints toggle
   const [showKeyHints, setShowKeyHints] = useState(false);
 
   // Seek refs
@@ -107,12 +106,6 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if (!hasShownHintsRef.current) {
-        hasShownHintsRef.current = true;
-        setShowKeyHints(true);
-        setTimeout(() => { setShowKeyHints(false); }, 3000);
-      }
 
       switch (e.key) {
         case ' ':
@@ -386,19 +379,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             <span className="text-xs text-[var(--text-muted)]">Loading audio...</span>
           </div>
         )}
-        {showKeyHints && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-[var(--transition-slow)]">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
-              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;10s</span>
-              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
-              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
-              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
-              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
-              <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time mode</span>
-            </div>
-          </div>
-        )}
+{/* Keyboard hints panel removed — now toggled via ? button in transport controls */}
         <div
           ref={waveformTooltipRef}
           className="absolute -top-6 -translate-x-1/2 bg-black/80 text-white text-[11px] font-mono rounded px-1.5 py-0.5 pointer-events-none select-none z-20 transition-opacity duration-75"
@@ -539,6 +520,33 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           >
             {playbackRate}x
           </button>
+
+          <span className="w-px h-5 bg-[var(--border)] mx-1" />
+
+          <div className="relative">
+            <button
+              onClick={() => setShowKeyHints(v => !v)}
+              className={`${transportBtn} text-[10px] font-bold min-w-[24px] ${showKeyHints ? '!text-[var(--accent)]' : ''}`}
+              title="Keyboard shortcuts"
+              aria-label="Toggle keyboard shortcuts"
+              aria-expanded={showKeyHints}
+            >
+              ?
+            </button>
+            {showKeyHints && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 z-30 whitespace-nowrap shadow-lg">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;10s</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time mode</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
