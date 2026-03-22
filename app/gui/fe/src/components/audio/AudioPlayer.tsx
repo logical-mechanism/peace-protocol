@@ -171,39 +171,16 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, play, pause, skipBack, skipForward, toggleMute, toggleLoop, cycleSpeed, volume, setVolume]);
 
-  // --- Seek handlers ---
-  const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!seekBarRef.current || !duration || !isReady) return;
-    isSeekingRef.current = true;
-
-    const seekTo = (clientX: number) => {
-      const rect = seekBarRef.current!.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      seek(ratio * duration);
-      drawWaveform(ratio);
-    };
-    seekTo(e.clientX);
-
-    const handleMouseMove = (moveE: MouseEvent) => {
-      if (!isSeekingRef.current) return;
-      seekTo(moveE.clientX);
-    };
-    const handleMouseUp = () => {
-      isSeekingRef.current = false;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [duration, isReady, seek, drawWaveform]);
-
-  const handleWaveformMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!waveformContainerRef.current || !duration || !isReady) return;
+  // --- Seek handlers (shared drag logic for seek bar + waveform) ---
+  const createSeekDrag = useCallback((
+    containerRef: React.RefObject<HTMLDivElement | null>,
+  ) => (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current || !duration || !isReady) return;
     e.preventDefault();
     isSeekingRef.current = true;
 
     const seekTo = (clientX: number) => {
-      const rect = waveformContainerRef.current!.getBoundingClientRect();
+      const rect = containerRef.current!.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       seek(ratio * duration);
       drawWaveform(ratio);
@@ -222,6 +199,9 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }, [duration, isReady, seek, drawWaveform]);
+
+  const handleSeekMouseDown = useMemo(() => createSeekDrag(seekBarRef), [createSeekDrag]);
+  const handleWaveformMouseDown = useMemo(() => createSeekDrag(waveformContainerRef), [createSeekDrag]);
 
   const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!isReady || !duration) return;
