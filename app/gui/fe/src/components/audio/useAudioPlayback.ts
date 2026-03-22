@@ -87,6 +87,8 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
     onSeekedRef.current = onSeeked;
   });
 
+  const blobUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     const audio = audioRef.current;
@@ -97,16 +99,8 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
     if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
     if (readyTimeoutRef.current) { clearTimeout(readyTimeoutRef.current); readyTimeoutRef.current = null; }
 
-    console.debug('[AudioPlayer] Loading audio from:', src);
-    audio.load();
-
-    // Safety timeout: if canplay never fires within 5s, show controls anyway
-    readyTimeoutRef.current = setTimeout(() => {
-      if (!cancelled) {
-        console.warn('[AudioPlayer] canplay not received within 5s, enabling controls');
-        setIsReady(true);
-      }
-    }, 5000);
+    // Revoke previous blob URL
+    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
 
     const handleLoadedMetadata = () => {
       if (cancelled) return;
@@ -144,6 +138,7 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
     const handleError = () => {
       if (cancelled) return;
       const code = audio.error?.code;
+      console.warn('[AudioPlayer] error event, code:', code, 'message:', audio.error?.message);
       if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED && retryCountRef.current < 2) {
         retryCountRef.current++;
         retryTimerRef.current = setTimeout(() => {
@@ -175,6 +170,42 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
     audio.addEventListener('stalled', handleStalled);
     audio.addEventListener('seeked', handleSeeked);
 
+    // Fetch audio data via JS fetch() and create a blob URL.
+    // WebKitGTK's GStreamer souphttpsrc cannot reliably load <audio> from
+    // HTTP URLs — canplay never fires. Fetching via JS and using a blob://
+    // URL works because GStreamer handles blob sources via its appsrc path.
+    const mime = getMimeType(fileExtension);
+    console.debug('[AudioPlayer] Fetching audio from:', src);
+    fetch(src)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.blob();
+      })
+      .then(blob => {
+        if (cancelled) return;
+        const blobUrl = URL.createObjectURL(new Blob([blob], { type: mime }));
+        blobUrlRef.current = blobUrl;
+        const source = audio.querySelector('source');
+        if (source) {
+          source.setAttribute('src', blobUrl);
+          source.setAttribute('type', mime);
+        }
+        audio.load();
+
+        // Safety timeout: if canplay never fires within 5s, show controls anyway
+        readyTimeoutRef.current = setTimeout(() => {
+          if (!cancelled) {
+            console.warn('[AudioPlayer] canplay not received within 5s, enabling controls');
+            setIsReady(true);
+          }
+        }, 5000);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        console.error('[AudioPlayer] Failed to fetch audio:', err);
+        setError('Failed to load audio file.');
+      });
+
     return () => {
       cancelled = true;
       audio.pause();
@@ -190,11 +221,9 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
       audio.removeEventListener('playing', handlePlaying);
       audio.removeEventListener('stalled', handleStalled);
       audio.removeEventListener('seeked', handleSeeked);
-      const source = audio.querySelector('source');
-      if (source) source.removeAttribute('src');
-      audio.load();
+      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     };
-  }, [src]);
+  }, [src, fileExtension]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.loop = isLooping;

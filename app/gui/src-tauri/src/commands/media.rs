@@ -801,7 +801,12 @@ fn find_content_file(token_dir: &Path, token_name: &str) -> Option<PathBuf> {
     for entry in entries.flatten() {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str != json_name && entry.path().is_file() {
+        // Skip metadata JSON and derived files (pcm.raw, waveform.cache from audio decoder)
+        if name_str != json_name
+            && name_str != "pcm.raw"
+            && name_str != "waveform.cache"
+            && entry.path().is_file()
+        {
             return Some(entry.path());
         }
     }

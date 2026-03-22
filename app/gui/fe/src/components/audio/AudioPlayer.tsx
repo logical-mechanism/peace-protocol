@@ -308,8 +308,9 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
   return (
     <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[var(--radius-md)] overflow-hidden">
       {/* Hidden audio element */}
+      {/* Hidden audio element — src set dynamically via blob URL in useAudioPlayback */}
       <audio ref={audioRef} preload="auto" style={{ display: 'none' }}>
-        <source src={src} type={mimeType} />
+        <source type={mimeType} />
       </audio>
 
       {/* Metadata + Format Badge */}

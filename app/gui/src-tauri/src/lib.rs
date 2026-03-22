@@ -106,17 +106,29 @@ async fn serve_media_file(
     use axum::response::IntoResponse;
     use std::io::{Read, Seek, SeekFrom};
 
+    let method = request.method().clone();
     let raw_path = request.uri().path();
     let decoded = percent_encoding::percent_decode(raw_path.as_bytes())
         .decode_utf8_lossy()
         .to_string();
+
+    eprintln!(
+        "[media-server] {} {} (decoded: {})",
+        method, raw_path, &decoded
+    );
 
     let path = std::path::Path::new(&decoded);
 
     // Security: resolved path must be within the media directory
     let canonical = match std::fs::canonicalize(path) {
         Ok(p) => p,
-        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            eprintln!(
+                "[media-server] canonicalize failed for {:?}: {}",
+                decoded, e
+            );
+            return StatusCode::NOT_FOUND.into_response();
+        }
     };
     let canonical_media = std::fs::canonicalize(&media_dir).unwrap_or_else(|_| media_dir.clone());
     if !canonical.starts_with(&canonical_media) {

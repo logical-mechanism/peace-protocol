@@ -66,6 +66,8 @@ function makeAudioControllable(audio: HTMLAudioElement) {
 }
 
 async function fireCanPlay() {
+  // Flush fetch() promise so blob URL is set on the <source> element
+  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
   const audio = document.querySelector('audio')!;
   await act(async () => {
     audio.dispatchEvent(new Event('loadedmetadata'));
@@ -103,8 +105,17 @@ async function fireAudioError(code: number = MEDIA_ERR_SRC_NOT_SUPPORTED) {
   });
 }
 
+// Mock fetch for blob URL audio loading
+const mockFetchBlob = new Blob(['test-audio-data'], { type: 'audio/mpeg' });
+const mockFetch = vi.fn().mockResolvedValue({
+  ok: true,
+  blob: () => Promise.resolve(mockFetchBlob),
+});
+globalThis.fetch = mockFetch as unknown as typeof fetch;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockFetch.mockResolvedValue({ ok: true, blob: () => Promise.resolve(mockFetchBlob) });
   playMock.mockResolvedValue(undefined);
   HTMLAudioElement.prototype.play = playMock;
   HTMLAudioElement.prototype.pause = pauseMock;
@@ -537,11 +548,13 @@ describe('AudioPlayer component', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('sets src URL on audio source element with MIME type', () => {
+    it('sets blob URL on audio source element after fetch', async () => {
       renderPlayer();
+      // Flush fetch() promise so blob URL is applied
+      await act(async () => { await new Promise(r => setTimeout(r, 0)); });
       const source = document.querySelector('audio source');
       expect(source).not.toBeNull();
-      expect(source!.getAttribute('src')).toBe(mockAudioUrl);
+      expect(source!.getAttribute('src')).toBe(mockObjectUrl);
       expect(source!.getAttribute('type')).toBe('audio/mpeg');
     });
 
@@ -1337,9 +1350,10 @@ describe('AudioPlayer component', () => {
       vi.useFakeTimers();
       renderPlayer();
       const audio = document.querySelector('audio')!;
-      const loadSpy = vi.spyOn(audio, 'load');
 
       await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
+      // Spy AFTER the initial blob-fetch load() has already fired
+      const loadSpy = vi.spyOn(audio, 'load');
       expect(loadSpy).not.toHaveBeenCalled();
 
       // Advance past retry delay
