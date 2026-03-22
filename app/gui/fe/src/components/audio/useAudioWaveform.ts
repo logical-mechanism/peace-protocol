@@ -113,7 +113,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
     };
   }, [tokenName, category]);
 
-  // Waveform drawing callback
+  // Waveform drawing callback — mirrored bars with gradient transition
   const drawWaveform = useCallback((progressRatio: number) => {
     const canvas = waveformCanvasRef.current;
     const waveform = waveformDataRef.current;
@@ -125,24 +125,53 @@ export function useAudioWaveform(tokenName: string, category: string) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-    const barW = CANVAS_W / waveform.length;
-    const mid = CANVAS_H / 2;
+    const totalBarW = CANVAS_W / waveform.length;
+    const barW = totalBarW * 0.7;
+    const gap = totalBarW * 0.3;
+    const mid = CANVAS_H * 0.45; // shift center up slightly for reflection space
+    const maxBarH = mid * 0.85;
+    const reflectionAlpha = 0.35;
     const { waveformPlayed, waveformUnplayed, indicator, indicatorGlow } = gradientColorsRef.current;
 
     for (let i = 0; i < waveform.length; i++) {
-      const h = waveform[i] * mid * 0.9;
-      const x = i * barW;
+      const h = Math.max(1, waveform[i] * maxBarH);
+      const x = i * totalBarW + gap * 0.5;
       const isPlayed = (i / waveform.length) <= progressRatio;
-      ctx.fillStyle = isPlayed ? waveformPlayed : waveformUnplayed;
-      ctx.fillRect(x, mid - h, barW - 0.5, h * 2);
+      const color = isPlayed ? waveformPlayed : waveformUnplayed;
+
+      // Main bar (above center)
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x, mid - h, barW, h, [barW * 0.4, barW * 0.4, 0, 0]);
+      ctx.fill();
+
+      // Below-center bar (no rounding on top)
+      ctx.beginPath();
+      ctx.roundRect(x, mid, barW, h, [0, 0, barW * 0.4, barW * 0.4]);
+      ctx.fill();
+
+      // Reflection (faded mirror below main)
+      ctx.globalAlpha = reflectionAlpha;
+      ctx.beginPath();
+      ctx.roundRect(x, mid + h, barW, h * 0.5, [0, 0, barW * 0.3, barW * 0.3]);
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
+    // Playhead indicator — thin line with radial glow
     if (progressRatio > 0) {
       const indicatorX = Math.round(progressRatio * CANVAS_W);
-      ctx.fillStyle = indicatorGlow;
-      ctx.fillRect(indicatorX - 2, 0, 6, CANVAS_H);
+
+      // Radial glow
+      const glow = ctx.createRadialGradient(indicatorX, mid, 0, indicatorX, mid, 16);
+      glow.addColorStop(0, indicatorGlow);
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.fillRect(indicatorX - 16, mid - 16, 32, 32);
+
+      // Thin line
       ctx.fillStyle = indicator;
-      ctx.fillRect(indicatorX, 0, 2, CANVAS_H);
+      ctx.fillRect(indicatorX - 0.5, 0, 1.5, CANVAS_H);
     }
   }, []);
 
