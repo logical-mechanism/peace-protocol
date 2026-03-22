@@ -650,7 +650,7 @@ select option {
 }
 
 .marquee-on-hover:hover > span.marquee-overflows {
-  animation: marquee-scroll 4s linear infinite;
+  animation: marquee-scroll var(--marquee-duration, 4s) linear infinite;
 }
 
 /* Reduced motion: respect OS accessibility setting */

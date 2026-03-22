@@ -11,6 +11,7 @@ function MarqueeText({ text, className }: { text: string; className?: string }) 
   const spanRef = useRef<HTMLSpanElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [duration, setDuration] = useState(4);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -21,13 +22,15 @@ function MarqueeText({ text, className }: { text: string; className?: string }) 
     const isOverflowing = sw > cw;
     setOverflows(isOverflowing);
     setOffset(isOverflowing ? cw - sw : 0);
+    // Scale duration by overflow distance (~40px/s scroll speed)
+    setDuration(isOverflowing ? Math.max(3, (sw - cw) / 40) : 4);
   }, [text]);
 
   return (
     <div
       ref={containerRef}
       className={`marquee-on-hover ${className ?? ''}`}
-      style={{ '--marquee-offset': `${offset}px` } as CSSProperties}
+      style={{ '--marquee-offset': `${offset}px`, '--marquee-duration': `${duration}s` } as CSSProperties}
     >
       <span ref={spanRef} className={overflows ? 'marquee-overflows' : ''}>
         {text}
