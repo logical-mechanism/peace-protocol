@@ -83,16 +83,17 @@ function renderPlayer(overrides: Partial<{ src: string; fileExtension: string; t
 
 /** Flush microtask queue so async IPC calls and state updates settle. */
 async function flushMicrotasks() {
-  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  await act(async () => {
+    await new Promise(r => setTimeout(r, 0));
+  });
 }
 
 /** Wait for the player to become ready (IPC load sequence completes). */
 async function waitForReady() {
-  // The useAudioPlayback effect chains: audio_stop → get_library_content_path → audio_play → audio_pause → setIsReady(true)
-  // Each invoke returns an immediately-resolved promise; we need multiple microtask flushes.
-  // With fake timers, we also need to advance past setInterval(100ms) polling without getting stuck.
-  for (let i = 0; i < 20; i++) {
-    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+  // Flush the initial invoke chain: audio_stop, get_library_content_path, audio_play, audio_pause
+  // Each is a resolved promise, so a few microtask flushes are enough.
+  for (let i = 0; i < 10; i++) {
+    await flushMicrotasks();
     if (screen.queryByText('Ready')) return;
   }
   expect(screen.getByText('Ready')).toBeInTheDocument();
@@ -100,8 +101,8 @@ async function waitForReady() {
 
 /** Wait for the IPC load error to appear. */
 async function waitForError() {
-  for (let i = 0; i < 20; i++) {
-    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+  for (let i = 0; i < 10; i++) {
+    await flushMicrotasks();
     if (screen.queryByText(/Failed to load audio/)) return;
   }
   expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
@@ -531,13 +532,6 @@ describe('LED status display priority', () => {
 // ── Component rendering tests ───────────────────────────────────────
 
 describe('AudioPlayer component', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   describe('rendering', () => {
     it('renders without crashing', () => {
       const { container } = renderPlayer();
@@ -749,7 +743,7 @@ describe('AudioPlayer component', () => {
       renderPlayer();
       await waitForReady();
       // Allow a poll cycle to update currentTime
-      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
 
       mockInvoke.mockClear();
       await act(async () => {
@@ -768,7 +762,7 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
 
       mockInvoke.mockClear();
       await act(async () => {
@@ -875,7 +869,7 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
@@ -895,7 +889,7 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
@@ -915,7 +909,7 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
@@ -947,7 +941,7 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
