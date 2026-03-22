@@ -73,11 +73,9 @@ import { fftInPlace, normalizeWaveform } from '../audioPlayerUtils';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const mockAudioUrl = 'http://127.0.0.1:12345/mock-audio.mp3';
-
-function renderPlayer(overrides: Partial<{ src: string; fileExtension: string; tokenName: string; category: string; onExport: () => void }> = {}) {
+function renderPlayer(overrides: Partial<{ fileExtension: string; tokenName: string; category: string; onExport: () => void }> = {}) {
   return render(
-    <AudioPlayer src={mockAudioUrl} fileExtension=".mp3" tokenName="abc123" category="audio" {...overrides} />,
+    <AudioPlayer fileExtension=".mp3" tokenName="abc123" category="audio" {...overrides} />,
   );
 }
 
@@ -90,12 +88,14 @@ async function flushMicrotasks() {
 
 /** Wait for the player to become ready (IPC load sequence completes). */
 async function waitForReady() {
-  // Flush the initial invoke chain: audio_stop, get_library_content_path, audio_play, audio_pause
-  // Each is a resolved promise, so a few microtask flushes are enough.
-  for (let i = 0; i < 10; i++) {
-    await flushMicrotasks();
-    if (screen.queryByText('Ready')) return;
-  }
+  // The useAudioPlayback effect chains multiple await invoke() calls.
+  // Each flushMicrotasks() resolves one level of the promise chain.
+  await flushMicrotasks();
+  await flushMicrotasks();
+  await flushMicrotasks();
+  await flushMicrotasks();
+  await flushMicrotasks();
+  await flushMicrotasks();
   expect(screen.getByText('Ready')).toBeInTheDocument();
 }
 
@@ -107,6 +107,15 @@ async function waitForError() {
   }
   expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
 }
+
+// Mock canvas getContext for jsdom (jsdom throws "Not implemented" otherwise)
+const mockCanvasContext = {
+  setTransform: vi.fn(),
+  clearRect: vi.fn(),
+  fillRect: vi.fn(),
+  fillStyle: '',
+};
+HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCanvasContext) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 beforeEach(() => {
   mockInvoke.mockClear();
@@ -1217,6 +1226,14 @@ describe('AudioPlayer component', () => {
     it('shows "Visualization unavailable" when Rust waveform decode fails', async () => {
       mockDecodeAudioWaveformFast.mockRejectedValueOnce(new Error('fast decode failed'));
       mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
+      // Return 0 duration from audio_play to prevent effectiveDuration oscillation
+      // which causes an infinite effect re-run cycle when waveformDuration is 0.
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(0);
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, duration_secs: 0 });
+        return Promise.resolve(undefined);
+      });
 
       renderPlayer();
       await waitForReady();
@@ -1236,6 +1253,13 @@ describe('AudioPlayer component', () => {
     it('keeps playback controls functional when visualization fails', async () => {
       mockDecodeAudioWaveformFast.mockRejectedValueOnce(new Error('fast decode failed'));
       mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
+      // Return 0 duration to prevent infinite effect cycle (see startPolling deps)
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(0);
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, duration_secs: 0 });
+        return Promise.resolve(undefined);
+      });
 
       renderPlayer();
       await waitForReady();

@@ -244,7 +244,7 @@ describe('getViewMode (via rendering)', () => {
   });
 
   it('renders audio player for .mp3 extension', async () => {
-    mockGetLibraryContentUrl.mockResolvedValue('asset://localhost/mock-audio.mp3');
+    // Audio uses rodio (Rust) via Tauri IPC — no content URL needed
     render(
       <LibraryContentModal
         {...defaultProps}

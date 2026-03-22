@@ -55,7 +55,7 @@ function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: st
   );
 }
 
-export default function AudioPlayer({ src: _src, fileExtension, tokenName, category, onExport }: AudioPlayerProps) {
+export default function AudioPlayer({ fileExtension, tokenName, category, onExport }: AudioPlayerProps) {
   const { waveformCanvasRef, metadata, vizFailed, waveformDuration, drawWaveform, updateProgress, forceRedraw } =
     useAudioWaveform(tokenName, category);
 

@@ -11,8 +11,6 @@ export interface AudioMetadata {
 }
 
 export interface AudioPlayerProps {
-  /** Direct URL to the audio file served by the Axum media server. */
-  src: string;
   fileExtension: string;
   /** Token name for Rust-side waveform decode via symphonia. */
   tokenName: string;
