@@ -7,6 +7,7 @@ import type { AudioMetadata } from './audioTypes';
 export function useAudioWaveform(tokenName: string, category: string) {
   const [metadata, setMetadata] = useState<AudioMetadata | null>(null);
   const [vizFailed, setVizFailed] = useState(false);
+  const [waveformDuration, setWaveformDuration] = useState(0);
 
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const waveformDataRef = useRef<Float32Array | null>(null);
@@ -81,6 +82,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
         const waveform = normalizeWaveform(new Float32Array(result.waveform));
         waveformDataRef.current = waveform;
         setVizFailed(false);
+        if (result.durationSecs > 0) setWaveformDuration(result.durationSecs);
         drawWaveformRef.current?.(0);
 
         if (result.title || result.artist || result.album) {
@@ -169,6 +171,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
     waveformCanvasRef,
     metadata,
     vizFailed,
+    waveformDuration,
     drawWaveform,
     updateProgress,
     forceRedraw,

@@ -55,13 +55,15 @@ function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: st
   );
 }
 
-export default function AudioPlayer({ src, fileExtension, tokenName, category, onExport }: AudioPlayerProps) {
-  const { waveformCanvasRef, metadata, vizFailed, drawWaveform, updateProgress, forceRedraw } =
+export default function AudioPlayer({ src: _src, fileExtension, tokenName, category, onExport }: AudioPlayerProps) {
+  const { waveformCanvasRef, metadata, vizFailed, waveformDuration, drawWaveform, updateProgress, forceRedraw } =
     useAudioWaveform(tokenName, category);
 
-  const { audioRef, mimeType, state, actions } = useAudioPlayback({
-    src,
+  const { mimeType, state, actions } = useAudioPlayback({
+    tokenName,
+    category,
     fileExtension,
+    waveformDuration,
     onTimeUpdate: updateProgress,
     onSeeked: forceRedraw,
   });
@@ -141,8 +143,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
 
   // --- Seek handlers ---
   const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
-    if (!audio || !seekBarRef.current || !duration || !isReady) return;
+    if (!seekBarRef.current || !duration || !isReady) return;
     isSeekingRef.current = true;
 
     const seekTo = (clientX: number) => {
@@ -164,11 +165,10 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [duration, isReady, seek, drawWaveform, audioRef]);
+  }, [duration, isReady, seek, drawWaveform]);
 
   const handleWaveformMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
-    if (!audio || !waveformContainerRef.current || !duration || !isReady) return;
+    if (!waveformContainerRef.current || !duration || !isReady) return;
     e.preventDefault();
     isSeekingRef.current = true;
 
@@ -191,25 +191,25 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [duration, isReady, seek, drawWaveform, audioRef]);
+  }, [duration, isReady, seek, drawWaveform]);
 
   const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
-    if (!audio || !isReady || !duration) return;
+    if (!isReady || !duration) return;
 
+    let newTime = currentTime;
     let handled = true;
     switch (e.key) {
       case 'ArrowLeft':
-        audio.currentTime = Math.max(0, audio.currentTime - 5);
+        newTime = Math.max(0, currentTime - 5);
         break;
       case 'ArrowRight':
-        audio.currentTime = Math.min(duration, audio.currentTime + 5);
+        newTime = Math.min(duration, currentTime + 5);
         break;
       case 'Home':
-        audio.currentTime = 0;
+        newTime = 0;
         break;
       case 'End':
-        audio.currentTime = duration;
+        newTime = duration;
         break;
       default:
         handled = false;
@@ -218,10 +218,10 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
     if (handled) {
       e.preventDefault();
       e.stopPropagation();
-      seek(audio.currentTime);
-      if (duration > 0) drawWaveform(audio.currentTime / duration);
+      seek(newTime);
+      if (duration > 0) drawWaveform(newTime / duration);
     }
-  }, [isReady, duration, seek, drawWaveform, audioRef]);
+  }, [isReady, duration, currentTime, seek, drawWaveform]);
 
   // --- Seek preview tooltip ---
   const showSeekTooltip = useCallback((
@@ -308,10 +308,7 @@ export default function AudioPlayer({ src, fileExtension, tokenName, category, o
   return (
     <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[var(--radius-md)] overflow-hidden">
       {/* Hidden audio element */}
-      {/* Hidden audio element — src set dynamically via blob URL in useAudioPlayback */}
-      <audio ref={audioRef} preload="auto" style={{ display: 'none' }}>
-        <source type={mimeType} />
-      </audio>
+      {/* Audio playback handled by rodio (Rust) via Tauri IPC — no <audio> element needed */}
 
       {/* Metadata + Format Badge */}
       <div className="flex items-center justify-between px-3 py-2">

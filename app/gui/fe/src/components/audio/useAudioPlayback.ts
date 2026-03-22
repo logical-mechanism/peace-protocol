@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { SPEED_OPTIONS } from './audioConstants';
 
 function getMimeType(ext: string): string {
@@ -39,14 +40,31 @@ export function getConversionHint(ext: string): string | null {
   return hints[ext.toLowerCase()] ?? null;
 }
 
+// ── Rodio IPC types ─────────────────────────────────────────────────────
+
+interface AudioStatus {
+  loaded: boolean;
+  playing: boolean;
+  position_secs: number;
+  duration_secs: number;
+  volume: number;
+}
+
+// ── Hook ────────────────────────────────────────────────────────────────
+
 interface UseAudioPlaybackOptions {
-  src: string;
+  /** Token name for resolving the file path via Tauri IPC */
+  tokenName: string;
+  /** Category for resolving the file path via Tauri IPC */
+  category: string;
   fileExtension: string;
+  /** Waveform duration from symphonia (used when rodio can't determine duration, e.g. MP3) */
+  waveformDuration?: number;
   onTimeUpdate?: (time: number, duration: number) => void;
   onSeeked?: () => void;
 }
 
-export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }: UseAudioPlaybackOptions) {
+export function useAudioPlayback({ tokenName, category, fileExtension, waveformDuration, onTimeUpdate, onSeeked }: UseAudioPlaybackOptions) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -59,25 +77,10 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
   const [isBuffering, setIsBuffering] = useState(false);
   const [playError, setPlayError] = useState<string | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement>(null);
   const isPlayingRef = useRef(false);
-  const retryCountRef = useRef(0);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const readyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Reset playback state when src changes
-  const [prevSrc, setPrevSrc] = useState(src);
-  if (prevSrc !== src) {
-    setPrevSrc(src);
-    setIsReady(false);
-    setError(null);
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setPlaybackRate(1.0);
-    setIsBuffering(false);
-    setPlayError(null);
-  }
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const volumeBeforeMuteRef = useRef(0.75);
+  const isLoopingRef = useRef(false);
 
   // Stable refs for callbacks
   const onTimeUpdateRef = useRef(onTimeUpdate);
@@ -87,152 +90,102 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
     onSeekedRef.current = onSeeked;
   });
 
-  const blobUrlRef = useRef<string | null>(null);
+  // Use waveform duration as fallback (rodio returns 0 for MP3/VBR)
+  const effectiveDuration = duration > 0 ? duration : (waveformDuration ?? 0);
+
+  // ── Polling for playback status ────────────────────────────────────
+
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await invoke<AudioStatus>('audio_get_status');
+        if (!status.loaded) return;
+
+        setCurrentTime(status.position_secs);
+        if (status.duration_secs > 0) setDuration(status.duration_secs);
+        onTimeUpdateRef.current?.(status.position_secs, status.duration_secs || effectiveDuration);
+
+        if (!status.playing && isPlayingRef.current) {
+          // Playback ended
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+
+          // Handle looping
+          if (isLoopingRef.current) {
+            try {
+              await invoke('audio_seek', { positionSecs: 0.0 });
+              await invoke('audio_resume');
+              isPlayingRef.current = true;
+              setIsPlaying(true);
+            } catch { /* ignore loop retry errors */ }
+          }
+        }
+      } catch { /* ignore poll errors during teardown */ }
+    }, 100);
+  }, [effectiveDuration]);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  // ── Load audio on mount / when file changes ───────────────────────
 
   useEffect(() => {
     let cancelled = false;
-    const audio = audioRef.current;
-    if (!audio) return;
 
+    // Stop any previous playback
+    invoke('audio_stop').catch(() => {});
+    stopPolling();
+
+    // Reset state
+    setIsReady(false);
+    setError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setPlaybackRate(1.0);
+    setIsBuffering(false);
+    setPlayError(null);
     isPlayingRef.current = false;
-    retryCountRef.current = 0;
-    if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
-    if (readyTimeoutRef.current) { clearTimeout(readyTimeoutRef.current); readyTimeoutRef.current = null; }
 
-    // Revoke previous blob URL
-    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
-
-    const handleLoadedMetadata = () => {
-      if (cancelled) return;
-      const d = audio.duration;
-      if (isFinite(d) && d > 0) setDuration(d);
-    };
-    const handleDurationChange = () => {
-      if (cancelled) return;
-      const d = audio.duration;
-      if (isFinite(d) && d > 0) setDuration(d);
-    };
-    const handleCanPlay = () => {
-      if (cancelled) return;
-      if (readyTimeoutRef.current) { clearTimeout(readyTimeoutRef.current); readyTimeoutRef.current = null; }
-      if (audio.currentTime > 0.05) audio.currentTime = 0;
-      setIsReady(true);
-    };
-    const handleTimeUpdate = () => {
-      if (cancelled) return;
-      setCurrentTime(audio.currentTime);
-      const d = audio.duration;
-      if (isFinite(d) && d > 0) setDuration(prev => prev > 0 ? prev : d);
-      onTimeUpdateRef.current?.(audio.currentTime, audio.duration);
-    };
-    const handleEnded = () => {
-      if (cancelled) return;
-      isPlayingRef.current = false;
-      setIsPlaying(false);
-    };
-    const handleWaiting = () => { if (!cancelled) setIsBuffering(true); };
-    const handlePlaying = () => { if (!cancelled) setIsBuffering(false); };
-    const handleStalled = () => {
-      if (!cancelled && audio.readyState < 3) setIsBuffering(true);
-    };
-    const handleError = () => {
-      if (cancelled) return;
-      const code = audio.error?.code;
-      console.warn('[AudioPlayer] error event, code:', code, 'message:', audio.error?.message);
-      if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED && retryCountRef.current < 2) {
-        retryCountRef.current++;
-        retryTimerRef.current = setTimeout(() => {
-          if (cancelled) return;
-          audio.load();
-        }, 500 * retryCountRef.current);
-        return;
-      }
-      if (readyTimeoutRef.current) { clearTimeout(readyTimeoutRef.current); readyTimeoutRef.current = null; }
-      if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
-        setError('Audio format not supported. Try converting to MP3 or OGG.');
-      } else {
-        setError('Failed to load audio. The format may not be supported.');
-      }
-    };
-    const handleSeeked = () => {
-      if (cancelled) return;
-      onSeekedRef.current?.();
-    };
-
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('durationchange', handleDurationChange);
-    audio.addEventListener('canplay', handleCanPlay);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
-    audio.addEventListener('waiting', handleWaiting);
-    audio.addEventListener('playing', handlePlaying);
-    audio.addEventListener('stalled', handleStalled);
-    audio.addEventListener('seeked', handleSeeked);
-
-    // Fetch audio data via JS fetch() and create a blob URL.
-    // WebKitGTK's GStreamer souphttpsrc cannot reliably load <audio> from
-    // HTTP URLs — canplay never fires. Fetching via JS and using a blob://
-    // URL works because GStreamer handles blob sources via its appsrc path.
-    const mime = getMimeType(fileExtension);
-    console.debug('[AudioPlayer] Fetching audio from:', src);
-    fetch(src)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.blob();
-      })
-      .then(blob => {
+    // Resolve file path via Tauri and tell rodio to load it
+    (async () => {
+      try {
+        const path = await invoke<string>('get_library_content_path', { tokenName, category });
         if (cancelled) return;
-        const blobUrl = URL.createObjectURL(new Blob([blob], { type: mime }));
-        blobUrlRef.current = blobUrl;
-        const source = audio.querySelector('source');
-        if (source) {
-          source.setAttribute('src', blobUrl);
-          source.setAttribute('type', mime);
-        }
-        audio.load();
 
-        // Safety timeout: if canplay never fires within 5s, show controls anyway
-        readyTimeoutRef.current = setTimeout(() => {
-          if (!cancelled) {
-            console.warn('[AudioPlayer] canplay not received within 5s, enabling controls');
-            setIsReady(true);
-          }
-        }, 5000);
-      })
-      .catch(err => {
+        const dur = await invoke<number>('audio_play', { path, volume });
+        if (cancelled) { invoke('audio_stop').catch(() => {}); return; }
+
+        // Immediately pause — we load but don't auto-play
+        await invoke('audio_pause');
+
+        if (dur > 0) setDuration(dur);
+        setIsReady(true);
+        startPolling();
+      } catch (e) {
         if (cancelled) return;
-        console.error('[AudioPlayer] Failed to fetch audio:', err);
-        setError('Failed to load audio file.');
-      });
+        console.error('[AudioPlayer] rodio load failed:', e);
+        setError(`Failed to load audio: ${e}`);
+      }
+    })();
 
     return () => {
       cancelled = true;
-      audio.pause();
-      if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
-      if (readyTimeoutRef.current) { clearTimeout(readyTimeoutRef.current); readyTimeoutRef.current = null; }
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('durationchange', handleDurationChange);
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-      audio.removeEventListener('waiting', handleWaiting);
-      audio.removeEventListener('playing', handlePlaying);
-      audio.removeEventListener('stalled', handleStalled);
-      audio.removeEventListener('seeked', handleSeeked);
-      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+      stopPolling();
+      invoke('audio_stop').catch(() => {});
     };
-  }, [src, fileExtension]);
+  }, [tokenName, category, startPolling, stopPolling]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.loop = isLooping;
-  }, [isLooping]);
+  // ── Transport controls ────────────────────────────────────────────
 
   const play = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !isReady) return;
-    audio.play().then(() => {
+    if (!isReady) return;
+    invoke('audio_resume').then(() => {
       isPlayingRef.current = true;
       setIsPlaying(true);
       setPlayError(null);
@@ -243,63 +196,64 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
   }, [isReady]);
 
   const pause = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.pause();
+    invoke('audio_pause').catch(() => {});
     isPlayingRef.current = false;
     setIsPlaying(false);
   }, []);
 
   const stop = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.pause();
-    audio.currentTime = 0;
+    invoke('audio_pause').catch(() => {});
+    invoke('audio_seek', { positionSecs: 0.0 }).catch(() => {});
     isPlayingRef.current = false;
     setIsPlaying(false);
     setCurrentTime(0);
   }, []);
 
   const skipBack = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !isReady) return;
-    audio.currentTime = Math.max(0, audio.currentTime - 10);
-  }, [isReady]);
+    if (!isReady) return;
+    const newTime = Math.max(0, currentTime - 10);
+    invoke('audio_seek', { positionSecs: newTime }).catch(() => {});
+    setCurrentTime(newTime);
+  }, [isReady, currentTime]);
 
   const skipForward = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !isReady) return;
-    audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
-  }, [isReady]);
+    if (!isReady) return;
+    const newTime = Math.min(effectiveDuration, currentTime + 10);
+    invoke('audio_seek', { positionSecs: newTime }).catch(() => {});
+    setCurrentTime(newTime);
+  }, [isReady, currentTime, effectiveDuration]);
 
   const seek = useCallback((time: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = time;
+    invoke('audio_seek', { positionSecs: time }).catch(() => {});
     setCurrentTime(time);
+    onSeekedRef.current?.();
   }, []);
 
   const handleSetVolume = useCallback((v: number) => {
-    setVolume(v);
-    if (audioRef.current) {
-      audioRef.current.volume = v;
-      if (v > 0) { audioRef.current.muted = false; setIsMuted(false); }
-    }
+    const clamped = Math.max(0, Math.min(1, v));
+    setVolume(clamped);
+    setIsMuted(false);
+    invoke('audio_set_volume', { volume: clamped }).catch(() => {});
   }, []);
 
   const toggleMute = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const newMuted = !isMuted;
-    audio.muted = newMuted;
-    setIsMuted(newMuted);
-  }, [isMuted]);
+    if (isMuted) {
+      // Unmute — restore previous volume
+      setIsMuted(false);
+      invoke('audio_set_volume', { volume: volumeBeforeMuteRef.current }).catch(() => {});
+      setVolume(volumeBeforeMuteRef.current);
+    } else {
+      // Mute — save current volume and set to 0
+      volumeBeforeMuteRef.current = volume;
+      setIsMuted(true);
+      invoke('audio_set_volume', { volume: 0.0 }).catch(() => {});
+    }
+  }, [isMuted, volume]);
 
   const toggleLoop = useCallback(() => {
     setIsLooping(prev => {
-      const next = !prev;
-      if (audioRef.current) audioRef.current.loop = next;
-      return next;
+      isLoopingRef.current = !prev;
+      return !prev;
     });
   }, []);
 
@@ -307,7 +261,7 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
     const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
     const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
     setPlaybackRate(next);
-    if (audioRef.current) audioRef.current.playbackRate = next;
+    invoke('audio_set_speed', { speed: next }).catch(() => {});
   }, [playbackRate]);
 
   const clearPlayError = useCallback(() => setPlayError(null), []);
@@ -315,9 +269,12 @@ export function useAudioPlayback({ src, fileExtension, onTimeUpdate, onSeeked }:
   const mimeType = getMimeType(fileExtension);
 
   return {
-    audioRef,
     mimeType,
-    state: { isReady, isPlaying, currentTime, duration, error, isBuffering, playError, isLooping, isMuted, volume, playbackRate },
+    state: {
+      isReady, isPlaying, currentTime,
+      duration: effectiveDuration,
+      error, isBuffering, playError, isLooping, isMuted, volume, playbackRate,
+    },
     actions: { play, pause, stop, skipBack, skipForward, seek, setVolume: handleSetVolume, toggleMute, toggleLoop, cycleSpeed, clearPlayError },
   };
 }

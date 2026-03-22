@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
@@ -29,21 +29,51 @@ vi.mock('../../services/libraryService', () => ({
   decodeAudioWaveformFast: (...args: unknown[]) => mockDecodeAudioWaveformFast(...args),
 }));
 
-const mockObjectUrl = 'blob:mock-audio-url';
-const createObjectURLSpy = vi.fn().mockReturnValue(mockObjectUrl);
-const revokeObjectURLSpy = vi.fn();
-globalThis.URL.createObjectURL = createObjectURLSpy;
-globalThis.URL.revokeObjectURL = revokeObjectURLSpy;
+// ── Tauri IPC mock ──────────────────────────────────────────────────
 
-const playMock = vi.fn().mockResolvedValue(undefined);
-const pauseMock = vi.fn();
+const mockInvoke = vi.fn().mockImplementation(() => Promise.resolve(undefined));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
+/** Default audio_get_status response. */
+const defaultAudioStatus = {
+  loaded: true,
+  playing: false,
+  position_secs: 0,
+  duration_secs: 120,
+  volume: 0.75,
+};
+
+function setupDefaultInvokeMock() {
+  mockInvoke.mockImplementation((cmd: string, args?: Record<string, unknown>) => {
+    switch (cmd) {
+      case 'get_library_content_path':
+        return Promise.resolve('/mock/path/to/audio.mp3');
+      case 'audio_play':
+        return Promise.resolve(120.0);
+      case 'audio_pause':
+      case 'audio_resume':
+      case 'audio_stop':
+      case 'audio_seek':
+      case 'audio_set_volume':
+      case 'audio_set_speed':
+        return Promise.resolve(undefined);
+      case 'audio_get_status':
+        return Promise.resolve({ ...defaultAudioStatus });
+      default:
+        return Promise.resolve(undefined);
+    }
+  });
+}
 
 import AudioPlayer from '../audio';
 import { fftInPlace, normalizeWaveform } from '../audioPlayerUtils';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const mockAudioUrl = 'asset://localhost/mock-audio.mp3';
+const mockAudioUrl = 'http://127.0.0.1:12345/mock-audio.mp3';
 
 function renderPlayer(overrides: Partial<{ src: string; fileExtension: string; tokenName: string; category: string; onExport: () => void }> = {}) {
   return render(
@@ -51,74 +81,37 @@ function renderPlayer(overrides: Partial<{ src: string; fileExtension: string; t
   );
 }
 
-function makeAudioControllable(audio: HTMLAudioElement) {
-  let _currentTime = 0;
-  Object.defineProperty(audio, 'currentTime', {
-    get: () => _currentTime,
-    set: (v: number) => { _currentTime = v; },
-    configurable: true,
-  });
-  Object.defineProperty(audio, 'duration', {
-    value: 120,
-    writable: true,
-    configurable: true,
-  });
-}
-
-async function fireCanPlay() {
-  // Flush fetch() promise so blob URL is set on the <source> element
-  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
-  const audio = document.querySelector('audio')!;
-  await act(async () => {
-    audio.dispatchEvent(new Event('loadedmetadata'));
-    audio.dispatchEvent(new Event('canplay'));
-  });
-}
-
-/** Flush microtask queue so async metadata parsing and PCM decode settle. */
+/** Flush microtask queue so async IPC calls and state updates settle. */
 async function flushMicrotasks() {
-  await act(async () => {
-    await new Promise(r => setTimeout(r, 0));
-  });
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 }
 
-// MediaError is not defined in jsdom — provide it globally for the component
-const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
-const MEDIA_ERR_DECODE = 3;
-if (typeof globalThis.MediaError === 'undefined') {
-  (globalThis as Record<string, unknown>).MediaError = {
-    MEDIA_ERR_ABORTED: 1,
-    MEDIA_ERR_NETWORK: 2,
-    MEDIA_ERR_DECODE: MEDIA_ERR_DECODE,
-    MEDIA_ERR_SRC_NOT_SUPPORTED: MEDIA_ERR_SRC_NOT_SUPPORTED,
-  };
+/** Wait for the player to become ready (IPC load sequence completes). */
+async function waitForReady() {
+  // The useAudioPlayback effect chains: audio_stop → get_library_content_path → audio_play → audio_pause → setIsReady(true)
+  // Each invoke returns an immediately-resolved promise; we need multiple microtask flushes.
+  // With fake timers, we also need to advance past setInterval(100ms) polling without getting stuck.
+  for (let i = 0; i < 20; i++) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    if (screen.queryByText('Ready')) return;
+  }
+  expect(screen.getByText('Ready')).toBeInTheDocument();
 }
 
-async function fireAudioError(code: number = MEDIA_ERR_SRC_NOT_SUPPORTED) {
-  const audio = document.querySelector('audio')!;
-  Object.defineProperty(audio, 'error', {
-    value: { code },
-    configurable: true,
-  });
-  await act(async () => {
-    audio.dispatchEvent(new Event('error'));
-  });
+/** Wait for the IPC load error to appear. */
+async function waitForError() {
+  for (let i = 0; i < 20; i++) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    if (screen.queryByText(/Failed to load audio/)) return;
+  }
+  expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
 }
-
-// Mock fetch for blob URL audio loading
-const mockFetchBlob = new Blob(['test-audio-data'], { type: 'audio/mpeg' });
-const mockFetch = vi.fn().mockResolvedValue({
-  ok: true,
-  blob: () => Promise.resolve(mockFetchBlob),
-});
-globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  mockFetch.mockResolvedValue({ ok: true, blob: () => Promise.resolve(mockFetchBlob) });
-  playMock.mockResolvedValue(undefined);
-  HTMLAudioElement.prototype.play = playMock;
-  HTMLAudioElement.prototype.pause = pauseMock;
+  mockInvoke.mockClear();
+  mockDecodeAudioWaveform.mockClear();
+  mockDecodeAudioWaveformFast.mockClear();
+  setupDefaultInvokeMock();
 });
 
 // ── Pure utility function tests (migrated from AudioPlayer.test.ts) ─
@@ -383,14 +376,11 @@ describe('computeWaveformSummary', () => {
   });
 
   it('uses max of both channels for stereo', () => {
-    // Left channel has peak in bucket 1, right channel has peak in bucket 0
     const left  = new Float32Array([0.1, 0.2, 0.8, 0.3]);
     const right = new Float32Array([0.9, 0.1, 0.1, 0.2]);
     const result = computeWaveformSummary([left, right], 2);
     expect(result.length).toBe(2);
-    // Bucket 0: max(abs(0.1), abs(0.9)) = 0.9, max(abs(0.2), abs(0.1)) = 0.2 → peak 0.9
     expect(result[0]).toBeCloseTo(0.9);
-    // Bucket 1: max(abs(0.8), abs(0.1)) = 0.8, max(abs(0.3), abs(0.2)) = 0.3 → peak 0.8
     expect(result[1]).toBeCloseTo(0.8);
   });
 
@@ -406,7 +396,6 @@ describe('computeWaveformSummary', () => {
     const left  = new Float32Array([-0.3, 0.1]);
     const right = new Float32Array([0.1, -0.6]);
     const result = computeWaveformSummary([left, right], 1);
-    // Per sample: max(0.3, 0.1) = 0.3, max(0.1, 0.6) = 0.6 → peak 0.6
     expect(result[0]).toBeCloseTo(0.6);
   });
 });
@@ -542,20 +531,17 @@ describe('LED status display priority', () => {
 // ── Component rendering tests ───────────────────────────────────────
 
 describe('AudioPlayer component', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe('rendering', () => {
     it('renders without crashing', () => {
       const { container } = renderPlayer();
       expect(container).toBeInTheDocument();
-    });
-
-    it('sets blob URL on audio source element after fetch', async () => {
-      renderPlayer();
-      // Flush fetch() promise so blob URL is applied
-      await act(async () => { await new Promise(r => setTimeout(r, 0)); });
-      const source = document.querySelector('audio source');
-      expect(source).not.toBeNull();
-      expect(source!.getAttribute('src')).toBe(mockObjectUrl);
-      expect(source!.getAttribute('type')).toBe('audio/mpeg');
     });
 
     it('shows loading spinner initially', () => {
@@ -569,17 +555,15 @@ describe('AudioPlayer component', () => {
       expect(screen.getByText('Loading')).toBeInTheDocument();
     });
 
-    it('shows Ready status after canplay', async () => {
+    it('shows Ready status after IPC load completes', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
       expect(screen.getByText('Ready')).toBeInTheDocument();
     });
 
-    it('hides loading spinner after canplay', async () => {
+    it('hides loading spinner after IPC load completes', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
       expect(screen.queryByTestId('spinner')).not.toBeInTheDocument();
     });
 
@@ -590,8 +574,7 @@ describe('AudioPlayer component', () => {
 
     it('play button is enabled after ready', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
       expect(screen.getByLabelText('Play')).toBeEnabled();
     });
 
@@ -605,8 +588,7 @@ describe('AudioPlayer component', () => {
 
     it('seek bar has correct ARIA attributes', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       expect(seekBar).toHaveAttribute('aria-valuemin', '0');
       expect(seekBar).toHaveAttribute('aria-valuemax', '120');
@@ -643,185 +625,195 @@ describe('AudioPlayer component', () => {
       expect(screen.getByText('WAV')).toBeInTheDocument();
     });
 
-    it('renders error state with conversion hint for unsupported format after retries exhausted', async () => {
-      vi.useFakeTimers();
+    it('renders error state when IPC load fails', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_stop') return Promise.resolve(undefined);
+        if (cmd === 'get_library_content_path') return Promise.reject('File not found');
+        return Promise.resolve(undefined);
+      });
       renderPlayer({ fileExtension: '.flac' });
-      // First error — triggers retry 1 (500ms)
-      await fireAudioError();
-      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
-      // Advance past retry 1
-      await act(async () => { vi.advanceTimersByTime(500); });
-      // Second error — triggers retry 2 (1000ms)
-      await fireAudioError();
-      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
-      // Advance past retry 2
-      await act(async () => { vi.advanceTimersByTime(1000); });
-      // Third error — retries exhausted, show error
-      await fireAudioError();
-      expect(screen.getByText(/Audio format not supported/)).toBeInTheDocument();
-      expect(screen.getByText(/ffmpeg/)).toBeInTheDocument();
-      vi.useRealTimers();
+      await waitForError();
+      expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
     });
 
     it('shows format badge in error state', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_stop') return Promise.resolve(undefined);
+        if (cmd === 'get_library_content_path') return Promise.reject('File not found');
+        return Promise.resolve(undefined);
+      });
       renderPlayer({ fileExtension: '.flac' });
-      // Use non-retryable error code for immediate error
-      await fireAudioError(MEDIA_ERR_DECODE);
+      await waitForError();
       expect(screen.getByText('FLAC')).toBeInTheDocument();
     });
 
     it('shows Save As button in error state when onExport provided', async () => {
       const onExport = vi.fn();
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_stop') return Promise.resolve(undefined);
+        if (cmd === 'get_library_content_path') return Promise.reject('File not found');
+        return Promise.resolve(undefined);
+      });
       renderPlayer({ onExport });
-      await fireAudioError(MEDIA_ERR_DECODE);
+      await waitForError();
       expect(screen.getByText(/Save As/)).toBeInTheDocument();
     });
 
     it('hides Save As in error state when onExport not provided', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_stop') return Promise.resolve(undefined);
+        if (cmd === 'get_library_content_path') return Promise.reject('File not found');
+        return Promise.resolve(undefined);
+      });
       renderPlayer();
-      await fireAudioError(MEDIA_ERR_DECODE);
+      await waitForError();
       expect(screen.queryByText(/Save As/)).not.toBeInTheDocument();
     });
 
     it('calls onExport when Save As is clicked in error state', async () => {
       const onExport = vi.fn();
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_stop') return Promise.resolve(undefined);
+        if (cmd === 'get_library_content_path') return Promise.reject('File not found');
+        return Promise.resolve(undefined);
+      });
       renderPlayer({ onExport });
-      await fireAudioError(MEDIA_ERR_DECODE);
+      await waitForError();
       fireEvent.click(screen.getByText(/Save As/));
       expect(onExport).toHaveBeenCalledOnce();
     });
 
-    it('renders generic error for non-format errors', async () => {
+    it('invokes correct IPC commands on mount', async () => {
       renderPlayer();
-      await fireAudioError(MEDIA_ERR_DECODE);
-      expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
+      await waitForReady();
+
+      // Should have called: audio_stop (cleanup), get_library_content_path, audio_play, audio_pause
+      expect(mockInvoke).toHaveBeenCalledWith('audio_stop');
+      expect(mockInvoke).toHaveBeenCalledWith('get_library_content_path', { tokenName: 'abc123', category: 'audio' });
+      expect(mockInvoke).toHaveBeenCalledWith('audio_play', { path: '/mock/path/to/audio.mp3', volume: 0.75 });
+      expect(mockInvoke).toHaveBeenCalledWith('audio_pause');
     });
   });
 
   // ── Interaction tests ───────────────────────────────────────────────
 
   describe('keyboard interactions', () => {
-    it('Space key calls play', async () => {
+    it('Space key calls play (invokes audio_resume)', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
 
       await act(async () => {
         fireEvent.keyDown(document, { key: ' ' });
       });
-      expect(playMock).toHaveBeenCalledOnce();
+      await flushMicrotasks();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_resume');
     });
 
     it('Space key calls pause when playing', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
 
       // Play
       await act(async () => {
         fireEvent.keyDown(document, { key: ' ' });
       });
+      await flushMicrotasks();
       // Pause
       await act(async () => {
         fireEvent.keyDown(document, { key: ' ' });
       });
-      expect(pauseMock).toHaveBeenCalled();
+      await flushMicrotasks();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_pause');
     });
 
     it('Space key does not trigger play when INPUT is focused', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
 
       const volumeSlider = screen.getByLabelText('Volume');
+      mockInvoke.mockClear();
       await act(async () => {
         fireEvent.keyDown(volumeSlider, { key: ' ' });
       });
-      expect(playMock).not.toHaveBeenCalled();
+      expect(mockInvoke).not.toHaveBeenCalledWith('audio_resume');
     });
 
-    it('ArrowLeft skips back 10 seconds', async () => {
+    it('ArrowLeft invokes audio_seek to skip back 10 seconds', async () => {
+      // Set current position to 30s via polling
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 30 });
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(120.0);
+        return Promise.resolve(undefined);
+      });
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
+      // Allow a poll cycle to update currentTime
+      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
 
-      audio.currentTime = 30;
+      mockInvoke.mockClear();
       await act(async () => {
         fireEvent.keyDown(document, { key: 'ArrowLeft' });
       });
-      expect(audio.currentTime).toBe(20);
+      // Should seek to currentTime - 10
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 20 });
     });
 
-    it('ArrowRight skips forward 10 seconds', async () => {
+    it('ArrowRight invokes audio_seek to skip forward 10 seconds', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 30 });
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(120.0);
+        return Promise.resolve(undefined);
+      });
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
+      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
 
-      audio.currentTime = 30;
+      mockInvoke.mockClear();
       await act(async () => {
         fireEvent.keyDown(document, { key: 'ArrowRight' });
       });
-      expect(audio.currentTime).toBe(40);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 40 });
     });
 
-    it('ArrowLeft clamps at 0', async () => {
+    it('ArrowUp increases volume via audio_set_volume', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
-      audio.currentTime = 5;
-      await act(async () => {
-        fireEvent.keyDown(document, { key: 'ArrowLeft' });
-      });
-      expect(audio.currentTime).toBe(0);
-    });
-
-    it('ArrowUp increases volume by 0.05', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-
+      mockInvoke.mockClear();
       await act(async () => {
         fireEvent.keyDown(document, { key: 'ArrowUp' });
       });
-      // Initial volume is 0.75, should be 0.80
-      expect(audio.volume).toBeCloseTo(0.8);
+      // Initial volume is 0.75, +0.05 = 0.80
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', expect.objectContaining({ volume: expect.closeTo(0.8, 2) }));
     });
 
-    it('ArrowDown decreases volume by 0.05', async () => {
+    it('ArrowDown decreases volume via audio_set_volume', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
+      mockInvoke.mockClear();
       await act(async () => {
         fireEvent.keyDown(document, { key: 'ArrowDown' });
       });
-      expect(audio.volume).toBeCloseTo(0.7);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', expect.objectContaining({ volume: expect.closeTo(0.7, 2) }));
     });
 
     it('M key toggles mute on', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       await act(async () => {
         fireEvent.keyDown(document, { key: 'm' });
       });
-      expect(audio.muted).toBe(true);
       expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', { volume: 0.0 });
     });
 
     it('M key toggles mute off', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       // Mute
       await act(async () => {
@@ -831,29 +823,23 @@ describe('AudioPlayer component', () => {
       await act(async () => {
         fireEvent.keyDown(document, { key: 'M' });
       });
-      expect(audio.muted).toBe(false);
       expect(screen.getByLabelText('Mute')).toBeInTheDocument();
     });
 
     it('L key toggles loop on', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       expect(screen.getByLabelText('Enable repeat')).toHaveAttribute('aria-pressed', 'false');
       await act(async () => {
         fireEvent.keyDown(document, { key: 'l' });
       });
-      expect(audio.loop).toBe(true);
       expect(screen.getByLabelText('Disable repeat')).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('L key toggles loop off', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       // Enable loop
       await act(async () => {
@@ -863,117 +849,145 @@ describe('AudioPlayer component', () => {
       await act(async () => {
         fireEvent.keyDown(document, { key: 'L' });
       });
-      expect(audio.loop).toBe(false);
       expect(screen.getByLabelText('Enable repeat')).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('S key cycles playback speed', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       expect(screen.getByLabelText('Playback speed: 1x')).toBeInTheDocument();
       await act(async () => {
         fireEvent.keyDown(document, { key: 's' });
       });
-      await waitFor(() => {
-        expect(audio.playbackRate).toBe(1.25);
-        expect(screen.getByLabelText('Playback speed: 1.25x')).toBeInTheDocument();
-      });
+      expect(screen.getByLabelText('Playback speed: 1.25x')).toBeInTheDocument();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_speed', { speed: 1.25 });
     });
   });
 
   describe('seek bar keyboard', () => {
     it('ArrowLeft on seek bar seeks -5s', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 30 });
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(120.0);
+        return Promise.resolve(undefined);
+      });
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
+      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
 
-      audio.currentTime = 30;
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.keyDown(seekBar, { key: 'ArrowLeft' });
       });
-      expect(audio.currentTime).toBe(25);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 25 });
     });
 
     it('ArrowRight on seek bar seeks +5s', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 30 });
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(120.0);
+        return Promise.resolve(undefined);
+      });
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
+      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
 
-      audio.currentTime = 30;
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.keyDown(seekBar, { key: 'ArrowRight' });
       });
-      expect(audio.currentTime).toBe(35);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 35 });
     });
 
     it('Home on seek bar seeks to start', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 60 });
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(120.0);
+        return Promise.resolve(undefined);
+      });
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
+      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
 
-      audio.currentTime = 60;
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.keyDown(seekBar, { key: 'Home' });
       });
-      expect(audio.currentTime).toBe(0);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 0 });
     });
 
     it('End on seek bar seeks to duration', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
-      audio.currentTime = 0;
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      mockInvoke.mockClear();
       await act(async () => {
         fireEvent.keyDown(seekBar, { key: 'End' });
       });
-      expect(audio.currentTime).toBe(120);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 120 });
     });
 
     it('ArrowLeft on seek bar does not double-fire global handler', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 30 });
+        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
+        if (cmd === 'audio_play') return Promise.resolve(120.0);
+        return Promise.resolve(undefined);
+      });
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
+      await act(async () => { await vi.advanceTimersByTimeAsync(150); });
 
-      audio.currentTime = 30;
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.keyDown(seekBar, { key: 'ArrowLeft' });
       });
-      // Should be 25 (-5s from seek bar), not 15 (-5s then -10s from global)
-      expect(audio.currentTime).toBe(25);
+      // Should be exactly one audio_seek call at 25 (-5s from seek bar), not also 20 (-10s from global)
+      const seekCalls = mockInvoke.mock.calls.filter(
+        (c: unknown[]) => c[0] === 'audio_seek'
+      );
+      expect(seekCalls.length).toBe(1);
+      expect(seekCalls[0][1]).toEqual({ positionSecs: 25 });
     });
   });
 
   describe('button interactions', () => {
-    it('click play button calls audio.play()', async () => {
+    it('click play button calls audio_resume', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
       });
-      expect(playMock).toHaveBeenCalledOnce();
+      await flushMicrotasks();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_resume');
     });
 
-    it('shows inline error when play() rejects, keeps player controls visible', async () => {
-      playMock.mockRejectedValueOnce(new Error('GStreamer pipeline error'));
+    it('shows inline error when audio_resume rejects, keeps player controls visible', async () => {
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
+
+      // Make audio_resume fail
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_resume') return Promise.reject(new Error('GStreamer pipeline error'));
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus });
+        return Promise.resolve(undefined);
+      });
 
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
@@ -989,19 +1003,23 @@ describe('AudioPlayer component', () => {
     });
 
     it('clears play error on next successful play', async () => {
-      playMock.mockRejectedValueOnce(new Error('GStreamer fail'));
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
 
       // First play fails
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_resume') return Promise.reject(new Error('fail'));
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus });
+        return Promise.resolve(undefined);
+      });
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
       });
       await flushMicrotasks();
       expect(screen.getByRole('alert')).toBeInTheDocument();
 
-      // Second play succeeds (playMock reverts to default resolved)
+      // Second play succeeds
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
       });
@@ -1010,11 +1028,14 @@ describe('AudioPlayer component', () => {
     });
 
     it('dismiss button removes play error', async () => {
-      playMock.mockRejectedValueOnce(new Error('fail'));
       renderPlayer();
-      makeAudioControllable(document.querySelector('audio')!);
-      await fireCanPlay();
+      await waitForReady();
 
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'audio_resume') return Promise.reject(new Error('fail'));
+        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus });
+        return Promise.resolve(undefined);
+      });
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Play'));
       });
@@ -1027,29 +1048,28 @@ describe('AudioPlayer component', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
-    it('click stop resets currentTime to 0', async () => {
+    it('click stop invokes audio_pause and audio_seek to 0', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
-      audio.currentTime = 50;
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Stop'));
       });
-      expect(pauseMock).toHaveBeenCalled();
-      expect(audio.currentTime).toBe(0);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_pause');
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 0.0 });
     });
 
     it('click mute button toggles mute', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
+      await waitForReady();
 
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Mute'));
       });
-      expect(audio.muted).toBe(true);
       expect(screen.getByLabelText('Unmute')).toHaveAttribute('aria-pressed', 'true');
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', { volume: 0.0 });
     });
 
     it('loop toggle changes aria-pressed', async () => {
@@ -1064,74 +1084,43 @@ describe('AudioPlayer component', () => {
       expect(screen.getByLabelText('Disable repeat')).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('loop toggle syncs audio.loop property', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-
-      expect(audio.loop).toBe(false);
-
-      // Enable loop
-      await act(async () => {
-        fireEvent.click(screen.getByLabelText('Enable repeat'));
-      });
-      expect(audio.loop).toBe(true);
-
-      // Disable loop
-      await act(async () => {
-        fireEvent.click(screen.getByLabelText('Disable repeat'));
-      });
-      expect(audio.loop).toBe(false);
-    });
-
     it('speed button cycles through options', async () => {
       renderPlayer();
+      await waitForReady();
 
       expect(screen.getByLabelText('Playback speed: 1x')).toBeInTheDocument();
 
-      // 1x → 1.25x
+      // 1x -> 1.25x
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Playback speed: 1x'));
       });
       expect(screen.getByLabelText('Playback speed: 1.25x')).toBeInTheDocument();
 
-      // 1.25x → 1.5x
+      // 1.25x -> 1.5x
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Playback speed: 1.25x'));
       });
       expect(screen.getByLabelText('Playback speed: 1.5x')).toBeInTheDocument();
     });
 
-    it('speed button sets audio.playbackRate', async () => {
+    it('speed button invokes audio_set_speed', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
-      // Default playbackRate
-      expect(audio.playbackRate).toBe(1);
-
-      // 1x → 1.25x
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
+      // 1x -> 1.25x
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Playback speed: 1x'));
       });
-      expect(audio.playbackRate).toBe(1.25);
-
-      // 1.25x → 1.5x
-      await act(async () => {
-        fireEvent.click(screen.getByLabelText('Playback speed: 1.25x'));
-      });
-      expect(audio.playbackRate).toBe(1.5);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_speed', { speed: 1.25 });
     });
   });
 
   describe('LED time toggle', () => {
     it('click toggles from total to remaining time', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       const ledDisplay = screen.getByTitle('Click to toggle remaining time');
       // Initially shows total duration (no minus sign prefix)
@@ -1153,15 +1142,13 @@ describe('AudioPlayer component', () => {
 
     it('Enter key toggles remaining time (native button)', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       const ledDisplay = screen.getByTitle('Click to toggle remaining time');
       expect(ledDisplay.tagName).toBe('BUTTON');
       expect(ledDisplay.textContent).not.toContain('\u2212');
 
-      // Native <button> handles Enter/Space → click; jsdom doesn't simulate this,
+      // Native <button> handles Enter/Space -> click; jsdom doesn't simulate this,
       // so we fire click directly (the semantic test is that it's a <button>).
       await act(async () => {
         fireEvent.click(ledDisplay);
@@ -1171,9 +1158,7 @@ describe('AudioPlayer component', () => {
 
     it('LED time display is a native button element', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       const ledDisplay = screen.getByTitle('Click to toggle remaining time');
       expect(ledDisplay.tagName).toBe('BUTTON');
@@ -1182,211 +1167,53 @@ describe('AudioPlayer component', () => {
   });
 
   describe('volume interactions', () => {
-    it('volume slider changes audio volume', async () => {
+    it('volume slider invokes audio_set_volume', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
+      await waitForReady();
 
       const volumeSlider = screen.getByLabelText('Volume');
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.change(volumeSlider, { target: { value: '0.3' } });
       });
-      expect(audio.volume).toBe(0.3);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', expect.objectContaining({ volume: expect.closeTo(0.3, 2) }));
     });
 
     it('volume slider unmutes when adjusted while muted', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       // Mute first
       await act(async () => {
         fireEvent.click(screen.getByLabelText('Mute'));
       });
-      expect(audio.muted).toBe(true);
+      expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
 
       // Drag volume slider up
       const volumeSlider = screen.getByLabelText('Volume');
       await act(async () => {
         fireEvent.change(volumeSlider, { target: { value: '0.5' } });
       });
-      expect(audio.muted).toBe(false);
+      // Should be unmuted now
+      expect(screen.getByLabelText('Mute')).toBeInTheDocument();
     });
 
     it('ArrowUp unmutes when muted', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
 
       // Mute
       await act(async () => {
         fireEvent.keyDown(document, { key: 'm' });
       });
-      expect(audio.muted).toBe(true);
+      expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
 
-      // ArrowUp should unmute
+      // ArrowUp should unmute (setVolume clears mute)
       await act(async () => {
         fireEvent.keyDown(document, { key: 'ArrowUp' });
       });
-      expect(audio.muted).toBe(false);
-    });
-  });
-
-  // Note: metadata display tests removed — metadata parsing (music-metadata)
-  // was removed when AudioPlayer switched from Uint8Array data to URL-based streaming.
-
-  // ── Buffering state transition tests ────────────────────────────────
-
-  describe('buffering state transitions', () => {
-    it('shows Buffering when playing and waiting event fires', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-
-      // Start playing
-      await act(async () => {
-        fireEvent.click(screen.getByLabelText('Play'));
-      });
-      await waitFor(() => expect(screen.getByText('Playing')).toBeInTheDocument());
-
-      // Fire waiting event
-      await act(async () => {
-        audio.dispatchEvent(new Event('waiting'));
-      });
-
-      await waitFor(() => expect(screen.getByText('Buffering')).toBeInTheDocument());
-    });
-
-    it('clears Buffering when playing event fires after waiting', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-
-      // Play → waiting → playing
-      await act(async () => {
-        fireEvent.click(screen.getByLabelText('Play'));
-      });
-      await waitFor(() => expect(screen.getByText('Playing')).toBeInTheDocument());
-
-      await act(async () => {
-        audio.dispatchEvent(new Event('waiting'));
-      });
-      await waitFor(() => expect(screen.getByText('Buffering')).toBeInTheDocument());
-
-      await act(async () => {
-        audio.dispatchEvent(new Event('playing'));
-      });
-      // Should now show Playing, not Buffering
-      await waitFor(() => {
-        expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
-        expect(screen.getByText('Playing')).toBeInTheDocument();
-      });
-    });
-
-    it('shows Buffering on stalled when readyState < 3', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-
-      // Start playing
-      await act(async () => {
-        fireEvent.click(screen.getByLabelText('Play'));
-      });
-
-      // Set readyState < 3 (HAVE_CURRENT_DATA = 2)
-      Object.defineProperty(audio, 'readyState', { value: 2, configurable: true });
-      await act(async () => {
-        audio.dispatchEvent(new Event('stalled'));
-      });
-
-      expect(screen.getByText('Buffering')).toBeInTheDocument();
-    });
-
-    it('does not show Buffering on stalled when readyState >= 3', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
-
-      // Start playing
-      await act(async () => {
-        fireEvent.click(screen.getByLabelText('Play'));
-      });
-      await waitFor(() => expect(screen.getByText('Playing')).toBeInTheDocument());
-
-      // Set readyState >= 3 (HAVE_FUTURE_DATA = 3)
-      Object.defineProperty(audio, 'readyState', { value: 3, configurable: true });
-      await act(async () => {
-        audio.dispatchEvent(new Event('stalled'));
-      });
-
-      // Should show Playing, not Buffering
-      await waitFor(() => {
-        expect(screen.queryByText('Buffering')).not.toBeInTheDocument();
-        expect(screen.getByText('Playing')).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ── Retry on error tests ────────────────────────────────────────────
-
-  describe('retry on transient error', () => {
-    it('does not show error on first SRC_NOT_SUPPORTED (retries transparently)', async () => {
-      vi.useFakeTimers();
-      renderPlayer();
-      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
-      // Error should not be shown — retry is pending
-      expect(screen.queryByText(/Audio format not supported/)).not.toBeInTheDocument();
-      // Loading spinner should still be visible
-      expect(screen.getByTestId('spinner')).toBeInTheDocument();
-      vi.useRealTimers();
-    });
-
-    it('retries loading after 500ms delay on first error', async () => {
-      vi.useFakeTimers();
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-
-      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
-      // Spy AFTER the initial blob-fetch load() has already fired
-      const loadSpy = vi.spyOn(audio, 'load');
-      expect(loadSpy).not.toHaveBeenCalled();
-
-      // Advance past retry delay
-      await act(async () => { vi.advanceTimersByTime(500); });
-      expect(loadSpy).toHaveBeenCalledOnce();
-
-      loadSpy.mockRestore();
-      vi.useRealTimers();
-    });
-
-    it('shows error after all retries are exhausted', async () => {
-      vi.useFakeTimers();
-      renderPlayer();
-
-      // Error 1 → retry 1
-      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
-      await act(async () => { vi.advanceTimersByTime(500); });
-
-      // Error 2 → retry 2
-      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
-      await act(async () => { vi.advanceTimersByTime(1000); });
-
-      // Error 3 → retries exhausted
-      await fireAudioError(MEDIA_ERR_SRC_NOT_SUPPORTED);
-      expect(screen.getByText(/Audio format not supported/)).toBeInTheDocument();
-
-      vi.useRealTimers();
-    });
-
-    it('shows non-retryable errors immediately', async () => {
-      renderPlayer();
-      await fireAudioError(MEDIA_ERR_DECODE);
-      expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
+      expect(screen.getByLabelText('Mute')).toBeInTheDocument();
     });
   });
 
@@ -1398,9 +1225,7 @@ describe('AudioPlayer component', () => {
       mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
 
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
       await flushMicrotasks();
 
       expect(screen.getByText('Visualization unavailable for this format')).toBeInTheDocument();
@@ -1408,9 +1233,7 @@ describe('AudioPlayer component', () => {
 
     it('does not show fallback when waveform decode succeeds', async () => {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
       await flushMicrotasks();
 
       expect(screen.queryByText('Visualization unavailable for this format')).not.toBeInTheDocument();
@@ -1421,120 +1244,19 @@ describe('AudioPlayer component', () => {
       mockDecodeAudioWaveform.mockRejectedValueOnce(new Error('decode failed'));
 
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
       await flushMicrotasks();
 
       // Play button should still be enabled and functional
       const playBtn = screen.getByLabelText('Play');
       expect(playBtn).toBeEnabled();
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       await act(async () => {
         fireEvent.click(playBtn);
       });
-      expect(playMock).toHaveBeenCalled();
-    });
-  });
-
-  describe('duration detection', () => {
-    it('sets duration from durationchange when loadedmetadata reports NaN', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-
-      // Simulate WebKitGTK: duration is NaN at loadedmetadata time
-      Object.defineProperty(audio, 'duration', { value: NaN, writable: true, configurable: true });
-      let _ct = 0;
-      Object.defineProperty(audio, 'currentTime', {
-        get: () => _ct, set: (v: number) => { _ct = v; }, configurable: true,
-      });
-
-      await act(async () => {
-        audio.dispatchEvent(new Event('loadedmetadata'));
-      });
-
-      // Duration should still show 00:00 (NaN was rejected)
-      const ledDisplay = screen.getByTitle('Click to toggle remaining time');
-      expect(ledDisplay.textContent).toContain('00:00');
-
-      // Now GStreamer resolves the actual duration
-      Object.defineProperty(audio, 'duration', { value: 180, writable: true, configurable: true });
-      await act(async () => {
-        audio.dispatchEvent(new Event('durationchange'));
-      });
-
-      // Duration should now show 03:00
-      expect(ledDisplay.textContent).toContain('03:00');
-    });
-
-    it('falls back to timeupdate for duration when loadedmetadata and durationchange both report NaN', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-
-      Object.defineProperty(audio, 'duration', { value: NaN, writable: true, configurable: true });
-      let _ct = 0;
-      Object.defineProperty(audio, 'currentTime', {
-        get: () => _ct, set: (v: number) => { _ct = v; }, configurable: true,
-      });
-
-      await act(async () => {
-        audio.dispatchEvent(new Event('loadedmetadata'));
-        audio.dispatchEvent(new Event('durationchange'));
-        audio.dispatchEvent(new Event('canplay'));
-      });
-
-      const ledDisplay = screen.getByTitle('Click to toggle remaining time');
-      expect(ledDisplay.textContent).toContain('00:00');
-
-      // Duration becomes available during playback
-      Object.defineProperty(audio, 'duration', { value: 240, writable: true, configurable: true });
-      _ct = 5;
-      await act(async () => {
-        audio.dispatchEvent(new Event('timeupdate'));
-      });
-
-      expect(ledDisplay.textContent).toContain('04:00');
-    });
-
-    it('does not seek to 0 in onCanPlay when currentTime is near zero', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-
-      let _ct = 0.01; // Near-zero (below 0.05 threshold)
-      Object.defineProperty(audio, 'currentTime', {
-        get: () => _ct,
-        set: (v: number) => { _ct = v; },
-        configurable: true,
-      });
-      Object.defineProperty(audio, 'duration', { value: 120, writable: true, configurable: true });
-
-      await act(async () => {
-        audio.dispatchEvent(new Event('loadedmetadata'));
-        audio.dispatchEvent(new Event('canplay'));
-      });
-
-      // Should NOT have been reset to 0 — near-zero values are left alone
-      expect(_ct).toBe(0.01);
-    });
-
-    it('seeks to 0 in onCanPlay when currentTime is significantly non-zero', async () => {
-      renderPlayer();
-      const audio = document.querySelector('audio')!;
-
-      let _ct = 5.0; // Significantly non-zero
-      Object.defineProperty(audio, 'currentTime', {
-        get: () => _ct,
-        set: (v: number) => { _ct = v; },
-        configurable: true,
-      });
-      Object.defineProperty(audio, 'duration', { value: 120, writable: true, configurable: true });
-
-      await act(async () => {
-        audio.dispatchEvent(new Event('loadedmetadata'));
-        audio.dispatchEvent(new Event('canplay'));
-      });
-
-      // Should have been reset to 0
-      expect(_ct).toBe(0);
+      await flushMicrotasks();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_resume');
     });
   });
 
@@ -1579,14 +1301,14 @@ describe('AudioPlayer component', () => {
       const re = new Float32Array(n);
       const im = new Float32Array(n);
 
-      // Generate sine: x[t] = sin(2π * binIndex * t / n)
+      // Generate sine: x[t] = sin(2pi * binIndex * t / n)
       for (let t = 0; t < n; t++) {
         re[t] = Math.sin((2 * Math.PI * binIndex * t) / n);
       }
 
       fftInPlace(re, im);
 
-      // Bin `binIndex` and its mirror `n - binIndex` should have energy ≈ n/2
+      // Bin `binIndex` and its mirror `n - binIndex` should have energy ~ n/2
       const magTarget = Math.sqrt(re[binIndex] ** 2 + im[binIndex] ** 2);
       const magMirror = Math.sqrt(re[n - binIndex] ** 2 + im[n - binIndex] ** 2);
       expect(magTarget).toBeCloseTo(n / 2, 1);
@@ -1629,7 +1351,6 @@ describe('AudioPlayer component', () => {
       // Bin 0 = sum = 10
       expect(re[0]).toBeCloseTo(10, 5);
       expect(im[0]).toBeCloseTo(0, 5);
-      // Bin 2 = alternating sum: (1-3) + (2-4) mapped differently
       // Just verify it produces finite values and Parseval holds
       let energy = 0;
       for (let i = 0; i < 4; i++) energy += re[i] ** 2 + im[i] ** 2;
@@ -1694,22 +1415,19 @@ describe('AudioPlayer component', () => {
   describe('Seek bar mouse interactions', () => {
     async function setupReadyPlayer() {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
       await flushMicrotasks();
-      return audio;
     }
 
     /**
      * The seek bar structure:
-     * - Outer div (role="slider", onMouseDown) ← fire events here
-     * - Inner div (ref=seekBarRef) ← mock getBoundingClientRect here
+     * - Outer div (role="slider", onMouseDown) <- fire events here
+     * - Inner div (ref=seekBarRef) <- mock getBoundingClientRect here
      * handleSeekMouseDown reads rect from seekBarRef (inner div).
      */
     function getSeekElements() {
       const sliderDiv = screen.getByRole('slider', { name: /seek/i });
-      // seekBarRef is the first child div inside the slider (after the tooltip)
+      // seekBarRef is the last child div inside the slider (after the tooltip)
       const innerBar = sliderDiv.querySelector('div:last-child')!;
       return { sliderDiv, innerBar };
     }
@@ -1722,33 +1440,40 @@ describe('AudioPlayer component', () => {
       });
     }
 
-    it('mousedown on seek bar sets currentTime based on click position', async () => {
-      const audio = await setupReadyPlayer();
+    it('mousedown on seek bar invokes audio_seek based on click position', async () => {
+      await setupReadyPlayer();
       const { sliderDiv, innerBar } = getSeekElements();
       mockSeekBarRect(innerBar, { left: 0, width: 200, right: 200 });
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       fireEvent.mouseDown(sliderDiv, { clientX: 100 }); // 50% of 200
 
-      expect(audio.currentTime).toBeCloseTo(60, 0); // 50% of duration=120
+      // Should seek to 50% of duration=120 => 60
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 60 });
 
       // Clean up document listeners
       act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
     });
 
-    it('mousemove during seek updates currentTime', async () => {
-      const audio = await setupReadyPlayer();
+    it('mousemove during seek invokes audio_seek', async () => {
+      await setupReadyPlayer();
       const { sliderDiv, innerBar } = getSeekElements();
       mockSeekBarRect(innerBar, { left: 0, width: 200, right: 200 });
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       fireEvent.mouseDown(sliderDiv, { clientX: 100 });
-      expect(audio.currentTime).toBeCloseTo(60, 0);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 60 });
 
       // Simulate mousemove on document (handler attached to document)
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       act(() => {
         document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, bubbles: true }));
       });
 
-      expect(audio.currentTime).toBeCloseTo(90, 0); // 75% of 120
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 90 }); // 75% of 120
 
       // Clean up document listeners
       act(() => {
@@ -1757,7 +1482,7 @@ describe('AudioPlayer component', () => {
     });
 
     it('mouseup stops seeking', async () => {
-      const audio = await setupReadyPlayer();
+      await setupReadyPlayer();
       const { sliderDiv, innerBar } = getSeekElements();
       mockSeekBarRect(innerBar, { left: 0, width: 200, right: 200 });
 
@@ -1767,31 +1492,37 @@ describe('AudioPlayer component', () => {
         document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       });
 
-      // After mouseup, further mousemove should NOT change currentTime
-      const timeAfterUp = audio.currentTime;
+      // After mouseup, further mousemove should NOT invoke additional audio_seek
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       act(() => {
         document.dispatchEvent(new MouseEvent('mousemove', { clientX: 180, bubbles: true }));
       });
 
-      expect(audio.currentTime).toBe(timeAfterUp);
+      // No new seek calls after mouseup
+      expect(mockInvoke).not.toHaveBeenCalledWith('audio_seek', expect.anything());
     });
 
     it('clamps seek ratio to [0, 1]', async () => {
-      const audio = await setupReadyPlayer();
+      await setupReadyPlayer();
       const { sliderDiv, innerBar } = getSeekElements();
       mockSeekBarRect(innerBar, { left: 100, width: 200, right: 300 });
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       // Click before the bar (clientX < left)
       fireEvent.mouseDown(sliderDiv, { clientX: 50 });
-      expect(audio.currentTime).toBe(0);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 0 });
 
       act(() => {
         document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       });
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       // Click past the bar (clientX > right)
       fireEvent.mouseDown(sliderDiv, { clientX: 400 });
-      expect(audio.currentTime).toBe(120); // duration
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 120 }); // duration
 
       act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
     });
@@ -1802,16 +1533,11 @@ describe('AudioPlayer component', () => {
   describe('Waveform mouse seek', () => {
     async function setupReadyPlayer() {
       renderPlayer();
-      const audio = document.querySelector('audio')!;
-      makeAudioControllable(audio);
-      await fireCanPlay();
+      await waitForReady();
       await flushMicrotasks();
-      return audio;
     }
 
     function getWaveformContainer(): HTMLElement {
-      // The waveform container has class "cursor-pointer" and contains canvases.
-      // It's the div with ref={waveformContainerRef} and onMouseDown={handleWaveformMouseDown}.
       const canvases = document.querySelectorAll('canvas');
       expect(canvases.length).toBeGreaterThan(0);
       const container = canvases[0].parentElement!;
@@ -1819,7 +1545,7 @@ describe('AudioPlayer component', () => {
     }
 
     it('click at 50% width seeks to 50% of duration', async () => {
-      const audio = await setupReadyPlayer();
+      await setupReadyPlayer();
       const container = getWaveformContainer();
 
       container.getBoundingClientRect = vi.fn().mockReturnValue({
@@ -1827,14 +1553,16 @@ describe('AudioPlayer component', () => {
         toJSON: () => ({}),
       });
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       fireEvent.mouseDown(container, { clientX: 240 }); // 50%
-      expect(audio.currentTime).toBeCloseTo(60, 0);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 60 });
 
       act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
     });
 
     it('click at left edge seeks to start', async () => {
-      const audio = await setupReadyPlayer();
+      await setupReadyPlayer();
       const container = getWaveformContainer();
 
       container.getBoundingClientRect = vi.fn().mockReturnValue({
@@ -1842,14 +1570,16 @@ describe('AudioPlayer component', () => {
         toJSON: () => ({}),
       });
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       fireEvent.mouseDown(container, { clientX: 0 }); // 0%
-      expect(audio.currentTime).toBe(0);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 0 });
 
       act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
     });
 
     it('click at right edge seeks to end', async () => {
-      const audio = await setupReadyPlayer();
+      await setupReadyPlayer();
       const container = getWaveformContainer();
 
       container.getBoundingClientRect = vi.fn().mockReturnValue({
@@ -1857,8 +1587,10 @@ describe('AudioPlayer component', () => {
         toJSON: () => ({}),
       });
 
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
       fireEvent.mouseDown(container, { clientX: 480 }); // 100%
-      expect(audio.currentTime).toBeCloseTo(120, 0);
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 120 });
 
       act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
     });

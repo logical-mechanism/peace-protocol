@@ -500,6 +500,9 @@ pub fn run() {
             let port = start_media_server(media_dir);
             app.manage(MediaServerPort(port));  // None if bind failed — streaming degrades gracefully
 
+            // Audio playback via rodio (bypasses WebKitGTK/GStreamer)
+            app.manage(commands::audio::AudioPlayback::new());
+
             // Warn frontend if config fell back to defaults
             if config_used_defaults {
                 let _ = app.emit(
@@ -635,6 +638,15 @@ pub fn run() {
             commands::updater::get_current_version,
             commands::updater::check_for_update,
             commands::updater::download_update,
+            // Audio playback commands (rodio — bypasses WebKitGTK/GStreamer)
+            commands::audio::audio_play,
+            commands::audio::audio_pause,
+            commands::audio::audio_resume,
+            commands::audio::audio_stop,
+            commands::audio::audio_seek,
+            commands::audio::audio_set_volume,
+            commands::audio::audio_set_speed,
+            commands::audio::audio_get_status,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
