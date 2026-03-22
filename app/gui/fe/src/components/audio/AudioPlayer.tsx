@@ -317,9 +317,9 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
   }
 
   const transportBtn =
-    'w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-tertiary)] transition-colors cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]';
+    'w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-tertiary)] active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]';
   const transportBtnLg =
-    'w-10 h-10 flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 active:bg-[var(--accent)]/30 transition-colors cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]';
+    'w-10 h-10 flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 active:bg-[var(--accent)]/30 active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]';
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -434,7 +434,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
         {/* Seek Bar */}
         <div className="flex-1">
           <div
-            className="py-1.5 cursor-pointer relative"
+            className="group py-1.5 cursor-pointer relative"
             onMouseDown={handleSeekMouseDown}
             onMouseMove={handleSeekBarMouseMove}
             onMouseLeave={handleSeekBarMouseLeave}
@@ -455,14 +455,14 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             />
             <div
               ref={seekBarRef}
-              className="h-1.5 bg-[var(--bg-tertiary)] rounded-full relative"
+              className="h-1.5 group-hover:h-2 bg-[var(--bg-tertiary)] rounded-full relative transition-all duration-150"
             >
               <div
                 className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)] opacity-70"
                 style={{ width: `${progress}%` }}
               />
               <div
-                className="absolute top-1/2 w-3 h-3 rounded-full bg-[var(--accent)] shadow-sm pointer-events-none opacity-0 hover:opacity-100 transition-opacity"
+                className="absolute top-1/2 w-3 h-3 rounded-full bg-[var(--accent)] shadow-sm pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ left: `${progress}%`, transform: 'translateX(-50%) translateY(-50%)' }}
               />
             </div>
@@ -486,7 +486,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
 
           <button
             onClick={isPlaying ? pause : play}
-            className={transportBtnLg}
+            className={`${transportBtnLg}${isPlaying ? ' ring-2 ring-[var(--accent)]/30' : ''}${!isReady ? ' !cursor-not-allowed' : ''}`}
             title={isPlaying ? 'Pause' : 'Play'}
             aria-label={isPlaying ? 'Pause' : 'Play'}
             aria-pressed={isPlaying}
