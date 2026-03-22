@@ -640,6 +640,7 @@ pub fn run() {
             commands::audio::audio_seek,
             commands::audio::audio_set_volume,
             commands::audio::audio_set_speed,
+            commands::audio::audio_set_loop,
             commands::audio::audio_get_status,
         ])
         .build(tauri::generate_context!())

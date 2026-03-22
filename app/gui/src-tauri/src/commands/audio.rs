@@ -26,6 +26,8 @@ struct AudioInner {
     _handle: rodio::OutputStreamHandle,
     sink: rodio::Sink,
     duration_secs: f64,
+    file_path: String,
+    loop_enabled: bool,
     // Keep the stream alive via a join handle — dropping it stops audio.
     _keep_alive: std::sync::Arc<KeepAlive>,
 }
@@ -55,6 +57,7 @@ impl AudioPlayback {
 pub struct AudioStatus {
     pub loaded: bool,
     pub playing: bool,
+    pub finished: bool,
     pub position_secs: f64,
     pub duration_secs: f64,
     pub volume: f32,
@@ -126,6 +129,8 @@ pub fn audio_play(
         _handle: stream_handle,
         sink,
         duration_secs,
+        file_path: path,
+        loop_enabled: false,
         _keep_alive: keep_alive,
     });
 
@@ -199,22 +204,60 @@ pub fn audio_set_speed(state: tauri::State<'_, AudioPlayback>, speed: f32) -> Re
     Ok(())
 }
 
+/// Enable or disable loop mode.
+#[tauri::command]
+pub fn audio_set_loop(state: tauri::State<'_, AudioPlayback>, enabled: bool) -> Result<(), String> {
+    let mut guard = state.inner.lock().map_err(|e| e.to_string())?;
+    if let Some(inner) = guard.as_mut() {
+        inner.loop_enabled = enabled;
+    }
+    Ok(())
+}
+
 /// Get current playback status (position, playing, volume, etc.).
-/// Called by the frontend on a ~100ms polling interval during playback.
+/// Called by the frontend on a polling interval.
+/// When loop is enabled and the sink empties, this re-opens the file
+/// and appends it to the sink — no IPC round trip for gapless looping.
 #[tauri::command]
 pub fn audio_get_status(state: tauri::State<'_, AudioPlayback>) -> Result<AudioStatus, String> {
-    let guard = state.inner.lock().map_err(|e| e.to_string())?;
-    Ok(match guard.as_ref() {
-        Some(inner) => AudioStatus {
-            loaded: true,
-            playing: !inner.sink.is_paused() && !inner.sink.empty(),
-            position_secs: inner.sink.get_pos().as_secs_f64(),
-            duration_secs: inner.duration_secs,
-            volume: inner.sink.volume(),
-        },
+    let mut guard = state.inner.lock().map_err(|e| e.to_string())?;
+    Ok(match guard.as_mut() {
+        Some(inner) => {
+            let sink_empty = inner.sink.empty();
+            let is_playing = !inner.sink.is_paused() && !sink_empty;
+            let finished = sink_empty && !inner.sink.is_paused();
+
+            // Rust-side loop: re-open file when track ends with loop enabled
+            if finished && inner.loop_enabled {
+                if let Ok(file) = File::open(&inner.file_path) {
+                    if let Ok(source) = rodio::Decoder::new(BufReader::new(file)) {
+                        inner.sink.append(source);
+                        inner.sink.play();
+                        return Ok(AudioStatus {
+                            loaded: true,
+                            playing: true,
+                            finished: false,
+                            position_secs: 0.0,
+                            duration_secs: inner.duration_secs,
+                            volume: inner.sink.volume(),
+                        });
+                    }
+                }
+            }
+
+            AudioStatus {
+                loaded: true,
+                playing: is_playing,
+                finished,
+                position_secs: inner.sink.get_pos().as_secs_f64(),
+                duration_secs: inner.duration_secs,
+                volume: inner.sink.volume(),
+            }
+        }
         None => AudioStatus {
             loaded: false,
             playing: false,
+            finished: false,
             position_secs: 0.0,
             duration_secs: 0.0,
             volume: 0.0,

@@ -46,6 +46,7 @@ export function getConversionHint(ext: string): string | null {
 interface AudioStatus {
   loaded: boolean;
   playing: boolean;
+  finished: boolean;
   position_secs: number;
   duration_secs: number;
   volume: number;
@@ -108,20 +109,16 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
       if (status.duration_secs > 0) setDuration(status.duration_secs);
       onTimeUpdateRef.current?.(status.position_secs, status.duration_secs || effectiveDurationRef.current);
 
-      if (!status.playing && isPlayingRef.current) {
-        // Playback ended
+      // Track finished (Rust handles looping — if loop_enabled, it re-opens
+      // the file server-side so `finished` stays false)
+      if (status.finished && isPlayingRef.current) {
         isPlayingRef.current = false;
         setIsPlaying(false);
-
-        // Handle looping
-        if (isLoopingRef.current) {
-          try {
-            await invoke('audio_seek', { positionSecs: 0.0 });
-            await invoke('audio_resume');
-            isPlayingRef.current = true;
-            setIsPlaying(true);
-          } catch { /* ignore loop retry errors */ }
-        }
+      }
+      // Sync playing state from Rust (e.g., after Rust-side loop restart)
+      if (status.playing && !isPlayingRef.current) {
+        isPlayingRef.current = true;
+        setIsPlaying(true);
       }
     } catch { /* ignore poll errors during teardown */ }
   }, []);
@@ -271,8 +268,10 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
 
   const toggleLoop = useCallback(() => {
     setIsLooping(prev => {
-      isLoopingRef.current = !prev;
-      return !prev;
+      const next = !prev;
+      isLoopingRef.current = next;
+      invoke('audio_set_loop', { enabled: next }).catch(() => {});
+      return next;
     });
   }, []);
 
