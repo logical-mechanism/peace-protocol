@@ -412,7 +412,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           <span className="text-[var(--text-primary)]">{formatTime(currentTime)}</span>
           <span className="text-[var(--text-muted)] mx-0.5">/</span>
           <span className="opacity-60">
-            {showRemaining ? `\u2212${formatTime(Math.max(0, duration - currentTime))}` : formatTime(duration)}
+            {showRemaining ? `\u2212${formatTime(Math.max(0, duration - currentTime), duration === 0)}` : formatTime(duration, duration === 0)}
           </span>
         </button>
 

@@ -5,6 +5,10 @@ use std::time::Duration;
 
 use rodio::Source;
 use serde::Serialize;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::probe::Hint;
 
 // ── Managed state ───────────────────────────────────────────────────────────
 //
@@ -56,10 +60,29 @@ pub struct AudioStatus {
     pub volume: f32,
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+/// Quick duration probe via symphonia (used when rodio returns 0 for VBR MP3s).
+fn probe_duration(path: &str) -> Option<f64> {
+    let file = File::open(path).ok()?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+    if let Some(ext) = std::path::Path::new(path).extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+    let probed = symphonia::default::get_probe()
+        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+        .ok()?;
+    let track = probed.format.default_track()?;
+    let n_frames = track.codec_params.n_frames?;
+    let sample_rate = track.codec_params.sample_rate? as f64;
+    Some(n_frames as f64 / sample_rate)
+}
+
 // ── Commands ────────────────────────────────────────────────────────────────
 
 /// Start playing an audio file. Stops any current playback first.
-/// Returns the duration in seconds (0 if unknown, e.g. VBR MP3).
+/// Returns the duration in seconds (0 if unknown).
 #[tauri::command]
 pub fn audio_play(
     state: tauri::State<'_, AudioPlayback>,
@@ -85,7 +108,14 @@ pub fn audio_play(
     let source = rodio::Decoder::new(BufReader::new(file))
         .map_err(|e| format!("Cannot decode audio: {e}"))?;
 
-    let duration_secs = source.total_duration().map_or(0.0, |d| d.as_secs_f64());
+    let mut duration_secs = source.total_duration().map_or(0.0, |d| d.as_secs_f64());
+
+    // Fallback: use symphonia to probe duration for VBR MP3s where rodio returns 0
+    if duration_secs == 0.0 {
+        if let Some(dur) = probe_duration(&path) {
+            duration_secs = dur;
+        }
+    }
 
     let sink =
         rodio::Sink::try_new(&stream_handle).map_err(|e| format!("Audio sink error: {e}"))?;

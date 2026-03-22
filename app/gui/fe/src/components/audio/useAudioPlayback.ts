@@ -16,8 +16,9 @@ function getMimeType(ext: string): string {
 }
 export { getMimeType };
 
-export function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '00:00';
+export function formatTime(seconds: number, unknownPlaceholder = false): string {
+  if (!isFinite(seconds) || seconds < 0) return unknownPlaceholder ? '--:--' : '00:00';
+  if (seconds === 0 && unknownPlaceholder) return '--:--';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
