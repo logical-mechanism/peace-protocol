@@ -385,6 +385,13 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
         onMouseDown={handleWaveformMouseDown}
         onMouseMove={handleWaveformMouseMove}
         onMouseLeave={handleWaveformMouseLeave}
+        tabIndex={0}
+        role="slider"
+        aria-label="Audio waveform, click to seek"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration)}
+        aria-valuenow={Math.round(currentTime)}
+        aria-valuetext={formatTime(currentTime)}
       >
         <canvas
           ref={waveformCanvasRef}
@@ -490,6 +497,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             title={isPlaying ? 'Pause' : 'Play'}
             aria-label={isPlaying ? 'Pause' : 'Play'}
             aria-pressed={isPlaying}
+            aria-keyshortcuts="Space"
             aria-describedby={playError ? 'audio-play-error' : undefined}
             disabled={!isReady}
             style={{ opacity: isReady ? 1 : 0.4 }}
@@ -525,6 +533,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}
             aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
             aria-pressed={isLooping}
+            aria-keyshortcuts="l"
           >
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
