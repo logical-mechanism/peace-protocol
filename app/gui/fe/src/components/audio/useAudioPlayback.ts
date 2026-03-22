@@ -282,6 +282,12 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     invoke('audio_set_speed', { speed: next }).catch(() => {});
   }, [playbackRate]);
 
+  const setSpeed = useCallback((speed: number) => {
+    const clamped = Math.round(Math.max(0.5, Math.min(2.0, speed)) * 20) / 20; // clamp + snap to 0.05
+    setPlaybackRate(clamped);
+    invoke('audio_set_speed', { speed: clamped }).catch(() => {});
+  }, []);
+
   const clearPlayError = useCallback(() => setPlayError(null), []);
 
   const mimeType = getMimeType(fileExtension);
@@ -293,6 +299,6 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
       duration: effectiveDuration,
       error, isBuffering, playError, isLooping, isMuted, volume, playbackRate,
     },
-    actions: { play, pause, stop, skipBack, skipForward, seek, setVolume: handleSetVolume, toggleMute, toggleLoop, cycleSpeed, clearPlayError },
+    actions: { play, pause, stop, skipBack, skipForward, seek, setVolume: handleSetVolume, toggleMute, toggleLoop, cycleSpeed, setSpeed, clearPlayError },
   };
 }

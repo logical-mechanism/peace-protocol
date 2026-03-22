@@ -87,12 +87,31 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
   });
 
   const { isReady, isPlaying, currentTime, duration, error, isBuffering, playError, isLooping, isMuted, volume, playbackRate } = state;
-  const { play, pause, stop, skipBack, skipForward, seek, setVolume, toggleMute, toggleLoop, cycleSpeed, clearPlayError } = actions;
+  const { play, pause, stop, skipBack, skipForward, seek, setVolume, toggleMute, toggleLoop, cycleSpeed, setSpeed, clearPlayError } = actions;
 
   const [showRemaining, setShowRemaining] = useState(false);
 
   // Keyboard hints toggle
   const [showKeyHints, setShowKeyHints] = useState(false);
+  // Speed popover (right-click on speed button)
+  const [showSpeedPopover, setShowSpeedPopover] = useState(false);
+
+  // Close speed popover on click-outside or Escape
+  useEffect(() => {
+    if (!showSpeedPopover) return;
+    const close = () => setShowSpeedPopover(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    // Delay listener to avoid catching the same right-click event
+    const id = setTimeout(() => {
+      document.addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+    }, 0);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showSpeedPopover]);
 
   // Seek refs
   const seekBarRef = useRef<HTMLDivElement | null>(null);
@@ -512,14 +531,40 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             </svg>
           </button>
 
-          <button
-            onClick={cycleSpeed}
-            className={`${transportBtn} text-[10px] font-bold tracking-tight min-w-[32px] ${playbackRate !== 1 ? '!text-[var(--accent)]' : ''}`}
-            title={`Speed: ${playbackRate}x (S)`}
-            aria-label={`Playback speed: ${playbackRate}x`}
-          >
-            {playbackRate}x
-          </button>
+          <div className="relative">
+            <button
+              onClick={cycleSpeed}
+              onContextMenu={(e) => { e.preventDefault(); setShowSpeedPopover(v => !v); }}
+              className={`${transportBtn} text-[10px] font-bold tracking-tight min-w-[32px] ${playbackRate !== 1 ? '!text-[var(--accent)]' : ''}`}
+              title={`Speed: ${playbackRate}x (S) · Right-click for slider`}
+              aria-label={`Playback speed: ${playbackRate}x`}
+            >
+              {playbackRate}x
+            </button>
+            {showSpeedPopover && (
+              <div
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[var(--radius-md)] px-3 py-2 z-30 shadow-lg flex flex-col items-center gap-1.5 min-w-[80px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-[10px] font-mono text-[var(--text-primary)] font-bold">{playbackRate.toFixed(2)}x</span>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.05"
+                  value={playbackRate}
+                  onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                  className="audio-volume-slider w-16"
+                  style={{ '--volume-pct': `${((playbackRate - 0.5) / 1.5) * 100}%` } as CSSProperties}
+                  aria-label="Fine speed control"
+                />
+                <div className="flex justify-between w-full text-[9px] text-[var(--text-muted)]">
+                  <span>0.5x</span>
+                  <span>2x</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           <span className="w-px h-5 bg-[var(--border)] mx-1" />
 

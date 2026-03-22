@@ -44,5 +44,6 @@ export interface AudioPlaybackActions {
   toggleMute: () => void;
   toggleLoop: () => void;
   cycleSpeed: () => void;
+  setSpeed: (speed: number) => void;
   clearPlayError: () => void;
 }
