@@ -79,6 +79,7 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
 
   const isPlayingRef = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollIntervalRef = useRef(1000); // start slow; switch to 100ms when playing
   const volumeBeforeMuteRef = useRef(0.75);
   const isLoopingRef = useRef(false);
 
@@ -97,35 +98,38 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
 
   // ── Polling for playback status ────────────────────────────────────
 
-  const startPolling = useCallback(() => {
-    if (pollRef.current) return;
-    pollRef.current = setInterval(async () => {
-      try {
-        const status = await invoke<AudioStatus>('audio_get_status');
-        if (!status.loaded) return;
+  const pollCallback = useCallback(async () => {
+    try {
+      const status = await invoke<AudioStatus>('audio_get_status');
+      if (!status.loaded) return;
 
-        setCurrentTime(status.position_secs);
-        if (status.duration_secs > 0) setDuration(status.duration_secs);
-        onTimeUpdateRef.current?.(status.position_secs, status.duration_secs || effectiveDurationRef.current);
+      setCurrentTime(status.position_secs);
+      if (status.duration_secs > 0) setDuration(status.duration_secs);
+      onTimeUpdateRef.current?.(status.position_secs, status.duration_secs || effectiveDurationRef.current);
 
-        if (!status.playing && isPlayingRef.current) {
-          // Playback ended
-          isPlayingRef.current = false;
-          setIsPlaying(false);
+      if (!status.playing && isPlayingRef.current) {
+        // Playback ended
+        isPlayingRef.current = false;
+        setIsPlaying(false);
 
-          // Handle looping
-          if (isLoopingRef.current) {
-            try {
-              await invoke('audio_seek', { positionSecs: 0.0 });
-              await invoke('audio_resume');
-              isPlayingRef.current = true;
-              setIsPlaying(true);
-            } catch { /* ignore loop retry errors */ }
-          }
+        // Handle looping
+        if (isLoopingRef.current) {
+          try {
+            await invoke('audio_seek', { positionSecs: 0.0 });
+            await invoke('audio_resume');
+            isPlayingRef.current = true;
+            setIsPlaying(true);
+          } catch { /* ignore loop retry errors */ }
         }
-      } catch { /* ignore poll errors during teardown */ }
-    }, 100);
+      }
+    } catch { /* ignore poll errors during teardown */ }
   }, []);
+
+  const startPolling = useCallback((intervalMs = 1000) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollIntervalRef.current = intervalMs;
+    pollRef.current = setInterval(pollCallback, intervalMs);
+  }, [pollCallback]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -133,6 +137,14 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
       pollRef.current = null;
     }
   }, []);
+
+  /** Switch polling speed: 100ms when playing, 1000ms when paused */
+  const setPollRate = useCallback((playing: boolean) => {
+    const target = playing ? 100 : 1000;
+    if (pollRef.current && pollIntervalRef.current !== target) {
+      startPolling(target);
+    }
+  }, [startPolling]);
 
   // ── Load audio on mount / when file changes ───────────────────────
 
@@ -192,17 +204,19 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
       isPlayingRef.current = true;
       setIsPlaying(true);
       setPlayError(null);
+      setPollRate(true);
     }).catch(err => {
       console.error('Failed to play:', err);
       setPlayError('Failed to play audio. Try again or save the file to open with an external player.');
     });
-  }, [isReady]);
+  }, [isReady, setPollRate]);
 
   const pause = useCallback(() => {
     invoke('audio_pause').catch(() => {});
     isPlayingRef.current = false;
     setIsPlaying(false);
-  }, []);
+    setPollRate(false);
+  }, [setPollRate]);
 
   const stop = useCallback(() => {
     invoke('audio_pause').catch(() => {});
@@ -210,7 +224,8 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     isPlayingRef.current = false;
     setIsPlaying(false);
     setCurrentTime(0);
-  }, []);
+    setPollRate(false);
+  }, [setPollRate]);
 
   const skipBack = useCallback(() => {
     if (!isReady) return;
