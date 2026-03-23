@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // ── Mocks (hoisted before imports) ──────────────────────────────────
@@ -99,24 +99,16 @@ async function flushMicrotasks() {
 
 /** Wait for the player to become ready (IPC load sequence completes). */
 async function waitForReady() {
-  // The useAudioPlayback effect chains multiple await invoke() calls.
-  // Each flushMicrotasks() resolves one level of the promise chain.
-  await flushMicrotasks();
-  await flushMicrotasks();
-  await flushMicrotasks();
-  await flushMicrotasks();
-  await flushMicrotasks();
-  await flushMicrotasks();
-  expect(screen.getByText('Ready')).toBeInTheDocument();
+  await waitFor(() => {
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+  });
 }
 
 /** Wait for the IPC load error to appear. */
 async function waitForError() {
-  for (let i = 0; i < 10; i++) {
-    await flushMicrotasks();
-    if (screen.queryByText(/Failed to load audio/)) return;
-  }
-  expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
+  await waitFor(() => {
+    expect(screen.getByText(/Failed to load audio/)).toBeInTheDocument();
+  });
 }
 
 // Mock canvas getContext for jsdom (jsdom throws "Not implemented" otherwise)
