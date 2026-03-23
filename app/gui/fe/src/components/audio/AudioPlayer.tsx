@@ -355,7 +355,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
       {/* Waveform Visualization */}
       <div
         ref={waveformContainerRef}
-        className="mx-3 relative cursor-pointer rounded-[var(--radius-sm)] overflow-hidden"
+        className="mx-3 relative cursor-pointer rounded-[var(--radius-sm)] overflow-hidden hover:brightness-110 transition-[filter] duration-150"
         onMouseDown={handleWaveformMouseDown}
         onMouseMove={handleWaveformMouseMove}
         onMouseLeave={handleWaveformMouseLeave}
