@@ -25,7 +25,6 @@ export interface AudioPlaybackState {
   currentTime: number;
   duration: number;
   error: string | null;
-  isBuffering: boolean;
   playError: string | null;
   isLooping: boolean;
   isMuted: boolean;

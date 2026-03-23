@@ -408,9 +408,8 @@ describe('waveform pixel skip optimization', () => {
   });
 });
 
-function getStatusText(isReady: boolean, isBuffering: boolean, isPlaying: boolean, currentTime: number): string {
+function getStatusText(isReady: boolean, isPlaying: boolean, currentTime: number): string {
   if (!isReady) return 'Loading';
-  if (isBuffering && isPlaying) return 'Buffering';
   if (isPlaying) return 'Playing';
   if (currentTime > 0) return 'Paused';
   return 'Ready';
@@ -418,31 +417,23 @@ function getStatusText(isReady: boolean, isBuffering: boolean, isPlaying: boolea
 
 describe('LED status display priority', () => {
   it('shows Loading when not ready', () => {
-    expect(getStatusText(false, false, false, 0)).toBe('Loading');
+    expect(getStatusText(false, false, 0)).toBe('Loading');
   });
 
   it('Loading takes priority over all other states', () => {
-    expect(getStatusText(false, true, true, 100)).toBe('Loading');
+    expect(getStatusText(false, true, 100)).toBe('Loading');
   });
 
-  it('shows Buffering when playing and buffering', () => {
-    expect(getStatusText(true, true, true, 50)).toBe('Buffering');
-  });
-
-  it('shows Playing when playing normally (not buffering)', () => {
-    expect(getStatusText(true, false, true, 50)).toBe('Playing');
+  it('shows Playing when playing', () => {
+    expect(getStatusText(true, true, 50)).toBe('Playing');
   });
 
   it('shows Paused when stopped with progress', () => {
-    expect(getStatusText(true, false, false, 30)).toBe('Paused');
+    expect(getStatusText(true, false, 30)).toBe('Paused');
   });
 
   it('shows Ready at initial state', () => {
-    expect(getStatusText(true, false, false, 0)).toBe('Ready');
-  });
-
-  it('does not show Buffering when paused (buffering flag stale)', () => {
-    expect(getStatusText(true, true, false, 30)).toBe('Paused');
+    expect(getStatusText(true, false, 0)).toBe('Ready');
   });
 });
 

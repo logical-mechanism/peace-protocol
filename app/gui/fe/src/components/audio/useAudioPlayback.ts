@@ -76,7 +76,6 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
   const [isLooping, setIsLooping] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
   const [playError, setPlayError] = useState<string | null>(null);
 
   const isPlayingRef = useRef(false);
@@ -164,7 +163,6 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
       setCurrentTime(0);
       setDuration(0);
       setPlaybackRate(1.0);
-      setIsBuffering(false);
       setPlayError(null);
 
       try {
@@ -297,7 +295,7 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     state: {
       isReady, isPlaying, currentTime,
       duration: effectiveDuration,
-      error, isBuffering, playError, isLooping, isMuted, volume, playbackRate,
+      error, playError, isLooping, isMuted, volume, playbackRate,
     },
     actions: { play, pause, stop, skipBack, skipForward, seek, setVolume: handleSetVolume, toggleMute, toggleLoop, cycleSpeed, setSpeed, clearPlayError },
   };

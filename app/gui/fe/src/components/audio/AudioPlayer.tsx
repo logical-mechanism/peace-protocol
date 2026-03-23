@@ -86,7 +86,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
     onSeeked: forceRedraw,
   });
 
-  const { isReady, isPlaying, currentTime, duration, error, isBuffering, playError, isLooping, isMuted, volume, playbackRate } = state;
+  const { isReady, isPlaying, currentTime, duration, error, playError, isLooping, isMuted, volume, playbackRate } = state;
   const { play, pause, stop, skipBack, skipForward, seek, setVolume, toggleMute, toggleLoop, cycleSpeed, setSpeed, clearPlayError } = actions;
 
   const [showRemaining, setShowRemaining] = useState(false);
@@ -450,7 +450,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
 
         {/* Status */}
         <span className="text-[10px] font-medium tracking-wide text-[var(--text-muted)] uppercase shrink-0" aria-live="polite" aria-atomic="true">
-          {!isReady ? 'Loading' : isBuffering && isPlaying ? 'Buffering' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
+          {!isReady ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
         </span>
       </div>
 
