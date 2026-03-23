@@ -79,6 +79,7 @@ function setupDefaultInvokeMock() {
 }
 
 import AudioPlayer from '../audio';
+import { formatTime, getMimeType, getConversionHint, computeSeekRatio, computeTooltipLeft } from '../audio';
 import { fftInPlace, normalizeWaveform } from '../audio/audioPlayerUtils';
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -142,42 +143,7 @@ beforeEach(() => {
   setupDefaultInvokeMock();
 });
 
-// ── Pure utility function tests (migrated from AudioPlayer.test.ts) ─
-
-function getMimeType(ext: string): string {
-  const map: Record<string, string> = {
-    '.mp3': 'audio/mpeg',
-    '.wav': 'audio/wav',
-    '.flac': 'audio/flac',
-    '.ogg': 'audio/ogg',
-    '.aac': 'audio/aac',
-    '.m4a': 'audio/mp4',
-    '.opus': 'audio/opus',
-  };
-  return map[ext.toLowerCase()] || 'audio/mpeg';
-}
-
-function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return '00:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-function getConversionHint(ext: string): string | null {
-  const hints: Record<string, string> = {
-    '.flac': 'Try converting to MP3: ffmpeg -i file.flac -q:a 2 output.mp3',
-    '.aac': 'Try converting to MP3: ffmpeg -i file.aac -c:a libmp3lame output.mp3',
-    '.opus': 'Try converting to OGG: ffmpeg -i file.opus -c:a libvorbis output.ogg',
-    '.m4a': 'Try converting to MP3: ffmpeg -i file.m4a -c:a libmp3lame output.mp3',
-    '.wav': 'WAV is usually supported. The file may be corrupted or use an uncommon codec.',
-  };
-  return hints[ext.toLowerCase()] ?? null;
-}
+// ── Pure utility function tests (testing real exports from audio/) ───
 
 function computeWaveformSummary(channels: Float32Array[], buckets: number): Float32Array {
   if (channels.length === 0 || channels[0].length === 0) return new Float32Array(0);
@@ -251,6 +217,19 @@ describe('formatTime', () => {
     expect(formatTime(-Infinity)).toBe('00:00');
     expect(formatTime(-5)).toBe('00:00');
   });
+
+  it('returns --:-- when unknownPlaceholder is true and value is 0', () => {
+    expect(formatTime(0, true)).toBe('--:--');
+  });
+
+  it('returns --:-- for invalid inputs with unknownPlaceholder', () => {
+    expect(formatTime(NaN, true)).toBe('--:--');
+    expect(formatTime(-5, true)).toBe('--:--');
+  });
+
+  it('returns normal time when unknownPlaceholder is true but value is positive', () => {
+    expect(formatTime(65, true)).toBe('01:05');
+  });
 });
 
 describe('getConversionHint', () => {
@@ -266,9 +245,12 @@ describe('getConversionHint', () => {
     expect(getConversionHint('.FLAC')).toContain('ffmpeg');
   });
 
-  it('returns null for extensions without specific hints', () => {
-    expect(getConversionHint('.mp3')).toBeNull();
-    expect(getConversionHint('.ogg')).toBeNull();
+  it('returns hints for .ogg and .mp3', () => {
+    expect(getConversionHint('.ogg')).toContain('ffmpeg');
+    expect(getConversionHint('.mp3')).toContain('corrupted');
+  });
+
+  it('returns null for unknown extensions', () => {
     expect(getConversionHint('.xyz')).toBeNull();
   });
 });
@@ -299,64 +281,62 @@ describe('remaining time display', () => {
   });
 });
 
-function computeSeekRatio(clientX: number, rectLeft: number, rectWidth: number): number {
-  return Math.max(0, Math.min(1, (clientX - rectLeft) / rectWidth));
-}
-
-function computeTooltipLeft(clientX: number, rectLeft: number, rectWidth: number, halfWidth: number): number {
-  const rawLeft = clientX - rectLeft;
-  return Math.max(halfWidth, Math.min(rectWidth - halfWidth, rawLeft));
+/** Helper to create a partial DOMRect for testing. */
+function makeRect(left: number, width: number): DOMRect {
+  return { left, width, right: left + width, top: 0, bottom: 20, height: 20, x: left, y: 0, toJSON: () => ({}) } as DOMRect;
 }
 
 describe('computeSeekRatio', () => {
   it('computes correct ratio for mid-bar positions', () => {
-    expect(computeSeekRatio(150, 100, 200)).toBeCloseTo(0.25);
-    expect(computeSeekRatio(200, 100, 200)).toBeCloseTo(0.5);
-    expect(computeSeekRatio(250, 100, 200)).toBeCloseTo(0.75);
+    const rect = makeRect(100, 200);
+    expect(computeSeekRatio(150, rect)).toBeCloseTo(0.25);
+    expect(computeSeekRatio(200, rect)).toBeCloseTo(0.5);
+    expect(computeSeekRatio(250, rect)).toBeCloseTo(0.75);
   });
 
   it('clamps to 0 when clicking left of the container', () => {
-    expect(computeSeekRatio(50, 100, 200)).toBe(0);
-    expect(computeSeekRatio(0, 100, 200)).toBe(0);
+    const rect = makeRect(100, 200);
+    expect(computeSeekRatio(50, rect)).toBe(0);
+    expect(computeSeekRatio(0, rect)).toBe(0);
   });
 
   it('clamps to 1 when clicking right of the container', () => {
-    expect(computeSeekRatio(350, 100, 200)).toBe(1);
-    expect(computeSeekRatio(500, 100, 200)).toBe(1);
+    const rect = makeRect(100, 200);
+    expect(computeSeekRatio(350, rect)).toBe(1);
+    expect(computeSeekRatio(500, rect)).toBe(1);
   });
 
   it('returns 0 for exact left edge', () => {
-    expect(computeSeekRatio(100, 100, 200)).toBe(0);
+    expect(computeSeekRatio(100, makeRect(100, 200))).toBe(0);
   });
 
   it('returns 1 for exact right edge', () => {
-    expect(computeSeekRatio(300, 100, 200)).toBe(1);
+    expect(computeSeekRatio(300, makeRect(100, 200))).toBe(1);
   });
 });
 
 describe('computeTooltipLeft', () => {
   const halfW = 28;
-  const rectLeft = 50;
-  const rectWidth = 400;
+  const rect = makeRect(50, 400);
 
   it('positions tooltip at cursor when in middle of container', () => {
-    expect(computeTooltipLeft(250, rectLeft, rectWidth, halfW)).toBe(200);
+    expect(computeTooltipLeft(250, rect, halfW)).toBe(200);
   });
 
   it('clamps tooltip to left edge to prevent overflow', () => {
-    expect(computeTooltipLeft(60, rectLeft, rectWidth, halfW)).toBe(halfW);
+    expect(computeTooltipLeft(60, rect, halfW)).toBe(halfW);
   });
 
   it('clamps tooltip to right edge to prevent overflow', () => {
-    expect(computeTooltipLeft(445, rectLeft, rectWidth, halfW)).toBe(rectWidth - halfW);
+    expect(computeTooltipLeft(445, rect, halfW)).toBe(400 - halfW);
   });
 
   it('returns halfWidth when cursor is at container left edge', () => {
-    expect(computeTooltipLeft(rectLeft, rectLeft, rectWidth, halfW)).toBe(halfW);
+    expect(computeTooltipLeft(50, rect, halfW)).toBe(halfW);
   });
 
   it('returns rectWidth - halfWidth when cursor is at container right edge', () => {
-    expect(computeTooltipLeft(rectLeft + rectWidth, rectLeft, rectWidth, halfW)).toBe(rectWidth - halfW);
+    expect(computeTooltipLeft(450, rect, halfW)).toBe(400 - halfW);
   });
 });
 
