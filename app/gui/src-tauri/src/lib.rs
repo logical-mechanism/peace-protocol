@@ -59,6 +59,7 @@ fn media_mime_type(path: &str) -> &'static str {
         "m2ts" => "video/mp2t",
         "wmv" => "video/x-ms-wmv",
         "wma" => "audio/x-ms-wma",
+        "raw" | "bin" => "application/octet-stream",
         "vtt" => "text/vtt",
         "srt" => "text/plain; charset=utf-8",
         _ => "application/octet-stream",
@@ -106,7 +107,7 @@ async fn serve_media_file(
     use std::io::{Read, Seek, SeekFrom};
 
     let raw_path = request.uri().path();
-    let decoded = percent_encoding::percent_decode(&raw_path.as_bytes()[1..])
+    let decoded = percent_encoding::percent_decode(raw_path.as_bytes())
         .decode_utf8_lossy()
         .to_string();
 
@@ -115,7 +116,13 @@ async fn serve_media_file(
     // Security: resolved path must be within the media directory
     let canonical = match std::fs::canonicalize(path) {
         Ok(p) => p,
-        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            eprintln!(
+                "[media-server] canonicalize failed for {:?}: {}",
+                decoded, e
+            );
+            return StatusCode::NOT_FOUND.into_response();
+        }
     };
     let canonical_media = std::fs::canonicalize(&media_dir).unwrap_or_else(|_| media_dir.clone());
     if !canonical.starts_with(&canonical_media) {
@@ -487,6 +494,9 @@ pub fn run() {
             let port = start_media_server(media_dir);
             app.manage(MediaServerPort(port));  // None if bind failed — streaming degrades gracefully
 
+            // Audio playback via rodio (bypasses WebKitGTK/GStreamer)
+            app.manage(commands::audio::AudioPlayback::new());
+
             // Warn frontend if config fell back to defaults
             if config_used_defaults {
                 let _ = app.emit(
@@ -613,12 +623,26 @@ pub fn run() {
             commands::media::export_library_content,
             commands::media::export_text_file,
             commands::media::open_with_system,
+            // Audio waveform decode + metadata (symphonia)
+            commands::media::decode_audio_waveform,
+            commands::media::decode_audio_waveform_fast,
+            commands::media::decode_audio_metadata,
             // Media streaming server
             get_media_server_port,
             // Updater commands
             commands::updater::get_current_version,
             commands::updater::check_for_update,
             commands::updater::download_update,
+            // Audio playback commands (rodio — bypasses WebKitGTK/GStreamer)
+            commands::audio::audio_play,
+            commands::audio::audio_pause,
+            commands::audio::audio_resume,
+            commands::audio::audio_stop,
+            commands::audio::audio_seek,
+            commands::audio::audio_set_volume,
+            commands::audio::audio_set_speed,
+            commands::audio::audio_set_loop,
+            commands::audio::audio_get_status,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

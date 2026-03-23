@@ -6,7 +6,7 @@ A comprehensive backlog for making the AudioPlayer exceptional. Pick any item, i
 - Native `<audio>` element for playback (routes through GStreamer via WebKitGTK)
 - Separate PCM decode via `OfflineAudioContext` for FFT visualization only
 - Custom Cooley-Tukey radix-2 FFT (1024 samples, 32 bars)
-- Waveform overview (200 buckets, peak-detection downsampling)
+- Waveform overview (480 buckets, peak-detection downsampling via Rust symphonia)
 - WebKitGTK Web Audio API is broken (no AnalyserNode, no AudioWorklet)
 - Styling uses Winamp-themed CSS variables defined in `fe/src/index.css`
 
@@ -17,73 +17,99 @@ Each item:
 
 ---
 
-## 1. Visualization
+## 1. Loading & Decode Performance
 
-> Key files: `fe/src/components/AudioPlayer.tsx`, `fe/src/index.css`
+> Key files: `fe/src/components/AudioPlayer.tsx` (lines 269-315), `src-tauri/src/commands/media.rs` (lines 848-1013), `fe/src/services/libraryService.ts`
 
-- [x] 🟡 **Add peak hold indicators to FFT bars**
-  - **How**: Classic Winamp 2.x signature: a single bright segment sits at each bar's peak and slowly descends. Add a `peakBarsRef = useRef(new Float32Array(BAR_COUNT))` alongside `prevBarsRef`. In `drawFrame()` (line 511), after computing `prevBarsRef.current[i]`, update the peak: `if (prevBarsRef.current[i] > peakBarsRef.current[i]) peakBarsRef.current[i] = prevBarsRef.current[i]; else peakBarsRef.current[i] *= 0.97;`. After drawing each bar's segments (line 519-525), draw the peak dot: `const peakY = height - peakBarsRef.current[i] * height; ctx.fillStyle = gradEnd; ctx.fillRect(x, peakY, barWidth, segH);`. Reset peaks to 0 alongside `prevBarsRef` in the data-loading effect (line 270). In the decay branch (line 529-546), decay peaks too: `peakBarsRef.current[i] *= 0.97;` and draw them the same way.
-  - **Why**: Peak hold dots are the single most recognizable Winamp visual element. Without them, the spectrum analyzer looks generic. Every Winamp clone is defined by these floating peak indicators.
+- [x] 🔴 **Waveform decode blocks on full file read — slow for large files**
+  - **How**: `decode_waveform_sync()` in `media.rs` (line 888) reads ALL samples into a `Vec<f32>` (up to 50M samples = 200MB) before bucketing. For a 10-minute FLAC file this means reading ~50MB of compressed audio, decoding every packet, and accumulating ~100MB of f32 samples — all before the user sees any waveform. Refactor to a streaming approach: compute bucket boundaries from total duration (available from symphonia's track info or first-pass seek), then accumulate per-bucket running averages as packets decode. This avoids storing the full sample vector. Alternatively, use symphonia's seek capability to sample N evenly-spaced chunks (e.g., 480 × 1024-sample windows) instead of decoding the entire file.
+  - **Why**: Users report audio loading takes a long time. The Rust waveform decode is the first thing that runs after `canplay` (line 327) and must complete before the waveform appears. Streaming or sampling would show waveform data in seconds instead of tens of seconds for large files.
 
-- [x] 🟢 **Respect `prefers-reduced-motion` in canvas animation loop**
-  - **How**: In the RAF effect (line 563), read the media query once: `const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;`. If true, skip `startLoop()` at line 603, draw a single static frame of the waveform via `drawWaveformRef.current?.(0)`, and return. The `<audio>` element plays normally — only the canvas FFT bars and waveform animation are suppressed. Users who toggle the OS setting mid-session won't see the change until remount, which is acceptable.
-  - **Why**: The existing `@media (prefers-reduced-motion)` rule in index.css (line 688) disables CSS animations but doesn't affect the JS-driven canvas loop. Users who set reduced motion for vestibular comfort still get 24fps animated bars.
+- [x] 🔴 **FFT decode re-fetches the entire audio file over HTTP**
+  - **How**: After the Rust waveform decode completes, the FFT phase (line 290-298) does `fetch(src)` to download the entire file again via the Axum media server, then passes it to `OfflineAudioContext.decodeAudioData()`. This doubles the I/O for every audio file. Two options: (A) Move FFT sample extraction to Rust — `decode_waveform_sync()` already decodes every packet, so extract a representative PCM chunk (e.g., first 30s, 44.1kHz mono) alongside the waveform and return it as `fft_samples: Vec<f32>` in `WaveformResult`. The frontend can then use this directly for the FFT without any fetch. (B) If keeping OfflineAudioContext, cache the `arrayBuffer` from the first fetch and reuse it, or pipe PCM from Rust.
+  - **Why**: The second HTTP fetch doubles load time. For a 50MB file the user waits for symphonia decode + 50MB HTTP fetch + OfflineAudioContext decode — three serial operations when one Rust decode pass could provide both waveform and FFT data.
 
----
+- [x] 🟡 **Show waveform progressively as Rust decode streams**
+  - **How**: Currently the frontend waits for the entire `decodeAudioWaveform` invoke to resolve (line 275) before drawing anything. If the Rust command is refactored to stream buckets (via Tauri events or chunked responses), the frontend could draw partial waveforms incrementally. Simpler alternative: split the decode into two passes — a fast low-resolution pass (48 buckets from seeking to evenly-spaced positions) that resolves in <1s, followed by a full-resolution pass (480 buckets) that refines the waveform.
+  - **Why**: Users see "Loading audio..." with a spinner for the entire decode duration. A fast initial waveform gives immediate visual feedback while the full decode runs in the background.
 
-## 2. Transport Controls
+- [x] 🟡 **Cache waveform results to avoid re-decoding on re-open**
+  - **How**: The Rust `decode_audio_waveform` command decodes the full file every time the AudioPlayer mounts. Add a disk cache: after computing the waveform, write the 480-float result to `media/content/{category}/{tokenName}/waveform.bin` (1,920 bytes). On subsequent opens, check for the cache file first and return it immediately. The `WaveformResult` already contains `sample_rate`, `duration_secs`, `channels` — include those in the cache header. Invalidation: the audio file is immutable (content-addressed), so no staleness concern.
+  - **Why**: Re-opening the same audio file triggers the full symphonia decode again. A 1.9KB cache file eliminates all decode latency on repeat listens.
 
-> Key files: `fe/src/components/AudioPlayer.tsx`
-
-- [x] 🟡 **Add `L` keyboard shortcut for loop toggle**
-  - **How**: In the global `handleKeyDown` switch statement (line 692-728), add a case after the `m`/`M` case: `case 'l': case 'L': handleToggleLoop(); break;`. Update the key hints overlay (line 1020-1025) to add a new row: `<span><kbd>L</kbd> Loop</span>`. Update the loop button's `title` to include `(L)`: line 1153 → `title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}`.
-  - **Why**: Every other toggle has a keyboard shortcut (Space for play, M for mute) but loop requires a mouse click. Keyboard-only users can't toggle repeat mode.
-
-- [x] 🟡 **Add `S` keyboard shortcut for speed cycling**
-  - **How**: In the same switch statement, add: `case 's': case 'S': handleSpeedChange(); break;`. Update key hints to add `<span><kbd>S</kbd> Speed</span>`. Update the speed button's `title` at line 1166 to append `(S)`. Add `handleSpeedChange` to the `useEffect` dependency array at line 733.
-  - **Why**: Same reasoning as loop — speed cycling is mouse-only. Keyboard users (especially visually impaired) benefit from being able to change speed without finding the small button.
+- [x] 🟡 **`SampleBuffer` allocated per packet in Rust decode loop**
+  - **How**: In `decode_waveform_sync()` (line 923), `SampleBuffer::<f32>::new()` is created inside the packet loop. While symphonia may reuse internal buffers, the `new()` call does allocate. Move the `SampleBuffer` outside the loop and reuse it across packets (symphonia's `copy_interleaved_ref` handles varying frame counts). This reduces allocation pressure for files with many small packets.
+  - **Why**: For a 5-minute MP3 (≈11,500 packets), this creates 11,500 `SampleBuffer` allocations. Reusing one buffer reduces GC pressure and speeds up the decode loop.
 
 ---
 
-## 3. Metadata & Display
+## 2. Visualization & FFT
 
-> Key files: `fe/src/components/AudioPlayer.tsx`
+> Key files: `fe/src/components/AudioPlayer.tsx` (lines 466-601), `fe/src/components/audioPlayerUtils.ts`
 
-- [x] 🟢 **Show bitrate and sample rate in LED display area**
-  - **How**: The `music-metadata` result (line 284) includes `result.format.bitrate` (number, bps) and `result.format.sampleRate` (number, Hz). Extend the `AudioMetadata` interface (line 4) with `bitrate?: number; sampleRate?: number;`. Populate them at line 288: `bitrate: result.format.bitrate, sampleRate: result.format.sampleRate`. Display in the LED row (line 1042-1063) — add a small info section between the time display and status text: `{metadata?.bitrate && <span className="text-[10px] font-mono text-[var(--winamp-led)] opacity-40">{Math.round(metadata.bitrate / 1000)}kbps</span>}` and similarly for sample rate `{Math.round(sampleRate / 1000)}kHz`. Use the `winamp-led-text` class at reduced opacity for the retro look.
-  - **Why**: Winamp 2.x always showed kbps and kHz in the main display. This is expected metadata in a retro audio player and helps users verify file quality at a glance.
+- [x] 🟢 **FFT bars silent when OfflineAudioContext fails but waveform works**
+  - **How**: When FFT decode fails (line 311-313, `vizFailReason = 'fft-decode'`), the FFT canvas is completely blank during playback — only the waveform shows. Consider a fallback: if Rust-side FFT samples are available (see item 1.2), use those. If not, show a subtle "no FFT" indicator in the canvas area instead of blank space, or hide the FFT canvas entirely and expand the waveform to fill both canvas areas.
+  - **Why**: A blank FFT canvas above an active waveform looks like a rendering bug to users unfamiliar with the two-phase decode architecture.
 
-- [x] 🟢 **Add mono/stereo indicator**
-  - **How**: `music-metadata` provides `result.format.numberOfChannels`. Add `channels?: number` to `AudioMetadata`. Display next to bitrate: `{metadata?.channels === 1 ? 'MONO' : metadata?.channels === 2 ? 'STEREO' : null}` using the same `winamp-led-text` class at reduced opacity. Alternatively, use two small LED dots (like Winamp's stereo indicator) — a `<span>` with `bg-[var(--winamp-led)]` when stereo, `opacity-20` when mono.
-  - **Why**: Classic Winamp had a prominent MONO/STEREO indicator in the main display. Fits the retro aesthetic and provides useful technical info.
-
----
-
-## 4. Playback & Stability
-
-> Key files: `fe/src/components/AudioPlayer.tsx`
-
-- [x] 🟢 **Guard against division by zero in drawFrame waveform progress**
-  - **How**: At line 552, `const progressRatio = vizTimeRef.current / duration` can produce `Infinity` if `duration` is 0 but `vizTimeRef.current` is non-zero (theoretically possible with zero-length or corrupt files). Add `if (!isFinite(progressRatio)) return;` after the calculation, before the pixel comparison at line 554. The `duration > 0` guard at line 550 should prevent this, but the Infinity check is a cheap safety net.
-  - **Why**: Prevents a corrupt or zero-length file from causing the waveform to render with an Infinity progress ratio, which would produce NaN pixel values in `drawWaveform`.
+- [x] 🟢 **Gradient object created every frame in drawFrame()**
+  - **How**: `ctx.createLinearGradient()` is called at line 479 inside `drawFrame()`, which runs 24 times/sec. The gradient parameters never change (same canvas height, same colors). Cache the gradient in a ref and only recreate it when theme colors change (detected by the MutationObserver at line 226). Update the ref in the color-reading effect (lines 196-230).
+  - **Why**: Minor optimization — `createLinearGradient` is cheap but unnecessary 24x/sec when the gradient is invariant.
 
 ---
 
-## 5. Testing
+## 3. Playback & Stability
+
+> Key files: `fe/src/components/AudioPlayer.tsx` (lines 317-416)
+
+- [x] 🟢 **Play failure silently sets error string but doesn't render it**
+  - **How**: At line 685, `audio.play()` rejection calls `setError('Failed to play audio.')` but the error UI (lines 963-987) only renders when `error` is truthy AND `!isReady` (checked at line 958: `{error && !isReady && ...}`). If `isReady` is already `true` (which it is after `canplay`), the play error is invisible. Fix: either render play errors separately (e.g., as a toast or inline message below the transport controls), or change the guard to `{error && ...}`.
+  - **Why**: If GStreamer refuses to play (e.g., pipeline error after initial canplay), the user clicks play and nothing happens with no feedback.
+
+---
+
+## 4. Metadata & Display
+
+> Key files: `fe/src/components/AudioPlayer.tsx` (lines 6-16, 86-115, 1022-1048)
+
+- [x] 🟡 **Metadata parsing removed — no title/artist/album display**
+  - **How**: The `AudioMetadata` interface (lines 6-16), `MetadataAlbumArt` component (lines 18-35), and `MarqueeText` (lines 86-115) are all implemented but `metadata` is always `null` (set at line 152, never populated). When the player switched from `Uint8Array` to URL-based streaming, the `music-metadata` parsing was removed. Fix: parse metadata on the Rust side using symphonia's metadata API (symphonia already reads ID3v2, Vorbis comments, etc. during `format.metadata()`). Add fields to `WaveformResult`: `title`, `artist`, `album`, `track_number`, `year`, `bitrate`, `sample_rate`, `channels`, and optionally `picture` (album art bytes + MIME type). The frontend already has the display code — just wire up the data from the invoke response.
+  - **Why**: The Winamp-style player shows only "Veiled Audio" as the title. With metadata, it could show the actual song name, artist, and album art — significantly better UX for a music player.
+
+- [x] 🟢 **No "remaining time" toggle like VideoPlayer**
+  - **How**: AudioPlayer has `showRemaining` state (line 1107) and the LED time toggle button. VideoPlayer has a `T` keyboard shortcut for toggling time display (line 501 in VideoPlayer.tsx). AudioPlayer is missing the `T` shortcut. Add `case 'T': case 't': setShowRemaining(prev => !prev); break;` to the `handleKeyDown` (around line 800) and add it to the keyboard hints display.
+  - **Why**: Feature parity with VideoPlayer; discoverable via keyboard hints overlay.
+
+---
+
+## 5. Accessibility
+
+> Key files: `fe/src/components/AudioPlayer.tsx` (lines 1105-1281)
+
+- [x] 🟢 **LED time toggle could use `role="switch"` semantics**
+  - **How**: The LED time display button (line 1107) uses `aria-label` describing the toggle state but doesn't use `role="switch" aria-checked={showRemaining}`. Adding these attributes lets screen readers announce it as "Showing remaining time, switch, on/off" rather than reading the full descriptive label. The button at line 1109 already has `type="button"`.
+  - **Why**: More semantic and concise for screen reader users; consistent with toggle button patterns elsewhere in the app.
+
+- [x] 🟢 **Error messages not linked to controls via `aria-describedby`**
+  - **How**: The error message container (line 970) is rendered independently. When an error occurs and the user tabs to the play button, there's no `aria-describedby` linking the button to the error message. Add `id="audio-error-msg"` to the error text container and `aria-describedby={error ? 'audio-error-msg' : undefined}` to the play button.
+  - **Why**: Screen reader users tabbing to the play button after an error won't hear the error message unless they navigate to it separately.
+
+---
+
+## 6. Testing
 
 > Key files: `fe/src/components/__tests__/AudioPlayer.test.tsx`
 
-- [x] 🟡 **Add LED time toggle interaction test**
-  - **How**: The LED display at lines 1043-1059 has `role="button"` and `tabIndex={0}` with `onClick` and `onKeyDown` handlers. Add tests in a new `describe('AudioPlayer component → LED time toggle')` block: (1) Click the LED display and verify text changes from total to remaining format (look for the `\u2212` minus sign prefix). (2) Press Enter on the focused LED display and verify the same toggle. (3) Press Space on the LED display. Follow the existing keyboard interaction test patterns (lines ~678-730 in the test file). The LED display can be found via `role="button"` and `title="Click to toggle remaining time"`.
-  - **Why**: The time toggle is an interactive element with keyboard support but has zero test coverage. A regression breaking the toggle or keyboard handler would go undetected.
+- [x] 🟡 **No tests for visualization failure reason display**
+  - **How**: The component shows different messages based on `vizFailReason` ('decode', 'fft-size', 'fft-decode') at lines 1094-1102. Add tests that: (1) trigger Rust waveform decode failure → verify "Visualization unavailable for this format" appears. (2) Mock the HEAD response to return >100MB content-length → verify "FFT bars unavailable (file too large)". (3) Mock OfflineAudioContext to throw → verify "FFT bars unavailable for this format". These states are user-visible but untested.
+  - **Why**: Visualization failure messages are the primary feedback when decode pipelines fail; regressions here would leave users confused.
 
-- [x] 🟢 **Verify speed button cycles `audio.playbackRate`**
-  - **How**: In the existing `describe('AudioPlayer component → button interactions')` block, add a test that: clicks the speed button (find by `aria-label` matching `/playback speed/i`), then asserts the mock audio element's `playbackRate` was set to the next speed value (1.25 after first click from default 1.0). The mock audio element at line ~74 of the test file needs a `playbackRate` property added if not present.
-  - **Why**: The test file verifies the speed button renders "1x" and changes label on click, but never verifies the audio element's `playbackRate` is actually updated. `handleSpeedChange()` (line 893) sets both state and `audioRef.current.playbackRate` — only the state side is implicitly tested.
+- [x] 🟡 **No tests for stalled event → buffering state**
+  - **How**: The `onStalled` handler (line 350) checks `audio.readyState < 3` before setting buffering. Test: (1) fire `stalled` event with `readyState = 2` → verify "Buffering" status shown. (2) fire `stalled` with `readyState = 4` → verify buffering NOT set. Currently only `waiting`/`playing` transitions are tested.
+  - **Why**: The `readyState` guard is a subtle correctness check that could regress without test coverage.
 
-- [x] 🟢 **Verify loop toggle syncs `audio.loop`**
-  - **How**: Similar to speed: in the button interactions block, click the loop button (find by `aria-label` matching `/repeat/i`), then assert `audio.loop` was set to `true`. Click again, assert `audio.loop` is `false`. The `handleToggleLoop` (line 881-887) and the sync effect (line 615-617) both set `audio.loop` — test should verify the element property changes.
-  - **Why**: `aria-pressed` is tested but the actual audio element property sync isn't. A regression in `handleToggleLoop` that updates state but forgets `audioRef.current.loop = next` (line 884) would be invisible.
+- [x] 🟢 **No tests for play() failure error display**
+  - **How**: Mock `audio.play()` to reject with an error. Verify `setError('Failed to play audio.')` is called. Currently (as noted in section 3), this error may not render due to the `!isReady` guard — the test would also document this bug.
+  - **Why**: Documents the play-error rendering gap and prevents regressions once fixed.
 
 ---
 
@@ -91,14 +117,17 @@ Each item:
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| 🔴 Critical | 0 | — |
-| 🟡 Important | 4 | Peak hold indicators, L key loop shortcut, S key speed shortcut, LED toggle test |
-| 🟢 Nice-to-have | 6 | prefers-reduced-motion, bitrate/samplerate display, mono/stereo indicator, division-by-zero guard, speed playbackRate test, loop sync test |
+| 🔴 Critical | 2 | Waveform full-file decode, FFT double-fetch |
+| 🟡 Important | 5 | Progressive waveform, waveform cache, SampleBuffer reuse, metadata parsing, viz failure tests |
+| 🟢 Nice-to-have | 7 | FFT blank fallback, gradient caching, play error rendering, remaining time shortcut, switch role, aria-describedby, play failure tests |
 
 ### Implementation Order (suggested)
 
-1. Peak hold indicators (§1) — highest visual impact, signature Winamp feature
-2. L key loop shortcut (§2) — one-line addition in switch statement
-3. S key speed shortcut (§2) — same pattern as loop shortcut
-4. LED toggle test (§5) — covers untested interactive element
-5. Everything else — in any order
+1. **Waveform cache** (S1) — quickest win, eliminates re-decode on repeat opens
+2. **FFT samples from Rust** (S1) — eliminates the double HTTP fetch, biggest perf improvement
+3. **Streaming/sampling waveform decode** (S1) — reduces first-open decode time dramatically
+4. **Metadata from symphonia** (S4) — enhances the Winamp experience with real song info
+5. **SampleBuffer reuse** (S1) — low-effort decode speedup
+6. **Progressive waveform display** (S1) — better perceived performance
+7. **Play error rendering fix** (S3) — small bug fix
+8. **Everything else** — in any order
