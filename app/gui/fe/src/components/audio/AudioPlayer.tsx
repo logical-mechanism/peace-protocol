@@ -356,6 +356,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
         onMouseDown={handleWaveformMouseDown}
         onMouseMove={handleWaveformMouseMove}
         onMouseLeave={handleWaveformMouseLeave}
+        onKeyDown={handleSeekKeyDown}
         tabIndex={0}
         role="slider"
         aria-label="Audio waveform, click to seek"
