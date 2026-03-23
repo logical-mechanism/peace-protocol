@@ -122,6 +122,22 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
   const seekBarTooltipRef = useRef<HTMLDivElement | null>(null);
   const waveformTooltipRef = useRef<HTMLDivElement | null>(null);
 
+  // Volume scroll wheel
+  const volumeAreaRef = useRef<HTMLDivElement | null>(null);
+  const volumeRef = useRef(volume);
+  useEffect(() => { volumeRef.current = volume; });
+  useEffect(() => {
+    const el = volumeAreaRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      setVolume(Math.max(0, Math.min(1, volumeRef.current + delta)));
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [setVolume]);
+
   // --- Keyboard shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -195,6 +211,42 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
   const handleWaveformMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     createSeekDrag(waveformContainerRef)(e);
   }, [createSeekDrag]);
+
+  // --- Touch seek handlers ---
+  const createTouchSeekDrag = useCallback((
+    containerRef: React.RefObject<HTMLDivElement | null>,
+  ) => (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!containerRef.current || !duration || !isReady) return;
+    e.preventDefault();
+    isSeekingRef.current = true;
+
+    const seekTo = (clientX: number) => {
+      const rect = containerRef.current!.getBoundingClientRect();
+      const ratio = computeSeekRatio(clientX, rect);
+      seek(ratio * duration);
+      drawWaveform(ratio);
+    };
+    seekTo(e.touches[0].clientX);
+
+    const handleTouchMove = (moveE: TouchEvent) => {
+      if (!isSeekingRef.current) return;
+      seekTo(moveE.touches[0].clientX);
+    };
+    const handleTouchEnd = () => {
+      isSeekingRef.current = false;
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+  }, [duration, isReady, seek, drawWaveform]);
+
+  const handleSeekTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    createTouchSeekDrag(seekBarRef)(e);
+  }, [createTouchSeekDrag]);
+  const handleWaveformTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    createTouchSeekDrag(waveformContainerRef)(e);
+  }, [createTouchSeekDrag]);
 
   const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!isReady || !duration) return;
@@ -335,8 +387,9 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           )}
         </div>
         <div className="flex items-center gap-2 ml-2 shrink-0">
-          {(metadata?.sampleRate || metadata?.channels) && (
+          {(metadata?.sampleRate || metadata?.channels || metadata?.bitrate) && (
             <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+              {metadata?.bitrate != null && metadata.bitrate > 0 && <span>{Math.round(metadata.bitrate / 1000)}kbps</span>}
               {metadata?.sampleRate != null && <span>{Math.round(metadata.sampleRate / 1000)}kHz</span>}
               {metadata?.channels != null && (
                 <span>{metadata.channels === 1 ? 'Mono' : metadata.channels === 2 ? 'Stereo' : `${metadata.channels}ch`}</span>
@@ -356,6 +409,8 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
         onMouseDown={handleWaveformMouseDown}
         onMouseMove={handleWaveformMouseMove}
         onMouseLeave={handleWaveformMouseLeave}
+        onTouchStart={handleWaveformTouchStart}
+        onDoubleClick={(e) => { e.preventDefault(); if (isPlaying) pause(); else play(); }}
         onKeyDown={handleSeekKeyDown}
         tabIndex={0}
         role="group"
@@ -413,6 +468,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             onMouseDown={handleSeekMouseDown}
             onMouseMove={handleSeekBarMouseMove}
             onMouseLeave={handleSeekBarMouseLeave}
+            onTouchStart={handleSeekTouchStart}
             onKeyDown={handleSeekKeyDown}
             role="slider"
             tabIndex={0}
@@ -532,9 +588,16 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
                   step="0.05"
                   value={playbackRate}
                   onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowSpeedPopover(false);
+                    }
+                  }}
                   className="audio-volume-slider w-16"
                   style={{ '--volume-pct': `${((playbackRate - 0.5) / 1.5) * 100}%` } as CSSProperties}
                   aria-label="Fine speed control"
+                  autoFocus
                 />
                 <div className="flex justify-between w-full text-[9px] text-[var(--text-muted)]">
                   <span>0.5x</span>
@@ -570,7 +633,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div ref={volumeAreaRef} className="flex items-center gap-2">
           <button
             onClick={toggleMute}
             className="w-6 h-6 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]"
@@ -604,6 +667,9 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             aria-valuenow={volume}
             aria-valuetext={`${Math.round(volume * 100)}%`}
           />
+          <span className="text-[10px] font-mono text-[var(--text-muted)] w-7 text-right tabular-nums select-none">
+            {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
+          </span>
         </div>
       </div>
 

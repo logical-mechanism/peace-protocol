@@ -2,6 +2,11 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { SPEED_OPTIONS } from './audioConstants';
 import { getMimeType } from './audioUtils';
+import {
+  getAudioVolume, setAudioVolume as persistVolume,
+  getAudioMuted, setAudioMuted as persistMuted,
+  getAudioSpeed, setAudioSpeed as persistSpeed,
+} from '../../services/audioPreferences';
 
 // ── Rodio IPC types ─────────────────────────────────────────────────────
 
@@ -32,18 +37,18 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.75);
+  const [volume, setVolume] = useState(() => getAudioVolume());
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLooping, setIsLooping] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1.0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(() => getAudioSpeed());
+  const [isMuted, setIsMuted] = useState(() => getAudioMuted());
   const [playError, setPlayError] = useState<string | null>(null);
 
   const isPlayingRef = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollIntervalRef = useRef(1000); // start slow; switch to 100ms when playing
-  const volumeBeforeMuteRef = useRef(0.75);
+  const volumeBeforeMuteRef = useRef(getAudioVolume());
   const isLoopingRef = useRef(false);
   const volumeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,7 +131,6 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
       setIsPlaying(false);
       setCurrentTime(0);
       setDuration(0);
-      setPlaybackRate(1.0);
       setPlayError(null);
 
       try {
@@ -138,6 +142,15 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
 
         // Immediately pause — we load but don't auto-play
         await invoke('audio_pause');
+
+        // Apply persisted preferences
+        if (getAudioMuted()) {
+          invoke('audio_set_volume', { volume: 0.0 }).catch(() => {});
+        }
+        const savedSpeed = getAudioSpeed();
+        if (savedSpeed !== 1.0) {
+          invoke('audio_set_speed', { speed: savedSpeed }).catch(() => {});
+        }
 
         if (dur > 0) setDuration(dur);
         setIsReady(true);
@@ -213,6 +226,8 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     const clamped = Math.max(0, Math.min(1, v));
     setVolume(clamped);
     setIsMuted(false);
+    persistVolume(clamped);
+    persistMuted(false);
     if (volumeDebounceRef.current) clearTimeout(volumeDebounceRef.current);
     volumeDebounceRef.current = setTimeout(() => {
       invoke('audio_set_volume', { volume: clamped }).catch(() => {});
@@ -223,12 +238,14 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     if (isMuted) {
       // Unmute — restore previous volume
       setIsMuted(false);
+      persistMuted(false);
       invoke('audio_set_volume', { volume: volumeBeforeMuteRef.current }).catch(() => {});
       setVolume(volumeBeforeMuteRef.current);
     } else {
       // Mute — save current volume and set to 0
       volumeBeforeMuteRef.current = volume;
       setIsMuted(true);
+      persistMuted(true);
       invoke('audio_set_volume', { volume: 0.0 }).catch(() => {});
     }
   }, [isMuted, volume]);
@@ -246,12 +263,14 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
     const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
     setPlaybackRate(next);
+    persistSpeed(next);
     invoke('audio_set_speed', { speed: next }).catch(() => {});
   }, [playbackRate]);
 
   const setSpeed = useCallback((speed: number) => {
     const clamped = Math.round(Math.max(0.5, Math.min(2.0, speed)) * 20) / 20; // clamp + snap to 0.05
     setPlaybackRate(clamped);
+    persistSpeed(clamped);
     if (speedDebounceRef.current) clearTimeout(speedDebounceRef.current);
     speedDebounceRef.current = setTimeout(() => {
       invoke('audio_set_speed', { speed: clamped }).catch(() => {});

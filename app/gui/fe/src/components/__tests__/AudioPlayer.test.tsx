@@ -46,6 +46,23 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+// ── Audio preferences mock ─────────────────────────────────────────
+const mockGetAudioVolume = vi.fn().mockReturnValue(0.75);
+const mockSetAudioVolume = vi.fn();
+const mockGetAudioMuted = vi.fn().mockReturnValue(false);
+const mockSetAudioMuted = vi.fn();
+const mockGetAudioSpeed = vi.fn().mockReturnValue(1.0);
+const mockSetAudioSpeed = vi.fn();
+
+vi.mock('../../services/audioPreferences', () => ({
+  getAudioVolume: () => mockGetAudioVolume(),
+  setAudioVolume: (v: number) => mockSetAudioVolume(v),
+  getAudioMuted: () => mockGetAudioMuted(),
+  setAudioMuted: (m: boolean) => mockSetAudioMuted(m),
+  getAudioSpeed: () => mockGetAudioSpeed(),
+  setAudioSpeed: (s: number) => mockSetAudioSpeed(s),
+}));
+
 /** Default audio_get_status response. */
 const defaultAudioStatus = {
   loaded: true,
@@ -133,6 +150,12 @@ beforeEach(() => {
   mockDecodeAudioWaveform.mockClear();
   mockDecodeAudioWaveformFast.mockClear();
   mockDecodeAudioMetadata.mockClear();
+  mockGetAudioVolume.mockReturnValue(0.75);
+  mockSetAudioVolume.mockClear();
+  mockGetAudioMuted.mockReturnValue(false);
+  mockSetAudioMuted.mockClear();
+  mockGetAudioSpeed.mockReturnValue(1.0);
+  mockSetAudioSpeed.mockClear();
   setupDefaultInvokeMock();
 });
 
@@ -152,6 +175,11 @@ describe('getMimeType', () => {
   it('is case-insensitive', () => {
     expect(getMimeType('.MP3')).toBe('audio/mpeg');
     expect(getMimeType('.Flac')).toBe('audio/flac');
+  });
+
+  it('returns correct MIME type for webm/weba', () => {
+    expect(getMimeType('.webm')).toBe('audio/webm');
+    expect(getMimeType('.weba')).toBe('audio/webm');
   });
 
   it('returns audio/mpeg as fallback for unknown extensions', () => {
@@ -219,6 +247,11 @@ describe('getConversionHint', () => {
   it('returns hints for .ogg and .mp3', () => {
     expect(getConversionHint('.ogg')).toContain('ffmpeg');
     expect(getConversionHint('.mp3')).toContain('corrupted');
+  });
+
+  it('returns hints for .webm and .weba', () => {
+    expect(getConversionHint('.webm')).toContain('ffmpeg');
+    expect(getConversionHint('.weba')).toContain('ffmpeg');
   });
 
   it('returns null for unknown extensions', () => {
@@ -1552,6 +1585,237 @@ describe('AudioPlayer component', () => {
       });
       await flushMicrotasks();
       expect(mockInvoke).toHaveBeenCalledWith('audio_resume');
+    });
+  });
+
+  // ── Preference persistence tests ──────────────────────────────────
+
+  describe('preference persistence', () => {
+    it('restores volume from localStorage on mount', async () => {
+      mockGetAudioVolume.mockReturnValue(0.4);
+      renderPlayer();
+      await waitForReady();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_play', { path: '/mock/path/to/audio.mp3', volume: 0.4 });
+    });
+
+    it('restores muted state on mount (sets volume to 0)', async () => {
+      mockGetAudioMuted.mockReturnValue(true);
+      renderPlayer();
+      await waitForReady();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', { volume: 0.0 });
+    });
+
+    it('restores speed on mount (applies non-1x speed)', async () => {
+      mockGetAudioSpeed.mockReturnValue(1.5);
+      renderPlayer();
+      await waitForReady();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_set_speed', { speed: 1.5 });
+    });
+
+    it('persists volume on slider change', async () => {
+      renderPlayer();
+      await waitForReady();
+      const volumeSlider = screen.getByLabelText('Volume');
+      await act(async () => {
+        fireEvent.change(volumeSlider, { target: { value: '0.6' } });
+      });
+      expect(mockSetAudioVolume).toHaveBeenCalledWith(0.6);
+      expect(mockSetAudioMuted).toHaveBeenCalledWith(false);
+    });
+
+    it('persists mute state on toggle', async () => {
+      renderPlayer();
+      await waitForReady();
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Mute'));
+      });
+      expect(mockSetAudioMuted).toHaveBeenCalledWith(true);
+    });
+
+    it('persists speed on cycle', async () => {
+      renderPlayer();
+      await waitForReady();
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Playback speed: 1x'));
+      });
+      expect(mockSetAudioSpeed).toHaveBeenCalledWith(1.25);
+    });
+  });
+
+  // ── Volume percentage display ─────────────────────────────────────
+
+  describe('volume percentage', () => {
+    it('displays volume percentage', async () => {
+      renderPlayer();
+      await waitForReady();
+      expect(screen.getByText('75%')).toBeInTheDocument();
+    });
+
+    it('shows 0% when muted', async () => {
+      renderPlayer();
+      await waitForReady();
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Mute'));
+      });
+      expect(screen.getByText('0%')).toBeInTheDocument();
+    });
+  });
+
+  // ── Double-click play/pause ───────────────────────────────────────
+
+  describe('double-click waveform', () => {
+    function getWaveformContainer(): HTMLElement {
+      const canvases = document.querySelectorAll('canvas');
+      expect(canvases.length).toBeGreaterThan(0);
+      return canvases[0].parentElement!;
+    }
+
+    it('double-click on waveform toggles play', async () => {
+      renderPlayer();
+      await waitForReady();
+      const container = getWaveformContainer();
+
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
+      await act(async () => {
+        fireEvent.doubleClick(container);
+      });
+      await flushMicrotasks();
+      expect(mockInvoke).toHaveBeenCalledWith('audio_resume');
+    });
+
+    it('double-click on waveform toggles pause when playing', async () => {
+      renderPlayer();
+      await waitForReady();
+
+      // Start playing
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Play'));
+      });
+      await flushMicrotasks();
+
+      const container = getWaveformContainer();
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
+      await act(async () => {
+        fireEvent.doubleClick(container);
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('audio_pause');
+    });
+  });
+
+  // ── Metadata bitrate display ──────────────────────────────────────
+
+  describe('bitrate display', () => {
+    it('displays bitrate when metadata includes it', async () => {
+      mockDecodeAudioMetadata.mockResolvedValueOnce({
+        title: 'Song',
+        artist: 'Artist',
+        album: null,
+        trackNumber: null,
+        year: null,
+        sampleRate: 44100,
+        channels: 2,
+        bitrate: 320000,
+        picture: null,
+      });
+
+      renderPlayer();
+      await waitForReady();
+
+      await waitFor(() => {
+        expect(screen.getByText('320kbps')).toBeInTheDocument();
+      });
+    });
+
+    it('omits bitrate when metadata lacks it', async () => {
+      mockDecodeAudioMetadata.mockResolvedValueOnce({
+        title: 'Song',
+        artist: 'Artist',
+        album: null,
+        trackNumber: null,
+        year: null,
+        sampleRate: 44100,
+        channels: 2,
+        picture: null,
+      });
+
+      renderPlayer();
+      await waitForReady();
+
+      await waitFor(() => {
+        expect(screen.getByText('Song')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/kbps/)).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Touch seek tests ──────────────────────────────────────────────
+
+  describe('touch seek', () => {
+    function getWaveformContainer(): HTMLElement {
+      const canvases = document.querySelectorAll('canvas');
+      expect(canvases.length).toBeGreaterThan(0);
+      return canvases[0].parentElement!;
+    }
+
+    it('touch on waveform seeks to position', async () => {
+      renderPlayer();
+      await waitForReady();
+      await flushMicrotasks();
+      const container = getWaveformContainer();
+
+      container.getBoundingClientRect = vi.fn().mockReturnValue({
+        left: 0, right: 480, width: 480, top: 0, bottom: 120, height: 120, x: 0, y: 0,
+        toJSON: () => ({}),
+      });
+
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
+      fireEvent.touchStart(container, { touches: [{ clientX: 240 }] });
+      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 60 });
+
+      act(() => { document.dispatchEvent(new Event('touchend')); });
+    });
+  });
+
+  // ── Speed popover keyboard ────────────────────────────────────────
+
+  describe('speed popover keyboard', () => {
+    it('Enter closes the speed popover', async () => {
+      renderPlayer();
+      await waitForReady();
+
+      // Open speed popover
+      const speedBtn = screen.getByLabelText('Playback speed: 1x');
+      await act(async () => {
+        fireEvent.contextMenu(speedBtn);
+      });
+      const slider = screen.getByLabelText('Fine speed control');
+      expect(slider).toBeInTheDocument();
+
+      // Press Enter to close
+      await act(async () => {
+        fireEvent.keyDown(slider, { key: 'Enter' });
+      });
+      expect(screen.queryByLabelText('Fine speed control')).not.toBeInTheDocument();
+    });
+
+    it('Escape closes the speed popover', async () => {
+      renderPlayer();
+      await waitForReady();
+
+      const speedBtn = screen.getByLabelText('Playback speed: 1x');
+      await act(async () => {
+        fireEvent.contextMenu(speedBtn);
+      });
+      const slider = screen.getByLabelText('Fine speed control');
+      expect(slider).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.keyDown(slider, { key: 'Escape' });
+      });
+      expect(screen.queryByLabelText('Fine speed control')).not.toBeInTheDocument();
     });
   });
 });

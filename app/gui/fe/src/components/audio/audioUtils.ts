@@ -7,6 +7,8 @@ export function getMimeType(ext: string): string {
     '.aac': 'audio/aac',
     '.m4a': 'audio/mp4',
     '.opus': 'audio/opus',
+    '.webm': 'audio/webm',
+    '.weba': 'audio/webm',
   };
   return map[ext.toLowerCase()] || 'audio/mpeg';
 }
@@ -32,6 +34,8 @@ export function getConversionHint(ext: string): string | null {
     '.wav': 'WAV is usually supported. The file may be corrupted or use an uncommon codec.',
     '.ogg': 'Try converting to MP3: ffmpeg -i file.ogg -c:a libmp3lame output.mp3',
     '.mp3': 'MP3 is widely supported. The file may be corrupted or use an uncommon bitrate.',
+    '.webm': 'Try converting to OGG: ffmpeg -i file.webm -c:a libvorbis output.ogg',
+    '.weba': 'Try converting to OGG: ffmpeg -i file.weba -c:a libvorbis output.ogg',
   };
   return hints[ext.toLowerCase()] ?? null;
 }

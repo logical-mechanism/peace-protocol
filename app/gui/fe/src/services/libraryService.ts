@@ -130,6 +130,7 @@ export interface AudioMetadataResult {
   picture?: { data: number[]; format: string };
   sampleRate?: number;
   channels?: number;
+  bitrate?: number;
 }
 
 /** Metadata-only probe: extracts tags + codec info without decoding audio.

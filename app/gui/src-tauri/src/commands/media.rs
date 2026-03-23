@@ -949,6 +949,8 @@ pub struct AudioMetadataResult {
     pub picture: Option<AlbumArt>,
     pub sample_rate: Option<u32>,
     pub channels: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bitrate: Option<u32>,
 }
 
 /// Quick metadata-only probe — opens the file, reads tags, returns metadata without decoding.
@@ -1491,8 +1493,9 @@ pub async fn decode_audio_metadata(
         let (title, artist, album, track_number, year, picture) =
             probe_metadata_sync(&content_path);
 
-        // Also probe codec params for sample_rate and channels
-        let (sample_rate, channels) = {
+        // Also probe codec params for sample_rate, channels, and bitrate
+        let file_size = std::fs::metadata(&content_path).ok().map(|m| m.len());
+        let (sample_rate, channels, bitrate) = {
             let file = std::fs::File::open(&content_path).ok();
             file.and_then(|f| {
                 let mss = MediaSourceStream::new(Box::new(f), Default::default());
@@ -1509,12 +1512,24 @@ pub async fn decode_audio_metadata(
                     )
                     .ok()?;
                 let track = probed.format.default_track()?;
+                // Estimate bitrate from file size and duration (n_frames / sample_rate)
+                let br = file_size.and_then(|size| {
+                    let sr = track.codec_params.sample_rate? as f64;
+                    let frames = track.codec_params.n_frames? as f64;
+                    let duration_secs = frames / sr;
+                    if duration_secs > 0.0 {
+                        Some(((size as f64 * 8.0) / duration_secs) as u32)
+                    } else {
+                        None
+                    }
+                });
                 Some((
                     track.codec_params.sample_rate,
                     track.codec_params.channels.map(|c| c.count() as u32),
+                    br,
                 ))
             })
-            .unwrap_or((None, None))
+            .unwrap_or((None, None, None))
         };
 
         Ok(AudioMetadataResult {
@@ -1526,6 +1541,7 @@ pub async fn decode_audio_metadata(
             picture,
             sample_rate,
             channels,
+            bitrate,
         })
     })
     .await

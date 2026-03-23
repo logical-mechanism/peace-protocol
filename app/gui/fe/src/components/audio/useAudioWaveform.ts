@@ -11,6 +11,8 @@ export function useAudioWaveform(tokenName: string, category: string) {
 
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const waveformDataRef = useRef<Float32Array | null>(null);
+  const rawWaveformRef = useRef<Float32Array | null>(null);
+  const canvasWidthRef = useRef(CANVAS_W);
   const lastDrawnPixelRef = useRef(-1);
   const dprRef = useRef(window.devicePixelRatio || 1);
   const drawWaveformRef = useRef<((progress: number) => void) | null>(null);
@@ -20,11 +22,21 @@ export function useAudioWaveform(tokenName: string, category: string) {
     indicator: 'rgba(250, 250, 250, 0.9)', indicatorGlow: 'rgba(250, 250, 250, 0.3)',
   });
 
-  // Cache CSS gradient colors + scale canvas for HiDPI
+  /** Re-upsample raw waveform to match current canvas width. */
+  const resampleToWidth = useCallback((width: number) => {
+    const raw = rawWaveformRef.current;
+    if (!raw || raw.length === 0) return;
+    waveformDataRef.current = raw.length === width ? raw : upsampleWaveform(raw, width);
+    lastDrawnPixelRef.current = -1;
+    drawWaveformRef.current?.(lastProgressRef.current);
+  }, []);
+
+  // Cache CSS gradient colors + scale canvas for HiDPI + responsive resize
   useEffect(() => {
+    const canvas = waveformCanvasRef.current;
+    if (!canvas) return;
+
     const readColors = () => {
-      const canvas = waveformCanvasRef.current;
-      if (!canvas) return;
       const styles = getComputedStyle(canvas);
       gradientColorsRef.current = {
         waveformPlayed: styles.getPropertyValue('--waveform-played').trim() || 'rgba(34, 211, 238, 0.6)',
@@ -32,23 +44,43 @@ export function useAudioWaveform(tokenName: string, category: string) {
         indicator: styles.getPropertyValue('--waveform-indicator').trim() || 'rgba(250, 250, 250, 0.9)',
         indicatorGlow: styles.getPropertyValue('--waveform-indicator-glow').trim() || 'rgba(250, 250, 250, 0.3)',
       };
+    };
+
+    const resizeCanvas = () => {
+      const parent = canvas.parentElement;
+      const w = parent ? parent.clientWidth : CANVAS_W;
+      if (w <= 0) return;
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
-      if (canvas) {
-        canvas.width = CANVAS_W * dpr;
-        canvas.height = CANVAS_H * dpr;
-      }
+      canvasWidthRef.current = w;
+      canvas.width = w * dpr;
+      canvas.height = CANVAS_H * dpr;
+      resampleToWidth(w);
     };
 
     readColors();
-    const observer = new MutationObserver(() => {
+    resizeCanvas();
+
+    // Theme change → repaint with new colors
+    const themeObserver = new MutationObserver(() => {
       readColors();
-      // Repaint waveform immediately with new theme colors
       drawWaveformRef.current?.(lastProgressRef.current);
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => observer.disconnect();
-  }, []);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    // Container resize → re-scale canvas + re-upsample waveform
+    const parent = canvas.parentElement;
+    let resizeObserver: ResizeObserver | undefined;
+    if (parent) {
+      resizeObserver = new ResizeObserver(resizeCanvas);
+      resizeObserver.observe(parent);
+    }
+
+    return () => {
+      themeObserver.disconnect();
+      resizeObserver?.disconnect();
+    };
+  }, [resampleToWidth]);
 
   // Reset state when inputs change (render-time pattern)
   const [prevKey, setPrevKey] = useState({ tokenName, category });
@@ -62,6 +94,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
   useEffect(() => {
     let cancelled = false;
     waveformDataRef.current = null;
+    rawWaveformRef.current = null;
     lastDrawnPixelRef.current = -1;
 
     async function loadVisualizationData() {
@@ -69,11 +102,9 @@ export function useAudioWaveform(tokenName: string, category: string) {
       try {
         const fast = await decodeAudioWaveformFast(tokenName, category);
         if (cancelled) return;
-        const upsampled = upsampleWaveform(
-          normalizeWaveform(new Float32Array(fast.waveform)),
-          480,
-        );
-        waveformDataRef.current = upsampled;
+        const normalized = normalizeWaveform(new Float32Array(fast.waveform));
+        rawWaveformRef.current = normalized;
+        waveformDataRef.current = upsampleWaveform(normalized, canvasWidthRef.current);
         setVizFailed(false);
         drawWaveformRef.current?.(0);
       } catch {
@@ -89,7 +120,10 @@ export function useAudioWaveform(tokenName: string, category: string) {
         const result = await waveformPromise;
         if (cancelled) return;
         const waveform = normalizeWaveform(new Float32Array(result.waveform));
-        waveformDataRef.current = waveform;
+        rawWaveformRef.current = waveform;
+        waveformDataRef.current = waveform.length === canvasWidthRef.current
+          ? waveform
+          : upsampleWaveform(waveform, canvasWidthRef.current);
         setVizFailed(false);
         if (result.durationSecs > 0) setWaveformDuration(result.durationSecs);
         drawWaveformRef.current?.(0);
@@ -101,7 +135,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
       try {
         const meta = await metadataPromise;
         if (cancelled) return;
-        if (meta.title || meta.artist || meta.album) {
+        if (meta.title || meta.artist || meta.album || meta.sampleRate || meta.bitrate) {
           setMetadata({
             title: meta.title,
             artist: meta.artist,
@@ -110,6 +144,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
             year: meta.year,
             sampleRate: meta.sampleRate,
             channels: meta.channels,
+            bitrate: meta.bitrate,
             picture: meta.picture
               ? { data: new Uint8Array(meta.picture.data), format: meta.picture.format }
               : null,
@@ -125,6 +160,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
     return () => {
       cancelled = true;
       waveformDataRef.current = null;
+      rawWaveformRef.current = null;
       lastDrawnPixelRef.current = -1;
     };
   }, [tokenName, category]);
@@ -138,11 +174,12 @@ export function useAudioWaveform(tokenName: string, category: string) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const cw = canvasWidthRef.current;
     const dpr = dprRef.current;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.clearRect(0, 0, cw, CANVAS_H);
 
-    const totalBarW = CANVAS_W / waveform.length;
+    const totalBarW = cw / waveform.length;
     const barW = totalBarW * 0.7;
     const gap = totalBarW * 0.3;
     const mid = CANVAS_H * WAVEFORM_CENTER_RATIO;
@@ -177,7 +214,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
 
     // Playhead indicator — thin line with radial glow
     if (progressRatio > 0) {
-      const indicatorX = Math.round(progressRatio * CANVAS_W);
+      const indicatorX = Math.round(progressRatio * cw);
 
       // Radial glow
       const glow = ctx.createRadialGradient(indicatorX, mid, 0, indicatorX, mid, 16);
@@ -201,7 +238,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
   const updateProgress = useCallback((currentTime: number, duration: number) => {
     if (!waveformDataRef.current || duration <= 0) return;
     const progress = currentTime / duration;
-    const px = Math.round(progress * CANVAS_W);
+    const px = Math.round(progress * canvasWidthRef.current);
     if (px !== lastDrawnPixelRef.current) {
       lastDrawnPixelRef.current = px;
       drawWaveform(progress);
