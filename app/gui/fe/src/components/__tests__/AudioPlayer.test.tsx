@@ -24,9 +24,18 @@ const mockDecodeAudioWaveformFast = vi.fn().mockResolvedValue({
   channels: 2,
 });
 
+const mockDecodeAudioMetadata = vi.fn().mockResolvedValue({
+  title: undefined,
+  artist: undefined,
+  album: undefined,
+  sampleRate: 44100,
+  channels: 2,
+});
+
 vi.mock('../../services/libraryService', () => ({
   decodeAudioWaveform: (...args: unknown[]) => mockDecodeAudioWaveform(...args),
   decodeAudioWaveformFast: (...args: unknown[]) => mockDecodeAudioWaveformFast(...args),
+  decodeAudioMetadata: (...args: unknown[]) => mockDecodeAudioMetadata(...args),
 }));
 
 // ── Tauri IPC mock ──────────────────────────────────────────────────
@@ -41,6 +50,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 const defaultAudioStatus = {
   loaded: true,
   playing: false,
+  finished: false,
   position_secs: 0,
   duration_secs: 120,
   volume: 0.75,
@@ -113,6 +123,13 @@ const mockCanvasContext = {
   setTransform: vi.fn(),
   clearRect: vi.fn(),
   fillRect: vi.fn(),
+  beginPath: vi.fn(),
+  roundRect: vi.fn(),
+  fill: vi.fn(),
+  save: vi.fn(),
+  restore: vi.fn(),
+  createRadialGradient: vi.fn().mockReturnValue({ addColorStop: vi.fn() }),
+  globalAlpha: 1,
   fillStyle: '',
 };
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCanvasContext) as unknown as typeof HTMLCanvasElement.prototype.getContext;
@@ -121,6 +138,7 @@ beforeEach(() => {
   mockInvoke.mockClear();
   mockDecodeAudioWaveform.mockClear();
   mockDecodeAudioWaveformFast.mockClear();
+  mockDecodeAudioMetadata.mockClear();
   setupDefaultInvokeMock();
 });
 
@@ -751,8 +769,8 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      // Allow a poll cycle to update currentTime
-      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
+      // Allow a poll cycle to update currentTime (poll interval is 1000ms when paused)
+      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
 
       mockInvoke.mockClear();
       await act(async () => {
@@ -771,7 +789,8 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
+      // Allow a poll cycle to update currentTime (poll interval is 1000ms when paused)
+      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
 
       mockInvoke.mockClear();
       await act(async () => {
@@ -878,7 +897,8 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
+      // Poll interval is 1000ms when paused
+      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
@@ -898,7 +918,8 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
+      // Poll interval is 1000ms when paused
+      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
@@ -918,7 +939,8 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
+      // Poll interval is 1000ms when paused
+      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
@@ -950,7 +972,8 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      await act(async () => { await new Promise(r => setTimeout(r, 150)); });
+      // Poll interval is 1000ms when paused
+      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
 
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
       mockInvoke.mockClear();
@@ -1444,7 +1467,7 @@ describe('AudioPlayer component', () => {
      * handleSeekMouseDown reads rect from seekBarRef (inner div).
      */
     function getSeekElements() {
-      const sliderDiv = screen.getByRole('slider', { name: /seek/i });
+      const sliderDiv = screen.getByRole('slider', { name: 'Seek position' });
       // seekBarRef is the last child div inside the slider (after the tooltip)
       const innerBar = sliderDiv.querySelector('div:last-child')!;
       return { sliderDiv, innerBar };
