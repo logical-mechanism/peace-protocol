@@ -215,6 +215,6 @@ export function useAudioWaveform(tokenName: string, category: string) {
     drawWaveform,
     updateProgress,
     forceRedraw,
-    hasWaveformData: () => waveformDataRef.current !== null,
+    hasWaveformData: useCallback(() => waveformDataRef.current !== null, []),
   };
 }
