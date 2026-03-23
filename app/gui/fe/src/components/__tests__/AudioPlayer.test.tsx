@@ -1331,4 +1331,64 @@ describe('AudioPlayer component', () => {
       act(() => { document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); });
     });
   });
+
+  // ── Unmount cleanup ─────────────────────────────────────────────────
+
+  describe('unmount cleanup', () => {
+    it('calls audio_stop on unmount', async () => {
+      const { unmount } = renderPlayer();
+      await waitForReady();
+
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
+      unmount();
+
+      expect(mockInvoke).toHaveBeenCalledWith('audio_stop');
+    });
+  });
+
+  // ── Metadata rendering ─────────────────────────────────────────────
+
+  describe('metadata rendering', () => {
+    it('displays title, artist, and album from decoded metadata', async () => {
+      mockDecodeAudioMetadata.mockResolvedValueOnce({
+        title: 'Test Song',
+        artist: 'Test Artist',
+        album: 'Test Album',
+        trackNumber: 3,
+        year: 2024,
+        sampleRate: 44100,
+        channels: 2,
+        picture: null,
+      });
+
+      renderPlayer();
+      await waitForReady();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Song')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Test Artist')).toBeInTheDocument();
+      expect(screen.getByText(/Test Album/)).toBeInTheDocument();
+    });
+
+    it('shows generic label when no metadata is available', async () => {
+      mockDecodeAudioMetadata.mockResolvedValueOnce({
+        title: null,
+        artist: null,
+        album: null,
+        trackNumber: null,
+        year: null,
+        sampleRate: null,
+        channels: null,
+        picture: null,
+      });
+
+      renderPlayer();
+      await waitForReady();
+      await flushMicrotasks();
+
+      expect(screen.getByText('Audio')).toBeInTheDocument();
+    });
+  });
 });
