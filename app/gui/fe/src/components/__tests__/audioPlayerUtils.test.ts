@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fftInPlace, normalizeWaveform, upsampleWaveform } from '../audioPlayerUtils';
+import { fftInPlace, normalizeWaveform, upsampleWaveform } from '../audio/audioPlayerUtils';
 
 describe('upsampleWaveform', () => {
   it('returns identity when lengths match', () => {

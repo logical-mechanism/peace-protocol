@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { decodeAudioWaveform, decodeAudioWaveformFast, decodeAudioMetadata } from '../../services/libraryService';
-import { normalizeWaveform, upsampleWaveform } from '../audioPlayerUtils';
+import { normalizeWaveform, upsampleWaveform } from './audioPlayerUtils';
 import { CANVAS_W, CANVAS_H } from './audioConstants';
 import type { AudioMetadata } from './audioTypes';
 

@@ -79,7 +79,7 @@ function setupDefaultInvokeMock() {
 }
 
 import AudioPlayer from '../audio';
-import { fftInPlace, normalizeWaveform } from '../audioPlayerUtils';
+import { fftInPlace, normalizeWaveform } from '../audio/audioPlayerUtils';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
