@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
 import { DelayedSpinner } from '../LoadingSpinner';
 import { useAudioPlayback } from './useAudioPlayback';
-import { formatTime, getConversionHint } from './audioUtils';
+import { formatTime, getConversionHint, computeSeekRatio, computeTooltipLeft } from './audioUtils';
 import { useAudioWaveform } from './useAudioWaveform';
 import { CANVAS_H } from './audioConstants';
 import type { AudioPlayerProps } from './audioTypes';
@@ -172,7 +172,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
 
     const seekTo = (clientX: number) => {
       const rect = containerRef.current!.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const ratio = computeSeekRatio(clientX, rect);
       seek(ratio * duration);
       drawWaveform(ratio);
     };
@@ -238,11 +238,9 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
     const container = containerRef.current;
     if (!tooltip || !container || !duration) return;
     const rect = container.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const ratio = computeSeekRatio(clientX, rect);
     tooltip.textContent = formatTime(ratio * duration);
-    const halfW = tooltip.offsetWidth / 2;
-    const rawLeft = clientX - rect.left;
-    const clampedLeft = Math.max(halfW, Math.min(rect.width - halfW, rawLeft));
+    const clampedLeft = computeTooltipLeft(clientX, rect, tooltip.offsetWidth / 2);
     tooltip.style.left = `${clampedLeft}px`;
     tooltip.style.opacity = '1';
   }, [duration]);
