@@ -132,22 +132,9 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           if (isPlaying) pause();
           else play();
           break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          skipBack();
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          skipForward();
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setVolume(Math.min(1, volume + 0.05));
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          setVolume(Math.max(0, volume - 0.05));
-          break;
+        // ArrowLeft/Right are NOT handled globally — they conflict with
+        // Library prev/next navigation. Use the focused seek bar or waveform
+        // for ±5s seeking, or the skip buttons for ±10s.
         case 'm':
         case 'M':
           toggleMute();
@@ -169,7 +156,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, play, pause, skipBack, skipForward, toggleMute, toggleLoop, cycleSpeed, volume, setVolume]);
+  }, [isPlaying, play, pause, toggleMute, toggleLoop, cycleSpeed]);
 
   // --- Seek handlers (shared drag logic for seek bar + waveform) ---
   const createSeekDrag = useCallback((
@@ -571,8 +558,6 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 z-30 whitespace-nowrap shadow-lg">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1">
                   <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
-                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;10s</span>
-                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
                   <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
                   <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
                   <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>

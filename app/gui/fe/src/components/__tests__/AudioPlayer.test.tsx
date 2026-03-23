@@ -759,68 +759,8 @@ describe('AudioPlayer component', () => {
       expect(mockInvoke).not.toHaveBeenCalledWith('audio_resume');
     });
 
-    it('ArrowLeft invokes audio_seek to skip back 10 seconds', async () => {
-      // Set current position to 30s via polling
-      mockInvoke.mockImplementation((cmd: string) => {
-        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 30 });
-        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
-        if (cmd === 'audio_play') return Promise.resolve(120.0);
-        return Promise.resolve(undefined);
-      });
-      renderPlayer();
-      await waitForReady();
-      // Allow a poll cycle to update currentTime (poll interval is 1000ms when paused)
-      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
-
-      mockInvoke.mockClear();
-      await act(async () => {
-        fireEvent.keyDown(document, { key: 'ArrowLeft' });
-      });
-      // Should seek to currentTime - 10
-      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 20 });
-    });
-
-    it('ArrowRight invokes audio_seek to skip forward 10 seconds', async () => {
-      mockInvoke.mockImplementation((cmd: string) => {
-        if (cmd === 'audio_get_status') return Promise.resolve({ ...defaultAudioStatus, position_secs: 30 });
-        if (cmd === 'get_library_content_path') return Promise.resolve('/mock/path/to/audio.mp3');
-        if (cmd === 'audio_play') return Promise.resolve(120.0);
-        return Promise.resolve(undefined);
-      });
-      renderPlayer();
-      await waitForReady();
-      // Allow a poll cycle to update currentTime (poll interval is 1000ms when paused)
-      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
-
-      mockInvoke.mockClear();
-      await act(async () => {
-        fireEvent.keyDown(document, { key: 'ArrowRight' });
-      });
-      expect(mockInvoke).toHaveBeenCalledWith('audio_seek', { positionSecs: 40 });
-    });
-
-    it('ArrowUp increases volume via audio_set_volume', async () => {
-      renderPlayer();
-      await waitForReady();
-
-      mockInvoke.mockClear();
-      await act(async () => {
-        fireEvent.keyDown(document, { key: 'ArrowUp' });
-      });
-      // Initial volume is 0.75, +0.05 = 0.80
-      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', expect.objectContaining({ volume: expect.closeTo(0.8, 2) }));
-    });
-
-    it('ArrowDown decreases volume via audio_set_volume', async () => {
-      renderPlayer();
-      await waitForReady();
-
-      mockInvoke.mockClear();
-      await act(async () => {
-        fireEvent.keyDown(document, { key: 'ArrowDown' });
-      });
-      expect(mockInvoke).toHaveBeenCalledWith('audio_set_volume', expect.objectContaining({ volume: expect.closeTo(0.7, 2) }));
-    });
+    // ArrowLeft/Right/Up/Down are NOT global shortcuts — they conflict with
+    // Library prev/next navigation. Seek via focused seek bar or waveform only.
 
     it('M key toggles mute on', async () => {
       renderPlayer();
@@ -1225,22 +1165,6 @@ describe('AudioPlayer component', () => {
       expect(screen.getByLabelText('Mute')).toBeInTheDocument();
     });
 
-    it('ArrowUp unmutes when muted', async () => {
-      renderPlayer();
-      await waitForReady();
-
-      // Mute
-      await act(async () => {
-        fireEvent.keyDown(document, { key: 'm' });
-      });
-      expect(screen.getByLabelText('Unmute')).toBeInTheDocument();
-
-      // ArrowUp should unmute (setVolume clears mute)
-      await act(async () => {
-        fireEvent.keyDown(document, { key: 'ArrowUp' });
-      });
-      expect(screen.getByLabelText('Mute')).toBeInTheDocument();
-    });
   });
 
   // ── Visualization failure fallback tests ────────────────────────────
