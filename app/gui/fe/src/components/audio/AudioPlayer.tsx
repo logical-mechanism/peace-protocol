@@ -117,6 +117,25 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
     };
   }, [showSpeedPopover]);
 
+  // Close keyboard hints popover on click-outside or Escape
+  useEffect(() => {
+    if (!showKeyHints) return;
+    let mounted = true;
+    const close = () => setShowKeyHints(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const id = setTimeout(() => {
+      if (!mounted) return;
+      document.addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+    }, 0);
+    return () => {
+      mounted = false;
+      clearTimeout(id);
+      document.removeEventListener('click', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showKeyHints]);
+
   // Seek refs
   const seekBarRef = useRef<HTMLDivElement | null>(null);
   const isSeekingRef = useRef(false);
