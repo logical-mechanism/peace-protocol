@@ -1501,10 +1501,18 @@ pub async fn decode_audio_metadata(
                     hint.with_extension(ext);
                 }
                 let probed = symphonia::default::get_probe()
-                    .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+                    .format(
+                        &hint,
+                        mss,
+                        &FormatOptions::default(),
+                        &MetadataOptions::default(),
+                    )
                     .ok()?;
                 let track = probed.format.default_track()?;
-                Some((track.codec_params.sample_rate, track.codec_params.channels.map(|c| c.count() as u32)))
+                Some((
+                    track.codec_params.sample_rate,
+                    track.codec_params.channels.map(|c| c.count() as u32),
+                ))
             })
             .unwrap_or((None, None))
         };

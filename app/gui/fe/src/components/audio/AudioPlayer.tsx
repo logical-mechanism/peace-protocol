@@ -187,8 +187,12 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
     document.addEventListener('mouseup', handleMouseUp);
   }, [duration, isReady, seek, drawWaveform]);
 
-  const handleSeekMouseDown = useMemo(() => createSeekDrag(seekBarRef), [createSeekDrag]);
-  const handleWaveformMouseDown = useMemo(() => createSeekDrag(waveformContainerRef), [createSeekDrag]);
+  const handleSeekMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    createSeekDrag(seekBarRef)(e);
+  }, [createSeekDrag]);
+  const handleWaveformMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    createSeekDrag(waveformContainerRef)(e);
+  }, [createSeekDrag]);
 
   const handleSeekKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!isReady || !duration) return;
