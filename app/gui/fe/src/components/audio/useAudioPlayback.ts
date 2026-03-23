@@ -45,6 +45,8 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
   const pollIntervalRef = useRef(1000); // start slow; switch to 100ms when playing
   const volumeBeforeMuteRef = useRef(0.75);
   const isLoopingRef = useRef(false);
+  const volumeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stable refs for callbacks
   const onTimeUpdateRef = useRef(onTimeUpdate);
@@ -151,6 +153,8 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
       cancelled = true;
       stopPolling();
       invoke('audio_stop').catch(() => {});
+      if (volumeDebounceRef.current) clearTimeout(volumeDebounceRef.current);
+      if (speedDebounceRef.current) clearTimeout(speedDebounceRef.current);
     };
   }, [tokenName, category, startPolling, stopPolling]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -209,7 +213,10 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
     const clamped = Math.max(0, Math.min(1, v));
     setVolume(clamped);
     setIsMuted(false);
-    invoke('audio_set_volume', { volume: clamped }).catch(() => {});
+    if (volumeDebounceRef.current) clearTimeout(volumeDebounceRef.current);
+    volumeDebounceRef.current = setTimeout(() => {
+      invoke('audio_set_volume', { volume: clamped }).catch(() => {});
+    }, 50);
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -245,7 +252,10 @@ export function useAudioPlayback({ tokenName, category, fileExtension, waveformD
   const setSpeed = useCallback((speed: number) => {
     const clamped = Math.round(Math.max(0.5, Math.min(2.0, speed)) * 20) / 20; // clamp + snap to 0.05
     setPlaybackRate(clamped);
-    invoke('audio_set_speed', { speed: clamped }).catch(() => {});
+    if (speedDebounceRef.current) clearTimeout(speedDebounceRef.current);
+    speedDebounceRef.current = setTimeout(() => {
+      invoke('audio_set_speed', { speed: clamped }).catch(() => {});
+    }, 50);
   }, []);
 
   const clearPlayError = useCallback(() => setPlayError(null), []);

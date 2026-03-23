@@ -3,6 +3,7 @@ import { DelayedSpinner } from '../LoadingSpinner';
 import { useAudioPlayback } from './useAudioPlayback';
 import { formatTime, getConversionHint, computeSeekRatio, computeTooltipLeft } from './audioUtils';
 import { useAudioWaveform } from './useAudioWaveform';
+import { usePopover } from './usePopover';
 import { CANVAS_H } from './audioConstants';
 import type { AudioPlayerProps } from './audioTypes';
 
@@ -14,7 +15,7 @@ function MarqueeText({ text, className }: { text: string; className?: string }) 
   const [offset, setOffset] = useState(0);
   const [duration, setDuration] = useState(4);
 
-  useEffect(() => {
+  const measure = useCallback(() => {
     const container = containerRef.current;
     const span = spanRef.current;
     if (!container || !span) return;
@@ -25,7 +26,18 @@ function MarqueeText({ text, className }: { text: string; className?: string }) 
     setOffset(isOverflowing ? cw - sw : 0);
     // Scale duration by overflow distance (~40px/s scroll speed)
     setDuration(isOverflowing ? Math.max(3, (sw - cw) / 40) : 4);
-  }, [text]);
+  }, []);
+
+  useEffect(() => { measure(); }, [text, measure]);
+
+  // Re-measure on container resize (e.g., modal width change)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [measure]);
 
   return (
     <div
@@ -97,44 +109,11 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
   // Speed popover (right-click on speed button)
   const [showSpeedPopover, setShowSpeedPopover] = useState(false);
 
-  // Close speed popover on click-outside or Escape
-  useEffect(() => {
-    if (!showSpeedPopover) return;
-    let mounted = true;
-    const close = () => setShowSpeedPopover(false);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    // Delay listener to avoid catching the same right-click event
-    const id = setTimeout(() => {
-      if (!mounted) return;
-      document.addEventListener('click', close);
-      document.addEventListener('keydown', onKey);
-    }, 0);
-    return () => {
-      mounted = false;
-      clearTimeout(id);
-      document.removeEventListener('click', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [showSpeedPopover]);
-
-  // Close keyboard hints popover on click-outside or Escape
-  useEffect(() => {
-    if (!showKeyHints) return;
-    let mounted = true;
-    const close = () => setShowKeyHints(false);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    const id = setTimeout(() => {
-      if (!mounted) return;
-      document.addEventListener('click', close);
-      document.addEventListener('keydown', onKey);
-    }, 0);
-    return () => {
-      mounted = false;
-      clearTimeout(id);
-      document.removeEventListener('click', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [showKeyHints]);
+  // Close popovers on click-outside or Escape
+  const closeSpeedPopover = useCallback(() => setShowSpeedPopover(false), []);
+  const closeKeyHints = useCallback(() => setShowKeyHints(false), []);
+  usePopover(showSpeedPopover, closeSpeedPopover);
+  usePopover(showKeyHints, closeKeyHints);
 
   // Seek refs
   const seekBarRef = useRef<HTMLDivElement | null>(null);
@@ -373,18 +352,14 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
       {/* Waveform Visualization */}
       <div
         ref={waveformContainerRef}
-        className="mx-3 relative cursor-pointer rounded-[var(--radius-sm)] overflow-hidden hover:brightness-110 transition-[filter] duration-150"
+        className="mx-3 relative cursor-pointer rounded-[var(--radius-sm)] overflow-hidden hover:brightness-110 transition-[filter] duration-150 outline-none focus-visible:shadow-[var(--focus-ring)]"
         onMouseDown={handleWaveformMouseDown}
         onMouseMove={handleWaveformMouseMove}
         onMouseLeave={handleWaveformMouseLeave}
         onKeyDown={handleSeekKeyDown}
         tabIndex={0}
-        role="slider"
-        aria-label="Audio waveform, click to seek"
-        aria-valuemin={0}
-        aria-valuemax={Math.round(duration)}
-        aria-valuenow={Math.round(currentTime)}
-        aria-valuetext={formatTime(currentTime)}
+        role="group"
+        aria-label="Audio waveform visualization, click or use arrow keys to seek"
       >
         <canvas
           ref={waveformCanvasRef}
@@ -540,6 +515,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
               className={`${transportBtn} text-[10px] font-bold tracking-tight min-w-[32px] ${playbackRate !== 1 ? '!text-[var(--accent)]' : ''}`}
               title={`Speed: ${playbackRate}x (S) · Right-click for slider`}
               aria-label={`Playback speed: ${playbackRate}x`}
+              aria-expanded={showSpeedPopover}
             >
               {playbackRate}x
             </button>

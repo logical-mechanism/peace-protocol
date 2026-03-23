@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { decodeAudioWaveform, decodeAudioWaveformFast, decodeAudioMetadata } from '../../services/libraryService';
 import { normalizeWaveform, upsampleWaveform } from './audioPlayerUtils';
-import { CANVAS_W, CANVAS_H } from './audioConstants';
+import { CANVAS_W, CANVAS_H, WAVEFORM_CENTER_RATIO, WAVEFORM_MAX_BAR_RATIO, WAVEFORM_REFLECTION_ALPHA } from './audioConstants';
 import type { AudioMetadata } from './audioTypes';
 
 export function useAudioWaveform(tokenName: string, category: string) {
@@ -14,6 +14,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
   const lastDrawnPixelRef = useRef(-1);
   const dprRef = useRef(window.devicePixelRatio || 1);
   const drawWaveformRef = useRef<((progress: number) => void) | null>(null);
+  const lastProgressRef = useRef(0);
   const gradientColorsRef = useRef({
     waveformPlayed: 'rgba(34, 211, 238, 0.6)', waveformUnplayed: 'rgba(34, 211, 238, 0.15)',
     indicator: 'rgba(250, 250, 250, 0.9)', indicatorGlow: 'rgba(250, 250, 250, 0.3)',
@@ -40,7 +41,11 @@ export function useAudioWaveform(tokenName: string, category: string) {
     };
 
     readColors();
-    const observer = new MutationObserver(readColors);
+    const observer = new MutationObserver(() => {
+      readColors();
+      // Repaint waveform immediately with new theme colors
+      drawWaveformRef.current?.(lastProgressRef.current);
+    });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
   }, []);
@@ -126,6 +131,7 @@ export function useAudioWaveform(tokenName: string, category: string) {
 
   // Waveform drawing callback — mirrored bars with gradient transition
   const drawWaveform = useCallback((progressRatio: number) => {
+    lastProgressRef.current = progressRatio;
     const canvas = waveformCanvasRef.current;
     const waveform = waveformDataRef.current;
     if (!canvas || !waveform || waveform.length === 0) return;
@@ -139,9 +145,9 @@ export function useAudioWaveform(tokenName: string, category: string) {
     const totalBarW = CANVAS_W / waveform.length;
     const barW = totalBarW * 0.7;
     const gap = totalBarW * 0.3;
-    const mid = CANVAS_H * 0.45; // shift center up slightly for reflection space
-    const maxBarH = mid * 0.85;
-    const reflectionAlpha = 0.35;
+    const mid = CANVAS_H * WAVEFORM_CENTER_RATIO;
+    const maxBarH = mid * WAVEFORM_MAX_BAR_RATIO;
+    const reflectionAlpha = WAVEFORM_REFLECTION_ALPHA;
     const { waveformPlayed, waveformUnplayed, indicator, indicatorGlow } = gradientColorsRef.current;
 
     for (let i = 0; i < waveform.length; i++) {
