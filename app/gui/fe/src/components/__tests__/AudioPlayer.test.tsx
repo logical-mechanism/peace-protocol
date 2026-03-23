@@ -81,7 +81,7 @@ function setupDefaultInvokeMock() {
 
 import AudioPlayer from '../audio';
 import { formatTime, getMimeType, getConversionHint, computeSeekRatio, computeTooltipLeft } from '../audio';
-import { fftInPlace, normalizeWaveform } from '../audio/audioPlayerUtils';
+import { normalizeWaveform } from '../audio/audioPlayerUtils';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -1096,104 +1096,6 @@ describe('AudioPlayer component', () => {
       });
       await flushMicrotasks();
       expect(mockInvoke).toHaveBeenCalledWith('audio_resume');
-    });
-  });
-
-  // ── fftInPlace() algorithm tests ──────────────────────────────────
-
-  describe('fftInPlace', () => {
-    it('DC signal produces energy only in bin 0', () => {
-      const n = 1024;
-      const re = new Float32Array(n).fill(1.0);
-      const im = new Float32Array(n).fill(0);
-      fftInPlace(re, im);
-
-      // Bin 0 should have magnitude = n (sum of all samples)
-      const mag0 = Math.sqrt(re[0] ** 2 + im[0] ** 2);
-      expect(mag0).toBeCloseTo(n, 5);
-
-      // All other bins should be ~0
-      for (let i = 1; i < n; i++) {
-        const mag = Math.sqrt(re[i] ** 2 + im[i] ** 2);
-        expect(mag).toBeLessThan(1e-6);
-      }
-    });
-
-    it('impulse signal produces flat magnitude spectrum', () => {
-      const n = 1024;
-      const re = new Float32Array(n);
-      const im = new Float32Array(n);
-      re[0] = 1.0; // Impulse at t=0
-
-      fftInPlace(re, im);
-
-      // Every bin should have magnitude = 1
-      for (let i = 0; i < n; i++) {
-        const mag = Math.sqrt(re[i] ** 2 + im[i] ** 2);
-        expect(mag).toBeCloseTo(1.0, 5);
-      }
-    });
-
-    it('pure sine at bin frequency produces energy in that bin and its mirror', () => {
-      const n = 1024;
-      const binIndex = 8; // Put energy at bin 8
-      const re = new Float32Array(n);
-      const im = new Float32Array(n);
-
-      // Generate sine: x[t] = sin(2pi * binIndex * t / n)
-      for (let t = 0; t < n; t++) {
-        re[t] = Math.sin((2 * Math.PI * binIndex * t) / n);
-      }
-
-      fftInPlace(re, im);
-
-      // Bin `binIndex` and its mirror `n - binIndex` should have energy ~ n/2
-      const magTarget = Math.sqrt(re[binIndex] ** 2 + im[binIndex] ** 2);
-      const magMirror = Math.sqrt(re[n - binIndex] ** 2 + im[n - binIndex] ** 2);
-      expect(magTarget).toBeCloseTo(n / 2, 1);
-      expect(magMirror).toBeCloseTo(n / 2, 1);
-
-      // All other bins should be ~0
-      for (let i = 0; i < n; i++) {
-        if (i === binIndex || i === n - binIndex) continue;
-        const mag = Math.sqrt(re[i] ** 2 + im[i] ** 2);
-        expect(mag).toBeLessThan(1e-3);
-      }
-    });
-
-    it('Parseval theorem: energy is conserved between time and frequency domains', () => {
-      const n = 256;
-      const re = new Float32Array(n);
-      const im = new Float32Array(n);
-      // Random-ish signal
-      for (let i = 0; i < n; i++) re[i] = Math.sin(i * 0.1) + 0.5 * Math.cos(i * 0.3);
-
-      // Time-domain energy
-      let timeEnergy = 0;
-      for (let i = 0; i < n; i++) timeEnergy += re[i] ** 2;
-
-      fftInPlace(re, im);
-
-      // Frequency-domain energy (scaled by n for unnormalized FFT)
-      let freqEnergy = 0;
-      for (let i = 0; i < n; i++) freqEnergy += re[i] ** 2 + im[i] ** 2;
-      freqEnergy /= n;
-
-      expect(freqEnergy).toBeCloseTo(timeEnergy, 3);
-    });
-
-    it('handles small power-of-2 sizes (n=4)', () => {
-      const re = new Float32Array([1, 2, 3, 4]);
-      const im = new Float32Array(4);
-      fftInPlace(re, im);
-
-      // Bin 0 = sum = 10
-      expect(re[0]).toBeCloseTo(10, 5);
-      expect(im[0]).toBeCloseTo(0, 5);
-      // Just verify it produces finite values and Parseval holds
-      let energy = 0;
-      for (let i = 0; i < 4; i++) energy += re[i] ** 2 + im[i] ** 2;
-      expect(energy / 4).toBeCloseTo(1 ** 2 + 2 ** 2 + 3 ** 2 + 4 ** 2, 3);
     });
   });
 

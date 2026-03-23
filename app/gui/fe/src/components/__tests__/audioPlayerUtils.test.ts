@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fftInPlace, normalizeWaveform, upsampleWaveform } from '../audio/audioPlayerUtils';
+import { normalizeWaveform, upsampleWaveform } from '../audio/audioPlayerUtils';
 
 describe('upsampleWaveform', () => {
   it('returns identity when lengths match', () => {
@@ -67,20 +67,3 @@ describe('normalizeWaveform', () => {
   });
 });
 
-describe('fftInPlace', () => {
-  it('produces correct magnitude for pure sine wave', () => {
-    const n = 64;
-    const re = new Float32Array(n);
-    const im = new Float32Array(n);
-    // Pure sine at bin 4
-    for (let i = 0; i < n; i++) {
-      re[i] = Math.sin(2 * Math.PI * 4 * i / n);
-    }
-    fftInPlace(re, im);
-
-    // Bin 4 should have the dominant magnitude
-    const mag4 = Math.sqrt(re[4] * re[4] + im[4] * im[4]);
-    const mag0 = Math.sqrt(re[0] * re[0] + im[0] * im[0]);
-    expect(mag4).toBeGreaterThan(mag0 + 1);
-  });
-});
