@@ -711,10 +711,9 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      // Poll interval is 1000ms when paused
-      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
-
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      await waitFor(() => expect(seekBar).toHaveAttribute('aria-valuenow', '30'));
+
       mockInvoke.mockClear();
       setupDefaultInvokeMock();
       await act(async () => {
@@ -732,10 +731,9 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      // Poll interval is 1000ms when paused
-      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
-
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      await waitFor(() => expect(seekBar).toHaveAttribute('aria-valuenow', '30'));
+
       mockInvoke.mockClear();
       setupDefaultInvokeMock();
       await act(async () => {
@@ -753,10 +751,9 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      // Poll interval is 1000ms when paused
-      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
-
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      await waitFor(() => expect(seekBar).toHaveAttribute('aria-valuenow', '60'));
+
       mockInvoke.mockClear();
       setupDefaultInvokeMock();
       await act(async () => {
@@ -786,10 +783,8 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer();
       await waitForReady();
-      // Poll interval is 1000ms when paused
-      await act(async () => { await new Promise(r => setTimeout(r, 1100)); });
-
       const seekBar = screen.getByRole('slider', { name: 'Seek position' });
+      await waitFor(() => expect(seekBar).toHaveAttribute('aria-valuenow', '30'));
       mockInvoke.mockClear();
       setupDefaultInvokeMock();
       await act(async () => {
