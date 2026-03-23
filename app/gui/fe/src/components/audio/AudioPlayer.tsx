@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
 import { DelayedSpinner } from '../LoadingSpinner';
-import { useAudioPlayback, formatTime, getConversionHint } from './useAudioPlayback';
+import { useAudioPlayback } from './useAudioPlayback';
+import { formatTime, getConversionHint } from './audioUtils';
 import { useAudioWaveform } from './useAudioWaveform';
 import { CANVAS_H } from './audioConstants';
 import type { AudioPlayerProps } from './audioTypes';
