@@ -12,14 +12,3 @@ export function computeTooltipLeft(clientX: number, rect: DOMRect, tooltipHalfWi
   const rawLeft = clientX - rect.left;
   return Math.max(tooltipHalfWidth, Math.min(rect.width - tooltipHalfWidth, rawLeft));
 }
-
-/** Compute waveform summary stats for testing. */
-export function computeWaveformSummary(waveform: Float32Array): { min: number; max: number; mean: number } {
-  let min = Infinity, max = -Infinity, sum = 0;
-  for (let i = 0; i < waveform.length; i++) {
-    if (waveform[i] < min) min = waveform[i];
-    if (waveform[i] > max) max = waveform[i];
-    sum += waveform[i];
-  }
-  return { min, max, mean: sum / waveform.length };
-}
