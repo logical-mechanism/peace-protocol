@@ -69,6 +69,7 @@ function setupDefaultInvokeMock() {
       case 'audio_seek':
       case 'audio_set_volume':
       case 'audio_set_speed':
+      case 'audio_set_loop':
         return Promise.resolve(undefined);
       case 'audio_get_status':
         return Promise.resolve({ ...defaultAudioStatus });
