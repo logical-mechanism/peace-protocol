@@ -184,7 +184,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
 
       {/* Seek bar — outer wrapper expands click target while visual bar stays h-1.5 */}
       <div
-        className={`flex-1 py-2 cursor-pointer relative min-w-[60px] ${!duration ? 'opacity-50 pointer-events-none' : ''}`}
+        className={`group/seek flex-1 py-2 cursor-pointer relative min-w-[60px] ${!duration ? 'opacity-50 pointer-events-none' : ''}`}
         onMouseDown={seekBarActions.handleSeekMouseDown}
         onMouseMove={seekBarActions.handleSeekBarMouseMove}
         onMouseLeave={seekBarActions.handleSeekBarMouseLeave}
@@ -206,7 +206,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         />
         <div
           ref={seekBarRef}
-          className="h-1.5 bg-[var(--bg-secondary)] rounded-full relative border border-[var(--border-subtle)]"
+          className="h-1.5 group-hover/seek:h-2.5 transition-[height] duration-150 bg-[var(--bg-secondary)] rounded-full relative border border-[var(--border-subtle)]"
         >
           {/* Buffered range */}
           <div
@@ -226,7 +226,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
           />
           {/* Seek thumb */}
           <div
-            className="absolute top-1/2 w-3 h-3 rounded-full bg-[var(--bg-elevated)] border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
+            className="absolute top-1/2 w-3 h-3 group-hover/seek:w-3.5 group-hover/seek:h-3.5 transition-all duration-150 rounded-full bg-[var(--bg-elevated)] border-2 border-[var(--accent)]/60 shadow-sm pointer-events-none"
             style={{ left: `${duration > 0 ? (displayTime / duration) * 100 : 0}%`, transform: 'translateX(-50%) translateY(-50%)' }}
           />
         </div>
