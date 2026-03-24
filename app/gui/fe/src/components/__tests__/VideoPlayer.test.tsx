@@ -207,12 +207,12 @@ describe('VideoPlayer', () => {
       expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
     });
 
-    it('L toggles loop', async () => {
+    it('R toggles loop', async () => {
       renderPlayer();
       await waitForControls();
 
       expect(screen.getByLabelText('Enable repeat')).toBeInTheDocument();
-      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
+      await act(async () => { fireEvent.keyDown(document, { key: 'r' }); });
       expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
     });
 
@@ -993,7 +993,7 @@ describe('VideoPlayer', () => {
         configurable: true,
       });
 
-      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
+      await act(async () => { fireEvent.keyDown(document, { key: 'r' }); });
       expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
 
       fireEvent.play(video);

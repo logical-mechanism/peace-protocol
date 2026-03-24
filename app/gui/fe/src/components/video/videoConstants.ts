@@ -8,4 +8,5 @@ export const AUTO_HIDE_SUBSEQUENT_MS = 3000;
 export const CLICK_DEBOUNCE_MS = 200;
 
 export const SKIP_SECONDS = 5;
+export const SKIP_SECONDS_MEDIUM = 10;
 export const SKIP_SECONDS_LARGE = 30;

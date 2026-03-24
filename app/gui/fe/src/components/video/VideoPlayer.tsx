@@ -257,7 +257,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       <button
         onClick={playbackActions.handleToggleLoop}
         className={`${btnClass} ${isLooping ? 'text-[var(--accent)]' : ''}`}
-        title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}
+        title={isLooping ? 'Repeat: On (R)' : 'Repeat: Off (R)'}
         aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
         aria-pressed={isLooping}
       >
@@ -317,7 +317,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Shift</kbd> &plusmn;30s</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">J</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">K</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Back / Play / Fwd</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">R</kbd> Repeat</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time</span>
         {subtitleUrlProp && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}

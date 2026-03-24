@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { SPEED_OPTIONS, SKIP_SECONDS, SKIP_SECONDS_LARGE } from './videoConstants';
+import { SPEED_OPTIONS, SKIP_SECONDS, SKIP_SECONDS_MEDIUM, SKIP_SECONDS_LARGE } from './videoConstants';
 import type { VideoPlaybackActions, VideoFullscreenActions, VideoSeekBarActions, VideoKeyboardState } from './videoTypes';
 
 export function useVideoKeyboard(opts: {
@@ -110,8 +110,22 @@ export function useVideoKeyboard(opts: {
           playbackActions.handleMuteToggle();
           showOsd(isMuted ? 'Unmuted' : 'Muted');
           break;
+        case 'j':
+        case 'J':
+          playbackActions.handleSkip(-SKIP_SECONDS_MEDIUM);
+          showOsd(`-${SKIP_SECONDS_MEDIUM}s`);
+          break;
+        case 'k':
+        case 'K':
+          playbackActions.handlePlayPause();
+          break;
         case 'l':
         case 'L':
+          playbackActions.handleSkip(SKIP_SECONDS_MEDIUM);
+          showOsd(`+${SKIP_SECONDS_MEDIUM}s`);
+          break;
+        case 'r':
+        case 'R':
           playbackActions.handleToggleLoop();
           break;
         case 'c':
