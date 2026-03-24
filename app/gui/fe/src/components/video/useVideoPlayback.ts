@@ -48,11 +48,11 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const vizTimeRef = useRef(0);
-  const lastDrawTimeRef = useRef(0);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastResumeSaveRef = useRef(0);
   const resumeIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resumeSeekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track PiP state via video element events
   useEffect(() => {
@@ -93,6 +93,10 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       if (resumeIndicatorTimerRef.current) {
         clearTimeout(resumeIndicatorTimerRef.current);
         resumeIndicatorTimerRef.current = null;
+      }
+      if (resumeSeekTimerRef.current) {
+        clearTimeout(resumeSeekTimerRef.current);
+        resumeSeekTimerRef.current = null;
       }
     };
   }, [src]);
@@ -288,6 +292,22 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
           setResumedFrom(null);
           resumeIndicatorTimerRef.current = null;
         }, 2000);
+        // Fallback: if the resume seek doesn't complete within 3s, give up and start from 0
+        if (resumeSeekTimerRef.current) clearTimeout(resumeSeekTimerRef.current);
+        resumeSeekTimerRef.current = setTimeout(() => {
+          resumeSeekTimerRef.current = null;
+          const video = videoRef.current;
+          if (video && video.readyState < 3) {
+            console.warn('[VideoPlayer] Resume seek timed out, falling back to start');
+            clearResumePosition(key);
+            video.currentTime = 0;
+            vizTimeRef.current = 0;
+            setCurrentTime(0);
+            setResumedFrom(null);
+            setLoading(false);
+            setError(null);
+          }
+        }, 3000);
       }
     }
   }, [src]);
@@ -330,6 +350,10 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       clearTimeout(stalledTimerRef.current);
       stalledTimerRef.current = null;
     }
+    if (resumeSeekTimerRef.current) {
+      clearTimeout(resumeSeekTimerRef.current);
+      resumeSeekTimerRef.current = null;
+    }
   }, []);
 
   const onPlay = useCallback(() => {
@@ -338,7 +362,6 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     setIsEnded(false);
     setResumedFrom(null);
     vizTimeRef.current = videoRef.current?.currentTime ?? 0;
-    lastDrawTimeRef.current = performance.now();
   }, []);
 
   const onPause = useCallback(() => {
@@ -361,6 +384,11 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     const t = videoRef.current?.currentTime ?? 0;
     vizTimeRef.current = t;
     setLoading(false);
+    // Clear resume fallback timer — seek succeeded
+    if (resumeSeekTimerRef.current) {
+      clearTimeout(resumeSeekTimerRef.current);
+      resumeSeekTimerRef.current = null;
+    }
   }, []);
 
   const onStalled = useCallback(() => {
@@ -396,7 +424,6 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     isPlayingRef,
     isSeekingRef,
     vizTimeRef,
-    lastDrawTimeRef,
     stalledTimerRef,
     state: {
       isPlaying,

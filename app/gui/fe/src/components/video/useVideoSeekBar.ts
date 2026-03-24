@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type MutableRefObject, type RefObject } from 'react';
+import { useState, useRef, useCallback, useEffect, type RefObject, type MutableRefObject } from 'react';
 import { formatTime } from './videoUtils';
 import { SKIP_SECONDS } from './videoConstants';
 import type { VideoSeekBarResult } from './videoTypes';
@@ -6,18 +6,15 @@ import type { VideoSeekBarResult } from './videoTypes';
 export function useVideoSeekBar(opts: {
   videoRef: RefObject<HTMLVideoElement | null>;
   vizTimeRef: MutableRefObject<number>;
-  isPlayingRef: MutableRefObject<boolean>;
   isSeekingRef: MutableRefObject<boolean>;
-  lastDrawTimeRef: MutableRefObject<number>;
   duration: number;
   isPlaying: boolean;
-  playbackRate: number;
   setCurrentTime: (t: number) => void;
   setIsSeeking: (seeking: boolean) => void;
 }): VideoSeekBarResult {
   const {
-    videoRef, vizTimeRef, isSeekingRef, lastDrawTimeRef,
-    duration, isPlaying, playbackRate, setCurrentTime, setIsSeeking,
+    videoRef, vizTimeRef, isSeekingRef,
+    duration, isPlaying, setCurrentTime, setIsSeeking,
   } = opts;
 
   const [displayTime, setDisplayTime] = useState(0);
@@ -29,23 +26,16 @@ export function useVideoSeekBar(opts: {
   const rafRef = useRef<number>(0);
   const wasPlayingRef = useRef(false);
 
-  // Smooth seek bar interpolation at 60fps between ~4Hz timeupdate events
+  // Poll video.currentTime at 60fps for smooth seek bar updates.
+  // Reads the actual playback position — never drifts during buffering.
   useEffect(() => {
-    if (!isPlaying) {
-      lastDrawTimeRef.current = 0;
-      return;
-    }
+    if (!isPlaying) return;
     let running = true;
     const loop = () => {
       if (!running) return;
-      const now = performance.now();
-      if (lastDrawTimeRef.current > 0) {
-        vizTimeRef.current += (now - lastDrawTimeRef.current) / 1000 * playbackRate;
-        // Clamp to duration to avoid overshooting
-        if (duration > 0) vizTimeRef.current = Math.min(vizTimeRef.current, duration);
-      }
-      lastDrawTimeRef.current = now;
-      setDisplayTime(vizTimeRef.current);
+      const t = videoRef.current?.currentTime ?? vizTimeRef.current;
+      vizTimeRef.current = t;
+      setDisplayTime(t);
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
@@ -53,7 +43,7 @@ export function useVideoSeekBar(opts: {
       running = false;
       cancelAnimationFrame(rafRef.current);
     };
-  }, [isPlaying, playbackRate, duration, vizTimeRef, lastDrawTimeRef]);
+  }, [isPlaying, videoRef, vizTimeRef]);
 
   const syncVizTime = useCallback((time: number) => {
     vizTimeRef.current = time;

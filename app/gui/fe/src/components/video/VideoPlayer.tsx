@@ -11,7 +11,7 @@ import type { VideoPlayerProps } from './videoTypes';
 export default function VideoPlayer({ src, mimeType, fileExtension, onExport, subtitleUrl: subtitleUrlProp }: VideoPlayerProps) {
   // Destructure hook returns fully so ESLint can trace ref usage
   const {
-    videoRef, isPlayingRef, isSeekingRef, vizTimeRef, lastDrawTimeRef,
+    videoRef, isPlayingRef, isSeekingRef, vizTimeRef,
     state: playbackState, actions: playbackActions, eventHandlers,
   } = useVideoPlayback({ src });
 
@@ -28,12 +28,9 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
   } = useVideoSeekBar({
     videoRef,
     vizTimeRef,
-    isPlayingRef,
     isSeekingRef,
-    lastDrawTimeRef,
     duration: playbackState.duration,
     isPlaying: playbackState.isPlaying,
-    playbackRate: playbackState.playbackRate,
     setCurrentTime: playbackActions.updateCurrentTime,
     setIsSeeking: playbackActions.setIsSeeking,
   });

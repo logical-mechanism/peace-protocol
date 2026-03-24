@@ -72,7 +72,6 @@ export interface VideoPlaybackResult {
   isPlayingRef: MutableRefObject<boolean>;
   isSeekingRef: MutableRefObject<boolean>;
   vizTimeRef: MutableRefObject<number>;
-  lastDrawTimeRef: MutableRefObject<number>;
   stalledTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
   state: VideoPlaybackState;
   actions: VideoPlaybackActions;
