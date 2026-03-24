@@ -107,11 +107,11 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
 
   // --- Control bar ---
 
-  const btnClass = "px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon outline-none focus-visible:shadow-[var(--focus-ring)]";
+  const btnClass = "flex-shrink-0 px-2 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon outline-none focus-visible:shadow-[var(--focus-ring)]";
   const divider = <div className="w-px h-5 bg-[var(--border-subtle)] flex-shrink-0" />;
 
   const controlBar = (
-    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] flex-nowrap overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Screen reader status */}
       <span className="sr-only" aria-live="polite" aria-atomic="true">
         {error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : 'Paused'}
@@ -149,7 +149,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
 
       {/* Time */}
       <div
-        className={`text-xs font-mono text-[var(--text-muted)] ${duration >= 3600 ? 'min-w-[130px]' : 'min-w-[85px]'} text-center select-none cursor-pointer`}
+        className={`flex-shrink-0 text-xs font-mono text-[var(--text-muted)] ${duration >= 3600 ? 'min-w-[130px]' : 'min-w-[85px]'} text-center select-none cursor-pointer`}
         onClick={() => seekBarActions.setShowRemaining(r => !r)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); seekBarActions.setShowRemaining(r => !r); } }}
         role="button"
@@ -225,7 +225,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         step="0.01"
         value={isMuted ? 0 : volume}
         onChange={playbackActions.handleVolumeChange}
-        className="w-16 accent-[var(--accent)]"
+        className="w-16 flex-shrink-0 accent-[var(--accent)]"
         aria-label="Volume"
         aria-valuenow={isMuted ? 0 : Math.round(volume * 100)}
         aria-valuetext={isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}
