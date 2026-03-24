@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { DelayedSpinner } from '../LoadingSpinner';
 import { useVideoPlayback } from './useVideoPlayback';
 import { useVideoFullscreen } from './useVideoFullscreen';
@@ -36,7 +36,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     setCurrentTime: playbackActions.updateCurrentTime,
   });
 
-  const { showKeyHints, controlAnnouncement, visualOsd } = useVideoKeyboard({
+  const { showKeyHints, controlAnnouncement, visualOsd, showOsd } = useVideoKeyboard({
     src,
     subtitleUrl: subtitleUrlProp,
     playbackActions,
@@ -58,6 +58,23 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     playbackActions.cancelClickTimer();
     fullscreenActions.toggleFullscreen();
   }, [playbackActions, fullscreenActions]);
+
+  // Volume mouse wheel on video area
+  const videoAreaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = videoAreaRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      playbackActions.adjustVolume(delta);
+      const newVol = Math.max(0, Math.min(1, playbackState.volume + delta));
+      const volText = newVol === 0 ? 'Muted' : `Volume ${Math.round(newVol * 100)}%`;
+      showOsd(volText);
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [playbackActions, playbackState.volume, showOsd]);
 
   const { isFullscreen, fullscreenVisible, controlsVisible } = fullscreenState;
   const { isPlaying, currentTime, duration, volume, isMuted, playbackRate, isLooping, isPip, pipSupported, showCaptions, loading, error, bufferedEnd, isEnded, resumedFrom } = playbackState;
@@ -404,6 +421,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       >
         {/* Video content area */}
         <div
+          ref={videoAreaRef}
           className={isFullscreen
             ? 'flex-1 overflow-auto flex items-center justify-center p-4 bg-[var(--bg-secondary)] relative'
             : 'flex items-center justify-center overflow-auto max-h-[500px] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2 relative'

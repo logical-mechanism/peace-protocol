@@ -117,4 +117,5 @@ export interface VideoKeyboardState {
   showKeyHints: boolean;
   controlAnnouncement: string;
   visualOsd: string | null;
+  showOsd: (text: string) => void;
 }

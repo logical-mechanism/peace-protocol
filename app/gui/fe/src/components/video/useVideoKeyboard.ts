@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { SPEED_OPTIONS, SKIP_SECONDS, SKIP_SECONDS_MEDIUM, SKIP_SECONDS_LARGE, FRAME_STEP_SECONDS } from './videoConstants';
 import type { VideoPlaybackActions, VideoFullscreenActions, VideoSeekBarActions, VideoKeyboardState } from './videoTypes';
 
@@ -33,14 +33,14 @@ export function useVideoKeyboard(opts: {
   const keyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const osdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showOsd = (text: string) => {
+  const showOsd = useCallback((text: string) => {
     setVisualOsd(text);
     if (osdTimerRef.current) clearTimeout(osdTimerRef.current);
     osdTimerRef.current = setTimeout(() => {
       setVisualOsd(null);
       osdTimerRef.current = null;
     }, 800);
-  };
+  }, []);
 
   useEffect(() => {
     if (!src) return;
@@ -198,5 +198,6 @@ export function useVideoKeyboard(opts: {
     showKeyHints,
     controlAnnouncement,
     visualOsd,
+    showOsd,
   };
 }
