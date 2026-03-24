@@ -11,3 +11,8 @@ export const SKIP_SECONDS = 5;
 export const SKIP_SECONDS_MEDIUM = 10;
 export const SKIP_SECONDS_LARGE = 30;
 export const FRAME_STEP_SECONDS = 1 / 30;
+
+export const SPEED_FINE_MIN = 0.25;
+export const SPEED_FINE_MAX = 3.0;
+export const SPEED_FINE_STEP = 0.25;
+export const SPEED_PRESETS = [0.5, 1, 1.5, 2] as const;

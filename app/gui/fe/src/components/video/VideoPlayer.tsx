@@ -1,10 +1,11 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { DelayedSpinner } from '../LoadingSpinner';
 import { useVideoPlayback } from './useVideoPlayback';
 import { useVideoFullscreen } from './useVideoFullscreen';
 import { useVideoSeekBar } from './useVideoSeekBar';
 import { useVideoKeyboard } from './useVideoKeyboard';
 import { formatTime, getConversionHint } from './videoUtils';
+import { SPEED_FINE_MIN, SPEED_FINE_MAX, SPEED_FINE_STEP, SPEED_PRESETS } from './videoConstants';
 import type { VideoPlayerProps } from './videoTypes';
 
 export default function VideoPlayer({ src, mimeType, fileExtension, onExport, subtitleUrl: subtitleUrlProp }: VideoPlayerProps) {
@@ -75,6 +76,41 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
   }, [playbackActions, playbackState.volume, showOsd]);
+
+  // Speed popup state
+  const [speedPopupOpen, setSpeedPopupOpen] = useState(false);
+  const speedPopupRef = useRef<HTMLDivElement>(null);
+  const speedBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Close speed popup on click-outside or Escape
+  useEffect(() => {
+    if (!speedPopupOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (speedPopupRef.current && !speedPopupRef.current.contains(e.target as Node) &&
+          speedBtnRef.current && !speedBtnRef.current.contains(e.target as Node)) {
+        setSpeedPopupOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setSpeedPopupOpen(false); }
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey, true);
+    };
+  }, [speedPopupOpen]);
+
+  const handleSpeedSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const speed = parseFloat(e.target.value);
+    playbackActions.setSpeed(speed);
+  }, [playbackActions]);
+
+  const handleSpeedPreset = useCallback((speed: number) => {
+    playbackActions.setSpeed(speed);
+    setSpeedPopupOpen(false);
+  }, [playbackActions]);
 
   const { isFullscreen, fullscreenVisible, controlsVisible } = fullscreenState;
   const { isPlaying, currentTime, duration, volume, isMuted, playbackRate, isLooping, isPip, pipSupported, showCaptions, loading, error, bufferedEnd, isEnded, resumedFrom } = playbackState;
@@ -287,15 +323,52 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         </svg>
       </button>
 
-      {/* Speed */}
-      <button
-        onClick={playbackActions.handleSpeedChange}
-        className={`${btnClass} min-w-[42px] text-center font-mono`}
-        title="Playback speed"
-        aria-label={`Playback speed: ${playbackRate}x`}
-      >
-        {playbackRate}x
-      </button>
+      {/* Speed — left-click cycles presets, right-click opens fine control */}
+      <div className="relative flex-shrink-0">
+        <button
+          ref={speedBtnRef}
+          onClick={playbackActions.handleSpeedChange}
+          onContextMenu={(e) => { e.preventDefault(); setSpeedPopupOpen(p => !p); }}
+          className={`${btnClass} min-w-[42px] text-center font-mono`}
+          title="Playback speed (right-click for fine control)"
+          aria-label={`Playback speed: ${playbackRate}x`}
+        >
+          {playbackRate}x
+        </button>
+        {speedPopupOpen && (
+          <div
+            ref={speedPopupRef}
+            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-3 shadow-lg z-30 w-48"
+          >
+            <div className="text-xs text-[var(--text-muted)] mb-2 text-center">{playbackRate}x</div>
+            <input
+              type="range"
+              min={SPEED_FINE_MIN}
+              max={SPEED_FINE_MAX}
+              step={SPEED_FINE_STEP}
+              value={playbackRate}
+              onChange={handleSpeedSliderChange}
+              className="w-full accent-[var(--accent)] mb-2"
+              aria-label="Fine speed control"
+            />
+            <div className="flex justify-between gap-1">
+              {SPEED_PRESETS.map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleSpeedPreset(s)}
+                  className={`flex-1 text-xs py-1 rounded-[var(--radius-sm)] transition-colors ${
+                    playbackRate === s
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                  }`}
+                >
+                  {s}x
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* PiP */}
       {pipSupported && (

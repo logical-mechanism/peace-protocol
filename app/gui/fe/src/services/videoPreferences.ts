@@ -41,7 +41,7 @@ export function getVideoSpeed(): number {
     const stored = localStorage.getItem(SPEED_KEY);
     if (stored === null) return SPEED_DEFAULT;
     const val = Number(stored);
-    return val >= 0.5 && val <= 2.0 ? val : SPEED_DEFAULT;
+    return val >= 0.25 && val <= 3.0 ? val : SPEED_DEFAULT;
   } catch {
     return SPEED_DEFAULT;
   }
@@ -49,6 +49,6 @@ export function getVideoSpeed(): number {
 
 export function setVideoSpeed(speed: number): void {
   try {
-    localStorage.setItem(SPEED_KEY, String(Math.max(0.5, Math.min(2.0, speed))));
+    localStorage.setItem(SPEED_KEY, String(Math.max(0.25, Math.min(3.0, speed))));
   } catch { /* best-effort */ }
 }

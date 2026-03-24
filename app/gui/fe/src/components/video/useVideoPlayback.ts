@@ -197,6 +197,12 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     if (videoRef.current) videoRef.current.playbackRate = next;
   }, [playbackRate]);
 
+  const setSpeed = useCallback((speed: number) => {
+    setPlaybackRate(speed);
+    setVideoSpeed(speed);
+    if (videoRef.current) videoRef.current.playbackRate = speed;
+  }, []);
+
   const handleCaptionToggle = useCallback(() => {
     setShowCaptions(prev => {
       const next = !prev;
@@ -412,6 +418,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       updateCurrentTime,
       handleReplay,
       seekTo,
+      setSpeed,
     },
     eventHandlers: {
       onLoadedMetadata,

@@ -45,6 +45,7 @@ export interface VideoPlaybackActions {
   updateCurrentTime: (t: number) => void;
   handleReplay: () => void;
   seekTo: (time: number) => void;
+  setSpeed: (speed: number) => void;
 }
 
 export interface VideoEventHandlers {
