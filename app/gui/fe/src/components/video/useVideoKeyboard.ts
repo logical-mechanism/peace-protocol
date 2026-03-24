@@ -13,11 +13,14 @@ export function useVideoKeyboard(opts: {
   isMuted: boolean;
   playbackRate: number;
   duration: number;
+  isLooping: boolean;
+  showCaptions: boolean;
 }): VideoKeyboardState {
   const {
     src, subtitleUrl,
     playbackActions, fullscreenActions, seekBarActions,
     adjustVolume, currentVolume, isMuted, playbackRate, duration,
+    isLooping, showCaptions,
   } = opts;
 
   const [showKeyHints, setShowKeyHints] = useState(false);
@@ -104,6 +107,7 @@ export function useVideoKeyboard(opts: {
         case 'f':
         case 'F':
           fullscreenActions.toggleFullscreen();
+          showOsd('Fullscreen');
           break;
         case 'm':
         case 'M':
@@ -127,10 +131,14 @@ export function useVideoKeyboard(opts: {
         case 'r':
         case 'R':
           playbackActions.handleToggleLoop();
+          showOsd(isLooping ? 'Loop Off' : 'Loop On');
           break;
         case 'c':
         case 'C':
-          if (subtitleUrl) playbackActions.handleCaptionToggle();
+          if (subtitleUrl) {
+            playbackActions.handleCaptionToggle();
+            showOsd(showCaptions ? 'Captions Off' : 'Captions On');
+          }
           break;
         case 't':
         case 'T':
@@ -165,6 +173,7 @@ export function useVideoKeyboard(opts: {
     src, subtitleUrl,
     playbackActions, fullscreenActions, seekBarActions,
     adjustVolume, currentVolume, isMuted, playbackRate, duration,
+    isLooping, showCaptions,
   ]);
 
   return {

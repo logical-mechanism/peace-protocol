@@ -47,6 +47,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     isMuted: playbackState.isMuted,
     playbackRate: playbackState.playbackRate,
     duration: playbackState.duration,
+    isLooping: playbackState.isLooping,
+    showCaptions: playbackState.showCaptions,
   });
 
   const handleVideoDoubleClick = useCallback((e: React.MouseEvent) => {
