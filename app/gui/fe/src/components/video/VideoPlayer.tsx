@@ -46,6 +46,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     currentVolume: playbackState.volume,
     isMuted: playbackState.isMuted,
     playbackRate: playbackState.playbackRate,
+    duration: playbackState.duration,
   });
 
   const handleVideoDoubleClick = useCallback((e: React.MouseEvent) => {
@@ -320,6 +321,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time</span>
         {subtitleUrlProp && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">0-9</kbd> Seek 0%-90%</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">?</kbd> Show hints</span>
       </div>
     </div>

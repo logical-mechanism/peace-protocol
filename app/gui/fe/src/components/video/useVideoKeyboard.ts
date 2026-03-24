@@ -12,11 +12,12 @@ export function useVideoKeyboard(opts: {
   currentVolume: number;
   isMuted: boolean;
   playbackRate: number;
+  duration: number;
 }): VideoKeyboardState {
   const {
     src, subtitleUrl,
     playbackActions, fullscreenActions, seekBarActions,
-    adjustVolume, currentVolume, isMuted, playbackRate,
+    adjustVolume, currentVolume, isMuted, playbackRate, duration,
   } = opts;
 
   const [showKeyHints, setShowKeyHints] = useState(false);
@@ -130,6 +131,17 @@ export function useVideoKeyboard(opts: {
           showOsd(`${next}x`);
           break;
         }
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': case '8': case '9': {
+          if (duration > 0) {
+            const pct = parseInt(e.key) / 10;
+            const target = pct * duration;
+            playbackActions.seekTo(target);
+            seekBarActions.syncVizTime(target);
+            showOsd(`${parseInt(e.key) * 10}%`);
+          }
+          break;
+        }
       }
     };
 
@@ -138,7 +150,7 @@ export function useVideoKeyboard(opts: {
   }, [
     src, subtitleUrl,
     playbackActions, fullscreenActions, seekBarActions,
-    adjustVolume, currentVolume, isMuted, playbackRate,
+    adjustVolume, currentVolume, isMuted, playbackRate, duration,
   ]);
 
   return {

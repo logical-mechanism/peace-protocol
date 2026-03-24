@@ -226,6 +226,14 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     setCurrentTime(t);
   }, []);
 
+  const seekTo = useCallback((time: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = Math.max(0, Math.min(video.duration || 0, time));
+    setCurrentTime(video.currentTime);
+    vizTimeRef.current = video.currentTime;
+  }, []);
+
   const handleToggleLoop = useCallback(() => {
     setIsLooping(prev => {
       const next = !prev;
@@ -403,6 +411,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       cancelClickTimer,
       updateCurrentTime,
       handleReplay,
+      seekTo,
     },
     eventHandlers: {
       onLoadedMetadata,

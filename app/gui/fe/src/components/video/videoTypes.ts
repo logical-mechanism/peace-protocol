@@ -44,6 +44,7 @@ export interface VideoPlaybackActions {
   cancelClickTimer: () => void;
   updateCurrentTime: (t: number) => void;
   handleReplay: () => void;
+  seekTo: (time: number) => void;
 }
 
 export interface VideoEventHandlers {
