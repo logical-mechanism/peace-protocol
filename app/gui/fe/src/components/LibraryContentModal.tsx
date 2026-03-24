@@ -14,7 +14,7 @@ import { formatDateTime } from '../utils/formatDate';
 const PdfViewer = lazy(() => import('./PdfViewer'));
 const ImageViewer = lazy(() => import('./ImageViewer'));
 const AudioPlayer = lazy(() => import('./audio'));
-const VideoPlayer = lazy(() => import('./VideoPlayer'));
+const VideoPlayer = lazy(() => import('./video'));
 
 interface LibraryContentModalProps {
   isOpen: boolean;

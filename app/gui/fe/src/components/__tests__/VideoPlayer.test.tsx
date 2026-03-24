@@ -8,7 +8,7 @@ vi.mock('../LoadingSpinner', () => ({
   DelayedSpinner: () => <div data-testid="spinner">Loading...</div>,
 }));
 
-import VideoPlayer from '../VideoPlayer';
+import VideoPlayer from '../video';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
