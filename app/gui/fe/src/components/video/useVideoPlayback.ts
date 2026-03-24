@@ -118,11 +118,16 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     const video = videoRef.current;
     if (!video) return;
     video.pause();
-    video.currentTime = 0;
+    // Clear resume position so load() doesn't try to resume
+    clearResumePosition(normalizeVideoKey(src));
+    // Full reset: reload the media element from scratch instead of seeking
+    // to 0, which can fail if GStreamer discarded the start buffer
+    video.load();
     vizTimeRef.current = 0;
     setCurrentTime(0);
     setIsEnded(false);
-  }, []);
+    setLoading(true);
+  }, [src]);
 
   const handleVideoClick = useCallback(() => {
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
@@ -163,9 +168,17 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const handleReplay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.currentTime = 0;
-    video.play();
-  }, []);
+    clearResumePosition(normalizeVideoKey(src));
+    setError(null);
+    setLoading(true);
+    video.load();
+    // Play after the element resets — onLoadedMetadata will fire first
+    const onReady = () => {
+      video.removeEventListener('loadedmetadata', onReady);
+      video.play().catch(() => {});
+    };
+    video.addEventListener('loadedmetadata', onReady);
+  }, [src]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);

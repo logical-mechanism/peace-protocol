@@ -67,7 +67,11 @@ fn media_mime_type(path: &str) -> &'static str {
 }
 
 /// Parse a single-range `Range: bytes=START-END` header.
-/// Returns (start, end) inclusive, capped at 2 MB per chunk.
+/// Returns (start, end) inclusive. Open-ended ranges serve to EOF;
+/// explicit ranges honor the client's requested end (clamped to file length).
+/// No artificial chunk cap — files are served from localhost so throughput is
+/// not a bottleneck, and GStreamer (WebKitGTK) needs full range responses to
+/// avoid stalling at chunk boundaries.
 fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
     let range = header.strip_prefix("bytes=")?;
     let (start_str, end_str) = range.split_once('-')?;
@@ -79,14 +83,12 @@ fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
         start_str.parse().ok()?
     };
 
-    const MAX_CHUNK: u64 = 2 * 1024 * 1024; // 2 MB
-
     let end: u64 = if end_str.is_empty() || start_str.is_empty() {
-        (start + MAX_CHUNK - 1).min(file_len - 1)
+        // Open-ended or suffix range: serve to end of file
+        file_len - 1
     } else {
         let requested: u64 = end_str.parse().ok()?;
-        let capped = start + (requested - start).min(MAX_CHUNK - 1);
-        capped.min(file_len - 1)
+        requested.min(file_len - 1)
     };
 
     if start >= file_len || end < start {
