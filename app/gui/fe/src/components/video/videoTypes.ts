@@ -107,6 +107,7 @@ export interface VideoSeekBarActions {
 export interface VideoSeekBarResult {
   seekBarRef: RefObject<HTMLDivElement | null>;
   seekBarTooltipRef: RefObject<HTMLDivElement | null>;
+  hoverMarkerRef: RefObject<HTMLDivElement | null>;
   state: VideoSeekBarState;
   actions: VideoSeekBarActions;
 }

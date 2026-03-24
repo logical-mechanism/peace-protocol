@@ -23,7 +23,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
   });
 
   const {
-    seekBarRef, seekBarTooltipRef, state: seekBarState, actions: seekBarActions,
+    seekBarRef, seekBarTooltipRef, hoverMarkerRef, state: seekBarState, actions: seekBarActions,
   } = useVideoSeekBar({
     videoRef,
     vizTimeRef,
@@ -190,6 +190,12 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
           <div
             className="absolute inset-y-0 left-0 bg-[var(--text-muted)]/20 rounded-full"
             style={{ width: `${duration > 0 ? (bufferedEnd / duration) * 100 : 0}%` }}
+          />
+          {/* Hover preview marker */}
+          <div
+            ref={hoverMarkerRef}
+            className="absolute inset-y-0 w-0.5 bg-white/40 pointer-events-none opacity-0 transition-opacity duration-75"
+            style={{ transform: 'translateX(-50%)' }}
           />
           {/* Played range */}
           <div

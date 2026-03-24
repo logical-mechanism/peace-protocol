@@ -24,6 +24,7 @@ export function useVideoSeekBar(opts: {
 
   const seekBarRef = useRef<HTMLDivElement>(null);
   const seekBarTooltipRef = useRef<HTMLDivElement>(null);
+  const hoverMarkerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
   // Smooth seek bar interpolation at 60fps between ~4Hz timeupdate events
@@ -103,11 +104,19 @@ export function useVideoSeekBar(opts: {
     const clampedLeft = Math.max(halfW, Math.min(rect.width - halfW, rawLeft));
     tooltip.style.left = `${clampedLeft}px`;
     tooltip.style.opacity = '1';
+    // Position hover marker
+    const marker = hoverMarkerRef.current;
+    if (marker) {
+      marker.style.left = `${ratio * 100}%`;
+      marker.style.opacity = '1';
+    }
   }, [duration]);
 
   const hideSeekTooltip = useCallback(() => {
     const tooltip = seekBarTooltipRef.current;
     if (tooltip) tooltip.style.opacity = '0';
+    const marker = hoverMarkerRef.current;
+    if (marker) marker.style.opacity = '0';
   }, []);
 
   const handleSeekBarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -151,6 +160,7 @@ export function useVideoSeekBar(opts: {
   return {
     seekBarRef,
     seekBarTooltipRef,
+    hoverMarkerRef,
     state: {
       displayTime,
       showRemaining,
