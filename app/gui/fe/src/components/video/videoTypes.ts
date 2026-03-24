@@ -23,6 +23,9 @@ export interface VideoPlaybackState {
   showCaptions: boolean;
   loading: boolean;
   error: string | null;
+  bufferedEnd: number;
+  isEnded: boolean;
+  resumedFrom: number | null;
 }
 
 export interface VideoPlaybackActions {
@@ -30,6 +33,7 @@ export interface VideoPlaybackActions {
   handleVideoClick: () => void;
   handleSkipBack: () => void;
   handleSkipForward: () => void;
+  handleSkip: (seconds: number) => void;
   handleVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   adjustVolume: (delta: number) => void;
   handleMuteToggle: () => void;
@@ -39,6 +43,7 @@ export interface VideoPlaybackActions {
   handlePip: () => Promise<void>;
   cancelClickTimer: () => void;
   updateCurrentTime: (t: number) => void;
+  handleReplay: () => void;
 }
 
 export interface VideoEventHandlers {
@@ -54,6 +59,7 @@ export interface VideoEventHandlers {
   onEnded: () => void;
   onSeeked: () => void;
   onStalled: () => void;
+  onProgress: () => void;
 }
 
 export interface VideoPlaybackResult {

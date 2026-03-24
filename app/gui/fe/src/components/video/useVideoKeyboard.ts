@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { SPEED_OPTIONS } from './videoConstants';
+import { SPEED_OPTIONS, SKIP_SECONDS, SKIP_SECONDS_LARGE } from './videoConstants';
 import type { VideoPlaybackActions, VideoFullscreenActions, VideoSeekBarActions, VideoKeyboardState } from './videoTypes';
 
 export function useVideoKeyboard(opts: {
@@ -57,11 +57,11 @@ export function useVideoKeyboard(opts: {
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          playbackActions.handleSkipBack();
+          playbackActions.handleSkip(e.shiftKey ? -SKIP_SECONDS_LARGE : -SKIP_SECONDS);
           break;
         case 'ArrowRight':
           e.preventDefault();
-          playbackActions.handleSkipForward();
+          playbackActions.handleSkip(e.shiftKey ? SKIP_SECONDS_LARGE : SKIP_SECONDS);
           break;
         case 'ArrowUp':
           e.preventDefault();

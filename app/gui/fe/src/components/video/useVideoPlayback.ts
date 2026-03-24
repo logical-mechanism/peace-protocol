@@ -1,6 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { SPEED_OPTIONS, STALL_TIMEOUT_MS, CLICK_DEBOUNCE_MS, SKIP_SECONDS } from './videoConstants';
+import { getVideoVolume, setVideoVolume, getVideoMuted, setVideoMuted, getVideoSpeed, setVideoSpeed } from '../../services/videoPreferences';
+import { getResumePosition, setResumePosition, clearResumePosition, normalizeVideoKey } from '../../services/videoResumeStorage';
 import type { VideoPlaybackResult } from './videoTypes';
+
+const RESUME_SAVE_INTERVAL_MS = 5000;
 
 export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const { src } = opts;
@@ -9,9 +13,9 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1.0);
-  const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1.0);
+  const [volume, setVolume] = useState(() => getVideoVolume());
+  const [isMuted, setIsMuted] = useState(() => getVideoMuted());
+  const [playbackRate, setPlaybackRate] = useState(() => getVideoSpeed());
   const [pipSupported] = useState(() =>
     typeof document !== 'undefined' &&
     'pictureInPictureEnabled' in document &&
@@ -22,14 +26,20 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const [isPip, setIsPip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bufferedEnd, setBufferedEnd] = useState(0);
+  const [isEnded, setIsEnded] = useState(false);
+  const [resumedFrom, setResumedFrom] = useState<number | null>(null);
 
   // Reset playback state when src changes (React "adjusting state during render" pattern)
   const [prevSrc, setPrevSrc] = useState(src);
   if (prevSrc !== src) {
     setPrevSrc(src);
-    setPlaybackRate(1.0);
+    setPlaybackRate(getVideoSpeed());
     setError(null);
     setLoading(true);
+    setBufferedEnd(0);
+    setIsEnded(false);
+    setResumedFrom(null);
   }
 
   // Refs
@@ -40,6 +50,8 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const lastDrawTimeRef = useRef(0);
   const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastResumeSaveRef = useRef(0);
+  const resumeIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track PiP state via video element events
   useEffect(() => {
@@ -69,6 +81,10 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       if (clickTimerRef.current) {
         clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
+      }
+      if (resumeIndicatorTimerRef.current) {
+        clearTimeout(resumeIndicatorTimerRef.current);
+        resumeIndicatorTimerRef.current = null;
       }
     };
   }, [src]);
@@ -113,24 +129,46 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     video.currentTime = Math.min(video.duration || 0, video.currentTime + SKIP_SECONDS);
   }, []);
 
+  const handleSkip = useCallback((seconds: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const newTime = video.currentTime + seconds;
+    video.currentTime = seconds < 0
+      ? Math.max(0, newTime)
+      : Math.min(video.duration || Infinity, newTime);
+  }, []);
+
+  const handleReplay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = 0;
+    video.play();
+  }, []);
+
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
     setVolume(v);
+    setVideoVolume(v);
     if (videoRef.current) {
       videoRef.current.volume = v;
       videoRef.current.muted = v === 0;
     }
-    setIsMuted(v === 0);
+    const muted = v === 0;
+    setIsMuted(muted);
+    setVideoMuted(muted);
   }, []);
 
   const adjustVolume = useCallback((delta: number) => {
     setVolume(prev => {
       const v = Math.max(0, Math.min(1, prev + delta));
+      setVideoVolume(v);
       if (videoRef.current) {
         videoRef.current.volume = v;
         videoRef.current.muted = v === 0;
       }
-      setIsMuted(v === 0);
+      const muted = v === 0;
+      setIsMuted(muted);
+      setVideoMuted(muted);
       return v;
     });
   }, []);
@@ -141,12 +179,14 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     const newMuted = !isMuted;
     video.muted = newMuted;
     setIsMuted(newMuted);
+    setVideoMuted(newMuted);
   }, [isMuted]);
 
   const handleSpeedChange = useCallback(() => {
     const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
     const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
     setPlaybackRate(next);
+    setVideoSpeed(next);
     if (videoRef.current) videoRef.current.playbackRate = next;
   }, [playbackRate]);
 
@@ -198,8 +238,27 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
         return;
       }
       setDuration(d);
+      // Apply persisted playback rate to the video element
+      const storedSpeed = getVideoSpeed();
+      if (storedSpeed !== 1.0) {
+        videoRef.current.playbackRate = storedSpeed;
+      }
+      // Resume from last position if available
+      const key = normalizeVideoKey(src);
+      const resumeTime = getResumePosition(key);
+      if (resumeTime !== null && resumeTime < d) {
+        videoRef.current.currentTime = resumeTime;
+        vizTimeRef.current = resumeTime;
+        setResumedFrom(resumeTime);
+        // Auto-clear the resume indicator after 2s
+        if (resumeIndicatorTimerRef.current) clearTimeout(resumeIndicatorTimerRef.current);
+        resumeIndicatorTimerRef.current = setTimeout(() => {
+          setResumedFrom(null);
+          resumeIndicatorTimerRef.current = null;
+        }, 2000);
+      }
     }
-  }, []);
+  }, [src]);
 
   const onError = useCallback(() => {
     setLoading(false);
@@ -209,10 +268,19 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   }, []);
 
   const onTimeUpdate = useCallback(() => {
-    const t = videoRef.current?.currentTime ?? 0;
+    const video = videoRef.current;
+    const t = video?.currentTime ?? 0;
     setCurrentTime(t);
     vizTimeRef.current = t;
-  }, []);
+    // Throttled resume position save
+    if (video && video.duration > 0) {
+      const now = Date.now();
+      if (now - lastResumeSaveRef.current >= RESUME_SAVE_INTERVAL_MS) {
+        lastResumeSaveRef.current = now;
+        setResumePosition(normalizeVideoKey(src), t, video.duration);
+      }
+    }
+  }, [src]);
 
   const onDurationChange = useCallback(() => {
     const d = videoRef.current?.duration ?? 0;
@@ -233,6 +301,8 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const onPlay = useCallback(() => {
     setIsPlaying(true);
     isPlayingRef.current = true;
+    setIsEnded(false);
+    setResumedFrom(null);
     vizTimeRef.current = videoRef.current?.currentTime ?? 0;
     lastDrawTimeRef.current = performance.now();
   }, []);
@@ -246,10 +316,12 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     setIsPlaying(false);
     isPlayingRef.current = false;
     if (!isLooping && videoRef.current) {
+      setIsEnded(true);
+      clearResumePosition(normalizeVideoKey(src));
       videoRef.current.currentTime = 0;
       vizTimeRef.current = 0;
     }
-  }, [isLooping]);
+  }, [isLooping, src]);
 
   const onSeeked = useCallback(() => {
     const t = videoRef.current?.currentTime ?? 0;
@@ -268,6 +340,20 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
         stalledTimerRef.current = null;
       }, STALL_TIMEOUT_MS);
     }
+  }, []);
+
+  const onProgress = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !video.buffered.length) return;
+    // Find the buffered range containing or nearest to current playback position
+    for (let i = 0; i < video.buffered.length; i++) {
+      if (video.buffered.start(i) <= video.currentTime && video.buffered.end(i) >= video.currentTime) {
+        setBufferedEnd(video.buffered.end(i));
+        return;
+      }
+    }
+    // Fallback: use the last buffered range end
+    setBufferedEnd(video.buffered.end(video.buffered.length - 1));
   }, []);
 
   return {
@@ -290,12 +376,16 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       showCaptions,
       loading,
       error,
+      bufferedEnd,
+      isEnded,
+      resumedFrom,
     },
     actions: {
       handlePlayPause,
       handleVideoClick,
       handleSkipBack,
       handleSkipForward,
+      handleSkip,
       handleVolumeChange,
       adjustVolume,
       handleMuteToggle,
@@ -305,6 +395,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       handlePip,
       cancelClickTimer,
       updateCurrentTime,
+      handleReplay,
     },
     eventHandlers: {
       onLoadedMetadata,
@@ -319,6 +410,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       onEnded,
       onSeeked,
       onStalled,
+      onProgress,
     },
   };
 }

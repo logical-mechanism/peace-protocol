@@ -59,6 +59,7 @@ function simulateLoadedMetadata(durationSeconds: number) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 // ── Tests ───────────────────────────────────────────────────────────

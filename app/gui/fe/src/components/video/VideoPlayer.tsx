@@ -55,7 +55,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
   }, [playbackActions, fullscreenActions]);
 
   const { isFullscreen, fullscreenVisible, controlsVisible } = fullscreenState;
-  const { isPlaying, currentTime, duration, volume, isMuted, playbackRate, isLooping, isPip, pipSupported, showCaptions, loading, error } = playbackState;
+  const { isPlaying, currentTime, duration, volume, isMuted, playbackRate, isLooping, isPip, pipSupported, showCaptions, loading, error, bufferedEnd, isEnded, resumedFrom } = playbackState;
   const { displayTime, showRemaining } = seekBarState;
 
   // --- Error state ---
@@ -186,6 +186,12 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
           ref={seekBarRef}
           className="h-1.5 bg-[var(--bg-secondary)] rounded-full relative border border-[var(--border-subtle)]"
         >
+          {/* Buffered range */}
+          <div
+            className="absolute inset-y-0 left-0 bg-[var(--text-muted)]/20 rounded-full"
+            style={{ width: `${duration > 0 ? (bufferedEnd / duration) * 100 : 0}%` }}
+          />
+          {/* Played range */}
           <div
             className="absolute inset-y-0 left-0 bg-[var(--accent)] rounded-full"
             style={{ width: `${duration > 0 ? (displayTime / duration) * 100 : 0}%` }}
@@ -301,7 +307,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       <div className="grid grid-cols-2 gap-x-6 gap-y-1">
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">F</kbd> Fullscreen</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Shift</kbd> &plusmn;30s</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
@@ -347,6 +353,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         seekBarActions.syncVizTime(videoRef.current?.currentTime ?? 0);
       }}
       onStalled={eventHandlers.onStalled}
+      onProgress={eventHandlers.onProgress}
       onClick={playbackActions.handleVideoClick}
       onDoubleClick={handleVideoDoubleClick}
       src={src}
@@ -395,6 +402,25 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
                 <DelayedSpinner size="lg" className="mx-auto mb-4" />
                 <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
               </div>
+            </div>
+          )}
+          {isEnded && !loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+              <button
+                onClick={playbackActions.handleReplay}
+                className="flex flex-col items-center gap-2 text-white/90 hover:text-white transition-colors"
+                aria-label="Replay video"
+              >
+                <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+                </svg>
+                <span className="text-sm font-medium">Replay</span>
+              </button>
+            </div>
+          )}
+          {resumedFrom !== null && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)]/90 text-[var(--text-primary)] text-xs rounded-[var(--radius-md)] px-3 py-1.5 pointer-events-none z-10 border border-[var(--border-subtle)] transition-opacity duration-500">
+              Resumed from {formatTime(resumedFrom)}
             </div>
           )}
           {isFullscreen ? controlsVisible && keyHintsOverlay : keyHintsOverlay}
