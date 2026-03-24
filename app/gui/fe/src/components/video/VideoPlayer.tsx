@@ -472,6 +472,14 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         >
           {controlBar}
         </div>
+
+        {/* Mini progress bar — visible in fullscreen when controls are hidden */}
+        {isFullscreen && (
+          <div
+            className={`absolute bottom-0 left-0 h-0.5 bg-[var(--accent)] z-20 transition-opacity duration-300 ${controlsVisible ? 'opacity-0' : 'opacity-100'}`}
+            style={{ width: `${duration > 0 ? (displayTime / duration) * 100 : 0}%` }}
+          />
+        )}
       </div>
     </div>
   );
