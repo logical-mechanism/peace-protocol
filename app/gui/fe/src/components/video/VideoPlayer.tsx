@@ -149,7 +149,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
 
       {/* Time */}
       <div
-        className="text-xs font-mono text-[var(--text-muted)] min-w-[85px] text-center select-none cursor-pointer"
+        className={`text-xs font-mono text-[var(--text-muted)] ${duration >= 3600 ? 'min-w-[130px]' : 'min-w-[85px]'} text-center select-none cursor-pointer`}
         onClick={() => seekBarActions.setShowRemaining(r => !r)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); seekBarActions.setShowRemaining(r => !r); } }}
         role="button"

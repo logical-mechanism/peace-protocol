@@ -720,6 +720,15 @@ describe('VideoPlayer', () => {
       expect(screen.getByText(/02:05/)).toBeInTheDocument();
     });
 
+    it('formatTime formats hours correctly for long videos', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      simulateLoadedMetadata(5423); // 1:30:23
+
+      expect(screen.getByText(/1:30:23/)).toBeInTheDocument();
+    });
+
     it('renders with different src URL', () => {
       const { container } = renderPlayer({ src: 'media://localhost/other-video.webm' });
       expect(container).toBeInTheDocument();
