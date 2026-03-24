@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { SPEED_OPTIONS, SKIP_SECONDS, SKIP_SECONDS_MEDIUM, SKIP_SECONDS_LARGE } from './videoConstants';
+import { SPEED_OPTIONS, SKIP_SECONDS, SKIP_SECONDS_MEDIUM, SKIP_SECONDS_LARGE, FRAME_STEP_SECONDS } from './videoConstants';
 import type { VideoPlaybackActions, VideoFullscreenActions, VideoSeekBarActions, VideoKeyboardState } from './videoTypes';
 
 export function useVideoKeyboard(opts: {
@@ -13,6 +13,8 @@ export function useVideoKeyboard(opts: {
   isMuted: boolean;
   playbackRate: number;
   duration: number;
+  isPlaying: boolean;
+  currentTime: number;
   isLooping: boolean;
   showCaptions: boolean;
 }): VideoKeyboardState {
@@ -20,7 +22,7 @@ export function useVideoKeyboard(opts: {
     src, subtitleUrl,
     playbackActions, fullscreenActions, seekBarActions,
     adjustVolume, currentVolume, isMuted, playbackRate, duration,
-    isLooping, showCaptions,
+    isPlaying, currentTime, isLooping, showCaptions,
   } = opts;
 
   const [showKeyHints, setShowKeyHints] = useState(false);
@@ -153,6 +155,22 @@ export function useVideoKeyboard(opts: {
           showOsd(`${next}x`);
           break;
         }
+        case '.':
+          if (!isPlaying && duration > 0) {
+            const fwd = Math.min(duration, currentTime + FRAME_STEP_SECONDS);
+            playbackActions.seekTo(fwd);
+            seekBarActions.syncVizTime(fwd);
+            showOsd('Frame \u2192');
+          }
+          break;
+        case ',':
+          if (!isPlaying && duration > 0) {
+            const back = Math.max(0, currentTime - FRAME_STEP_SECONDS);
+            playbackActions.seekTo(back);
+            seekBarActions.syncVizTime(back);
+            showOsd('\u2190 Frame');
+          }
+          break;
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9': {
           if (duration > 0) {
@@ -173,7 +191,7 @@ export function useVideoKeyboard(opts: {
     src, subtitleUrl,
     playbackActions, fullscreenActions, seekBarActions,
     adjustVolume, currentVolume, isMuted, playbackRate, duration,
-    isLooping, showCaptions,
+    isPlaying, currentTime, isLooping, showCaptions,
   ]);
 
   return {

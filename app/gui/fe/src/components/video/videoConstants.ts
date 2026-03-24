@@ -10,3 +10,4 @@ export const CLICK_DEBOUNCE_MS = 200;
 export const SKIP_SECONDS = 5;
 export const SKIP_SECONDS_MEDIUM = 10;
 export const SKIP_SECONDS_LARGE = 30;
+export const FRAME_STEP_SECONDS = 1 / 30;
