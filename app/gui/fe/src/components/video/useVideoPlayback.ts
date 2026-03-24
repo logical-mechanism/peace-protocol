@@ -28,6 +28,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const [error, setError] = useState<string | null>(null);
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [isEnded, setIsEnded] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [resumedFrom, setResumedFrom] = useState<number | null>(null);
 
   // Reset playback state when src changes (React "adjusting state during render" pattern)
@@ -107,6 +108,16 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) video.play(); else video.pause();
+  }, []);
+
+  const handleStop = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.pause();
+    video.currentTime = 0;
+    vizTimeRef.current = 0;
+    setCurrentTime(0);
+    setIsEnded(false);
   }, []);
 
   const handleVideoClick = useCallback(() => {
@@ -309,7 +320,9 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   }, []);
 
   const onCanPlay = useCallback(() => setLoading(false), []);
-  const onWaiting = useCallback(() => setLoading(true), []);
+  const onWaiting = useCallback(() => {
+    if (!isSeekingRef.current) setLoading(true);
+  }, []);
 
   const onPlaying = useCallback(() => {
     setLoading(false);
@@ -347,6 +360,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const onSeeked = useCallback(() => {
     const t = videoRef.current?.currentTime ?? 0;
     vizTimeRef.current = t;
+    setLoading(false);
   }, []);
 
   const onStalled = useCallback(() => {
@@ -399,10 +413,12 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       error,
       bufferedEnd,
       isEnded,
+      isSeeking,
       resumedFrom,
     },
     actions: {
       handlePlayPause,
+      handleStop,
       handleVideoClick,
       handleSkipBack,
       handleSkipForward,
@@ -419,6 +435,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
       handleReplay,
       seekTo,
       setSpeed,
+      setIsSeeking,
     },
     eventHandlers: {
       onLoadedMetadata,

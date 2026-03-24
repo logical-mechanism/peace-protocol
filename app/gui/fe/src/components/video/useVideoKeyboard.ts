@@ -125,6 +125,12 @@ export function useVideoKeyboard(opts: {
         case 'K':
           playbackActions.handlePlayPause();
           break;
+        case 'x':
+        case 'X':
+          playbackActions.handleStop();
+          seekBarActions.syncVizTime(0);
+          showOsd('Stop');
+          break;
         case 'l':
         case 'L':
           playbackActions.handleSkip(SKIP_SECONDS_MEDIUM);
@@ -191,7 +197,7 @@ export function useVideoKeyboard(opts: {
     src, subtitleUrl,
     playbackActions, fullscreenActions, seekBarActions,
     adjustVolume, currentVolume, isMuted, playbackRate, duration,
-    isPlaying, currentTime, isLooping, showCaptions,
+    isPlaying, currentTime, isLooping, showCaptions, showOsd,
   ]);
 
   return {

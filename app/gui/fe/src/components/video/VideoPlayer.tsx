@@ -35,6 +35,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     isPlaying: playbackState.isPlaying,
     playbackRate: playbackState.playbackRate,
     setCurrentTime: playbackActions.updateCurrentTime,
+    setIsSeeking: playbackActions.setIsSeeking,
   });
 
   const { showKeyHints, controlAnnouncement, visualOsd, showOsd } = useVideoKeyboard({
@@ -113,7 +114,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
   }, [playbackActions]);
 
   const { isFullscreen, fullscreenVisible, controlsVisible } = fullscreenState;
-  const { isPlaying, currentTime, duration, volume, isMuted, playbackRate, isLooping, isPip, pipSupported, showCaptions, loading, error, bufferedEnd, isEnded, resumedFrom } = playbackState;
+  const { isPlaying, currentTime, duration, volume, isMuted, playbackRate, isLooping, isPip, pipSupported, showCaptions, loading, error, bufferedEnd, isEnded, isSeeking, resumedFrom } = playbackState;
   const { displayTime, showRemaining } = seekBarState;
 
   // --- Error state ---
@@ -189,6 +190,13 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
             <path d="M8 5v14l11-7z" />
           </svg>
         )}
+      </button>
+
+      {/* Stop */}
+      <button onClick={() => { playbackActions.handleStop(); seekBarActions.syncVizTime(0); }} className={btnClass} title="Stop (X)" aria-label="Stop">
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6h12v12H6z" />
+        </svg>
       </button>
 
       {/* Skip Back */}
@@ -412,6 +420,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">J</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">K</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Back / Play / Fwd</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">X</kbd> Stop</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">R</kbd> Repeat</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time</span>
@@ -501,7 +510,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
           }
         >
           {videoElement}
-          {loading && (
+          {loading && !isSeeking && (
             <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]">
               <div className="text-center">
                 <DelayedSpinner size="lg" className="mx-auto mb-4" />

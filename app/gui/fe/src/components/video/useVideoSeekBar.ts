@@ -13,10 +13,11 @@ export function useVideoSeekBar(opts: {
   isPlaying: boolean;
   playbackRate: number;
   setCurrentTime: (t: number) => void;
+  setIsSeeking: (seeking: boolean) => void;
 }): VideoSeekBarResult {
   const {
     videoRef, vizTimeRef, isSeekingRef, lastDrawTimeRef,
-    duration, isPlaying, playbackRate, setCurrentTime,
+    duration, isPlaying, playbackRate, setCurrentTime, setIsSeeking,
   } = opts;
 
   const [displayTime, setDisplayTime] = useState(0);
@@ -26,6 +27,7 @@ export function useVideoSeekBar(opts: {
   const seekBarTooltipRef = useRef<HTMLDivElement>(null);
   const hoverMarkerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
+  const wasPlayingRef = useRef(false);
 
   // Smooth seek bar interpolation at 60fps between ~4Hz timeupdate events
   useEffect(() => {
@@ -64,7 +66,9 @@ export function useVideoSeekBar(opts: {
     const video = videoRef.current;
     const bar = seekBarRef.current;
     if (!video || !bar || !duration) return;
+    wasPlayingRef.current = !video.paused;
     isSeekingRef.current = true;
+    setIsSeeking(true);
 
     const seekTo = (clientX: number) => {
       const rect = bar.getBoundingClientRect();
@@ -84,13 +88,18 @@ export function useVideoSeekBar(opts: {
 
     const handleMouseUp = () => {
       isSeekingRef.current = false;
+      setIsSeeking(false);
+      if (wasPlayingRef.current) {
+        video.play().catch(() => {});
+        wasPlayingRef.current = false;
+      }
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [duration, videoRef, isSeekingRef, vizTimeRef, setCurrentTime]);
+  }, [duration, videoRef, isSeekingRef, vizTimeRef, setCurrentTime, setIsSeeking]);
 
   const showSeekTooltip = useCallback((clientX: number) => {
     const tooltip = seekBarTooltipRef.current;

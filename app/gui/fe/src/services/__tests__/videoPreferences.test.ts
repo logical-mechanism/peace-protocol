@@ -65,11 +65,11 @@ describe('getVideoSpeed / setVideoSpeed', () => {
     expect(getVideoSpeed()).toBe(1.5);
   });
 
-  it('clamps to [0.5, 2.0] on set', () => {
-    setVideoSpeed(3.0);
-    expect(getVideoSpeed()).toBe(2.0);
+  it('clamps to [0.25, 3.0] on set', () => {
+    setVideoSpeed(5.0);
+    expect(getVideoSpeed()).toBe(3.0);
     setVideoSpeed(0.1);
-    expect(getVideoSpeed()).toBe(0.5);
+    expect(getVideoSpeed()).toBe(0.25);
   });
 
   it('returns default for invalid stored value', () => {

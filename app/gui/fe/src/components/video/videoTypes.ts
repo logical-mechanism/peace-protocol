@@ -25,11 +25,13 @@ export interface VideoPlaybackState {
   error: string | null;
   bufferedEnd: number;
   isEnded: boolean;
+  isSeeking: boolean;
   resumedFrom: number | null;
 }
 
 export interface VideoPlaybackActions {
   handlePlayPause: () => void;
+  handleStop: () => void;
   handleVideoClick: () => void;
   handleSkipBack: () => void;
   handleSkipForward: () => void;
@@ -46,6 +48,7 @@ export interface VideoPlaybackActions {
   handleReplay: () => void;
   seekTo: (time: number) => void;
   setSpeed: (speed: number) => void;
+  setIsSeeking: (seeking: boolean) => void;
 }
 
 export interface VideoEventHandlers {
