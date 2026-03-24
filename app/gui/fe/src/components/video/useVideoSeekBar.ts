@@ -28,14 +28,17 @@ export function useVideoSeekBar(opts: {
 
   // Poll video.currentTime at 60fps for smooth seek bar updates.
   // Reads the actual playback position — never drifts during buffering.
+  // Skips updates during active seeking so the drag position isn't overwritten.
   useEffect(() => {
     if (!isPlaying) return;
     let running = true;
     const loop = () => {
       if (!running) return;
-      const t = videoRef.current?.currentTime ?? vizTimeRef.current;
-      vizTimeRef.current = t;
-      setDisplayTime(t);
+      if (!isSeekingRef.current) {
+        const t = videoRef.current?.currentTime ?? vizTimeRef.current;
+        vizTimeRef.current = t;
+        setDisplayTime(t);
+      }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
@@ -43,7 +46,7 @@ export function useVideoSeekBar(opts: {
       running = false;
       cancelAnimationFrame(rafRef.current);
     };
-  }, [isPlaying, videoRef, vizTimeRef]);
+  }, [isPlaying, videoRef, vizTimeRef, isSeekingRef]);
 
   const syncVizTime = useCallback((time: number) => {
     vizTimeRef.current = time;

@@ -53,6 +53,7 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const lastResumeSaveRef = useRef(0);
   const resumeIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumeSeekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waitingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track PiP state via video element events
   useEffect(() => {
@@ -98,6 +99,10 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
         clearTimeout(resumeSeekTimerRef.current);
         resumeSeekTimerRef.current = null;
       }
+      if (waitingTimerRef.current) {
+        clearTimeout(waitingTimerRef.current);
+        waitingTimerRef.current = null;
+      }
     };
   }, [src]);
 
@@ -118,16 +123,11 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     const video = videoRef.current;
     if (!video) return;
     video.pause();
-    // Clear resume position so load() doesn't try to resume
-    clearResumePosition(normalizeVideoKey(src));
-    // Full reset: reload the media element from scratch instead of seeking
-    // to 0, which can fail if GStreamer discarded the start buffer
-    video.load();
+    video.currentTime = 0;
     vizTimeRef.current = 0;
     setCurrentTime(0);
     setIsEnded(false);
-    setLoading(true);
-  }, [src]);
+  }, []);
 
   const handleVideoClick = useCallback(() => {
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
@@ -352,12 +352,30 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     if (isFinite(d) && d > 0) setDuration(d);
   }, []);
 
-  const onCanPlay = useCallback(() => setLoading(false), []);
+  const onCanPlay = useCallback(() => {
+    if (waitingTimerRef.current) {
+      clearTimeout(waitingTimerRef.current);
+      waitingTimerRef.current = null;
+    }
+    setLoading(false);
+  }, []);
+
   const onWaiting = useCallback(() => {
-    if (!isSeekingRef.current) setLoading(true);
+    if (isSeekingRef.current) return;
+    // Debounce: only show loading overlay if buffering persists for 300ms.
+    // Brief rebuffering (e.g. pause→play) resolves before the timer fires.
+    if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current);
+    waitingTimerRef.current = setTimeout(() => {
+      waitingTimerRef.current = null;
+      setLoading(true);
+    }, 300);
   }, []);
 
   const onPlaying = useCallback(() => {
+    if (waitingTimerRef.current) {
+      clearTimeout(waitingTimerRef.current);
+      waitingTimerRef.current = null;
+    }
     setLoading(false);
     if (stalledTimerRef.current) {
       clearTimeout(stalledTimerRef.current);
@@ -396,6 +414,10 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const onSeeked = useCallback(() => {
     const t = videoRef.current?.currentTime ?? 0;
     vizTimeRef.current = t;
+    if (waitingTimerRef.current) {
+      clearTimeout(waitingTimerRef.current);
+      waitingTimerRef.current = null;
+    }
     setLoading(false);
     // Clear resume fallback timer — seek succeeded
     if (resumeSeekTimerRef.current) {
