@@ -114,4 +114,5 @@ export interface VideoSeekBarResult {
 export interface VideoKeyboardState {
   showKeyHints: boolean;
   controlAnnouncement: string;
+  visualOsd: string | null;
 }

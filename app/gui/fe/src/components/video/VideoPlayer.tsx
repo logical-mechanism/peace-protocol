@@ -36,7 +36,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     setCurrentTime: playbackActions.updateCurrentTime,
   });
 
-  const { showKeyHints, controlAnnouncement } = useVideoKeyboard({
+  const { showKeyHints, controlAnnouncement, visualOsd } = useVideoKeyboard({
     src,
     subtitleUrl: subtitleUrlProp,
     playbackActions,
@@ -421,6 +421,11 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
           {resumedFrom !== null && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)]/90 text-[var(--text-primary)] text-xs rounded-[var(--radius-md)] px-3 py-1.5 pointer-events-none z-10 border border-[var(--border-subtle)] transition-opacity duration-500">
               Resumed from {formatTime(resumedFrom)}
+            </div>
+          )}
+          {visualOsd && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white text-lg font-semibold rounded-[var(--radius-md)] px-5 py-3 pointer-events-none z-10">
+              {visualOsd}
             </div>
           )}
           {isFullscreen ? controlsVisible && keyHintsOverlay : keyHintsOverlay}

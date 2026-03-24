@@ -887,6 +887,50 @@ describe('VideoPlayer', () => {
     });
   });
 
+  // ── Visual OSD overlay ─────────────────────────────────────────────
+
+  describe('visual OSD overlay', () => {
+    it('shows volume OSD on ArrowUp', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
+
+      const osdElements = screen.getAllByText(/Volume \d+%/);
+      // Both OSD overlay and sr-only region should have the text
+      expect(osdElements.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows speed OSD on S key', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 's' }); });
+
+      // OSD shows just the speed, sr-only shows "Speed X.XXx" — both match
+      const osdElements = screen.getAllByText(/[\d.]+x/);
+      expect(osdElements.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows seek OSD on ArrowRight', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowRight' }); });
+
+      expect(screen.getByText('+5s')).toBeInTheDocument();
+    });
+
+    it('shows mute OSD on M key', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 'm' }); });
+
+      expect(screen.getByText('Muted')).toBeInTheDocument();
+    });
+  });
+
   // ── Fullscreen auto-hide timer ──────────────────────────────────────
 
   describe('fullscreen auto-hide timer', () => {

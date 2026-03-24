@@ -21,9 +21,20 @@ export function useVideoKeyboard(opts: {
 
   const [showKeyHints, setShowKeyHints] = useState(false);
   const [controlAnnouncement, setControlAnnouncement] = useState('');
+  const [visualOsd, setVisualOsd] = useState<string | null>(null);
 
   const hasShownHints = useRef(false);
   const keyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const osdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showOsd = (text: string) => {
+    setVisualOsd(text);
+    if (osdTimerRef.current) clearTimeout(osdTimerRef.current);
+    osdTimerRef.current = setTimeout(() => {
+      setVisualOsd(null);
+      osdTimerRef.current = null;
+    }, 800);
+  };
 
   useEffect(() => {
     if (!src) return;
@@ -55,20 +66,28 @@ export function useVideoKeyboard(opts: {
           e.preventDefault();
           playbackActions.handlePlayPause();
           break;
-        case 'ArrowLeft':
+        case 'ArrowLeft': {
           e.preventDefault();
-          playbackActions.handleSkip(e.shiftKey ? -SKIP_SECONDS_LARGE : -SKIP_SECONDS);
+          const skipL = e.shiftKey ? -SKIP_SECONDS_LARGE : -SKIP_SECONDS;
+          playbackActions.handleSkip(skipL);
+          showOsd(`${skipL}s`);
           break;
-        case 'ArrowRight':
+        }
+        case 'ArrowRight': {
           e.preventDefault();
-          playbackActions.handleSkip(e.shiftKey ? SKIP_SECONDS_LARGE : SKIP_SECONDS);
+          const skipR = e.shiftKey ? SKIP_SECONDS_LARGE : SKIP_SECONDS;
+          playbackActions.handleSkip(skipR);
+          showOsd(`+${skipR}s`);
           break;
+        }
         case 'ArrowUp':
           e.preventDefault();
           adjustVolume(0.1);
           {
             const newVol = Math.min(1, currentVolume + 0.1);
-            setControlAnnouncement(`Volume ${Math.round(newVol * 100)}%`);
+            const volText = `Volume ${Math.round(newVol * 100)}%`;
+            setControlAnnouncement(volText);
+            showOsd(volText);
           }
           break;
         case 'ArrowDown':
@@ -76,7 +95,9 @@ export function useVideoKeyboard(opts: {
           adjustVolume(-0.1);
           {
             const newVol = Math.max(0, currentVolume - 0.1);
-            setControlAnnouncement(newVol === 0 ? 'Muted' : `Volume ${Math.round(newVol * 100)}%`);
+            const volText = newVol === 0 ? 'Muted' : `Volume ${Math.round(newVol * 100)}%`;
+            setControlAnnouncement(volText);
+            showOsd(volText);
           }
           break;
         case 'f':
@@ -86,6 +107,7 @@ export function useVideoKeyboard(opts: {
         case 'm':
         case 'M':
           playbackActions.handleMuteToggle();
+          showOsd(isMuted ? 'Unmuted' : 'Muted');
           break;
         case 'l':
         case 'L':
@@ -101,11 +123,11 @@ export function useVideoKeyboard(opts: {
           break;
         case 's':
         case 'S': {
-          // Compute the next speed for the announcement (handleSpeedChange cycles internally)
           const idx = SPEED_OPTIONS.indexOf(playbackRate as typeof SPEED_OPTIONS[number]);
           const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
           playbackActions.handleSpeedChange();
           setControlAnnouncement(`Speed ${next}x`);
+          showOsd(`${next}x`);
           break;
         }
       }
@@ -122,5 +144,6 @@ export function useVideoKeyboard(opts: {
   return {
     showKeyHints,
     controlAnnouncement,
+    visualOsd,
   };
 }
