@@ -67,6 +67,13 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     };
   }, []);
 
+  // Reload media element when src changes (required when using <source> child element)
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.load();
+    }
+  }, [src]);
+
   // Cleanup media element when src changes
   useEffect(() => {
     const videoEl = videoRef.current;

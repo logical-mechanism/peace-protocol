@@ -8,6 +8,9 @@ vi.mock('../LoadingSpinner', () => ({
   DelayedSpinner: () => <div data-testid="spinner">Loading...</div>,
 }));
 
+// jsdom doesn't implement HTMLMediaElement.load
+HTMLMediaElement.prototype.load = vi.fn();
+
 import VideoPlayer from '../video';
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -37,7 +40,9 @@ async function waitForControls() {
     expect(screen.getByLabelText('Play')).toBeInTheDocument();
     const video = document.querySelector('video');
     expect(video).not.toBeNull();
-    expect(video!.getAttribute('src')).toBe(mockVideoUrl);
+    const source = video!.querySelector('source');
+    expect(source).not.toBeNull();
+    expect(source!.getAttribute('src')).toBe(mockVideoUrl);
   });
   // Flush any remaining effects
   await act(async () => {});
@@ -71,11 +76,13 @@ describe('VideoPlayer', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('sets src URL on video element', () => {
+    it('sets src URL on source element with MIME type', () => {
       renderPlayer();
       const video = getVideoElement();
-      expect(video).not.toBeNull();
-      expect(video.getAttribute('src')).toBe(mockVideoUrl);
+      const source = video.querySelector('source');
+      expect(source).not.toBeNull();
+      expect(source!.getAttribute('src')).toBe(mockVideoUrl);
+      expect(source!.getAttribute('type')).toBe('video/mp4');
     });
   });
 
@@ -733,7 +740,9 @@ describe('VideoPlayer', () => {
       const { container } = renderPlayer({ src: 'media://localhost/other-video.webm' });
       expect(container).toBeInTheDocument();
       const video = getVideoElement();
-      expect(video.getAttribute('src')).toBe('media://localhost/other-video.webm');
+      const source = video.querySelector('source');
+      expect(source).not.toBeNull();
+      expect(source!.getAttribute('src')).toBe('media://localhost/other-video.webm');
     });
   });
 

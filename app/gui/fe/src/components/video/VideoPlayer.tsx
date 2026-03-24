@@ -356,8 +356,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       onProgress={eventHandlers.onProgress}
       onClick={playbackActions.handleVideoClick}
       onDoubleClick={handleVideoDoubleClick}
-      src={src}
     >
+      <source src={src} type={mimeType} />
       {subtitleUrlProp && (
         <track
           kind="subtitles"
