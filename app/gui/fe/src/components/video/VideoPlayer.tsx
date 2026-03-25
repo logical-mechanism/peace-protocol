@@ -441,7 +441,10 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       onError={eventHandlers.onError}
       onTimeUpdate={() => {
         eventHandlers.onTimeUpdate();
-        seekBarActions.syncVizTime(videoRef.current?.currentTime ?? 0);
+        // Don't overwrite display position during seeking — video.currentTime may be stale in WebKitGTK
+        if (!isSeekingRef.current) {
+          seekBarActions.syncVizTime(videoRef.current?.currentTime ?? 0);
+        }
       }}
       onDurationChange={eventHandlers.onDurationChange}
       onCanPlay={eventHandlers.onCanPlay}
@@ -449,7 +452,9 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       onPlaying={eventHandlers.onPlaying}
       onPlay={() => {
         eventHandlers.onPlay();
-        seekBarActions.syncVizTime(videoRef.current?.currentTime ?? 0);
+        if (!isSeekingRef.current) {
+          seekBarActions.syncVizTime(videoRef.current?.currentTime ?? 0);
+        }
       }}
       onPause={eventHandlers.onPause}
       onEnded={() => {
@@ -508,7 +513,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         >
           {videoElement}
           {loading && !isSeeking && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]">
+            <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]/80 backdrop-blur-sm">
               <div className="text-center">
                 <DelayedSpinner size="lg" className="mx-auto mb-4" />
                 <p className="text-sm text-[var(--text-muted)]">Loading video...</p>

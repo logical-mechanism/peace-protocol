@@ -127,6 +127,12 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     vizTimeRef.current = 0;
     setCurrentTime(0);
     setIsEnded(false);
+    // Clear any pending waiting debounce so spinner doesn't appear after stop
+    if (waitingTimerRef.current) {
+      clearTimeout(waitingTimerRef.current);
+      waitingTimerRef.current = null;
+    }
+    setLoading(false);
   }, []);
 
   const handleVideoClick = useCallback(() => {
@@ -263,9 +269,11 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   const seekTo = useCallback((time: number) => {
     const video = videoRef.current;
     if (!video) return;
-    video.currentTime = Math.max(0, Math.min(video.duration || 0, time));
-    setCurrentTime(video.currentTime);
-    vizTimeRef.current = video.currentTime;
+    // Use calculated value — don't read back video.currentTime (WebKitGTK may return stale)
+    const clamped = Math.max(0, Math.min(video.duration || 0, time));
+    video.currentTime = clamped;
+    setCurrentTime(clamped);
+    vizTimeRef.current = clamped;
   }, []);
 
   const handleToggleLoop = useCallback(() => {
@@ -367,6 +375,8 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
     if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current);
     waitingTimerRef.current = setTimeout(() => {
       waitingTimerRef.current = null;
+      // Suppress false positive from GStreamer when enough data is already buffered
+      if (videoRef.current && videoRef.current.readyState >= 3) return;
       setLoading(true);
     }, 300);
   }, []);
@@ -388,6 +398,12 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
   }, []);
 
   const onPlay = useCallback(() => {
+    // Clear waiting debounce — play event confirms playback was initiated
+    if (waitingTimerRef.current) {
+      clearTimeout(waitingTimerRef.current);
+      waitingTimerRef.current = null;
+    }
+    setLoading(false);
     setIsPlaying(true);
     isPlayingRef.current = true;
     setIsEnded(false);

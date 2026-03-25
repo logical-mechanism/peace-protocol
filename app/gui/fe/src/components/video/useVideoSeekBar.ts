@@ -66,10 +66,12 @@ export function useVideoSeekBar(opts: {
     const seekTo = (clientX: number) => {
       const rect = bar.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      video.currentTime = ratio * duration;
-      setCurrentTime(video.currentTime);
-      vizTimeRef.current = video.currentTime;
-      setDisplayTime(video.currentTime);
+      // Use calculated value — don't read back video.currentTime (WebKitGTK may return stale)
+      const newTime = ratio * duration;
+      video.currentTime = newTime;
+      setCurrentTime(newTime);
+      vizTimeRef.current = newTime;
+      setDisplayTime(newTime);
     };
 
     seekTo(e.clientX);
@@ -80,8 +82,12 @@ export function useVideoSeekBar(opts: {
     };
 
     const handleMouseUp = () => {
-      isSeekingRef.current = false;
-      setIsSeeking(false);
+      // Delay clearing isSeekingRef so onSeeked fires before the rAF loop
+      // reads potentially stale video.currentTime
+      setTimeout(() => {
+        isSeekingRef.current = false;
+        setIsSeeking(false);
+      }, 50);
       if (wasPlayingRef.current) {
         video.play().catch(() => {});
         wasPlayingRef.current = false;
@@ -135,27 +141,30 @@ export function useVideoSeekBar(opts: {
     if (!video || !duration) return;
 
     let handled = true;
+    let newTime = video.currentTime;
     switch (e.key) {
       case 'ArrowLeft':
-        video.currentTime = Math.max(0, video.currentTime - SKIP_SECONDS);
+        newTime = Math.max(0, video.currentTime - SKIP_SECONDS);
         break;
       case 'ArrowRight':
-        video.currentTime = Math.min(duration, video.currentTime + SKIP_SECONDS);
+        newTime = Math.min(duration, video.currentTime + SKIP_SECONDS);
         break;
       case 'Home':
-        video.currentTime = 0;
+        newTime = 0;
         break;
       case 'End':
-        video.currentTime = duration;
+        newTime = duration;
         break;
       default:
         handled = false;
     }
     if (handled) {
       e.preventDefault();
-      setCurrentTime(video.currentTime);
-      vizTimeRef.current = video.currentTime;
-      setDisplayTime(video.currentTime);
+      // Use calculated value — don't read back video.currentTime (WebKitGTK may return stale)
+      video.currentTime = newTime;
+      setCurrentTime(newTime);
+      vizTimeRef.current = newTime;
+      setDisplayTime(newTime);
     }
   }, [duration, videoRef, vizTimeRef, setCurrentTime]);
 
