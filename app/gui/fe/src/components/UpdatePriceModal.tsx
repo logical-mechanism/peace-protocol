@@ -78,6 +78,9 @@ export default function UpdatePriceModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/,/g, '');
+    // Cap at 6 decimal places (1 lovelace = 0.000001 ADA)
+    const dotIndex = value.indexOf('.');
+    if (dotIndex !== -1 && value.length - dotIndex - 1 > 6) return;
     setPriceAda(value);
     if (error) setError(null);
     if (submitError) setSubmitError(null);

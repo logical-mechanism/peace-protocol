@@ -805,7 +805,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     triggerTransactionRefresh()
     setShowUpdatePriceModal(false)
     setUpdatePriceEncryption(null)
-  }, [wallet, toast, recordTransaction, triggerTransactionRefresh])
+    setActiveTab('history')
+  }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
 
   const closeSnarkModal = useCallback(() => {
     setShowSnarkModal(false)
