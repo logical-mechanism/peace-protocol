@@ -993,6 +993,158 @@ export async function cancelPendingListing(
 }
 
 /**
+ * Update the suggested price of an active (Open) encryption listing.
+ *
+ * Spends the encryption UTxO and produces a new output with the same datum
+ * except for the new_price field (index 7), which is set to the new value.
+ *
+ * On-chain redeemer: UpdateEncryptionPrice(Int) — constructor index 4.
+ *
+ * @param wallet - Connected wallet instance
+ * @param encryption - The encryption listing to update
+ * @param newPriceLovelace - New price in lovelace (must be >= 0)
+ * @param onSubmitted - Optional callback fired after successful submission
+ * @returns Transaction result
+ */
+export async function updateListingPrice(
+  wallet: IWallet,
+  encryption: EncryptionDisplay,
+  newPriceLovelace: number,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
+): Promise<TransactionResult> {
+  try {
+    if (USE_STUBS) {
+      console.warn('[STUB] updateListingPrice');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return {
+        success: true,
+        txHash: `stub_update_price_${Date.now().toString(16)}`,
+        tokenName: encryption.tokenName,
+        isStub: true,
+      };
+    }
+
+    // 1. Fetch protocol config
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.encryptionPolicyId) {
+      throw new Error('Protocol config missing encryption policy ID.');
+    }
+    if (!config.referenceScripts.encryption) {
+      throw new Error('Encryption reference script UTxO not configured.');
+    }
+
+    // 2. Get wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet.');
+    }
+
+    const changeAddress = await wallet.getChangeAddress();
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error('No collateral set in wallet.');
+    }
+
+    const ownerPkh = encryption.datum.owner_vkh;
+    const policyId = config.contracts.encryptionPolicyId;
+    const encryptionAddress = config.contracts.encryptionAddress;
+    const refScript = config.referenceScripts.encryption;
+
+    // 3. Build redeemer: UpdateEncryptionPrice (constructor 4, one Int field)
+    const spendRedeemer = { constructor: 4, fields: [{ int: newPriceLovelace }] };
+
+    // 4. Build output datum: same as current but with updated new_price
+    const outputDatum = {
+      constructor: 0,
+      fields: [
+        { bytes: encryption.datum.owner_vkh },
+        registerToPlutusJson(createPublicRegister(
+          encryption.datum.owner_g1.generator,
+          encryption.datum.owner_g1.public_value
+        )),
+        { bytes: encryption.datum.token },
+        halfLevelToPlutusJson({
+          r1: encryption.datum.half_level.r1b,
+          r2_g1: encryption.datum.half_level.r2_g1b,
+          r4: encryption.datum.half_level.r4b,
+        }),
+        encryption.datum.full_level
+          ? fullLevelToPlutusJson({
+              r1: encryption.datum.full_level.r1b,
+              r2_g1: encryption.datum.full_level.r2_g1b,
+              r2_g2: encryption.datum.full_level.r2_g2b,
+              r4: encryption.datum.full_level.r4b,
+            })
+          : { constructor: 1, fields: [] }, // None
+        { // capsule
+          constructor: 0,
+          fields: [
+            { bytes: encryption.datum.capsule.nonce },
+            { bytes: encryption.datum.capsule.aad },
+            { bytes: encryption.datum.capsule.ct },
+          ],
+        },
+        { constructor: 0, fields: [] }, // status: Open
+        { int: newPriceLovelace },
+      ],
+    };
+
+    // 5. Build transaction
+    const txBuilder = createTxBuilder();
+
+    const unsignedTx = await withTimeout(
+      txBuilder
+        .spendingPlutusScriptV3()
+        .txIn(encryption.utxo.txHash, encryption.utxo.outputIndex)
+        .spendingTxInReference(refScript.txHash, refScript.outputIndex)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(spendRedeemer, 'JSON')
+        // Output: encryption with updated price
+        .txOut(encryptionAddress, [
+          { unit: 'lovelace', quantity: estimateMinLovelace(outputDatum) },
+          { unit: policyId + encryption.tokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(outputDatum, 'JSON')
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        .requiredSignerHash(ownerPkh)
+        .metadataValue(674, buildEncryptionMetadata(
+          encryption.description || '',
+          encryption.storageLayer || '',
+          encryption.imageLink || '',
+          encryption.category || '',
+        ))
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
+        .complete(),
+      180_000,
+      'updateListingPrice tx build',
+    );
+
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, encryption.tokenName); } catch { /* don't break tx flow */ }
+
+    return {
+      success: true,
+      txHash,
+      tokenName: encryption.tokenName,
+    };
+  } catch (error) {
+    console.error('Failed to update listing price:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * Data required to create a listing from an already-uploaded Iagon file.
  * The user provides the Iagon file ID and the encryption parameters that
  * were generated when they originally encrypted and uploaded the file.

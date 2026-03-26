@@ -24,6 +24,7 @@ export {
   retryListingFromDraft,
   removeListing,
   cancelPendingListing,
+  updateListingPrice,
   type ImportListingData,
 } from './listings';
 
