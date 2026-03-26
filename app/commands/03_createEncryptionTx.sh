@@ -95,7 +95,8 @@ jq \
 .fields[2].bytes=$token_name |
 .fields[3]=$half_level |
 .fields[4]=$full_level |
-.fields[5]=$capsule' \
+.fields[5]=$capsule |
+.fields[7].int=0' \
 ../data/encryption/encryption-datum.json | sponge ../data/encryption/encryption-datum.json
 
 jq \

@@ -128,6 +128,7 @@ alice_utxo=${TXIN::-8}
 
 bob_register=$(jq -r '.fields[1]' ../data/bidding/bidding-datum.json)
 bob_public_value=$(jq -r '.fields[1].fields[1].bytes' ../data/bidding/bidding-datum.json)
+bid_new_price=$(jq -r '.fields[5].int' ../data/bidding/bidding-datum.json)
 
 cp ../data/encryption/encryption-datum.json ../data/encryption/next-encryption-datum.json
 
@@ -145,7 +146,8 @@ jq \
 .fields[3]=$half_level |
 .fields[4]=$full_level |
 .fields[5]=$capsule |
-.fields[6]=$status' \
+.fields[6]=$status |
+.fields[7].int=$bid_new_price' \
 ../data/encryption/next-encryption-datum.json | sponge ../data/encryption/next-encryption-datum.json
 
 jq \

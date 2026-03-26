@@ -140,7 +140,8 @@ jq \
 .fields[1]=$register |
 .fields[2].bytes=$bid_token_name |
 .fields[3].bytes=$encryption_token |
-.fields[4].int=$locked_until' \
+.fields[4].int=$locked_until |
+.fields[5].int=0' \
 ../data/bidding/bidding-datum.json | sponge ../data/bidding/bidding-datum.json
 
 jq \
