@@ -259,6 +259,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           full_level: null,
           capsule: { nonce: '', aad: '', ct: '' },
           status: { type: 'Open' },
+          new_price: 0,
         },
         _optimistic: true,
       })
@@ -360,6 +361,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           full_level: null,
           capsule: { nonce: '', aad: '', ct: '' },
           status: { type: 'Open' },
+          new_price: 0,
         },
         _optimistic: true,
       })

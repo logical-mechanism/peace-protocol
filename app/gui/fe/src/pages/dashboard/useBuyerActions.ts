@@ -111,7 +111,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         createdAt: new Date().toISOString(),
         lockedUntil: 0,
         utxo: { txHash: result.txHash, outputIndex: 0 },
-        datum: { owner_vkh: userPkh, owner_g1: { generator: '', public_value: '' }, pointer: result.tokenName, token: encryptionTokenName, locked_until: 0 },
+        datum: { owner_vkh: userPkh, owner_g1: { generator: '', public_value: '' }, pointer: result.tokenName, token: encryptionTokenName, locked_until: 0, new_price: 0 },
         _optimistic: true,
       })
     }

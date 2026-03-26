@@ -18,6 +18,7 @@ function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionD
       full_level: null,
       capsule: { nonce: '', aad: '', ct: '' },
       status: { type: 'Open' },
+      new_price: 0,
     },
     ...overrides,
   };
@@ -40,6 +41,7 @@ function makeBid(overrides: Partial<BidDisplay> = {}): BidDisplay {
       pointer: 'bid1',
       token: 'enc1',
       locked_until: 0,
+      new_price: 0,
     },
     ...overrides,
   };
