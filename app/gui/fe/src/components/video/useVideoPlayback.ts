@@ -370,13 +370,20 @@ export function useVideoPlayback(opts: { src: string }): VideoPlaybackResult {
 
   const onWaiting = useCallback(() => {
     if (isSeekingRef.current) return;
+    // Capture current position — used to detect false-positive waiting events from GStreamer
+    const timeAtWaiting = videoRef.current?.currentTime ?? 0;
     // Debounce: only show loading overlay if buffering persists for 300ms.
     // Brief rebuffering (e.g. pause→play) resolves before the timer fires.
     if (waitingTimerRef.current) clearTimeout(waitingTimerRef.current);
     waitingTimerRef.current = setTimeout(() => {
       waitingTimerRef.current = null;
+      const video = videoRef.current;
+      if (!video) return;
       // Suppress false positive from GStreamer when enough data is already buffered
-      if (videoRef.current && videoRef.current.readyState >= 3) return;
+      if (video.readyState >= 3) return;
+      // If currentTime advanced since waiting fired, video is playing fine —
+      // GStreamer emitted a stray waiting event after onPlaying already fired
+      if (video.currentTime > timeAtWaiting + 0.01) return;
       setLoading(true);
     }, 300);
   }, []);
