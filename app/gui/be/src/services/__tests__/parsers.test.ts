@@ -277,7 +277,6 @@ describe('error handling', () => {
 
 // CIP-20 metadata parsing
 import { parseCip20Fields } from '../encryptions.js';
-import { parseBidCip20Fields } from '../bids.js';
 
 describe('parseCip20Fields', () => {
   it('parses complete msg array correctly', () => {
@@ -399,23 +398,6 @@ describe('parseCip20Fields — new structured format', () => {
   });
 });
 
-describe('parseBidCip20Fields', () => {
-  it('parses valid future price', () => {
-    const result = parseBidCip20Fields(['10.5']);
-    expect(result.futurePrice).toBe(10.5);
-  });
-
-  it('preserves zero price (not treated as falsy)', () => {
-    const result = parseBidCip20Fields(['0']);
-    expect(result.futurePrice).toBe(0);
-  });
-
-  it('returns empty object for empty array', () => {
-    const result = parseBidCip20Fields([]);
-    expect(result.futurePrice).toBeUndefined();
-  });
-});
-
 describe('parseCip20Fields — edge cases', () => {
   it('UTF-8 multi-byte characters across chunk boundaries join correctly', () => {
     // "ñ" is 2 bytes in UTF-8. Splitting mid-character would corrupt, but
@@ -501,25 +483,10 @@ describe('parseCip20Fields — edge cases', () => {
     expect(result.category).toBeUndefined();
   });
 
-  it('parseBidCip20Fields with NaN price → undefined', () => {
-    const result = parseBidCip20Fields(['not-a-number']);
-    expect(result.futurePrice).toBeUndefined();
-  });
-
-  it('parseBidCip20Fields with negative price parses correctly', () => {
-    const result = parseBidCip20Fields(['-5']);
-    expect(result.futurePrice).toBe(-5);
-  });
-
-  it('parseBidCip20Fields with empty string → undefined', () => {
-    const result = parseBidCip20Fields(['']);
-    expect(result.futurePrice).toBeUndefined();
-  });
 });
 
 // --- Batch metadata extraction helpers ---
 import { extractCip20FromMetadata } from '../encryptions.js';
-import { extractBidCip20FromMetadata } from '../bids.js';
 
 describe('extractCip20FromMetadata', () => {
   it('extracts CIP-20 fields from metadata entries (new structured format)', () => {
@@ -558,19 +525,3 @@ describe('extractCip20FromMetadata', () => {
   });
 });
 
-describe('extractBidCip20FromMetadata', () => {
-  it('extracts future price from bid metadata', () => {
-    const entries = [{ key: '674', json: { msg: ['10.5'] } }];
-    const result = extractBidCip20FromMetadata(entries);
-    expect(result.futurePrice).toBe(10.5);
-  });
-
-  it('returns empty when no 674 key', () => {
-    expect(extractBidCip20FromMetadata([])).toEqual({});
-  });
-
-  it('returns empty when msg array is empty', () => {
-    const entries = [{ key: '674', json: { msg: [] } }];
-    expect(extractBidCip20FromMetadata(entries)).toEqual({});
-  });
-});

@@ -1,7 +1,8 @@
 /**
  * Tests for bids service (getAllBids, getBidByToken, getBidsByUser, etc.)
  *
- * Mocks Kupo, Koios, cache, config, and logger to test the service layer in isolation.
+ * Mocks Kupo, cache, config, and logger to test the service layer in isolation.
+ * Price (futurePrice) now comes from datum.new_price — no CIP-20 metadata needed.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -10,10 +11,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../kupo.js', () => ({
   getKupoClient: vi.fn(),
-}));
-
-vi.mock('../koios.js', () => ({
-  getKoiosClient: vi.fn(),
 }));
 
 vi.mock('../cache.js', () => {
@@ -56,7 +53,6 @@ vi.mock('../logger.js', () => ({
 }));
 
 import { getKupoClient } from '../kupo.js';
-import { getKoiosClient } from '../koios.js';
 import { apiCache } from '../cache.js';
 import { logger } from '../logger.js';
 import {
@@ -65,9 +61,6 @@ import {
   getBidsByUser,
   getBidsByEncryption,
   getBidsByStatus,
-  parseBidCip20Fields,
-  extractBidCip20FromMetadata,
-  clearBidMetadataCache,
 } from '../bids.js';
 
 // ── Plutus JSON builders (same as parsers.test.ts) ──────────────────
@@ -81,7 +74,7 @@ function mkRegister(gen = G1_HEX, pub = G1_HEX) {
   return { constructor: 0, fields: [{ bytes: gen }, { bytes: pub }] };
 }
 
-function mkBidDatumValue(overrides: { vkh?: string; pointer?: string; token?: string; locked_until?: number } = {}) {
+function mkBidDatumValue(overrides: { vkh?: string; pointer?: string; token?: string; locked_until?: number; new_price?: number } = {}) {
   return {
     constructor: 0,
     fields: [
@@ -90,7 +83,7 @@ function mkBidDatumValue(overrides: { vkh?: string; pointer?: string; token?: st
       { bytes: overrides.pointer ?? POINTER_HEX },
       { bytes: overrides.token ?? TOKEN_HEX },
       { int: overrides.locked_until ?? Date.now() + 12 * 60 * 60 * 1000 },
-      { int: 0 },
+      { int: overrides.new_price ?? 0 },
     ],
   };
 }
@@ -120,60 +113,15 @@ function mkKoiosUtxo(overrides: Record<string, unknown> = {}) {
 // ── Setup ────────────────────────────────────────────────────────────
 
 let mockKupo: { getAddressUtxos: ReturnType<typeof vi.fn> };
-let mockKoios: { getTxMetadataBatch: ReturnType<typeof vi.fn> };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  clearBidMetadataCache();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (apiCache as any)._store.clear();
 
   mockKupo = { getAddressUtxos: vi.fn().mockResolvedValue([]) };
-  mockKoios = { getTxMetadataBatch: vi.fn().mockResolvedValue(new Map()) };
 
   (getKupoClient as ReturnType<typeof vi.fn>).mockReturnValue(mockKupo);
-  (getKoiosClient as ReturnType<typeof vi.fn>).mockReturnValue(mockKoios);
-});
-
-// ── parseBidCip20Fields ──────────────────────────────────────────────
-
-describe('parseBidCip20Fields', () => {
-  it('parses future price from msg array', () => {
-    expect(parseBidCip20Fields(['10.5'])).toEqual({ futurePrice: 10.5 });
-  });
-
-  it('returns empty object for empty array', () => {
-    expect(parseBidCip20Fields([])).toEqual({});
-  });
-
-  it('returns undefined futurePrice for non-numeric string', () => {
-    expect(parseBidCip20Fields(['not-a-number'])).toEqual({ futurePrice: undefined });
-  });
-
-  it('returns undefined futurePrice for empty string', () => {
-    expect(parseBidCip20Fields([''])).toEqual({ futurePrice: undefined });
-  });
-});
-
-// ── extractBidCip20FromMetadata ──────────────────────────────────────
-
-describe('extractBidCip20FromMetadata', () => {
-  it('extracts futurePrice from CIP-20 metadata entry', () => {
-    const entries = [{ key: '674', json: { msg: ['25.0'] } }];
-    expect(extractBidCip20FromMetadata(entries)).toEqual({ futurePrice: 25 });
-  });
-
-  it('returns empty object when no 674 key', () => {
-    expect(extractBidCip20FromMetadata([{ key: '0', json: {} }])).toEqual({});
-  });
-
-  it('returns empty object when json is null', () => {
-    expect(extractBidCip20FromMetadata([{ key: '674', json: null }])).toEqual({});
-  });
-
-  it('returns empty object when msg is missing', () => {
-    expect(extractBidCip20FromMetadata([{ key: '674', json: { other: 'data' } }])).toEqual({});
-  });
 });
 
 // ── getAllBids ────────────────────────────────────────────────────────
@@ -191,6 +139,7 @@ describe('getAllBids', () => {
     expect(result.data[0].encryptionToken).toBe(TOKEN_HEX);
     expect(result.data[0].amount).toBe(50_000_000);
     expect(result.data[0].status).toBe('pending');
+    expect(result.data[0].futurePrice).toBe(0);
     expect(result.warnings).toEqual({});
   });
 
@@ -219,50 +168,15 @@ describe('getAllBids', () => {
     );
   });
 
-  it('returns bids without CIP-20 fields when Koios metadata fails and no persistent cache', async () => {
-    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
-    mockKoios.getTxMetadataBatch.mockRejectedValue(new Error('Koios down'));
-
-    const result = await getAllBids();
-
-    expect(result.data).toHaveLength(1);
-    // futurePrice now comes from datum.new_price (0), not CIP-20 metadata
-    expect(result.data[0].futurePrice).toBe(0);
-    expect(logger.warn).toHaveBeenCalledWith(
-      'Failed to batch fetch bid CIP-20 metadata; using cached data for known tx hashes',
-      expect.any(Object)
-    );
-  });
-
-  it('enriches bids with CIP-20 metadata', async () => {
-    const utxo = mkKoiosUtxo();
+  it('reads futurePrice from datum.new_price', async () => {
+    const utxo = mkKoiosUtxo({
+      inline_datum: { bytes: '', value: mkBidDatumValue({ new_price: 50_000_000 }) },
+    });
     mockKupo.getAddressUtxos.mockResolvedValue([utxo]);
 
-    const metaMap = new Map();
-    metaMap.set('a'.repeat(64), [{ key: '674', json: { msg: ['15.5'] } }]);
-    mockKoios.getTxMetadataBatch.mockResolvedValue(metaMap);
-
     const result = await getAllBids();
 
-    // futurePrice now comes from datum.new_price (0), not CIP-20 metadata
-    expect(result.data[0].futurePrice).toBe(0);
-  });
-
-  it('preserves bid metadata from persistent cache when Koios fails on subsequent call', async () => {
-    // First call: Koios returns metadata successfully
-    mockKupo.getAddressUtxos.mockResolvedValue([mkKoiosUtxo()]);
-    const metaMap = new Map();
-    metaMap.set('a'.repeat(64), [{ key: '674', json: { msg: ['15.5'] } }]);
-    mockKoios.getTxMetadataBatch.mockResolvedValue(metaMap);
-    await getAllBids(true);
-
-    // Second call: Koios is down — metadata should survive from persistent cache
-    mockKoios.getTxMetadataBatch.mockRejectedValue(new Error('Koios down'));
-    const result = await getAllBids(true);
-
-    expect(result.data).toHaveLength(1);
-    // futurePrice now comes from datum.new_price (0), not CIP-20 metadata
-    expect(result.data[0].futurePrice).toBe(0);
+    expect(result.data[0].futurePrice).toBe(50_000_000);
   });
 
   it('returns cached data when cache is fresh', async () => {
@@ -284,7 +198,6 @@ describe('getAllBids', () => {
 
     // Re-setup mocks for second call
     mockKupo.getAddressUtxos.mockResolvedValue([]);
-    mockKoios.getTxMetadataBatch.mockResolvedValue(new Map());
 
     const result = await getAllBids(true);
     expect(result.data).toHaveLength(0);
