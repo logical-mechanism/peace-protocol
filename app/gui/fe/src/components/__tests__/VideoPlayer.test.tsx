@@ -8,7 +8,10 @@ vi.mock('../LoadingSpinner', () => ({
   DelayedSpinner: () => <div data-testid="spinner">Loading...</div>,
 }));
 
-import VideoPlayer from '../VideoPlayer';
+// jsdom doesn't implement HTMLMediaElement.load
+HTMLMediaElement.prototype.load = vi.fn();
+
+import VideoPlayer from '../video';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -37,7 +40,9 @@ async function waitForControls() {
     expect(screen.getByLabelText('Play')).toBeInTheDocument();
     const video = document.querySelector('video');
     expect(video).not.toBeNull();
-    expect(video!.getAttribute('src')).toBe(mockVideoUrl);
+    const source = video!.querySelector('source');
+    expect(source).not.toBeNull();
+    expect(source!.getAttribute('src')).toBe(mockVideoUrl);
   });
   // Flush any remaining effects
   await act(async () => {});
@@ -59,6 +64,7 @@ function simulateLoadedMetadata(durationSeconds: number) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 // ── Tests ───────────────────────────────────────────────────────────
@@ -70,11 +76,13 @@ describe('VideoPlayer', () => {
       expect(container).toBeInTheDocument();
     });
 
-    it('sets src URL on video element', () => {
+    it('sets src URL on source element with MIME type', () => {
       renderPlayer();
       const video = getVideoElement();
-      expect(video).not.toBeNull();
-      expect(video.getAttribute('src')).toBe(mockVideoUrl);
+      const source = video.querySelector('source');
+      expect(source).not.toBeNull();
+      expect(source!.getAttribute('src')).toBe(mockVideoUrl);
+      expect(source!.getAttribute('type')).toBe('video/mp4');
     });
   });
 
@@ -199,12 +207,12 @@ describe('VideoPlayer', () => {
       expect(screen.getByText(/Video is expanded to fullscreen/)).toBeInTheDocument();
     });
 
-    it('L toggles loop', async () => {
+    it('R toggles loop', async () => {
       renderPlayer();
       await waitForControls();
 
       expect(screen.getByLabelText('Enable repeat')).toBeInTheDocument();
-      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
+      await act(async () => { fireEvent.keyDown(document, { key: 'r' }); });
       expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
     });
 
@@ -719,11 +727,22 @@ describe('VideoPlayer', () => {
       expect(screen.getByText(/02:05/)).toBeInTheDocument();
     });
 
+    it('formatTime formats hours correctly for long videos', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      simulateLoadedMetadata(5423); // 1:30:23
+
+      expect(screen.getByText(/1:30:23/)).toBeInTheDocument();
+    });
+
     it('renders with different src URL', () => {
       const { container } = renderPlayer({ src: 'media://localhost/other-video.webm' });
       expect(container).toBeInTheDocument();
       const video = getVideoElement();
-      expect(video.getAttribute('src')).toBe('media://localhost/other-video.webm');
+      const source = video.querySelector('source');
+      expect(source).not.toBeNull();
+      expect(source!.getAttribute('src')).toBe('media://localhost/other-video.webm');
     });
   });
 
@@ -868,6 +887,50 @@ describe('VideoPlayer', () => {
     });
   });
 
+  // ── Visual OSD overlay ─────────────────────────────────────────────
+
+  describe('visual OSD overlay', () => {
+    it('shows volume OSD on ArrowUp', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowUp' }); });
+
+      const osdElements = screen.getAllByText(/Volume \d+%/);
+      // Both OSD overlay and sr-only region should have the text
+      expect(osdElements.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows speed OSD on S key', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 's' }); });
+
+      // OSD shows just the speed, sr-only shows "Speed X.XXx" — both match
+      const osdElements = screen.getAllByText(/[\d.]+x/);
+      expect(osdElements.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows seek OSD on ArrowRight', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 'ArrowRight' }); });
+
+      expect(screen.getByText('+5s')).toBeInTheDocument();
+    });
+
+    it('shows mute OSD on M key', async () => {
+      renderPlayer();
+      await waitForControls();
+
+      await act(async () => { fireEvent.keyDown(document, { key: 'm' }); });
+
+      expect(screen.getByText('Muted')).toBeInTheDocument();
+    });
+  });
+
   // ── Fullscreen auto-hide timer ──────────────────────────────────────
 
   describe('fullscreen auto-hide timer', () => {
@@ -930,7 +993,7 @@ describe('VideoPlayer', () => {
         configurable: true,
       });
 
-      await act(async () => { fireEvent.keyDown(document, { key: 'l' }); });
+      await act(async () => { fireEvent.keyDown(document, { key: 'r' }); });
       expect(screen.getByLabelText('Disable repeat')).toBeInTheDocument();
 
       fireEvent.play(video);
