@@ -240,6 +240,7 @@ export function getTypeLabel(type: TransactionType): string {
     case 'complete-sale': return 'Complete Sale';
     case 'create-collateral': return 'Set Collateral';
     case 'optimize-wallet': return 'Optimize Wallet';
+    case 'update-price': return 'Update Price';
   }
 }
 
