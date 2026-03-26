@@ -15,6 +15,7 @@ interface MyPurchaseBidCardProps {
   encryption?: EncryptionDisplay;
   onCancel?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
+  onUpdateBid?: (bid: BidDisplay) => void;
   compact?: boolean;
   purchaseStage?: PurchaseStage;
   decryptFailed?: boolean;
@@ -25,6 +26,7 @@ function MyPurchaseBidCard({
   encryption,
   onCancel,
   onDecrypt,
+  onUpdateBid,
   compact = false,
   purchaseStage,
   decryptFailed = false,
@@ -137,10 +139,21 @@ function MyPurchaseBidCard({
           {/* Middle: Amount & Seller */}
           <div className="flex items-center gap-6 flex-shrink-0">
             <div className="text-right">
-              <span className={`text-lg font-semibold ${
+              <span className={`text-lg font-semibold inline-flex items-center gap-[var(--space-1)] ${
                 isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
               }`}>
                 {formatAda(bid.amount)} ADA
+                {isPending && !isLocked && !isOptimistic && onUpdateBid && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
+                    className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                    title="Update bid"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                    </svg>
+                  </button>
+                )}
               </span>
               {encryption && (
                 <p className="text-xs text-[var(--text-muted)]" title={encryption.seller}>
@@ -272,10 +285,21 @@ function MyPurchaseBidCard({
 
       {/* Bid Amount */}
       <div className="text-center mb-4">
-        <p className={`text-2xl font-semibold ${
+        <p className={`text-2xl font-semibold inline-flex items-center justify-center gap-[var(--space-1)] ${
           isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
         }`}>
           {formatAda(bid.amount)} ADA
+          {isPending && !isLocked && !isOptimistic && onUpdateBid && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
+              className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+              title="Update bid"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+              </svg>
+            </button>
+          )}
         </p>
         <p className="text-xs text-[var(--text-muted)] mt-1">Your Bid</p>
       </div>
@@ -408,7 +432,8 @@ function arePropsEqual(prev: MyPurchaseBidCardProps, next: MyPurchaseBidCardProp
     prev.purchaseStage === next.purchaseStage &&
     prev.decryptFailed === next.decryptFailed &&
     prev.onCancel === next.onCancel &&
-    prev.onDecrypt === next.onDecrypt
+    prev.onDecrypt === next.onDecrypt &&
+    prev.onUpdateBid === next.onUpdateBid
   );
 }
 

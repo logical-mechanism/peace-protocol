@@ -98,9 +98,9 @@ export interface EncryptionDisplay {
   seller: string;
   sellerPkh: string;
   status: 'active' | 'pending' | 'completed';
-  // CIP-20 metadata fields (from tx metadata key 674)
+  // CIP-20 metadata fields (description, storageLayer, imageLink, category from tx metadata key 674)
   description?: string;
-  suggestedPrice?: number;
+  suggestedPrice?: number; // lovelace, from datum new_price field
   storageLayer?: string;
   imageLink?: string;
   category?: string;

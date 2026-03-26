@@ -32,6 +32,7 @@ export {
 export {
   placeBid,
   cancelBid,
+  updateBid,
 } from './bids';
 
 // Accept-bid & re-encryption

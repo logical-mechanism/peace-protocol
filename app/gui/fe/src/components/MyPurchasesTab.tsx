@@ -19,6 +19,7 @@ import { useDebounce } from '../hooks/useDebounce';
 interface MyPurchasesTabProps {
   userPkh?: string;
   onCancelBid?: (bid: BidDisplay) => void;
+  onUpdateBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
   onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
@@ -32,6 +33,7 @@ interface MyPurchasesTabProps {
 function MyPurchasesTab({
   userPkh,
   onCancelBid,
+  onUpdateBid,
   onDecrypt,
   onDecryptEncryption,
   onSwitchTab,
@@ -552,6 +554,7 @@ function MyPurchasesTab({
                 bid={bid}
                 encryption={getEncryption(bid.encryptionToken)}
                 onCancel={handleCancelBid}
+                onUpdateBid={onUpdateBid}
                 onDecrypt={handleDecrypt}
                 purchaseStage={getPurchaseStage(bid)}
                 decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
@@ -567,6 +570,7 @@ function MyPurchasesTab({
                 bid={bid}
                 encryption={getEncryption(bid.encryptionToken)}
                 onCancel={handleCancelBid}
+                onUpdateBid={onUpdateBid}
                 onDecrypt={handleDecrypt}
                 purchaseStage={getPurchaseStage(bid)}
                 decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
