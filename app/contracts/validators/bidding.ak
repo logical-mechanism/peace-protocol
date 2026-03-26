@@ -194,7 +194,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 datum: InlineDatum(output_datum_data),
                 reference_script,
                 value: output_value,
-                ..
               }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, pointer)
               // everything is constant but the new_price

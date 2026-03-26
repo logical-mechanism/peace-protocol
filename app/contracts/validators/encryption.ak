@@ -342,7 +342,6 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 datum: InlineDatum(output_datum_data),
                 reference_script,
                 value: output_value,
-                ..
               }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
               // can only update price when open
