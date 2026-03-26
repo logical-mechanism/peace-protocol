@@ -74,10 +74,10 @@ app/gui/
 │   │   │   ├── pendingTxPool.ts     # Virtual UTxO state: tracks submitted-but-unconfirmed tx inputs/outputs
 │   │   │   ├── txOutputParser.ts    # Extracts UTxO inputs/outputs from signed tx CBOR (@meshsdk/core-cst)
 │   │   │   ├── transactionBuilder.ts # Compatibility shim → re-exports from transactions/
-│   │   │   ├── transactions/        # Modular tx building (~2693 lines total)
+│   │   │   ├── transactions/        # Modular tx building (~2849 lines total)
 │   │   │   │   ├── index.ts         # Barrel re-export
 │   │   │   │   ├── txUtils.ts       # Shared utilities, types, constants
-│   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel)
+│   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel, update price, create from import)
 │   │   │   │   ├── bids.ts          # Bidding lifecycle (place, cancel)
 │   │   │   │   └── acceptBid.ts     # Accept-bid SNARK proof + re-encryption
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
@@ -111,6 +111,8 @@ app/gui/
 │   │   │   ├── notificationSound.ts # Programmatic WAV notification ping generation + volume control
 │   │   │   ├── walletManagement.ts  # Collateral creation + UTxO defragmentation (MeshTxBuilder)
 │   │   │   ├── audioPreferences.ts  # Audio volume/muted/speed preferences (localStorage)
+│   │   │   ├── videoPreferences.ts  # Video volume/muted/speed preferences (localStorage)
+│   │   │   ├── videoResumeStorage.ts # Video resume position persistence (localStorage)
 │   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
 │   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth, useUpdateCheck
@@ -175,7 +177,11 @@ app/gui/
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
 │   │   ├── cardano/{network}/       # Node configs (topology, genesis files)
-│   │   └── snark/vk.json            # SNARK verification key
+│   │   └── snark/                   # SNARK artifacts
+│   │       ├── vk.json              # Verification key (JSON)
+│   │       ├── vk.bin               # Verification key (binary)
+│   │       ├── ccs.bin.zst          # Compressed CCS (~250MB)
+│   │       └── pk.bin.zst           # Compressed proving key (~350MB)
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn, notification:default)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
@@ -208,11 +214,11 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactions/ ~2693 lines, re-exported via transactionBuilder.ts shim):
+**Transaction building** (fe/src/services/transactions/ ~2849 lines, re-exported via transactionBuilder.ts shim):
 - Split into domain modules: `txUtils.ts` (shared), `listings.ts`, `bids.ts`, `acceptBid.ts`
-- Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`
+- Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`, `updateListingPrice()`, `createListingFromImport()`
 - Bids: `placeBid()`, `cancelBid()`
 - Accept-bid: `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`, `acceptBidAndReEncrypt()`
 - `acceptBidAndReEncrypt()` — chains 12e→12f: submits SNARK proof then immediately chains re-encryption tx
@@ -257,6 +263,8 @@ app/gui/
 - `themeStorage` — dark/light theme preference (localStorage, default dark); applied before first paint via `initializeTheme()`
 - `optimisticStore` — in-memory optimistic UI state for pending tx entries (add/remove/update actions, 5-min auto-prune, graduates when tokenName appears in chain data)
 - `audioPreferences` — audio volume, muted state, and playback speed persistence (localStorage)
+- `videoPreferences` — video volume, muted state, and playback speed persistence (localStorage)
+- `videoResumeStorage` — video resume position persistence, max 50 entries (localStorage)
 
 **Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`); dark is default. All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
@@ -417,15 +425,15 @@ app/gui/
 ## Key Types
 
 **On-chain datums** (defined in both fe and be):
-- `EncryptionDatum` — owner_vkh, owner_g1 (Register), token, half_level, full_level|null, capsule, status (Open|Pending)
-- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token), locked_until (POSIX ms)
+- `EncryptionDatum` — owner_vkh, owner_g1 (Register), token, half_level, full_level|null, capsule, status (Open|Pending), new_price (lovelace)
+- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token), locked_until (POSIX ms), new_price (lovelace)
 - `Register` — { generator: hex, public_value: hex } (BLS12-381 G1 points, 96 hex chars each)
 - `Capsule` — { nonce: 24 hex, aad: 64 hex, ct: variable hex } (ChaCha20-Poly1305)
 - `HalfEncryptionLevel` — { r1b, r2_g1b, r4b } (G1, G1, G2)
 - `FullEncryptionLevel` — { r1b, r2_g1b, r2_g2b, r4b } (G1, G1, G2, G2)
 
 **Display models** (be types, consumed by fe):
-- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, category?, createdAt, utxo, datum
+- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice? (from datum new_price), storageLayer?, imageLink?, category?, createdAt, utxo, datum
 - `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, lockedUntil, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
@@ -483,7 +491,8 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, walletManagement (40 files)
+  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (42 files)
+  - `fe/src/services/transactions/__tests__/` — acceptBid, bids, listings (3 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (12 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
