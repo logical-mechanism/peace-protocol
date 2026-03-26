@@ -80,6 +80,7 @@ export interface EncryptionDatum {
   full_level: FullEncryptionLevel | null;
   capsule: Capsule;
   status: EncryptionStatus;
+  new_price: number;              // lovelace — suggested price (from datum, not metadata)
 }
 
 // On-chain bid datum
@@ -89,6 +90,7 @@ export interface BidDatum {
   pointer: string;                // bid's own token name (validated on-chain: pointer == token_name)
   token: string;                  // encryption token name being bid on
   locked_until: number;           // POSIX milliseconds — bid cannot be removed before this time
+  new_price: number;              // lovelace — future resale price (from datum, not metadata)
 }
 
 // CIP-20 metadata structure (from tx metadata key 674)
@@ -105,7 +107,7 @@ export interface EncryptionDisplay {
   status: 'active' | 'pending' | 'completed';
   // CIP-20 metadata fields (parsed from tx metadata key 674)
   description?: string;           // Human-readable description of the encrypted data
-  suggestedPrice?: number;        // ADA, parsed from metadata
+  suggestedPrice?: number;        // lovelace, from datum new_price field
   storageLayer?: string;          // Storage layer info (e.g., "on-chain", "data-layer")
   imageLink?: string;             // Optional preview image URL (from CIP-20 metadata msg[3])
   category?: string;              // File category (from CIP-20 metadata msg[4])
@@ -123,7 +125,7 @@ export interface BidDisplay {
   bidderPkh: string;              // payment key hash
   encryptionToken: string;        // pointer to encryption
   amount: number;                 // lovelace
-  futurePrice?: number;           // ADA — bidder's desired re-listing price (from CIP-20 metadata)
+  futurePrice?: number;           // lovelace — bidder's desired re-listing price (from datum new_price field)
   lockedUntil: number;            // POSIX milliseconds — bid cannot be removed before this time
   status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
   createdAt: string;              // ISO date

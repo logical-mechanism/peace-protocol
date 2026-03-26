@@ -47,6 +47,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
         ct: 'encrypted_message_content_here_with_gcm_tag_0123456789abcdef',
       },
       status: { type: 'Open' },
+      new_price: 0,
     },
   },
   {
@@ -84,6 +85,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
         ct: 'another_encrypted_message_with_different_content_and_tag_here',
       },
       status: { type: 'Open' },
+      new_price: 0,
     },
   },
   {
@@ -136,6 +138,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
         groth_public: Array(36).fill(0).map((_, i) => i * 12345),
         ttl: Date.now() + 20 * 60 * 1000, // 20 minutes from now
       },
+      new_price: 0,
     },
   },
   {
@@ -172,6 +175,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
         ct: 'budget_friendly_secret_still_encrypted_securely_with_proper_tag',
       },
       status: { type: 'Open' },
+      new_price: 0,
     },
   },
   {
@@ -209,6 +213,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
         ct: 'premium_tier_encrypted_data_with_maximum_security_and_value_tag',
       },
       status: { type: 'Open' },
+      new_price: 0,
     },
   },
   // Edge case test: long description, missing price, unknown storage layer
@@ -249,6 +254,7 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
         ct: 'edge_case_test_encrypted_content_with_all_unusual_metadata_values',
       },
       status: { type: 'Open' },
+      new_price: 0,
     },
   },
 ];

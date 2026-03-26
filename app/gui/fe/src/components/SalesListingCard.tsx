@@ -6,6 +6,7 @@ import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
+import { formatAda } from '../utils/formatAda';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
@@ -40,12 +41,12 @@ function SalesListingCard({
     setBidPulseKey(k => k + 1);
   }
 
-  // Format price with fallback matching EncryptionCard behavior
-  const formatPrice = (price?: number): string => {
-    if (price === undefined || price === null || isNaN(price) || price < 0) {
+  // Format price (lovelace) with fallback matching EncryptionCard behavior
+  const formatPrice = (lovelace?: number): string => {
+    if (lovelace === undefined || lovelace === null || isNaN(lovelace) || lovelace < 0) {
       return 'No suggested price';
     }
-    return `${price.toLocaleString()} ADA`;
+    return `${formatAda(lovelace)} ADA`;
   };
 
   // Get category label, defaulting to "Text" for backward compatibility

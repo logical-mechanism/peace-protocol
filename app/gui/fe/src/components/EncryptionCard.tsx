@@ -8,6 +8,7 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
+import { formatAda } from '../utils/formatAda';
 
 
 interface EncryptionCardProps {
@@ -50,12 +51,12 @@ function EncryptionCard({
     setBidPulseKey(k => k + 1);
   }
 
-  // Format price with "No suggested price" fallback for missing/invalid values
-  const formatPrice = (price?: number): string => {
-    if (price === undefined || price === null || isNaN(price) || price < 0) {
+  // Format price (lovelace) with "No suggested price" fallback for missing/invalid values
+  const formatPrice = (lovelace?: number): string => {
+    if (lovelace === undefined || lovelace === null || isNaN(lovelace) || lovelace < 0) {
       return 'No suggested price';
     }
-    return `${price.toLocaleString()} ADA`;
+    return `${formatAda(lovelace)} ADA`;
   };
 
   const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);

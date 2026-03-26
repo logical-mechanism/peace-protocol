@@ -81,6 +81,7 @@ export interface EncryptionDatum {
   full_level: FullEncryptionLevel | null;
   capsule: Capsule;
   status: EncryptionStatus;
+  new_price: number;
 }
 
 // CIP-20 metadata parsed from transaction (key 674)
@@ -120,6 +121,7 @@ export interface BidDatum {
   pointer: string;
   token: string;
   locked_until: number;
+  new_price: number;
 }
 
 export interface BidDisplay {

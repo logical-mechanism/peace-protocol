@@ -2,8 +2,8 @@
  * Datum parsers: Plutus JSON (from Koios inline_datum.value) → TypeScript types.
  *
  * Field ordering matches contracts/lib/types/*.ak exactly:
- *   EncryptionDatum: owner_vkh, owner_g1, token, half_level, full_level, capsule, status
- *   BidDatum:        owner_vkh, owner_g1, pointer, token, locked_until
+ *   EncryptionDatum: owner_vkh, owner_g1, token, half_level, full_level, capsule, status, new_price
+ *   BidDatum:        owner_vkh, owner_g1, pointer, token, locked_until, new_price
  *   Register:        generator, public_value
  *   HalfEncLevel:    r1b, r2_g1b, r4b
  *   FullEncLevel:    r1b, r2_g1b, r2_g2b, r4b
@@ -155,6 +155,7 @@ export function parseEncryptionDatum(datumValue: unknown): EncryptionDatum {
     full_level: parseOptionalFullLevel(c.fields[4]),
     capsule: parseCapsule(c.fields[5]),
     status: parseStatus(c.fields[6]),
+    new_price: asInt(c.fields[7]),
   };
 }
 
@@ -167,6 +168,7 @@ export function parseBidDatum(datumValue: unknown): BidDatum {
     pointer: asBytes(c.fields[2]),
     token: asBytes(c.fields[3]),
     locked_until: asInt(c.fields[4]),
+    new_price: asInt(c.fields[5]),
   };
 }
 

@@ -13,6 +13,7 @@ import RefreshIndicator from './RefreshIndicator';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
 import { getTransactions } from '../services/transactionHistory';
 import { useDebounce } from '../hooks/useDebounce';
+import { formatAda } from '../utils/formatAda';
 
 interface MySalesTabProps {
   userPkh?: string;
@@ -329,7 +330,7 @@ function MySalesTab({
           </p>
           {salesStats.listedValue > 0 && (
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              {salesStats.listedValue.toLocaleString()} ADA listed
+              {formatAda(salesStats.listedValue)} ADA listed
             </p>
           )}
         </div>

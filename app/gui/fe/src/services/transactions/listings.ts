@@ -369,6 +369,8 @@ export async function createListing(
         artifacts.plutusJson.fullLevel,
         artifacts.plutusJson.capsule,
         { constructor: 0, fields: [] },
+        // new_price (lovelace)
+        { int: Math.floor(parseFloat(formData.suggestedPrice || '0') * 1_000_000) },
       ],
     };
 
@@ -411,7 +413,6 @@ export async function createListing(
         .requiredSignerHash(ownerPkh)
         .metadataValue(674, buildEncryptionMetadata(
           formData.description,
-          formData.suggestedPrice || '0',
           getStorageLayerUri(formData),
           formData.imageLink || '',
           formData.category,
@@ -623,6 +624,8 @@ export async function retryListingFromDraft(
         artifacts.plutusJson.fullLevel,
         artifacts.plutusJson.capsule,
         { constructor: 0, fields: [] },
+        // new_price (lovelace)
+        { int: Math.floor(parseFloat(draft.suggestedPrice || '0') * 1_000_000) },
       ],
     };
 
@@ -665,11 +668,10 @@ export async function retryListingFromDraft(
         .requiredSignerHash(ownerPkh)
         .metadataValue(674, buildEncryptionMetadata(
           draft.description,
-          draft.suggestedPrice || '0',
           'iagon',
-        draft.imageLink || '',
-        draft.category,
-      ))
+          draft.imageLink || '',
+          draft.category,
+        ))
         .changeAddress(changeAddress)
         .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
         .complete(),
@@ -928,6 +930,8 @@ export async function cancelPendingListing(
           ],
         },
         { constructor: 0, fields: [] }, // status: Open
+        // new_price (lovelace) — suggestedPrice is already in lovelace from datum
+        { int: encryption.datum.new_price },
       ],
     };
 
@@ -956,7 +960,6 @@ export async function cancelPendingListing(
         .requiredSignerHash(ownerPkh)
         .metadataValue(674, buildEncryptionMetadata(
           encryption.description || '',
-          encryption.suggestedPrice?.toString() || '0',
           encryption.storageLayer || '',
           encryption.imageLink || '',
           encryption.category || '',
@@ -1102,6 +1105,8 @@ export async function createListingFromImport(
         artifacts.plutusJson.fullLevel,
         artifacts.plutusJson.capsule,
         { constructor: 0, fields: [] },
+        // new_price (lovelace)
+        { int: Math.floor(parseFloat(data.suggestedPrice || '0') * 1_000_000) },
       ],
     };
 
@@ -1135,7 +1140,6 @@ export async function createListingFromImport(
         .requiredSignerHash(ownerPkh)
         .metadataValue(674, buildEncryptionMetadata(
           data.description,
-          data.suggestedPrice || '0',
           storageLayer,
           data.imageLink || '',
           data.category,

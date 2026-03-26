@@ -56,22 +56,21 @@ export function splitMetadataString(str: string, maxBytes = 64): string[] {
  * Format:
  * {
  *   msg: [...descriptionChunks],  // CIP-20 msg field (description chunks, <=64 bytes each)
- *   p: "10",                       // price
  *   s: "on-chain",                 // storage layer
  *   i: [...imageLinkChunks],       // image link chunks (<=64 bytes each)
  *   c: "text"                      // category
  * }
+ *
+ * Note: price is now stored in the datum's new_price field, not in metadata.
  */
 export function buildEncryptionMetadata(
   description: string,
-  price: string,
   storageLayer: string,
   imageLink: string,
   category: string,
 ): Record<string, unknown> {
   return {
     msg: splitMetadataString(description || ''),
-    p: price || '0',
     s: storageLayer || '',
     i: splitMetadataString(imageLink || ''),
     c: category || '',

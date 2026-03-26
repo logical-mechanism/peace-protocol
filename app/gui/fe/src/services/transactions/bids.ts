@@ -173,6 +173,7 @@ export async function placeBid(
         { bytes: bidTokenName },                 // pointer (bid token name)
         { bytes: encryptionTokenName },          // token (encryption token name)
         { int: lockedUntil },                    // locked_until (POSIX ms)
+        { int: Math.floor((metadata?.futurePrice ?? 0) * 1_000_000) }, // new_price (lovelace)
       ],
     };
 
@@ -242,9 +243,7 @@ export async function placeBid(
         // CIP-20 metadata: only the bidder's desired future listing price
         // Description and storageLayer are the seller's data — carried forward
         // in Phase 12e/12f from the encryption UTxO, not from the bid.
-        .metadataValue(674, buildBidMetadata(
-          metadata?.futurePrice?.toString() || '',
-        ))
+        .metadataValue(674, buildBidMetadata(''))
         // Validity interval (on-chain lock check needs finite upper bound)
         .invalidBefore(invalidBefore)
         .invalidHereafter(invalidHereafter)

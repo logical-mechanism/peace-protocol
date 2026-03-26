@@ -295,7 +295,7 @@ function MyPurchaseBidCard({
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs text-[var(--text-muted)]">Suggested Price</span>
           <span className="text-sm text-[var(--text-secondary)]">
-            {encryption.suggestedPrice.toLocaleString()} ADA
+            {formatAda(encryption.suggestedPrice)} ADA
           </span>
         </div>
       )}

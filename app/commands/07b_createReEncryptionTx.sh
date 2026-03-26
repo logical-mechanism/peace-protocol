@@ -140,6 +140,7 @@ jq \
 --argjson half_level "$(cat ../data/half-level.json)" \
 --argjson full_level "$(cat ../data/full-level.json)" \
 --argjson status "$(cat ../data/encryption/open-status.json)" \
+--argjson bid_new_price "${bid_new_price}" \
 '.fields[0].bytes=$bob_pkh |
 .fields[1]=$register |
 .fields[2].bytes=$token_name |

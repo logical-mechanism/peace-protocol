@@ -36,18 +36,23 @@ export function clearMetadataCache(): void {
 /**
  * Parse CIP-20 metadata into structured fields.
  *
- * Supports two formats:
- * - New (structured): { msg: [...descChunks], p: "price", s: "storage", i: [...urlChunks], c: "category" }
+ * Supports three formats:
+ * - Current (structured, no price): { msg: [...descChunks], s: "storage", i: [...urlChunks], c: "category" }
+ * - Legacy structured (with price):  { msg: [...descChunks], p: "price", s: "storage", i: [...urlChunks], c: "category" }
  * - Old (flat array):  { msg: [description, suggestedPrice, storageLayer, imageLink, category] }
  *
- * Detection: if the object has a `p` key, it's the new format.
+ * Detection: if the object has `s`, `c`, or `p` keys, it's a structured format.
+ * Price is now stored in the datum's new_price field, not in metadata.
  */
 export function parseCip20Fields(msg: string[], fullJson?: Record<string, unknown>): ParsedCip20 {
-  // New structured format: detect by presence of `p` key
-  if (fullJson && 'p' in fullJson) {
+  // New structured format: detect by presence of `s` (storageLayer) or `c` (category) key.
+  // Also supports legacy structured format that included `p` (price) key.
+  // Price is now stored in the datum's new_price field, not in metadata.
+  if (fullJson && ('s' in fullJson || 'c' in fullJson || 'p' in fullJson)) {
     const descChunks = Array.isArray(fullJson.msg) ? (fullJson.msg as string[]) : [];
     const description = descChunks.join('') || undefined;
 
+    // Legacy: `p` key may be present in old structured metadata
     const priceStr = typeof fullJson.p === 'string' ? fullJson.p : '';
     const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
 
@@ -113,7 +118,7 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
     sellerPkh: datum.owner_vkh,
     status,
     description: cip20.description,
-    suggestedPrice: cip20.suggestedPrice,
+    suggestedPrice: datum.new_price,
     storageLayer: cip20.storageLayer,
     imageLink: cip20.imageLink,
     category: cip20.category,
