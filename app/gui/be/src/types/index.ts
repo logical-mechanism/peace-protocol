@@ -4,32 +4,6 @@ export interface ResponseWarnings {
   stale?: boolean;
 }
 
-export interface PaginationMeta {
-  total: number;
-  limit: number;
-  offset: number;
-  hasMore: boolean;
-}
-
-export interface ApiResponse<T> {
-  data: T;
-  meta?: {
-    total?: number;
-    page?: number;
-    limit?: number;
-  };
-  pagination?: PaginationMeta;
-  warnings?: ResponseWarnings;
-}
-
-export interface ApiError {
-  error: {
-    code: string;
-    message: string;
-    requestId?: string;
-  };
-}
-
 // Register type (BLS12-381 public key)
 export interface Register {
   generator: string;      // 96 hex chars (compressed G1)
@@ -91,12 +65,6 @@ export interface BidDatum {
   token: string;                  // encryption token name being bid on
   locked_until: number;           // POSIX milliseconds — bid cannot be removed before this time
   new_price: number;              // lovelace — future resale price (from datum, not metadata)
-}
-
-// CIP-20 metadata structure (from tx metadata key 674)
-// See: https://cips.cardano.org/cip/CIP-20
-export interface Cip20Metadata {
-  msg: string[];  // [description, suggestedPrice, storageLayer, imageLink?, category?]
 }
 
 // API display types (enriched for UI)
