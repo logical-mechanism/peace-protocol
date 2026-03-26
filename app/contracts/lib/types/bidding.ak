@@ -16,6 +16,7 @@ pub type BidDatum {
   pointer: AssetName,
   token: AssetName,
   locked_until: Int,
+  new_price: Int,
 }
 
 pub type BidMintRedeemer {
@@ -26,4 +27,5 @@ pub type BidMintRedeemer {
 pub type BidSpendRedeemer {
   RemoveBid
   UseBid
+  UpdateBidPrice(Int)
 }

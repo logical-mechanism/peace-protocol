@@ -15,7 +15,7 @@ use types/bidding.{BidDatum, UseBid}
 use types/encryption.{
   CancelEncryption, EncryptionDatum, EncryptionMintRedeemer,
   EncryptionSpendRedeemer, EntryEncryptionMint, LeaveEncryptionBurn, Open,
-  Pending, RemoveEncryption, UseEncryption, UseSnark,
+  Pending, RemoveEncryption, UpdateEncryptionPrice, UseEncryption, UseSnark,
 }
 use types/groth.{GrothWitnessRedeemer, verify_commitments}
 use types/level.{FullEncryptionLevel}
@@ -159,6 +159,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 full_level: maybe_next_full_level,
                 capsule: next_capsule,
                 status: next_status,
+                new_price: next_new_price,
               }: EncryptionDatum = output_datum_data
               // get the bidding contract hash and snark vk from the reference datum
               let ReferenceDatum { bid, snark_vk, .. }: ReferenceDatum =
@@ -188,6 +189,7 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               expect BidDatum {
                 owner_vkh: bid_owner_vkh,
                 owner_g1: bid_owner_g1,
+                new_price: bid_new_price,
                 ..
               }: BidDatum = bidding_datum_data
               expect Some(next_full_level): Option<FullEncryptionLevel> =
@@ -213,6 +215,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 // bid owner is new owner
                 bid_owner_vkh == next_owner_vkh,
                 bid_owner_g1 == next_owner_g1,
+                // new price comes from the bid datum
+                bid_new_price == next_new_price,
                 // check if correct script hashes
                 Script(this_script) == payment_credential,
                 Script(bid) == bid_payment_credential,
@@ -322,6 +326,43 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 expired_or_cancel,
                 // datum must go back to open
                 output_datum_data == expected_output_datum_data,
+                // check if correct script hashes
+                Script(this_script) == payment_credential,
+                // script output can not have a reference script
+                reference_script == None,
+                // force token to already exist
+                assets.has_nft(this_input.output.value, this_script, token),
+              }
+            }
+
+            UpdateEncryptionPrice(price) -> {
+              // this token going back
+              expect Some(Output {
+                address: Address { payment_credential, .. },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                value: output_value,
+                ..
+              }): Option<Output> =
+                search.for_output_by_token(outputs, this_script, token)
+              // can only update price when open
+              expect Open = status
+              // everything is constant but the new_price
+              let expected_output_datum_data: Data =
+                EncryptionDatum { ..this_datum, new_price: price }
+              // ensure non-ADA tokens are preserved
+              let input_tokens = this_input.output.value |> assets.without_lovelace
+              let output_tokens = output_value |> assets.without_lovelace
+              //
+              and {
+                // price must be non-negative
+                price >= 0,
+                // only the new_price field can change
+                output_datum_data == expected_output_datum_data,
+                // non-ADA tokens must be preserved
+                input_tokens == output_tokens,
+                // owner_vkh must sign
+                has(extra_signatories, owner_vkh),
                 // check if correct script hashes
                 Script(this_script) == payment_credential,
                 // script output can not have a reference script
