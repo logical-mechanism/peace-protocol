@@ -111,10 +111,10 @@ describe('splitMetadataString', () => {
 });
 
 describe('buildEncryptionMetadata', () => {
-  it('builds metadata with short fields', () => {
-    const result = buildEncryptionMetadata('Short desc', '10', 'on-chain', '', 'text');
+  it('builds metadata with short fields (no price — price is in datum)', () => {
+    const result = buildEncryptionMetadata('Short desc', 'on-chain', '', 'text');
     expect(result.msg).toEqual(['Short desc']);
-    expect(result.p).toBe('10');
+    expect(result.p).toBeUndefined();
     expect(result.s).toBe('on-chain');
     expect(result.i).toEqual(['']);
     expect(result.c).toBe('text');
@@ -122,7 +122,7 @@ describe('buildEncryptionMetadata', () => {
 
   it('chunks long description into multiple msg entries', () => {
     const longDesc = 'a'.repeat(200);
-    const result = buildEncryptionMetadata(longDesc, '5', 'on-chain', '', 'text');
+    const result = buildEncryptionMetadata(longDesc, 'on-chain', '', 'text');
     const msg = result.msg as string[];
     expect(msg.length).toBeGreaterThan(1);
     expect(msg.join('')).toBe(longDesc);
@@ -133,27 +133,21 @@ describe('buildEncryptionMetadata', () => {
 
   it('chunks long image link', () => {
     const longUrl = 'https://example.com/' + 'x'.repeat(100);
-    const result = buildEncryptionMetadata('desc', '5', 'on-chain', longUrl, 'text');
+    const result = buildEncryptionMetadata('desc', 'on-chain', longUrl, 'text');
     const imgChunks = result.i as string[];
     expect(imgChunks.length).toBeGreaterThan(1);
     expect(imgChunks.join('')).toBe(longUrl);
   });
 
-  it('defaults price to "0" when empty', () => {
-    const result = buildEncryptionMetadata('desc', '', 'on-chain', '', 'text');
-    expect(result.p).toBe('0');
-  });
-
   it('all string values comply with 64-byte limit', () => {
     const longDesc = 'Test description with lots of content. '.repeat(15);
     const longUrl = 'https://example.com/very/long/path/' + 'segment/'.repeat(20);
-    const result = buildEncryptionMetadata(longDesc, '999.99', 'on-chain', longUrl, 'document');
+    const result = buildEncryptionMetadata(longDesc, 'on-chain', longUrl, 'document');
 
     const encoder = new TextEncoder();
     for (const chunk of result.msg as string[]) {
       expect(encoder.encode(chunk).length).toBeLessThanOrEqual(64);
     }
-    expect(encoder.encode(result.p as string).length).toBeLessThanOrEqual(64);
     expect(encoder.encode(result.s as string).length).toBeLessThanOrEqual(64);
     for (const chunk of result.i as string[]) {
       expect(encoder.encode(chunk).length).toBeLessThanOrEqual(64);

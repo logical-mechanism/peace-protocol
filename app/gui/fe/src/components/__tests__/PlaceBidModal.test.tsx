@@ -16,7 +16,7 @@ const baseEncryption: EncryptionDisplay = {
   createdAt: '2024-01-01T00:00:00Z',
   utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
   datum: {} as EncryptionDisplay['datum'],
-  suggestedPrice: 100,
+  suggestedPrice: 100_000_000,
   description: 'Test encrypted data listing',
 };
 
@@ -64,7 +64,7 @@ describe('PlaceBidModal', () => {
 
   it('shows listing details from encryption', () => {
     renderModal();
-    expect(screen.getByText('100 ADA')).toBeInTheDocument();
+    expect(screen.getByText('100.00 ADA')).toBeInTheDocument();
     expect(screen.getByText('Test encrypted data listing')).toBeInTheDocument();
   });
 

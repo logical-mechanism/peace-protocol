@@ -90,6 +90,7 @@ function mkBidDatumValue(overrides: { vkh?: string; pointer?: string; token?: st
       { bytes: overrides.pointer ?? POINTER_HEX },
       { bytes: overrides.token ?? TOKEN_HEX },
       { int: overrides.locked_until ?? Date.now() + 12 * 60 * 60 * 1000 },
+      { int: 0 },
     ],
   };
 }
@@ -225,7 +226,8 @@ describe('getAllBids', () => {
     const result = await getAllBids();
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].futurePrice).toBeUndefined();
+    // futurePrice now comes from datum.new_price (0), not CIP-20 metadata
+    expect(result.data[0].futurePrice).toBe(0);
     expect(logger.warn).toHaveBeenCalledWith(
       'Failed to batch fetch bid CIP-20 metadata; using cached data for known tx hashes',
       expect.any(Object)
@@ -242,7 +244,8 @@ describe('getAllBids', () => {
 
     const result = await getAllBids();
 
-    expect(result.data[0].futurePrice).toBe(15.5);
+    // futurePrice now comes from datum.new_price (0), not CIP-20 metadata
+    expect(result.data[0].futurePrice).toBe(0);
   });
 
   it('preserves bid metadata from persistent cache when Koios fails on subsequent call', async () => {
@@ -258,7 +261,8 @@ describe('getAllBids', () => {
     const result = await getAllBids(true);
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0].futurePrice).toBe(15.5);
+    // futurePrice now comes from datum.new_price (0), not CIP-20 metadata
+    expect(result.data[0].futurePrice).toBe(0);
   });
 
   it('returns cached data when cache is fresh', async () => {

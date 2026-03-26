@@ -95,6 +95,7 @@ export function createEncryptionDatum(overrides: Partial<EncryptionDatum> = {}):
     full_level: null,
     capsule: createCapsule(),
     status: createEncryptionStatus(),
+    new_price: 100_000_000,
     ...overrides,
   };
 }
@@ -106,6 +107,7 @@ export function createBidDatum(overrides: Partial<BidDatum> = {}): BidDatum {
     pointer: uniqueTokenName('bid'),
     token: uniqueTokenName('enc'),
     locked_until: Date.now() + 12 * 60 * 60 * 1000,
+    new_price: 0,
     ...overrides,
   };
 }
@@ -122,7 +124,7 @@ export function createEncryption(overrides: Partial<EncryptionDisplay> = {}): En
     sellerPkh: DEFAULT_SELLER_PKH,
     status: 'active',
     description: 'Test listing description',
-    suggestedPrice: 100,
+    suggestedPrice: 100_000_000,
     storageLayer: 'iagon',
     imageLink: 'https://example.com/image.png',
     category: 'text',
@@ -142,7 +144,7 @@ export function createBid(overrides: Partial<BidDisplay> = {}): BidDisplay {
     bidderPkh: DEFAULT_BIDDER_PKH,
     encryptionToken,
     amount: 50_000_000,
-    futurePrice: 120,
+    futurePrice: 120_000_000,
     status: 'pending',
     createdAt: '2025-01-16T12:00:00Z',
     utxo: { txHash: DEFAULT_TX_HASH, outputIndex: 1 },

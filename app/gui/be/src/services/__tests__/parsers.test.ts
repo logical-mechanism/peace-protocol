@@ -114,6 +114,7 @@ function mkEncryptionDatum(
       fullLevel,                 // 4: full_level (Option)
       mkCapsule(),               // 5: capsule
       status,                    // 6: status
+      { int: 0 },               // 7: new_price
     ],
   };
 }
@@ -129,6 +130,7 @@ function mkBidDatum() {
       { bytes: pointer },        // 2: pointer
       { bytes: TOKEN_HEX },     // 3: token
       { int: 1234567890000 },    // 4: locked_until (POSIX ms)
+      { int: 0 },               // 5: new_price
     ],
   };
 }
@@ -138,7 +140,7 @@ function mkBidDatum() {
 // ===========================================================================
 
 describe('parseEncryptionDatum', () => {
-  it('parses all 7 fields with Open status', () => {
+  it('parses all 8 fields with Open status', () => {
     const datum = mkEncryptionDatum({ status: mkStatusOpen(), fullLevel: mkNone() });
     const result = parseEncryptionDatum(datum);
 
@@ -157,6 +159,7 @@ describe('parseEncryptionDatum', () => {
       ct: CT_HEX,
     });
     expect(result.status).toEqual({ type: 'Open' });
+    expect(result.new_price).toBe(0);
   });
 
   it('parses Pending status with GrothProof, groth_public, and ttl', () => {
@@ -194,7 +197,7 @@ describe('parseEncryptionDatum', () => {
 });
 
 describe('parseBidDatum', () => {
-  it('parses all 5 fields correctly', () => {
+  it('parses all 6 fields correctly', () => {
     const datum = mkBidDatum();
     const result = parseBidDatum(datum);
 
@@ -203,6 +206,7 @@ describe('parseBidDatum', () => {
     expect(result.pointer).toBe('ab'.repeat(32));
     expect(result.token).toBe(TOKEN_HEX);
     expect(result.locked_until).toBe(1234567890000);
+    expect(result.new_price).toBe(0);
   });
 });
 
@@ -256,7 +260,7 @@ describe('error handling', () => {
     expect(() => parseBidDatum(badBid)).toThrow('Expected bytes');
   });
 
-  it('throws when constructor has too few fields (3 instead of 7)', () => {
+  it('throws when constructor has too few fields (3 instead of 8)', () => {
     const shortDatum = {
       constructor: 0,
       fields: [
