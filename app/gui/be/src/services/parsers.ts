@@ -155,7 +155,7 @@ export function parseEncryptionDatum(datumValue: unknown): EncryptionDatum {
     full_level: parseOptionalFullLevel(c.fields[4]),
     capsule: parseCapsule(c.fields[5]),
     status: parseStatus(c.fields[6]),
-    new_price: asInt(c.fields[7]),
+    new_price: c.fields[7] !== undefined ? asInt(c.fields[7]) : 0,
   };
 }
 
@@ -168,7 +168,7 @@ export function parseBidDatum(datumValue: unknown): BidDatum {
     pointer: asBytes(c.fields[2]),
     token: asBytes(c.fields[3]),
     locked_until: asInt(c.fields[4]),
-    new_price: asInt(c.fields[5]),
+    new_price: c.fields[5] !== undefined ? asInt(c.fields[5]) : 0,
   };
 }
 

@@ -416,12 +416,13 @@ pub async fn start_node(
         .path()
         .resource_dir()
         .ok()
-        .map(|r| r.join("be"))
+        .map(|r| r.join("resources/be"))
         .filter(|p| p.exists())
         .unwrap_or_else(|| {
             // Dev fallback: CARGO_MANIFEST_DIR is always src-tauri/
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../be")
         });
+    eprintln!("Express be_dir: {:?} (exists: {})", be_dir, be_dir.exists());
     if be_dir.join("dist/index.js").exists() {
         express::start_express(&manager, &config, &be_dir, app_data_dir).await?;
 

@@ -161,6 +161,7 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
           txHash: utxo.tx_hash,
           txIndex: utxo.tx_index,
           error: String(err),
+          fieldCount: (utxo.inline_datum?.value as { fields?: unknown[] })?.fields?.length,
           datumPreview: JSON.stringify(utxo.inline_datum)?.slice(0, 200),
         });
       }

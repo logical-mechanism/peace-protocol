@@ -25,6 +25,9 @@ src-tauri/binaries/
 src-tauri/resources/snark/*.zst
 src-tauri/resources/snark/*.bin
 
+# Bundled backend (copied during build, not source)
+src-tauri/resources/be/
+
 # IDE
 .idea/
 .vscode/

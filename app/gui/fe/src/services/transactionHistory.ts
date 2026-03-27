@@ -8,7 +8,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
 
-export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price';
+export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
 
 export interface TransactionRecord {
@@ -241,6 +241,7 @@ export function getTypeLabel(type: TransactionType): string {
     case 'create-collateral': return 'Set Collateral';
     case 'optimize-wallet': return 'Optimize Wallet';
     case 'update-price': return 'Update Price';
+    case 'update-bid': return 'Update Bid';
   }
 }
 

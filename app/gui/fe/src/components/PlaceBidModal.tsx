@@ -147,6 +147,11 @@ export default function PlaceBidModal({
     const sanitized = (name === 'bidAmount' || name === 'futurePrice')
       ? value.replace(/,/g, '')
       : value;
+    // Cap price fields at 6 decimal places (1 lovelace = 0.000001 ADA)
+    if (name === 'bidAmount' || name === 'futurePrice') {
+      const dotIndex = sanitized.indexOf('.');
+      if (dotIndex !== -1 && sanitized.length - dotIndex - 1 > 6) return;
+    }
     setFormData((prev) => ({ ...prev, [name]: sanitized }));
     // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {

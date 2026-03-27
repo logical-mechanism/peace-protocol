@@ -143,7 +143,7 @@ function MyPurchaseBidCard({
                 isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
               }`}>
                 {formatAda(bid.amount)} ADA
-                {isPending && !isLocked && !isOptimistic && onUpdateBid && (
+                {isPending && !isOptimistic && onUpdateBid && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
                     className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
@@ -289,7 +289,7 @@ function MyPurchaseBidCard({
           isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
         }`}>
           {formatAda(bid.amount)} ADA
-          {isPending && !isLocked && !isOptimistic && onUpdateBid && (
+          {isPending && !isOptimistic && onUpdateBid && (
             <button
               onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
               className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
