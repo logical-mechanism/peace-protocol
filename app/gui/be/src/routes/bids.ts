@@ -1,6 +1,5 @@
 import { Router, type Request, type Response } from 'express';
 import { config } from '../config/index.js';
-import { logger } from '../services/logger.js';
 import { validateTokenNameParam, validatePkhParam, validateEncryptionTokenParam, validateStatusParam } from '../middleware/validate.js';
 import { parsePagination, paginate } from '../middleware/pagination.js';
 import { STUB_BIDS } from '../stubs/index.js';
@@ -11,7 +10,7 @@ import {
   getBidsByEncryption,
   getBidsByStatus,
 } from '../services/bids.js';
-import { KupoUnavailableError } from '../services/kupo.js';
+import { handleServiceError } from './routeUtils.js';
 
 const router = Router();
 
@@ -41,16 +40,7 @@ router.get('/', async (req: Request, res: Response) => {
       ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
-    if (error instanceof KupoUnavailableError) {
-      logger.warn('Kupo unavailable while fetching bids', { error: String(error), requestId: req.requestId });
-      return res.status(503).json({
-        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
-      });
-    }
-    logger.error('Error fetching bids', { error: String(error), requestId: req.requestId });
-    return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids', requestId: req.requestId },
-    });
+    handleServiceError(error, req, res, 'fetching bids');
   }
 });
 
@@ -86,16 +76,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
       ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
-    if (error instanceof KupoUnavailableError) {
-      logger.warn('Kupo unavailable while fetching bid', { error: String(error), requestId: req.requestId });
-      return res.status(503).json({
-        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
-      });
-    }
-    logger.error('Error fetching bid', { error: String(error), requestId: req.requestId });
-    return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bid', requestId: req.requestId },
-    });
+    handleServiceError(error, req, res, 'fetching bid');
   }
 });
 
@@ -128,16 +109,7 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
       ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
-    if (error instanceof KupoUnavailableError) {
-      logger.warn('Kupo unavailable while fetching user bids', { error: String(error), requestId: req.requestId });
-      return res.status(503).json({
-        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
-      });
-    }
-    logger.error('Error fetching user bids', { error: String(error), requestId: req.requestId });
-    return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch user bids', requestId: req.requestId },
-    });
+    handleServiceError(error, req, res, 'fetching user bids');
   }
 });
 
@@ -170,16 +142,7 @@ router.get('/encryption/:encryptionToken', validateEncryptionTokenParam, async (
       ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
-    if (error instanceof KupoUnavailableError) {
-      logger.warn('Kupo unavailable while fetching encryption bids', { error: String(error), requestId: req.requestId });
-      return res.status(503).json({
-        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
-      });
-    }
-    logger.error('Error fetching encryption bids', { error: String(error), requestId: req.requestId });
-    return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch encryption bids', requestId: req.requestId },
-    });
+    handleServiceError(error, req, res, 'fetching encryption bids');
   }
 });
 
@@ -213,16 +176,7 @@ router.get('/status/:status', validateStatusParam(['pending', 'accepted', 'rejec
       ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
     });
   } catch (error) {
-    if (error instanceof KupoUnavailableError) {
-      logger.warn('Kupo unavailable while fetching bids by status', { error: String(error), requestId: req.requestId });
-      return res.status(503).json({
-        error: { code: 'KUPO_UNAVAILABLE', message: 'UTxO indexer is not reachable', requestId: req.requestId },
-      });
-    }
-    logger.error('Error fetching bids by status', { error: String(error), requestId: req.requestId });
-    return res.status(500).json({
-      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch bids by status', requestId: req.requestId },
-    });
+    handleServiceError(error, req, res, 'fetching bids by status');
   }
 });
 
