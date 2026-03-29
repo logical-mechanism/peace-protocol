@@ -80,13 +80,13 @@ describe('WasmContext', () => {
     expect(result.current.stage).toBe('idle');
   });
 
-  it('returns safe defaults when used outside WasmProvider', () => {
-    const { result } = renderHook(() => useWasm());
-
-    // useWasm returns defaults, doesn't throw
-    expect(result.current.isReady).toBe(false);
-    expect(result.current.stage).toBe('idle');
-    expect(result.current.error).toBeNull();
+  it('throws when used outside WasmProvider', () => {
+    // Suppress React error boundary console output
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => renderHook(() => useWasm())).toThrow(
+      'useWasm must be used within WasmProvider'
+    );
+    spy.mockRestore();
   });
 
   it('checkCache returns boolean from snark_check_setup', async () => {
