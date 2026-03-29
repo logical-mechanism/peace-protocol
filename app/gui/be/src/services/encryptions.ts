@@ -1,4 +1,5 @@
 import { getNetworkConfig } from '../config/index.js';
+import { CACHE_TTL_DATA } from '../config/cacheConstants.js';
 import { apiCache } from './cache.js';
 import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
@@ -202,7 +203,7 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
       encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     }
 
-    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions, 15_000);
+    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions, CACHE_TTL_DATA);
     const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
     return { data: encryptions, warnings };
   } catch (err) {

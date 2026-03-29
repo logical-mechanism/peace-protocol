@@ -13,11 +13,10 @@ import {
 } from '../services/encryptions.js';
 import { KupoUnavailableError } from '../services/kupo.js';
 import { handleServiceError } from './routeUtils.js';
+import { CACHE_HEADER_DATA } from '../config/cacheConstants.js';
 import type { EncryptionLevel } from '../types/index.js';
 
 const router = Router();
-
-const CACHE_DATA = 'max-age=5, stale-while-revalidate=15';
 
 /**
  * GET /api/encryptions
@@ -29,14 +28,14 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (config.useStubs) {
       const { data, pagination } = paginate(STUB_ENCRYPTIONS, paginationParams);
-      res.set('Cache-Control', CACHE_DATA);
+      res.set('Cache-Control', CACHE_HEADER_DATA);
       return res.json({ data, pagination });
     }
 
     const skipCache = req.query.refresh === 'true';
     const result = await getAllEncryptions(skipCache);
     const { data, pagination } = paginate(result.data, paginationParams);
-    res.set('Cache-Control', CACHE_DATA);
+    res.set('Cache-Control', CACHE_HEADER_DATA);
     return res.json({
       data,
       pagination,
@@ -60,13 +59,13 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
     if (config.useStubs) {
       // Stub: return empty levels (stub decryption doesn't use real levels)
       const { data, pagination } = paginate([] as EncryptionLevel[], paginationParams);
-      res.set('Cache-Control', CACHE_DATA);
+      res.set('Cache-Control', CACHE_HEADER_DATA);
       return res.json({ data, pagination });
     }
 
     const levels = await getEncryptionLevels(tokenName);
     const { data, pagination } = paginate(levels, paginationParams);
-    res.set('Cache-Control', CACHE_DATA);
+    res.set('Cache-Control', CACHE_HEADER_DATA);
     return res.json({ data, pagination });
   } catch (error) {
     if (error instanceof KupoUnavailableError) {
@@ -106,7 +105,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
           error: { code: 'NOT_FOUND', message: 'Encryption not found', requestId: req.requestId },
         });
       }
-      res.set('Cache-Control', CACHE_DATA);
+      res.set('Cache-Control', CACHE_HEADER_DATA);
       return res.json({ data: encryption });
     }
 
@@ -116,7 +115,7 @@ router.get('/:tokenName', validateTokenNameParam, async (req: Request<{tokenName
         error: { code: 'NOT_FOUND', message: 'Encryption not found', requestId: req.requestId },
       });
     }
-    res.set('Cache-Control', CACHE_DATA);
+    res.set('Cache-Control', CACHE_HEADER_DATA);
     return res.json({
       data: result.data,
       ...(Object.keys(result.warnings).length > 0 && { warnings: result.warnings }),
@@ -141,13 +140,13 @@ router.get('/user/:pkh', validatePkhParam, async (req: Request<{pkh: string}>, r
         e.sellerPkh.toLowerCase() === pkh.toLowerCase()
       );
       const { data, pagination } = paginate(userEncryptions, paginationParams);
-      res.set('Cache-Control', CACHE_DATA);
+      res.set('Cache-Control', CACHE_HEADER_DATA);
       return res.json({ data, pagination });
     }
 
     const result = await getEncryptionsByUser(pkh);
     const { data, pagination } = paginate(result.data, paginationParams);
-    res.set('Cache-Control', CACHE_DATA);
+    res.set('Cache-Control', CACHE_HEADER_DATA);
     return res.json({
       data,
       pagination,
@@ -173,7 +172,7 @@ router.get('/status/:status', validateStatusParam(['active', 'pending', 'complet
         e => e.status === status
       );
       const { data, pagination } = paginate(filteredEncryptions, paginationParams);
-      res.set('Cache-Control', CACHE_DATA);
+      res.set('Cache-Control', CACHE_HEADER_DATA);
       return res.json({ data, pagination });
     }
 
@@ -181,7 +180,7 @@ router.get('/status/:status', validateStatusParam(['active', 'pending', 'complet
       status as 'active' | 'pending' | 'completed'
     );
     const { data, pagination } = paginate(result.data, paginationParams);
-    res.set('Cache-Control', CACHE_DATA);
+    res.set('Cache-Control', CACHE_HEADER_DATA);
     return res.json({
       data,
       pagination,

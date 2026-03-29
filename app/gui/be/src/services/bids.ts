@@ -1,4 +1,5 @@
 import { getNetworkConfig } from '../config/index.js';
+import { CACHE_TTL_DATA } from '../config/cacheConstants.js';
 import { apiCache } from './cache.js';
 import { getKupoClient } from './kupo.js';
 import type { KoiosUtxo } from './koios.js';
@@ -74,7 +75,7 @@ export async function getAllBids(skipCache = false): Promise<ServiceResult<BidDi
       }
     }
 
-    apiCache.set(CACHE_KEY_ALL_BIDS, bids, 15_000);
+    apiCache.set(CACHE_KEY_ALL_BIDS, bids, CACHE_TTL_DATA);
     const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
     return { data: bids, warnings };
   } catch (err) {

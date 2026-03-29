@@ -4,11 +4,9 @@ import { logger } from '../services/logger.js';
 import { STUB_PROTOCOL_CONFIG } from '../stubs/index.js';
 import { getKoiosClient } from '../services/koios.js';
 import type { ProtocolConfig } from '../types/index.js';
+import { CACHE_HEADER_CONFIG, CACHE_HEADER_STATIC } from '../config/cacheConstants.js';
 
 const router = Router();
-
-const CACHE_CONFIG = 'max-age=60, stale-while-revalidate=120';
-const CACHE_STATIC = 'max-age=300, stale-while-revalidate=600';
 
 /**
  * GET /api/protocol/config
@@ -17,7 +15,7 @@ const CACHE_STATIC = 'max-age=300, stale-while-revalidate=600';
 router.get('/config', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
-      res.set('Cache-Control', CACHE_CONFIG);
+      res.set('Cache-Control', CACHE_HEADER_CONFIG);
       return res.json({ data: STUB_PROTOCOL_CONFIG });
     }
 
@@ -55,7 +53,7 @@ router.get('/config', async (_req: Request, res: Response) => {
         : null,
     };
 
-    res.set('Cache-Control', CACHE_CONFIG);
+    res.set('Cache-Control', CACHE_HEADER_CONFIG);
     return res.json({ data: protocolConfig });
   } catch (error) {
     logger.error('Error fetching protocol config', { error: String(error), requestId: _req.requestId });
@@ -72,7 +70,7 @@ router.get('/config', async (_req: Request, res: Response) => {
 router.get('/reference', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
-      res.set('Cache-Control', CACHE_STATIC);
+      res.set('Cache-Control', CACHE_HEADER_STATIC);
       return res.json({
         data: STUB_PROTOCOL_CONFIG.referenceScripts,
       });
@@ -92,7 +90,7 @@ router.get('/reference', async (_req: Request, res: Response) => {
         : null,
     };
 
-    res.set('Cache-Control', CACHE_STATIC);
+    res.set('Cache-Control', CACHE_HEADER_STATIC);
     return res.json({ data: referenceScripts });
   } catch (error) {
     logger.error('Error fetching reference data', { error: String(error), requestId: _req.requestId });
@@ -109,7 +107,7 @@ router.get('/reference', async (_req: Request, res: Response) => {
 router.get('/scripts', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
-      res.set('Cache-Control', CACHE_STATIC);
+      res.set('Cache-Control', CACHE_HEADER_STATIC);
       return res.json({
         data: {
           encryption: {
@@ -125,7 +123,7 @@ router.get('/scripts', async (_req: Request, res: Response) => {
     }
 
     const { contracts } = getNetworkConfig();
-    res.set('Cache-Control', CACHE_STATIC);
+    res.set('Cache-Control', CACHE_HEADER_STATIC);
     return res.json({
       data: {
         encryption: {
@@ -153,7 +151,7 @@ router.get('/scripts', async (_req: Request, res: Response) => {
 router.get('/params', async (_req: Request, res: Response) => {
   try {
     if (config.useStubs) {
-      res.set('Cache-Control', CACHE_STATIC);
+      res.set('Cache-Control', CACHE_HEADER_STATIC);
       return res.json({
         data: {
           minFeeA: 44,
@@ -171,7 +169,7 @@ router.get('/params', async (_req: Request, res: Response) => {
 
     const koios = getKoiosClient();
     const params = await koios.getProtocolParams();
-    res.set('Cache-Control', CACHE_STATIC);
+    res.set('Cache-Control', CACHE_HEADER_STATIC);
     return res.json({ data: params });
   } catch (error) {
     logger.error('Error fetching protocol params', { error: String(error), requestId: _req.requestId });
