@@ -163,9 +163,9 @@ export async function placeBid(
     // Field order must match Aiken: owner_vkh, owner_g1, pointer, token, locked_until
     // pointer = bid token name (validated == token_name on-chain)
     // token = encryption token name (the one being bid on)
-    // locked_until = 2 * minimum_bid_lock (12 hours) from now
-    const MINIMUM_BID_LOCK_MS = 6 * 60 * 60 * 1000; // 6 hours, matches on-chain constant
-    const lockedUntil = Date.now() + 2 * MINIMUM_BID_LOCK_MS;
+    // locked_until = 8 hours from now (must be >= on-chain minimum_bid_lock of 6 hours)
+    const BID_LOCK_MS = 8 * 60 * 60 * 1000; // 8 hours
+    const lockedUntil = Date.now() + BID_LOCK_MS;
     const datum = {
       constructor: 0,
       fields: [
