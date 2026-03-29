@@ -110,6 +110,7 @@ export async function acceptBidSnark(
     if (USE_STUBS) {
       console.warn('[STUB] acceptBidSnark');
 
+      // 36 public inputs matching the Groth16 circuit's expected public input count
       const stubPublic = Array(36).fill(0).map((_, i) => String(i + 1));
       const ttl = Date.now() + 6 * 60 * 60 * 1000 + 40 * 60 * 1000; // now + 6h40m
 

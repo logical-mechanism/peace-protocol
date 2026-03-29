@@ -15,7 +15,10 @@ import { getKupoAdapter, getOgmiosProvider } from './providers'
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Cardano protocol parameter (Babbage/Conway era). */
+/**
+ * Cardano protocol parameter: lovelace cost per UTxO byte (Babbage/Conway era).
+ * Bigint variant of txUtils.COINS_PER_UTXO_BYTE for use with BigInt arithmetic.
+ */
 const COINS_PER_UTXO_BYTE = 4310n
 
 /** Maximum token quantity per UTxO output (2^63 - 1). */
