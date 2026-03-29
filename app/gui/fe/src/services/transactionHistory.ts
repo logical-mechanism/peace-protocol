@@ -7,7 +7,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
-import { storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
+import { storageGet, storageSet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 
 export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
@@ -29,16 +29,29 @@ export interface TransactionRecord {
   confirmedAtBlock?: number;
 }
 
-const STORAGE_KEY_PREFIX = 'peace_tx_history_';
+const STORAGE_KEY_PREFIX = 'veiled_tx_history_';
+const OLD_STORAGE_KEY_PREFIX = 'peace_tx_history_';
 
 function getStorageKey(walletPkh: string): string {
   return STORAGE_KEY_PREFIX + walletPkh;
+}
+
+/** One-time migration from old "peace_" prefix to "veiled_" prefix. */
+function migrateKeyPrefix(walletPkh: string): void {
+  const oldKey = OLD_STORAGE_KEY_PREFIX + walletPkh;
+  const newKey = getStorageKey(walletPkh);
+  const old = storageGet(oldKey);
+  if (old && !storageGet(newKey)) {
+    storageSet(newKey, old);
+    storageRemove(oldKey);
+  }
 }
 
 /**
  * Get all transaction records for a wallet.
  */
 export function getTransactions(walletPkh: string): TransactionRecord[] {
+  migrateKeyPrefix(walletPkh);
   return storageGetJSON<TransactionRecord[]>(getStorageKey(walletPkh), []);
 }
 

@@ -46,7 +46,7 @@ describe('transactionHistory', () => {
   });
 
   it('getTransactions returns [] when localStorage has corrupted JSON', () => {
-    localStorage.setItem('peace_tx_history_' + WALLET, '{broken');
+    localStorage.setItem('veiled_tx_history_' + WALLET, '{broken');
     expect(getTransactions(WALLET)).toEqual([]);
   });
 
@@ -247,7 +247,7 @@ describe('transactionHistory', () => {
 
     // The only setItem calls should be from addTransaction above, not from reconcile
     const reconcileCalls = spy.mock.calls.filter(
-      (call) => call[0] === 'peace_tx_history_' + WALLET
+      (call) => call[0] === 'veiled_tx_history_' + WALLET
     );
     // addTransaction called setItem once; reconcile should NOT have called it again
     expect(reconcileCalls).toHaveLength(0);
