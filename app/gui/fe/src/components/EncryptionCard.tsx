@@ -8,7 +8,7 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
-import { formatAda } from '../utils/formatAda';
+import { formatPrice, getCategoryLabel } from '../utils/formatListing';
 
 
 interface EncryptionCardProps {
@@ -53,23 +53,9 @@ function EncryptionCard({
     }
   }, [bidCount, prevBidCount]);
 
-  // Format price (lovelace) with "No suggested price" fallback for missing/invalid values
-  const formatPrice = (lovelace?: number): string => {
-    if (lovelace === undefined || lovelace === null || isNaN(lovelace) || lovelace < 0) {
-      return 'No suggested price';
-    }
-    return `${formatAda(lovelace)} ADA`;
-  };
-
   const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);
   const isOptimistic = encryption._optimistic === true;
   const canBid = encryption.status === 'active' && !isOwnListing && !hasBid && !isOptimistic;
-
-  // Get category label, defaulting to "Text" for backward compatibility
-  const getCategoryLabel = (category?: string): string => {
-    if (!category) return 'Text';
-    return category.charAt(0).toUpperCase() + category.slice(1);
-  };
 
   const handleCopySeller = async (e: React.MouseEvent) => {
     e.stopPropagation();

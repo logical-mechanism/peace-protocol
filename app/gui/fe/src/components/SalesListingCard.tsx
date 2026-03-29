@@ -6,7 +6,7 @@ import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
-import { formatAda } from '../utils/formatAda';
+import { formatPrice, getCategoryLabel } from '../utils/formatListing';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
@@ -44,20 +44,6 @@ function SalesListingCard({
       setBidPulseKey(k => k + 1);
     }
   }, [bidCount, prevBidCount]);
-
-  // Format price (lovelace) with fallback matching EncryptionCard behavior
-  const formatPrice = (lovelace?: number): string => {
-    if (lovelace === undefined || lovelace === null || isNaN(lovelace) || lovelace < 0) {
-      return 'No suggested price';
-    }
-    return `${formatAda(lovelace)} ADA`;
-  };
-
-  // Get category label, defaulting to "Text" for backward compatibility
-  const getCategoryLabel = (category?: string): string => {
-    if (!category) return 'Text';
-    return category.charAt(0).toUpperCase() + category.slice(1);
-  };
 
   // Get storage layer label - returns "No data layer" for unknown/missing values
   const getStorageLayerLabel = (storageLayer?: string): string => {
