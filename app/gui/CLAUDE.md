@@ -74,11 +74,11 @@ app/gui/
 │   │   │   ├── pendingTxPool.ts     # Virtual UTxO state: tracks submitted-but-unconfirmed tx inputs/outputs
 │   │   │   ├── txOutputParser.ts    # Extracts UTxO inputs/outputs from signed tx CBOR (@meshsdk/core-cst)
 │   │   │   ├── transactionBuilder.ts # Compatibility shim → re-exports from transactions/
-│   │   │   ├── transactions/        # Modular tx building (~2849 lines total)
+│   │   │   ├── transactions/        # Modular tx building (~2975 lines total)
 │   │   │   │   ├── index.ts         # Barrel re-export
 │   │   │   │   ├── txUtils.ts       # Shared utilities, types, constants
 │   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel, update price, create from import)
-│   │   │   │   ├── bids.ts          # Bidding lifecycle (place, cancel)
+│   │   │   │   ├── bids.ts          # Bidding lifecycle (place, cancel, update)
 │   │   │   │   └── acceptBid.ts     # Accept-bid SNARK proof + re-encryption
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
@@ -191,8 +191,7 @@ app/gui/
 ├── run.sh                           # Sources check-prereqs.sh, kills stale dev-port processes, installs deps, tsc watch for be, runs `tauri dev`
 ├── check-prereqs.sh                 # Prerequisite validator (Node 20+, npm, Rust, sidecar binaries, WebKitGTK)
 ├── lint.sh                          # eslint (fe), tsc + eslint (be), cargo fmt, clippy
-├── test.sh                          # vitest (fe) + vitest (be)
-└── CHANGELOG.md                     # Version history
+└── test.sh                          # vitest (fe) + vitest (be)
 ```
 
 ## Frontend Patterns
@@ -214,12 +213,12 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdateBid, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactions/ ~2849 lines, re-exported via transactionBuilder.ts shim):
+**Transaction building** (fe/src/services/transactions/ ~2975 lines, re-exported via transactionBuilder.ts shim):
 - Split into domain modules: `txUtils.ts` (shared), `listings.ts`, `bids.ts`, `acceptBid.ts`
 - Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`, `updateListingPrice()`, `createListingFromImport()`
-- Bids: `placeBid()`, `cancelBid()`
+- Bids: `placeBid()`, `cancelBid()`, `updateBid()`
 - Accept-bid: `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`, `acceptBidAndReEncrypt()`
 - `acceptBidAndReEncrypt()` — chains 12e→12f: submits SNARK proof then immediately chains re-encryption tx
 - Utils: `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`, `extractPaymentKeyHash()`, `isRealTransactionsAvailable()`, `getTransactionStubWarning()`
@@ -444,7 +443,7 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (109 commands, invoke from frontend):
+**Tauri commands** (92 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
@@ -523,7 +522,6 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 3. `package.json` — version
 4. `fe/package.json` — version
 5. `be/package.json` — version
-6. `CHANGELOG.md` — new entry at top
 
 ## Common Modification Patterns
 
