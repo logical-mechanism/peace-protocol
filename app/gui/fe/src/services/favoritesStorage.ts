@@ -5,6 +5,8 @@
  * Used by MarketplaceTab to filter/highlight bookmarked listings.
  */
 
+import { storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
+
 const STORAGE_KEY_PREFIX = 'veiled_favorites_';
 
 function getStorageKey(userPkh: string): string {
@@ -12,14 +14,8 @@ function getStorageKey(userPkh: string): string {
 }
 
 export function getFavorites(userPkh: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(getStorageKey(userPkh));
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw) as string[];
-    return new Set(arr);
-  } catch {
-    return new Set();
-  }
+  const arr = storageGetJSON<string[]>(getStorageKey(userPkh), []);
+  return new Set(arr);
 }
 
 /**
@@ -29,15 +25,15 @@ export function toggleFavorite(userPkh: string, tokenName: string): boolean {
   const favs = getFavorites(userPkh);
   if (favs.has(tokenName)) {
     favs.delete(tokenName);
-    localStorage.setItem(getStorageKey(userPkh), JSON.stringify([...favs]));
+    storageSetJSON(getStorageKey(userPkh), [...favs]);
     return false;
   } else {
     favs.add(tokenName);
-    localStorage.setItem(getStorageKey(userPkh), JSON.stringify([...favs]));
+    storageSetJSON(getStorageKey(userPkh), [...favs]);
     return true;
   }
 }
 
 export function clearFavorites(userPkh: string): void {
-  localStorage.removeItem(getStorageKey(userPkh));
+  storageRemove(getStorageKey(userPkh));
 }

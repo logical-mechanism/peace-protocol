@@ -7,6 +7,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
+import { storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 
 export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
@@ -38,13 +39,7 @@ function getStorageKey(walletPkh: string): string {
  * Get all transaction records for a wallet.
  */
 export function getTransactions(walletPkh: string): TransactionRecord[] {
-  try {
-    const raw = localStorage.getItem(getStorageKey(walletPkh));
-    if (!raw) return [];
-    return JSON.parse(raw) as TransactionRecord[];
-  } catch {
-    return [];
-  }
+  return storageGetJSON<TransactionRecord[]>(getStorageKey(walletPkh), []);
 }
 
 /**
@@ -55,7 +50,7 @@ export function addTransaction(walletPkh: string, record: TransactionRecord): vo
   records.unshift(record); // newest first
   // Keep at most 50 records
   if (records.length > 50) records.length = 50;
-  localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(records));
+  storageSetJSON(getStorageKey(walletPkh), records);
 }
 
 /**
@@ -74,7 +69,7 @@ export function updateTransactionStatus(
     if (extra?.confirmedAtBlock !== undefined) {
       record.confirmedAtBlock = extra.confirmedAtBlock;
     }
-    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(records));
+    storageSetJSON(getStorageKey(walletPkh), records);
   }
 }
 
@@ -89,7 +84,7 @@ export function getPendingCount(walletPkh: string): number {
  * Clear all transaction history for a wallet.
  */
 export function clearHistory(walletPkh: string): void {
-  localStorage.removeItem(getStorageKey(walletPkh));
+  storageRemove(getStorageKey(walletPkh));
 }
 
 /**
@@ -102,7 +97,7 @@ export function clearOlderThan(walletPkh: string, days: number): number {
   const filtered = records.filter(r => r.timestamp >= cutoff);
   const removed = records.length - filtered.length;
   if (removed > 0) {
-    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(filtered));
+    storageSetJSON(getStorageKey(walletPkh), filtered);
   }
   return removed;
 }
@@ -116,7 +111,7 @@ export function clearFailed(walletPkh: string): number {
   const filtered = records.filter(r => r.status !== 'failed');
   const removed = records.length - filtered.length;
   if (removed > 0) {
-    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(filtered));
+    storageSetJSON(getStorageKey(walletPkh), filtered);
   }
   return removed;
 }
@@ -174,7 +169,7 @@ export function reconcileWithOnChain(
     // Sort newest first and persist
     records.sort((a, b) => b.timestamp - a.timestamp);
     if (records.length > 100) records.length = 100;
-    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(records));
+    storageSetJSON(getStorageKey(walletPkh), records);
   }
 
   return { records, discrepancies };
@@ -220,7 +215,7 @@ export async function resolvePendingTxs(walletPkh: string): Promise<TransactionR
   }
 
   if (changed) {
-    localStorage.setItem(getStorageKey(walletPkh), JSON.stringify(records));
+    storageSetJSON(getStorageKey(walletPkh), records);
   }
 
   return records;

@@ -6,6 +6,8 @@
  * Follows the same pattern as listingFormDraftStorage.ts.
  */
 
+import { storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
+
 const STORAGE_KEY = 'veiled_bid_form_draft';
 
 export interface BidFormDraft {
@@ -18,45 +20,31 @@ export interface BidFormDraft {
 
 /** Save the current bid form state. */
 export function saveBidFormDraft(draft: BidFormDraft): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  } catch { /* best-effort */ }
+  storageSetJSON(STORAGE_KEY, draft);
 }
 
 /** Load a previously saved bid form draft for a specific encryption token, or null. */
 export function getBidFormDraft(encryptionTokenName: string): BidFormDraft | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as BidFormDraft;
-    if (
-      typeof parsed.encryptionTokenName !== 'string' ||
-      typeof parsed.bidAmount !== 'string' ||
-      parsed.encryptionTokenName !== encryptionTokenName
-    ) {
-      return null;
-    }
-    return parsed;
-  } catch {
+  const parsed = storageGetJSON<BidFormDraft | null>(STORAGE_KEY, null);
+  if (!parsed) return null;
+  if (
+    typeof parsed.encryptionTokenName !== 'string' ||
+    typeof parsed.bidAmount !== 'string' ||
+    parsed.encryptionTokenName !== encryptionTokenName
+  ) {
     return null;
   }
+  return parsed;
 }
 
 /** Clear the saved bid form draft (on successful submit or explicit discard). */
 export function clearBidFormDraft(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch { /* best-effort */ }
+  storageRemove(STORAGE_KEY);
 }
 
 /** Check if a saved draft exists for a specific encryption token (without full parsing). */
 export function hasBidFormDraft(encryptionTokenName: string): boolean {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as BidFormDraft;
-    return parsed.encryptionTokenName === encryptionTokenName;
-  } catch {
-    return false;
-  }
+  const parsed = storageGetJSON<BidFormDraft | null>(STORAGE_KEY, null);
+  if (!parsed) return false;
+  return parsed.encryptionTokenName === encryptionTokenName;
 }

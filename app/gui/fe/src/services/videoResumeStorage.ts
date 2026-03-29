@@ -1,3 +1,5 @@
+import { storageGetJSON, storageSetJSON } from './storageUtils';
+
 const STORAGE_KEY = 'veiled_video_resume';
 const MAX_ENTRIES = 50;
 
@@ -21,19 +23,11 @@ export function normalizeVideoKey(src: string): string {
 }
 
 function loadMap(): ResumeMap {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return {};
-    return JSON.parse(stored) as ResumeMap;
-  } catch {
-    return {};
-  }
+  return storageGetJSON<ResumeMap>(STORAGE_KEY, {});
 }
 
 function saveMap(map: ResumeMap): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  } catch { /* best-effort */ }
+  storageSetJSON(STORAGE_KEY, map);
 }
 
 function evictOldest(map: ResumeMap): ResumeMap {
