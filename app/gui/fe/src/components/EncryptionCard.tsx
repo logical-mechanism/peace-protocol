@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
@@ -46,10 +46,12 @@ function EncryptionCard({
   const [copied, setCopied] = useState(false);
   const [favPulseKey, setFavPulseKey] = useState(0);
 
-  if (bidCount > prevBidCount) {
-    setPrevBidCount(bidCount);
-    setBidPulseKey(k => k + 1);
-  }
+  useEffect(() => {
+    if (bidCount > prevBidCount) {
+      setPrevBidCount(bidCount);
+      setBidPulseKey(k => k + 1);
+    }
+  }, [bidCount, prevBidCount]);
 
   // Format price (lovelace) with "No suggested price" fallback for missing/invalid values
   const formatPrice = (lovelace?: number): string => {

@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -38,10 +38,12 @@ function SalesListingCard({
   const [bidPulseKey, setBidPulseKey] = useState(0);
   const isOptimistic = encryption._optimistic === true;
 
-  if (bidCount > prevBidCount) {
-    setPrevBidCount(bidCount);
-    setBidPulseKey(k => k + 1);
-  }
+  useEffect(() => {
+    if (bidCount > prevBidCount) {
+      setPrevBidCount(bidCount);
+      setBidPulseKey(k => k + 1);
+    }
+  }, [bidCount, prevBidCount]);
 
   // Format price (lovelace) with fallback matching EncryptionCard behavior
   const formatPrice = (lovelace?: number): string => {
