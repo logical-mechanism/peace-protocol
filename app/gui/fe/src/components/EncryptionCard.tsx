@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
@@ -41,17 +41,11 @@ function EncryptionCard({
   searchQuery = '',
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-  const [prevBidCount, setPrevBidCount] = useState(bidCount);
-  const [bidPulseKey, setBidPulseKey] = useState(0);
+  const [initialBidCount] = useState(bidCount);
   const [copied, setCopied] = useState(false);
   const [favPulseKey, setFavPulseKey] = useState(0);
 
-  useEffect(() => {
-    if (bidCount > prevBidCount) {
-      setPrevBidCount(bidCount);
-      setBidPulseKey(k => k + 1);
-    }
-  }, [bidCount, prevBidCount]);
+  const hasBidPulse = bidCount > initialBidCount;
 
   const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);
   const isOptimistic = encryption._optimistic === true;
@@ -111,8 +105,8 @@ function EncryptionCard({
               )}
               {bidCount > 0 && (
                 <span
-                  key={bidPulseKey}
-                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                  key={bidCount}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
                 >
                   {bidCount}
                 </span>
@@ -203,8 +197,8 @@ function EncryptionCard({
               </span>
               {bidCount > 0 && (
                 <span
-                  key={bidPulseKey}
-                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                  key={bidCount}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
                 >
                   {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
                 </span>
