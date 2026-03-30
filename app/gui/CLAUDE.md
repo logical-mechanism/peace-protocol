@@ -114,16 +114,19 @@ app/gui/
 │   │   │   ├── videoPreferences.ts  # Video volume/muted/speed preferences (localStorage)
 │   │   │   ├── videoResumeStorage.ts # Video resume position persistence (localStorage)
 │   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
+│   │   │   ├── storageUtils.ts      # Shared localStorage try-catch helpers (storageGet/Set/Remove/GetJSON/SetJSON)
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
 │   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth, useUpdateCheck
-│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, time, logClassification, contentType, formatDate
+│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, formatListing, time, logClassification, contentType, formatDate
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
 │   ├── src/
 │   │   ├── index.ts                 # Server entry (imports createApp, listens on port 3001)
 │   │   ├── app.ts                   # Express app factory (CORS, middleware, routes, error handler)
-│   │   ├── config/index.ts          # Env-based config (network, ports, contracts)
-│   │   ├── routes/                  # encryptions, bids, protocol, chain
+│   │   ├── config/
+│   │   │   ├── index.ts             # Env-based config (network, ports, contracts)
+│   │   │   └── cacheConstants.ts    # Cache-Control headers + in-memory TTL constants
+│   │   ├── routes/                  # encryptions, bids, protocol, chain, routeUtils
 │   │   ├── middleware/
 │   │   │   ├── validate.ts          # Param validators (pkh, tokenName, txHash, encryptionToken)
 │   │   │   ├── requestLogger.ts     # Request/response JSON logging with request IDs
@@ -443,7 +446,7 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (92 commands, invoke from frontend):
+**Tauri commands** (111 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
@@ -490,7 +493,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (42 files)
+  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, storageUtils, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (43 files)
   - `fe/src/services/transactions/__tests__/` — acceptBid, bids, listings (3 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (12 files)
@@ -498,8 +501,8 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
   - `fe/src/components/__tests__/` — AudioPlayer, audioPlayerUtils, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, ImportListingModal, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (47 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
   - `fe/src/pages/settings/__tests__/` — UpdateSection (1 file)
-  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
-  - `fe/src/utils/__tests__/` — formatDate (1 file)
+  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, formatListing, logClassification, network, time, truncate, walletErrors (10 files)
+  - `fe/src/utils/__tests__/` — formatDate, formatListing (2 files)
   - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
   - `fe/src/test/__mocks__/tauri-notification.ts` — Tauri notification plugin mock
