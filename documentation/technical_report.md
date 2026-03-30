@@ -406,13 +406,15 @@ Alice may now finish building the \texttt{EncryptionDatum} by constructing the \
 
 The entry redeemer verifies that Alice's \texttt{owner\_vkh} is valid via an Ed25519 signature, since Alice needs a valid \texttt{vkh} to remove the entry. The entry redeemer also verifies a valid \texttt{Register} via a Schnorr $\Sigma$-protocol as shown in Algorithm \ref{alg:schnorrsig}. Alice needs this to decrypt her own data and to verify that she binds her public value to the first encryption level via a binding proof, as shown in Algorithm \ref{alg:bindingsig}. The encrypted data is ready to be traded after successfully creating a valid entry transaction and submitting it to the Cardano blockchain.
 
+While the encryption UTxO's \texttt{status} remains \texttt{Open}, Alice may update her asking price using the \texttt{UpdateEncryptionPrice} spend redeemer. This requires Alice's signature and enforces that the new price is non-negative. Only the \texttt{new\_price} field may change; all other datum fields and non-ADA tokens on the UTxO must remain constant. This allows Alice to adjust her asking price without recreating the encryption UTxO.
+
 ### Phase 2: Creating The Bid UTxO
 
 Bob may now create a bid UTxO in the bid contract to purchase the encrypted data from Alice. First, Bob selects a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. Similarly to Alice, the secret $\gamma$ will generate an Ed25519 keypair and the secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $q$. Bob will fund the address associated with his \texttt{vkh} with enough Lovelace to pay for payment, the change UTxO, and the transaction fee. Bob may then build the bid entry transaction. Note that the on-chain datum size remains constant regardless of hop count, as only the current half-level and previous full-level are stored. Bob should contribute to the minimum required Lovelace for the encrypted data, though this is not an on-chain requirement.
 
 The structure of the bid entry transaction is similar to that of the re-encryption entry transaction, but uses \texttt{EntryBidMint} instead of \texttt{EntryEncryptionMint}. The transaction input derives the \texttt{pointer} token name in the same way as the \texttt{token} name. A user may reference the \texttt{token} name on-chain from the re-encryption contract. Bob may then create the \texttt{BidDatum} as shown in Listing \ref{lst:fullbiddatum}.
 
-Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. A valid \texttt{Register} is important, as the validity of the $\mathbb{G}_{1}$ point determines whether Bob can decrypt the data after the re-encryption process. The value on the UTxO is the price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids, but Alice may only select a single bid for the re-encryption transaction. In the current version, Bob must remove old or unused bids, then recreate the bids for any necessary price or \texttt{token} adjustments.
+Similar to the re-encryption contract, the entry redeemer will verify Bob's \texttt{vkh} and the \texttt{Register} values in $\mathbb{G}_{1}$. A valid \texttt{Register} is important, as the validity of the $\mathbb{G}_{1}$ point determines whether Bob can decrypt the data after the re-encryption process. The \texttt{new\_price} field in the \texttt{BidDatum} represents the price Bob is willing to pay for Alice to re-encrypt the data to his \texttt{Register}. There may be many bids, but Alice may only select a single bid for the re-encryption transaction. Bob may update the price of an existing bid using the \texttt{UpdateBidPrice} spend redeemer, which requires Bob's signature and enforces that the new price is non-negative. Only the \texttt{new\_price} field may change; all other datum fields and non-ADA tokens on the UTxO must remain constant.
 
 To mitigate grief attacks during the re-encryption flow, each bid is automatically locked for a minimum period (\texttt{minimum\_bid\_lock}, currently 6 hours) upon creation. The on-chain \texttt{EntryBidMint} redeemer enforces that \texttt{locked\_until} is at least \texttt{minimum\_bid\_lock} in the future. The \texttt{RemoveBid} spend redeemer enforces that the transaction's validity interval lower bound exceeds \texttt{locked\_until}. This guarantees Alice a safe window to compute the SNARK proof and submit both re-encryption transactions without Bob withdrawing his bid mid-process.
 
@@ -422,7 +424,7 @@ The re-encryption process occurs in two transactions to accommodate the computat
 
 **Transaction 1: SNARK Submission.** Alice generates a Groth16 proof demonstrating that the witness $W = q^{H(\kappa)}$ is correctly derived from the pairing secret $\kappa = e(q^{a}, h_{0})$. Alice submits this proof using the \texttt{UseSnark} redeemer, which verifies the Groth16 proof (via the groth\_witness withdraw validator) and the commitment proof-of-knowledge. Upon successful verification, the datum's \texttt{status} transitions from \texttt{Open} to \texttt{Pending(groth\_public, ttl)}, where \texttt{groth\_public} contains the SNARK public inputs (the limb representation of the G1 points) and \texttt{ttl} is the expiration time.
 
-**Transaction 2: Re-Encryption Completion.** Alice selects a bid UTxO from the bid contract and completes the re-encryption using the \texttt{UseEncryption} redeemer together with \texttt{UseBid} and \texttt{LeaveBidBurn}. This step burns Bob's bid token, updates the on-chain data to Bob's ownership, and creates the re-encryption proofs. The contract verifies limb compression to ensure the SNARK public inputs match the actual G1 points (\texttt{bid\_owner\_g1.public\_value}, the witness, and \texttt{next\_half\_level.r2\_g1b}). The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. If everything is consistent, then ownership and decryption rights transfer to Bob, and the status returns to \texttt{Open}.
+**Transaction 2: Re-Encryption Completion.** Alice selects a bid UTxO from the bid contract and completes the re-encryption using the \texttt{UseEncryption} redeemer together with \texttt{UseBid} and \texttt{LeaveBidBurn}. This step burns Bob's bid token, updates the on-chain data to Bob's ownership, and creates the re-encryption proofs. The contract verifies limb compression to ensure the SNARK public inputs match the actual G1 points (\texttt{bid\_owner\_g1.public\_value}, the witness, and \texttt{next\_half\_level.r2\_g1b}). The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. Additionally, the bid's \texttt{new\_price} is transferred to the encryption datum's \texttt{new\_price} field, recording the agreed-upon price on the encryption UTxO. If everything is consistent, then ownership and decryption rights transfer to Bob, and the status returns to \texttt{Open}.
 
 Listing \ref{lst:createnextlevel} is a Pythonic pseudocode for generating the next encryption level. Bob's half-level and Alice's full-level are shown in Listing \ref{lst:encryptionlevels}. The complete next encryption datum is shown in Listing \ref{lst:nextencryptiondatum}.
 
@@ -568,6 +570,7 @@ pub type BidDatum {
   pointer: AssetName,
   token: AssetName,
   locked_until: Int,
+  new_price: Int,
 }
 \end{lstlisting}
 ```
@@ -585,6 +588,7 @@ pub type BidMintRedeemer {
 pub type BidSpendRedeemer {
   RemoveBid
   UseBid
+  UpdateBidPrice(Int)
 }
 pub type SchnorrProof {
   z_b: ByteArray,
@@ -608,6 +612,7 @@ pub type EncryptionDatum {
   full_level: Option<FullEncryptionLevel>,
   capsule: Capsule,
   status: Status,
+  new_price: Int,
 }
 pub type Capsule {
   nonce: ByteArray,
@@ -650,6 +655,7 @@ pub type EncryptionSpendRedeemer {
   // groth proof and public come from groth_witness withdraw redeemer
   UseSnark
   CancelEncryption
+  UpdateEncryptionPrice(Int)
 }
 pub type BindingProof {
   z_a_b: ByteArray,
@@ -770,6 +776,7 @@ pub type EncryptionDatum {
     ct: ciphertext,
   },
   status: Open,
+  new_price: 0,
 }
 \end{lstlisting}
 ```
@@ -787,6 +794,7 @@ pub type BidDatum {
   pointer: generate_token_name(inputs),
   token,
   locked_until: now + 2 * minimum_bid_lock,
+  new_price: bid_price,
 }
 \end{lstlisting}
 ```
@@ -863,6 +871,7 @@ pub type EncryptionDatum {
     ct: ciphertext,
   },
   status: Open,
+  new_price: bid.new_price,
 }
 \end{lstlisting}
 ```
