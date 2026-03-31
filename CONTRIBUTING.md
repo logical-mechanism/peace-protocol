@@ -22,7 +22,6 @@ Thank you for your interest in contributing to the PEACE Protocol.
 │   ├── src/          # Python CLI modules
 │   ├── snark/        # Go/gnark SNARK prover
 │   ├── gui/          # Veiled desktop app (Tauri + React + Express)
-│   ├── ui/           # TypeScript web UI (WASM test frontend)
 │   ├── commands/     # Happy path shell scripts
 │   └── tests/        # Python test suite
 └── documentation/    # Technical report, milestones, use cases
@@ -49,13 +48,6 @@ npm run install:all  # Install all deps + build backend
 npx tauri dev        # Start Vite dev server + Tauri window
 ```
 
-For the web UI:
-
-```bash
-cd app/ui/fe
-npm install
-```
-
 ## Running Tests
 
 Run all test suites:
@@ -79,9 +71,6 @@ cd app/snark && go test ./... -count=1 -v -timeout 60m
 
 # Desktop app (Tauri)
 cd app/gui && bash test.sh
-
-# Web UI
-cd app/ui/fe && npx vitest run
 ```
 
 ## Linting and Formatting
@@ -107,9 +96,6 @@ cd snark && gofmt -w . && go vet ./...
 
 # Desktop app (Tauri)
 cd gui && bash lint.sh
-
-# Web UI
-cd ui && npm run lint
 ```
 
 ## Version Bump Checklist
