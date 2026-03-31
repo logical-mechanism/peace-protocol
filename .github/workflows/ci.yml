@@ -133,8 +133,10 @@ jobs:
         with:
           workspaces: app/gui/src-tauri
       - run: npm run install:all
-      - name: Build backend
-        run: npm --prefix be run build
+      - name: Build and bundle backend
+        run: |
+          npm --prefix be run build
+          npm run bundle:be
       - name: Create stub sidecar binaries
         run: |
           mkdir -p src-tauri/binaries

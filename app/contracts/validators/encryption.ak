@@ -350,7 +350,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               let expected_output_datum_data: Data =
                 EncryptionDatum { ..this_datum, new_price: price }
               // ensure non-ADA tokens are preserved
-              let input_tokens = this_input.output.value |> assets.without_lovelace
+              let input_tokens =
+                this_input.output.value |> assets.without_lovelace
               let output_tokens = output_value |> assets.without_lovelace
               //
               and {

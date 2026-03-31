@@ -44,8 +44,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         }): Option<Output> =
           search.for_output_by_token(outputs, policy_id, token_name)
         // reputation datum needs to be validated so destruct it
-        expect BidDatum { owner_vkh, owner_g1, pointer, token, locked_until, .. }: BidDatum =
-          output_datum_data
+        expect BidDatum {
+          owner_vkh,
+          owner_g1,
+          pointer,
+          token,
+          locked_until,
+          ..
+        }: BidDatum = output_datum_data
         // get encryption contract info from reference data
         let ReferenceDatum { encryption, .. }: ReferenceDatum =
           search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
