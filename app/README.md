@@ -12,7 +12,6 @@ app/
 ├── src/            # Python CLI modules (crypto, tx building)
 ├── tests/          # Python test suite
 ├── commands/       # Happy path shell scripts
-├── ui/             # Legacy TypeScript web UI
 └── node/           # Cardano node helpers
 ```
 
