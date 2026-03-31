@@ -41,7 +41,8 @@
     "resources": [
       "resources/config.json",
       "resources/cardano/**/*",
-      "resources/snark/**/*"
+      "resources/snark/**/*",
+      "resources/be/**/*"
     ],
     "externalBin": [
       "binaries/cardano-node",

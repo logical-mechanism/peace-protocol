@@ -8,6 +8,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { saveBidFormDraft, getBidFormDraft, clearBidFormDraft } from '../services/bidFormDraftStorage';
 import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
+import { formatAda } from '../utils/formatAda';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -75,9 +76,12 @@ export default function PlaceBidModal({
         setShowFuturePrice(draft.showFuturePrice);
         setRestoredFromDraft(true);
       } else {
+        const suggestedAda = encryption?.suggestedPrice != null
+          ? (encryption.suggestedPrice / 1_000_000).toString()
+          : '';
         setFormData({
-          bidAmount: encryption?.suggestedPrice?.toString() || '',
-          futurePrice: encryption?.suggestedPrice?.toString() || '',
+          bidAmount: suggestedAda,
+          futurePrice: suggestedAda,
         });
         setShowFuturePrice(false);
       }
@@ -90,13 +94,14 @@ export default function PlaceBidModal({
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, isOpen);
 
-  // Derived: check if bid is below suggested price
+  // Derived: check if bid is below suggested price (convert lovelace to ADA for comparison)
   const parsedBid = parseFloat(formData.bidAmount);
+  const suggestedPriceAda = encryption?.suggestedPrice != null ? encryption.suggestedPrice / 1_000_000 : undefined;
   const isBelowSuggested =
-    encryption?.suggestedPrice != null &&
+    suggestedPriceAda != null &&
     !isNaN(parsedBid) &&
     parsedBid > 0 &&
-    parsedBid < encryption.suggestedPrice;
+    parsedBid < suggestedPriceAda;
 
   // Derived: wallet balance in ADA (with NaN safety for slow Kupo responses)
   const parsedLovelace = parseInt(balanceLovelace ?? '0', 10);
@@ -142,6 +147,11 @@ export default function PlaceBidModal({
     const sanitized = (name === 'bidAmount' || name === 'futurePrice')
       ? value.replace(/,/g, '')
       : value;
+    // Cap price fields at 6 decimal places (1 lovelace = 0.000001 ADA)
+    if (name === 'bidAmount' || name === 'futurePrice') {
+      const dotIndex = sanitized.indexOf('.');
+      if (dotIndex !== -1 && sanitized.length - dotIndex - 1 > 6) return;
+    }
     setFormData((prev) => ({ ...prev, [name]: sanitized }));
     // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
@@ -176,7 +186,7 @@ export default function PlaceBidModal({
       const bidAmountAda = parseFloat(formData.bidAmount.replace(/,/g, ''));
       const futurePrice = showFuturePrice && formData.futurePrice.trim()
         ? parseFloat(formData.futurePrice.replace(/,/g, ''))
-        : encryption?.suggestedPrice ?? bidAmountAda;
+        : (encryption?.suggestedPrice != null ? encryption.suggestedPrice / 1_000_000 : bidAmountAda);
       await onSubmit(encryption.tokenName, bidAmountAda, encryption.utxo, futurePrice);
       clearBidFormDraft();
       onClose();
@@ -272,7 +282,7 @@ export default function PlaceBidModal({
                   <div className="flex justify-between">
                     <span className="text-xs text-[var(--text-muted)]">Suggested Price</span>
                     <span className="text-xs font-medium text-[var(--accent)]">
-                      {encryption.suggestedPrice.toLocaleString()} ADA
+                      {formatAda(encryption.suggestedPrice)} ADA
                     </span>
                   </div>
                 )}
@@ -309,24 +319,24 @@ export default function PlaceBidModal({
                 >
                   Your Bid Amount (ADA) <span className="text-[var(--error)]">*</span>
                 </label>
-                {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
+                {suggestedPriceAda !== undefined && suggestedPriceAda > 0 && (
                   <div className="flex gap-1.5">
                     <button
                       type="button"
                       onClick={() =>
-                        setFormData((prev) => ({ ...prev, bidAmount: encryption.suggestedPrice!.toString() }))
+                        setFormData((prev) => ({ ...prev, bidAmount: suggestedPriceAda!.toString() }))
                       }
                       disabled={isSubmitting}
                       className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
-                      Suggested ({encryption.suggestedPrice} ADA)
+                      Suggested ({formatAda(encryption.suggestedPrice!)} ADA)
                     </button>
                     <button
                       type="button"
                       onClick={() =>
                         setFormData((prev) => ({
                           ...prev,
-                          bidAmount: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
+                          bidAmount: (Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString(),
                         }))
                       }
                       disabled={isSubmitting}
@@ -339,7 +349,7 @@ export default function PlaceBidModal({
                       onClick={() =>
                         setFormData((prev) => ({
                           ...prev,
-                          bidAmount: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
+                          bidAmount: (Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString(),
                         }))
                       }
                       disabled={isSubmitting}
@@ -382,7 +392,7 @@ export default function PlaceBidModal({
               {!errors.bidAmount && isBelowSuggested && (
                 <p className="mt-1 text-xs text-[var(--warning)]">
                   Your bid is below the seller's suggested price of{' '}
-                  {encryption.suggestedPrice!.toLocaleString()} ADA
+                  {formatAda(encryption.suggestedPrice!)} ADA
                 </p>
               )}
               <div className="mt-1 space-y-1">
@@ -452,12 +462,12 @@ export default function PlaceBidModal({
                       <span className="text-[var(--text-muted)] font-normal">(optional)</span>
                       <InfoTooltip text="The price you intend to re-list this data for after you win the bid. Recorded on-chain as metadata for future buyers." />
                     </label>
-                    {encryption.suggestedPrice !== undefined && encryption.suggestedPrice > 0 && (
+                    {suggestedPriceAda !== undefined && suggestedPriceAda > 0 && (
                       <div className="flex gap-1.5">
                         <button
                           type="button"
                           onClick={() =>
-                            setFormData((prev) => ({ ...prev, futurePrice: encryption.suggestedPrice!.toString() }))
+                            setFormData((prev) => ({ ...prev, futurePrice: suggestedPriceAda!.toString() }))
                           }
                           disabled={isSubmitting}
                           className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
@@ -469,7 +479,7 @@ export default function PlaceBidModal({
                           onClick={() =>
                             setFormData((prev) => ({
                               ...prev,
-                              futurePrice: Math.floor(encryption.suggestedPrice! * 1.1).toString(),
+                              futurePrice: (Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString(),
                             }))
                           }
                           disabled={isSubmitting}
@@ -482,7 +492,7 @@ export default function PlaceBidModal({
                           onClick={() =>
                             setFormData((prev) => ({
                               ...prev,
-                              futurePrice: Math.floor(encryption.suggestedPrice! * 1.25).toString(),
+                              futurePrice: (Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString(),
                             }))
                           }
                           disabled={isSubmitting}

@@ -71,6 +71,9 @@
     {
       "constructor": 0,
       "fields": []
+    },
+    {
+      "int": 0
     }
   ]
 }

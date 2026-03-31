@@ -45,20 +45,7 @@ const WasmContext = createContext<WasmContextValue | null>(null)
 export function useWasm(): WasmContextValue {
   const context = useContext(WasmContext)
   if (!context) {
-    return {
-      isReady: false,
-      isLoading: false,
-      isCached: null,
-      stage: 'idle',
-      progress: 0,
-      statusMessage: '',
-      elapsedTime: 0,
-      error: null,
-      logs: [],
-      startLoading: async () => {},
-      checkCache: async () => false,
-      clearError: () => {},
-    }
+    throw new Error('useWasm must be used within WasmProvider')
   }
   return context
 }

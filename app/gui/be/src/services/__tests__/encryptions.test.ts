@@ -140,6 +140,7 @@ function mkEncryptionDatumValue(overrides: { status?: unknown; fullLevel?: unkno
       overrides.fullLevel ?? mkNone(),
       mkCapsule(),
       overrides.status ?? mkStatusOpen(),
+      { int: 0 },
     ],
   };
 }
@@ -342,7 +343,8 @@ describe('getAllEncryptions', () => {
 
     const result = await getAllEncryptions();
     expect(result.data[0].description).toBe('My listing');
-    expect(result.data[0].suggestedPrice).toBe(10);
+    // suggestedPrice now comes from datum.new_price (0), not CIP-20 metadata
+    expect(result.data[0].suggestedPrice).toBe(0);
   });
 
   it('preserves metadata from persistent cache when Koios fails on subsequent call', async () => {
@@ -359,7 +361,8 @@ describe('getAllEncryptions', () => {
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].description).toBe('My listing');
-    expect(result.data[0].suggestedPrice).toBe(10);
+    // suggestedPrice now comes from datum.new_price (0), not CIP-20 metadata
+    expect(result.data[0].suggestedPrice).toBe(0);
   });
 
   it('only fetches metadata for uncached tx hashes', async () => {
@@ -384,11 +387,11 @@ describe('getAllEncryptions', () => {
     // Koios should only be called with the NEW hash
     expect(mockKoios.getTxMetadataBatch).toHaveBeenLastCalledWith([txHashB]);
     expect(result.data).toHaveLength(2);
-    // First listing still has its metadata from persistent cache
+    // suggestedPrice now comes from datum.new_price (0), not CIP-20 metadata
     const listingA = result.data.find(e => e.description === 'Listing A');
-    expect(listingA?.suggestedPrice).toBe(5);
+    expect(listingA?.suggestedPrice).toBe(0);
     const listingB = result.data.find(e => e.description === 'Listing B');
-    expect(listingB?.suggestedPrice).toBe(20);
+    expect(listingB?.suggestedPrice).toBe(0);
   });
 
   it('returns cached data on cache hit', async () => {
@@ -561,6 +564,7 @@ describe('getEncryptionLevels', () => {
         mkNone(),
         mkCapsule(),
         mkStatusOpen(),
+        { int: 0 },
       ]),
     ]);
 
@@ -595,6 +599,7 @@ describe('getEncryptionLevels', () => {
         mkNone(),
         mkCapsule(),
         mkStatusOpen(),
+        { int: 0 },
       ]),
       // Older tx (block 100) — full_level extracted
       mkTxInfo(100, [
@@ -605,6 +610,7 @@ describe('getEncryptionLevels', () => {
         mkSome(mkFullLevel(r1b, r2g1b, r2g2b, r4b)),
         mkCapsule(),
         mkStatusOpen(),
+        { int: 0 },
       ]),
     ]);
 
@@ -633,13 +639,13 @@ describe('getEncryptionLevels', () => {
         { bytes: VKH_HEX }, mkRegister(), { bytes: TOKEN_HEX },
         mkHalfLevel(r1, r2g1, r4),
         mkSome(mkFullLevel(r1, r2g1, r2g2, r4)),
-        mkCapsule(), mkStatusOpen(),
+        mkCapsule(), mkStatusOpen(), { int: 0 },
       ]),
       mkTxInfo(100, [
         { bytes: VKH_HEX }, mkRegister(), { bytes: TOKEN_HEX },
         mkHalfLevel(),
         mkSome(mkFullLevel(r1, r2g1, r2g2, r4)), // same full_level as above
-        mkCapsule(), mkStatusOpen(),
+        mkCapsule(), mkStatusOpen(), { int: 0 },
       ]),
     ]);
 
@@ -697,7 +703,7 @@ describe('getEncryptionLevels', () => {
               { bytes: VKH_HEX }, mkRegister(), { bytes: TOKEN_HEX },
               { bytes: 'broken' }, // invalid half_level
               mkNone(),
-              mkCapsule(), mkStatusOpen(),
+              mkCapsule(), mkStatusOpen(), { int: 0 },
             ],
           },
         },
@@ -728,6 +734,7 @@ describe('getEncryptionLevels', () => {
         mkNone(),
         mkCapsule(),
         mkStatusOpen(),
+        { int: 0 },
       ]),
     ]);
 
@@ -763,6 +770,7 @@ describe('getEncryptionLevels', () => {
         mkNone(),
         mkCapsule(),
         mkStatusOpen(),
+        { int: 0 },
       ]),
       // Older tx for OUR token (should be treated as newest match)
       mkTxInfo(100, [
@@ -773,6 +781,7 @@ describe('getEncryptionLevels', () => {
         mkNone(),
         mkCapsule(),
         mkStatusOpen(),
+        { int: 0 },
       ]),
     ]);
 

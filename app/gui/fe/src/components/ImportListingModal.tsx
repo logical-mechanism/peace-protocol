@@ -225,6 +225,9 @@ export default function ImportListingModal({
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/,/g, '');
+    // Cap at 6 decimal places (1 lovelace = 0.000001 ADA)
+    const dotIndex = raw.indexOf('.');
+    if (dotIndex !== -1 && raw.length - dotIndex - 1 > 6) return;
     setFormData((prev) => ({ ...prev, suggestedPrice: raw }));
     setDisplayPrice(e.target.value);
     if (errors.suggestedPrice) {

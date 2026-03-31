@@ -10,4 +10,4 @@ echo "Installing dependencies and building backend..."
 npm run install:all
 
 echo "Building debug release..."
-npx tauri build --debug
+npx tauri build --debug -- --verbose

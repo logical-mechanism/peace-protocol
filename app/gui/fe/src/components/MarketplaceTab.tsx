@@ -146,11 +146,11 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     [bidCountMap]
   );
 
-  // Compute price range from all listings for the slider
+  // Compute price range from all listings for the slider (convert lovelace to ADA)
   const priceRange = useMemo(() => {
     let maxPrice = 0;
     for (const e of encryptions) {
-      const price = Number(e.suggestedPrice);
+      const price = Number(e.suggestedPrice) / 1_000_000;
       if (!isNaN(price) && price > maxPrice) {
         maxPrice = price;
       }
@@ -176,7 +176,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
       const max = priceMax !== '' ? Number(priceMax) : Infinity;
       if (!isNaN(min) && !isNaN(max)) {
         result = result.filter((e) => {
-          const price = e.suggestedPrice ?? 0;
+          const price = (e.suggestedPrice ?? 0) / 1_000_000;
           return price >= min && price <= max;
         });
       }

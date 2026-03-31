@@ -21,6 +21,8 @@ import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
 const SnarkProvingModal = lazy(() => import('../components/SnarkProvingModal'))
 import ConfirmModal from '../components/ConfirmModal'
+import UpdatePriceModal from '../components/UpdatePriceModal'
+import UpdateBidModal from '../components/UpdateBidModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
@@ -734,6 +736,7 @@ export default function Dashboard() {
                 refreshSignal={refreshSignal}
                 userPkh={userPkh}
                 onRemoveListing={seller.handleRemoveListing}
+                onUpdatePrice={seller.handleOpenUpdatePrice}
                 onAcceptBid={seller.handleAcceptBid}
                 onCancelPending={seller.handleCancelPending}
                 onCompleteSale={seller.handleCompleteSale}
@@ -761,6 +764,7 @@ export default function Dashboard() {
                 refreshSignal={refreshSignal}
                 userPkh={userPkh}
                 onCancelBid={buyer.handleCancelBid}
+                onUpdateBid={buyer.handleOpenUpdateBid}
                 onDecrypt={buyer.handleDecrypt}
                 onDecryptEncryption={buyer.handleDecryptEncryption}
                 onSwitchTab={setActiveTab}
@@ -845,6 +849,25 @@ export default function Dashboard() {
         isOpen={seller.showImportListing}
         onClose={() => seller.setShowImportListing(false)}
         onSubmit={seller.handleImportListing}
+      />
+
+      {/* Update Price Modal */}
+      <UpdatePriceModal
+        isOpen={seller.showUpdatePriceModal}
+        onClose={() => {
+          seller.setShowUpdatePriceModal(false)
+          // Keep encryption reference for animation exit
+        }}
+        onSubmit={seller.handleSubmitUpdatePrice}
+        encryption={seller.updatePriceEncryption}
+      />
+
+      {/* Update Bid Modal */}
+      <UpdateBidModal
+        isOpen={buyer.showUpdateBid}
+        onClose={buyer.closeUpdateBidModal}
+        onSubmit={buyer.handleSubmitUpdateBid}
+        bid={buyer.updateBidTarget}
       />
 
       {/* Place Bid Modal */}

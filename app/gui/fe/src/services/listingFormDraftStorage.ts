@@ -7,6 +7,8 @@
  * handled by listingDraftStorage.ts (Tauri-backed encrypted).
  */
 
+import { storageGet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
+
 const STORAGE_KEY = 'veiled_listing_form_draft';
 
 export interface ListingFormDraft {
@@ -22,38 +24,25 @@ export interface ListingFormDraft {
 
 /** Save the current form state. */
 export function saveListingFormDraft(draft: ListingFormDraft): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  } catch { /* best-effort */ }
+  storageSetJSON(STORAGE_KEY, draft);
 }
 
 /** Load a previously saved form draft, or null if none exists. */
 export function getListingFormDraft(): ListingFormDraft | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ListingFormDraft;
-    if (typeof parsed.category !== 'string' || typeof parsed.description !== 'string') {
-      return null;
-    }
-    return parsed;
-  } catch {
+  const parsed = storageGetJSON<ListingFormDraft | null>(STORAGE_KEY, null);
+  if (!parsed) return null;
+  if (typeof parsed.category !== 'string' || typeof parsed.description !== 'string') {
     return null;
   }
+  return parsed;
 }
 
 /** Clear the saved form draft (on successful submit or explicit discard). */
 export function clearListingFormDraft(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch { /* best-effort */ }
+  storageRemove(STORAGE_KEY);
 }
 
 /** Check if a saved draft exists (without parsing). */
 export function hasListingFormDraft(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) !== null;
-  } catch {
-    return false;
-  }
+  return storageGet(STORAGE_KEY) !== null;
 }

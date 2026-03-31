@@ -1,3 +1,5 @@
+import { storageGet, storageSet } from './storageUtils'
+
 const TOAST_DURATION_KEY = 'veiled_toast_duration_ms'
 const TOAST_DURATION_DEFAULT = 5000
 
@@ -11,11 +13,11 @@ export const TOAST_DURATION_OPTIONS = [
 
 /** Read the toast auto-dismiss duration from localStorage (ms, 0 = never). */
 export function getToastDurationMs(): number {
-  const stored = localStorage.getItem(TOAST_DURATION_KEY)
+  const stored = storageGet(TOAST_DURATION_KEY)
   return stored !== null ? Number(stored) : TOAST_DURATION_DEFAULT
 }
 
 /** Persist the toast auto-dismiss duration (ms, 0 = never). */
 export function setToastDurationMs(ms: number): void {
-  localStorage.setItem(TOAST_DURATION_KEY, String(ms))
+  storageSet(TOAST_DURATION_KEY, String(ms))
 }

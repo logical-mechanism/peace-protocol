@@ -1,30 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { escapeHtml, findMatchesInPdf, highlightText } from '../pdfSearch';
+import { findMatchesInPdf, highlightText } from '../pdfSearch';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-
-// ---------- escapeHtml ----------
-
-describe('escapeHtml', () => {
-  it('escapes ampersands', () => {
-    expect(escapeHtml('a & b')).toBe('a &amp; b');
-  });
-
-  it('escapes angle brackets', () => {
-    expect(escapeHtml('<div>hello</div>')).toBe('&lt;div&gt;hello&lt;/div&gt;');
-  });
-
-  it('escapes all special chars together', () => {
-    expect(escapeHtml('a < b & c > d')).toBe('a &lt; b &amp; c &gt; d');
-  });
-
-  it('returns empty string unchanged', () => {
-    expect(escapeHtml('')).toBe('');
-  });
-
-  it('returns plain text unchanged', () => {
-    expect(escapeHtml('hello world')).toBe('hello world');
-  });
-});
 
 // ---------- findMatchesInPdf ----------
 

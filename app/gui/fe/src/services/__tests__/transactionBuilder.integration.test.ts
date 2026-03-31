@@ -427,7 +427,7 @@ describe('placeBid integration', () => {
     const datum = datumCall[0];
 
     expect(datum.constructor).toBe(0);
-    expect(datum.fields).toHaveLength(5);
+    expect(datum.fields).toHaveLength(6);
     // Field 0: owner_vkh
     expect(datum.fields[0]).toHaveProperty('bytes');
     // Field 1: register (constructor 0 with 2 fields: generator, public_value)

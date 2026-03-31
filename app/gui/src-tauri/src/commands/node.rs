@@ -63,11 +63,6 @@ pub async fn get_node_status(
     let mithril_status = manager.get_status("mithril-client").await;
     let node_status = manager.get_status("cardano-node").await;
     let ogmios_status = manager.get_status("ogmios").await;
-    let express_status = manager.get_status("express").await;
-    let express_running = express_status
-        .as_ref()
-        .map(|s| matches!(s.status, ProcessStatus::Running | ProcessStatus::Ready))
-        .unwrap_or(false);
     // ExpressReady flag is set in start_node after health check passes (or Express is skipped)
     let express_ok = app_handle
         .try_state::<ExpressReady>()
@@ -90,7 +85,7 @@ pub async fn get_node_status(
         slots_to_epoch_end: None,
         kupo_connection_status: None,
         kupo_seconds_since_last_block: None,
-        express_ready: express_running,
+        express_ready: express_ok,
     };
 
     // Check for Mithril bootstrapping
@@ -187,7 +182,7 @@ pub async fn get_node_status(
                 slots_to_epoch_end: Some(cli_tip.slots_to_epoch_end),
                 kupo_connection_status: kupo_connection,
                 kupo_seconds_since_last_block: kupo_last_block,
-                express_ready: express_running,
+                express_ready: express_ok,
             });
         }
     } // socket_ready guard
@@ -230,7 +225,7 @@ pub async fn get_node_status(
                 slots_to_epoch_end: None,
                 kupo_connection_status: kupo_connection,
                 kupo_seconds_since_last_block: kupo_last_block,
-                express_ready: express_running,
+                express_ready: express_ok,
             });
         }
     }
@@ -416,12 +411,13 @@ pub async fn start_node(
         .path()
         .resource_dir()
         .ok()
-        .map(|r| r.join("be"))
+        .map(|r| r.join("resources/be"))
         .filter(|p| p.exists())
         .unwrap_or_else(|| {
             // Dev fallback: CARGO_MANIFEST_DIR is always src-tauri/
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../be")
         });
+    eprintln!("Express be_dir: {:?} (exists: {})", be_dir, be_dir.exists());
     if be_dir.join("dist/index.js").exists() {
         express::start_express(&manager, &config, &be_dir, app_data_dir).await?;
 

@@ -5,6 +5,7 @@
  * Each wallet gets independent filter preferences that survive app restarts.
  */
 
+import { storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 import type { MarketplaceFilters } from '../hooks/useTabFilterState';
 
 const STORAGE_KEY_PREFIX = 'veiled_marketplace_filters_';
@@ -14,23 +15,13 @@ function getStorageKey(userPkh: string): string {
 }
 
 export function getPersistedFilters(userPkh: string): Partial<MarketplaceFilters> | null {
-  try {
-    const raw = localStorage.getItem(getStorageKey(userPkh));
-    if (!raw) return null;
-    return JSON.parse(raw) as Partial<MarketplaceFilters>;
-  } catch {
-    return null;
-  }
+  return storageGetJSON<Partial<MarketplaceFilters> | null>(getStorageKey(userPkh), null);
 }
 
 export function persistFilters(userPkh: string, filters: MarketplaceFilters): void {
-  try {
-    localStorage.setItem(getStorageKey(userPkh), JSON.stringify(filters));
-  } catch { /* best-effort */ }
+  storageSetJSON(getStorageKey(userPkh), filters);
 }
 
 export function clearPersistedFilters(userPkh: string): void {
-  try {
-    localStorage.removeItem(getStorageKey(userPkh));
-  } catch { /* best-effort */ }
+  storageRemove(getStorageKey(userPkh));
 }

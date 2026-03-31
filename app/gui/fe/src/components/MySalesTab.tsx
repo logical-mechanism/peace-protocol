@@ -13,10 +13,12 @@ import RefreshIndicator from './RefreshIndicator';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
 import { getTransactions } from '../services/transactionHistory';
 import { useDebounce } from '../hooks/useDebounce';
+import { formatAda } from '../utils/formatAda';
 
 interface MySalesTabProps {
   userPkh?: string;
   onRemoveListing?: (encryption: EncryptionDisplay) => void;
+  onUpdatePrice?: (encryption: EncryptionDisplay) => void;
   onAcceptBid?: (encryption: EncryptionDisplay, bid: BidDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
@@ -31,6 +33,7 @@ interface MySalesTabProps {
 function MySalesTab({
   userPkh,
   onRemoveListing,
+  onUpdatePrice,
   onAcceptBid,
   onCancelPending,
   onCompleteSale,
@@ -329,7 +332,7 @@ function MySalesTab({
           </p>
           {salesStats.listedValue > 0 && (
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              {salesStats.listedValue.toLocaleString()} ADA listed
+              {formatAda(salesStats.listedValue)} ADA listed
             </p>
           )}
         </div>
@@ -519,6 +522,7 @@ function MySalesTab({
                 bidCount={getBidCount(encryption.tokenName)}
                 onViewBids={handleViewBids}
                 onRemove={handleRemoveListing}
+                onUpdatePrice={onUpdatePrice}
                 onCancelPending={handleCancelPending}
                 onCompleteSale={onCompleteSale}
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
@@ -536,6 +540,7 @@ function MySalesTab({
                 bidCount={getBidCount(encryption.tokenName)}
                 onViewBids={handleViewBids}
                 onRemove={handleRemoveListing}
+                onUpdatePrice={onUpdatePrice}
                 onCancelPending={handleCancelPending}
                 compact
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}

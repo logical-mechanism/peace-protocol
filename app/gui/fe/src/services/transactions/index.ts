@@ -24,6 +24,7 @@ export {
   retryListingFromDraft,
   removeListing,
   cancelPendingListing,
+  updateListingPrice,
   type ImportListingData,
 } from './listings';
 
@@ -31,6 +32,7 @@ export {
 export {
   placeBid,
   cancelBid,
+  updateBid,
 } from './bids';
 
 // Accept-bid & re-encryption

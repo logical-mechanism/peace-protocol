@@ -8,6 +8,7 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
+import { formatPrice, getCategoryLabel } from '../utils/formatListing';
 
 
 interface EncryptionCardProps {
@@ -40,33 +41,15 @@ function EncryptionCard({
   searchQuery = '',
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-  const [prevBidCount, setPrevBidCount] = useState(bidCount);
-  const [bidPulseKey, setBidPulseKey] = useState(0);
+  const [initialBidCount] = useState(bidCount);
   const [copied, setCopied] = useState(false);
   const [favPulseKey, setFavPulseKey] = useState(0);
 
-  if (bidCount > prevBidCount) {
-    setPrevBidCount(bidCount);
-    setBidPulseKey(k => k + 1);
-  }
-
-  // Format price with "No suggested price" fallback for missing/invalid values
-  const formatPrice = (price?: number): string => {
-    if (price === undefined || price === null || isNaN(price) || price < 0) {
-      return 'No suggested price';
-    }
-    return `${price.toLocaleString()} ADA`;
-  };
+  const hasBidPulse = bidCount > initialBidCount;
 
   const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);
   const isOptimistic = encryption._optimistic === true;
   const canBid = encryption.status === 'active' && !isOwnListing && !hasBid && !isOptimistic;
-
-  // Get category label, defaulting to "Text" for backward compatibility
-  const getCategoryLabel = (category?: string): string => {
-    if (!category) return 'Text';
-    return category.charAt(0).toUpperCase() + category.slice(1);
-  };
 
   const handleCopySeller = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -122,8 +105,8 @@ function EncryptionCard({
               )}
               {bidCount > 0 && (
                 <span
-                  key={bidPulseKey}
-                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                  key={bidCount}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
                 >
                   {bidCount}
                 </span>
@@ -214,8 +197,8 @@ function EncryptionCard({
               </span>
               {bidCount > 0 && (
                 <span
-                  key={bidPulseKey}
-                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
+                  key={bidCount}
+                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
                 >
                   {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
                 </span>

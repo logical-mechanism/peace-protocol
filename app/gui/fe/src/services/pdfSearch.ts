@@ -8,7 +8,7 @@ export interface SearchMatch {
 }
 
 /** Escape HTML special chars for safe use in customTextRenderer HTML output. */
-export function escapeHtml(str: string): string {
+function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 

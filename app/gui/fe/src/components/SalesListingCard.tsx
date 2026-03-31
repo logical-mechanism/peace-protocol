@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -6,12 +6,14 @@ import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
+import { formatPrice, getCategoryLabel } from '../utils/formatListing';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
   bidCount: number;
   onViewBids?: (encryption: EncryptionDisplay) => void;
   onRemove?: (encryption: EncryptionDisplay) => void;
+  onUpdatePrice?: (encryption: EncryptionDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   compact?: boolean;
@@ -24,6 +26,7 @@ function SalesListingCard({
   bidCount,
   onViewBids,
   onRemove,
+  onUpdatePrice,
   onCancelPending,
   onCompleteSale,
   compact = false,
@@ -35,24 +38,12 @@ function SalesListingCard({
   const [bidPulseKey, setBidPulseKey] = useState(0);
   const isOptimistic = encryption._optimistic === true;
 
-  if (bidCount > prevBidCount) {
-    setPrevBidCount(bidCount);
-    setBidPulseKey(k => k + 1);
-  }
-
-  // Format price with fallback matching EncryptionCard behavior
-  const formatPrice = (price?: number): string => {
-    if (price === undefined || price === null || isNaN(price) || price < 0) {
-      return 'No suggested price';
+  useEffect(() => {
+    if (bidCount > prevBidCount) {
+      setPrevBidCount(bidCount);
+      setBidPulseKey(k => k + 1);
     }
-    return `${price.toLocaleString()} ADA`;
-  };
-
-  // Get category label, defaulting to "Text" for backward compatibility
-  const getCategoryLabel = (category?: string): string => {
-    if (!category) return 'Text';
-    return category.charAt(0).toUpperCase() + category.slice(1);
-  };
+  }, [bidCount, prevBidCount]);
 
   // Get storage layer label - returns "No data layer" for unknown/missing values
   const getStorageLayerLabel = (storageLayer?: string): string => {
@@ -153,8 +144,19 @@ function SalesListingCard({
             {/* Middle: Price & Bids */}
             <div className="flex items-center gap-[var(--space-lg)] flex-shrink-0">
               <div className="text-right">
-                <span className="text-lg font-semibold text-[var(--accent)]">
+                <span className="text-lg font-semibold text-[var(--accent)] inline-flex items-center gap-[var(--space-1)]">
                   {formatPrice(encryption.suggestedPrice)}
+                  {isActive && !isOptimistic && onUpdatePrice && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
+                      className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                      title="Update price"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                      </svg>
+                    </button>
+                  )}
                 </span>
                 {isActive && bidCount > 0 && (
                   <p className="text-xs text-[var(--text-muted)]">
@@ -286,8 +288,19 @@ function SalesListingCard({
 
         {/* Price */}
         <div className="text-center mb-[var(--space-md)]">
-          <p className="text-2xl font-semibold text-[var(--accent)]">
+          <p className="text-2xl font-semibold text-[var(--accent)] inline-flex items-center justify-center gap-[var(--space-1)]">
             {formatPrice(encryption.suggestedPrice)}
+            {isActive && !isOptimistic && onUpdatePrice && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
+                className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                title="Update price"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                </svg>
+              </button>
+            )}
           </p>
           <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">Suggested Price</p>
         </div>
@@ -401,6 +414,7 @@ function arePropsEqual(prev: SalesListingCardProps, next: SalesListingCardProps)
     prev.initialBanned === next.initialBanned &&
     prev.onViewBids === next.onViewBids &&
     prev.onRemove === next.onRemove &&
+    prev.onUpdatePrice === next.onUpdatePrice &&
     prev.onCancelPending === next.onCancelPending &&
     prev.onCompleteSale === next.onCompleteSale
   );

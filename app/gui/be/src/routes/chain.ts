@@ -5,6 +5,7 @@ import { getNetworkConfig } from '../config/index.js';
 import { apiCache } from '../services/cache.js';
 import { logger } from '../services/logger.js';
 import { validateTxHashParam, validatePkhParam } from '../middleware/validate.js';
+import { CACHE_TTL_PENDING, CACHE_TTL_CHAIN } from '../config/cacheConstants.js';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
 
       if (!txInfo || typeof txInfo.block_height !== 'number') {
         // Cache "pending" for 15 seconds to avoid repeated Koios calls
-        apiCache.set(pendingCacheKey, true, 15_000);
+        apiCache.set(pendingCacheKey, true, CACHE_TTL_PENDING);
         return res.json({ data: { confirmations: 0, status: 'pending' } });
       }
 
@@ -151,7 +152,7 @@ router.get('/history/:pkh', validatePkhParam, async (req, res) => {
     }
 
     if (protocolTxHashes.length === 0) {
-      apiCache.set(cacheKey, [], 60_000);
+      apiCache.set(cacheKey, [], CACHE_TTL_CHAIN);
       return res.json({ data: [] });
     }
 
@@ -171,7 +172,7 @@ router.get('/history/:pkh', validatePkhParam, async (req, res) => {
     // Sort newest first
     records.sort((a, b) => b.timestamp - a.timestamp);
 
-    apiCache.set(cacheKey, records, 60_000);
+    apiCache.set(cacheKey, records, CACHE_TTL_CHAIN);
     return res.json({ data: records });
   } catch (error) {
     logger.error('Failed to recover history', { error: String(error), pkh, requestId: req.requestId });

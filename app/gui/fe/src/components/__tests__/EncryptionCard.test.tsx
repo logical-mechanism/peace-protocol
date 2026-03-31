@@ -96,8 +96,8 @@ describe('EncryptionCard', () => {
     });
 
     it('renders suggested price', () => {
-      renderCard({ suggestedPrice: 100 });
-      expect(screen.getByText('100 ADA')).toBeInTheDocument();
+      renderCard({ suggestedPrice: 100_000_000 });
+      expect(screen.getByText('100.00 ADA')).toBeInTheDocument();
     });
 
     it('renders "No suggested price" when price is undefined', () => {

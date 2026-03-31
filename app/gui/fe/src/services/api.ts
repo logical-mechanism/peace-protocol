@@ -81,6 +81,7 @@ export interface EncryptionDatum {
   full_level: FullEncryptionLevel | null;
   capsule: Capsule;
   status: EncryptionStatus;
+  new_price: number;
 }
 
 // CIP-20 metadata parsed from transaction (key 674)
@@ -97,9 +98,9 @@ export interface EncryptionDisplay {
   seller: string;
   sellerPkh: string;
   status: 'active' | 'pending' | 'completed';
-  // CIP-20 metadata fields (from tx metadata key 674)
+  // CIP-20 metadata fields (description, storageLayer, imageLink, category from tx metadata key 674)
   description?: string;
-  suggestedPrice?: number;
+  suggestedPrice?: number; // lovelace, from datum new_price field
   storageLayer?: string;
   imageLink?: string;
   category?: string;
@@ -120,6 +121,7 @@ export interface BidDatum {
   pointer: string;
   token: string;
   locked_until: number;
+  new_price: number;
 }
 
 export interface BidDisplay {

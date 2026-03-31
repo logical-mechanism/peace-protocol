@@ -6,8 +6,9 @@
 
 import type { IWallet } from '@meshsdk/core';
 import { createBidArtifactsFromWallet, getStubWarning } from '../crypto';
+import { registerToPlutusJson, createPublicRegister } from '../crypto/register';
 import { storeBidSecrets, removeBidSecrets } from '../bidSecretStorage';
-import { protocolApi } from '../api';
+import { protocolApi, type BidDisplay } from '../api';
 import { buildBidMetadata } from '../metadata';
 import { getChainingAdapter, getPendingTxPool } from '../providers';
 
@@ -162,9 +163,9 @@ export async function placeBid(
     // Field order must match Aiken: owner_vkh, owner_g1, pointer, token, locked_until
     // pointer = bid token name (validated == token_name on-chain)
     // token = encryption token name (the one being bid on)
-    // locked_until = 2 * minimum_bid_lock (12 hours) from now
-    const MINIMUM_BID_LOCK_MS = 6 * 60 * 60 * 1000; // 6 hours, matches on-chain constant
-    const lockedUntil = Date.now() + 2 * MINIMUM_BID_LOCK_MS;
+    // locked_until = 8 hours from now (must be >= on-chain minimum_bid_lock of 6 hours)
+    const BID_LOCK_MS = 8 * 60 * 60 * 1000; // 8 hours
+    const lockedUntil = Date.now() + BID_LOCK_MS;
     const datum = {
       constructor: 0,
       fields: [
@@ -173,6 +174,7 @@ export async function placeBid(
         { bytes: bidTokenName },                 // pointer (bid token name)
         { bytes: encryptionTokenName },          // token (encryption token name)
         { int: lockedUntil },                    // locked_until (POSIX ms)
+        { int: Math.floor((metadata?.futurePrice ?? 0) * 1_000_000) }, // new_price (lovelace)
       ],
     };
 
@@ -242,9 +244,7 @@ export async function placeBid(
         // CIP-20 metadata: only the bidder's desired future listing price
         // Description and storageLayer are the seller's data — carried forward
         // in Phase 12e/12f from the encryption UTxO, not from the bid.
-        .metadataValue(674, buildBidMetadata(
-          metadata?.futurePrice?.toString() || '',
-        ))
+        .metadataValue(674, buildBidMetadata(''))
         // Validity interval (on-chain lock check needs finite upper bound)
         .invalidBefore(invalidBefore)
         .invalidHereafter(invalidHereafter)
@@ -423,6 +423,130 @@ export async function cancelBid(
     };
   } catch (error) {
     console.error('Failed to cancel bid:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Update a bid's lovelace value and/or future price.
+ *
+ * Flow:
+ * 1. Fetch protocol config from backend
+ * 2. Get wallet UTxOs, collateral, change address
+ * 3. Build spend redeemer: UpdateBidPrice (constructor 2, one Int field)
+ * 4. Build output datum: same as current but with new_price updated
+ * 5. Spend bid UTxO via reference script, output updated bid
+ * 6. Sign and submit
+ */
+export async function updateBid(
+  wallet: IWallet,
+  bid: BidDisplay,
+  newBidAmountLovelace: number,
+  newFuturePriceLovelace: number,
+  onSubmitted?: (txHash: string, tokenName?: string) => void,
+): Promise<TransactionResult> {
+  try {
+    if (USE_STUBS) {
+      console.warn('[STUB] updateBid');
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return {
+        success: true,
+        txHash: `stub_update_bid_${Date.now().toString(16)}`,
+        tokenName: bid.tokenName,
+        isStub: true,
+      };
+    }
+
+    // 1. Fetch protocol config
+    const config = await protocolApi.getConfig();
+    if (!config.contracts.biddingPolicyId) {
+      throw new Error('Protocol config missing bidding policy ID.');
+    }
+    if (!config.referenceScripts.bidding) {
+      throw new Error('Bidding reference script UTxO not configured.');
+    }
+
+    // 2. Get wallet info
+    const utxos = await wallet.getUtxos();
+    if (utxos.length === 0) {
+      throw new Error('No UTxOs found in wallet.');
+    }
+
+    const changeAddress = await wallet.getChangeAddress();
+    const collateral = await wallet.getCollateral();
+    if (!collateral || collateral.length === 0) {
+      throw new Error('No collateral set in wallet.');
+    }
+
+    const ownerPkh = bid.datum.owner_vkh;
+    const policyId = config.contracts.biddingPolicyId;
+    const biddingAddress = config.contracts.biddingAddress;
+    const refScript = config.referenceScripts.bidding;
+
+    // 3. Build redeemer: UpdateBidPrice (constructor 2, one Int field)
+    const spendRedeemer = { constructor: 2, fields: [{ int: newFuturePriceLovelace }] };
+
+    // 4. Build output datum: same as current but with new_price updated
+    const outputDatum = {
+      constructor: 0,
+      fields: [
+        { bytes: bid.datum.owner_vkh },
+        registerToPlutusJson(createPublicRegister(
+          bid.datum.owner_g1.generator,
+          bid.datum.owner_g1.public_value
+        )),
+        { bytes: bid.datum.pointer },
+        { bytes: bid.datum.token },
+        { int: bid.datum.locked_until },
+        { int: newFuturePriceLovelace },
+      ],
+    };
+
+    // 5. Build transaction
+    const txBuilder = createTxBuilder();
+
+    const unsignedTx = await withTimeout(
+      txBuilder
+        .spendingPlutusScriptV3()
+        .txIn(bid.utxo.txHash, bid.utxo.outputIndex)
+        .spendingTxInReference(refScript.txHash, refScript.outputIndex)
+        .txInInlineDatumPresent()
+        .txInRedeemerValue(spendRedeemer, 'JSON')
+        // Output: bid with updated value and price
+        .txOut(biddingAddress, [
+          { unit: 'lovelace', quantity: String(newBidAmountLovelace) },
+          { unit: policyId + bid.tokenName, quantity: '1' },
+        ])
+        .txOutInlineDatumValue(outputDatum, 'JSON')
+        .txInCollateral(
+          collateral[0].input.txHash,
+          collateral[0].input.outputIndex,
+          collateral[0].output.amount,
+          collateral[0].output.address
+        )
+        .requiredSignerHash(ownerPkh)
+        .changeAddress(changeAddress)
+        .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
+        .complete(),
+      180_000,
+      'updateBid tx build',
+    );
+
+    const signedTx = await wallet.signTx(unsignedTx);
+    const txHash = await wallet.submitTx(signedTx);
+    await getPendingTxPool().registerTx(signedTx, txHash);
+    try { onSubmitted?.(txHash, bid.tokenName); } catch { /* don't break tx flow */ }
+
+    return {
+      success: true,
+      txHash,
+      tokenName: bid.tokenName,
+    };
+  } catch (error) {
+    console.error('Failed to update bid:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

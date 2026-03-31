@@ -2,7 +2,11 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { apiCache } from '../services/apiCache'
 import { optimisticStore } from '../services/optimisticStore'
 
-/** Escalating delays after a transaction is submitted (ms). */
+/**
+ * Escalating delays (ms) for polling after transaction submission.
+ * Starts frequent (20s) when confirmation is likely imminent, then backs off
+ * as the wait grows. Final 180s poll acts as a catch-all for slow propagation.
+ */
 const TX_CONFIRMATION_DELAYS = [20_000, 45_000, 90_000, 180_000]
 
 export interface DataRefreshState {

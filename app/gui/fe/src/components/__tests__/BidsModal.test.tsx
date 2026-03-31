@@ -16,7 +16,7 @@ const baseEncryption: EncryptionDisplay = {
   createdAt: '2024-06-15T10:00:00Z',
   utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
   datum: {} as EncryptionDisplay['datum'],
-  suggestedPrice: 100,
+  suggestedPrice: 100_000_000,
   description: 'Test listing',
 };
 
@@ -79,7 +79,7 @@ describe('BidsModal', () => {
 
   it('shows suggested price from encryption', () => {
     renderModal();
-    expect(screen.getByText('100 ADA')).toBeInTheDocument();
+    expect(screen.getByText('100.00 ADA')).toBeInTheDocument();
   });
 
   it('shows "No price set" when no suggested price', () => {

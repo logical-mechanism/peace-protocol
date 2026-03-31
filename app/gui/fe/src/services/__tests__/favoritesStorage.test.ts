@@ -92,11 +92,11 @@ describe('favoritesStorage', () => {
       expect(getFavorites('pkh1').size).toBe(0);
     });
 
-    it('toggleFavorite propagates when setItem throws (no try-catch)', () => {
+    it('toggleFavorite does not throw when setItem fails', () => {
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new DOMException('QuotaExceededError');
       });
-      expect(() => toggleFavorite('pkh1', 'token_a')).toThrow('QuotaExceededError');
+      expect(() => toggleFavorite('pkh1', 'token_a')).not.toThrow();
     });
   });
 });

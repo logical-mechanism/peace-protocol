@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../../contexts/WasmContext'
 import {
   createListing, createListingFromImport, retryListingFromDraft, removeListing,
-  cancelPendingListing, prepareSnarkInputs,
+  cancelPendingListing, updateListingPrice, prepareSnarkInputs,
   acceptBidAndReEncrypt, completeReEncryption,
   getTransactionStubWarning,
   type ListingCreationStep, type ChainedAcceptStep,
@@ -51,6 +51,10 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
   const [acceptBidA0, setAcceptBidA0] = useState<bigint | null>(null)
   const [acceptBidR0, setAcceptBidR0] = useState<bigint | null>(null)
   const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
+
+  // Update price modal state
+  const [showUpdatePriceModal, setShowUpdatePriceModal] = useState(false)
+  const [updatePriceEncryption, setUpdatePriceEncryption] = useState<EncryptionDisplay | null>(null)
 
   // Draft recovery check on mount
   useEffect(() => {
@@ -255,6 +259,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           full_level: null,
           capsule: { nonce: '', aad: '', ct: '' },
           status: { type: 'Open' },
+          new_price: 0,
         },
         _optimistic: true,
       })
@@ -356,6 +361,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           full_level: null,
           capsule: { nonce: '', aad: '', ct: '' },
           status: { type: 'Open' },
+          new_price: 0,
         },
         _optimistic: true,
       })
@@ -753,6 +759,57 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
   }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
+  // ── Update Price ──────────────────────────────────────────────────
+
+  const handleOpenUpdatePrice = useCallback((encryption: EncryptionDisplay) => {
+    if (!wallet) {
+      toast.error('Error', 'Wallet not connected')
+      return
+    }
+    setUpdatePriceEncryption(encryption)
+    setShowUpdatePriceModal(true)
+  }, [wallet, toast])
+
+  const handleSubmitUpdatePrice = useCallback(async (encryption: EncryptionDisplay, newPriceLovelace: number) => {
+    if (!wallet) throw new Error('Wallet not connected')
+
+    const result = await updateListingPrice(wallet, encryption, newPriceLovelace, (txHash) => {
+      recordTransaction({
+        txHash,
+        type: 'update-price',
+        tokenName: encryption.tokenName,
+        timestamp: Date.now(),
+        status: 'pending',
+        description: `Update price for ${encryption.tokenName.slice(0, 12)}...`,
+      })
+    })
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update price')
+    }
+
+    if (result.isStub) {
+      toast.warning('Price Updated (Stub Mode)', 'Price updated in stub mode.', 8000)
+      if (result.txHash) {
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'update-price',
+          tokenName: encryption.tokenName,
+          timestamp: Date.now(),
+          status: 'confirmed',
+          description: `Update price for ${encryption.tokenName.slice(0, 12)}...`,
+        })
+      }
+    } else if (result.txHash) {
+      toast.transactionSuccess('Price Updated!', result.txHash, { type: 'update-price' })
+    }
+
+    triggerTransactionRefresh()
+    setShowUpdatePriceModal(false)
+    setUpdatePriceEncryption(null)
+    setActiveTab('history')
+  }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
+
   const closeSnarkModal = useCallback(() => {
     setShowSnarkModal(false)
     setSnarkInputs(null)
@@ -787,6 +844,12 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     handleProofGenerated,
     handleCompleteSale,
     handleCancelPending,
+    // Update price
+    handleOpenUpdatePrice,
+    handleSubmitUpdatePrice,
+    showUpdatePriceModal,
+    setShowUpdatePriceModal,
+    updatePriceEncryption,
     // SNARK modal state
     showSnarkModal,
     snarkInputs,
