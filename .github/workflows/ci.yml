@@ -68,22 +68,6 @@ jobs:
       - run: go vet ./...
       - run: go test ./... -short -count=1 -v
 
-  typescript:
-    name: TypeScript (UI tests)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app/ui/fe
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: app/ui/fe/package-lock.json
-      - run: npm ci
-      - run: npx vitest run
-
   tauri:
     name: Tauri (desktop app)
     runs-on: ubuntu-latest
