@@ -8,6 +8,7 @@ import { truncateDescription } from './descriptionUtils';
 import { getContentType } from '../utils/contentType';
 import { formatDate } from '../utils/formatDate';
 import { copyToClipboard } from '../utils/clipboard';
+import ListingImage from './ListingImage';
 
 interface LibraryCardProps {
   item: LibraryItem;
@@ -124,9 +125,17 @@ function LibraryCard({
                   aria-label={`Select ${item.tokenName}`}
                 />
               )}
-              <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
-                <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
-              </div>
+              {item.imageLink ? (
+                <ListingImage
+                  tokenName={item.tokenName}
+                  imageLink={item.imageLink}
+                  size="sm"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)] flex-shrink-0">
+                  <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
+                </div>
+              )}
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -308,12 +317,20 @@ function LibraryCard({
           </div>
         )}
 
-        {/* Category Icon */}
-        <div className="flex items-center justify-center py-6 mb-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-          <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
-            <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
+        {/* Image / Category Icon */}
+        {item.imageLink ? (
+          <ListingImage
+            tokenName={item.tokenName}
+            imageLink={item.imageLink}
+            size="md"
+          />
+        ) : (
+          <div className="w-full h-40 rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]">
+            <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
+              <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Seller Info */}
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
