@@ -180,16 +180,15 @@ function EncryptionCard({
                 </svg>
               </button>
             )}
-            <span title={encryption.tokenName}>
+            <span className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate" title={encryption.tokenName}>
               <HighlightText
-                text={truncateHex(encryption.tokenName, 8, 4)}
+                text={truncateHex(encryption.tokenName, 12, 8)}
                 query={searchQuery}
-                className="text-xs font-mono text-[var(--text-muted)] truncate"
               />
             </span>
           </div>
           {/* Row 2: Status + Category + Bid Count */}
-          <div className="flex items-center gap-[var(--space-2)] flex-wrap">
+          <div className="flex items-center justify-center gap-[var(--space-2)] flex-wrap">
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
@@ -213,7 +212,9 @@ function EncryptionCard({
             Listed {formatDate(encryption.createdAt)}
           </p>
           {/* Row 4: Transaction Link */}
-          <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
+          <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate">
+            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs tracking-widest" />
+          </p>
         </div>
 
         {/* Description */}

@@ -218,11 +218,11 @@ function MyPurchaseBidCard({
       {/* Header */}
       <div className="mb-4 space-y-1">
         {/* Row 1: Token Name */}
-        <span className="text-xs font-mono text-[var(--text-muted)] truncate block" title={bid.encryptionToken}>
-          Bid on {truncateHex(bid.encryptionToken, 8, 4)}
-        </span>
+        <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate" title={bid.encryptionToken}>
+          Bid on {truncateHex(bid.encryptionToken, 12, 8)}
+        </p>
         {/* Row 2: Status */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center justify-center gap-2 flex-wrap">
           <BidStatusBadge status={bid.status} />
           {isOptimistic && (
             <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
@@ -236,7 +236,9 @@ function MyPurchaseBidCard({
           {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
         </p>
         {/* Row 4: Transaction Link */}
-        <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs" />
+        <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate">
+          <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs tracking-widest" />
+        </p>
       </div>
 
       {/* Bid Status Timeline */}

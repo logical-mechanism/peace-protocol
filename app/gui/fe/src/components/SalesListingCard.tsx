@@ -225,11 +225,11 @@ function SalesListingCard({
         {/* Header */}
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
           {/* Row 1: Token Name */}
-          <span className="text-xs font-mono text-[var(--text-muted)] truncate block" title={encryption.tokenName}>
-            {truncateHex(encryption.tokenName, 8, 4)}
-          </span>
+          <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate" title={encryption.tokenName}>
+            {truncateHex(encryption.tokenName, 12, 8)}
+          </p>
           {/* Row 2: Status + Storage Layer */}
-          <div className="flex items-center gap-[var(--space-2)] flex-wrap">
+          <div className="flex items-center justify-center gap-[var(--space-2)] flex-wrap">
             <EncryptionStatusBadge status={encryption.status} />
             <span
               className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
@@ -246,7 +246,9 @@ function SalesListingCard({
             Created: {formatRelativeTime(encryption.createdAt)}
           </p>
           {/* Row 4: Transaction Link */}
-          <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
+          <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate">
+            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs tracking-widest" />
+          </p>
         </div>
 
         {/* Description */}
