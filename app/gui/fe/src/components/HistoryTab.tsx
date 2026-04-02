@@ -669,7 +669,7 @@ function VirtualizedHistoryList({
                     <TransactionLink txHash={tx.txHash} truncate={!hashMatchesSearch} className="text-xs" />
                   </div>
                   {tx.description && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
+                    <p className="text-xs text-[var(--text-muted)] mt-1 truncate max-w-md" title={tx.description}>
                       {tx.description}
                     </p>
                   )}
