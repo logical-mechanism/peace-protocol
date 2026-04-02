@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { truncateHex } from '../utils/truncate';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -23,7 +24,7 @@ export default function DescriptionModal({
 
   if (!shouldRender) return null;
 
-  return (
+  return createPortal(
     <div ref={modalRef} className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
       {/* Backdrop */}
       <div
@@ -79,6 +80,7 @@ export default function DescriptionModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
