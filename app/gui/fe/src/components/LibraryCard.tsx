@@ -108,7 +108,7 @@ function LibraryCard({
   if (compact) {
     return (
       <>
-        <div
+        <article
           className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-4 transition-all duration-[var(--transition-fast)] ${
             selected
               ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
@@ -233,7 +233,7 @@ function LibraryCard({
               )}
             </div>
           </div>
-        </div>
+        </article>
 
         <DescriptionModal
           isOpen={descriptionModalOpen}
@@ -247,7 +247,7 @@ function LibraryCard({
 
   return (
     <>
-      <div
+      <article
         className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-[var(--transition-fast)] ${
           selected
             ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
@@ -385,7 +385,7 @@ function LibraryCard({
             </button>
           </div>
         )}
-      </div>
+      </article>
 
       <DescriptionModal
         isOpen={descriptionModalOpen}

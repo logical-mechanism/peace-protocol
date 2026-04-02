@@ -70,7 +70,7 @@ function EncryptionCard({
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)] relative z-0">
+        <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)] relative z-0">
           {/* Row 1: Star + Tx Hash + Category + Status */}
           <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)] min-w-0">
             {onToggleFavorite && (
@@ -133,7 +133,7 @@ function EncryptionCard({
               </span>
             )}
           </div>
-        </div>
+        </article>
 
         {/* Description Modal */}
         <DescriptionModal
@@ -148,7 +148,7 @@ function EncryptionCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
           {/* Row 1: Star + Status + Transaction Hash */}
@@ -293,7 +293,7 @@ function EncryptionCard({
             <p className="text-xs text-[var(--success)]">Sale completed</p>
           </div>
         )}
-      </div>
+      </article>
 
       {/* Description Modal */}
       <DescriptionModal

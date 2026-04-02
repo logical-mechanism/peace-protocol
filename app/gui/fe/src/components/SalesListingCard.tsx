@@ -93,7 +93,7 @@ function SalesListingCard({
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+        <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
           {/* Row 1: Spacer + Tx Hash + Storage + Status */}
           <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)] min-w-0">
             <div className="w-5 flex-shrink-0" />
@@ -190,7 +190,7 @@ function SalesListingCard({
                 )}
             </div>
           </div>
-        </div>
+        </article>
 
         {/* Description Modal */}
         <DescriptionModal
@@ -205,7 +205,7 @@ function SalesListingCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
           {/* Row 1: Status + Transaction Hash */}
@@ -337,7 +337,7 @@ function SalesListingCard({
             </>
           )}
         </div>
-      </div>
+      </article>
 
       {/* Description Modal */}
       <DescriptionModal

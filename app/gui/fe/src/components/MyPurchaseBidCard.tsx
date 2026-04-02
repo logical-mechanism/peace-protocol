@@ -80,7 +80,7 @@ function MyPurchaseBidCard({
   if (compact) {
     return (
       <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
         {/* Row 1: Info Icon + Tx Hash + Status */}
         <div className="flex items-center gap-2 mb-[var(--space-2)] min-w-0">
           <InfoTooltip text={getStatusTooltip()} position="bottom" />
@@ -175,7 +175,7 @@ function MyPurchaseBidCard({
             )}
           </div>
         </div>
-      </div>
+      </article>
 
       <DescriptionModal
         isOpen={descriptionModalOpen}
@@ -189,7 +189,7 @@ function MyPurchaseBidCard({
 
   return (
     <>
-    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+    <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
       {/* Header */}
       <div className="mb-4 space-y-1">
         {/* Row 1: Transaction Hash + Status */}
@@ -372,7 +372,7 @@ function MyPurchaseBidCard({
           </button>
         )}
       </div>
-    </div>
+    </article>
 
     <DescriptionModal
       isOpen={descriptionModalOpen}
