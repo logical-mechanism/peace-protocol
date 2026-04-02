@@ -117,8 +117,9 @@ function SalesListingCard({
           {/* Row 2: Description */}
           {encryption.description && (
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] mb-[var(--space-2)]"
+              className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] mb-[var(--space-2)] max-w-md relative z-10"
               onClick={() => setDescriptionModalOpen(true)}
+              title={encryption.description}
             >
               {truncateDescription(encryption.description)}
             </p>

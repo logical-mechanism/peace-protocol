@@ -153,8 +153,9 @@ function LibraryCard({
                 </div>
                 {item.description && (
                   <p
-                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] max-w-md relative z-10"
                     onClick={() => setDescriptionModalOpen(true)}
+                    title={item.description}
                   >
                     {truncateDescription(item.description)}
                   </p>

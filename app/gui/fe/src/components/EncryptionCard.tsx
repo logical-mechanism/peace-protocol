@@ -100,8 +100,9 @@ function EncryptionCard({
           {/* Row 2: Description */}
           {encryption.description && (
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-[var(--space-2)] cursor-pointer hover:text-[var(--text-primary)] relative z-10"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-[var(--space-2)] cursor-pointer hover:text-[var(--text-primary)] relative z-10 max-w-md"
               onClick={() => setDescriptionModalOpen(true)}
+              title={encryption.description}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
             </p>
