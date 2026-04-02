@@ -255,8 +255,6 @@ function SalesListingCard({
                   <span className="mx-1.5">|</span>
                 </>
               )}
-              <span>Views: N/A</span>
-              <span className="mx-1.5">|</span>
               <span>Created: {formatRelativeTime(encryption.createdAt)}</span>
             </p>
           </div>
