@@ -301,7 +301,6 @@ function MyPurchaseBidCard({
             </button>
           )}
         </p>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Your Bid</p>
       </div>
 
       {/* Seller Info */}

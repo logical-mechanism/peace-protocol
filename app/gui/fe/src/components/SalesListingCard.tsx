@@ -302,7 +302,6 @@ function SalesListingCard({
               </button>
             )}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">Suggested Price</p>
         </div>
 
         {/* Bids Info (for active listings) */}

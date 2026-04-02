@@ -239,7 +239,6 @@ function EncryptionCard({
           <p className="text-2xl font-semibold text-[var(--accent)]">
             {formatPrice(encryption.suggestedPrice)}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">Suggested Price</p>
         </div>
 
         {/* Seller Info */}
