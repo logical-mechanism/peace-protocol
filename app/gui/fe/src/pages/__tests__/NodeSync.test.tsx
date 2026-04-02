@@ -34,6 +34,7 @@ let mockNodeState = {
   slotsToEpochEnd: null as number | null,
   kupoConnected: null as boolean | null,
   kupoSecondsSinceLastBlock: null as number | null,
+  expressReady: false,
 };
 
 vi.mock('../../contexts/NodeContext', () => ({
@@ -85,6 +86,7 @@ beforeEach(() => {
     slotsToEpochEnd: null,
     kupoConnected: null,
     kupoSecondsSinceLastBlock: null,
+    expressReady: false,
   };
   (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({ available_bytes: 20_000_000_000 });
 });
@@ -192,6 +194,38 @@ describe('NodeSync — error stage', () => {
     await waitFor(() => {
       expect(mockCopyToClipboard).toHaveBeenCalledWith('Connection refused');
     });
+  });
+});
+
+describe('NodeSync — canContinue threshold', () => {
+  it('does not show Continue to Dashboard at 99% sync', () => {
+    mockNodeState.stage = 'syncing';
+    mockNodeState.syncProgress = 99;
+    mockNodeState.kupoSyncProgress = 99;
+    mockNodeState.expressReady = true;
+    renderPage();
+
+    expect(screen.queryByText('Continue to Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('shows Continue to Dashboard at 99.9% sync with expressReady', () => {
+    mockNodeState.stage = 'syncing';
+    mockNodeState.syncProgress = 99.9;
+    mockNodeState.kupoSyncProgress = 99.9;
+    mockNodeState.expressReady = true;
+    renderPage();
+
+    expect(screen.getByText('Continue to Dashboard')).toBeInTheDocument();
+  });
+
+  it('does not show Continue to Dashboard at 99.9% sync without expressReady', () => {
+    mockNodeState.stage = 'syncing';
+    mockNodeState.syncProgress = 99.9;
+    mockNodeState.kupoSyncProgress = 99.9;
+    mockNodeState.expressReady = false;
+    renderPage();
+
+    expect(screen.queryByText('Continue to Dashboard')).not.toBeInTheDocument();
   });
 });
 

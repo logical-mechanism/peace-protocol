@@ -444,7 +444,7 @@ export default function NodeSync() {
   }, [stage, syncProgress])
 
   // Navigate to dashboard when synced (including Express backend ready)
-  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99 && expressReady)
+  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99.9 && kupoSyncProgress >= 99.9 && expressReady)
 
   const handleContinue = () => {
     navigate('/dashboard')
