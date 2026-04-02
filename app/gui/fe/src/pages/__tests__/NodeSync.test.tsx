@@ -142,6 +142,42 @@ describe('NodeSync — syncing stage', () => {
     // Syncing shows service checklist, not ProgressBar (which is only for bootstrapping)
     expect(screen.getByText('Cardano Node')).toBeInTheDocument();
     expect(screen.getByText('Kupo Indexer')).toBeInTheDocument();
+    expect(screen.getByText('Backend Server')).toBeInTheDocument();
+  });
+
+  it('shows Backend Server as synced when expressReady is true', () => {
+    mockNodeState.stage = 'syncing';
+    mockNodeState.syncProgress = 99.95;
+    mockNodeState.kupoSyncProgress = 99.95;
+    mockNodeState.expressReady = true;
+    renderPage();
+
+    expect(screen.getByText('Backend Server')).toBeInTheDocument();
+    // When expressReady, its status text should be 'Synced'
+    const row = screen.getByText('Backend Server').closest('div')!;
+    expect(row.textContent).toContain('Synced');
+  });
+
+  it('shows Backend Server as Starting when node and kupo are synced but express is not ready', () => {
+    mockNodeState.stage = 'syncing';
+    mockNodeState.syncProgress = 99.95;
+    mockNodeState.kupoSyncProgress = 99.95;
+    mockNodeState.expressReady = false;
+    renderPage();
+
+    const row = screen.getByText('Backend Server').closest('div')!;
+    expect(row.textContent).toContain('Starting...');
+  });
+
+  it('shows Backend Server as Waiting when node is still syncing', () => {
+    mockNodeState.stage = 'syncing';
+    mockNodeState.syncProgress = 80;
+    mockNodeState.kupoSyncProgress = 70;
+    mockNodeState.expressReady = false;
+    renderPage();
+
+    const row = screen.getByText('Backend Server').closest('div')!;
+    expect(row.textContent).toContain('Waiting...');
   });
 });
 

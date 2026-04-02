@@ -629,6 +629,11 @@ export default function NodeSync() {
                       : `Indexing ${kupoSyncProgress.toFixed(1)}%`,
                     warning: kupoConnected === false || (kupoSecondsSinceLastBlock != null && kupoSecondsSinceLastBlock > 120),
                   },
+                  {
+                    label: 'Backend Server',
+                    synced: expressReady,
+                    activeText: syncProgress >= 99.9 && kupoSyncProgress >= 99.9 ? 'Starting...' : 'Waiting...',
+                  },
                 ].map(({ label, synced, activeText, warning }) => (
                   <div key={label} className="flex items-center gap-[var(--space-3)]">
                     {synced ? (
