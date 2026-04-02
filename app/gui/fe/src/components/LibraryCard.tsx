@@ -160,27 +160,29 @@ function LibraryCard({
 
             {/* Middle: Seller, Date, Size */}
             <div className="flex items-center gap-6 flex-shrink-0">
-              <div className="grid grid-cols-[auto_minmax(7rem,auto)] gap-x-3 gap-y-0.5 text-xs text-right">
-                <span className="text-[var(--text-muted)]">Seller</span>
-                <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={item.seller ?? ''}>
-                  {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
-                  {item.seller && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
-                      className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                      title="Copy seller address"
-                      aria-label="Copy seller address"
-                    >
-                      <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        {copiedSeller ? (
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        ) : (
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        )}
-                      </svg>
-                    </button>
-                  )}
-                </span>
+              <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs text-right">
+                {item.seller && (
+                  <>
+                    <span className="text-[var(--text-muted)]">Seller</span>
+                    <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={item.seller}>
+                      {truncateHex(item.seller, 8, 4)}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
+                        className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                        title="Copy seller address"
+                        aria-label="Copy seller address"
+                      >
+                        <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {copiedSeller ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          )}
+                        </svg>
+                      </button>
+                    </span>
+                  </>
+                )}
                 <span className="text-[var(--text-muted)]">Date</span>
                 <span className="text-[var(--text-muted)]">{formatDate(item.decryptedAt)}</span>
                 {item.fileSize != null && (
@@ -338,11 +340,11 @@ function LibraryCard({
         )}
 
         {/* Seller Info */}
-        <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-          <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-          <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={item.seller ?? ''}>
-            {item.seller ? truncateHex(item.seller, 12, 8) : 'You'}
-            {item.seller && (
+        {item.seller && (
+          <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
+            <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={item.seller}>
+              {truncateHex(item.seller, 12, 8)}
               <button
                 onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                 className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
@@ -357,9 +359,9 @@ function LibraryCard({
                   )}
                 </svg>
               </button>
-            )}
-          </span>
-        </div>
+            </span>
+          </div>
+        )}
 
         {/* Action Buttons */}
         {!selectMode && (
