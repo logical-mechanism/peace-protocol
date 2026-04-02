@@ -98,9 +98,10 @@ describe('MyPurchaseBidCard', () => {
       expect(screen.getByTestId('bid-status-badge')).toHaveTextContent('pending');
     });
 
-    it('renders encryption token reference in compact mode', () => {
-      renderCard({ encryptionToken: 'abcdef1234567890' }, { compact: true });
-      expect(screen.getByText(/abcdef12/)).toBeInTheDocument();
+    it('renders transaction hash link in compact mode', () => {
+      renderCard({}, { compact: true });
+      // TransactionLink renders the tx hash with CardanoScan link
+      expect(screen.getByTitle(/View transaction.*on CardanoScan/)).toBeInTheDocument();
     });
 
     it('renders info tooltip', () => {

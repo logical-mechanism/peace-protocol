@@ -96,14 +96,14 @@ describe('SalesListingCard', () => {
       expect(screen.getByText('A test listing')).toBeInTheDocument();
     });
 
-    it('renders category badge in compact mode', () => {
-      renderCard({ category: 'document' }, { compact: true });
-      expect(screen.getByText('Document')).toBeInTheDocument();
+    it('renders storage layer badge in compact mode', () => {
+      renderCard({ storageLayer: 'on-chain' }, { compact: true });
+      expect(screen.getByText('On-chain')).toBeInTheDocument();
     });
 
-    it('defaults category to Text when not provided (compact)', () => {
-      renderCard({ category: undefined }, { compact: true });
-      expect(screen.getByText('Text')).toBeInTheDocument();
+    it('defaults storage layer label when not provided (compact)', () => {
+      renderCard({ storageLayer: undefined }, { compact: true });
+      expect(screen.getByText('No data layer')).toBeInTheDocument();
     });
 
     it('renders listing image', () => {

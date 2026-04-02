@@ -317,9 +317,9 @@ describe('EncryptionCard', () => {
       expect(screen.queryByTestId('listing-image')).not.toBeInTheDocument();
     });
 
-    it('renders bid count in compact mode', () => {
+    it('does not render bid count in compact mode', () => {
       renderCard({ status: 'active' }, { compact: true, bidCount: 5 });
-      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.queryByText('5')).not.toBeInTheDocument();
     });
   });
 });

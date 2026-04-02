@@ -1,13 +1,12 @@
 import { useState, useEffect, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
-import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
-import { formatPrice, getCategoryLabel } from '../utils/formatListing';
-import { TransactionLinkInline } from './TransactionLink';
+import { formatPrice } from '../utils/formatListing';
+import TransactionLink, { TransactionLinkInline } from './TransactionLink';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
@@ -95,73 +94,58 @@ function SalesListingCard({
     return (
       <>
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+          {/* Row 1: Spacer + Tx Hash + Storage + Status */}
+          <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)] min-w-0">
+            <div className="w-5 flex-shrink-0" />
+            <TransactionLink txHash={encryption.utxo.txHash} className="text-xs" />
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border flex-shrink-0 ${
+                isUnknownStorageLayer(encryption.storageLayer)
+                  ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+              }`}
+            >
+              {getStorageLayerLabel(encryption.storageLayer)}
+            </span>
+            <EncryptionStatusBadge status={encryption.status} />
+            {isOptimistic && (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
+                Awaiting confirmation
+              </span>
+            )}
+          </div>
+          {/* Row 2: Description */}
+          {encryption.description && (
+            <p
+              className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] mb-[var(--space-2)]"
+              onClick={() => setDescriptionModalOpen(true)}
+            >
+              {truncateDescription(encryption.description)}
+            </p>
+          )}
+          {/* Row 3: Price + Actions */}
           <div className="flex items-center justify-between gap-[var(--space-md)]">
-            {/* Left: Token info */}
-            <div className="flex items-center gap-[var(--space-3)] min-w-0 flex-1">
-              {/* Image / Lock icon */}
-              <ListingImage
-                tokenName={encryption.tokenName}
-                imageLink={encryption.imageLink}
-                size="sm"
-                initialCached={initialCached}
-                initialBanned={initialBanned}
-              />
-
-              <div className="min-w-0">
-                <div className="flex items-center gap-[var(--space-2)] mb-0.5 flex-wrap">
-                  <span className="text-xs font-mono text-[var(--text-muted)]" title={encryption.tokenName}>
-                    {truncateHex(encryption.tokenName, 8, 4)}
-                  </span>
-                  <EncryptionStatusBadge status={encryption.status} />
-                  {isOptimistic && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                      Awaiting confirmation
-                    </span>
-                  )}
-                  <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                    {getCategoryLabel(encryption.category)}
-                  </span>
-                </div>
-                {encryption.description && (
-                  <p
-                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
-                    onClick={() => setDescriptionModalOpen(true)}
+            <div className="flex items-center gap-[var(--space-2)]">
+              <span className="text-lg font-semibold text-[var(--accent)] inline-flex items-center gap-[var(--space-1)]">
+                {formatPrice(encryption.suggestedPrice)}
+                {isActive && !isOptimistic && onUpdatePrice && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
+                    className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                    title="Update price"
                   >
-                    {truncateDescription(encryption.description)}
-                  </p>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                    </svg>
+                  </button>
                 )}
-                <p className="text-xs text-[var(--text-muted)] mt-0.5 flex items-center gap-1.5">
-                  <span>{formatRelativeTime(encryption.createdAt)}</span>
-                  <span>·</span>
-                  <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
-                </p>
-              </div>
+              </span>
+              {isPending && pendingTTL && (
+                <span className="text-xs text-[var(--warning)]">{pendingTTL}</span>
+              )}
             </div>
 
-            {/* Middle: Price & Bids */}
-            <div className="flex items-center gap-[var(--space-lg)] flex-shrink-0">
-              <div className="text-right">
-                <span className="text-lg font-semibold text-[var(--accent)] inline-flex items-center gap-[var(--space-1)]">
-                  {formatPrice(encryption.suggestedPrice)}
-                  {isActive && !isOptimistic && onUpdatePrice && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
-                      className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
-                      title="Update price"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
-                      </svg>
-                    </button>
-                  )}
-                </span>
-                {isPending && pendingTTL && (
-                  <p className="text-xs text-[var(--warning)]">{pendingTTL}</p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-[var(--space-2)]">
+            <div className="flex gap-[var(--space-2)]">
                 {isActive && !isOptimistic && (
                   <>
                     <button
@@ -203,7 +187,6 @@ function SalesListingCard({
                     </button>
                   </>
                 )}
-              </div>
             </div>
           </div>
         </div>

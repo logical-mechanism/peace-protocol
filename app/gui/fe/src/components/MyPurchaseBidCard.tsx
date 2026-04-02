@@ -10,7 +10,7 @@ import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { formatDate } from '../utils/formatDate';
 import ListingImage from './ListingImage';
-import { TransactionLinkInline } from './TransactionLink';
+import TransactionLink, { TransactionLinkInline } from './TransactionLink';
 import { copyToClipboard } from '../utils/clipboard';
 
 interface MyPurchaseBidCardProps {
@@ -81,123 +81,96 @@ function MyPurchaseBidCard({
     return (
       <>
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
-        <div className="flex items-center justify-between gap-4">
-          {/* Left: Bid info */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <ListingImage
-              tokenName={encryption?.tokenName ?? bid.encryptionToken}
-              imageLink={encryption?.imageLink}
-              size="sm"
-            />
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                <span className="text-xs font-mono text-[var(--text-muted)]" title={bid.encryptionToken}>
-                  Bid on {truncateHex(bid.encryptionToken, 8, 4)}
-                </span>
-                <BidStatusBadge status={bid.status} />
-                {isOptimistic && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                    Awaiting confirmation
-                  </span>
-                )}
-                <InfoTooltip text={getStatusTooltip()} position="bottom" />
-              </div>
-              {encryption?.description && (
-                <p
-                  className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
-                  onClick={() => setDescriptionModalOpen(true)}
-                >
-                  {truncateDescription(encryption.description)}
-                </p>
-              )}
-              {!encryption?.description && (
-                <p className="text-xs text-[var(--text-muted)]">
-                  {isPending ? 'Waiting for seller' : formatDate(bid.createdAt)}
-                </p>
-              )}
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs" />
-              </p>
-            </div>
-          </div>
-
-          {/* Timeline (compact) */}
-          {purchaseStage && (
-            <div className="flex-shrink-0 w-40 hidden lg:block">
-              <BidTimeline stage={purchaseStage} bidStatus={bid.status} compact />
-            </div>
+        {/* Row 1: Info Icon + Tx Hash + Status */}
+        <div className="flex items-center gap-2 mb-[var(--space-2)] min-w-0">
+          <InfoTooltip text={getStatusTooltip()} position="bottom" />
+          <TransactionLink txHash={bid.utxo.txHash} className="text-xs" />
+          <BidStatusBadge status={bid.status} />
+          {isOptimistic && (
+            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
+              Awaiting confirmation
+            </span>
           )}
-
-          {/* Middle: Amount & Seller */}
-          <div className="flex items-center gap-6 flex-shrink-0">
-            <div className="text-right">
-              <span className={`text-lg font-semibold inline-flex items-center gap-[var(--space-1)] ${
-                isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
-              }`}>
-                {formatAda(bid.amount)} ADA
-                {isPending && !isOptimistic && onUpdateBid && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
-                    className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
-                    title="Update bid"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
-                    </svg>
-                  </button>
-                )}
+        </div>
+        {/* Row 2: Description or date */}
+        {encryption?.description ? (
+          <p
+            className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] mb-[var(--space-2)]"
+            onClick={() => setDescriptionModalOpen(true)}
+          >
+            {truncateDescription(encryption.description)}
+          </p>
+        ) : (
+          <p className="text-xs text-[var(--text-muted)] mb-[var(--space-2)]">
+            {isPending ? 'Waiting for seller' : formatDate(bid.createdAt)}
+          </p>
+        )}
+        {/* Row 3: Price + Seller + Actions */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className={`text-lg font-semibold inline-flex items-center gap-[var(--space-1)] ${
+              isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
+            }`}>
+              {formatAda(bid.amount)} ADA
+              {isPending && !isOptimistic && onUpdateBid && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
+                  className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                  title="Update bid"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                  </svg>
+                </button>
+              )}
+            </span>
+            {encryption && (
+              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1" title={encryption.seller}>
+                {truncateHex(encryption.seller, 8, 4)}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                  title="Copy seller address"
+                  aria-label="Copy seller address"
+                >
+                  <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {copiedSeller ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    )}
+                  </svg>
+                </button>
               </span>
-              {encryption && (
-                <p className="text-xs text-[var(--text-muted)] flex items-center gap-1" title={encryption.seller}>
-                  Seller: {truncateHex(encryption.seller, 12, 8)}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
-                    className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                    title="Copy seller address"
-                    aria-label="Copy seller address"
-                  >
-                    <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      {copiedSeller ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      )}
-                    </svg>
-                  </button>
-                </p>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              {isPending && !isOptimistic && (
-                <button
-                  onClick={() => onCancel?.(bid)}
-                  disabled={isLocked}
-                  title={isLocked ? `Locked until ${new Date(bid.lockedUntil).toLocaleString()}` : undefined}
-                  className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary ${
-                    isLocked
-                      ? 'opacity-50 cursor-not-allowed text-[var(--text-muted)]'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)]'
-                  }`}
-                >
-                  {isLocked ? 'Locked' : 'Cancel'}
-                </button>
-              )}
-              {isAccepted && (
-                <button
-                  onClick={() => onDecrypt?.(bid)}
-                  className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] btn-base ${
-                    decryptFailed
-                      ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
-                      : 'btn-success'
-                  }`}
-                >
-                  {decryptFailed ? 'Retry' : 'Decrypt'}
-                </button>
-              )}
-            </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {isPending && !isOptimistic && (
+              <button
+                onClick={() => onCancel?.(bid)}
+                disabled={isLocked}
+                title={isLocked ? `Locked until ${new Date(bid.lockedUntil).toLocaleString()}` : undefined}
+                className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary ${
+                  isLocked
+                    ? 'opacity-50 cursor-not-allowed text-[var(--text-muted)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)]'
+                }`}
+              >
+                {isLocked ? 'Locked' : 'Cancel'}
+              </button>
+            )}
+            {isAccepted && (
+              <button
+                onClick={() => onDecrypt?.(bid)}
+                className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] btn-base ${
+                  decryptFailed
+                    ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
+                    : 'btn-success'
+                }`}
+              >
+                {decryptFailed ? 'Retry' : 'Decrypt'}
+              </button>
+            )}
           </div>
         </div>
       </div>

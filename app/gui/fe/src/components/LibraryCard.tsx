@@ -158,10 +158,11 @@ function LibraryCard({
               </div>
             </div>
 
-            {/* Middle: Seller & Date */}
+            {/* Middle: Seller, Date, Size */}
             <div className="flex items-center gap-6 flex-shrink-0">
-              <div className="text-right">
-                <p className="text-xs font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={item.seller ?? ''}>
+              <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs text-right">
+                <span className="text-[var(--text-muted)]">Seller</span>
+                <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={item.seller ?? ''}>
                   {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
                   {item.seller && (
                     <button
@@ -179,11 +180,15 @@ function LibraryCard({
                       </svg>
                     </button>
                   )}
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  {formatDate(item.decryptedAt)}
-                  {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
-                </p>
+                </span>
+                <span className="text-[var(--text-muted)]">Date</span>
+                <span className="text-[var(--text-muted)]">{formatDate(item.decryptedAt)}</span>
+                {item.fileSize != null && (
+                  <>
+                    <span className="text-[var(--text-muted)]">Size</span>
+                    <span className="text-[var(--text-muted)]">{formatBytes(item.fileSize)}</span>
+                  </>
+                )}
               </div>
 
               {/* Actions */}
