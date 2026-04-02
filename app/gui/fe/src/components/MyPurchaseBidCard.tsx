@@ -119,6 +119,7 @@ function MyPurchaseBidCard({
                   onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
                   className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
                   title="Update bid"
+                    aria-label="Update bid"
                 >
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
@@ -249,6 +250,7 @@ function MyPurchaseBidCard({
               onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
               className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
               title="Update bid"
+                    aria-label="Update bid"
             >
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
