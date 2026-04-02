@@ -160,7 +160,7 @@ function LibraryCard({
 
             {/* Middle: Seller, Date, Size */}
             <div className="flex items-center gap-6 flex-shrink-0">
-              <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs text-right">
+              <div className="grid grid-cols-[auto_minmax(7rem,auto)] gap-x-3 gap-y-0.5 text-xs text-right">
                 <span className="text-[var(--text-muted)]">Seller</span>
                 <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={item.seller ?? ''}>
                   {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
