@@ -226,6 +226,7 @@ function SalesListingCard({
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
           {/* Row 1: Status + Transaction Hash */}
           <div className="flex items-center gap-[var(--space-2)] min-w-0">
+            <div className="w-5 flex-shrink-0" />
             <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
             <EncryptionStatusBadge status={encryption.status} />
           </div>

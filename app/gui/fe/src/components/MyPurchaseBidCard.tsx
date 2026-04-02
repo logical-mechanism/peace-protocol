@@ -219,6 +219,7 @@ function MyPurchaseBidCard({
       <div className="mb-4 space-y-1">
         {/* Row 1: Transaction Hash + Status */}
         <div className="flex items-center gap-2 min-w-0">
+          <InfoTooltip text={getStatusTooltip()} position="bottom" />
           <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
           <BidStatusBadge status={bid.status} />
           {isOptimistic && (
@@ -226,7 +227,6 @@ function MyPurchaseBidCard({
               Awaiting confirmation
             </span>
           )}
-          <InfoTooltip text={getStatusTooltip()} position="bottom" />
         </div>
         {/* Row 2: Date */}
         <p className="text-xs text-[var(--text-muted)] text-center">
