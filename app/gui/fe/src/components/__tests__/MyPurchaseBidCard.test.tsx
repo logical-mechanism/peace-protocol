@@ -98,8 +98,8 @@ describe('MyPurchaseBidCard', () => {
       expect(screen.getByTestId('bid-status-badge')).toHaveTextContent('pending');
     });
 
-    it('renders encryption token reference', () => {
-      renderCard({ encryptionToken: 'abcdef12' });
+    it('renders encryption token reference in compact mode', () => {
+      renderCard({ encryptionToken: 'abcdef1234567890' }, { compact: true });
       expect(screen.getByText(/abcdef12/)).toBeInTheDocument();
     });
 

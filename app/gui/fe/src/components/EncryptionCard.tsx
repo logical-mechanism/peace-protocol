@@ -165,12 +165,12 @@ function EncryptionCard({
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
-          {/* Row 1: Star + Token Name */}
-          <div className="flex items-center gap-[var(--space-2)]">
+          {/* Row 1: Star + Transaction Hash */}
+          <div className="flex items-center gap-[var(--space-2)] min-w-0">
             {onToggleFavorite && (
               <button
                 onClick={handleToggleFavorite}
-                className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
                 title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 aria-pressed={isFavorite}
@@ -180,40 +180,34 @@ function EncryptionCard({
                 </svg>
               </button>
             )}
-            <span className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate" title={encryption.tokenName}>
-              <HighlightText
-                text={truncateHex(encryption.tokenName, 12, 8)}
-                query={searchQuery}
-              />
-            </span>
+            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
           </div>
           {/* Row 2: Status + Category + Bid Count */}
-          <div className="flex items-center justify-center gap-[var(--space-2)] flex-wrap">
+          <div className="flex items-center justify-between">
             <EncryptionStatusBadge status={encryption.status} />
-            {isOptimistic && (
+            {isOptimistic ? (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
                 Awaiting confirmation
               </span>
+            ) : (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
+                {getCategoryLabel(encryption.category)}
+              </span>
             )}
-            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-              {getCategoryLabel(encryption.category)}
-            </span>
-            {bidCount > 0 && (
+            {bidCount > 0 ? (
               <span
                 key={bidCount}
                 className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
               >
                 {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
               </span>
+            ) : (
+              <span className="text-xs text-[var(--text-muted)]">0 bids</span>
             )}
           </div>
           {/* Row 3: Listed Date */}
           <p className="text-xs text-[var(--text-muted)]">
             Listed {formatDate(encryption.createdAt)}
-          </p>
-          {/* Row 4: Transaction Link */}
-          <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate">
-            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs tracking-widest" />
           </p>
         </div>
 

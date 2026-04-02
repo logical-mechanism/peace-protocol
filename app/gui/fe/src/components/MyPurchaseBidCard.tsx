@@ -217,12 +217,10 @@ function MyPurchaseBidCard({
     <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
       {/* Header */}
       <div className="mb-4 space-y-1">
-        {/* Row 1: Token Name */}
-        <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate" title={bid.encryptionToken}>
-          Bid on {truncateHex(bid.encryptionToken, 12, 8)}
-        </p>
+        {/* Row 1: Transaction Hash */}
+        <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
         {/* Row 2: Status */}
-        <div className="flex items-center justify-center gap-2 flex-wrap">
+        <div className="flex items-center justify-between">
           <BidStatusBadge status={bid.status} />
           {isOptimistic && (
             <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
@@ -234,10 +232,6 @@ function MyPurchaseBidCard({
         {/* Row 3: Date */}
         <p className="text-xs text-[var(--text-muted)]">
           {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
-        </p>
-        {/* Row 4: Transaction Link */}
-        <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate">
-          <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs tracking-widest" />
         </p>
       </div>
 

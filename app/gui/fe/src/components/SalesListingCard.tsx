@@ -224,12 +224,10 @@ function SalesListingCard({
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
-          {/* Row 1: Token Name */}
-          <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate" title={encryption.tokenName}>
-            {truncateHex(encryption.tokenName, 12, 8)}
-          </p>
+          {/* Row 1: Transaction Hash */}
+          <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
           {/* Row 2: Status + Storage Layer */}
-          <div className="flex items-center justify-center gap-[var(--space-2)] flex-wrap">
+          <div className="flex items-center justify-between">
             <EncryptionStatusBadge status={encryption.status} />
             <span
               className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
@@ -244,10 +242,6 @@ function SalesListingCard({
           {/* Row 3: Created Date */}
           <p className="text-xs text-[var(--text-muted)]">
             Created: {formatRelativeTime(encryption.createdAt)}
-          </p>
-          {/* Row 4: Transaction Link */}
-          <p className="text-xs font-mono text-[var(--text-muted)] tracking-widest truncate">
-            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs tracking-widest" />
           </p>
         </div>
 
