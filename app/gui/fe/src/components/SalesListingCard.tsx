@@ -130,12 +130,6 @@ function SalesListingCard({
                   </p>
                 )}
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  {isActive && (
-                    <>
-                      <span>Bids: {bidCount}</span>
-                      <span className="mx-[var(--space-1)]">|</span>
-                    </>
-                  )}
                   <span>{formatRelativeTime(encryption.createdAt)}</span>
                 </p>
               </div>
@@ -158,11 +152,6 @@ function SalesListingCard({
                     </button>
                   )}
                 </span>
-                {isActive && bidCount > 0 && (
-                  <p className="text-xs text-[var(--text-muted)]">
-                    {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
-                  </p>
-                )}
                 {isPending && pendingTTL && (
                   <p className="text-xs text-[var(--warning)]">{pendingTTL}</p>
                 )}
@@ -249,12 +238,6 @@ function SalesListingCard({
               </span>
             </div>
             <p className="text-xs text-[var(--text-muted)]">
-              {isActive && (
-                <>
-                  <span>Bids: {bidCount}</span>
-                  <span className="mx-1.5">|</span>
-                </>
-              )}
               <span>Created: {formatRelativeTime(encryption.createdAt)}</span>
             </p>
           </div>
@@ -301,20 +284,6 @@ function SalesListingCard({
             )}
           </p>
         </div>
-
-        {/* Bids Info (for active listings) */}
-        {isActive && (
-          <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Active Bids</span>
-            <span
-              className={`text-sm font-medium ${
-                bidCount > 0 ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
-              }`}
-            >
-              {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
-            </span>
-          </div>
-        )}
 
         {/* Pending Status Info */}
         {isPending && (

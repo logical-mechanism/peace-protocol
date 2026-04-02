@@ -140,14 +140,10 @@ describe('SalesListingCard', () => {
       expect(screen.getByText('Remove Listing')).toBeInTheDocument();
     });
 
-    it('shows bid count', () => {
-      renderCard({ status: 'active' }, { bidCount: 5 });
-      expect(screen.getByText('5 bids')).toBeInTheDocument();
-    });
-
-    it('shows singular bid text for 1 bid', () => {
-      renderCard({ status: 'active' }, { bidCount: 1 });
-      expect(screen.getByText('1 bid')).toBeInTheDocument();
+    it('shows bid count in View Bids button badge', () => {
+      renderCard({ status: 'active' }, { bidCount: 5, onViewBids: vi.fn() });
+      const badge = screen.getByText('5');
+      expect(badge).toBeInTheDocument();
     });
 
     it('calls onViewBids when clicked', () => {
