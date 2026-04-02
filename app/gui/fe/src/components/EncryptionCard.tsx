@@ -9,6 +9,7 @@ import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
 import { formatPrice, getCategoryLabel } from '../utils/formatListing';
+import { TransactionLinkInline } from './TransactionLink';
 
 
 interface EncryptionCardProps {
@@ -204,8 +205,10 @@ function EncryptionCard({
                 </span>
               )}
             </div>
-            <p className="text-xs text-[var(--text-muted)]">
-              Listed {formatDate(encryption.createdAt)}
+            <p className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
+              <span>Listed {formatDate(encryption.createdAt)}</span>
+              <span>·</span>
+              <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
             </p>
           </div>
         </div>

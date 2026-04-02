@@ -7,6 +7,7 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
 import { formatPrice, getCategoryLabel } from '../utils/formatListing';
+import { TransactionLinkInline } from './TransactionLink';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
@@ -129,8 +130,10 @@ function SalesListingCard({
                     {truncateDescription(encryption.description)}
                   </p>
                 )}
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                <p className="text-xs text-[var(--text-muted)] mt-0.5 flex items-center gap-1.5">
                   <span>{formatRelativeTime(encryption.createdAt)}</span>
+                  <span>·</span>
+                  <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
                 </p>
               </div>
             </div>
@@ -237,8 +240,10 @@ function SalesListingCard({
                 {getStorageLayerLabel(encryption.storageLayer)}
               </span>
             </div>
-            <p className="text-xs text-[var(--text-muted)]">
+            <p className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
               <span>Created: {formatRelativeTime(encryption.createdAt)}</span>
+              <span>·</span>
+              <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
             </p>
           </div>
         </div>

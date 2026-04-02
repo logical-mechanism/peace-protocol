@@ -10,6 +10,7 @@ import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { formatDate } from '../utils/formatDate';
 import ListingImage from './ListingImage';
+import { TransactionLinkInline } from './TransactionLink';
 import { copyToClipboard } from '../utils/clipboard';
 
 interface MyPurchaseBidCardProps {
@@ -115,6 +116,9 @@ function MyPurchaseBidCard({
                   {isPending ? 'Waiting for seller' : formatDate(bid.createdAt)}
                 </p>
               )}
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs" />
+              </p>
             </div>
           </div>
 
@@ -227,8 +231,10 @@ function MyPurchaseBidCard({
             )}
             <InfoTooltip text={getStatusTooltip()} position="bottom" />
           </div>
-          <p className="text-xs text-[var(--text-muted)]">
-            {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
+          <p className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
+            <span>{isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}</span>
+            <span>·</span>
+            <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs" />
           </p>
         </div>
       </div>
