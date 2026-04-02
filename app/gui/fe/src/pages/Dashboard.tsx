@@ -628,7 +628,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-[var(--border-subtle)] mb-6">
+        <nav className="border-b border-[var(--border-subtle)] mb-6" aria-label="Dashboard tabs">
           <div className="flex items-center justify-between">
           <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
             {TABS.map((tab, index) => (
@@ -694,7 +694,7 @@ export default function Dashboard() {
             </button>
           </div>
           </div>
-        </div>
+        </nav>
 
         {/* Tab Content — tabs stay mounted once visited for instant switching */}
         {visitedTabs.has('marketplace') && (
