@@ -75,6 +75,13 @@ function renderCard(
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  // @ts-expect-error - mock IntersectionObserver for ListingImage
+  globalThis.IntersectionObserver = vi.fn(() => ({
+    observe: vi.fn(),
+    disconnect: vi.fn(),
+    unobserve: vi.fn(),
+  }));
 });
 
 // ── Tests ───────────────────────────────────────────────────────────
@@ -91,9 +98,10 @@ describe('MyPurchaseBidCard', () => {
       expect(screen.getByTestId('bid-status-badge')).toHaveTextContent('pending');
     });
 
-    it('renders encryption token reference', () => {
-      renderCard({ encryptionToken: 'abcdef12' });
-      expect(screen.getByText(/abcdef12/)).toBeInTheDocument();
+    it('renders transaction hash link in compact mode', () => {
+      renderCard({}, { compact: true });
+      // TransactionLink renders the tx hash with CardanoScan link
+      expect(screen.getByTitle(/View transaction.*on CardanoScan/)).toBeInTheDocument();
     });
 
     it('renders info tooltip', () => {

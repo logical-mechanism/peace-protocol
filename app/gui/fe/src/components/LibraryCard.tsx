@@ -7,9 +7,12 @@ import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { getContentType } from '../utils/contentType';
 import { formatDate } from '../utils/formatDate';
+import { copyToClipboard } from '../utils/clipboard';
+import ListingImage from './ListingImage';
 
 interface LibraryCardProps {
   item: LibraryItem;
+  walletAddress?: string;
   onView: (item: LibraryItem) => void;
   onDelete: (item: LibraryItem) => void;
   onRelist?: (item: LibraryItem) => void;
@@ -79,6 +82,7 @@ function CategoryIcon({ category, fileExtension, size = 'md' }: { category: stri
 
 function LibraryCard({
   item,
+  walletAddress,
   onView,
   onDelete,
   onRelist,
@@ -88,11 +92,23 @@ function LibraryCard({
   onToggleSelect,
 }: LibraryCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+  const [copiedSeller, setCopiedSeller] = useState(false);
+
+  const sellerAddress = item.seller || walletAddress || '';
+
+  const handleCopySeller = async () => {
+    if (!sellerAddress) return;
+    const success = await copyToClipboard(sellerAddress);
+    if (success) {
+      setCopiedSeller(true);
+      setTimeout(() => setCopiedSeller(false), 1500);
+    }
+  };
 
   if (compact) {
     return (
       <>
-        <div
+        <article
           className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-4 transition-all duration-[var(--transition-fast)] ${
             selected
               ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
@@ -113,9 +129,17 @@ function LibraryCard({
                   aria-label={`Select ${item.tokenName}`}
                 />
               )}
-              <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
-                <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
-              </div>
+              {item.imageLink ? (
+                <ListingImage
+                  tokenName={item.tokenName}
+                  imageLink={item.imageLink}
+                  size="sm"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)] flex-shrink-0">
+                  <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
+                </div>
+              )}
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -129,8 +153,9 @@ function LibraryCard({
                 </div>
                 {item.description && (
                   <p
-                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
+                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] max-w-md relative z-10"
                     onClick={() => setDescriptionModalOpen(true)}
+                    title={item.description}
                   >
                     {truncateDescription(item.description)}
                   </p>
@@ -138,16 +163,39 @@ function LibraryCard({
               </div>
             </div>
 
-            {/* Middle: Seller & Date */}
+            {/* Middle: Seller, Date, Size */}
             <div className="flex items-center gap-6 flex-shrink-0">
-              <div className="text-right">
-                <p className="text-xs font-mono text-[var(--text-muted)]" title={item.seller ?? ''}>
-                  {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  {formatDate(item.decryptedAt)}
-                  {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
-                </p>
+              <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs text-right">
+                {sellerAddress && (
+                  <>
+                    <span className="text-[var(--text-muted)]">Seller</span>
+                    <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={sellerAddress}>
+                      {truncateHex(sellerAddress, 8, 4)}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
+                        className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                        title="Copy seller address"
+                        aria-label="Copy seller address"
+                      >
+                        <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {copiedSeller ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          )}
+                        </svg>
+                      </button>
+                    </span>
+                  </>
+                )}
+                <span className="text-[var(--text-muted)]">Date</span>
+                <span className="text-[var(--text-muted)]">{formatDate(item.decryptedAt)}</span>
+                {item.fileSize != null && (
+                  <>
+                    <span className="text-[var(--text-muted)]">Size</span>
+                    <span className="text-[var(--text-muted)]">{formatBytes(item.fileSize)}</span>
+                  </>
+                )}
               </div>
 
               {/* Actions */}
@@ -185,7 +233,7 @@ function LibraryCard({
               )}
             </div>
           </div>
-        </div>
+        </article>
 
         <DescriptionModal
           isOpen={descriptionModalOpen}
@@ -199,7 +247,7 @@ function LibraryCard({
 
   return (
     <>
-      <div
+      <article
         className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-[var(--transition-fast)] ${
           selected
             ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
@@ -222,34 +270,42 @@ function LibraryCard({
         )}
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate" title={item.tokenName}>
-                {truncateHex(item.tokenName, 8, 4)}
-              </span>
-              <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
-              {item.contentMissing && (
-                <Badge variant="warning">Content Missing</Badge>
-              )}
+        <div className="mb-4 space-y-1">
+          {/* Row 1: Category Icon + Token Name + Category Badge */}
+          <div className="flex items-center gap-[var(--space-2)] min-w-0">
+            <div className="w-5 h-5 flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
+              <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
             </div>
-            <p className="text-xs text-[var(--text-muted)]">
-              Decrypted {formatDate(item.decryptedAt)}
-              {item.fileSize != null && ` \u2014 ${formatBytes(item.fileSize)}`}
-            </p>
+            <span className="text-xs font-mono text-[var(--text-muted)] tracking-wide truncate" title={item.tokenName}>
+              {truncateHex(item.tokenName, 12, 8)}
+            </span>
+            <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
+            {item.contentMissing && (
+              <Badge variant="warning">Missing</Badge>
+            )}
           </div>
-          {onRelist && !item.contentMissing && !selectMode && (
-            <button
-              onClick={() => onRelist(item)}
-              className="flex-shrink-0 p-1.5 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] btn-base"
-              title="Create listing from this item"
-              aria-label="Create listing from this item"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-            </button>
-          )}
+          {/* Row 2: File Size (left) + Relist button (right) */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--text-muted)]">
+              {item.fileSize != null ? formatBytes(item.fileSize) : '\u00A0'}
+            </span>
+            {onRelist && !item.contentMissing && !selectMode && (
+              <button
+                onClick={() => onRelist(item)}
+                className="p-1 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] btn-base"
+                title="Create listing from this item"
+                aria-label="Create listing from this item"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {/* Row 3: Date (centered) */}
+          <p className="text-xs text-[var(--text-muted)] text-center">
+            Decrypted {formatDate(item.decryptedAt)}
+          </p>
         </div>
 
         {/* Description */}
@@ -273,20 +329,44 @@ function LibraryCard({
           </div>
         )}
 
-        {/* Category Icon */}
-        <div className="flex items-center justify-center py-6 mb-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-          <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
-            <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
+        {/* Image / Category Icon */}
+        {item.imageLink ? (
+          <ListingImage
+            tokenName={item.tokenName}
+            imageLink={item.imageLink}
+            size="md"
+          />
+        ) : (
+          <div className="w-full h-40 rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]">
+            <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
+              <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Seller Info */}
-        <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-          <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-          <span className="text-xs font-mono text-[var(--text-secondary)]" title={item.seller ?? ''}>
-            {item.seller ? truncateHex(item.seller, 8, 4) : 'You'}
-          </span>
-        </div>
+        {sellerAddress && (
+          <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
+            <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
+            <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={sellerAddress}>
+              {truncateHex(sellerAddress, 12, 8)}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
+                className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                title="Copy seller address"
+                aria-label="Copy seller address"
+              >
+                <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {copiedSeller ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  )}
+                </svg>
+              </button>
+            </span>
+          </div>
+        )}
 
         {/* Action Buttons */}
         {!selectMode && (
@@ -305,7 +385,7 @@ function LibraryCard({
             </button>
           </div>
         )}
-      </div>
+      </article>
 
       <DescriptionModal
         isOpen={descriptionModalOpen}
@@ -327,6 +407,7 @@ function arePropsEqual(prev: LibraryCardProps, next: LibraryCardProps): boolean 
     prev.item.fileExtension === next.item.fileExtension &&
     prev.item.seller === next.item.seller &&
     prev.item.decryptedAt === next.item.decryptedAt &&
+    prev.walletAddress === next.walletAddress &&
     prev.compact === next.compact &&
     prev.selectMode === next.selectMode &&
     prev.selected === next.selected &&
