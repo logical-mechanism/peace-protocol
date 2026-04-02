@@ -224,23 +224,23 @@ function SalesListingCard({
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
-          {/* Row 1: Transaction Hash */}
-          <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
-          {/* Row 2: Status + Storage Layer */}
-          <div className="flex items-center justify-between">
+          {/* Row 1: Status + Transaction Hash */}
+          <div className="flex items-center gap-[var(--space-2)] min-w-0">
+            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
             <EncryptionStatusBadge status={encryption.status} />
-            <span
-              className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
-                isUnknownStorageLayer(encryption.storageLayer)
-                  ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
-              }`}
-            >
-              {getStorageLayerLabel(encryption.storageLayer)}
-            </span>
           </div>
+          {/* Row 2: Storage Layer */}
+          <span
+            className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border inline-block ${
+              isUnknownStorageLayer(encryption.storageLayer)
+                ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+            }`}
+          >
+            {getStorageLayerLabel(encryption.storageLayer)}
+          </span>
           {/* Row 3: Created Date */}
-          <p className="text-xs text-[var(--text-muted)]">
+          <p className="text-xs text-[var(--text-muted)] text-center">
             Created: {formatRelativeTime(encryption.createdAt)}
           </p>
         </div>

@@ -165,7 +165,7 @@ function EncryptionCard({
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
         <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
-          {/* Row 1: Star + Transaction Hash */}
+          {/* Row 1: Star + Status + Transaction Hash */}
           <div className="flex items-center gap-[var(--space-2)] min-w-0">
             {onToggleFavorite && (
               <button
@@ -181,19 +181,18 @@ function EncryptionCard({
               </button>
             )}
             <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
-          </div>
-          {/* Row 2: Status + Category + Bid Count */}
-          <div className="flex items-center justify-between">
             <EncryptionStatusBadge status={encryption.status} />
-            {isOptimistic ? (
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+            {isOptimistic && (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
                 Awaiting confirmation
               </span>
-            ) : (
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                {getCategoryLabel(encryption.category)}
-              </span>
             )}
+          </div>
+          {/* Row 2: Category (left) + Bid Count (right) */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
+              {getCategoryLabel(encryption.category)}
+            </span>
             {bidCount > 0 ? (
               <span
                 key={bidCount}
@@ -206,7 +205,7 @@ function EncryptionCard({
             )}
           </div>
           {/* Row 3: Listed Date */}
-          <p className="text-xs text-[var(--text-muted)]">
+          <p className="text-xs text-[var(--text-muted)] text-center">
             Listed {formatDate(encryption.createdAt)}
           </p>
         </div>
