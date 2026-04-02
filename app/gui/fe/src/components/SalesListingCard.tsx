@@ -223,29 +223,30 @@ function SalesListingCard({
     <>
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
-        <div className="flex items-start justify-between mb-[var(--space-md)]">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-1)]">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0" title={encryption.tokenName}>
-                {truncateHex(encryption.tokenName, 8, 4)}
-              </span>
-              <EncryptionStatusBadge status={encryption.status} />
-              <span
-                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
-                  isUnknownStorageLayer(encryption.storageLayer)
-                    ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
-                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
-                }`}
-              >
-                {getStorageLayerLabel(encryption.storageLayer)}
-              </span>
-            </div>
-            <p className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
-              <span>Created: {formatRelativeTime(encryption.createdAt)}</span>
-              <span>·</span>
-              <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
-            </p>
+        <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
+          {/* Row 1: Token Name */}
+          <span className="text-xs font-mono text-[var(--text-muted)] truncate block" title={encryption.tokenName}>
+            {truncateHex(encryption.tokenName, 8, 4)}
+          </span>
+          {/* Row 2: Status + Storage Layer */}
+          <div className="flex items-center gap-[var(--space-2)] flex-wrap">
+            <EncryptionStatusBadge status={encryption.status} />
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
+                isUnknownStorageLayer(encryption.storageLayer)
+                  ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+              }`}
+            >
+              {getStorageLayerLabel(encryption.storageLayer)}
+            </span>
           </div>
+          {/* Row 3: Created Date */}
+          <p className="text-xs text-[var(--text-muted)]">
+            Created: {formatRelativeTime(encryption.createdAt)}
+          </p>
+          {/* Row 4: Transaction Link */}
+          <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs" />
         </div>
 
         {/* Description */}

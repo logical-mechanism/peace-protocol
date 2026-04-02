@@ -216,27 +216,27 @@ function MyPurchaseBidCard({
     <>
     <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs text-[var(--text-muted)]">Bid on</span>
-            <span className="text-xs font-mono text-[var(--text-secondary)] truncate" title={bid.encryptionToken}>
-              {truncateHex(bid.encryptionToken, 8, 4)}
+      <div className="mb-4 space-y-1">
+        {/* Row 1: Token Name */}
+        <span className="text-xs font-mono text-[var(--text-muted)] truncate block" title={bid.encryptionToken}>
+          Bid on {truncateHex(bid.encryptionToken, 8, 4)}
+        </span>
+        {/* Row 2: Status */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <BidStatusBadge status={bid.status} />
+          {isOptimistic && (
+            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+              Awaiting confirmation
             </span>
-            <BidStatusBadge status={bid.status} />
-            {isOptimistic && (
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                Awaiting confirmation
-              </span>
-            )}
-            <InfoTooltip text={getStatusTooltip()} position="bottom" />
-          </div>
-          <p className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
-            <span>{isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}</span>
-            <span>·</span>
-            <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs" />
-          </p>
+          )}
+          <InfoTooltip text={getStatusTooltip()} position="bottom" />
         </div>
+        {/* Row 3: Date */}
+        <p className="text-xs text-[var(--text-muted)]">
+          {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
+        </p>
+        {/* Row 4: Transaction Link */}
+        <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs" />
       </div>
 
       {/* Bid Status Timeline */}
