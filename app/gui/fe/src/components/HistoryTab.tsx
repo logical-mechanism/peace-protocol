@@ -129,7 +129,7 @@ function HistoryTab({
             tokenName: e.tokenName,
             timestamp: new Date(e.createdAt).getTime(),
             status: 'confirmed',
-            description: e.description || `Listing ${e.tokenName.slice(0, 12)}...`,
+            description: e.description || `Listing ${e.tokenName}`,
           });
         }
       }

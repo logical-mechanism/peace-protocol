@@ -396,7 +396,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
               tokenName: encryption.tokenName,
               timestamp: Date.now(),
               status: 'pending',
-              description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
+              description: encryption.description || `Remove ${encryption.tokenName}`,
             })
           })
 
@@ -417,7 +417,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
                 tokenName: encryption.tokenName,
                 timestamp: Date.now(),
                 status: 'confirmed',
-                description: encryption.description || `Remove ${encryption.tokenName.slice(0, 12)}...`,
+                description: encryption.description || `Remove ${encryption.tokenName}`,
               })
             }
           } else if (result.txHash) {
@@ -633,7 +633,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
               tokenName: encryption.tokenName,
               timestamp: Date.now(),
               status: 'pending',
-              description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
+              description: `Cancel pending sale for ${encryption.tokenName}`,
             })
           })
 
@@ -654,7 +654,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
                 tokenName: encryption.tokenName,
                 timestamp: Date.now(),
                 status: 'confirmed',
-                description: `Cancel pending sale for ${encryption.tokenName.slice(0, 12)}...`,
+                description: `Cancel pending sale for ${encryption.tokenName}`,
               })
             }
           } else if (result.txHash) {
@@ -714,7 +714,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           tokenName: encryption.tokenName,
           timestamp: Date.now(),
           status: 'pending',
-          description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
+          description: `Complete sale of ${encryption.tokenName} (re-encryption)`,
           amountLovelace: acceptedBid.amount,
           counterparty: acceptedBid.bidderPkh,
         })
@@ -737,7 +737,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
             tokenName: encryption.tokenName,
             timestamp: Date.now(),
             status: 'confirmed',
-            description: `Complete sale of ${encryption.tokenName.slice(0, 12)}... (re-encryption)`,
+            description: `Complete sale of ${encryption.tokenName} (re-encryption)`,
             amountLovelace: acceptedBid.amount,
             counterparty: acceptedBid.bidderPkh,
           })
@@ -780,7 +780,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         tokenName: encryption.tokenName,
         timestamp: Date.now(),
         status: 'pending',
-        description: `Update price for ${encryption.tokenName.slice(0, 12)}...`,
+        description: `Update price for ${encryption.tokenName}`,
       })
     })
 
@@ -797,7 +797,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           tokenName: encryption.tokenName,
           timestamp: Date.now(),
           status: 'confirmed',
-          description: `Update price for ${encryption.tokenName.slice(0, 12)}...`,
+          description: `Update price for ${encryption.tokenName}`,
         })
       }
     } else if (result.txHash) {
