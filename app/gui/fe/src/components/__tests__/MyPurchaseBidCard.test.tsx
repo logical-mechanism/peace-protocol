@@ -75,6 +75,13 @@ function renderCard(
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  // @ts-expect-error - mock IntersectionObserver for ListingImage
+  globalThis.IntersectionObserver = vi.fn(() => ({
+    observe: vi.fn(),
+    disconnect: vi.fn(),
+    unobserve: vi.fn(),
+  }));
 });
 
 // ── Tests ───────────────────────────────────────────────────────────
