@@ -99,7 +99,7 @@ function SalesListingCard({
             <div className="w-5 flex-shrink-0" />
             <TransactionLink txHash={encryption.utxo.txHash} className="text-xs" />
             <span
-              className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border flex-shrink-0 ${
+              className={`ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border flex-shrink-0 ${
                 isUnknownStorageLayer(encryption.storageLayer)
                   ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'

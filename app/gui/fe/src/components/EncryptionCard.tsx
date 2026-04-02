@@ -87,7 +87,7 @@ function EncryptionCard({
               </button>
             )}
             <TransactionLink txHash={encryption.utxo.txHash} className="text-xs" />
-            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
+            <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
               {getCategoryLabel(encryption.category)}
             </span>
             <EncryptionStatusBadge status={encryption.status} />

@@ -85,6 +85,7 @@ function MyPurchaseBidCard({
         <div className="flex items-center gap-2 mb-[var(--space-2)] min-w-0">
           <InfoTooltip text={getStatusTooltip()} position="bottom" />
           <TransactionLink txHash={bid.utxo.txHash} className="text-xs" />
+          <span className="ml-auto" />
           <BidStatusBadge status={bid.status} />
           {isOptimistic && (
             <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
