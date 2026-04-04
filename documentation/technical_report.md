@@ -1058,20 +1058,35 @@ Let $\lambda$ be the security parameter. The game between a challenger $\mathcal
 
 \textbf{PEACE-specific modeling notes.} (1) The on-chain verification checks (pairing equations, binding proofs, Schnorr proofs, Groth16 verification, limb compression) are public algorithms; $\mathcal{A}$ may run them on any candidate ciphertext. These constitute a well-formedness check, not a decryption oracle. (2) Because re-encryption is owner-mediated, there is no separate re-encryption key object; $\mathcal{O}_{\mathsf{ReEncrypt}}$ simulates the owner's computation. (3) Each ciphertext is bound to a unique token name, so $\mathcal{A}$ cannot transplant a ciphertext across tokens.
 
+## Hardness Assumption
+
+The core reduction requires a decisional assumption tailored to the PEACE ciphertext structure. In a Type-3 pairing, $\kappa = e([a]q, h_{0})$ is efficiently computable from $[a]q \in \mathbb{G}_{1}$ and $h_{0} \in \mathbb{G}_{2}$ via the public pairing map. Standard assumptions such as DBDH are not directly applicable because elements from both groups allow trivial pairing checks. We therefore define a custom assumption that captures the information-theoretic structure of PEACE ciphertexts.
+
+\begin{definition}[PRE-DDH Assumption]\label{def:pre-ddh}
+Let $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ be a Type-3 bilinear pairing with generators $q \in \mathbb{G}_{1}$, $p \in \mathbb{G}_{2}$, and let $h_{0} \in \mathbb{G}_{2}$ be a fixed public element with unknown discrete logarithm. For uniformly random $\delta, r, a \xleftarrow{\$} \mathbb{Z}_{n}$, the PRE-DDH problem is to distinguish:
+$$\left(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ h_{0},\ e([a]q, h_{0})\right) \quad \text{from} \quad \left(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ h_{0},\ T\right)$$
+where $T \xleftarrow{\$} \mathbb{G}_{T}$. The advantage is $\mathsf{Adv}^{\mathsf{PRE\text{-}DDH}}(\lambda) = |\Pr[\mathcal{A}(\mathsf{real}) = 1] - \Pr[\mathcal{A}(\mathsf{random}) = 1]|$.
+\end{definition}
+
+\textbf{Justification.} PRE-DDH holds in the generic group model (GGM). In the GGM, the adversary's only operations are group operations in $\mathbb{G}_{1}$, $\mathbb{G}_{2}$, $\mathbb{G}_{T}$ and the pairing evaluation $e$. From the given $\mathbb{G}_{1}$ elements $\{q,\ [\delta]q,\ [r]q,\ [a+r\delta]q\}$, the adversary can form linear combinations $[\alpha_{0} + \alpha_{1}\delta + \alpha_{2}r + \alpha_{3}(a+r\delta)]q$ for known $\alpha_{i}$. To isolate $[a]q$, it would need $\alpha_{3} = 1$ and $\alpha_{2} + \alpha_{3}\delta = 0$, which requires $\alpha_{2} = -\delta$; but $\delta$ is unknown, so no valid combination yields $[a]q$. Without $[a]q$ in isolation, the pairing $e([a]q, h_{0})$ cannot be computed, and the target element in $\mathbb{G}_{T}$ is information-theoretically independent of the adversary's view. PRE-DDH is implied by CDH in $\mathbb{G}_{1}$: an adversary that solves CDH can compute $[r\delta]q$ from $[r]q$ and $[\delta]q$, recover $[a]q = [a+r\delta]q - [r\delta]q$, and then evaluate $e([a]q, h_{0})$.
+
+\textbf{Relation to standard assumptions.} PRE-DDH is a falsifiable assumption that sits between DDH and CDH in strength. It is strictly weaker than CDH in $\mathbb{G}_{1}$ (CDH solves PRE-DDH, but not vice versa) and is independent of XDH (which concerns DDH in $\mathbb{G}_{1}$ without pairing access to the target). A tight reduction to XDH alone is complicated by the Type-3 coupling between $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ via the shared scalar $r$ in the PEACE ciphertext structure (Appendix C.5, item 1). Achieving a tight reduction to XDH using techniques such as dual-system encryption or programmable hash proofs is left as future work.
+
 ## Main Theorem
 
 \begin{theorem}[IND-PRE-CCA Security of PEACE]\label{thm:main}
-If the External Diffie--Hellman (XDH) assumption holds in $\mathbb{G}_{1}$ (i.e., DDH is hard in $\mathbb{G}_{1}$), MiMC behaves as a random oracle in the algebraic group model, Blake2b-224 is collision-resistant, Groth16 is knowledge-sound \textnormal{[@groth-2016]}, AES-GCM is IND-CPA secure, and HKDF is a secure key derivation function in the random oracle model, then for any PPT adversary $\mathcal{A}$ there exist PPT reductions $\mathcal{B}_{1}, \ldots, \mathcal{B}_{6}$ such that
+If the PRE-DDH assumption (Definition~\ref{def:pre-ddh}) holds, MiMC behaves as a random oracle, Blake2b-224 is collision-resistant, CDH holds in $\mathbb{G}_{2}$, Groth16 is knowledge-sound \textnormal{[@groth-2016]}, AES-GCM is IND-CPA secure, and HKDF is a secure key derivation function in the random oracle model, then for any PPT adversary $\mathcal{A}$ there exist PPT reductions $\mathcal{B}_{1}, \ldots, \mathcal{B}_{7}$ such that
 
 \begin{equation}\label{eq:main-bound}
 \begin{aligned}
 \mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}PRE\text{-}CCA}}(\lambda) \leq{}
-  & \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{XDH}}(\lambda)
+  & \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{PRE\text{-}DDH}}(\lambda)
   + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)
   + \mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}(\lambda) \\
-  &+ \mathsf{Adv}_{\mathcal{B}_{4}}^{\mathsf{KS\text{-}Groth16}}(\lambda)
-  + \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{IND\text{-}CPA\text{-}AES}}(\lambda)
-  + \mathsf{Adv}_{\mathcal{B}_{6}}^{\mathsf{PRF\text{-}HKDF}}(\lambda)
+  &+ \mathsf{Adv}_{\mathcal{B}_{4}}^{\mathsf{CDH\text{-}\mathbb{G}_{2}}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{KS\text{-}Groth16}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{6}}^{\mathsf{IND\text{-}CPA\text{-}AES}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{7}}^{\mathsf{PRF\text{-}HKDF}}(\lambda)
 \end{aligned}
 \end{equation}
 \end{theorem}
@@ -1108,32 +1123,35 @@ By special soundness of the Schnorr and binding $\Sigma$-protocols: two acceptin
 \textbf{Game~4} (ciphertext non-malleability via R4 binding). Show that the $R_{4}$ component binds the ciphertext components together. The verification equation $e(q, R_{4}) = e(R_{1}, h_{1}^{H(R_{1})} \cdot h_{2}^{H(R_{1} \| R_{2} \| \mathsf{token})} \cdot h_{3})$ ties $(R_{1}, R_{2}, \mathsf{token})$ through hash-derived exponents on fixed public $\mathbb{G}_{2}$ points.
 
 \begin{claim}
-The transition from Game~3 to Game~4 is bounded by the CDH advantage in $\mathbb{G}_{2}$ (implied by XDH via the bilinear map) plus $\mathsf{Adv}^{\mathsf{CR\text{-}Blake2b}}$.
+The transition from Game~3 to Game~4 is bounded by the CDH advantage in $\mathbb{G}_{2}$ plus $\mathsf{Adv}^{\mathsf{CR\text{-}Blake2b}}$.
 \end{claim}
 
 Suppose $\mathcal{A}$ produces a modified ciphertext $(R_{1}', R_{2}', R_{4}')$ that passes the pairing check with a different $(R_{1}, R_{2})$ or a different token name. Since $h_{1}, h_{2}, h_{3}$ are random $\mathbb{G}_{2}$ elements (hash-to-group from a public seed with domain separation), and the hashes $H(R_{1})$ and $H(R_{1} \| R_{2} \| \mathsf{token})$ are collision-resistant, producing a valid $R_{4}'$ for modified inputs requires solving CDH in $\mathbb{G}_{2}$.
 
 \textbf{PEACE-specific note:} The inclusion of the token name in the hash input (absent in the original Wang--Cao construction) prevents cross-NFT transplant attacks, where an adversary copies a valid ciphertext from one token to another.
 
-\textbf{Game~5} (XDH core). In the challenge ciphertext, replace $\kappa^{*} = e([a^{*}]q, h_{0})$ with a uniformly random element $\kappa_{\mathsf{rand}} \in \mathbb{G}_{T}$.
+\textbf{Game~5} (PRE-DDH core). In the challenge ciphertext, replace $\kappa^{*} = e([a^{*}]q, h_{0})$ with a uniformly random element $\kappa_{\mathsf{rand}} \in \mathbb{G}_{T}$.
 
 \begin{claim}
-$|\Pr[S_{5}] - \Pr[S_{4}]| \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{XDH}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)$.
+$|\Pr[S_{5}] - \Pr[S_{4}]| \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{PRE\text{-}DDH}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)$.
 \end{claim}
 
-The reduction proceeds in two stages. First, we use the XDH assumption (DDH in $\mathbb{G}_{1}$) to hide $[a^{*}]q$ within $R_{2}^{*}$. Then, since $[a^{*}]q$ is hidden, $\kappa^{*} = e([a^{*}]q, h_{0})$ becomes computationally indistinguishable from random.
-
-\textit{Embedding.} Given a DDH instance in $\mathbb{G}_{1}$: $(q,\ [\alpha]q,\ [\beta]q,\ T)$ where $T$ is either $[\alpha\beta]q$ (real) or $[\gamma]q$ for uniform $\gamma$ (random):
+\textit{Reduction.} Given a PRE-DDH instance $(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ h_{0},\ T)$ where $T$ is either $e([a]q, h_{0})$ (real) or uniform in $\mathbb{G}_{T}$ (random), the reducer $\mathcal{B}_{1}$ simulates the IND-PRE-CCA game as follows:
 
 \begin{itemize}
-\item Set the challenge user's public key as $u_{i^{*}} = [\alpha]q$ from the DDH challenge. The reducer does \emph{not} know $\delta_{i^{*}} = \alpha$.
-\item Set $R_{1}^{*} = [\beta]q$ (embedding $\beta$ as $r^{*}$).
-\item Set $R_{2}^{*} = T + [\hat{a}]q$ for a freshly sampled $\hat{a} \xleftarrow{\$} \mathbb{Z}_{n}$.
+\item Set the challenge user's public key: $u_{i^{*}} = [\delta]q$.
+\item Set the challenge ciphertext components: $R_{1}^{*} = [r]q$, $R_{2}^{*} = [a + r\delta]q$.
+\item Set the pairing secret: $\kappa^{*} = T$.
+\item Derive $hk^{*} = \mathsf{MiMC}(\kappa^{*} \| \mathsf{DomainTag})$ and $\mathsf{DEK}^{*} = \mathsf{HKDF}(\kappa^{*} \| R_{1}^{*})$, encrypt $m_{b}$.
 \end{itemize}
 
-If $T = [\alpha\beta]q$ (real DDH tuple), then $R_{2}^{*} = [\hat{a}]q + [\alpha\beta]q = [\hat{a} + \alpha\beta]q$. Setting $a^{*} = \hat{a} + \alpha\beta$ and $r^{*} = \beta$, we get $R_{2}^{*} = [a^{*}]q + [r^{*}]u_{i^{*}}$, which is correctly distributed. The pairing secret is $\kappa^{*} = e([a^{*}]q, h_{0})$, which the reducer cannot compute (it does not know $a^{*}$, since $\alpha$ is unknown). If $T = [\gamma]q$ (random), then $R_{2}^{*} = [\hat{a} + \gamma]q$ where $\gamma$ is uniform and independent of $\alpha, \beta$. The value $[a^{*}]q$ is now uniformly random in $\mathbb{G}_{1}$ from the adversary's view, so $\kappa^{*} = e([a^{*}]q, h_{0})$ is uniform in $\mathbb{G}_{T}$ (since the pairing is non-degenerate and $h_{0} \neq \mathcal{O}$).
+If $T = e([a]q, h_{0})$, the challenge ciphertext is correctly distributed. If $T$ is random, $\kappa^{*}$ is uniform in $\mathbb{G}_{T}$, and the DEK is independent of the plaintext.
 
-\textit{MiMC as random oracle.} Once $\kappa^{*}$ is uniform in $\mathbb{G}_{T}$, we model MiMC as a random oracle: $hk = \mathsf{MiMC}(\kappa^{*} \| \mathsf{DomainTag})$ is then uniformly distributed in $\mathbb{Z}_{n}$, and the DEK derived via HKDF becomes independent of the plaintext. The MiMC random oracle assumption (denoted $\mathsf{RO\text{-}MiMC}$) is stronger than collision resistance but is standard for algebraic hash functions used inside SNARK circuits in the random oracle model.
+\textit{Simulating $R_{4}^{*}$.} The reducer does not know $r$ as a scalar, so it cannot directly compute $R_{4}^{*} = [r](h_{1}^{H(R_{1}^{*})} \cdot h_{2}^{H(R_{1}^{*} \| R_{2}^{*} \| \mathsf{token})} \cdot h_{3})$. However, Game~3 models the hash function as a random oracle. The reducer programs the random oracle at the challenge inputs: it samples $R_{4}^{*} \xleftarrow{\$} \mathbb{G}_{2}$ uniformly and programs the hash outputs so that the pairing equation $e(q, R_{4}^{*}) = e(R_{1}^{*}, h_{1}^{H(R_{1}^{*})} \cdot h_{2}^{H(R_{1}^{*} \| R_{2}^{*} \| \mathsf{token})} \cdot h_{3})$ holds by construction. This is possible because $H(R_{1}^{*})$ and $H(R_{1}^{*} \| R_{2}^{*} \| \mathsf{token})$ are fresh random oracle queries that the reducer controls. For all other ciphertexts, the random oracle responds with truly random values, and honest provers who know $r$ can compute $R_{4}$ correctly.
+
+\textit{Simulating proofs.} The challenge ciphertext's binding proof and Schnorr proof are simulated via Fiat--Shamir programming in the random oracle model (enabled by Game~3). The reducer programs the random oracle to produce challenges that make simulated transcripts accepting, without knowledge of the witness scalars $(a, r)$. The SNARK proof is simulated using the Groth16 simulator (enabled by Game~2).
+
+\textit{MiMC as random oracle.} Once $\kappa^{*}$ is uniform in $\mathbb{G}_{T}$, the MiMC random oracle outputs $hk = \mathsf{MiMC}(\kappa^{*} \| \mathsf{DomainTag})$ uniformly in $\mathbb{Z}_{n}$, and the DEK derived via HKDF becomes independent of the plaintext.
 
 \textit{Simulating $R_{5}$.} For re-encrypted ciphertexts, $R_{5} = [H(\kappa)]p + [\delta](-h_{0})$. Since $\kappa$ is now random and MiMC is modeled as a random oracle, $H(\kappa)$ is uniform in $\mathbb{Z}_{n}$, and $R_{5}$ is correctly distributed from $\mathcal{A}$'s view.
 
@@ -1141,9 +1159,8 @@ If $T = [\alpha\beta]q$ (real DDH tuple), then $R_{2}^{*} = [\hat{a}]q + [\alpha
 
 \begin{enumerate}
 \item Game~1 ensures $\mathsf{CT}$ passes all on-chain verification checks; if not, return $\bot$.
-\item Game~2 provides SNARK knowledge extraction: from any valid Groth16 proof in $\mathsf{CT}$, extract the witness $(a, r)$ such that $w_{0} = [\mathsf{MiMC}(\kappa \| \mathsf{DomainTag})]q$ and $w_{1} = [a]q + [r]v$.
-\item Game~3 provides binding proof extraction: from any valid binding proof in $\mathsf{CT}$, extract $(a, r)$ such that $R_{1} = [r]q$ and $R_{2} = [a]q + [r]u_{i^{*}}$.
-\item With extracted $a$, compute $\kappa = e([a]q, h_{0})$ directly (the pairing is efficiently computable given $[a]q$), derive the DEK via HKDF, and decrypt.
+\item Game~3 provides binding proof extraction in the ROM: from any valid binding proof in $\mathsf{CT}$, extract $(a, r)$ such that $R_{1} = [r]q$ and $R_{2} = [a]q + [r]u_{i^{*}}$.
+\item With extracted $a$, compute $\kappa = e([a]q, h_{0})$ directly (the pairing is efficiently computable given $[a]q \in \mathbb{G}_{1}$ and $h_{0} \in \mathbb{G}_{2}$), derive the DEK via HKDF, and decrypt.
 \end{enumerate}
 
 This simulation succeeds for all well-formed ciphertexts except the challenge ciphertext itself (where extraction is forbidden by the CCA restriction). For non-challenge users, the reducer knows their secret keys and decrypts normally.
@@ -1199,18 +1216,18 @@ The function reconstructs compressed $\mathbb{G}_{1}$ points from the little-end
 
 \begin{lemma}[Multi-hop security degradation]\label{lem:multi-hop}
 For a chain of $n$ re-encryption hops, the IND-PRE-CCA advantage degrades at most linearly in $n$:
-$$\mathsf{Adv}^{n\text{-hop}} \leq n \cdot \mathsf{Adv}^{\mathsf{XDH}} + \mathsf{negl}(\lambda)$$
+$$\mathsf{Adv}^{n\text{-hop}} \leq n \cdot \mathsf{Adv}^{\mathsf{PRE\text{-}DDH}} + \mathsf{negl}(\lambda)$$
 \end{lemma}
 
 \begin{proof}[Proof sketch]
-Each hop introduces fresh random $(a_{i}, r_{i})$ and a fresh $\kappa_{i} = e([a_{i}]q, h_{0})$. The recursive decryption structure (Lemma~\ref{lem:correct-decrypt}) means that $\kappa_{i}$ reveals $\kappa_{i-1}$ via the $R_{5}$ chain, but the forward direction is secure: knowing $\kappa_{i-1}$ does not reveal $\kappa_{i}$. Unidirectionality ensures that knowing $\delta_{j}$ (Bob's secret) and the re-encryption material does not reveal $\delta_{i}$ (Alice's secret). A standard hybrid argument over the $n$ hops gives the linear bound, with each hybrid replacing one $\kappa_{i}$ with a random $\mathbb{G}_{T}$ element under the XDH assumption.
+Each hop introduces fresh random $(a_{i}, r_{i})$ and a fresh $\kappa_{i} = e([a_{i}]q, h_{0})$. The recursive decryption structure (Lemma~\ref{lem:correct-decrypt}) means that $\kappa_{i}$ reveals $\kappa_{i-1}$ via the $R_{5}$ chain, but the forward direction is secure: knowing $\kappa_{i-1}$ does not reveal $\kappa_{i}$. Unidirectionality ensures that knowing $\delta_{j}$ (Bob's secret) and the re-encryption material does not reveal $\delta_{i}$ (Alice's secret). A standard hybrid argument over the $n$ hops gives the linear bound, with each hybrid replacing one $\kappa_{i}$ with a random $\mathbb{G}_{T}$ element under the PRE-DDH assumption.
 \end{proof}
 
 ## PEACE-Specific Differences from Wang--Cao
 
 The following modifications distinguish PEACE from the original Wang--Cao construction and affect the security argument:
 
-1. \textbf{Type-3 pairing and XDH.} Wang--Cao is stated for a symmetric (Type-1) pairing. PEACE uses BLS12-381 (Type-3), where no efficiently computable isomorphism exists between $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. This prevents certain self-pairing attacks but also means DBDH is not directly applicable when the challenge involves elements from both groups (the pairing is efficiently computable). The proof instead uses the External Diffie--Hellman (XDH) assumption, which asserts DDH hardness in $\mathbb{G}_{1}$, and is standard for Type-3 pairings.
+1. \textbf{Type-3 pairing and PRE-DDH.} Wang--Cao is stated for a symmetric (Type-1) pairing where DBDH is a natural hardness assumption. PEACE uses BLS12-381 (Type-3), where no efficiently computable isomorphism exists between $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. This prevents certain self-pairing attacks but introduces a structural coupling: the ciphertext uses the same scalar $r$ in both $\mathbb{G}_{1}$ ($R_{1} = [r]q$) and $\mathbb{G}_{2}$ ($R_{4} = [r]c$). Standard assumptions like DBDH are not directly applicable because cross-group elements allow trivial pairing checks. The proof uses the custom PRE-DDH assumption (Definition~\ref{def:pre-ddh}), which holds in the generic group model and is implied by CDH in $\mathbb{G}_{1}$. A tight reduction to XDH alone, using techniques such as dual-system encryption or programmable hash proofs, remains an open problem.
 
 2. \textbf{Token-name binding in $R_{4}$.} The hash inputs for the $R_{4}$ pairing check include the \texttt{token\_name}, binding each ciphertext to a specific on-chain NFT. This strengthens non-malleability (Game~4) and is absent in Wang--Cao.
 
