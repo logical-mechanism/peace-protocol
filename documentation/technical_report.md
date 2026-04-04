@@ -1064,7 +1064,15 @@ Let $\lambda$ be the security parameter. The game between a challenger $\mathcal
 If the Decisional Bilinear Diffie--Hellman (DBDH) assumption holds in $(\mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T})$ over BLS12-381, MiMC is collision-resistant, Blake2b-224 is collision-resistant, Groth16 is knowledge-sound \textnormal{[@groth-2016]}, AES-GCM is IND-CPA secure, and HKDF is a secure key derivation function in the random oracle model, then for any PPT adversary $\mathcal{A}$ there exist PPT reductions $\mathcal{B}_{1}, \ldots, \mathcal{B}_{6}$ such that
 
 \begin{equation}\label{eq:main-bound}
-\mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}PRE\text{-}CCA}}(\lambda) \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{DBDH}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{CR\text{-}MiMC}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{4}}^{\mathsf{KS\text{-}Groth16}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{IND\text{-}CPA\text{-}AES}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{6}}^{\mathsf{PRF\text{-}HKDF}}(\lambda)
+\begin{aligned}
+\mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}PRE\text{-}CCA}}(\lambda) \leq{}
+  & \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{DBDH}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{CR\text{-}MiMC}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}(\lambda) \\
+  &+ \mathsf{Adv}_{\mathcal{B}_{4}}^{\mathsf{KS\text{-}Groth16}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{IND\text{-}CPA\text{-}AES}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{6}}^{\mathsf{PRF\text{-}HKDF}}(\lambda)
+\end{aligned}
 \end{equation}
 \end{theorem}
 
