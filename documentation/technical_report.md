@@ -111,7 +111,7 @@ header-includes:
 
 # Abstract
 
-In this report, we introduce the PEACE protocol, an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain. PEACE solves the encrypted-NFT problem by providing a decentralized, open-source protocol for transferable encryption rights, enabling creators, collectors, and developers to manage encrypted NFTs without relying on centralized decryption services. Building on the Wang--Cao PRE scheme, PEACE introduces SNARK-verified witness binding, token-name ciphertext non-malleability, and constant on-chain storage, and provides a formal IND-CCA security proof. This work fills a significant gap in secure, private access to NFTs on Cardano. Project Catalyst[^fund] funded the PEACE protocol in round 14.
+In this report, we introduce the PEACE protocol, an ECIES-based, multi-hop, unidirectional proxy re-encryption scheme for the Cardano blockchain. PEACE solves the encrypted-NFT problem by providing a decentralized, open-source protocol for transferable encryption rights, enabling creators, collectors, and developers to manage encrypted NFTs without relying on centralized decryption services. Building on the Wang--Cao PRE scheme, PEACE introduces SNARK-verified witness binding, token-name ciphertext non-malleability, and constant on-chain storage, and provides a formal IND-CCA security proof. This work fills a gap in secure, private access to NFTs on Cardano. Project Catalyst[^fund] funded the PEACE protocol in round 14.
 
 [^fund]: https://projectcatalyst.io/funds/14/cardano-use-cases-concepts/decentralized-on-chain-data-encryption
 
@@ -121,11 +121,11 @@ Current NFT standards on Cardano either leave data unencrypted, available to any
 
 The protocol must allow tradability of both the NFT and the right to decrypt its data, which requires smart contracts paired with an encryption scheme that can re-encrypt for a new user without revealing the content. The tokens must be soulbound to ensure decryptability. Proxy re-encryption (PRE), the process of re-encrypting a ciphertext from one key to another without decrypting, has been studied extensively [@mambo-okamoto-1997] [@blaze-bleumer-strauss-1998] [@ateniese-et-al-ndss2005], and patented cloud-based implementations exist [@ironcore-recrypt-rs]. However, there are no open-source, fully on-chain, decentralized re-encryption protocols for encrypted NFT data on Cardano. The PEACE protocol fills this gap.
 
-The PEACE protocol implements a unidirectional, multi-hop proxy re-encryption (PRE) scheme inspired by Wang and Cao [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that it cannot be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report.
+The PEACE protocol implements a unidirectional, multi-hop proxy re-encryption (PRE) scheme inspired by Wang and Cao [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end; the data can always be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report.
 
 While the re-encryption core builds on Wang and Cao's scheme, the original construction was presented as a poster without a full security proof, and subsequent work in the PRE literature has identified CCA vulnerabilities in schemes of this family when the algebraic bindings are insufficient. The PEACE protocol addresses these vulnerabilities through several extensions not present in the original construction: a Groth16 SNARK that binds the re-encryption witness to the pairing secret, preventing arbitrary witness substitution; token-name binding in the ciphertext verification equation, which ties each ciphertext to a specific on-chain NFT and prevents cross-token transplant attacks; binding $\Sigma$-protocols that enable CCA decryption simulation via witness extraction; constant on-chain datum size regardless of hop count, achieved by storing only the current and previous encryption levels; and a formal IND-CCA security proof (Appendix C) establishing that PEACE achieves CCA security under the PRE-DDH assumption in the generic group model.
 
-The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 provides a brief overview of the required cryptographic primitives and positions PEACE within the PRE literature. Section 4 gives a detailed description of the protocol. Section 5 examines security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
+The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 provides a brief overview of the required cryptographic primitives and positions PEACE within the PRE literature. Section 4 gives a detailed description of the protocol. Section 5 examines security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a complete reference and description of the PEACE protocol.
 
 # Background And Preliminaries
 
@@ -144,7 +144,7 @@ Table: Symbol Description [@elmrabet-joye-2017]
 | $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ | A type-3 bilinear pairing |
 | $q$ | A fixed generator in $\mathbb{G}_{1}$ |
 | $p$ | A fixed generator in $\mathbb{G}_{2}$ |
-| $R$ | The Fiat-Shamir transformer |
+| $R$ | The Fiat--Shamir transformer |
 | $H$ | A hash function |
 | $m$ | The order of Ed25519 |
 | $h_{0}, h_{1}, h_{2}, h_{3}$ | Fixed public points in $\mathbb{G}_{2}$ with unknown discrete logarithms |
@@ -152,9 +152,9 @@ Table: Symbol Description [@elmrabet-joye-2017]
 
 **Notation note.** The symbol $p$ in Table 1 denotes the fixed $\mathbb{G}_{2}$ generator throughout the protocol; the field characteristic of BLS12-381 is not referenced by symbol in any formula. Similarly, $r$ in the symbol table denotes the prime subgroup order, while $r$ appearing as a local variable in algorithms (e.g., a random nonce in Algorithms 1--5) is an independent value; context and scope distinguish the two uses.
 
-The protocol, including both on-chain and off-chain components, will heavily utilize the \texttt{Register} type shown in Listing \ref{lst:registertype}. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ will result in the inability to recover the secret $\delta$. When using a pairing, we additionally rely on the standard bilinear Diffie-Hellman assumptions over the subgroups $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
+The protocol, including both on-chain and off-chain components, will heavily use the \texttt{Register} type shown in Listing \ref{lst:registertype}. The \texttt{Register} stores a generator, $g \in \mathbb{G}_{\kappa}$ and the corresponding public value $u = [\delta]g$ where $\delta \in \mathbb{Z}_{n}$ is a secret. We shall assume that the hardness of ECDLP and CDH in $\mathbb{G}_{1}$ will result in the inability to recover the secret $\delta$. When using a pairing, we additionally rely on the standard bilinear Diffie--Hellman assumptions over the subgroups $( \ \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}\ )$. We will represent the groups $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ with additive notation and $\mathbb{G}_{T}$ with multiplicative notation.
 
-Where required, we will verify Ed25519 signatures for cost-minimization, as relying solely on pure BLS12-381 for simple signatures becomes too costly on-chain. There will be instances where the Fiat-Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol to transform it into a non-interactive variant. Concrete parameter choices are given in the Parameter Selection subsection below.
+Where required, we will verify Ed25519 signatures for cost-minimization, as relying solely on pure BLS12-381 for simple signatures becomes too costly on-chain. There will be instances where the Fiat--Shamir transform [@fiat-shamir-1986] will be applied to a $\Sigma$-protocol to transform it into a non-interactive variant. Concrete parameter choices are given in the Parameter Selection subsection below.
 
 ## Parameter Selection
 
@@ -178,7 +178,7 @@ This section provides brief explanations of the cryptographic primitives require
 
 ## Register-based
 
-The protocol requires proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is both complete and zero-knowledge. We can use simple Ed25519 signatures for spendability, and then utilize the Schnorr $\Sigma$-protocol for knowledge proofs related to encryption. We will make the protocol non-interacting via the Fiat-Shamir transform, R, as shown in Listing \ref{lst:fiatshamir}.
+The protocol requires proving knowledge of a user's secret using a Schnorr $\Sigma$-protocol [@thaler-pazk-2022] [@schnorr1991]. This algorithm is both complete and zero-knowledge. We can use simple Ed25519 signatures for spendability, and then use the Schnorr $\Sigma$-protocol for knowledge proofs related to encryption. We will make the protocol non-interactive via the Fiat--Shamir transform, R, as shown in Listing \ref{lst:fiatshamir}.
 
 \begin{algorithm}[H]
 \caption{Non-interactive Schnorr's $\Sigma$-protocol for the discrete logarithm relation}
@@ -294,7 +294,7 @@ Algorithm \ref{alg:encrypt-eciesaes} describes the case where a \texttt{Register
 
 ## Re-Encryption
 
-There are various types of re-encryption schemes, ranging from classical proxy re-encryption (PRE) to hybrid methods. These re-encryption schemes involve a proxy, an entity that performs both re-encryption and verification. The PRE used in the PEACE protocol is modeled as an interactive flow between the current owner and a prospective buyer, utilizing a smart contract as part of the proxy. We need an interactive scheme because, in many real-world use cases, numerous off-chain checks, such as KYC/AML regulations and various legal requirements, must occur before transferring the right to decrypt on-chain to the new owner. The PEACE protocol obtains interactivity via a bidding system that requires the current owner to agree to the exchange.
+There are various types of re-encryption schemes, ranging from classical proxy re-encryption (PRE) to hybrid methods. These re-encryption schemes involve a proxy, an entity that performs both re-encryption and verification. The PRE used in the PEACE protocol is modeled as an interactive flow between the current owner and a prospective buyer, using a smart contract as part of the proxy. We need an interactive scheme because, in many real-world use cases, numerous off-chain checks, such as KYC/AML regulations and various legal requirements, must occur before transferring the right to decrypt on-chain to the new owner. The PEACE protocol obtains interactivity via a bidding system that requires the current owner to agree to the exchange.
 
 The method described below is a hybrid approach. The current owner's wallet performs the re-encryption process for the buyer. At the same time, the Cardano smart contract acts as a proxy, verifying various cryptographic proofs, enforcing the correct bindings, handling payments, and updating the on-chain owner fields. This design explicitly supports off-chain processes before the transfer of decryption rights. The current owner only submits the re-encryption transaction once these off-chain conditions are satisfied. This method will support the broadest range of real-world asset use cases. The PRE is unidirectional, meaning the re-encryption flow is one-way: from the current owner to the next owner. If Alice delegates to Bob, Bob does not automatically gain the ability to 'go backwards' and create ciphertexts for Alice using the same re-encryption material. This flow differs from a bidirectional method, where the PRE is symmetric, enabling a two-way encryption relationship between the parties, meaning Alice can transform a ciphertext into one for Bob, and Bob can transform a ciphertext into one for Alice, without either Alice or Bob having to re-run the entire re-encryption flow. That is not what we want for this implementation. Each direction is a separate, explicit transfer of rights with its own re-encryption material, meeting the protocol's tradability requirements.
 
@@ -332,7 +332,7 @@ compute $r_{1,b} = [r]q$
 
 compute $r_{2,b} = [a]q + [r]v \in \mathbb{G}_{1}$
 
-compute $c = [BLAKE2b(r_{1,b})]h_{1} + [BLAKE2b(r_{1,b} || r_{2,b})]h_{2}$
+compute $c = [BLAKE2b(r_{1,b})]h_{1} + [BLAKE2b(r_{1,b} || r_{2,b} || \mathsf{token})]h_{2}$
 
 compute $r_{4,b} = [r]c$
 
@@ -342,7 +342,7 @@ output $(r_{1,b}, r_{2,b}, r_{4,b})$ and $(r_{1,a}, r_{2,a}, r_{5}, r_{4,a})$
 
 \end{algorithm}
 
-\textbf{Note on $h_{3}$ omission.} At level $k > 1$ (re-encryption), the $R_{4}$ verification uses $c = [H(R_{1})]h_{1} + [H(R_{1} \| R_{2})]h_{2}$ without the $h_{3}$ term. At level~1 (initial encryption, Listing~\ref{lst:first-level}), the equation includes $h_{3}$: $c = [H(R_{1})]h_{1} + [H(R_{1} \| R_{2})]h_{2} + h_{3}$. This intentional difference provides domain separation between first-level and re-encrypted ciphertexts; see the Game~1 verification equation in Appendix~C where the level distinction is explicit.
+\textbf{Note on $h_{3}$ omission.} At level $k > 1$ (re-encryption), the $R_{4}$ verification uses $c = [H(R_{1})]h_{1} + [H(R_{1} \| R_{2} \| \mathsf{token})]h_{2}$ without the $h_{3}$ term. At level~1 (initial encryption, Listing~\ref{lst:first-level}), the equation includes $h_{3}$: $c = [H(R_{1})]h_{1} + [H(R_{1} \| R_{2} \| \mathsf{token})]h_{2} + h_{3}$. This intentional difference provides domain separation between first-level and re-encrypted ciphertexts; see the Game~1 verification equation in Appendix~C where the level distinction is explicit.
 
 Algorithm \ref{alg:reencrypt-alice-bob} describes the actual re-encryption process for Alice, resulting in the transfer of the decryption rights to Bob. Bob can then use this information to recursively calculate the secret $\kappa$ and eventually the original secret used in the encryption process.
 
@@ -377,7 +377,7 @@ The Groth16 verifier uses the gnark commitment extension, which adds a Pedersen 
 
 $$e(A, B) \cdot e(vk_{x}, -\gamma) \cdot e(C, -\delta) \cdot e(\alpha, -\beta) = 1$$
 
-where $vk_{x}$ incorporates both the public inputs and commitment wires.
+where $vk_{x}$ incorporates both the public inputs and commitment wires. (Here $\alpha, \beta, \gamma, \delta$ are Groth16 CRS elements, distinct from the user secret $\delta$ defined in Table~1.)
 
 ## Related Work And Design Rationale
 
@@ -449,7 +449,7 @@ The re-encryption flow requires two transactions: first \texttt{UseSnark} to sub
 
 ## Key Management And Identity
 
-Each user in the protocol can deterministically generate BLS12-381 key pairs represented by \texttt{Register} value in $\mathbb{G}_{1}$. The $\mathbb{G}_{1}$ points are the user's on-chain identity for encryption and signature verification. The corresponding secret scalar, $\delta \in \mathbb{Z}_n$, is held off-chain by the user's wallet or client software and never published on-chain.
+Each user in the protocol can deterministically generate BLS12-381 key pairs represented by a \texttt{Register} value in $\mathbb{G}_{1}$. The $\mathbb{G}_{1}$ points are the user's on-chain identity for encryption and signature verification. The corresponding secret scalar, $\delta \in \mathbb{Z}_n$, is held off-chain by the user's wallet or client software and never published on-chain.
 
 The BLS12-381 keys used for re-encryption are logically separate from the Ed25519 keys used to sign Cardano transactions. A wallet must manage both Ed25519 keys for authorizing UTxO spending and BLS12-381 scalars for obtaining and delegating decryption rights. Losing or compromising the BLS12-381 secret key means losing the ability to decrypt any items associated with that identity, even if the Cardano spending keys are still available.
 
@@ -463,7 +463,7 @@ For each encrypted item, the protocol generates a fresh KEM used at each encrypt
 
 The protocol flow starts with Alice selecting a secret $[\gamma] \in \mathbb{Z}_{m}$ and $[\delta] \in \mathbb{Z}_{n}$. The secret $\gamma$ will generate an Ed25519 keypair. The secret $\delta$ will generate the \texttt{Register} in $\mathbb{G}_{1}$ using the fixed generator, $q$. Alice will fund the address associated with the \texttt{VerificationKeyHash}, the \texttt{vkh}, of the Ed25519 keypair with enough Lovelace to pay for the minimum required Lovelace for the contract UTxO, the change UTxO, and the transaction fee. Alice may then build the re-encryption entry transaction.
 
-The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatenation of the input's output index and transaction ID, as shown in the Listing \ref{lst:gentkn}. The protocol specification assumes a single input, but this transaction may use multiple inputs. If more than one input exists, then the first element of a lexicographically sorted input list will be used for the name generation.
+The re-encryption entry transaction will contain a single input and two outputs. The transaction will mint a \texttt{token} using the \texttt{EntryEncryptionMint} redeemer. The \texttt{token} name is generated by the concatenation of the input's output index and transaction ID, as shown in Listing \ref{lst:gentkn}. The protocol specification assumes a single input, but this transaction may use multiple inputs. If more than one input exists, then the first element of a lexicographically sorted input list will be used for the name generation.
 
 Alice may now finish building the \texttt{EncryptionDatum} by constructing the \texttt{half\_level} and \texttt{capsule} fields. Since Alice is the first owner, she will encrypt it for herself. Alice will encrypt the original data by generating a root secret $\kappa_{0} \in \mathbb{G}_{T}$. The root secret, $\kappa_{0}$, will be used in the KDF to produce a valid DEK. The message will be encrypted using AES-GCM. The \texttt{Capsule} type will store the resulting information. Listing \ref{lst:first-level} is a Pythonic pseudocode for generating the original encrypted data and the first encryption level. The sub-types of the \texttt{EncryptionDatum} can be populated as shown in Listing \ref{lst:actualfirstlevel}. The contract will validate the first half-level using the assertion from Listing \ref{lst:validatefirstlevel}. Alice can prove to herself that the encryption level is valid by verifying the assertion in Listing \ref{lst:decryptfirstlevel}. Alice may now construct the full \texttt{EncryptionDatum} as shown in Listing \ref{lst:fullfirstdatum}, with \texttt{status} set to \texttt{Open} and \texttt{full\_level} set to \texttt{None}.
 
@@ -505,11 +505,11 @@ The PEACE protocol achieves formal IND-CCA security (Appendix C). This section d
 
 This protocol inherits standard assumptions from public-key cryptography and public blockchains. The assumptions below describe what must hold for the security claims in this document to be meaningful.
 
-- All compressed curve points accepted by the protocol (on-chain or off-chain) MUST be validated as canonical encodings. As members of the correct prime-order subgroup (rejecting non-canonical encodings, the point at infinity where disallowed, and any point not in the intended subgroup), otherwise an attacker may exploit small-subgroup/cofactor edge cases to bypass security claims or forge relations that appear to verify.
+- All compressed curve points accepted by the protocol (on-chain or off-chain) MUST be validated as canonical encodings and as members of the correct prime-order subgroup, rejecting non-canonical encodings, the point at infinity where disallowed, and any point not in the intended subgroup. Otherwise an attacker may exploit small-subgroup/cofactor edge cases to bypass security claims or forge relations that appear to verify.
 
 - Cryptographic assumptions hold: The security of the construction relies on hardness assumptions for the chosen primitives: the PRE-DDH assumption (Definition~\ref{def:pre-ddh} in Appendix C), which holds in the generic group model and is implied by CDH in $\mathbb{G}_{1}$; collision resistance and preimage resistance of the hash functions used (including domain separation); MiMC modeled as a random oracle within the SNARK circuit; and unforgeability of any signature schemes used.
 
-- Correct domain separation: All hashes used for hashing-to-scalar, Fiat–Shamir transcripts, and key derivations use fixed domain tags and unambiguous encodings. A domain-separation bug is a critical security failure.
+- Correct domain separation: All hashes used for hashing-to-scalar, Fiat--Shamir transcripts, and key derivations use fixed domain tags and unambiguous encodings. A domain-separation bug is a critical security failure.
 
 - Well-formed randomness: All secret scalars and nonces are sampled with high entropy and never reused where uniqueness is required. Randomness failures (poor RNG, nonce reuse, low-entropy secrets) are catastrophic.
 
@@ -545,7 +545,7 @@ The protocol design minimizes trust between Alice and Bob. The smart contract is
 
 - Related-ciphertext / CCA-style probing: mitigated by ciphertext non-malleability via the $R_{4}$ pairing binding (which ties ciphertext components together through hash-derived exponents), the binding $\Sigma$-protocol (which proves knowledge of the ciphertext's algebraic structure), and the SNARK witness binding (which prevents witness substitution). The combination of these mechanisms yields formal IND-CCA security (Appendix C).
 
-- Multi-hop bypass: if downstream decryption reveals intermediate artifacts used to decrypt upstream ciphertexts without the proxy, it breaks the intended delegation boundary; mitigation is hop-level re-randomization / re-encapsulation and careful design to ensure decryption yields only plaintext (not reusable upstream capabilities). 
+- Multi-hop bypass: if downstream decryption reveals intermediate artifacts used to decrypt upstream ciphertexts without the proxy, it breaks the intended delegation boundary; mitigation is hop-level re-randomization / re-encapsulation and careful design to ensure decryption yields only plaintext (not reusable upstream capabilities).
 
 - Fairness failure (abort/grief): either party can stop cooperating; mitigations are economic and protocol flow design, not cryptography alone.
 
@@ -585,7 +585,7 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 - The protocol does not limit hops directly. However, since the on-chain storage is constant per hop (Section~4.1), the Cardano UTxO size limit does not constrain the hop count. Users must query the blockchain to reconstruct the full encryption history for decryption.
 
-- Pairing-heavy verification and SNARK verification can approach the CPU budget, requiring multi-transaction validation flows, increasing complexity, and can reduce UX reliability under network congestion.
+- Pairing-heavy verification and SNARK verification can approach the CPU budget, requiring multi-transaction validation flows, increasing complexity, and reducing UX reliability under network congestion.
 
 - BLS12-381 and Ed25519 are not post-quantum secure. A sufficiently powerful quantum computer running Shor's algorithm could recover secret keys from public keys, breaking both the pairing-based re-encryption and the signature scheme. Because encrypted data is recorded on a public ledger, the protocol is vulnerable to "harvest now, decrypt later" attacks: an adversary could record on-chain ciphertexts today and decrypt them once large-scale quantum hardware becomes feasible. For assets intended to retain confidentiality over long time horizons, this is a material risk. Migration to post-quantum primitives (e.g., lattice-based PRE and hash-based signatures) would require changes to both the pairing-based re-encryption core and the SNARK system, and is left as future work.
 
@@ -593,7 +593,7 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 The re-encryption process performs well within Cardano's transaction limits by splitting the validation across two transactions. The generation of the SNARK proofs occurs off-chain and takes approximately three minutes on commodity desktop hardware. The encryption setup is straightforward, and the PRE flow is simple to understand.
 
-The first transaction (\texttt{UseSnark}) verifies the Groth16 proof and commitment proof-of-knowledge via a withdraw validator. The Groth16 verification involves multiple pairing operations and public input accumulation, consuming a significant portion of the CPU budget. The commitment verification adds additional pairing checks. This separation allows the expensive SNARK verification to occur independently of the re-encryption logic.
+The first transaction (\texttt{UseSnark}) verifies the Groth16 proof and commitment proof-of-knowledge via a withdraw validator. The Groth16 verification involves multiple pairing operations and public input accumulation, consuming most of the CPU budget. The commitment verification adds additional pairing checks. This separation allows the expensive SNARK verification to occur independently of the re-encryption logic.
 
 The second transaction (\texttt{UseEncryption}) verifies limb compression (binding SNARK public inputs to G1 points), binding proofs, and pairing checks for the R5 term. The Schnorr and binding proofs are relatively cheap, but the pairing proofs remain expensive. By separating the SNARK verification into its own transaction, the re-encryption validation stays within budget.
 
@@ -612,16 +612,17 @@ The two-transaction design introduces additional complexity and a brief window w
 \caption{Representative on-chain CPU budget consumption (Cardano mainnet limit: 10,000,000,000 CPU units per transaction)}
 \label{tab:budget}
 \small
-\begin{tabular}{lrl}
+\begin{tabular}{llrl}
 \hline
-\textbf{Operation} & \textbf{CPU Units} & \textbf{\% of Budget} \\
+\textbf{Tx} & \textbf{Operation} & \textbf{CPU Units} & \textbf{\% of Budget} \\
 \hline
-Groth16 verification (gnark, with commitment PoK) & $\sim$6,800,000,000--8,300,000,000 & 68--83\% \\
-$R_{5}$ pairing check & $\sim$2,000,000,000 & 20\% \\
-Level validation (pairing + binding proof) & $\sim$1,500,000,000 & 15\% \\
-Commitment PoK verification (standalone) & $\sim$1,400,000,000 & 14\% \\
-Schnorr/binding proofs & $\sim$290,000,000--1,300,000,000 & 3--13\% \\
-Limb compression verification & $\sim$8,600,000--83,000,000 & $<$1\% \\
+Tx\,1 & Groth16 verification (gnark, with commitment PoK) & $\sim$6,800,000,000--8,300,000,000 & 68--83\% \\
+Tx\,1 & Commitment PoK verification (standalone) & $\sim$1,400,000,000 & 14\% \\
+\hline
+Tx\,2 & $R_{5}$ pairing check & $\sim$2,000,000,000 & 20\% \\
+Tx\,2 & Level validation (pairing + binding proof) & $\sim$1,500,000,000 & 15\% \\
+Tx\,2 & Schnorr/binding proofs & $\sim$290,000,000--1,300,000,000 & 3--13\% \\
+Tx\,2 & Limb compression verification & $\sim$8,600,000--83,000,000 & $<$1\% \\
 \hline
 \end{tabular}
 \end{table}
@@ -796,7 +797,7 @@ message = "ThisIsASecretMessage."
 # generate random data for the first encryption level
 a0 = rng()
 r0 = rng()
-k0 = random_fq12(a0)
+k0 = pair(scale(g, a0), h_0)
 
 # alice as a register, sk is the secret key
 alice = Register(sk)
@@ -806,7 +807,7 @@ r1b = scale(g, r0)
 r2_g1b = scale(g, a0 + r0 * sk)
 
 a = to_int(blake2b(r1b))
-b = to_int(blake2b(r1b + r2_g1b))
+b = to_int(blake2b(r1b + r2_g1b + token_name))
 
 c = combine(combine(scale(h_1, a), scale(h_2, b)), h_3)
 r4b = scale(c, r0)
@@ -901,15 +902,15 @@ pub type BidDatum {
 \begin{lstlisting}[style=python, caption={Generate the next level}, label={lst:createnextlevel}, float, floatplacement=H]
 a1 = rng()
 r1 = rng()
-k1 = random_fq12(a1)
+k1 = pair(scale(g, a1), h_0)
 
-hk = to_int(k1)
+hk = to_int(mimc_hash(k1, DOMAIN_TAG))
 
 r1b = scale(g, r1)
 r2_g1b = combine(scale(g, a1), scale(bob_public_value, r1))
 
-a = to_int(generate(r1b))
-b = to_int(generate(r1b + r2_g1b))
+a = to_int(blake2b(r1b))
+b = to_int(blake2b(r1b + r2_g1b + token_name))
 c = combine(scale(h_1, a), scale(h_2, b))
 r4b = scale(c, r1)
 
@@ -1003,6 +1004,7 @@ for entry in encryption_levels:
     k = to_int(key)
     shared = scale(p, k)
 
+# final iteration's key decrypts the message
 message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
 \end{lstlisting}
 ```
@@ -1011,7 +1013,7 @@ message = decrypt(r1, key, capsule.nonce, capsule.ct, capsule.aad)
 ```{=latex}
 \begin{lstlisting}[
   style=rust,
-  caption={Fiat Shamir Transform Heuristic},
+  caption={Fiat--Shamir Transform Heuristic},
   label={lst:fiatshamir},
   float
 ]
@@ -1047,7 +1049,7 @@ Correctness for Algorithm~\ref{alg:schnorrsig}, a non-interactive Schnorr's $\Si
 
 We start with $\ ($ $g, u, a, z\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$, $a=[r]g \in \mathbb{G}_{1}$, and $z=r + c \cdot \delta \in \mathbb{Z}_{n}$. 
 
-Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, a)$.
+Use the Fiat--Shamir transform to generate a challenge value $c = R(g, u, a)$.
 
 $[z]g = a + [c]u$
 
@@ -1067,7 +1069,7 @@ Correctness for Algorithm~\ref{alg:bindingsig}, a non-interactive $\Sigma$-proto
 
 We start with $\ ($ $g, u, t_{1}, t_{2}, z_{a}, z_{r}, r_{1}, \chi\ )$ where $g \in \mathbb{G}_{1}$, $u=[\delta]g \in \mathbb{G}_{1}$, $t_{1}=[\rho]g \in \mathbb{G}_{1}$, $t_{2}=[\alpha]g + [\rho]u \in \mathbb{G}_{1}$, $z_{a}=\alpha + c \cdot a \in \mathbb{Z}_{n}$, $z_{r}=\rho + c \cdot r \in \mathbb{Z}_{n}$, $r_{1}=[r]g \in \mathbb{G}_{1}$, and $\chi=[a + r \cdot \delta]g \in \mathbb{G}_{1}$. 
 
-Use the Fiat-Shamir transform to generate a challenge value $c = R(g, u, t_{1}, t_{2})$.
+Use the Fiat--Shamir transform to generate a challenge value $c = R(g, u, t_{1}, t_{2})$.
 
 $[z_{a}]g + [z_{r}]u = t_{2} + [c]\chi \land  [z_{r}]g = t_{1} + [c]r_{1}$
 
@@ -1078,17 +1080,17 @@ $[z_{a} + z_{r} \cdot \delta]g = [\alpha + \rho \cdot \delta + c \cdot a + c \cd
 $[z_{a} + z_{r} \cdot \delta]g = [\alpha + c \cdot a + \rho \cdot \delta  + c \cdot r \cdot \delta]g \land  [z_{r}]g = [\rho + c \cdot r]g$
 
 
-An honest \texttt{Register} can produce an $t_{1}$, $t_{2}$, $z_{a}$, and $z_{r}$ that will satisfy $z_{a} + z_{r} \cdot \delta = \alpha + c \cdot a + \rho \cdot \delta  + c \cdot r \cdot \delta$ and $z_{r}=\rho + c \cdot r$ proving knowledge of the secret $a$ and $r$ while using $u$.
+An honest \texttt{Register} can produce a $t_{1}$, $t_{2}$, $z_{a}$, and $z_{r}$ that will satisfy $z_{a} + z_{r} \cdot \delta = \alpha + c \cdot a + \rho \cdot \delta  + c \cdot r \cdot \delta$ and $z_{r}=\rho + c \cdot r$ proving knowledge of the secret $a$ and $r$ while using $u$.
 
 \end{proof}
 
 \begin{lemma}\label{lem:correct-decrypt}
-Correctness for Algorithm~\ref{alg:reencrypt-alice-bob}, recursive decryption
+Correctness for Algorithm~\ref{alg:reencrypt-alice-bob}, recursive decryption.
 \end{lemma}
 
 \begin{proof}
 
-Lets assume we have a single full encryption level and a half encryption level given by $\ (\ r_{1,a}, r_{2,a}\ )$ and $\ (\ r_{1,b}, r_{2,b}\ )$, respectively, where $r_{1,i} \in \mathbb{G}_{1}$, and $r_{2,i} \in \mathbb{G}_{T}$. The owner of the half level has secret $y \in \mathbb{Z}_{n}$ and the owner of the full level has secret $x \in \mathbb{Z}_{n}$. The point $h_{0}=[s_{0}]p \in \mathbb{G}_{2}$ is a fixed public element.
+Let us assume we have a single full encryption level and a half encryption level given by $\ (\ r_{1,a}, r_{2,a}\ )$ and $\ (\ r_{1,b}, r_{2,b}\ )$, respectively, where $r_{1,i} \in \mathbb{G}_{1}$, and $r_{2,i} \in \mathbb{G}_{T}$. The owner of the half level has secret $y \in \mathbb{Z}_{n}$ and the owner of the full level has secret $x \in \mathbb{Z}_{n}$. The point $h_{0}=[s_{0}]p \in \mathbb{G}_{2}$ is a fixed public element.
 
 Calculate $\kappa_{1}$ from the half level.
 
@@ -1102,13 +1104,13 @@ Calculate $\kappa_{0}$ from the full level.
 
 $\kappa_{0} = \frac{r_{2,a}}{e(r_{1,a}, p^{H(\kappa_{1})})} = \frac{e(q^{a_{0} + x \cdot r_{0}}, h_{0}) \cdot e(q^{r_{0}}, p^{H(\kappa_{1})} \cdot h_{0}^{-x})}{e(q^{r_{0}}, p^{H(\kappa_{1})})}$
 
-$\kappa_{0} = e(q^{a_{0} + x \cdot r_{0}}, h_{0}) \cdot e(q^{r_{0}}, p^{H(\kappa_{1})} \cdot h_{0}^{x}) \cdot e(q^{-r_{0} \cdot H(\kappa_{1})}, p)$
+$\kappa_{0} = e(q^{a_{0} + x \cdot r_{0}}, h_{0}) \cdot e(q^{r_{0}}, p^{H(\kappa_{1})} \cdot h_{0}^{-x}) \cdot e(q^{-r_{0} \cdot H(\kappa_{1})}, p)$
 
 $\kappa_{0} = e(q^{s \cdot a_{0} + s \cdot x \cdot r_{0}}, p) \cdot e(q^{r_{0} \cdot H(\kappa_{1}) - r_{0} \cdot s \cdot x}, p) \cdot e(q^{-r_{0} \cdot H(\kappa_{1})}, p)$
 
 $\kappa_{0} = e(q^{s \cdot a_{0}}, p) = e(q^{a_{0}}, h_{0})$
 
-Any user with $\kappa_{0}$ may decrypt the original message. When many full levels exist then the recursive relationship holds in general.
+Any user with $\kappa_{0}$ may decrypt the original message. When many full levels exist, the recursive relationship holds in general.
 
 $\kappa_{i-1} = \frac{r_{2, i-1}}{e(r_{1, i-1}, p^{H(\kappa_{i})})} = e(q^{a_{i-1}}, h_{0})$
 
