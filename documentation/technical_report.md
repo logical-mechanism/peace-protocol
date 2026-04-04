@@ -605,18 +605,28 @@ The two-transaction design introduces additional complexity and a brief window w
 - Proof generation: approximately 3 minutes on commodity desktop hardware (native Rust binary), with a proving key of 613 MiB
 - The Groth16 structured reference string (SRS) is generated via a phase-2 ceremony implemented in the reference codebase; the trapdoor is assumed destroyed per the standard trusted-setup assumption
 
-Table: Representative on-chain CPU budget consumption (Cardano mainnet limit: 10,000,000,000 CPU units per transaction)
+```{=latex}
+\begin{table}[H]
+\centering
+\caption{Representative on-chain CPU budget consumption (Cardano mainnet limit: 10,000,000,000 CPU units per transaction)}
+\label{tab:budget}
+\small
+\begin{tabular}{lrl}
+\hline
+\textbf{Operation} & \textbf{CPU Units} & \textbf{\% of Budget} \\
+\hline
+Groth16 verification (gnark, with commitment PoK) & $\sim$6,800,000,000--8,300,000,000 & 68--83\% \\
+$R_{5}$ pairing check & $\sim$2,000,000,000 & 20\% \\
+Level validation (pairing + binding proof) & $\sim$1,500,000,000 & 15\% \\
+Commitment PoK verification (standalone) & $\sim$1,400,000,000 & 14\% \\
+Schnorr/binding proofs & $\sim$290,000,000--1,300,000,000 & 3--13\% \\
+Limb compression verification & $\sim$8,600,000--83,000,000 & $<$1\% \\
+\hline
+\end{tabular}
+\end{table}
+```
 
-| Operation | CPU Units | \% of Budget |
-|:----------|----------:|:------------|
-| Groth16 verification (gnark, with commitment PoK) | $\sim$6,800,000,000--8,300,000,000 | 68--83\% |
-| $R_{5}$ pairing check | $\sim$2,000,000,000 | 20\% |
-| Level validation (pairing + binding proof) | $\sim$1,500,000,000 | 15\% |
-| Commitment PoK verification (standalone) | $\sim$1,400,000,000 | 14\% |
-| Schnorr/binding proofs | $\sim$290,000,000--1,300,000,000 | 3--13\% |
-| Limb compression verification | $\sim$8,600,000--83,000,000 | $<$1\% |
-
-Memory consumption remains well below the 14,000,000-byte transaction limit ($<$3\% in all cases). The two-transaction split is driven entirely by CPU budget: Groth16 verification alone consumes up to 83\% of the per-transaction CPU limit, leaving insufficient headroom for the re-encryption pairing checks in the same transaction
+Memory consumption remains well below the 14,000,000-byte transaction limit ($<$3\% in all cases). The two-transaction split is driven entirely by CPU budget: Groth16 verification alone consumes up to 83\% of the per-transaction CPU limit, leaving insufficient headroom for the re-encryption pairing checks in the same transaction.
 
 # Conclusion
 
