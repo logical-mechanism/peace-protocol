@@ -463,7 +463,7 @@ To mitigate grief attacks during the re-encryption flow, each bid is automatical
 
 The re-encryption process occurs in two transactions to accommodate the computational cost of SNARK verification.
 
-**Transaction 1: SNARK Submission.** Alice generates a Groth16 proof demonstrating that the witness $W = q^{H(\kappa)}$ is correctly derived from the pairing secret $\kappa = e(q^{a}, h_{0})$. Alice submits this proof using the \texttt{UseSnark} redeemer, which verifies the Groth16 proof (via the groth\_witness withdraw validator) and the commitment proof-of-knowledge. Upon successful verification, the datum's \texttt{status} transitions from \texttt{Open} to \texttt{Pending(groth\_public, ttl)}, where \texttt{groth\_public} contains the SNARK public inputs (the limb representation of the G1 points) and \texttt{ttl} is the expiration time.
+**Transaction 1: SNARK Submission.** Alice generates a Groth16 proof demonstrating that the witness $W = q^{H(\kappa)}$ is correctly derived from the pairing secret $\kappa = e(q^{a}, h_{0})$. Alice submits this proof using the \texttt{UseSnark} redeemer, which verifies the Groth16 proof (via the groth\_witness withdraw validator) and the commitment proof-of-knowledge. Upon successful verification, the datum's \texttt{status} transitions from \texttt{Open} to \texttt{Pending(groth\_proof, groth\_public, ttl)}, where \texttt{groth\_proof} is the Groth16 proof, \texttt{groth\_public} contains the SNARK public inputs (the limb representation of the G1 points), and \texttt{ttl} is the expiration time.
 
 **Transaction 2: Re-Encryption Completion.** Alice selects a bid UTxO from the bid contract and completes the re-encryption using the \texttt{UseEncryption} redeemer together with \texttt{UseBid} and \texttt{LeaveBidBurn}. This step burns Bob's bid token, updates the on-chain data to Bob's ownership, and creates the re-encryption proofs. The contract verifies limb compression to ensure the SNARK public inputs match the actual G1 points (\texttt{bid\_owner\_g1.public\_value}, the witness, and \texttt{next\_half\_level.r2\_g1b}). The PRE proofs demonstrate that the values produced by the re-encryption process match the expected values via pairings involving the original owner's \texttt{Register}, the new owner's \texttt{Register}, and the next encryption level. Additionally, the bid's \texttt{new\_price} is transferred to the encryption datum's \texttt{new\_price} field, recording the agreed-upon price on the encryption UTxO. If everything is consistent, then ownership and decryption rights transfer to Bob, and the status returns to \texttt{Open}.
 
@@ -662,7 +662,7 @@ pub type Capsule {
 }
 pub type Status {
   Open
-  Pending(GrothPublic, Int)
+  Pending(GrothProof, GrothPublic, Int)
 }
 pub type HalfEncryptionLevel {
   r1b: ByteArray,
