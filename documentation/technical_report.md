@@ -123,7 +123,7 @@ Several mandatory requirements must be satisfied for the protocol to function as
 
 The PEACE protocol implements a unidirectional, multi-hop proxy re-encryption (PRE) scheme inspired by Wang and Cao [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that it cannot be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report. While the re-encryption core builds on Wang and Cao's scheme, the original construction was presented as a poster without a full security proof, and subsequent work in the PRE literature has identified CCA vulnerabilities in schemes of this family when the algebraic bindings are insufficient. The PEACE protocol addresses these vulnerabilities through several extensions not present in the original construction: a Groth16 SNARK that binds the re-encryption witness to the pairing secret, preventing arbitrary witness substitution; token-name binding in the ciphertext verification equation, which ties each ciphertext to a specific on-chain NFT and prevents cross-token transplant attacks; binding $\Sigma$-protocols that enable CCA decryption simulation via witness extraction; constant on-chain datum size regardless of hop count, achieved by storing only the current and previous encryption levels; and a formal IND-CCA security proof (Appendix C) establishing that PEACE achieves CCA security under the PRE-DDH assumption in the generic group model.
 
-The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 provides a brief overview of the required cryptographic primitives. Section 4 gives a detailed description of the protocol. Section 5 examines security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
+The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 provides a brief overview of the required cryptographic primitives and positions PEACE within the PRE literature. Section 4 gives a detailed description of the protocol. Section 5 examines security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
 
 # Background And Preliminaries
 
@@ -354,6 +354,39 @@ The Groth16 verifier uses the gnark commitment extension, which adds a Pedersen 
 $$e(A, B) \cdot e(vk_{x}, -\gamma) \cdot e(C, -\delta) \cdot e(\alpha, -\beta) = 1$$
 
 where $vk_{x}$ incorporates both the public inputs and commitment wires.
+
+## Related Work And Design Rationale
+
+Proxy re-encryption was introduced by Mambo and Okamoto [@mambo-okamoto-1997] and formalized by Blaze, Bleumer, and Strauss [@blaze-bleumer-strauss-1998], who proposed the first bidirectional, single-hop PRE scheme. Ateniese et al. [@ateniese-et-al-ndss2005] [@Ateniese2006ImprovedPRE] improved upon this with unidirectional, single-hop constructions based on bilinear pairings. Canetti and Hohenberger [@canetti-hohenberger-2007] gave the first CCA-secure PRE construction, proving security in the standard model under the decisional bilinear Diffie--Hellman (DBDH) assumption; however, their scheme is bidirectional and single-hop, which does not meet the multi-hop tradability requirement. Libert and Vergnaud [@libert-vergnaud-2008] achieved CCA-secure unidirectional PRE under the decision linear (DLIN) assumption, but their construction is also single-hop. Neither Canetti--Hohenberger nor Libert--Vergnaud support multi-hop re-encryption, which is essential for an NFT that may be traded an unbounded number of times.
+
+Wang and Cao [@WangCao2009PREPoster] proposed a "fully secure unidirectional and multi-use" PRE scheme at a CCS 2009 poster session. Their construction is the closest prior work to PEACE: it is unidirectional, multi-hop, and pairing-based. However, the Wang--Cao construction was published as a poster without a full security proof, and the PRE literature has since identified CCA vulnerabilities in schemes of this family when the algebraic bindings between ciphertext components are insufficient to prevent malleability. PEACE builds on the Wang--Cao re-encryption core but addresses these vulnerabilities through SNARK witness binding, token-name ciphertext non-malleability, and binding $\Sigma$-protocols, achieving formal IND-CCA security (Appendix C).
+
+IronCore Labs' Recrypt library [@ironcore-recrypt-rs] is an open-source, Rust-based PRE implementation used in cloud-based encryption products. Recrypt implements a transform-based PRE where a semi-trusted proxy applies re-encryption keys. While production-quality software, Recrypt's model assumes a centralized proxy service and does not target the on-chain verification constraints of a blockchain. PEACE differs architecturally: re-encryption is owner-mediated (the owner acts as their own proxy), the smart contract serves as a verifier rather than a proxy, and all cryptographic proofs are validated on-chain by passive validators. This removes the trusted-proxy assumption but requires the on-chain verification mechanisms (pairing checks, SNARK verification, $\Sigma$-protocols) that define PEACE's design.
+
+No prior work provides an open-source, fully on-chain, multi-hop, unidirectional PRE with formal CCA security guarantees on a UTxO-based blockchain. Table \ref{tab:comparison} summarizes the landscape.
+
+```{=latex}
+\begin{table}[H]
+\centering
+\caption{Comparison of PRE schemes relevant to PEACE}
+\label{tab:comparison}
+\small
+\begin{tabular}{lccccc}
+\hline
+\textbf{Scheme} & \textbf{Direction} & \textbf{Hops} & \textbf{CCA} & \textbf{On-chain} & \textbf{Open source} \\
+\hline
+Blaze et al.\ '98 & Bi & 1 & No & No & --- \\
+Ateniese et al.\ '05 & Uni & 1 & No & No & --- \\
+Canetti--Hohenberger '07 & Bi & 1 & Yes & No & --- \\
+Libert--Vergnaud '08 & Uni & 1 & Yes & No & --- \\
+Wang--Cao '09 & Uni & Multi & No\textsuperscript{*} & No & --- \\
+IronCore Recrypt & Uni & Multi & --- & No & Yes \\
+\textbf{PEACE} & \textbf{Uni} & \textbf{Multi} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} \\
+\hline
+\multicolumn{6}{l}{\footnotesize \textsuperscript{*}Claimed but no full proof published; CCA vulnerabilities identified in this family.} \\
+\end{tabular}
+\end{table}
+```
 
 # Protocol Overview
 
