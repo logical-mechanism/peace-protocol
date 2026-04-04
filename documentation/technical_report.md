@@ -1064,11 +1064,12 @@ The core reduction requires a decisional assumption tailored to the PEACE cipher
 
 \begin{definition}[PRE-DDH Assumption]\label{def:pre-ddh}
 Let $e: \mathbb{G}_{1} \times \mathbb{G}_{2} \to \mathbb{G}_{T}$ be a Type-3 bilinear pairing with generators $q \in \mathbb{G}_{1}$, $p \in \mathbb{G}_{2}$, and let $h_{0} \in \mathbb{G}_{2}$ be a fixed public element with unknown discrete logarithm. For uniformly random $\delta, r, a \xleftarrow{\$} \mathbb{Z}_{n}$, the PRE-DDH problem is to distinguish:
-$$\left(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ h_{0},\ e([a]q, h_{0})\right) \quad \text{from} \quad \left(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ h_{0},\ T\right)$$
-where $T \xleftarrow{\$} \mathbb{G}_{T}$. The advantage is $\mathsf{Adv}^{\mathsf{PRE\text{-}DDH}}(\lambda) = |\Pr[\mathcal{A}(\mathsf{real}) = 1] - \Pr[\mathcal{A}(\mathsf{random}) = 1]|$.
+$$\left(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ p,\ [r]p,\ h_{0},\ e([a]q, h_{0})\right)$$
+$$\text{from} \quad \left(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ p,\ [r]p,\ h_{0},\ T\right)$$
+where $T \xleftarrow{\$} \mathbb{G}_{T}$. The $\mathbb{G}_{2}$ element $[r]p$ enables the reducer to compute $R_{4}$ components that require the scalar $r$ in $\mathbb{G}_{2}$. The advantage is $\mathsf{Adv}^{\mathsf{PRE\text{-}DDH}}(\lambda) = |\Pr[\mathcal{A}(\mathsf{real}) = 1] - \Pr[\mathcal{A}(\mathsf{random}) = 1]|$.
 \end{definition}
 
-\textbf{Justification.} PRE-DDH holds in the generic group model (GGM). In the GGM, the adversary's only operations are group operations in $\mathbb{G}_{1}$, $\mathbb{G}_{2}$, $\mathbb{G}_{T}$ and the pairing evaluation $e$. From the given $\mathbb{G}_{1}$ elements $\{q,\ [\delta]q,\ [r]q,\ [a+r\delta]q\}$, the adversary can form linear combinations $[\alpha_{0} + \alpha_{1}\delta + \alpha_{2}r + \alpha_{3}(a+r\delta)]q$ for known $\alpha_{i}$. To isolate $[a]q$, it would need $\alpha_{3} = 1$ and $\alpha_{2} + \alpha_{3}\delta = 0$, which requires $\alpha_{2} = -\delta$; but $\delta$ is unknown, so no valid combination yields $[a]q$. Without $[a]q$ in isolation, the pairing $e([a]q, h_{0})$ cannot be computed, and the target element in $\mathbb{G}_{T}$ is information-theoretically independent of the adversary's view. PRE-DDH is implied by CDH in $\mathbb{G}_{1}$: an adversary that solves CDH can compute $[r\delta]q$ from $[r]q$ and $[\delta]q$, recover $[a]q = [a+r\delta]q - [r\delta]q$, and then evaluate $e([a]q, h_{0})$.
+\textbf{Justification.} PRE-DDH holds in the generic group model (GGM). In the GGM, the adversary's only operations are group operations in $\mathbb{G}_{1}$, $\mathbb{G}_{2}$, $\mathbb{G}_{T}$ and the pairing evaluation $e$. The adversary's computable $\mathbb{G}_{T}$ elements are pairings of $\mathbb{G}_{1}$-linear combinations of $\{q, [\delta]q, [r]q, [a{+}r\delta]q\}$ with $\mathbb{G}_{2}$-linear combinations of $\{p, [r]p, h_{0}\}$. Writing $h_{0} = [\eta]p$ for unknown $\eta$, the accessible $\mathbb{G}_{T}$ monomials (as formal polynomials in $\delta, r, a, \eta$) include terms such as $\eta \cdot (a + r\delta) = a\eta + r\delta\eta$. To obtain the target $a\eta = e([a]q, h_{0})$, the adversary would need to cancel $r\delta\eta$ from $a\eta + r\delta\eta$. This requires a $\mathbb{G}_{T}$ element containing $r\delta\eta$ in isolation, but no product of an accessible $\mathbb{G}_{1}$ monomial with an accessible $\mathbb{G}_{2}$ monomial yields the single term $r\delta\eta$: it always appears summed with other terms that cannot be separated. Therefore, the target is information-theoretically independent of the adversary's view. PRE-DDH is implied by CDH in $\mathbb{G}_{1}$: an adversary that solves CDH can compute $[r\delta]q$ from $[r]q$ and $[\delta]q$, recover $[a]q = [a{+}r\delta]q - [r\delta]q$, and then evaluate $e([a]q, h_{0})$.
 
 \textbf{Relation to standard assumptions.} PRE-DDH is a falsifiable assumption that sits between DDH and CDH in strength. It is strictly weaker than CDH in $\mathbb{G}_{1}$ (CDH solves PRE-DDH, but not vice versa) and is independent of XDH (which concerns DDH in $\mathbb{G}_{1}$ without pairing access to the target). A tight reduction to XDH alone is complicated by the Type-3 coupling between $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$ via the shared scalar $r$ in the PEACE ciphertext structure (Appendix C.5, item 1). Achieving a tight reduction to XDH using techniques such as dual-system encryption or programmable hash proofs is left as future work.
 
@@ -1107,7 +1108,7 @@ This is a syntactic change. In the real protocol, any ciphertext accepted by the
 \textbf{Game~2} (SNARK knowledge extraction). Replace the Groth16 prover with a simulator. By the knowledge-soundness of Groth16 with the gnark commitment extension, for any valid proof $\pi$ that passes the pairing verification $e(A, B) \cdot e(vk_{x}, -\gamma) \cdot e(C, -\delta) \cdot e(\alpha, -\beta) = 1$ and the Pedersen commitment proof-of-knowledge, there exists an extractor $\mathcal{E}$ that recovers the witness $(a, r)$ satisfying $w_{0} = [\mathsf{MiMC}(\kappa \| \mathsf{DomainTag})]q$ and $w_{1} = [a]q + [r]v$, where $\kappa = e([a]q, h_{0})$.
 
 \begin{claim}
-$|\Pr[S_{2}] - \Pr[S_{1}]| \leq \mathsf{Adv}_{\mathcal{B}_{4}}^{\mathsf{KS\text{-}Groth16}}(\lambda)$.
+$|\Pr[S_{2}] - \Pr[S_{1}]| \leq \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{KS\text{-}Groth16}}(\lambda)$.
 \end{claim}
 
 The commitment proof-of-knowledge provides additional binding: the Pedersen commitment PoK ensures the commitment wire is correctly derived from the committed public inputs, preventing witness substitution attacks.
@@ -1136,7 +1137,7 @@ Suppose $\mathcal{A}$ produces a modified ciphertext $(R_{1}', R_{2}', R_{4}')$ 
 $|\Pr[S_{5}] - \Pr[S_{4}]| \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{PRE\text{-}DDH}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)$.
 \end{claim}
 
-\textit{Reduction.} Given a PRE-DDH instance $(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ h_{0},\ T)$ where $T$ is either $e([a]q, h_{0})$ (real) or uniform in $\mathbb{G}_{T}$ (random), the reducer $\mathcal{B}_{1}$ simulates the IND-PRE-CCA game as follows:
+\textit{Reduction.} Given a PRE-DDH instance $(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ p,\ [r]p,\ h_{0},\ T)$ where $T$ is either $e([a]q, h_{0})$ (real) or uniform in $\mathbb{G}_{T}$ (random), the reducer $\mathcal{B}_{1}$ simulates the IND-PRE-CCA game as follows:
 
 \begin{itemize}
 \item Set the challenge user's public key: $u_{i^{*}} = [\delta]q$.
@@ -1147,7 +1148,7 @@ $|\Pr[S_{5}] - \Pr[S_{4}]| \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{PRE\text
 
 If $T = e([a]q, h_{0})$, the challenge ciphertext is correctly distributed. If $T$ is random, $\kappa^{*}$ is uniform in $\mathbb{G}_{T}$, and the DEK is independent of the plaintext.
 
-\textit{Simulating $R_{4}^{*}$.} The reducer does not know $r$ as a scalar, so it cannot directly compute $R_{4}^{*} = [r](h_{1}^{H(R_{1}^{*})} \cdot h_{2}^{H(R_{1}^{*} \| R_{2}^{*} \| \mathsf{token})} \cdot h_{3})$. However, Game~3 models the hash function as a random oracle. The reducer programs the random oracle at the challenge inputs: it samples $R_{4}^{*} \xleftarrow{\$} \mathbb{G}_{2}$ uniformly and programs the hash outputs so that the pairing equation $e(q, R_{4}^{*}) = e(R_{1}^{*}, h_{1}^{H(R_{1}^{*})} \cdot h_{2}^{H(R_{1}^{*} \| R_{2}^{*} \| \mathsf{token})} \cdot h_{3})$ holds by construction. This is possible because $H(R_{1}^{*})$ and $H(R_{1}^{*} \| R_{2}^{*} \| \mathsf{token})$ are fresh random oracle queries that the reducer controls. For all other ciphertexts, the random oracle responds with truly random values, and honest provers who know $r$ can compute $R_{4}$ correctly.
+\textit{Simulating $R_{4}^{*}$.} The reducer does not know $r$ as a scalar, but the PRE-DDH instance provides $[r]p \in \mathbb{G}_{2}$. The reducer computes the hash values $c_{1} = H(R_{1}^{*})$ and $c_{2} = H(R_{1}^{*} \| R_{2}^{*} \| \mathsf{token})$ (which are known scalars, either from the random oracle table or freshly sampled and programmed). Writing $h_{1} = [\eta_{1}]p$, $h_{2} = [\eta_{2}]p$, $h_{3} = [\eta_{3}]p$ (the $\eta_{i}$ are unknown, but $h_{i}$ are fixed public elements), the target is $R_{4}^{*} = [r]( h_{1}^{c_{1}} \cdot h_{2}^{c_{2}} \cdot h_{3}) = [r] \cdot [c_{1}\eta_{1} + c_{2}\eta_{2} + \eta_{3}]p$. Since $c_{1}\eta_{1} + c_{2}\eta_{2} + \eta_{3}$ is the discrete log of a computable $\mathbb{G}_{2}$ element $c^{*} = [c_{1}]h_{1} + [c_{2}]h_{2} + h_{3}$ (computed via $\mathbb{G}_{2}$ scalar multiplication with known scalars $c_{1}, c_{2}$), and $[r]p$ is given, the reducer computes $R_{4}^{*}$ as follows: first compute $c^{*} = [c_{1}]h_{1} + [c_{2}]h_{2} + h_{3} \in \mathbb{G}_{2}$; then, since the discrete log of $c^{*}$ relative to $p$ is $s = c_{1}\eta_{1} + c_{2}\eta_{2} + \eta_{3}$, we need $[rs]p = [s]([r]p)$. But $s$ is unknown (the $\eta_{i}$ are unknown). To resolve this, the reducer uses the pairing to verify consistency: it computes $R_{4}^{*}$ by exploiting the bilinear structure. Specifically, the reducer cannot compute $[r]c^{*}$ directly from $[r]p$ and $c^{*}$ without knowing either $r$ or $s$. However, the reducer can program the random oracle outputs $c_{1}$ and $c_{2}$ at the challenge query points. By choosing $h_{1}, h_{2}, h_{3}$ during setup with known discrete logs $\eta_{1}, \eta_{2}, \eta_{3}$ (modeling hash-to-group as a random oracle), the reducer knows $s = c_{1}\eta_{1} + c_{2}\eta_{2} + \eta_{3}$ and computes $R_{4}^{*} = [s]([r]p) = [rs]p$, which equals $[r]c^{*}$ as required. For all other ciphertexts, honest provers who know their own $r$ can compute $R_{4}$ correctly.
 
 \textit{Simulating proofs.} The challenge ciphertext's binding proof and Schnorr proof are simulated via Fiat--Shamir programming in the random oracle model (enabled by Game~3). The reducer programs the random oracle to produce challenges that make simulated transcripts accepting, without knowledge of the witness scalars $(a, r)$. The SNARK proof is simulated using the Groth16 simulator (enabled by Game~2).
 
@@ -1159,7 +1160,7 @@ If $T = e([a]q, h_{0})$, the challenge ciphertext is correctly distributed. If $
 
 \begin{enumerate}
 \item Game~1 ensures $\mathsf{CT}$ passes all on-chain verification checks; if not, return $\bot$.
-\item Game~3 provides binding proof extraction in the ROM: from any valid binding proof in $\mathsf{CT}$, extract $(a, r)$ such that $R_{1} = [r]q$ and $R_{2} = [a]q + [r]u_{i^{*}}$.
+\item Game~3 provides binding proof extraction in the ROM via online extractability: the reducer monitors all random oracle queries and, when a valid binding proof appears, looks up the prover's commitment in the random oracle table to recover the randomness. This yields $(a, r)$ such that $R_{1} = [r]q$ and $R_{2} = [a]q + [r]u_{i^{*}}$. This is straight-line extraction (no rewinding), which is compatible with adaptive decryption queries.
 \item With extracted $a$, compute $\kappa = e([a]q, h_{0})$ directly (the pairing is efficiently computable given $[a]q \in \mathbb{G}_{1}$ and $h_{0} \in \mathbb{G}_{2}$), derive the DEK via HKDF, and decrypt.
 \end{enumerate}
 
@@ -1168,7 +1169,7 @@ This simulation succeeds for all well-formed ciphertexts except the challenge ci
 \textbf{Game~6} (replace DEK). Now that $\kappa^{*}$ is random in $\mathbb{G}_{T}$, replace the DEK $k = \mathsf{HKDF}(\kappa^{*} \| R_{1}^{*})$ with a uniformly random key $k_{\mathsf{rand}}$.
 
 \begin{claim}
-$|\Pr[S_{6}] - \Pr[S_{5}]| \leq \mathsf{Adv}_{\mathcal{B}_{6}}^{\mathsf{PRF\text{-}HKDF}}(\lambda)$.
+$|\Pr[S_{6}] - \Pr[S_{5}]| \leq \mathsf{Adv}_{\mathcal{B}_{7}}^{\mathsf{PRF\text{-}HKDF}}(\lambda)$.
 \end{claim}
 
 By the extraction security of HKDF in the random oracle model: when the source material $\kappa^{*}$ has sufficient min-entropy (it is uniform in $\mathbb{G}_{T}$, providing $\log_{2} n$ bits), the HKDF output is computationally indistinguishable from uniform.
@@ -1176,7 +1177,7 @@ By the extraction security of HKDF in the random oracle model: when the source m
 \textbf{Game~7} (replace AES-GCM ciphertext). With a uniformly random DEK, replace the AES-GCM encryption of $m_{b}$ with an encryption of a fixed message $0^{|m_{b}|}$.
 
 \begin{claim}
-$|\Pr[S_{7}] - \Pr[S_{6}]| \leq \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{IND\text{-}CPA\text{-}AES}}(\lambda)$.
+$|\Pr[S_{7}] - \Pr[S_{6}]| \leq \mathsf{Adv}_{\mathcal{B}_{6}}^{\mathsf{IND\text{-}CPA\text{-}AES}}(\lambda)$.
 \end{claim}
 
 By the IND-CPA security of AES-GCM under a random key. In Game~7, the adversary's view is completely independent of the challenge bit $b$, so $\Pr[S_{7}] = \tfrac{1}{2}$.
