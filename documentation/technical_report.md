@@ -1061,13 +1061,13 @@ Let $\lambda$ be the security parameter. The game between a challenger $\mathcal
 ## Main Theorem
 
 \begin{theorem}[IND-PRE-CCA Security of PEACE]\label{thm:main}
-If the Decisional Bilinear Diffie--Hellman (DBDH) assumption holds in $(\mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T})$ over BLS12-381, MiMC is collision-resistant, Blake2b-224 is collision-resistant, Groth16 is knowledge-sound \textnormal{[@groth-2016]}, AES-GCM is IND-CPA secure, and HKDF is a secure key derivation function in the random oracle model, then for any PPT adversary $\mathcal{A}$ there exist PPT reductions $\mathcal{B}_{1}, \ldots, \mathcal{B}_{6}$ such that
+If the External Diffie--Hellman (XDH) assumption holds in $\mathbb{G}_{1}$ (i.e., DDH is hard in $\mathbb{G}_{1}$), MiMC behaves as a random oracle in the algebraic group model, Blake2b-224 is collision-resistant, Groth16 is knowledge-sound \textnormal{[@groth-2016]}, AES-GCM is IND-CPA secure, and HKDF is a secure key derivation function in the random oracle model, then for any PPT adversary $\mathcal{A}$ there exist PPT reductions $\mathcal{B}_{1}, \ldots, \mathcal{B}_{6}$ such that
 
 \begin{equation}\label{eq:main-bound}
 \begin{aligned}
 \mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}PRE\text{-}CCA}}(\lambda) \leq{}
-  & \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{DBDH}}(\lambda)
-  + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{CR\text{-}MiMC}}(\lambda)
+  & \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{XDH}}(\lambda)
+  + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)
   + \mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}(\lambda) \\
   &+ \mathsf{Adv}_{\mathcal{B}_{4}}^{\mathsf{KS\text{-}Groth16}}(\lambda)
   + \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{IND\text{-}CPA\text{-}AES}}(\lambda)
@@ -1108,32 +1108,45 @@ By special soundness of the Schnorr and binding $\Sigma$-protocols: two acceptin
 \textbf{Game~4} (ciphertext non-malleability via R4 binding). Show that the $R_{4}$ component binds the ciphertext components together. The verification equation $e(q, R_{4}) = e(R_{1}, h_{1}^{H(R_{1})} \cdot h_{2}^{H(R_{1} \| R_{2} \| \mathsf{token})} \cdot h_{3})$ ties $(R_{1}, R_{2}, \mathsf{token})$ through hash-derived exponents on fixed public $\mathbb{G}_{2}$ points.
 
 \begin{claim}
-The transition from Game~3 to Game~4 is bounded by the CDH advantage in $\mathbb{G}_{2}$ (implied by DBDH) plus $\mathsf{Adv}^{\mathsf{CR\text{-}Blake2b}}$.
+The transition from Game~3 to Game~4 is bounded by the CDH advantage in $\mathbb{G}_{2}$ (implied by XDH via the bilinear map) plus $\mathsf{Adv}^{\mathsf{CR\text{-}Blake2b}}$.
 \end{claim}
 
 Suppose $\mathcal{A}$ produces a modified ciphertext $(R_{1}', R_{2}', R_{4}')$ that passes the pairing check with a different $(R_{1}, R_{2})$ or a different token name. Since $h_{1}, h_{2}, h_{3}$ are random $\mathbb{G}_{2}$ elements (hash-to-group from a public seed with domain separation), and the hashes $H(R_{1})$ and $H(R_{1} \| R_{2} \| \mathsf{token})$ are collision-resistant, producing a valid $R_{4}'$ for modified inputs requires solving CDH in $\mathbb{G}_{2}$.
 
 \textbf{PEACE-specific note:} The inclusion of the token name in the hash input (absent in the original Wang--Cao construction) prevents cross-NFT transplant attacks, where an adversary copies a valid ciphertext from one token to another.
 
-\textbf{Game~5} (DBDH core). In the challenge ciphertext, replace $\kappa^{*} = e([a^{*}]q, h_{0})$ with a uniformly random element $\kappa_{\mathsf{rand}} \in \mathbb{G}_{T}$.
+\textbf{Game~5} (XDH core). In the challenge ciphertext, replace $\kappa^{*} = e([a^{*}]q, h_{0})$ with a uniformly random element $\kappa_{\mathsf{rand}} \in \mathbb{G}_{T}$.
 
 \begin{claim}
-$|\Pr[S_{5}] - \Pr[S_{4}]| \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{DBDH}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{CR\text{-}MiMC}}(\lambda)$.
+$|\Pr[S_{5}] - \Pr[S_{4}]| \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{XDH}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)$.
 \end{claim}
 
-\textit{Embedding.} Given a DBDH instance $(q, [\alpha]q, h_{0}, [\alpha]h_{0}, T)$ where $T$ is either $e(q, h_{0})^{\alpha \beta}$ (real) or random in $\mathbb{G}_{T}$:
+The reduction proceeds in two stages. First, we use the XDH assumption (DDH in $\mathbb{G}_{1}$) to hide $[a^{*}]q$ within $R_{2}^{*}$. Then, since $[a^{*}]q$ is hidden, $\kappa^{*} = e([a^{*}]q, h_{0})$ becomes computationally indistinguishable from random.
+
+\textit{Embedding.} Given a DDH instance in $\mathbb{G}_{1}$: $(q,\ [\alpha]q,\ [\beta]q,\ T)$ where $T$ is either $[\alpha\beta]q$ (real) or $[\gamma]q$ for uniform $\gamma$ (random):
 
 \begin{itemize}
-\item Set $[a^{*}]q = [\alpha]q$ (from the DBDH challenge).
-\item Choose $r^{*} \xleftarrow{\$} \mathbb{Z}_{n}$ and set $R_{1}^{*} = [r^{*}]q$, \ $R_{2}^{*} = [\alpha]q + [r^{*}]u_{i^{*}}$.
-\item The pairing secret becomes $\kappa^{*} = e([\alpha]q, h_{0}) = T$ under the DBDH embedding.
+\item Set the challenge user's public key as $u_{i^{*}} = [\alpha]q$ from the DDH challenge. The reducer does \emph{not} know $\delta_{i^{*}} = \alpha$.
+\item Set $R_{1}^{*} = [\beta]q$ (embedding $\beta$ as $r^{*}$).
+\item Set $R_{2}^{*} = T + [\hat{a}]q$ for a freshly sampled $\hat{a} \xleftarrow{\$} \mathbb{Z}_{n}$.
 \end{itemize}
 
-If $T$ is real, the challenge ciphertext is correctly distributed (identical to Game~4). If $T$ is random, $\kappa^{*}$ is uniform in $\mathbb{G}_{T}$, so $hk = \mathsf{MiMC}(\kappa^{*} \| \mathsf{DomainTag})$ is pseudorandom by the collision resistance of MiMC, and the DEK derived via HKDF becomes independent of the plaintext.
+If $T = [\alpha\beta]q$ (real DDH tuple), then $R_{2}^{*} = [\hat{a}]q + [\alpha\beta]q = [\hat{a} + \alpha\beta]q$. Setting $a^{*} = \hat{a} + \alpha\beta$ and $r^{*} = \beta$, we get $R_{2}^{*} = [a^{*}]q + [r^{*}]u_{i^{*}}$, which is correctly distributed. The pairing secret is $\kappa^{*} = e([a^{*}]q, h_{0})$, which the reducer cannot compute (it does not know $a^{*}$, since $\alpha$ is unknown). If $T = [\gamma]q$ (random), then $R_{2}^{*} = [\hat{a} + \gamma]q$ where $\gamma$ is uniform and independent of $\alpha, \beta$. The value $[a^{*}]q$ is now uniformly random in $\mathbb{G}_{1}$ from the adversary's view, so $\kappa^{*} = e([a^{*}]q, h_{0})$ is uniform in $\mathbb{G}_{T}$ (since the pairing is non-degenerate and $h_{0} \neq \mathcal{O}$).
 
-\textit{Simulating $R_{5}$.} For re-encrypted ciphertexts, $R_{5} = [H(\kappa)]p + [\delta](-h_{0})$. Since $\kappa$ is now random, $H(\kappa)$ via MiMC is pseudorandom, and $R_{5}$ remains correctly distributed from $\mathcal{A}$'s view.
+\textit{MiMC as random oracle.} Once $\kappa^{*}$ is uniform in $\mathbb{G}_{T}$, we model MiMC as a random oracle: $hk = \mathsf{MiMC}(\kappa^{*} \| \mathsf{DomainTag})$ is then uniformly distributed in $\mathbb{Z}_{n}$, and the DEK derived via HKDF becomes independent of the plaintext. The MiMC random oracle assumption (denoted $\mathsf{RO\text{-}MiMC}$) is stronger than collision resistance but is standard for algebraic hash functions used inside SNARK circuits in the random oracle model.
 
-\textit{Simulating decryption.} The challenger knows all secret keys of non-challenge users (set by $\mathcal{O}_{\mathsf{KeyGen}}$) and $\delta_{i^{*}}$ (since we chose it during the reduction). For ciphertexts under $i^{*}$ that are not the challenge, decryption uses $\delta_{i^{*}}$ directly.
+\textit{Simulating $R_{5}$.} For re-encrypted ciphertexts, $R_{5} = [H(\kappa)]p + [\delta](-h_{0})$. Since $\kappa$ is now random and MiMC is modeled as a random oracle, $H(\kappa)$ is uniform in $\mathbb{Z}_{n}$, and $R_{5}$ is correctly distributed from $\mathcal{A}$'s view.
+
+\textit{Simulating decryption.} The reducer does not know $\delta_{i^{*}}$, so it cannot decrypt ciphertexts under the challenge user directly. Instead, it exploits the extraction machinery established in Games~1--3. For any decryption query $\mathsf{CT}$ under user $i^{*}$ (that is not the challenge ciphertext or a derivative):
+
+\begin{enumerate}
+\item Game~1 ensures $\mathsf{CT}$ passes all on-chain verification checks; if not, return $\bot$.
+\item Game~2 provides SNARK knowledge extraction: from any valid Groth16 proof in $\mathsf{CT}$, extract the witness $(a, r)$ such that $w_{0} = [\mathsf{MiMC}(\kappa \| \mathsf{DomainTag})]q$ and $w_{1} = [a]q + [r]v$.
+\item Game~3 provides binding proof extraction: from any valid binding proof in $\mathsf{CT}$, extract $(a, r)$ such that $R_{1} = [r]q$ and $R_{2} = [a]q + [r]u_{i^{*}}$.
+\item With extracted $a$, compute $\kappa = e([a]q, h_{0})$ directly (the pairing is efficiently computable given $[a]q$), derive the DEK via HKDF, and decrypt.
+\end{enumerate}
+
+This simulation succeeds for all well-formed ciphertexts except the challenge ciphertext itself (where extraction is forbidden by the CCA restriction). For non-challenge users, the reducer knows their secret keys and decrypts normally.
 
 \textbf{Game~6} (replace DEK). Now that $\kappa^{*}$ is random in $\mathbb{G}_{T}$, replace the DEK $k = \mathsf{HKDF}(\kappa^{*} \| R_{1}^{*})$ with a uniformly random key $k_{\mathsf{rand}}$.
 
@@ -1186,18 +1199,18 @@ The function reconstructs compressed $\mathbb{G}_{1}$ points from the little-end
 
 \begin{lemma}[Multi-hop security degradation]\label{lem:multi-hop}
 For a chain of $n$ re-encryption hops, the IND-PRE-CCA advantage degrades at most linearly in $n$:
-$$\mathsf{Adv}^{n\text{-hop}} \leq n \cdot \mathsf{Adv}^{\mathsf{DBDH}} + \mathsf{negl}(\lambda)$$
+$$\mathsf{Adv}^{n\text{-hop}} \leq n \cdot \mathsf{Adv}^{\mathsf{XDH}} + \mathsf{negl}(\lambda)$$
 \end{lemma}
 
 \begin{proof}[Proof sketch]
-Each hop introduces fresh random $(a_{i}, r_{i})$ and a fresh $\kappa_{i} = e([a_{i}]q, h_{0})$. The recursive decryption structure (Lemma~\ref{lem:correct-decrypt}) means that $\kappa_{i}$ reveals $\kappa_{i-1}$ via the $R_{5}$ chain, but the forward direction is secure: knowing $\kappa_{i-1}$ does not reveal $\kappa_{i}$. Unidirectionality ensures that knowing $\delta_{j}$ (Bob's secret) and the re-encryption material does not reveal $\delta_{i}$ (Alice's secret). A standard hybrid argument over the $n$ hops gives the linear bound, with each hybrid replacing one $\kappa_{i}$ with a random $\mathbb{G}_{T}$ element under the DBDH assumption.
+Each hop introduces fresh random $(a_{i}, r_{i})$ and a fresh $\kappa_{i} = e([a_{i}]q, h_{0})$. The recursive decryption structure (Lemma~\ref{lem:correct-decrypt}) means that $\kappa_{i}$ reveals $\kappa_{i-1}$ via the $R_{5}$ chain, but the forward direction is secure: knowing $\kappa_{i-1}$ does not reveal $\kappa_{i}$. Unidirectionality ensures that knowing $\delta_{j}$ (Bob's secret) and the re-encryption material does not reveal $\delta_{i}$ (Alice's secret). A standard hybrid argument over the $n$ hops gives the linear bound, with each hybrid replacing one $\kappa_{i}$ with a random $\mathbb{G}_{T}$ element under the XDH assumption.
 \end{proof}
 
 ## PEACE-Specific Differences from Wang--Cao
 
 The following modifications distinguish PEACE from the original Wang--Cao construction and affect the security argument:
 
-1. \textbf{Type-3 pairing.} Wang--Cao is stated for a symmetric (Type-1) pairing. PEACE uses BLS12-381 (Type-3), where no efficiently computable isomorphism exists between $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. This prevents certain self-pairing attacks and requires all assumptions to be stated in the asymmetric setting.
+1. \textbf{Type-3 pairing and XDH.} Wang--Cao is stated for a symmetric (Type-1) pairing. PEACE uses BLS12-381 (Type-3), where no efficiently computable isomorphism exists between $\mathbb{G}_{1}$ and $\mathbb{G}_{2}$. This prevents certain self-pairing attacks but also means DBDH is not directly applicable when the challenge involves elements from both groups (the pairing is efficiently computable). The proof instead uses the External Diffie--Hellman (XDH) assumption, which asserts DDH hardness in $\mathbb{G}_{1}$, and is standard for Type-3 pairings.
 
 2. \textbf{Token-name binding in $R_{4}$.} The hash inputs for the $R_{4}$ pairing check include the \texttt{token\_name}, binding each ciphertext to a specific on-chain NFT. This strengthens non-malleability (Game~4) and is absent in Wang--Cao.
 
@@ -1207,13 +1220,13 @@ The following modifications distinguish PEACE from the original Wang--Cao constr
 
 5. \textbf{Two-transaction flow and Pending state.} The SNARK submission and re-encryption completion occur in separate on-chain transactions. During the Pending state, the SNARK public inputs $(w_{0}, w_{1})$ and proof are visible on-chain. We argue this does not leak information beyond the completed re-encryption: the public inputs are $\mathbb{G}_{1}$ points that are already published in the next half-level after completion, and the TTL is a timing parameter.
 
-6. \textbf{MiMC for $\mathbb{G}_{T}$-to-scalar hashing.} MiMC is efficient in arithmetic circuits but has lower security margins than standard hash functions. The proof explicitly assumes MiMC collision resistance (Game~5). The current state of MiMC cryptanalysis supports security at the chosen parameter sizes, but this remains the weakest cryptographic link.
+6. \textbf{MiMC for $\mathbb{G}_{T}$-to-scalar hashing.} MiMC is efficient in arithmetic circuits but has lower security margins than standard hash functions. The proof models MiMC as a random oracle (Game~5), which is stronger than collision resistance but is the standard treatment for algebraic hash functions in SNARK-based protocols. The random oracle assumption on MiMC ensures that $\mathsf{MiMC}(\kappa \| \mathsf{DomainTag})$ is uniformly distributed when $\kappa$ is uniform in $\mathbb{G}_{T}$. The current state of MiMC cryptanalysis supports security at the chosen parameter sizes, but this remains the weakest cryptographic link. MiMC may be replaced with Poseidon as a drop-in substitution in the SNARK circuit without affecting the rest of the proof.
 
 7. \textbf{$h_{3}$ term in level-1 vs.\ level-$k$.} Level-1 ciphertexts include $h_{3}$ in the $R_{4}$ pairing check; level-$k$ ciphertexts do not. This provides domain separation between first-level and re-encrypted ciphertexts, preventing downgrade attacks where an adversary attempts to present a level-$k$ ciphertext as a level-1 ciphertext (or vice versa).
 
 ## Discussion and Limitations
 
-\textbf{MiMC security margin.} MiMC has fewer rounds of analysis than SHA-256 or Blake2b. The collision-resistance assumption (used in Game~5) is the subject of ongoing cryptanalysis. If future attacks weaken MiMC, the SNARK circuit's hash function must be replaced. This is the most conservative assumption in the proof.
+\textbf{MiMC random oracle assumption.} The proof models MiMC as a random oracle (Game~5). This is stronger than collision resistance: it requires that MiMC outputs are indistinguishable from uniform on fresh inputs. This treatment is standard for algebraic hashes in SNARK protocols but represents the strongest assumption in the proof. MiMC has fewer rounds of analysis than SHA-256 or Blake2b. If future cryptanalysis weakens MiMC, the SNARK circuit's hash function can be replaced (e.g., with Poseidon) without affecting the remaining proof structure.
 
 \textbf{Groth16 trusted setup.} Knowledge soundness of Groth16 depends on the structured reference string (SRS) being honestly generated, i.e., the trapdoor ("toxic waste") is destroyed. In the PEACE deployment, this is a setup-time trust assumption.
 
