@@ -1091,7 +1091,7 @@ If the PRE-DDH assumption (Definition~\ref{def:pre-ddh}) holds, MiMC behaves as 
 \end{aligned}
 \end{equation}
 
-where the PRE-DDH and CDH-$\mathbb{G}_{2}$ terms absorb an $O(Q_{H})$ tightness loss from forking-lemma extraction in the decryption simulation, with $Q_{H}$ the number of random oracle queries.
+where the PRE-DDH term absorbs an $O(Q_{D} \cdot Q_{H})$ tightness loss from forking-lemma extraction in the decryption simulation, with $Q_{D}$ the number of challenge-user decryption queries and $Q_{H}$ the number of random oracle queries.
 \end{theorem}
 
 \begin{proof}
@@ -1115,13 +1115,13 @@ $|\Pr[S_{2}] - \Pr[S_{1}]| \leq \mathsf{Adv}_{\mathcal{B}_{5}}^{\mathsf{KS\text{
 
 The commitment proof-of-knowledge provides additional binding: the Pedersen commitment PoK ensures the commitment wire is correctly derived from the committed public inputs, preventing witness substitution attacks.
 
-\textbf{Game~3} (Fiat--Shamir random oracle). Model the Blake2b-224 hash in the Fiat--Shamir transforms as a random oracle. The Schnorr $\Sigma$-protocol uses domain tag \texttt{SCHNORR|PROOF|v1|} and the binding $\Sigma$-protocol uses \texttt{BINDING|PROOF|v1|}. Domain separation between the two proof types prevents cross-protocol attacks.
+\textbf{Game~3} (random oracle model). Henceforth, the proof works in the random oracle model (ROM). The Blake2b-224 hash used in the Fiat--Shamir transforms is modeled as a random oracle, with the Schnorr $\Sigma$-protocol using domain tag \texttt{SCHNORR|PROOF|v1|} and the binding $\Sigma$-protocol using \texttt{BINDING|PROOF|v1|}. Domain separation between the two proof types prevents cross-protocol attacks.
 
 \begin{claim}
-$\Pr[S_{3}] = \Pr[S_{2}]$.
+Games~2 and~3 are identical in the ROM.
 \end{claim}
 
-This is a modeling change, not a computational transition: the Fiat--Shamir heuristic is secure in the random oracle model by the forking lemma. The special soundness of both the Schnorr and binding $\Sigma$-protocols is preserved under the Fiat--Shamir transform in the ROM. Instantiation with Blake2b-224 is a heuristic; its collision resistance ($\mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}$) provides confidence in the instantiation but is not a formal game-hop bound. The binding proof (Algorithm~\ref{alg:bindingsig}) proves knowledge of $(a, r)$ such that $\chi = [a]q + [r]u$ and $r_{1} = [r]q$, which is exactly the structure of the ciphertext's $R_{2}$ and $R_{1}$ components.
+This is a modeling assumption, not a computational transition: the Fiat--Shamir transform is secure in the ROM by the forking lemma, and the special soundness of both $\Sigma$-protocols is preserved. Instantiation with Blake2b-224 is a heuristic whose confidence rests on the collision resistance of the Blake2 family ($\mathsf{Adv}^{\mathsf{CR\text{-}Blake2b}}$), which is not a formal game-hop bound but a standard practical justification. The binding proof (Algorithm~\ref{alg:bindingsig}) proves knowledge of $(a, r)$ such that $\chi = [a]q + [r]u$ and $r_{1} = [r]q$, which is exactly the structure of the ciphertext's $R_{2}$ and $R_{1}$ components.
 
 \textbf{Game~4} (ciphertext non-malleability via R4 binding). Show that the $R_{4}$ component binds the ciphertext components together. The verification equation $e(q, R_{4}) = e(R_{1}, h_{1}^{H(R_{1})} \cdot h_{2}^{H(R_{1} \| R_{2} \| \mathsf{token})} \cdot h_{3})$ ties $(R_{1}, R_{2}, \mathsf{token})$ through hash-derived exponents on fixed public $\mathbb{G}_{2}$ points.
 
@@ -1161,12 +1161,12 @@ If $T = e([a]q, h_{0})$, the challenge ciphertext is correctly distributed. If $
 \textit{Simulating decryption.} The reducer does not know $\delta_{i^{*}}$, so it cannot decrypt ciphertexts under the challenge user directly. Instead, it exploits the extraction machinery established in Games~1--3. For any decryption query $\mathsf{CT}$ under user $i^{*}$ (that is not the challenge ciphertext or a derivative):
 
 \begin{enumerate}
-\item Game~1 ensures $\mathsf{CT}$ passes all on-chain verification checks; if not, return $\bot$.
-\item Game~3 provides binding proof extraction in the ROM via the forking lemma: the reducer forks the adversary at the random oracle query that produced the Fiat--Shamir challenge $c$, supplies a fresh challenge $c'$, and obtains a second accepting transcript. By special soundness of the binding $\Sigma$-protocol, the two transcripts yield $(a, r)$ such that $R_{1} = [r]q$ and $R_{2} = [a]q + [r]u_{i^{*}}$. The forking introduces a tightness loss of $O(Q_{H})$ where $Q_{H}$ is the number of random oracle queries; this factor is absorbed into the reduction constants.
+\item Game~1 mandates that $\mathsf{CT}$ passes all on-chain verification checks, including a valid binding proof; if any check fails, return $\bot$. This guarantees that every query reaching step~2 contains an extractable binding proof.
+\item Game~3 provides binding proof extraction in the ROM via the forking lemma: the reducer forks the adversary at the random oracle query that produced the Fiat--Shamir challenge $c$, supplies a fresh challenge $c'$, and obtains a second accepting transcript. By special soundness of the binding $\Sigma$-protocol, the two transcripts yield $(a, r)$ such that $R_{1} = [r]q$ and $R_{2} = [a]q + [r]u_{i^{*}}$.
 \item With extracted $a$, compute $\kappa = e([a]q, h_{0})$ directly (the pairing is efficiently computable given $[a]q \in \mathbb{G}_{1}$ and $h_{0} \in \mathbb{G}_{2}$), derive the DEK via HKDF, and decrypt.
 \end{enumerate}
 
-This simulation succeeds for all well-formed ciphertexts except the challenge ciphertext itself (where extraction is forbidden by the CCA restriction). For non-challenge users, the reducer knows their secret keys and decrypts normally.
+\textit{Tightness of forking.} Each of the $Q_{D}$ decryption queries under $i^{*}$ requires a separate forking invocation, each with success probability $\geq \varepsilon / Q_{H}$ where $\varepsilon$ is the adversary's advantage and $Q_{H}$ is the number of random oracle queries. Adaptive queries during the replay do not create recursive forking because the reducer answers them using the same extraction strategy (which depends only on the ROM table, not on previously extracted values). The total tightness loss is $O(Q_{D} \cdot Q_{H})$, absorbed into the PRE-DDH term in the main bound. For non-challenge users, the reducer knows their secret keys and decrypts normally.
 
 \textbf{Game~6} (replace DEK). Now that $\kappa^{*}$ is random in $\mathbb{G}_{T}$, replace the DEK $k = \mathsf{HKDF}(\kappa^{*} \| R_{1}^{*})$ with a uniformly random key $k_{\mathsf{rand}}$.
 
