@@ -121,7 +121,7 @@ The encrypted NFT problem refers to the lack of inherent encryption and security
 
 Several mandatory requirements must be satisfied for the protocol to function as intended. The encryption protocol must allow tradability of both the NFT itself and the right to decrypt the NFT data, implying that the solution must involve smart contracts and a form of encryption that allows data access to be re-encrypted for another user without revealing the encrypted content in the process. The contract side of the protocol should be reasonably straightforward. It needs a way to trade a token that holds the encrypted data and allows other users to receive it. To ensure decryptability, the tokens must be soulbound. On the encryption side of the protocol is some form of encryption that enables the re-encryption process to function correctly. Luckily, this type of encryption has been in cryptography research for quite some time [@mambo-okamoto-1997] [@blaze-bleumer-strauss-1998] [@ateniese-et-al-ndss2005]. There are even patented cloud-based solutions already in existence [@ironcore-recrypt-rs]. Currently, there are no open-source, fully on-chain, decentralized re-encryption protocols for encrypting NFT data on Cardano. The PEACE protocol provides an open-source solution to this problem.
 
-The PEACE protocol implements a unidirectional, multi-hop proxy re-encryption (PRE) scheme inspired by Wang and Cao [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that it cannot be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report. While the re-encryption core builds on Wang and Cao's scheme, the PEACE protocol introduces several extensions not present in the original construction: a Groth16 SNARK that binds the re-encryption witness to the pairing secret, preventing arbitrary witness substitution; token-name binding in the ciphertext verification equation, which ties each ciphertext to a specific on-chain NFT and prevents cross-token transplant attacks; constant on-chain datum size regardless of hop count, achieved by storing only the current and previous encryption levels; and a formal IND-PRE-CCA security proof (Appendix C).
+The PEACE protocol implements a unidirectional, multi-hop proxy re-encryption (PRE) scheme inspired by Wang and Cao [@WangCao2009PREPoster] that is ECIES-based [@ieee-1363a-2004] and uses AES [@fips-197]. Unidirectionality means that Alice can re-encrypt for Bob, and Bob can then re-encrypt it back to Alice, using different encryption keys. Unidirectionality is important for tradability, as it defines the one-way flow of data and removes any restriction on who can purchase the NFT. Multi-hop means that the flow of encrypted data from Alice to Bob to Carol, and so on, does not end, in the sense that it cannot be re-encrypted for a new user. Multi-hopping is important for tradability, as a finitely tradable asset does not fit many use cases. Typically, an asset should always be tradable if the user wants to trade it. The encryption primitives used in the protocol are considered industry standards at the time of this report. While the re-encryption core builds on Wang and Cao's scheme, the PEACE protocol introduces several extensions not present in the original construction: a Groth16 SNARK that binds the re-encryption witness to the pairing secret, preventing arbitrary witness substitution; token-name binding in the ciphertext verification equation, which ties each ciphertext to a specific on-chain NFT and prevents cross-token transplant attacks; constant on-chain datum size regardless of hop count, achieved by storing only the current and previous encryption levels; and a formal IND-CCA security proof (Appendix C).
 
 The remainder of this report is as follows. Section 2 discusses the preliminaries and background required for this project. Section 3 provides a brief overview of the required cryptographic primitives. Section 4 gives a detailed description of the protocol. Section 5 examines security and threat analysis, the protocol's limitations, and related topics. The goal of this report is to serve as a comprehensive reference and description of the PEACE protocol.
 
@@ -524,7 +524,7 @@ The protocol runs on a public UTxO ledger, so metadata leakage is unavoidable.
 
 - Key compromise is catastrophic. Any theft of secret keys compromises the confidentiality of those assets. Losing secret keys prevents decrypting.
 
-- The protocol aims for CCA security through the combination of binding proofs, pairing checks, and SNARK verification. The SNARK binds the witness computation to the actual pairing secret, preventing arbitrary witness substitution. Appendix C provides a formal IND-PRE-CCA security proof via a sequence-of-games argument.
+- The protocol aims for CCA security through the combination of binding proofs, pairing checks, and SNARK verification. The SNARK binds the witness computation to the actual pairing secret, preventing arbitrary witness substitution. Appendix C provides a formal IND-CCA security proof via a sequence-of-games argument, adapted for the owner-mediated re-encryption setting.
 
 - The protocol does not limit hops directly. However, since the on-chain storage is now constant (only current half-level and previous full-level), the Cardano UTxO size limit no longer constrains the hop count. Users must query the blockchain to reconstruct the full encryption history for decryption.
 
@@ -542,7 +542,7 @@ The two-transaction design introduces additional complexity and a brief window w
 
 # Conclusion
 
-The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with formal IND-PRE-CCA security guarantees under standard cryptographic assumptions (Appendix C). PEACE emphasizes correctness, composability, and an auditable trust boundary. Beyond implementing the Wang--Cao re-encryption core, the protocol contributes SNARK-verified witness binding, token-name ciphertext non-malleability, and constant on-chain storage independent of hop count. The two-transaction flow accommodates on-chain resource limits while maintaining security. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what should remain off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
+The PEACE protocol is a multi-use, unidirectional PRE for the Cardano blockchain with formal IND-CCA security guarantees under standard cryptographic assumptions (Appendix C). PEACE emphasizes correctness, composability, and an auditable trust boundary. Beyond implementing the Wang--Cao re-encryption core, the protocol contributes SNARK-verified witness binding, token-name ciphertext non-malleability, and constant on-chain storage independent of hop count. The two-transaction flow accommodates on-chain resource limits while maintaining security. We highlight the realities of the UTxO model, metadata leakage, and on-chain resource limits, and show how the design keeps cryptographic enforcement feasible while preserving a clear path toward stronger privacy and robustness. PEACE provides a concrete foundation for encrypted-asset markets on Cardano. It shows what is possible on-chain, what should remain off-chain, and how ownership can evolve across multiple hops while preserving decryption continuity for the rightful holder.
 
 \clearpage
 \appendix
@@ -1026,13 +1026,13 @@ $\kappa_{i-1} = \frac{r_{2, i-1}}{e(r_{1, i-1}, p^{H(\kappa_{i})})} = e(q^{a_{i-
 
 # Appendix C - Formal Security Analysis {#app:security}
 
-This appendix establishes the IND-PRE-CCA security of the PEACE protocol via a sequence-of-games argument [@shoup-2004-games]. The proof accounts for the protocol's modifications to the Wang--Cao PRE scheme [@WangCao2009PREPoster]: type-3 pairing over BLS12-381, token-name binding, SNARK-protected witness, and owner-mediated re-encryption.
+This appendix establishes the IND-CCA security of the PEACE protocol via a sequence-of-games argument [@shoup-2004-games]. The proof accounts for the protocol's modifications to the Wang--Cao PRE scheme [@WangCao2009PREPoster]: type-3 pairing over BLS12-381, token-name binding, SNARK-protected witness, and owner-mediated re-encryption.
 
 ## Security Model
 
-We define the IND-PRE-CCA security game for a unidirectional, multi-hop, owner-mediated proxy re-encryption scheme. The formalization follows the frameworks of Canetti--Hohenberger [@canetti-hohenberger-2007] and Libert--Vergnaud [@libert-vergnaud-2008], adapted for the PEACE setting where the delegator performs re-encryption (no standalone re-encryption key is published).
+We define the IND-CCA security game for an owner-mediated proxy re-encryption scheme. The formalization draws on the frameworks of Canetti--Hohenberger [@canetti-hohenberger-2007] and Libert--Vergnaud [@libert-vergnaud-2008], but omits the re-encryption oracle to accurately model PEACE's owner-mediated architecture (see justification below).
 
-\begin{definition}[IND-PRE-CCA Game]\label{def:ind-pre-cca}
+\begin{definition}[IND-CCA Game for Owner-Mediated PRE]\label{def:ind-pre-cca}
 Let $\lambda$ be the security parameter. The game between a challenger $\mathcal{C}$ and a PPT adversary $\mathcal{A}$ proceeds as follows.
 
 \textbf{Setup.} $\mathcal{C}$ runs the pairing parameter generation for BLS12-381, obtaining $(q, p, e, \mathbb{G}_{1}, \mathbb{G}_{2}, \mathbb{G}_{T}, n)$, and publishes the fixed public parameters $(h_{0}, h_{1}, h_{2}, h_{3}) \in \mathbb{G}_{2}^{4}$ together with the Groth16 verification key $vk$.
@@ -1046,17 +1046,17 @@ Let $\lambda$ be the security parameter. The game between a challenger $\mathcal
 
 \item $\mathcal{O}_{\mathsf{Encrypt}}(i, m)$: Encrypt message $m$ under user $i$'s key at level~1. Return the ciphertext $\mathsf{CT} = (\mathsf{HalfLevel}, \mathsf{Capsule})$.
 
-\item $\mathcal{O}_{\mathsf{ReEncrypt}}(i, j, \mathsf{CT})$: Re-encrypt $\mathsf{CT}$ from user $i$ to user $j$ using $\delta_{i}$ (owner-mediated). Return the re-encrypted ciphertext.
-
 \item $\mathcal{O}_{\mathsf{Decrypt}}(i, \mathsf{CT})$: Decrypt $\mathsf{CT}$ under user $i$'s key. Return the plaintext or $\bot$. Subject to the restriction that $\mathcal{A}$ may not query $(i^{*}, \mathsf{CT}^{*})$ or any derivative of $\mathsf{CT}^{*}$ re-encrypted to a corrupted user.
 \end{enumerate}
 
 \textbf{Challenge.} $\mathcal{A}$ submits $(m_{0}, m_{1}, i^{*})$ with $|m_{0}| = |m_{1}|$ and $i^{*}$ uncorrupted. $\mathcal{C}$ samples $b \xleftarrow{\$} \{0,1\}$, encrypts $m_{b}$ under $u_{i^{*}}$, and returns $\mathsf{CT}^{*}$.
 
-\textbf{Output.} $\mathcal{A}$ outputs a guess $b'$. The advantage is $\mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}PRE\text{-}CCA}}(\lambda) = |\Pr[b' = b] - \tfrac{1}{2}|$.
+\textbf{Output.} $\mathcal{A}$ outputs a guess $b'$. The advantage is $\mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}CCA}}(\lambda) = |\Pr[b' = b] - \tfrac{1}{2}|$.
 \end{definition}
 
-\textbf{PEACE-specific modeling notes.} (1) The on-chain verification checks (pairing equations, binding proofs, Schnorr proofs, Groth16 verification, limb compression) are public algorithms; $\mathcal{A}$ may run them on any candidate ciphertext. These constitute a well-formedness check, not a decryption oracle. (2) Because re-encryption is owner-mediated, there is no separate re-encryption key object; $\mathcal{O}_{\mathsf{ReEncrypt}}$ simulates the owner's computation. (3) Each ciphertext is bound to a unique token name, so $\mathcal{A}$ cannot transplant a ciphertext across tokens.
+\textbf{Why IND-CCA rather than IND-PRE-CCA.} The standard IND-PRE-CCA game [@canetti-hohenberger-2007] includes a re-encryption oracle $\mathcal{O}_{\mathsf{ReEncrypt}}$ that models a proxy holding a standalone re-encryption key. PEACE uses owner-mediated re-encryption: the owner performs re-encryption directly using their secret $\delta$, and no re-encryption key is ever published or delegated. The adversary cannot force the owner to re-encrypt; it can only observe re-encryptions the owner chooses to perform (which appear as on-chain transactions). Including $\mathcal{O}_{\mathsf{ReEncrypt}}$ would model a capability that does not exist in the protocol. The IND-CCA game accurately captures the PEACE threat model: the adversary has full access to encryption and decryption oracles, can corrupt non-challenge users, and observes all public on-chain data, but cannot compel the challenge user to re-encrypt. For non-challenge users $i \neq i^{*}$, the adversary can corrupt them and perform re-encryption itself using the extracted $\delta_{i}$. Extending to full IND-PRE-CCA with a simulated re-encryption oracle for the challenge user requires computing $[\delta_{i^{*}}]h_{0} \in \mathbb{G}_{2}$ from $[\delta_{i^{*}}]q \in \mathbb{G}_{1}$, which is infeasible in a Type-3 pairing; this is an open problem for Wang--Cao style PRE on asymmetric pairings.
+
+\textbf{Additional modeling notes.} (1) The on-chain verification checks (pairing equations, binding proofs, Schnorr proofs, Groth16 verification, limb compression) are public algorithms; $\mathcal{A}$ may run them on any candidate ciphertext. These constitute a well-formedness check, not a decryption oracle. (2) Each ciphertext is bound to a unique token name, so $\mathcal{A}$ cannot transplant a ciphertext across tokens.
 
 ## Hardness Assumption
 
@@ -1075,12 +1075,12 @@ where $T \xleftarrow{\$} \mathbb{G}_{T}$. The $\mathbb{G}_{2}$ element $[r]p$ en
 
 ## Main Theorem
 
-\begin{theorem}[IND-PRE-CCA Security of PEACE]\label{thm:main}
+\begin{theorem}[IND-CCA Security of PEACE]\label{thm:main}
 If the PRE-DDH assumption (Definition~\ref{def:pre-ddh}) holds, MiMC behaves as a random oracle, Blake2b-224 is collision-resistant, hash-to-group is modeled as a random oracle, CDH holds in $\mathbb{G}_{2}$, Groth16 is knowledge-sound \textnormal{[@groth-2016]}, AES-GCM is IND-CPA secure, and HKDF is a secure key derivation function in the random oracle model, then for any PPT adversary $\mathcal{A}$ there exist PPT reductions $\mathcal{B}_{1}, \ldots, \mathcal{B}_{7}$ such that
 
 \begin{equation}\label{eq:main-bound}
 \begin{aligned}
-\mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}PRE\text{-}CCA}}(\lambda) \leq{}
+\mathsf{Adv}_{\mathcal{A}}^{\mathsf{IND\text{-}CCA}}(\lambda) \leq{}
   & \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{PRE\text{-}DDH}}(\lambda)
   + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)
   + \mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}(\lambda) \\
@@ -1090,12 +1090,14 @@ If the PRE-DDH assumption (Definition~\ref{def:pre-ddh}) holds, MiMC behaves as 
   + \mathsf{Adv}_{\mathcal{B}_{7}}^{\mathsf{PRF\text{-}HKDF}}(\lambda)
 \end{aligned}
 \end{equation}
+
+where the PRE-DDH and CDH-$\mathbb{G}_{2}$ terms absorb an $O(Q_{H})$ tightness loss from forking-lemma extraction in the decryption simulation, with $Q_{H}$ the number of random oracle queries.
 \end{theorem}
 
 \begin{proof}
 By a sequence of seven games. Let $S_{i}$ denote the event that $\mathcal{A}$ wins in Game~$i$.
 
-\textbf{Game~0.} The real IND-PRE-CCA game as defined in Definition~\ref{def:ind-pre-cca}. By definition, $\mathsf{Adv}_{\mathcal{A}} = |\Pr[S_{0}] - \tfrac{1}{2}|$.
+\textbf{Game~0.} The real IND-CCA game as defined in Definition~\ref{def:ind-pre-cca}. By definition, $\mathsf{Adv}_{\mathcal{A}} = |\Pr[S_{0}] - \tfrac{1}{2}|$.
 
 \textbf{Game~1} (reject malformed decryption queries). Modify $\mathcal{O}_{\mathsf{Decrypt}}$ to re-run the on-chain verification checks before decrypting: the pairing equation $e(q, R_{4}) = e(R_{1}, h_{1}^{H(R_{1})} \cdot h_{2}^{H(R_{1} \| R_{2} \| \mathsf{token})} \cdot h_{3})$ for level~1 (or the analogous equation without $h_{3}$ for level~$k$), the R5 check $e(q, R_{5}) \cdot e(u, h_{0}) = e(W, p)$, binding proof verification, and Schnorr proof verification. Return $\bot$ on any failure.
 
@@ -1116,18 +1118,18 @@ The commitment proof-of-knowledge provides additional binding: the Pedersen comm
 \textbf{Game~3} (Fiat--Shamir random oracle). Model the Blake2b-224 hash in the Fiat--Shamir transforms as a random oracle. The Schnorr $\Sigma$-protocol uses domain tag \texttt{SCHNORR|PROOF|v1|} and the binding $\Sigma$-protocol uses \texttt{BINDING|PROOF|v1|}. Domain separation between the two proof types prevents cross-protocol attacks.
 
 \begin{claim}
-$|\Pr[S_{3}] - \Pr[S_{2}]| \leq \mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}(\lambda)$.
+$\Pr[S_{3}] = \Pr[S_{2}]$.
 \end{claim}
 
-By special soundness of the Schnorr and binding $\Sigma$-protocols: two accepting transcripts with distinct challenges yield extractable secrets. The Fiat--Shamir transform preserves this property in the random oracle model. The binding proof (Algorithm~\ref{alg:bindingsig}) proves knowledge of $(a, r)$ such that $\chi = [a]q + [r]u$ and $r_{1} = [r]q$, which is exactly the structure of the ciphertext's $R_{2}$ and $R_{1}$ components.
+This is a modeling change, not a computational transition: the Fiat--Shamir heuristic is secure in the random oracle model by the forking lemma. The special soundness of both the Schnorr and binding $\Sigma$-protocols is preserved under the Fiat--Shamir transform in the ROM. Instantiation with Blake2b-224 is a heuristic; its collision resistance ($\mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}$) provides confidence in the instantiation but is not a formal game-hop bound. The binding proof (Algorithm~\ref{alg:bindingsig}) proves knowledge of $(a, r)$ such that $\chi = [a]q + [r]u$ and $r_{1} = [r]q$, which is exactly the structure of the ciphertext's $R_{2}$ and $R_{1}$ components.
 
 \textbf{Game~4} (ciphertext non-malleability via R4 binding). Show that the $R_{4}$ component binds the ciphertext components together. The verification equation $e(q, R_{4}) = e(R_{1}, h_{1}^{H(R_{1})} \cdot h_{2}^{H(R_{1} \| R_{2} \| \mathsf{token})} \cdot h_{3})$ ties $(R_{1}, R_{2}, \mathsf{token})$ through hash-derived exponents on fixed public $\mathbb{G}_{2}$ points.
 
 \begin{claim}
-The transition from Game~3 to Game~4 is bounded by the CDH advantage in $\mathbb{G}_{2}$ plus $\mathsf{Adv}^{\mathsf{CR\text{-}Blake2b}}$.
+$|\Pr[S_{4}] - \Pr[S_{3}]| \leq \mathsf{Adv}_{\mathcal{B}_{3}}^{\mathsf{CR\text{-}Blake2b}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{4}}^{\mathsf{CDH\text{-}\mathbb{G}_{2}}}(\lambda)$.
 \end{claim}
 
-Suppose $\mathcal{A}$ produces a modified ciphertext $(R_{1}', R_{2}', R_{4}')$ that passes the pairing check with a different $(R_{1}, R_{2})$ or a different token name. Since $h_{1}, h_{2}, h_{3}$ are random $\mathbb{G}_{2}$ elements (hash-to-group from a public seed with domain separation), and the hashes $H(R_{1})$ and $H(R_{1} \| R_{2} \| \mathsf{token})$ are collision-resistant, producing a valid $R_{4}'$ for modified inputs requires solving CDH in $\mathbb{G}_{2}$.
+Suppose $\mathcal{A}$ produces a modified ciphertext $(R_{1}', R_{2}', R_{4}')$ that passes the pairing check with a different $(R_{1}, R_{2})$ or a different token name. The $R_{4}$ verification equation couples $\mathbb{G}_{1}$ (via $R_{1}$) and $\mathbb{G}_{2}$ (via $R_{4}$) through the shared scalar $r$: $R_{4} = [r]c$ where $c \in \mathbb{G}_{2}$ is determined by the hash outputs. Since $h_{1}, h_{2}, h_{3}$ are random $\mathbb{G}_{2}$ elements (hash-to-group from a public seed with domain separation), and the hashes are modeled as random oracles, producing a valid $R_{4}'$ for modified inputs requires computing $[r']c'$ for a new $c'$ without knowing $r'$ as a scalar. In the generic group model, this cross-group computation is infeasible; under named assumptions, it is implied by CDH in $\mathbb{G}_{2}$ when $h_{1}, h_{2}, h_{3}$ have unknown discrete logs (which the hash-to-group ROM ensures).
 
 \textbf{PEACE-specific note:} The inclusion of the token name in the hash input (absent in the original Wang--Cao construction) prevents cross-NFT transplant attacks, where an adversary copies a valid ciphertext from one token to another.
 
@@ -1137,7 +1139,7 @@ Suppose $\mathcal{A}$ produces a modified ciphertext $(R_{1}', R_{2}', R_{4}')$ 
 $|\Pr[S_{5}] - \Pr[S_{4}]| \leq \mathsf{Adv}_{\mathcal{B}_{1}}^{\mathsf{PRE\text{-}DDH}}(\lambda) + \mathsf{Adv}_{\mathcal{B}_{2}}^{\mathsf{RO\text{-}MiMC}}(\lambda)$.
 \end{claim}
 
-\textit{Reduction.} Given a PRE-DDH instance $(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ p,\ [r]p,\ h_{0},\ T)$ where $T$ is either $e([a]q, h_{0})$ (real) or uniform in $\mathbb{G}_{T}$ (random), the reducer $\mathcal{B}_{1}$ simulates the IND-PRE-CCA game as follows:
+\textit{Reduction.} Given a PRE-DDH instance $(q,\ [\delta]q,\ [r]q,\ [a + r\delta]q,\ p,\ [r]p,\ h_{0},\ T)$ where $T$ is either $e([a]q, h_{0})$ (real) or uniform in $\mathbb{G}_{T}$ (random), the reducer $\mathcal{B}_{1}$ simulates the IND-CCA game as follows:
 
 \begin{itemize}
 \item Set the challenge user's public key: $u_{i^{*}} = [\delta]q$.
@@ -1216,7 +1218,7 @@ The function reconstructs compressed $\mathbb{G}_{1}$ points from the little-end
 \end{proof}
 
 \begin{lemma}[Multi-hop security degradation]\label{lem:multi-hop}
-For a chain of $n$ re-encryption hops, the IND-PRE-CCA advantage degrades at most linearly in $n$:
+For a chain of $n$ re-encryption hops, the IND-CCA advantage degrades at most linearly in $n$:
 $$\mathsf{Adv}^{n\text{-hop}} \leq n \cdot \mathsf{Adv}^{\mathsf{PRE\text{-}DDH}} + \mathsf{negl}(\lambda)$$
 \end{lemma}
 
@@ -1234,7 +1236,7 @@ The following modifications distinguish PEACE from the original Wang--Cao constr
 
 3. \textbf{SNARK-protected witness.} The re-encryption witness $W = q^{H(\kappa)}$ is bound to $\kappa$ via a Groth16 proof rather than an algebraic argument. This replaces a direct algebraic reduction with an appeal to knowledge soundness (Game~2).
 
-4. \textbf{Owner-mediated re-encryption.} The delegator performs re-encryption directly; no standalone re-encryption key is published. This simplifies the security model by eliminating the proxy adversary, since $\mathcal{O}_{\mathsf{ReEncrypt}}$ uses the owner's secret.
+4. \textbf{Owner-mediated re-encryption and IND-CCA model.} The delegator performs re-encryption directly; no standalone re-encryption key is published or delegated. This means the standard IND-PRE-CCA re-encryption oracle $\mathcal{O}_{\mathsf{ReEncrypt}}$ does not model a real protocol capability, so the proof uses the IND-CCA game instead. Simulating $\mathcal{O}_{\mathsf{ReEncrypt}}$ for the challenge user would require computing $[\delta_{i^{*}}]h_{0} \in \mathbb{G}_{2}$ from $[\delta_{i^{*}}]q \in \mathbb{G}_{1}$, which is infeasible in a Type-3 pairing. Extending to full IND-PRE-CCA for owner-mediated PRE on asymmetric pairings remains an open problem.
 
 5. \textbf{Two-transaction flow and Pending state.} The SNARK submission and re-encryption completion occur in separate on-chain transactions. During the Pending state, the SNARK public inputs $(w_{0}, w_{1})$ and proof are visible on-chain. We argue this does not leak information beyond the completed re-encryption: the public inputs are $\mathbb{G}_{1}$ points that are already published in the next half-level after completion, and the TTL is a timing parameter.
 
