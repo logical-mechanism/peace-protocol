@@ -7,7 +7,7 @@
  * Processing starts automatically when both the wallet and SNARK prover are
  * ready, and stops when either becomes unavailable.
  */
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { useWalletContext } from './WalletContext'
 import { useWasm } from './WasmContext'
 import { useNode } from './NodeContext'
@@ -71,7 +71,10 @@ export function AcceptBidQueueProvider({ children }: AcceptBidQueueProviderProps
   const { nodeStage, tipSlot } = useNode()
 
   // Derive userPkh from wallet address
-  const userPkh = address ? extractPaymentKeyHash(address) : undefined
+  const userPkh = useMemo(() => {
+    if (!address) return undefined
+    try { return extractPaymentKeyHash(address) } catch { return undefined }
+  }, [address])
 
   // Force re-render when the service emits 'change'
   const [, setTick] = useState(0)
