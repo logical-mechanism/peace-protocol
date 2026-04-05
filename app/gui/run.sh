@@ -39,4 +39,8 @@ if [ ! -f be/dist/index.js ]; then
 fi
 
 echo "Starting development version..."
-npx tauri dev
+if [ $# -gt 0 ]; then
+  npx tauri dev -- "$@"
+else
+  npx tauri dev
+fi
