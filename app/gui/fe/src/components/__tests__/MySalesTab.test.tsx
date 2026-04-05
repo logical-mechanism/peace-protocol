@@ -12,6 +12,16 @@ vi.mock('../../contexts/NodeContext', () => ({
   useNode: vi.fn().mockReturnValue({ expressReady: true }),
 }));
 
+vi.mock('../../contexts/AcceptBidQueueContext', () => ({
+  useAcceptBidQueue: () => ({
+    queue: [], currentItem: null, isProcessing: false, autoAcceptEnabled: false,
+    queuedCount: 0, completedCount: 0, failedCount: 0,
+    enqueue: vi.fn(), remove: vi.fn(), retry: vi.fn(), clear: vi.fn(),
+    setAutoAccept: vi.fn(), hasEncryptionInQueue: vi.fn(() => false),
+    setToast: vi.fn(), setRefreshTrigger: vi.fn(),
+  }),
+}));
+
 vi.mock('../../services/api', () => ({
   encryptionsApi: { getAll: vi.fn() },
   bidsApi: { getAll: vi.fn() },
