@@ -16,7 +16,9 @@ import {
   type QueueItem,
   type ProcessingDeps,
 } from '../services/acceptBidQueueService'
+import { useAutoAcceptDetection } from '../hooks/useAutoAcceptDetection'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
+import { extractPaymentKeyHash } from '../services/transactionBuilder'
 
 // ---------------------------------------------------------------------------
 // Context types
@@ -64,9 +66,12 @@ interface AcceptBidQueueProviderProps {
 }
 
 export function AcceptBidQueueProvider({ children }: AcceptBidQueueProviderProps) {
-  const { wallet } = useWalletContext()
+  const { wallet, address } = useWalletContext()
   const { isReady: wasmReady } = useWasm()
-  const { nodeStage } = useNode()
+  const { nodeStage, tipSlot } = useNode()
+
+  // Derive userPkh from wallet address
+  const userPkh = address ? extractPaymentKeyHash(address) : undefined
 
   // Force re-render when the service emits 'change'
   const [, setTick] = useState(0)
@@ -115,11 +120,20 @@ export function AcceptBidQueueProvider({ children }: AcceptBidQueueProviderProps
   const setAutoAccept = useCallback((enabled: boolean) => service.setAutoAccept(enabled), [service])
   const hasEncryptionInQueue = useCallback((tokenName: string) => service.hasEncryptionInQueue(tokenName), [service])
 
+  // Auto-detect eligible bids when auto-accept is enabled
+  const autoAcceptEnabled = service.getAutoAcceptEnabled()
+  useAutoAcceptDetection({
+    userPkh,
+    autoAcceptEnabled,
+    tipSlot,
+    nodeStage,
+    enqueue,
+  })
+
   // Derive counts from queue snapshot
   const queue = service.getQueue()
   const currentItem = service.getCurrentItem()
   const isProcessing = service.isProcessing()
-  const autoAcceptEnabled = service.getAutoAcceptEnabled()
   const queuedCount = queue.filter(i => i.status === 'queued').length
   const completedCount = queue.filter(i => i.status === 'complete').length
   const failedCount = queue.filter(i => i.status === 'failed').length
