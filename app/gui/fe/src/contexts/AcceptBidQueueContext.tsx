@@ -68,7 +68,7 @@ interface AcceptBidQueueProviderProps {
 export function AcceptBidQueueProvider({ children }: AcceptBidQueueProviderProps) {
   const { wallet, address } = useWalletContext()
   const { isReady: wasmReady } = useWasm()
-  const { nodeStage, tipSlot } = useNode()
+  const { stage: nodeStage, tipSlot } = useNode()
 
   const userPkh = useMemo(() => {
     if (!address) return undefined
