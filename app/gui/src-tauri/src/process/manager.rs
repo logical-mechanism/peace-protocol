@@ -264,9 +264,16 @@ pub fn resolve_sidecar_path(sidecar_name: &str) -> Result<std::path::PathBuf, St
 pub fn spawn_clean_sidecar(
     sidecar_name: &str,
     args: &[String],
+    max_cores: Option<u32>,
 ) -> Result<tokio::process::Command, String> {
     let binary_path = resolve_sidecar_path(sidecar_name)?;
-    let env = build_clean_env();
+    let mut env = build_clean_env();
+
+    // Inject core-limit env vars for one-shot processes (snark, cardano-cli)
+    if let Some(n) = max_cores {
+        env.push(("GOMAXPROCS".to_string(), n.to_string()));
+        env.push(("RAYON_NUM_THREADS".to_string(), n.to_string()));
+    }
 
     let mut cmd = tokio::process::Command::new(binary_path);
     cmd.args(args)
@@ -292,6 +299,9 @@ pub struct NodeManager {
     /// PIDs of currently-running SNARK sidecars, for cleanup on shutdown.
     /// Uses Vec to handle concurrent SNARK operations without losing PIDs.
     snark_pids: std::sync::Mutex<Vec<u32>>,
+    /// Optional CPU core limit from --max-cores CLI flag.
+    /// When set, injects RTS flags for Haskell binaries and env vars for Go/Rust binaries.
+    max_cores: Option<u32>,
 }
 
 /// Maximum consecutive HTTP health check failures before marking a process as Error.
@@ -301,7 +311,16 @@ pub struct NodeManager {
 const HEALTH_CHECK_FAILURE_THRESHOLD: u32 = 18;
 
 impl NodeManager {
-    pub fn new(app_handle: tauri::AppHandle, ogmios_port: u16, kupo_port: u16) -> Self {
+    pub fn new(
+        app_handle: tauri::AppHandle,
+        ogmios_port: u16,
+        kupo_port: u16,
+        max_cores: Option<u32>,
+    ) -> Self {
+        if let Some(n) = max_cores {
+            eprintln!("[config] CPU core limit: {n}");
+        }
+
         let pid_file = app_handle
             .path()
             .app_data_dir()
@@ -313,6 +332,7 @@ impl NodeManager {
             app_handle,
             pid_file,
             snark_pids: std::sync::Mutex::new(Vec::new()),
+            max_cores,
         };
 
         // Kill any orphaned processes from a previous crashed session
@@ -534,8 +554,35 @@ impl NodeManager {
         let binary_path = resolve_sidecar_path(&format!("binaries/{}", sidecar_name))?;
         let program = binary_path.to_string_lossy().to_string();
         let env_vars = build_clean_env();
+        let (args, env_vars) = self.apply_core_limit(sidecar_name, args, env_vars);
         self.start_command(name, &program, args, cwd, env_vars, suppress_output)
             .await
+    }
+
+    /// Inject CPU core limits into args and env vars based on the binary type.
+    /// Haskell binaries get +RTS -N{n} -RTS flags; all binaries get GOMAXPROCS
+    /// and RAYON_NUM_THREADS env vars.
+    fn apply_core_limit(
+        &self,
+        sidecar_name: &str,
+        mut args: Vec<String>,
+        mut env_vars: Vec<(String, String)>,
+    ) -> (Vec<String>, Vec<(String, String)>) {
+        if let Some(n) = self.max_cores {
+            // Haskell binaries: GHC RTS flags to limit capabilities (OS threads)
+            match sidecar_name {
+                "cardano-node" | "ogmios" | "kupo" => {
+                    args.push("+RTS".to_string());
+                    args.push(format!("-N{}", n));
+                    args.push("-RTS".to_string());
+                }
+                _ => {}
+            }
+            // Go (snark): GOMAXPROCS; Rust (mithril): RAYON_NUM_THREADS
+            env_vars.push(("GOMAXPROCS".to_string(), n.to_string()));
+            env_vars.push(("RAYON_NUM_THREADS".to_string(), n.to_string()));
+        }
+        (args, env_vars)
     }
 
     /// Start a process by spawning a command with explicit environment control.
