@@ -1,4 +1,5 @@
 use crate::process::manager::{spawn_clean_sidecar, NodeManager};
+use crate::MaxCores;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::Manager;
@@ -78,7 +79,8 @@ fn setup_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
 /// Spawn the snark sidecar, collect stdout, and return it on successful exit.
 /// Returns an error if the process exits with a non-zero code.
 async fn run_snark(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
-    let mut command = spawn_clean_sidecar("binaries/snark", &args)?;
+    let max_cores = app.state::<MaxCores>().0;
+    let mut command = spawn_clean_sidecar("binaries/snark", &args, max_cores)?;
 
     let child = command
         .stdout(std::process::Stdio::piped())

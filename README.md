@@ -76,6 +76,7 @@ cd app/gui/fe && npx vitest run
 
 ## Documentation
 
+- [Veiled Desktop App](./app/gui/README.md) — setup, AppImage usage, CLI options
 - [Technical Report (PDF)](./documentation/technical_report.pdf)
 - [Architecture and Data Model](./documentation/architecture.md)
 - [Smart Contract Audit](./app/contracts/claude-audit.md)

@@ -28,6 +28,49 @@ pub struct NodeSocketReady(pub AtomicBool);
 /// can reach the backend API.
 pub struct ExpressReady(pub AtomicBool);
 
+/// Optional CPU core limit from `--max-cores N` CLI flag or `VEILED_MAX_CORES` env var.
+/// When set, subprocess spawns inject RTS flags (Haskell) and env vars (Go/Rust)
+/// to cap CPU usage. `None` means no limit (use all cores, default behavior).
+pub struct MaxCores(pub Option<u32>);
+
+/// Parse `--max-cores N` from CLI args, falling back to `VEILED_MAX_CORES` env var.
+/// Returns `None` if neither is set or if the value is invalid.
+fn parse_max_cores() -> Option<u32> {
+    let args: Vec<String> = std::env::args().collect();
+    for i in 0..args.len() {
+        if args[i] == "--max-cores" {
+            if let Some(val) = args.get(i + 1) {
+                match val.parse::<u32>() {
+                    Ok(n) if n >= 1 => return Some(n),
+                    _ => {
+                        eprintln!(
+                            "Warning: invalid --max-cores value '{}', using all cores",
+                            val
+                        );
+                        return None;
+                    }
+                }
+            } else {
+                eprintln!("Warning: --max-cores requires a value, using all cores");
+                return None;
+            }
+        }
+    }
+    // Env var fallback
+    if let Ok(val) = std::env::var("VEILED_MAX_CORES") {
+        match val.parse::<u32>() {
+            Ok(n) if n >= 1 => return Some(n),
+            _ => {
+                eprintln!(
+                    "Warning: invalid VEILED_MAX_CORES='{}', using all cores",
+                    val
+                );
+            }
+        }
+    }
+    None
+}
+
 // ── Media streaming server ──────────────────────────────────────────────────
 // WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
 // (asset://, media://) for <video>/<audio> elements. Work around this by
@@ -362,13 +405,15 @@ pub fn run() {
         std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", paths.join(":"));
     }
 
+    let max_cores = parse_max_cores();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
-        .setup(|app| {
+        .setup(move |app| {
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -403,8 +448,10 @@ pub fn run() {
             app.manage(app_config);
 
             // Node manager (Phase 2) — pass service ports for periodic health checks
-            let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
+            let node_manager =
+                NodeManager::new(app.handle().clone(), ogmios_port, kupo_port, max_cores);
             app.manage(node_manager);
+            app.manage(MaxCores(max_cores));
 
             // Node socket readiness flag — prevents cardano-cli queries before
             // the node has finished initialization (outgoing peer connections).
