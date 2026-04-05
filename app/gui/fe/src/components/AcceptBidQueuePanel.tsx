@@ -14,17 +14,18 @@ function AcceptBidQueuePanel() {
   const {
     queue, currentItem, isProcessing, autoAcceptEnabled,
     queuedCount, completedCount, failedCount,
-    remove, retry, dismiss, clear, setAutoAccept,
+    remove, retry, clear, setAutoAccept,
   } = useAcceptBidQueue()
 
   const [expanded, setExpanded] = useState(false)
+  const hasItems = queue.length > 0
 
-  // Auto-expand when first item is added
+  // Auto-expand when queue goes from empty to non-empty
   useEffect(() => {
-    if (queue.length > 0 && !expanded) {
+    if (hasItems) {
       setExpanded(true)
     }
-  }, [queue.length > 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasItems])
 
   // Don't render if nothing to show
   if (!autoAcceptEnabled && queue.length === 0) {
@@ -149,7 +150,7 @@ function AcceptBidQueuePanel() {
                           Retry
                         </button>
                         <button
-                          onClick={() => dismiss(item.id)}
+                          onClick={() => remove(item.id)}
                           className="text-xs text-[var(--text-muted)] hover:underline"
                         >
                           Dismiss
@@ -172,7 +173,7 @@ function AcceptBidQueuePanel() {
                     item={item}
                     actions={
                       <button
-                        onClick={() => dismiss(item.id)}
+                        onClick={() => remove(item.id)}
                         className="text-xs text-[var(--text-muted)] hover:underline"
                       >
                         Dismiss

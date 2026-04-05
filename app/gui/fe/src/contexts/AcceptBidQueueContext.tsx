@@ -38,7 +38,6 @@ export interface AcceptBidQueueContextValue {
   enqueue: (encryption: EncryptionDisplay, bid: BidDisplay, priority: boolean) => string | null
   remove: (itemId: string) => boolean
   retry: (itemId: string) => boolean
-  dismiss: (itemId: string) => boolean
   clear: () => void
   setAutoAccept: (enabled: boolean) => void
   hasEncryptionInQueue: (tokenName: string) => boolean
@@ -76,8 +75,8 @@ export function AcceptBidQueueProvider({ children }: AcceptBidQueueProviderProps
     try { return extractPaymentKeyHash(address) } catch { return undefined }
   }, [address])
 
-  // Force re-render when the service emits 'change'
-  const [, setTick] = useState(0)
+  // Incremented when the service emits 'change' — used as useMemo dep
+  const [tick, setTick] = useState(0)
   const serviceRef = useRef(getAcceptBidQueueService())
   const service = serviceRef.current
 
@@ -118,7 +117,6 @@ export function AcceptBidQueueProvider({ children }: AcceptBidQueueProviderProps
 
   const remove = useCallback((itemId: string) => service.remove(itemId), [service])
   const retry = useCallback((itemId: string) => service.retry(itemId), [service])
-  const dismiss = useCallback((itemId: string) => service.dismiss(itemId), [service])
   const clear = useCallback(() => service.clear(), [service])
   const setAutoAccept = useCallback((enabled: boolean) => service.setAutoAccept(enabled), [service])
   const hasEncryptionInQueue = useCallback((tokenName: string) => service.hasEncryptionInQueue(tokenName), [service])
@@ -133,31 +131,25 @@ export function AcceptBidQueueProvider({ children }: AcceptBidQueueProviderProps
     enqueue,
   })
 
-  // Derive counts from queue snapshot
-  const queue = service.getQueue()
-  const currentItem = service.getCurrentItem()
-  const isProcessing = service.isProcessing()
-  const queuedCount = queue.filter(i => i.status === 'queued').length
-  const completedCount = queue.filter(i => i.status === 'complete').length
-  const failedCount = queue.filter(i => i.status === 'failed').length
-
-  const value: AcceptBidQueueContextValue = {
-    queue,
-    currentItem,
-    isProcessing,
-    autoAcceptEnabled,
-    queuedCount,
-    completedCount,
-    failedCount,
-    enqueue,
-    remove,
-    retry,
-    dismiss,
-    clear,
-    setAutoAccept,
-    hasEncryptionInQueue,
-    setProcessingDeps,
-  }
+  // Derive state from queue snapshot — single pass for counts
+  // tick is included to ensure recalculation when service emits 'change'
+  const value = useMemo((): AcceptBidQueueContextValue => {
+    const queue = service.getQueue()
+    const currentItem = service.getCurrentItem()
+    const isProcessing = service.isProcessing()
+    let queuedCount = 0, completedCount = 0, failedCount = 0
+    for (const item of queue) {
+      if (item.status === 'queued') queuedCount++
+      else if (item.status === 'complete') completedCount++
+      else if (item.status === 'failed') failedCount++
+    }
+    return {
+      queue, currentItem, isProcessing, autoAcceptEnabled,
+      queuedCount, completedCount, failedCount,
+      enqueue, remove, retry, clear, setAutoAccept, hasEncryptionInQueue, setProcessingDeps,
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- tick triggers recalculation
+  }, [tick, autoAcceptEnabled, enqueue, remove, retry, clear, setAutoAccept, hasEncryptionInQueue, setProcessingDeps, service])
 
   return (
     <AcceptBidQueueContext.Provider value={value}>

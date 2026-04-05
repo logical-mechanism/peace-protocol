@@ -14,6 +14,7 @@
 import { useEffect, useRef } from 'react'
 import { encryptionsApi, bidsApi } from '../services/api'
 import type { EncryptionDisplay, BidDisplay } from '../services/api'
+import type { NodeStage } from '../contexts/NodeContext'
 
 /** Minimum interval between auto-accept scans (ms). */
 const SCAN_THROTTLE_MS = 30_000
@@ -22,7 +23,7 @@ interface UseAutoAcceptDetectionParams {
   userPkh: string | undefined
   autoAcceptEnabled: boolean
   tipSlot: number | null
-  nodeStage: string
+  nodeStage: NodeStage
   enqueue: (encryption: EncryptionDisplay, bid: BidDisplay, priority: boolean) => string | null
 }
 

@@ -181,15 +181,15 @@ export default function Dashboard() {
 
   // ── Seller actions hook ───────────────────────────────────────────
   // ── Accept-bid queue — supply processing deps ────────────────────
-  const bidQueue = useAcceptBidQueue()
+  const { setProcessingDeps } = useAcceptBidQueue()
   useEffect(() => {
-    bidQueue.setProcessingDeps({
+    setProcessingDeps({
       toast,
       recordTransaction: effects.recordTransaction,
       triggerTransactionRefresh,
     })
-    return () => { bidQueue.setProcessingDeps(null) }
-  }, [toast, effects.recordTransaction, triggerTransactionRefresh]) // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { setProcessingDeps(null) }
+  }, [setProcessingDeps, toast, effects.recordTransaction, triggerTransactionRefresh])
 
   const seller = useSellerActions({
     actions: dashboardActions,

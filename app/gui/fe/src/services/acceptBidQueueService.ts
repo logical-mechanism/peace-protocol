@@ -14,10 +14,10 @@ import { encryptionsApi, bidsApi } from './api'
 import { prepareSnarkInputs, acceptBidAndReEncrypt, type ChainedAcceptStep } from './transactions/acceptBid'
 import { getSnarkProver } from './snark'
 import { optimisticStore } from './optimisticStore'
+import { formatAda } from '../utils/formatAda'
 import {
   getAutoAcceptEnabled, setAutoAcceptEnabled as persistAutoAccept,
-  getPersistedQueue, setPersistedQueue,
-  type SerializedQueueItem,
+  setPersistedQueue, type SerializedQueueItem,
 } from './acceptBidQueueStorage'
 import type { TransactionRecord } from './transactionHistory'
 
@@ -199,11 +199,6 @@ export class AcceptBidQueueService {
     this.emit('change')
   }
 
-  /** Dismiss a specific completed or failed item from the queue. */
-  dismiss(itemId: string): boolean {
-    return this.remove(itemId)
-  }
-
   getQueue(): QueueItem[] {
     return [...this.queue]
   }
@@ -233,7 +228,7 @@ export class AcceptBidQueueService {
   startProcessing(deps: ProcessingDeps): void {
     this.deps = deps
     this.stopRequested = false
-    if (!this.processing && this.hasQueuedItems()) {
+    if (!this.processing && this.nextQueuedItem()) {
       this.processLoop()
     }
   }
@@ -253,8 +248,8 @@ export class AcceptBidQueueService {
   // Processing loop
   // -------------------------------------------------------------------------
 
-  private hasQueuedItems(): boolean {
-    return this.queue.some(i => i.status === 'queued')
+  private nextQueuedItem(): QueueItem | undefined {
+    return this.queue.find(i => i.status === 'queued')
   }
 
   private async processLoop(): Promise<void> {
@@ -262,10 +257,8 @@ export class AcceptBidQueueService {
     this.processing = true
     this.emit('change')
 
-    while (this.hasQueuedItems() && !this.stopRequested && this.deps) {
-      const item = this.queue.find(i => i.status === 'queued')
-      if (!item) break
-
+    let item: QueueItem | undefined
+    while ((item = this.nextQueuedItem()) && !this.stopRequested && this.deps) {
       await this.processItem(item, this.deps)
     }
 
@@ -277,7 +270,7 @@ export class AcceptBidQueueService {
     const label = item.encryption.description
       ? item.encryption.description.slice(0, 30)
       : item.encryption.tokenName.slice(0, 16) + '...'
-    const bidAda = (item.bid.amount / 1_000_000).toFixed(1)
+    const bidAda = formatAda(item.bid.amount)
 
     try {
       // Step 0: Validate — re-fetch to confirm encryption is still active and bid still pending
@@ -324,7 +317,7 @@ export class AcceptBidQueueService {
       this.persistQueue()
       this.emit('change')
 
-      const amount = (item.bid.amount / 1_000_000).toLocaleString()
+      const amount = formatAda(item.bid.amount)
       const result = await acceptBidAndReEncrypt(
         deps.wallet,
         item.encryption,
@@ -435,15 +428,10 @@ export class AcceptBidQueueService {
   }
 
   private loadPersistedQueue(): void {
-    const persisted = getPersistedQueue()
-    // We only restore failed items (for display/retry).
-    // Queued items can't be restored because we don't persist the full encryption/bid objects.
-    // They'll be re-detected by auto-accept if still eligible.
-    for (const item of persisted) {
-      if (item.status === 'failed') {
-        this.encryptionTokensInQueue.add(item.encryptionTokenName)
-      }
-    }
+    // Clear stale persisted data on startup. We can't restore full QueueItem objects
+    // because encryption/bid display data isn't persisted. Auto-accept will re-detect
+    // eligible bids, and users can manually re-accept from the UI.
+    setPersistedQueue([])
   }
 }
 
