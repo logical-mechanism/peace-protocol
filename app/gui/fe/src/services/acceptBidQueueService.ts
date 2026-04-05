@@ -19,7 +19,7 @@ import {
   getAutoAcceptEnabled, setAutoAcceptEnabled as persistAutoAccept,
   setPersistedQueue, type SerializedQueueItem,
 } from './acceptBidQueueStorage'
-import type { TransactionRecord } from './transactionHistory'
+import { addTransaction, type TransactionRecord } from './transactionHistory'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,17 +50,30 @@ export interface QueueItem {
 export type QueueEvent = 'change' | 'item-complete' | 'item-failed'
 type Listener = (item?: QueueItem) => void
 
+export interface ToastHandle {
+  info: (title: string, message?: string, duration?: number) => void
+  success: (title: string, message?: string, duration?: number) => void
+  warning: (title: string, message?: string, duration?: number) => void
+  error: (title: string, message?: string, duration?: number) => void
+}
+
+/** Minimal deps for queue processing. Only wallet is required. */
 export interface ProcessingDeps {
   wallet: IWallet
-  toast: {
-    info: (title: string, message?: string, duration?: number) => void
-    success: (title: string, message?: string, duration?: number) => void
-    warning: (title: string, message?: string, duration?: number) => void
-    error: (title: string, message?: string, duration?: number) => void
-    transactionSuccess: (title: string, txHash: string, meta?: { type?: string; amountLovelace?: number }) => void
-  }
-  recordTransaction: (record: TransactionRecord) => void
-  triggerTransactionRefresh: () => void
+  /** Wallet payment key hash — needed for transaction recording. */
+  userPkh: string
+  /** Optional toast handle — when Dashboard is not mounted, falls back to console. */
+  toast?: ToastHandle | null
+  /** Optional refresh trigger — fires escalating cache clears when Dashboard is mounted. */
+  triggerTransactionRefresh?: (() => void) | null
+}
+
+/** Fallback toast that logs to console when no UI toast is available. */
+const consoleToast: ToastHandle = {
+  info: (title, msg) => console.log(`[queue] ${title}${msg ? ': ' + msg : ''}`),
+  success: (title, msg) => console.log(`[queue] ${title}${msg ? ': ' + msg : ''}`),
+  warning: (title, msg) => console.warn(`[queue] ${title}${msg ? ': ' + msg : ''}`),
+  error: (title, msg) => console.error(`[queue] ${title}${msg ? ': ' + msg : ''}`),
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +284,7 @@ export class AcceptBidQueueService {
       ? item.encryption.description.slice(0, 30)
       : item.encryption.tokenName.slice(0, 16) + '...'
     const bidAda = formatAda(item.bid.amount)
+    const toast = deps.toast ?? consoleToast
 
     try {
       // Step 0: Validate — re-fetch to confirm encryption is still active and bid still pending
@@ -298,7 +312,7 @@ export class AcceptBidQueueService {
       item.bid = freshBid
 
       // Step 1: Prepare SNARK inputs
-      deps.toast.info('Queue: Preparing', `Computing SNARK inputs for "${label}"...`)
+      toast.info('Queue: Preparing', `Computing SNARK inputs for "${label}"...`)
       const { inputs, a0, r0, hk } = await prepareSnarkInputs(item.bid)
 
       // Step 2: Generate proof
@@ -306,7 +320,7 @@ export class AcceptBidQueueService {
       this.persistQueue()
       this.emit('change')
 
-      deps.toast.info('Queue: Proving', `Generating ZK proof for "${label}" (~3 min)...`)
+      toast.info('Queue: Proving', `Generating ZK proof for "${label}" (~3 min)...`)
       const provingStart = Date.now()
       const prover = getSnarkProver()
       const proof = await prover.generateProof(inputs)
@@ -325,16 +339,16 @@ export class AcceptBidQueueService {
         proof,
         a0, r0, hk,
         (step: ChainedAcceptStep) => {
-          if (step === 'submitting-snark') deps.toast.info('Queue: Step 1/2', `Submitting SNARK proof for "${label}"...`)
-          else if (step === 'building-reencrypt') deps.toast.info('Queue: Step 2/2', `Building re-encryption for "${label}"...`)
-          else if (step === 'submitting-reencrypt') deps.toast.info('Queue: Step 2/2', `Submitting re-encryption for "${label}"...`)
-          else if (step === 'complete') deps.toast.success('Queue: Sale Complete', `"${label}" — both transactions submitted!`)
-          else if (step === 'fallback') deps.toast.warning('Queue: Partial', `"${label}" — SNARK submitted, re-encryption needs manual completion.`)
+          if (step === 'submitting-snark') toast.info('Queue: Step 1/2', `Submitting SNARK proof for "${label}"...`)
+          else if (step === 'building-reencrypt') toast.info('Queue: Step 2/2', `Building re-encryption for "${label}"...`)
+          else if (step === 'submitting-reencrypt') toast.info('Queue: Step 2/2', `Submitting re-encryption for "${label}"...`)
+          else if (step === 'complete') toast.success('Queue: Sale Complete', `"${label}" — both transactions submitted!`)
+          else if (step === 'fallback') toast.warning('Queue: Partial', `"${label}" — SNARK submitted, re-encryption needs manual completion.`)
         },
-        // onSnarkSubmitted
+        // onSnarkSubmitted — record directly to localStorage (works even if Dashboard is unmounted)
         (txHash) => {
           item.snarkTxHash = txHash
-          deps.recordTransaction({
+          addTransaction(deps.userPkh, {
             txHash,
             type: 'accept-bid',
             tokenName: item.encryption.tokenName,
@@ -348,7 +362,7 @@ export class AcceptBidQueueService {
         // onReEncryptSubmitted
         (txHash) => {
           item.reEncryptTxHash = txHash
-          deps.recordTransaction({
+          addTransaction(deps.userPkh, {
             txHash,
             type: 'accept-bid',
             tokenName: item.encryption.tokenName,
@@ -390,7 +404,7 @@ export class AcceptBidQueueService {
       item.status = 'complete'
       item.completedAt = Date.now()
       this.persistQueue()
-      deps.triggerTransactionRefresh()
+      deps.triggerTransactionRefresh?.()
       this.emit('item-complete', item)
       this.emit('change')
 
@@ -400,7 +414,7 @@ export class AcceptBidQueueService {
       item.error = error instanceof Error ? error.message : 'Unknown error'
       item.completedAt = Date.now()
       this.persistQueue()
-      deps.toast.error('Queue: Failed', `"${label}" — ${item.error}`)
+      toast.error('Queue: Failed', `"${label}" — ${item.error}`)
       this.emit('item-failed', item)
       this.emit('change')
     }

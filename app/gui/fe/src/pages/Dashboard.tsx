@@ -180,16 +180,13 @@ export default function Dashboard() {
   }), [wallet, address, userPkh, toast, effects.recordTransaction, triggerTransactionRefresh, triggerRefresh, setActiveTab])
 
   // ── Seller actions hook ───────────────────────────────────────────
-  // ── Accept-bid queue — supply processing deps ────────────────────
-  const { setProcessingDeps } = useAcceptBidQueue()
+  // ── Accept-bid queue — supply optional UI handles ────────────────
+  const { setToast: setQueueToast, setRefreshTrigger: setQueueRefresh } = useAcceptBidQueue()
   useEffect(() => {
-    setProcessingDeps({
-      toast,
-      recordTransaction: effects.recordTransaction,
-      triggerTransactionRefresh,
-    })
-    return () => { setProcessingDeps(null) }
-  }, [setProcessingDeps, toast, effects.recordTransaction, triggerTransactionRefresh])
+    setQueueToast(toast)
+    setQueueRefresh(triggerTransactionRefresh)
+    return () => { setQueueToast(null); setQueueRefresh(null) }
+  }, [setQueueToast, setQueueRefresh, toast, triggerTransactionRefresh])
 
   const seller = useSellerActions({
     actions: dashboardActions,
