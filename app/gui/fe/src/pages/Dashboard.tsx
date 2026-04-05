@@ -19,7 +19,6 @@ import CreateListingModal from '../components/CreateListingModal'
 import ImportListingModal from '../components/ImportListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
-const SnarkProvingModal = lazy(() => import('../components/SnarkProvingModal'))
 import ConfirmModal from '../components/ConfirmModal'
 import UpdatePriceModal from '../components/UpdatePriceModal'
 import UpdateBidModal from '../components/UpdateBidModal'
@@ -40,6 +39,7 @@ import { TABS, type TabId, type ConfirmAction } from './dashboard/dashboardTypes
 import { useSellerActions } from './dashboard/useSellerActions'
 import { useBuyerActions } from './dashboard/useBuyerActions'
 import { useDashboardEffects } from './dashboard/useDashboardEffects'
+import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
 
 export type { TabId } from './dashboard/dashboardTypes'
 
@@ -180,6 +180,17 @@ export default function Dashboard() {
   }), [wallet, address, userPkh, toast, effects.recordTransaction, triggerTransactionRefresh, triggerRefresh, setActiveTab])
 
   // ── Seller actions hook ───────────────────────────────────────────
+  // ── Accept-bid queue — supply processing deps ────────────────────
+  const bidQueue = useAcceptBidQueue()
+  useEffect(() => {
+    bidQueue.setProcessingDeps({
+      toast,
+      recordTransaction: effects.recordTransaction,
+      triggerTransactionRefresh,
+    })
+    return () => { bidQueue.setProcessingDeps(null) }
+  }, [toast, effects.recordTransaction, triggerTransactionRefresh]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const seller = useSellerActions({
     actions: dashboardActions,
     iagonConnected: effects.iagonConnected,
@@ -916,16 +927,6 @@ export default function Dashboard() {
         confirmVariant="danger"
         loading={confirmLoading}
       />
-
-      {/* SNARK Proving Modal (Accept Bid Step 1) */}
-      <Suspense fallback={null}>
-        <SnarkProvingModal
-          isOpen={seller.showSnarkModal}
-          onClose={seller.closeSnarkModal}
-          onProofGenerated={seller.handleProofGenerated}
-          inputs={seller.snarkInputs}
-        />
-      </Suspense>
 
       {/* Toast Notifications */}
       <KeyboardShortcutsOverlay isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />

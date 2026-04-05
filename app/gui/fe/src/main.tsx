@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { WalletProvider } from './contexts/WalletContext'
 import { NodeProvider } from './contexts/NodeContext'
 import { WasmProvider } from './contexts/WasmContext'
+import { AcceptBidQueueProvider } from './contexts/AcceptBidQueueContext'
 import { ModalProvider } from './contexts/ModalContext'
 import './index.css'
 import App from './App'
@@ -21,11 +22,13 @@ createRoot(document.getElementById('root')!).render(
       <WalletProvider>
         <NodeProvider>
           <WasmProvider>
-            <BrowserRouter>
-              <ModalProvider>
+            <AcceptBidQueueProvider>
+              <BrowserRouter>
+                <ModalProvider>
                 <App />
-              </ModalProvider>
-            </BrowserRouter>
+                </ModalProvider>
+              </BrowserRouter>
+            </AcceptBidQueueProvider>
           </WasmProvider>
         </NodeProvider>
       </WalletProvider>

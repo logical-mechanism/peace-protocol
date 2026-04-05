@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../../contexts/WasmContext'
+import { useAcceptBidQueue } from '../../contexts/AcceptBidQueueContext'
 import {
   createListing, createListingFromImport, retryListingFromDraft, removeListing,
-  cancelPendingListing, updateListingPrice, prepareSnarkInputs,
-  acceptBidAndReEncrypt, completeReEncryption,
+  cancelPendingListing, updateListingPrice,
+  completeReEncryption,
   getTransactionStubWarning,
-  type ListingCreationStep, type ChainedAcceptStep,
+  type ListingCreationStep,
   type ImportListingData,
 } from '../../services/transactionBuilder'
 import { getAcceptBidSecrets } from '../../services/acceptBidStorage'
@@ -16,7 +17,6 @@ import { saveDecryptedContent, saveContentMetadata } from '../../services/conten
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../../services/listingDraftStorage'
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
-import type { SnarkProofInputs, SnarkProof } from '../../services/snark'
 import type { CreateListingFormData } from '../../components/CreateListingModal'
 import { readLibraryContent, type LibraryItem } from '../../services/libraryService'
 import { invoke } from '@tauri-apps/api/core'
@@ -43,14 +43,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
   // Draft recovery state
   const [recoverableDraft, setRecoverableDraft] = useState<ListingDraft | null>(null)
 
-  // SNARK modal / accept-bid flow state
-  const [showSnarkModal, setShowSnarkModal] = useState(false)
-  const [snarkInputs, setSnarkInputs] = useState<SnarkProofInputs | null>(null)
-  const [acceptBidEncryption, setAcceptBidEncryption] = useState<EncryptionDisplay | null>(null)
-  const [acceptBidBid, setAcceptBidBid] = useState<BidDisplay | null>(null)
-  const [acceptBidA0, setAcceptBidA0] = useState<bigint | null>(null)
-  const [acceptBidR0, setAcceptBidR0] = useState<bigint | null>(null)
-  const [acceptBidHk, setAcceptBidHk] = useState<bigint | null>(null)
+  // Accept-bid queue integration
+  const queue = useAcceptBidQueue()
 
   // Update price modal state
   const [showUpdatePriceModal, setShowUpdatePriceModal] = useState(false)
@@ -465,7 +459,9 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       return
     }
 
-    const label = encryption.tokenName.slice(0, 16) + '...'
+    const label = encryption.description
+      ? encryption.description.slice(0, 30)
+      : encryption.tokenName.slice(0, 16) + '...'
     const bidAda = (bid.amount / 1_000_000).toFixed(1)
     setConfirmAction({
       title: 'Accept Bid?',
@@ -473,145 +469,15 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       description: encryption.description,
       confirmLabel: 'Accept Bid',
       onConfirm: async () => {
-        try {
-          // Step 1: Prepare SNARK inputs (computes V, W0, W1 for the circuit)
-          toast.info('Preparing', 'Computing SNARK proof inputs...')
-          const { inputs, a0, r0, hk } = await prepareSnarkInputs(bid)
-
-          // Store state for after proof generation
-          setAcceptBidEncryption(encryption)
-          setAcceptBidBid(bid)
-          setAcceptBidA0(a0)
-          setAcceptBidR0(r0)
-          setAcceptBidHk(hk)
-          setSnarkInputs(inputs)
-
-          // Step 2: Open SNARK proving modal
-          setShowSnarkModal(true)
-        } catch (error) {
-          console.error('Failed to prepare SNARK inputs:', error)
-          toast.error(
-            'Failed to Prepare Proof',
-            error instanceof Error ? error.message : 'Unknown error occurred',
-            0,
-            { label: 'Retry', onClick: () => handleAcceptBid(encryption, bid) }
-          )
+        const id = queue.enqueue(encryption, bid, true)
+        if (id) {
+          toast.info('Bid Queued', `"${label}" queued for processing. SNARK proof will generate in the background.`)
+        } else {
+          toast.warning('Already Queued', `"${label}" is already in the processing queue.`)
         }
       },
     })
-  }, [toast, wasmReady, wasmLoading, navigate, wallet, setConfirmAction])
-
-  // Called when the SNARK proof is generated (from SnarkProvingModal)
-  const handleProofGenerated = useCallback(async (proof: SnarkProof) => {
-    if (!wallet || !acceptBidEncryption || !acceptBidBid) {
-      toast.error('Error', 'Missing accept-bid state')
-      return
-    }
-
-    // Capture state before finally clears it, so the retry closure can reference them
-    const savedEncryption = acceptBidEncryption
-    const savedBid = acceptBidBid
-
-    try {
-      // Submit SNARK proof + chain re-encryption in one flow
-      if (!acceptBidA0 || !acceptBidR0 || !acceptBidHk) {
-        throw new Error('Missing fresh secrets (a0, r0, hk) for SNARK transaction')
-      }
-
-      toast.info('Submitting', 'Submitting SNARK proof and chaining re-encryption...')
-
-      const amount = (acceptBidBid.amount / 1_000_000).toLocaleString()
-      const result = await acceptBidAndReEncrypt(
-        wallet, acceptBidEncryption, acceptBidBid, proof,
-        acceptBidA0, acceptBidR0, acceptBidHk,
-        (step: ChainedAcceptStep) => {
-          if (step === 'submitting-snark') toast.info('Step 1/2', 'Submitting SNARK proof transaction...')
-          else if (step === 'building-reencrypt') toast.info('Step 2/2', 'Building re-encryption transaction...')
-          else if (step === 'submitting-reencrypt') toast.info('Step 2/2', 'Submitting re-encryption transaction...')
-          else if (step === 'complete') toast.success('Sale Complete', 'Both transactions submitted successfully!')
-          else if (step === 'fallback') toast.warning('Partial Success', 'SNARK proof submitted. Re-encryption will need to be completed manually after confirmation.')
-        },
-        // onSnarkSubmitted — record SNARK tx immediately after submit
-        (txHash) => {
-          recordTransaction({
-            txHash,
-            type: 'accept-bid',
-            tokenName: acceptBidEncryption.tokenName,
-            timestamp: Date.now(),
-            status: 'pending',
-            description: `Accept bid SNARK proof of ${amount} ADA (Step 1/2)`,
-            amountLovelace: acceptBidBid.amount,
-            counterparty: acceptBidBid.bidderPkh,
-          })
-        },
-        // onReEncryptSubmitted — record re-encryption tx immediately after submit
-        (txHash) => {
-          recordTransaction({
-            txHash,
-            type: 'accept-bid',
-            tokenName: acceptBidEncryption.tokenName,
-            timestamp: Date.now(),
-            status: 'pending',
-            description: `Complete re-encryption of ${amount} ADA (Step 2/2)`,
-            amountLovelace: acceptBidBid.amount,
-            counterparty: acceptBidBid.bidderPkh,
-          })
-        },
-      )
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to submit SNARK transaction')
-      }
-
-      if (result.isStub) {
-        toast.warning(
-          'Bid Accepted (Stub Mode)',
-          `SNARK proof submitted in stub mode. No real transaction submitted.`,
-          8000
-        )
-      } else if (result.txHash) {
-        // Determine if this was a full chain or fallback
-        const isChainedSuccess = !result.error
-        const txType = isChainedSuccess ? 'Sale Completed!' : 'SNARK Proof Submitted!'
-        toast.transactionSuccess(txType, result.txHash, { type: 'accept-bid', amountLovelace: acceptBidBid.amount })
-      }
-
-      // Optimistic update — listing status changes to pending
-      if (result.txHash || result.snarkTxHash) {
-        optimisticStore.updateEncryption(acceptBidEncryption.tokenName, result.txHash || result.snarkTxHash!, { status: 'pending' })
-      }
-
-      // Refresh and switch to history
-      triggerTransactionRefresh()
-      setActiveTab('history')
-
-      // If chaining failed, show guidance for manual completion
-      if (result.error) {
-        toast.warning(
-          'Next Step',
-          'Once the SNARK transaction confirms on-chain, return to My Sales to complete the re-encryption step.',
-          10000
-        )
-      }
-    } catch (error) {
-      console.error('Failed to submit SNARK transaction:', error)
-      toast.error(
-        'Failed to Accept Bid',
-        error instanceof Error ? error.message : 'Unknown error occurred',
-        0,
-        { label: 'Retry', onClick: () => handleAcceptBid(savedEncryption, savedBid) }
-      )
-    } finally {
-      // Clean up state
-      setAcceptBidEncryption(null)
-      setAcceptBidBid(null)
-      setAcceptBidA0(null)
-      setAcceptBidR0(null)
-      setAcceptBidHk(null)
-      setSnarkInputs(null)
-      setShowSnarkModal(false)
-    }
-  }, [wallet, acceptBidEncryption, acceptBidBid, acceptBidA0, acceptBidR0, acceptBidHk, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, handleAcceptBid])
+  }, [toast, wasmReady, wasmLoading, navigate, wallet, setConfirmAction, queue])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -810,16 +676,6 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     setActiveTab('history')
   }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
 
-  const closeSnarkModal = useCallback(() => {
-    setShowSnarkModal(false)
-    setSnarkInputs(null)
-    setAcceptBidEncryption(null)
-    setAcceptBidBid(null)
-    setAcceptBidA0(null)
-    setAcceptBidR0(null)
-    setAcceptBidHk(null)
-  }, [])
-
   return {
     // Create listing
     showCreateListing,
@@ -841,7 +697,6 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     // Sales management
     handleRemoveListing,
     handleAcceptBid,
-    handleProofGenerated,
     handleCompleteSale,
     handleCancelPending,
     // Update price
@@ -850,9 +705,5 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     showUpdatePriceModal,
     setShowUpdatePriceModal,
     updatePriceEncryption,
-    // SNARK modal state
-    showSnarkModal,
-    snarkInputs,
-    closeSnarkModal,
   }
 }
