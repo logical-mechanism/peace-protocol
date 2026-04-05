@@ -19,7 +19,7 @@ import {
   getAutoAcceptEnabled, setAutoAcceptEnabled as persistAutoAccept,
   setPersistedQueue, type SerializedQueueItem,
 } from './acceptBidQueueStorage'
-import { addTransaction, type TransactionRecord } from './transactionHistory'
+import { addTransaction } from './transactionHistory'
 
 // ---------------------------------------------------------------------------
 // Types

@@ -17,15 +17,10 @@ function AcceptBidQueuePanel() {
     remove, retry, clear, setAutoAccept,
   } = useAcceptBidQueue()
 
-  const [expanded, setExpanded] = useState(false)
   const hasItems = queue.length > 0
-
-  // Auto-expand when queue goes from empty to non-empty
-  useEffect(() => {
-    if (hasItems) {
-      setExpanded(true)
-    }
-  }, [hasItems])
+  const [userCollapsed, setUserCollapsed] = useState(false)
+  // Auto-expand when items exist, but respect user's manual collapse
+  const expanded = hasItems && !userCollapsed
 
   // Don't render if nothing to show
   if (!autoAcceptEnabled && queue.length === 0) {
@@ -48,7 +43,7 @@ function AcceptBidQueuePanel() {
     <div className="mb-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden">
       {/* Header bar — always visible */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => setUserCollapsed(prev => !prev)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-secondary)] transition-colors duration-[var(--transition-fast)]"
         aria-expanded={expanded}
         aria-controls="queue-panel-content"

@@ -35,7 +35,7 @@ vi.mock('../acceptBidQueueStorage', () => ({
   setPersistedQueue: vi.fn(),
 }))
 
-import { AcceptBidQueueService, type ProcessingDeps } from '../acceptBidQueueService'
+import { AcceptBidQueueService } from '../acceptBidQueueService'
 
 function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionDisplay {
   return {
@@ -79,22 +79,6 @@ function makeBid(overrides: Partial<BidDisplay> = {}): BidDisplay {
       locked_until: 0,
       new_price: 0,
     },
-    ...overrides,
-  }
-}
-
-function makeDeps(overrides: Partial<ProcessingDeps> = {}): ProcessingDeps {
-  return {
-    wallet: {} as ProcessingDeps['wallet'],
-    toast: {
-      info: vi.fn(),
-      success: vi.fn(),
-      warning: vi.fn(),
-      error: vi.fn(),
-      transactionSuccess: vi.fn(),
-    },
-    recordTransaction: vi.fn(),
-    triggerTransactionRefresh: vi.fn(),
     ...overrides,
   }
 }
