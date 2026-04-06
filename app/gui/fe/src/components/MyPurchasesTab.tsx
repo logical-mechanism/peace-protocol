@@ -5,7 +5,6 @@ import { optimisticStore } from '../services/optimisticStore';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption, listBidSecretTokens } from '../services/bidSecretStorage';
 import { listLibraryItems } from '../services/libraryService';
-import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
@@ -356,8 +355,8 @@ function MyPurchasesTab({
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-[var(--text-muted)] font-mono mb-3">
-                  {truncateHex(enc.tokenName, 12, 8)}
+                <p className="text-xs text-[var(--text-muted)] font-mono mb-3 truncate" title={enc.tokenName}>
+                  {enc.tokenName}
                 </p>
 
                 {enc.description && (
