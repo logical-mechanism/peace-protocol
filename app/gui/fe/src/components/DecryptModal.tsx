@@ -147,7 +147,7 @@ export default function DecryptModal({
         onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
       }
     }
-  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning]);
+  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning, ownerPkh]);
 
   const handleCopy = useCallback(async () => {
     if (!decryptedMessage) return;
