@@ -3,6 +3,7 @@
   "ogmios_port": 1337,
   "kupo_port": 44203,
   "auto_start_node": true,
+  "kupo_since": "118860494.0cdd08f97d9340f8d729653748d68156417e6103f1d473d3f68102e3d0e2a9c1",
   "contracts": {
     "encryption_address": "addr_test1zq3zufy6k00n92c0np80rjuy6aj67c4hdwr2jt8p94mlx8uxca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmqcwavpp",
     "bidding_address": "addr_test1zpp4gjt7wl4vtyqf8sz4dn9f4tzrv933fwyranpmxph4xg5xca55rx42vu7fv0dqfe94htjy34ysut82eypvhqhymfmq96dw3z",

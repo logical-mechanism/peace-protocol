@@ -27,7 +27,7 @@ pub fn build_kupo_args(
         "--workdir".to_string(),
         kupo_dir.to_string_lossy().into(),
         "--since".to_string(),
-        "origin".to_string(),
+        app_config.kupo_since.as_deref().unwrap_or("origin").to_string(),
     ];
 
     for pattern in match_patterns {

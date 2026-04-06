@@ -135,6 +135,10 @@ pub struct AppConfig {
     pub ogmios_port: u16,
     pub kupo_port: u16,
     pub auto_start_node: bool,
+    /// Kupo --since point: "slot.blockHash" to skip blocks before protocol deployment.
+    /// Defaults to "origin" (sync from genesis) when not set.
+    #[serde(default)]
+    pub kupo_since: Option<String>,
     /// Protocol contract configuration — set after deployment
     #[serde(default)]
     pub contracts: Option<ContractConfig>,
@@ -147,6 +151,7 @@ impl Default for AppConfig {
             ogmios_port: 1337,
             kupo_port: 44203,
             auto_start_node: true,
+            kupo_since: None,
             contracts: None,
         }
     }
