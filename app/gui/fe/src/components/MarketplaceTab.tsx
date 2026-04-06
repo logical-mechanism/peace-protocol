@@ -14,6 +14,7 @@ import PriceRangeSlider from './PriceRangeSlider';
 import RefreshIndicator from './RefreshIndicator';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
+import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
 
 interface MarketplaceTabProps {
   userPkh?: string;
@@ -39,19 +40,39 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close filters panel on Escape key
   useEffect(() => {
     if (!filtersOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setFiltersOpen(false);
+      if (e.key === 'Escape') {
+        if (categoryDropdownOpen) {
+          setCategoryDropdownOpen(false);
+        } else {
+          setFiltersOpen(false);
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [filtersOpen]);
+  }, [filtersOpen, categoryDropdownOpen]);
+
+  // Close category dropdown on click-outside
+  useEffect(() => {
+    if (!categoryDropdownOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [categoryDropdownOpen]);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, categoryFilter, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, categoryFilter, sellerFilter, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -158,74 +179,30 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     return { min: 0, max: Math.max(maxPrice, 1) };
   }, [encryptions]);
 
-  // Filter encryptions (separate from sort so sort changes don't re-filter)
-  const filtered = useMemo(() => {
-    let result = [...encryptions];
+  // Build filter params for pure functions
+  const filterParams = useMemo(() => ({
+    statusFilter,
+    categoryFilter,
+    sellerFilter,
+    userPkh,
+    showFavoritesOnly,
+    favorites,
+    priceMin,
+    priceMax,
+    searchQuery: debouncedSearch,
+    dateFrom,
+    dateTo,
+  }), [statusFilter, categoryFilter, sellerFilter, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
 
-    if (statusFilter !== 'all') {
-      result = result.filter((e) => e.status === statusFilter);
-    }
-    if (categoryFilter !== 'all') {
-      result = result.filter((e) => (e.category || 'text') === categoryFilter);
-    }
-    if (showFavoritesOnly) {
-      result = result.filter((e) => favorites.has(e.tokenName));
-    }
-    if (priceMin !== '' || priceMax !== '') {
-      const min = priceMin !== '' ? Number(priceMin) : -Infinity;
-      const max = priceMax !== '' ? Number(priceMax) : Infinity;
-      if (!isNaN(min) && !isNaN(max)) {
-        result = result.filter((e) => {
-          const price = (e.suggestedPrice ?? 0) / 1_000_000;
-          return price >= min && price <= max;
-        });
-      }
-    }
-    if (debouncedSearch.trim()) {
-      const query = debouncedSearch.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.tokenName.toLowerCase().includes(query) ||
-          e.seller.toLowerCase().includes(query) ||
-          (e.description && e.description.toLowerCase().includes(query))
-      );
-    }
+  const filtered = useMemo(
+    () => filterListings(encryptions, filterParams),
+    [encryptions, filterParams],
+  );
 
-    return result;
-  }, [encryptions, statusFilter, categoryFilter, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch]);
-
-  // Sort filtered results (only reruns when sort order or bid counts change)
-  // Null-safe: missing prices sort last; missing dates sort to epoch 0
-  const filteredAndSorted = useMemo(() => {
-    const result = [...filtered];
-    const safeTime = (d: string) => {
-      const t = new Date(d ?? '').getTime();
-      return isNaN(t) ? 0 : t;
-    };
-    const safePrice = (p: number | undefined | null, fallback: number) => {
-      if (p == null) return fallback;
-      const n = Number(p);
-      return isNaN(n) ? fallback : n;
-    };
-    switch (sortBy) {
-      case 'newest':
-        result.sort((a, b) => safeTime(b.createdAt) - safeTime(a.createdAt));
-        break;
-      case 'oldest':
-        result.sort((a, b) => safeTime(a.createdAt) - safeTime(b.createdAt));
-        break;
-      case 'price-high':
-        result.sort((a, b) => safePrice(b.suggestedPrice, -Infinity) - safePrice(a.suggestedPrice, -Infinity));
-        break;
-      case 'price-low':
-        result.sort((a, b) => safePrice(a.suggestedPrice, Infinity) - safePrice(b.suggestedPrice, Infinity));
-        break;
-      case 'most-bids':
-        result.sort((a, b) => (bidCountMap.get(b.tokenName) ?? 0) - (bidCountMap.get(a.tokenName) ?? 0));
-        break;
-    }
-    return result;
-  }, [filtered, sortBy, bidCountMap]);
+  const filteredAndSorted = useMemo(
+    () => sortListings(filtered, sortBy, bidCountMap),
+    [filtered, sortBy, bidCountMap],
+  );
 
   const isOwnListing = useCallback(
     (encryption: EncryptionDisplay) => {
@@ -235,30 +212,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     [userPkh]
   );
 
-  // Count active (non-default) filters for "clear all" indicator
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (debouncedSearch !== '') count++;
-    if (sortBy !== 'newest') count++;
-    if (statusFilter !== 'all') count++;
-    if (categoryFilter !== 'all') count++;
-    if (priceMin !== '') count++;
-    if (priceMax !== '') count++;
-    if (showFavoritesOnly) count++;
-    return count;
-  }, [debouncedSearch, sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
-
-  // Count only panel filters (excludes search) for the Filters button badge
-  const panelFilterCount = useMemo(() => {
-    let count = 0;
-    if (sortBy !== 'newest') count++;
-    if (statusFilter !== 'all') count++;
-    if (categoryFilter !== 'all') count++;
-    if (priceMin !== '') count++;
-    if (priceMax !== '') count++;
-    if (showFavoritesOnly) count++;
-    return count;
-  }, [sortBy, statusFilter, categoryFilter, priceMin, priceMax, showFavoritesOnly]);
+  const activeFilterCount = useMemo(() => countActiveFilters(filterParams), [filterParams]);
+  const panelFilterCount = useMemo(() => countPanelFilters(filterParams), [filterParams]);
 
   // Load more pagination — accumulate batches instead of showing a single page
   const ITEMS_PER_PAGE = 20;
@@ -407,8 +362,19 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               value={searchQuery}
               onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
               aria-label="Search listings"
-              className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
+              className="w-full pl-10 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
             />
+            {searchQuery && (
+              <button
+                onClick={() => dispatch({ type: 'SET_SEARCH', payload: '' })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                aria-label="Clear search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Filters Toggle */}
@@ -508,18 +474,79 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               <option value="pending">Pending</option>
             </select>
 
-            {/* Category Filter */}
+            {/* Seller Filter */}
             <select
-              value={categoryFilter}
-              onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
-              aria-label="Filter by category"
+              value={sellerFilter}
+              onChange={(e) => dispatch({ type: 'SET_SELLER', payload: e.target.value as MarketplaceFilters['sellerFilter'] })}
+              aria-label="Filter by seller"
               className="px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
             >
-              <option value="all">All Categories</option>
-              {FILE_CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.label}</option>
-              ))}
+              <option value="all">All Sellers</option>
+              <option value="mine">My Listings</option>
+              <option value="others">Others Only</option>
             </select>
+
+            {/* Category Filter (multi-select dropdown) */}
+            <div className="relative" ref={categoryDropdownRef}>
+              <button
+                onClick={() => setCategoryDropdownOpen((o) => !o)}
+                className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                  !categoryFilter.includes('all')
+                    ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                    : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-primary)]'
+                }`}
+                aria-label="Filter by category"
+                aria-expanded={categoryDropdownOpen}
+              >
+                <span>
+                  {categoryFilter.includes('all')
+                    ? 'All Categories'
+                    : `${categoryFilter.length} ${categoryFilter.length === 1 ? 'Category' : 'Categories'}`}
+                </span>
+                <svg className={`w-3 h-3 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {categoryDropdownOpen && (
+                <div className="absolute top-full left-0 z-10 mt-1 py-1 min-w-[180px] bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)]">
+                  <label className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={categoryFilter.includes('all')}
+                      onChange={() => dispatch({ type: 'SET_CATEGORY', payload: ['all'] })}
+                      className="accent-[var(--accent)]"
+                    />
+                    All
+                  </label>
+                  {FILE_CATEGORIES.map((cat) => (
+                    <label key={cat.id} className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={categoryFilter.includes(cat.id)}
+                        onChange={() => {
+                          let next: string[];
+                          if (categoryFilter.includes('all')) {
+                            // Switching from "all" to specific: select just this one
+                            next = [cat.id];
+                          } else if (categoryFilter.includes(cat.id)) {
+                            // Uncheck: remove this category
+                            next = categoryFilter.filter((c) => c !== cat.id);
+                            if (next.length === 0) next = ['all'];
+                          } else {
+                            // Check: add this category
+                            next = [...categoryFilter, cat.id];
+                            if (next.length === FILE_CATEGORIES.length) next = ['all'];
+                          }
+                          dispatch({ type: 'SET_CATEGORY', payload: next });
+                        }}
+                        className="accent-[var(--accent)]"
+                      />
+                      {cat.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Price Range Slider */}
             <PriceRangeSlider
@@ -530,6 +557,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               onChangeMin={(v) => dispatch({ type: 'SET_PRICE_MIN', payload: v })}
               onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
             />
+
+            {/* Date Range */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[var(--text-muted)]">From</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => dispatch({ type: 'SET_DATE_FROM', payload: e.target.value })}
+                aria-label="Listed after date"
+                className="px-2 py-1.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+              />
+              <label className="text-xs text-[var(--text-muted)]">To</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => dispatch({ type: 'SET_DATE_TO', payload: e.target.value })}
+                aria-label="Listed before date"
+                className="px-2 py-1.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+              />
+            </div>
 
             {/* Sort */}
             <select
@@ -543,6 +590,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               <option value="price-high">Price: High to Low</option>
               <option value="price-low">Price: Low to High</option>
               <option value="most-bids">Most Bids</option>
+              <option value="alpha-asc">A → Z (Description)</option>
+              <option value="alpha-desc">Z → A (Description)</option>
             </select>
 
             {/* Favorites Toggle */}
@@ -568,7 +617,9 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
       {/* Results Count + Clear Filters */}
       <div role="status" className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
         <span>
-          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'} found
+          {hasMore
+            ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`
+            : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`}
         </span>
         {activeFilterCount > 0 && (
           <button
@@ -582,7 +633,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
 
       {/* Content */}
       {filteredAndSorted.length === 0 ? (
-        searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || priceMin !== '' || priceMax !== '' || showFavoritesOnly ? (
+        activeFilterCount > 0 ? (
           <EmptyState
             illustration={<NoResultsIllustration />}
             title="No matching listings"
