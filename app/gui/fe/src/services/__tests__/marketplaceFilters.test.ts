@@ -29,7 +29,7 @@ function makeListing(overrides: Partial<EncryptionDisplay> = {}): EncryptionDisp
 const DEFAULT_PARAMS: FilterParams = {
   statusFilter: 'all',
   categoryFilter: ['all'],
-  sellerFilter: 'all',
+  hideOwnListings: false,
   userPkh: 'user123',
   showFavoritesOnly: false,
   favorites: new Set(),
@@ -47,11 +47,12 @@ function params(overrides: Partial<FilterParams> = {}): FilterParams {
 // ── filterListings ───────────────────────────────────────────────
 
 describe('filterListings', () => {
+  // Use midday timestamps to avoid timezone boundary issues in tests
   const listings = [
-    makeListing({ tokenName: 'a1', status: 'active', category: 'audio', sellerPkh: 'user123', suggestedPrice: 2_000_000, createdAt: '2025-01-15T00:00:00Z', description: 'Music file' }),
-    makeListing({ tokenName: 'a2', status: 'pending', category: 'video', sellerPkh: 'other456', suggestedPrice: 10_000_000, createdAt: '2025-03-20T00:00:00Z', description: 'Video clip' }),
-    makeListing({ tokenName: 'a3', status: 'active', category: 'text', sellerPkh: 'other456', suggestedPrice: 1_000_000, createdAt: '2025-06-01T00:00:00Z', description: 'Short story' }),
-    makeListing({ tokenName: 'a4', status: 'active', sellerPkh: 'user123', suggestedPrice: 50_000_000, createdAt: '2025-07-10T00:00:00Z', description: undefined, category: undefined }),
+    makeListing({ tokenName: 'a1', status: 'active', category: 'audio', sellerPkh: 'user123', suggestedPrice: 2_000_000, createdAt: '2025-01-15T12:00:00Z', description: 'Music file' }),
+    makeListing({ tokenName: 'a2', status: 'pending', category: 'video', sellerPkh: 'other456', suggestedPrice: 10_000_000, createdAt: '2025-03-20T12:00:00Z', description: 'Video clip' }),
+    makeListing({ tokenName: 'a3', status: 'active', category: 'text', sellerPkh: 'other456', suggestedPrice: 1_000_000, createdAt: '2025-06-01T12:00:00Z', description: 'Short story' }),
+    makeListing({ tokenName: 'a4', status: 'active', sellerPkh: 'user123', suggestedPrice: 50_000_000, createdAt: '2025-07-10T12:00:00Z', description: undefined, category: undefined }),
   ];
 
   it('returns all listings with default params', () => {
@@ -85,20 +86,14 @@ describe('filterListings', () => {
     expect(filterListings(listings, params({ categoryFilter: ['all'] }))).toHaveLength(4);
   });
 
-  it('filters seller=mine', () => {
-    const result = filterListings(listings, params({ sellerFilter: 'mine' }));
-    expect(result).toHaveLength(2);
-    expect(result.every((e) => e.sellerPkh === 'user123')).toBe(true);
-  });
-
-  it('filters seller=others', () => {
-    const result = filterListings(listings, params({ sellerFilter: 'others' }));
+  it('hides own listings when hideOwnListings is true', () => {
+    const result = filterListings(listings, params({ hideOwnListings: true }));
     expect(result).toHaveLength(2);
     expect(result.every((e) => e.sellerPkh !== 'user123')).toBe(true);
   });
 
-  it('seller filter is no-op when userPkh is undefined', () => {
-    const result = filterListings(listings, params({ sellerFilter: 'mine', userPkh: undefined }));
+  it('hideOwnListings is no-op when userPkh is undefined', () => {
+    const result = filterListings(listings, params({ hideOwnListings: true, userPkh: undefined }));
     expect(result).toHaveLength(4);
   });
 
@@ -172,7 +167,7 @@ describe('filterListings', () => {
     const result = filterListings(listings, params({
       statusFilter: 'active',
       categoryFilter: ['text'],
-      sellerFilter: 'others',
+      hideOwnListings: true,
     }));
     // Only a3: active + text + not user123
     expect(result).toHaveLength(1);
@@ -255,7 +250,7 @@ describe('countActiveFilters', () => {
   it('counts each filter independently', () => {
     expect(countActiveFilters(params({ statusFilter: 'active' }))).toBe(1);
     expect(countActiveFilters(params({ categoryFilter: ['audio'] }))).toBe(1);
-    expect(countActiveFilters(params({ sellerFilter: 'mine' }))).toBe(1);
+    expect(countActiveFilters(params({ hideOwnListings: true }))).toBe(1);
     expect(countActiveFilters(params({ dateFrom: '2025-01-01' }))).toBe(1);
     expect(countActiveFilters(params({ dateTo: '2025-12-31' }))).toBe(1);
     expect(countActiveFilters(params({ priceMin: '5' }))).toBe(1);
@@ -267,7 +262,7 @@ describe('countActiveFilters', () => {
     expect(countActiveFilters(params({
       searchQuery: 'test',
       statusFilter: 'pending',
-      sellerFilter: 'mine',
+      hideOwnListings: true,
     }))).toBe(3);
   });
 });
@@ -282,6 +277,6 @@ describe('countPanelFilters', () => {
   });
 
   it('counts panel-relevant filters', () => {
-    expect(countPanelFilters(params({ statusFilter: 'active', sellerFilter: 'others' }))).toBe(2);
+    expect(countPanelFilters(params({ statusFilter: 'active', hideOwnListings: true }))).toBe(2);
   });
 });

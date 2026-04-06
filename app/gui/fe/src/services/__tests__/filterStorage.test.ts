@@ -35,7 +35,7 @@ describe('filterStorage', () => {
         sortBy: 'most-bids' as const,
         statusFilter: 'active' as const,
         categoryFilter: ['document'] as string[],
-        sellerFilter: 'others' as const,
+        hideOwnListings: true,
         dateFrom: '2025-01-01',
         dateTo: '2025-12-31',
         viewMode: 'list' as const,
@@ -103,8 +103,8 @@ describe('filterStorage', () => {
       expect(loaded!.categoryFilter).toEqual(['audio', 'video']);
     });
 
-    it('tolerates missing new fields (sellerFilter, dateFrom, dateTo)', () => {
-      // Legacy data has no sellerFilter/dateFrom/dateTo
+    it('tolerates missing new fields (hideOwnListings, dateFrom, dateTo)', () => {
+      // Legacy data has no hideOwnListings/dateFrom/dateTo
       localStorage.setItem('veiled_marketplace_filters_pkh1', JSON.stringify({
         searchQuery: 'test',
         categoryFilter: 'text',
@@ -114,7 +114,7 @@ describe('filterStorage', () => {
       expect(loaded!.searchQuery).toBe('test');
       expect(loaded!.categoryFilter).toEqual(['text']);
       // Missing fields are simply absent — HYDRATE fills defaults
-      expect(loaded!.sellerFilter).toBeUndefined();
+      expect(loaded!.hideOwnListings).toBeUndefined();
       expect(loaded!.dateFrom).toBeUndefined();
       expect(loaded!.dateTo).toBeUndefined();
     });

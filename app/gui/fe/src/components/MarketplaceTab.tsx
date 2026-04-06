@@ -8,9 +8,9 @@ import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
-import { FILE_CATEGORIES } from '../config/categories';
 import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
 import PriceRangeSlider from './PriceRangeSlider';
+import CategoryFilter from './CategoryFilter';
 import RefreshIndicator from './RefreshIndicator';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
@@ -40,39 +40,19 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close filters panel on Escape key
   useEffect(() => {
     if (!filtersOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (categoryDropdownOpen) {
-          setCategoryDropdownOpen(false);
-        } else {
-          setFiltersOpen(false);
-        }
-      }
+      if (e.key === 'Escape') setFiltersOpen(false);
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [filtersOpen, categoryDropdownOpen]);
-
-  // Close category dropdown on click-outside
-  useEffect(() => {
-    if (!categoryDropdownOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
-        setCategoryDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [categoryDropdownOpen]);
+  }, [filtersOpen]);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, categoryFilter, sellerFilter, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -183,7 +163,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const filterParams = useMemo(() => ({
     statusFilter,
     categoryFilter,
-    sellerFilter,
+    hideOwnListings,
     userPkh,
     showFavoritesOnly,
     favorites,
@@ -192,7 +172,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     searchQuery: debouncedSearch,
     dateFrom,
     dateTo,
-  }), [statusFilter, categoryFilter, sellerFilter, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
+  }), [statusFilter, categoryFilter, hideOwnListings, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
 
   const filtered = useMemo(
     () => filterListings(encryptions, filterParams),
@@ -474,79 +454,33 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               <option value="pending">Pending</option>
             </select>
 
-            {/* Seller Filter */}
-            <select
-              value={sellerFilter}
-              onChange={(e) => dispatch({ type: 'SET_SELLER', payload: e.target.value as MarketplaceFilters['sellerFilter'] })}
-              aria-label="Filter by seller"
-              className="px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-            >
-              <option value="all">All Sellers</option>
-              <option value="mine">My Listings</option>
-              <option value="others">Others Only</option>
-            </select>
+            {/* Category Filter */}
+            <CategoryFilter
+              selected={categoryFilter}
+              onChange={(next) => dispatch({ type: 'SET_CATEGORY', payload: next })}
+            />
 
-            {/* Category Filter (multi-select dropdown) */}
-            <div className="relative" ref={categoryDropdownRef}>
-              <button
-                onClick={() => setCategoryDropdownOpen((o) => !o)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                  !categoryFilter.includes('all')
-                    ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
-                    : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-primary)]'
-                }`}
-                aria-label="Filter by category"
-                aria-expanded={categoryDropdownOpen}
-              >
-                <span>
-                  {categoryFilter.includes('all')
-                    ? 'All Categories'
-                    : `${categoryFilter.length} ${categoryFilter.length === 1 ? 'Category' : 'Categories'}`}
-                </span>
-                <svg className={`w-3 h-3 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {categoryDropdownOpen && (
-                <div className="absolute top-full left-0 z-10 mt-1 py-1 min-w-[180px] bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)]">
-                  <label className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={categoryFilter.includes('all')}
-                      onChange={() => dispatch({ type: 'SET_CATEGORY', payload: ['all'] })}
-                      className="accent-[var(--accent)]"
-                    />
-                    All
-                  </label>
-                  {FILE_CATEGORIES.map((cat) => (
-                    <label key={cat.id} className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={categoryFilter.includes(cat.id)}
-                        onChange={() => {
-                          let next: string[];
-                          if (categoryFilter.includes('all')) {
-                            // Switching from "all" to specific: select just this one
-                            next = [cat.id];
-                          } else if (categoryFilter.includes(cat.id)) {
-                            // Uncheck: remove this category
-                            next = categoryFilter.filter((c) => c !== cat.id);
-                            if (next.length === 0) next = ['all'];
-                          } else {
-                            // Check: add this category
-                            next = [...categoryFilter, cat.id];
-                            if (next.length === FILE_CATEGORIES.length) next = ['all'];
-                          }
-                          dispatch({ type: 'SET_CATEGORY', payload: next });
-                        }}
-                        className="accent-[var(--accent)]"
-                      />
-                      {cat.label}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Hide Own Listings Toggle */}
+            <button
+              onClick={() => dispatch({ type: 'SET_HIDE_OWN', payload: !hideOwnListings })}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                hideOwnListings
+                  ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                  : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+              title={hideOwnListings ? 'Show all listings' : 'Hide your own listings'}
+              aria-label={hideOwnListings ? 'Show all listings' : 'Hide your own listings'}
+              aria-pressed={hideOwnListings}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                {hideOwnListings ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                )}
+              </svg>
+              <span>Hide Mine</span>
+            </button>
 
             {/* Price Range Slider */}
             <PriceRangeSlider
@@ -558,22 +492,22 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
             />
 
-            {/* Date Range */}
+            {/* Date Range (filters by UTxO creation date, not original listing date) */}
             <div className="flex items-center gap-2">
-              <label className="text-xs text-[var(--text-muted)]">From</label>
+              <label className="text-xs text-[var(--text-muted)] whitespace-nowrap">After</label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => dispatch({ type: 'SET_DATE_FROM', payload: e.target.value })}
-                aria-label="Listed after date"
+                aria-label="UTxO created after date"
                 className="px-2 py-1.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
               />
-              <label className="text-xs text-[var(--text-muted)]">To</label>
+              <label className="text-xs text-[var(--text-muted)] whitespace-nowrap">Before</label>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => dispatch({ type: 'SET_DATE_TO', payload: e.target.value })}
-                aria-label="Listed before date"
+                aria-label="UTxO created before date"
                 className="px-2 py-1.5 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>

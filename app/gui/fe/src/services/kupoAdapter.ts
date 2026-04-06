@@ -26,6 +26,7 @@ import type {
   TransactionInfo,
   GovernanceProposalInfo,
 } from '@meshsdk/core';
+import { chainApi } from './api';
 
 /** Kupo /matches response item */
 interface KupoMatch {
@@ -71,8 +72,34 @@ export class KupoAdapter implements IFetcher {
    * Queries: GET /matches/{address}?unspent&resolve_hashes
    */
   async fetchAddressUTxOs(address: string, asset?: string): Promise<UTxO[]> {
-    const matches = await this.queryMatches(address);
+    // Fetch from Kupo and Koios in parallel.
+    // Koios fills the gap for wallet UTxOs created before the kupo_since point.
+    const [matches, koiosUtxos] = await Promise.all([
+      this.queryMatches(address),
+      chainApi.getWalletUtxos(address).catch(() => []),
+    ]);
+
     const utxos = await Promise.all(matches.map((m) => this.matchToUtxo(m)));
+
+    // Merge Koios UTxOs, deduplicating by txHash:outputIndex
+    if (koiosUtxos.length > 0) {
+      const seen = new Set(utxos.map((u) => `${u.input.txHash}:${u.input.outputIndex}`));
+      for (const ku of koiosUtxos) {
+        const key = `${ku.input.txHash}:${ku.input.outputIndex}`;
+        if (!seen.has(key)) {
+          utxos.push({
+            input: ku.input,
+            output: {
+              address: ku.output.address,
+              amount: ku.output.amount,
+              dataHash: ku.output.dataHash,
+              plutusData: ku.output.plutusData,
+            },
+          });
+          seen.add(key);
+        }
+      }
+    }
 
     if (asset) {
       return utxos.filter((u) =>

@@ -11,7 +11,7 @@ export interface MarketplaceFilters {
   sortBy: 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids' | 'alpha-asc' | 'alpha-desc'
   statusFilter: 'all' | 'active' | 'pending'
   categoryFilter: string[]
-  sellerFilter: 'all' | 'mine' | 'others'
+  hideOwnListings: boolean
   dateFrom: string
   dateTo: string
   viewMode: ViewMode
@@ -26,7 +26,7 @@ export type MarketplaceAction =
   | { type: 'SET_SORT'; payload: MarketplaceFilters['sortBy'] }
   | { type: 'SET_STATUS'; payload: MarketplaceFilters['statusFilter'] }
   | { type: 'SET_CATEGORY'; payload: string[] }
-  | { type: 'SET_SELLER'; payload: MarketplaceFilters['sellerFilter'] }
+  | { type: 'SET_HIDE_OWN'; payload: boolean }
   | { type: 'SET_DATE_FROM'; payload: string }
   | { type: 'SET_DATE_TO'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
@@ -39,7 +39,7 @@ export type MarketplaceAction =
 
 export const MARKETPLACE_INITIAL: MarketplaceFilters = {
   searchQuery: '', sortBy: 'newest', statusFilter: 'all',
-  categoryFilter: ['all'], sellerFilter: 'all', dateFrom: '', dateTo: '',
+  categoryFilter: ['all'], hideOwnListings: false, dateFrom: '', dateTo: '',
   viewMode: 'grid', priceMin: '', priceMax: '',
   showFavoritesOnly: false, currentPage: 1,
 }
@@ -50,7 +50,7 @@ export function marketplaceReducer(state: MarketplaceFilters, action: Marketplac
     case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
     case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload, currentPage: 1 }
-    case 'SET_SELLER': return { ...state, sellerFilter: action.payload, currentPage: 1 }
+    case 'SET_HIDE_OWN': return { ...state, hideOwnListings: action.payload, currentPage: 1 }
     case 'SET_DATE_FROM': return { ...state, dateFrom: action.payload, currentPage: 1 }
     case 'SET_DATE_TO': return { ...state, dateTo: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }

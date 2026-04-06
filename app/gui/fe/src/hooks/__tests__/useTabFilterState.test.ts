@@ -36,10 +36,10 @@ describe('marketplaceReducer', () => {
     expect(next.currentPage).toBe(1)
   })
 
-  it('SET_SELLER updates sellerFilter and resets page', () => {
+  it('SET_HIDE_OWN updates hideOwnListings and resets page', () => {
     const state = { ...MARKETPLACE_INITIAL, currentPage: 3 }
-    const next = marketplaceReducer(state, { type: 'SET_SELLER', payload: 'mine' })
-    expect(next.sellerFilter).toBe('mine')
+    const next = marketplaceReducer(state, { type: 'SET_HIDE_OWN', payload: true })
+    expect(next.hideOwnListings).toBe(true)
     expect(next.currentPage).toBe(1)
   })
 
@@ -90,7 +90,7 @@ describe('marketplaceReducer', () => {
       sortBy: 'price-high' as const,
       statusFilter: 'active' as const,
       categoryFilter: ['audio'] as string[],
-      sellerFilter: 'mine' as const,
+      hideOwnListings: true,
       dateFrom: '2025-01-01',
       dateTo: '2025-12-31',
       viewMode: 'list' as const,
@@ -102,7 +102,7 @@ describe('marketplaceReducer', () => {
     expect(next.sortBy).toBe('newest')
     expect(next.statusFilter).toBe('all')
     expect(next.categoryFilter).toEqual(['all'])
-    expect(next.sellerFilter).toBe('all')
+    expect(next.hideOwnListings).toBe(false)
     expect(next.dateFrom).toBe('')
     expect(next.dateTo).toBe('')
     expect(next.viewMode).toBe('list') // preserved
@@ -138,7 +138,7 @@ describe('marketplaceReducer', () => {
     expect(next.searchQuery).toBe('') // default
     expect(next.sortBy).toBe('newest') // default
     expect(next.viewMode).toBe('grid') // default
-    expect(next.sellerFilter).toBe('all') // default
+    expect(next.hideOwnListings).toBe(false) // default
     expect(next.dateFrom).toBe('') // default
     expect(next.dateTo).toBe('') // default
   })

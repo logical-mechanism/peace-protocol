@@ -6,7 +6,7 @@ import type { MarketplaceFilters } from '../hooks/useTabFilterState';
 export interface FilterParams {
   statusFilter: MarketplaceFilters['statusFilter'];
   categoryFilter: string[];
-  sellerFilter: MarketplaceFilters['sellerFilter'];
+  hideOwnListings: boolean;
   userPkh: string | undefined;
   showFavoritesOnly: boolean;
   favorites: Set<string>;
@@ -18,6 +18,20 @@ export interface FilterParams {
 }
 
 export type SortKey = MarketplaceFilters['sortBy'];
+
+// ── Date helpers ─────────────────────────────────────────────────
+
+/** Parse 'YYYY-MM-DD' as local-time start-of-day (midnight). */
+function localStartOfDay(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+}
+
+/** Parse 'YYYY-MM-DD' as local-time end-of-day (23:59:59.999). */
+function localEndOfDay(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+}
 
 // ── Filter listings ──────────────────────────────────────────────
 
@@ -37,12 +51,8 @@ export function filterListings(
     );
   }
 
-  if (params.sellerFilter !== 'all' && params.userPkh) {
-    if (params.sellerFilter === 'mine') {
-      result = result.filter((e) => e.sellerPkh === params.userPkh);
-    } else {
-      result = result.filter((e) => e.sellerPkh !== params.userPkh);
-    }
+  if (params.hideOwnListings && params.userPkh) {
+    result = result.filter((e) => e.sellerPkh !== params.userPkh);
   }
 
   if (params.showFavoritesOnly) {
@@ -61,7 +71,7 @@ export function filterListings(
   }
 
   if (params.dateFrom) {
-    const fromTime = new Date(params.dateFrom).getTime();
+    const fromTime = localStartOfDay(params.dateFrom);
     if (!isNaN(fromTime)) {
       result = result.filter((e) => {
         const t = new Date(e.createdAt ?? '').getTime();
@@ -71,8 +81,7 @@ export function filterListings(
   }
 
   if (params.dateTo) {
-    // End of the selected day (23:59:59.999)
-    const toTime = new Date(params.dateTo).getTime() + 86_400_000 - 1;
+    const toTime = localEndOfDay(params.dateTo);
     if (!isNaN(toTime)) {
       result = result.filter((e) => {
         const t = new Date(e.createdAt ?? '').getTime();
@@ -152,7 +161,7 @@ export function countActiveFilters(params: FilterParams): number {
   if (params.searchQuery !== '') count++;
   if (params.statusFilter !== 'all') count++;
   if (!isCategoryDefault(params.categoryFilter)) count++;
-  if (params.sellerFilter !== 'all') count++;
+  if (params.hideOwnListings) count++;
   if (params.dateFrom !== '') count++;
   if (params.dateTo !== '') count++;
   if (params.priceMin !== '') count++;
@@ -165,7 +174,7 @@ export function countPanelFilters(params: FilterParams): number {
   let count = 0;
   if (params.statusFilter !== 'all') count++;
   if (!isCategoryDefault(params.categoryFilter)) count++;
-  if (params.sellerFilter !== 'all') count++;
+  if (params.hideOwnListings) count++;
   if (params.dateFrom !== '') count++;
   if (params.dateTo !== '') count++;
   if (params.priceMin !== '') count++;
