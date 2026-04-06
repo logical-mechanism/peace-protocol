@@ -14,8 +14,25 @@ function getStorageKey(userPkh: string): string {
   return STORAGE_KEY_PREFIX + userPkh;
 }
 
+/** Migrate legacy persisted filter shapes to the current format. */
+function migrateFilters(raw: Record<string, unknown>): Partial<MarketplaceFilters> {
+  const migrated = { ...raw };
+
+  // v1 → v2: categoryFilter was a single string, now string[]
+  if (typeof migrated.categoryFilter === 'string') {
+    migrated.categoryFilter = [migrated.categoryFilter as string];
+  }
+
+  // New fields (sellerFilter, dateFrom, dateTo) are simply absent in legacy
+  // data — HYDRATE fills defaults from MARKETPLACE_INITIAL, so no action needed.
+
+  return migrated as Partial<MarketplaceFilters>;
+}
+
 export function getPersistedFilters(userPkh: string): Partial<MarketplaceFilters> | null {
-  return storageGetJSON<Partial<MarketplaceFilters> | null>(getStorageKey(userPkh), null);
+  const raw = storageGetJSON<Record<string, unknown> | null>(getStorageKey(userPkh), null);
+  if (!raw) return null;
+  return migrateFilters(raw);
 }
 
 export function persistFilters(userPkh: string, filters: MarketplaceFilters): void {
