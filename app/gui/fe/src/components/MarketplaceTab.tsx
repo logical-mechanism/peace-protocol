@@ -51,6 +51,18 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [filtersOpen]);
 
+  // WebKitGTK date picker doesn't close on outside click — blur on any click elsewhere
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      const active = document.activeElement as HTMLInputElement | null;
+      if (active?.type === 'date' && e.target !== active) {
+        active.blur();
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, []);
+
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -440,18 +452,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
         </div>
 
         {/* Collapsible filter panel */}
-        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
         {filtersOpen && (
-          <div
-            className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
-            onMouseDown={(e) => {
-              // WebKitGTK date picker doesn't close on outside click — blur it
-              const active = document.activeElement as HTMLInputElement | null;
-              if (active?.type === 'date' && e.target !== active) {
-                active.blur();
-              }
-            }}
-          >
+          <div className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
             {/* Status Filter */}
             <select
               value={statusFilter}
