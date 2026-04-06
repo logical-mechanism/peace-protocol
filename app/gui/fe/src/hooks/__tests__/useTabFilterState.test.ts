@@ -31,8 +31,29 @@ describe('marketplaceReducer', () => {
 
   it('SET_CATEGORY updates categoryFilter and resets page', () => {
     const state = { ...MARKETPLACE_INITIAL, currentPage: 3 }
-    const next = marketplaceReducer(state, { type: 'SET_CATEGORY', payload: 'document' })
-    expect(next.categoryFilter).toBe('document')
+    const next = marketplaceReducer(state, { type: 'SET_CATEGORY', payload: ['document', 'audio'] })
+    expect(next.categoryFilter).toEqual(['document', 'audio'])
+    expect(next.currentPage).toBe(1)
+  })
+
+  it('SET_HIDE_OWN updates hideOwnListings and resets page', () => {
+    const state = { ...MARKETPLACE_INITIAL, currentPage: 3 }
+    const next = marketplaceReducer(state, { type: 'SET_HIDE_OWN', payload: true })
+    expect(next.hideOwnListings).toBe(true)
+    expect(next.currentPage).toBe(1)
+  })
+
+  it('SET_DATE_FROM updates dateFrom and resets page', () => {
+    const state = { ...MARKETPLACE_INITIAL, currentPage: 2 }
+    const next = marketplaceReducer(state, { type: 'SET_DATE_FROM', payload: '2025-06-01' })
+    expect(next.dateFrom).toBe('2025-06-01')
+    expect(next.currentPage).toBe(1)
+  })
+
+  it('SET_DATE_TO updates dateTo and resets page', () => {
+    const state = { ...MARKETPLACE_INITIAL, currentPage: 2 }
+    const next = marketplaceReducer(state, { type: 'SET_DATE_TO', payload: '2025-12-31' })
+    expect(next.dateTo).toBe('2025-12-31')
     expect(next.currentPage).toBe(1)
   })
 
@@ -68,6 +89,10 @@ describe('marketplaceReducer', () => {
       searchQuery: 'hello',
       sortBy: 'price-high' as const,
       statusFilter: 'active' as const,
+      categoryFilter: ['audio'] as string[],
+      hideOwnListings: true,
+      dateFrom: '2025-01-01',
+      dateTo: '2025-12-31',
       viewMode: 'list' as const,
       currentPage: 5,
       showFavoritesOnly: true,
@@ -76,6 +101,10 @@ describe('marketplaceReducer', () => {
     expect(next.searchQuery).toBe('')
     expect(next.sortBy).toBe('newest')
     expect(next.statusFilter).toBe('all')
+    expect(next.categoryFilter).toEqual(['all'])
+    expect(next.hideOwnListings).toBe(false)
+    expect(next.dateFrom).toBe('')
+    expect(next.dateTo).toBe('')
     expect(next.viewMode).toBe('list') // preserved
     expect(next.currentPage).toBe(1)
     expect(next.showFavoritesOnly).toBe(false)
@@ -103,12 +132,15 @@ describe('marketplaceReducer', () => {
   it('HYDRATE fills missing fields from initial state', () => {
     const next = marketplaceReducer(MARKETPLACE_INITIAL, {
       type: 'HYDRATE',
-      payload: { categoryFilter: 'audio' },
+      payload: { categoryFilter: ['audio'] },
     })
-    expect(next.categoryFilter).toBe('audio')
+    expect(next.categoryFilter).toEqual(['audio'])
     expect(next.searchQuery).toBe('') // default
     expect(next.sortBy).toBe('newest') // default
     expect(next.viewMode).toBe('grid') // default
+    expect(next.hideOwnListings).toBe(false) // default
+    expect(next.dateFrom).toBe('') // default
+    expect(next.dateTo).toBe('') // default
   })
 
   it('returns same state for unknown action', () => {

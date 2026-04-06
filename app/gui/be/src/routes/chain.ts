@@ -189,6 +189,67 @@ router.get('/history/:pkh', validatePkhParam, async (req, res) => {
   }
 });
 
+/**
+ * GET /utxos/:address
+ *
+ * Returns UTxOs at an address from Koios. Used to fill the gap when Kupo
+ * starts from a --since point and misses pre-deployment wallet UTxOs.
+ * Response shape matches MeshSDK UTxO format for direct frontend consumption.
+ */
+router.get('/utxos/:address', async (req, res) => {
+  const address = req.params.address as string;
+
+  // Basic bech32 address validation
+  if (!address.startsWith('addr') || address.length < 40) {
+    return res.status(400).json({
+      error: { code: 'INVALID_PARAM', message: 'Invalid address format' },
+    });
+  }
+
+  try {
+    const koios = getKoiosClient();
+    const utxos = await koios.getAddressUtxos(address);
+
+    const meshUtxos = utxos
+      .filter(u => !u.is_spent)
+      .map(u => {
+        const amount: Array<{ unit: string; quantity: string }> = [
+          { unit: 'lovelace', quantity: u.value },
+        ];
+
+        if (u.asset_list) {
+          for (const asset of u.asset_list) {
+            amount.push({
+              unit: asset.policy_id + asset.asset_name,
+              quantity: asset.quantity,
+            });
+          }
+        }
+
+        return {
+          input: {
+            txHash: u.tx_hash,
+            outputIndex: u.tx_index,
+          },
+          output: {
+            address: u.address,
+            amount,
+            dataHash: u.datum_hash ?? undefined,
+            plutusData: u.inline_datum?.bytes ?? undefined,
+          },
+        };
+      });
+
+    res.set('Cache-Control', `max-age=${CACHE_TTL_CHAIN}`);
+    return res.json({ data: meshUtxos });
+  } catch (error) {
+    logger.error('Failed to fetch wallet UTxOs from Koios', { error: String(error), requestId: req.requestId });
+    return res.status(503).json({
+      error: { code: 'UTXO_UNAVAILABLE', message: 'Unable to fetch wallet UTxOs', requestId: req.requestId },
+    });
+  }
+});
+
 interface HistoryRecord {
   txHash: string;
   type: string;

@@ -368,6 +368,20 @@ export const chainApi = {
   },
 
   /**
+   * Fetch wallet UTxOs from Koios via backend.
+   * Fills the gap when Kupo starts from --since and misses pre-deployment UTxOs.
+   * Returns MeshSDK-format UTxOs, or empty array on failure.
+   */
+  async getWalletUtxos(address: string): Promise<KoiosWalletUtxo[]> {
+    try {
+      const response = await apiFetch<ApiResponse<KoiosWalletUtxo[]>>(`/api/chain/utxos/${address}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  /**
    * Recover transaction history from Koios for a payment credential.
    * Expensive query — backend caches for 60s. Used on-demand, not for polling.
    */
@@ -380,6 +394,16 @@ export const chainApi = {
     }
   },
 };
+
+export interface KoiosWalletUtxo {
+  input: { txHash: string; outputIndex: number };
+  output: {
+    address: string;
+    amount: Array<{ unit: string; quantity: string }>;
+    dataHash?: string;
+    plutusData?: string;
+  };
+}
 
 export interface HistoryRecoveryRecord {
   txHash: string;

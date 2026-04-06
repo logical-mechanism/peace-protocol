@@ -232,7 +232,7 @@ function EncryptionCard({
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-mono text-[var(--text-secondary)]">
-              {truncateHex(encryption.seller, 10, 6)}
+              <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
             </span>
             <button
               onClick={handleCopySeller}
