@@ -441,7 +441,17 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
 
         {/* Collapsible filter panel */}
         {filtersOpen && (
-          <div className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+          <div
+            className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
+            onMouseDown={(e) => {
+              // WebKitGTK date picker doesn't close on outside click — blur it
+              const active = document.activeElement as HTMLInputElement | null;
+              if (active?.type === 'date' && e.target !== active) {
+                active.blur();
+              }
+            }}
+          >
             {/* Status Filter */}
             <select
               value={statusFilter}
