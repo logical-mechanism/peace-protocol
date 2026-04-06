@@ -336,27 +336,29 @@ function MyPurchasesTab({
                 key={enc.tokenName}
                 className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]"
               >
-                <div className="flex flex-wrap items-center gap-2 mb-3">
+                <div className="flex items-center justify-between mb-3">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
                     Purchased
                   </span>
-                  {enc.resold && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--warning-muted)] text-[var(--warning)] rounded-full">
-                      Re-sold
-                    </span>
-                  )}
-                  {hasSecretError && (
-                    <span title="Bid secrets could not be loaded. Decryption may not be available.">
-                      <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                    </span>
-                  )}
-                  <span className="ml-auto text-xs text-[var(--text-muted)] font-mono truncate">
-                    {truncateHex(enc.tokenName, 12, 8)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {hasSecretError && (
+                      <span title="Bid secrets could not be loaded. Decryption may not be available.">
+                        <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      </span>
+                    )}
+                    {enc.resold && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--warning-muted)] text-[var(--warning)] rounded-full">
+                        Re-sold
+                      </span>
+                    )}
+                  </div>
                 </div>
+                <p className="text-xs text-[var(--text-muted)] font-mono mb-3">
+                  {truncateHex(enc.tokenName, 12, 8)}
+                </p>
 
                 {enc.description && (
                   <div
