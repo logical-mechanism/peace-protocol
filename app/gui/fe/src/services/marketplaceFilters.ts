@@ -161,7 +161,7 @@ export function countActiveFilters(params: FilterParams): number {
   return count;
 }
 
-export function countPanelFilters(params: Omit<FilterParams, 'searchQuery'>): number {
+export function countPanelFilters(params: FilterParams): number {
   let count = 0;
   if (params.statusFilter !== 'all') count++;
   if (!isCategoryDefault(params.categoryFilter)) count++;

@@ -278,8 +278,7 @@ describe('countPanelFilters', () => {
   });
 
   it('does not count search (excluded from panel)', () => {
-    const { searchQuery: _, ...panelParams } = params({ searchQuery: 'hello' });
-    expect(countPanelFilters(panelParams)).toBe(0);
+    expect(countPanelFilters(params({ searchQuery: 'hello' }))).toBe(0);
   });
 
   it('counts panel-relevant filters', () => {
