@@ -1,5 +1,5 @@
 name = "logical-mechanism/peace-protocol"
-version = "0.4.3"
+version = "0.5.0"
 compiler = "v1.1.21"
 plutus = "v3"
 license = "GPL-3.0-only"

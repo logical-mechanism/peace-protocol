@@ -587,3 +587,596 @@ stdout | src/config/__tests__/index.test.ts
    Duration  1.47s (transform 1.16s, setup 0ms, collect 3.52s, tests 1.36s, environment 4ms, prepare 1.56s)
 
 All tests passed.
+Running frontend tests (vitest)...
+
+> veiled-fe@0.5.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /home/logic/Documents/LogicalMechanism/peace-protocol/app/gui/fe
+
+ ✓ src/services/__tests__/walletManagement.test.ts (64 tests) 32ms
+ ✓ src/services/transactions/__tests__/acceptBid.test.ts (18 tests) 25ms
+ ✓ src/services/__tests__/transactionHistory.test.ts (38 tests) 26ms
+ ✓ src/components/__tests__/Toast.test.tsx (37 tests) 180ms
+ ✓ src/services/__tests__/transactionBuilder.integration.test.ts (29 tests) 63ms
+ ✓ src/services/__tests__/pendingTxPool.test.ts (29 tests) 18ms
+ ✓ src/services/transactions/__tests__/bids.test.ts (17 tests) 48ms
+ ✓ src/components/__tests__/PlaceBidModal.test.tsx (49 tests) 1265ms
+ ✓ src/components/__tests__/CreateListingModal.test.tsx (56 tests) 1604ms
+ ✓ src/components/__tests__/ImportListingModal.test.tsx (31 tests) 891ms
+ ✓ src/components/__tests__/VideoPlayer.test.tsx (81 tests) 1851ms
+ ✓ src/services/__tests__/marketplaceFilters.test.ts (36 tests) 19ms
+ ✓ src/components/__tests__/EncryptionCard.test.tsx (35 tests) 227ms
+ ✓ src/components/__tests__/LibraryTab.test.tsx (13 tests) 564ms
+ ✓ src/components/__tests__/MarketplaceTab.test.tsx (14 tests) 503ms
+ ✓ src/services/__tests__/iagonApi.test.ts (24 tests) 17ms
+ ✓ src/services/__tests__/errorMessages.test.ts (58 tests) 19ms
+ ✓ src/hooks/__tests__/useTabFilterState.test.ts (36 tests) 6ms
+ ✓ src/contexts/__tests__/NodeContext.test.tsx (14 tests) 228ms
+ ✓ src/services/__tests__/snarkProver.test.ts (21 tests) 28ms
+ ✓ src/services/__tests__/chainingAdapter.test.ts (16 tests) 10ms
+ ✓ src/services/__tests__/iagonAuth.test.ts (19 tests) 10ms
+ ✓ src/pages/__tests__/NodeSync.test.tsx (18 tests) 165ms
+ ✓ src/services/crypto/__tests__/createEncryption.test.ts (14 tests) 12ms
+ ✓ src/pages/__tests__/WalletUnlock.test.tsx (17 tests) 517ms
+ ✓ src/components/__tests__/HistoryTab.test.tsx (9 tests) 275ms
+ ✓ src/components/__tests__/LibraryContentModal.test.tsx (15 tests) 833ms
+   ✓ getViewMode (via rendering) > renders image viewer for .png extension 316ms
+   ✓ getViewMode (via rendering) > renders audio player for .mp3 extension 309ms
+ ✓ src/components/__tests__/SalesListingCard.test.tsx (27 tests) 159ms
+ ✓ src/components/__tests__/SnarkProvingModal.test.tsx (15 tests) 211ms
+ ✓ src/components/__tests__/MnemonicInput.test.tsx (25 tests) 108ms
+ ✓ src/components/__tests__/BidsModal.test.tsx (23 tests) 252ms
+ ✓ src/components/__tests__/DecryptModal.test.tsx (33 tests) 3737ms
+   ✓ DecryptModal > shows decrypted text message on success 434ms
+   ✓ DecryptModal > shows copy button in text success state 412ms
+   ✓ DecryptModal > changes header title to "Decrypted Message" for text on success 427ms
+   ✓ DecryptModal > shows file card for non-text category on success 412ms
+   ✓ DecryptModal > calls onDecryptResult with success on successful decryption 410ms
+   ✓ DecryptModal > shows saved to library indicator 417ms
+   ✓ DecryptModal > shows stub warning when result isStub is true 414ms
+   ✓ DecryptModal > calls onClose when Done button is clicked in success state 413ms
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > returns error when no levels found
+[decryptEncryption] Levels fetched: { count: 0, levels: [] }
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > returns error when KEM length mismatches
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [ { index: 0, r1: 'r1...', r2_g1: 'r2...', r2_g2: undefined } ]
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > returns error when KEM is null
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [ { index: 0, r1: 'r1...', r2_g1: 'r2...', r2_g2: undefined } ]
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > decrypts successfully with valid KEM and raw text payload
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [
+    { index: 0, r1: 'r1_hex...', r2_g1: 'r2_hex...', r2_g2: undefined }
+  ]
+}
+[decryptEncryption] ECIES decrypt inputs: {
+  kemPrefix: 'aaaaaaaaaaaaaaaa...',
+  kemLength: 64,
+  contextR1Prefix: 'r1_hex...',
+  capsuleNonce: 'cccccccccccccccccccccccc',
+  capsuleAad: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  capsuleCtLength: 128
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > decrypts successfully with CBOR payload (on-chain text)
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [ { index: 0, r1: 'r1...', r2_g1: 'r2...', r2_g2: undefined } ]
+}
+[decryptEncryption] ECIES decrypt inputs: {
+  kemPrefix: 'aaaaaaaaaaaaaaaa...',
+  kemLength: 64,
+  contextR1Prefix: 'r1...',
+  capsuleNonce: 'cccccccccccccccccccccccc',
+  capsuleAad: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  capsuleCtLength: 128
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > handles Iagon payload for file-based encryption
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [ { index: 0, r1: 'r1...', r2_g1: 'r2...', r2_g2: undefined } ]
+}
+[decryptEncryption] ECIES decrypt inputs: {
+  kemPrefix: 'aaaaaaaaaaaaaaaa...',
+  kemLength: 64,
+  contextR1Prefix: 'r1...',
+  capsuleNonce: 'cccccccccccccccccccccccc',
+  capsuleAad: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  capsuleCtLength: 128
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > returns error when Iagon API key missing
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [ { index: 0, r1: 'r1...', r2_g1: 'r2...', r2_g2: undefined } ]
+}
+[decryptEncryption] ECIES decrypt inputs: {
+  kemPrefix: 'aaaaaaaaaaaaaaaa...',
+  kemLength: 64,
+  contextR1Prefix: 'r1...',
+  capsuleNonce: 'cccccccccccccccccccccccc',
+  capsuleAad: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  capsuleCtLength: 128
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > catches and wraps ECIES decrypt errors
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [ { index: 0, r1: 'r1...', r2_g1: 'r2...', r2_g2: undefined } ]
+}
+[decryptEncryption] ECIES decrypt inputs: {
+  kemPrefix: 'aaaaaaaaaaaaaaaa...',
+  kemLength: 64,
+  contextR1Prefix: 'r1...',
+  capsuleNonce: 'cccccccccccccccccccccccc',
+  capsuleAad: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  capsuleCtLength: 128
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > reports progress through onProgress callback
+[decryptEncryption] Levels fetched: {
+  count: 2,
+  levels: [
+    { index: 0, r1: 'r1_a...', r2_g1: 'r2_a...', r2_g2: undefined },
+    { index: 1, r1: 'r1_b...', r2_g1: 'r2_b...', r2_g2: undefined }
+  ]
+}
+[decryptEncryption] ECIES decrypt inputs: {
+  kemPrefix: 'eeeeeeeeeeeeeeee...',
+  kemLength: 64,
+  contextR1Prefix: 'r1_b...',
+  capsuleNonce: 'cccccccccccccccccccccccc',
+  capsuleAad: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  capsuleCtLength: 128
+}
+
+stdout | src/services/crypto/__tests__/decrypt.test.ts > decryptEncryption > handles multi-field CBOR payload with extra fields
+[decryptEncryption] Levels fetched: {
+  count: 1,
+  levels: [ { index: 0, r1: 'r1...', r2_g1: 'r2...', r2_g2: undefined } ]
+}
+[decryptEncryption] ECIES decrypt inputs: {
+  kemPrefix: 'aaaaaaaaaaaaaaaa...',
+  kemLength: 64,
+  contextR1Prefix: 'r1...',
+  capsuleNonce: 'cccccccccccccccccccccccc',
+  capsuleAad: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  capsuleCtLength: 128
+}
+
+ ✓ src/services/crypto/__tests__/decrypt.test.ts (37 tests) 4533ms
+   ✓ decryptBid > uses stub decryption in stub mode with known token 1503ms
+   ✓ decryptBid > uses stub fallback for unknown token 1502ms
+   ✓ decryptBid > reports progress during stub decryption 1503ms
+ ✓ src/services/__tests__/libraryService.test.ts (20 tests) 14ms
+ ✓ src/components/__tests__/ListingImage.test.tsx (13 tests) 123ms
+ ✓ src/pages/__tests__/Dashboard.test.tsx (7 tests) 936ms
+   ✓ Dashboard > switches to My Sales tab on click 342ms
+   ✓ Dashboard > switches to Library tab on click 349ms
+ ✓ src/components/__tests__/MyPurchaseBidCard.test.tsx (24 tests) 198ms
+stdout | src/services/__tests__/secretCleanup.test.ts > cleanupStaleSecrets > Path 1: Ownership changed > deletes secrets when ownership changed and >= 15 confirmations
+[cleanup] Securely deleted secrets for token1... (15 confirmations)
+
+stdout | src/services/__tests__/secretCleanup.test.ts > cleanupStaleSecrets > Path 1: Ownership changed > ignores accept-bid removal errors (may not exist)
+[cleanup] Securely deleted secrets for token1... (20 confirmations)
+
+stdout | src/services/__tests__/secretCleanup.test.ts > cleanupStaleSecrets > processes multiple tokens independently
+[cleanup] Securely deleted secrets for sold... (20 confirmations)
+
+ ✓ src/services/__tests__/secretCleanup.test.ts (12 tests) 13ms
+ ✓ src/services/__tests__/contentStorage.test.ts (16 tests) 13ms
+ ✓ src/pages/__tests__/Settings.test.tsx (6 tests) 226ms
+ ✓ src/components/__tests__/MyPurchasesTab.test.tsx (7 tests) 236ms
+ ✓ src/services/__tests__/acceptBidQueueService.test.ts (16 tests) 8ms
+ ✓ src/services/crypto/__tests__/bls12381.test.ts (32 tests) 182ms
+ ✓ src/hooks/__tests__/useUpdateCheck.test.ts (13 tests) 48ms
+ ✓ src/services/__tests__/metadata.test.ts (19 tests) 11ms
+ ✓ src/components/__tests__/MySalesTab.test.tsx (8 tests) 198ms
+ ✓ src/contexts/__tests__/WasmContext.test.tsx (11 tests) 583ms
+ ✓ src/services/crypto/__tests__/payload.test.ts (33 tests) 17ms
+ ✓ src/components/__tests__/SnarkDownloadModal.test.tsx (13 tests) 170ms
+ ✓ src/services/__tests__/optimisticStore.test.ts (14 tests) 9ms
+ ✓ src/pages/__tests__/WalletSetup.test.tsx (13 tests) 680ms
+ ✓ src/services/crypto/__tests__/walletSecret.test.ts (13 tests) 11ms
+ ✓ src/pages/settings/__tests__/UpdateSection.test.tsx (7 tests) 122ms
+ ✓ src/components/__tests__/ErrorBoundary.test.tsx (13 tests) 93ms
+ ✓ src/services/__tests__/listingDraftStorage.test.ts (11 tests) 7ms
+ ✓ src/hooks/__tests__/useWalletHealth.test.ts (9 tests) 289ms
+ ✓ src/services/__tests__/transactionBuilder.test.ts (18 tests) 9ms
+ ✓ src/services/__tests__/secretStorage.test.ts (15 tests) 10ms
+ ✓ src/components/__tests__/PdfViewer.test.tsx (10 tests) 144ms
+ ✓ src/components/__tests__/InfoTooltip.test.tsx (16 tests) 165ms
+ ✓ src/services/__tests__/filterStorage.test.ts (14 tests) 13ms
+ ✓ src/pages/__tests__/nodeSyncHelpers.test.ts (21 tests) 9ms
+ ✓ src/services/__tests__/pdfSearch.test.ts (15 tests) 6ms
+ ✓ src/services/__tests__/txOutputParser.test.ts (8 tests) 10ms
+ ✓ src/services/__tests__/bidNotifications.test.ts (13 tests) 10ms
+ ✓ src/hooks/__tests__/useFocusTrap.test.ts (7 tests) 83ms
+ ✓ src/components/__tests__/ConfirmModal.test.tsx (13 tests) 115ms
+ ✓ src/hooks/__tests__/useAutoAcceptDetection.test.ts (6 tests) 131ms
+ ✓ src/services/transactions/__tests__/listings.test.ts (25 tests) 8062ms
+   ✓ createListing > file listing > updates draft to failed on upload verification failure 4007ms
+   ✓ retryListingFromDraft > returns error when file no longer on Iagon 4007ms
+ ✓ src/components/__tests__/AudioPlayer.test.tsx (135 tests) 8194ms
+   ✓ AudioPlayer component > seek bar keyboard > ArrowLeft on seek bar seeks -5s 1031ms
+   ✓ AudioPlayer component > seek bar keyboard > ArrowRight on seek bar seeks +5s 1029ms
+   ✓ AudioPlayer component > seek bar keyboard > Home on seek bar seeks to start 1020ms
+   ✓ AudioPlayer component > seek bar keyboard > ArrowLeft on seek bar does not double-fire global handler 1023ms
+   ✓ AudioPlayer component > waveform keyboard seeking > ArrowLeft on waveform seeks -5s 1029ms
+   ✓ AudioPlayer component > waveform keyboard seeking > ArrowRight on waveform seeks +5s 1036ms
+ ✓ src/contexts/__tests__/WalletContext.test.tsx (7 tests) 360ms
+ ✓ src/components/__tests__/BidTimeline.test.tsx (13 tests) 147ms
+ ✓ src/components/__tests__/ShutdownOverlay.test.tsx (8 tests) 68ms
+ ✓ src/hooks/__tests__/useAsyncAction.test.ts (11 tests) 53ms
+ ✓ src/utils/network.test.ts (17 tests) 7ms
+ ✓ src/services/__tests__/imageCache.test.ts (14 tests) 12ms
+ ✓ src/components/__tests__/SessionWarningBanner.test.tsx (14 tests) 155ms
+ ✓ src/hooks/__tests__/useModalStack.test.ts (9 tests) 65ms
+ ✓ src/services/__tests__/listingFormDraftStorage.test.ts (15 tests) 20ms
+ ✓ src/services/__tests__/videoResumeStorage.test.ts (18 tests) 20ms
+ ✓ src/services/__tests__/bidFormDraftStorage.test.ts (18 tests) 22ms
+ ✓ src/components/__tests__/PasswordStrengthIndicator.test.tsx (11 tests) 166ms
+ ✓ src/components/__tests__/DescriptionModal.test.tsx (10 tests) 105ms
+ ✓ src/services/__tests__/desktopNotifications.test.ts (10 tests) 9ms
+ ✓ src/services/crypto/__tests__/binding.test.ts (7 tests) 334ms
+ ✓ src/hooks/__tests__/useSnarkProver.test.ts (8 tests) 351ms
+ ✓ src/components/__tests__/OnboardingOverlay.test.tsx (11 tests) 98ms
+ ✓ src/components/__tests__/ImageViewer.test.tsx (12 tests) 154ms
+ ✓ src/hooks/__tests__/usePasswordStrength.test.ts (11 tests) 6ms
+ ✓ src/hooks/__tests__/useDataRefresh.test.ts (7 tests) 38ms
+ ✓ src/hooks/__tests__/useVisibility.test.ts (8 tests) 40ms
+ ✓ src/services/__tests__/onboardingStorage.test.ts (14 tests) 20ms
+ ✓ src/services/__tests__/storageUtils.test.ts (14 tests) 23ms
+ ✓ src/services/__tests__/favoritesStorage.test.ts (11 tests) 15ms
+ ✓ src/services/__tests__/acceptBidQueueStorage.test.ts (7 tests) 11ms
+ ✓ src/services/__tests__/notificationSound.test.ts (12 tests) 20ms
+ ✓ src/utils/walletErrors.test.ts (12 tests) 6ms
+ ✓ src/components/__tests__/LibraryCard.test.ts (12 tests) 6ms
+ ✓ src/pages/__tests__/walletUnlockErrors.test.ts (12 tests) 6ms
+ ✓ src/services/__tests__/acceptBidStorage.test.ts (8 tests) 9ms
+ ✓ src/services/crypto/__tests__/createBid.test.ts (9 tests) 158ms
+ ✓ src/services/__tests__/themeStorage.test.ts (14 tests) 16ms
+ ✓ src/components/__tests__/PriceRangeSlider.test.tsx (8 tests) 78ms
+ ✓ src/components/__tests__/Badge.test.tsx (14 tests) 65ms
+ ✓ src/services/__tests__/apiCache.test.ts (13 tests) 10ms
+ ✓ src/contexts/__tests__/ModalContext.test.tsx (8 tests) 44ms
+ ✓ src/components/__tests__/TransactionLink.test.tsx (10 tests) 122ms
+ ✓ src/services/__tests__/bidSecretStorage.test.ts (9 tests) 7ms
+ ✓ src/services/crypto/__tests__/hashing.test.ts (15 tests) 19ms
+ ✓ src/utils/contentType.test.ts (31 tests) 9ms
+ ✓ src/components/__tests__/KeyboardShortcutsOverlay.test.tsx (8 tests) 139ms
+ ✓ src/components/__tests__/HighlightText.test.tsx (8 tests) 53ms
+ ✓ src/utils/truncate.test.ts (15 tests) 6ms
+ ✓ src/services/crypto/__tests__/snark-inputs.test.ts (6 tests) 59ms
+ ✓ src/config/__tests__/categories.test.ts (16 tests) 7ms
+ ✓ src/hooks/__tests__/useDebounce.test.ts (7 tests) 30ms
+ ✓ src/utils/time.test.ts (11 tests) 9ms
+ ✓ src/components/__tests__/OfflineBanner.test.tsx (6 tests) 102ms
+ ✓ src/components/__tests__/SkeletonCard.test.tsx (8 tests) 66ms
+ ✓ src/services/__tests__/audioPreferences.test.ts (13 tests) 7ms
+ ✓ src/components/__tests__/EmptyState.test.tsx (11 tests) 107ms
+ ✓ src/services/__tests__/videoPreferences.test.ts (13 tests) 7ms
+ ✓ src/services/crypto/__tests__/schnorr.test.ts (6 tests) 122ms
+ ✓ src/components/__tests__/LoadingSpinner.test.tsx (9 tests) 107ms
+ ✓ src/components/__tests__/EmptyStateIllustrations.test.tsx (36 tests) 134ms
+ ✓ src/services/crypto/__tests__/constants.test.ts (8 tests) 8ms
+ ✓ src/components/__tests__/audioPlayerUtils.test.ts (8 tests) 5ms
+ ✓ src/pages/__tests__/settingsLogHelpers.test.ts (8 tests) 4ms
+ ✓ src/services/__tests__/tabStorage.test.ts (8 tests) 9ms
+ ✓ src/utils/logClassification.test.ts (10 tests) 4ms
+ ✓ src/services/crypto/__tests__/level.test.ts (3 tests) 5ms
+ ✓ src/components/__tests__/DelayedSpinner.test.tsx (7 tests) 106ms
+ ✓ src/components/__tests__/ScrollToTop.test.tsx (5 tests) 58ms
+ ✓ src/utils/clipboard.test.ts (4 tests) 10ms
+ ✓ src/utils/formatAda.test.ts (9 tests) 22ms
+ ✓ src/utils/__tests__/formatDate.test.ts (6 tests) 23ms
+ ✓ src/services/__tests__/api.test.ts (24 tests) 39ms
+ ✓ src/services/crypto/__tests__/register.test.ts (5 tests) 60ms
+ ✓ src/services/__tests__/fileExport.test.ts (4 tests) 6ms
+ ✓ src/services/crypto/__tests__/zkKeyDerivation.test.ts (7 tests) 7ms
+ ✓ src/utils/__tests__/formatListing.test.ts (9 tests) 18ms
+ ✓ src/services/__tests__/kupoAdapter.test.ts (22 tests) 64ms
+ ✓ src/services/__tests__/toastSettings.test.ts (4 tests) 3ms
+ ✓ src/utils/formatBytes.test.ts (6 tests) 3ms
+ ✓ src/services/__tests__/autolock.test.ts (3 tests) 4ms
+ ✓ src/services/__tests__/providers.test.ts (13 tests) 65ms
+ ✓ src/components/__tests__/RefreshIndicator.test.tsx (4 tests) 72ms
+ ✓ src/services/crypto/__tests__/fileEncryption.test.ts (17 tests) 163ms
+ ✓ src/services/crypto/__tests__/ecies.test.ts (9 tests) 21ms
+ ✓ src/hooks/__tests__/useBidNotifications.test.ts (11 tests) 11611ms
+   ✓ useBidNotifications > does not call onDataChanged when data fingerprint is unchanged 11107ms
+
+ Test Files  150 passed (150)
+      Tests  2473 passed (2473)
+   Start at  02:44:38
+   Duration  16.37s (transform 4.54s, setup 2.82s, collect 20.56s, tests 55.80s, environment 58.18s, prepare 9.74s)
+
+Running backend tests (vitest)...
+
+> veiled-be@0.5.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /home/logic/Documents/LogicalMechanism/peace-protocol/app/gui/be
+
+ ✓ src/services/__tests__/kupo-cbor.test.ts (37 tests) 12ms
+ ✓ src/services/__tests__/health.test.ts (12 tests) 40ms
+ ✓ src/middleware/__tests__/validate.test.ts (23 tests) 13ms
+stdout | src/services/__tests__/parsers.test.ts
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+
+ ✓ src/services/__tests__/cbor.test.ts (70 tests) 17ms
+ ✓ src/services/__tests__/bids.test.ts (17 tests) 18ms
+ ✓ src/services/__tests__/koios.test.ts (19 tests) 20ms
+ ✓ src/services/__tests__/encryptions.test.ts (40 tests) 40ms
+ ✓ src/services/__tests__/parsers.test.ts (41 tests) 24ms
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions > returns encryption list with pagination
+{"level":"info","timestamp":"2026-04-06T09:44:55.749Z","message":"request completed","requestId":"f079e954","method":"GET","path":"/","status":200,"durationMs":4}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions > returns 500 on service error
+{"level":"info","timestamp":"2026-04-06T09:44:55.756Z","message":"request completed","requestId":"6aebedc6","method":"GET","path":"/","status":500,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions > returns 503 with KUPO_UNAVAILABLE when Kupo is unreachable
+{"level":"info","timestamp":"2026-04-06T09:44:55.759Z","message":"request completed","requestId":"9cb90204","method":"GET","path":"/","status":503,"durationMs":1}
+
+stdout | src/__tests__/app.test.ts > CORS > includes Access-Control-Allow-Origin: * for any origin
+{"level":"info","timestamp":"2026-04-06T09:44:55.756Z","message":"request completed","requestId":"cc88f931","method":"GET","path":"/health","status":200,"durationMs":2}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions > returns stub data when useStubs is true
+{"level":"info","timestamp":"2026-04-06T09:44:55.763Z","message":"request completed","requestId":"59068cf7","method":"GET","path":"/","status":200,"durationMs":1}
+
+stdout | src/__tests__/app.test.ts > CORS > does not include Access-Control-Allow-Credentials (no cookies used)
+{"level":"info","timestamp":"2026-04-06T09:44:55.764Z","message":"request completed","requestId":"222b2ff9","method":"GET","path":"/health","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > returns bid list with pagination
+{"level":"info","timestamp":"2026-04-06T09:44:55.764Z","message":"request completed","requestId":"02d52091","method":"GET","path":"/","status":200,"durationMs":7}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions > includes warnings when datums are skipped
+{"level":"info","timestamp":"2026-04-06T09:44:55.766Z","message":"request completed","requestId":"01f6669c","method":"GET","path":"/","status":200,"durationMs":0}
+
+stdout | src/__tests__/app.test.ts > CORS > OPTIONS preflight returns allowed methods
+{"level":"info","timestamp":"2026-04-06T09:44:55.768Z","message":"request completed","requestId":"b4aeedee","method":"OPTIONS","path":"/health","status":204,"durationMs":1}
+
+stdout | src/__tests__/app.test.ts > CORS > uses wildcard origin regardless of request origin
+{"level":"info","timestamp":"2026-04-06T09:44:55.772Z","message":"request completed","requestId":"1bf5c05c","method":"GET","path":"/health","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > returns 500 on service error
+{"level":"info","timestamp":"2026-04-06T09:44:55.774Z","message":"request completed","requestId":"5d70faf8","method":"GET","path":"/","status":500,"durationMs":2}
+
+stdout | src/services/__tests__/kupo.test.ts
+[dotenv@17.3.1] injecting env (8) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions > omits warnings when no datums are skipped
+{"level":"info","timestamp":"2026-04-06T09:44:55.772Z","message":"request completed","requestId":"8b6333b6","method":"GET","path":"/","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions > includes stale warning when service returns stale data
+{"level":"info","timestamp":"2026-04-06T09:44:55.777Z","message":"request completed","requestId":"c9741a5e","method":"GET","path":"/","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > returns 503 with KUPO_UNAVAILABLE when Kupo is unreachable
+{"level":"info","timestamp":"2026-04-06T09:44:55.778Z","message":"request completed","requestId":"85d63e2c","method":"GET","path":"/","status":503,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/:tokenName > returns encryption when found
+{"level":"info","timestamp":"2026-04-06T09:44:55.780Z","message":"request completed","requestId":"e330108e","method":"GET","path":"/abc","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > returns stub data when useStubs is true
+{"level":"info","timestamp":"2026-04-06T09:44:55.781Z","message":"request completed","requestId":"490749e9","method":"GET","path":"/","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > includes warnings when datums are skipped
+{"level":"info","timestamp":"2026-04-06T09:44:55.785Z","message":"request completed","requestId":"db65c261","method":"GET","path":"/","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/:tokenName > returns 404 when not found
+{"level":"info","timestamp":"2026-04-06T09:44:55.783Z","message":"request completed","requestId":"cbcb88e6","method":"GET","path":"/aabb","status":404,"durationMs":1}
+
+ ✓ src/services/__tests__/circuitBreaker.test.ts (12 tests) 10ms
+stdout | src/__tests__/app.test.ts > JSON body parsing > parses valid JSON bodies
+{"level":"info","timestamp":"2026-04-06T09:44:55.789Z","message":"request completed","requestId":"c805ec87","method":"POST","path":"/api/nonexistent","status":404,"durationMs":2}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/:tokenName > returns 500 on service error
+{"level":"info","timestamp":"2026-04-06T09:44:55.788Z","message":"request completed","requestId":"3f5f3ee6","method":"GET","path":"/abc","status":500,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > omits warnings when no datums are skipped
+{"level":"info","timestamp":"2026-04-06T09:44:55.788Z","message":"request completed","requestId":"c661adfc","method":"GET","path":"/","status":200,"durationMs":0}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/user/:pkh > returns user encryptions
+{"level":"info","timestamp":"2026-04-06T09:44:55.790Z","message":"request completed","requestId":"0a6bf1e2","method":"GET","path":"/user/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":200,"durationMs":0}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > includes stale warning when service returns stale data
+{"level":"info","timestamp":"2026-04-06T09:44:55.791Z","message":"request completed","requestId":"dc6672bd","method":"GET","path":"/","status":200,"durationMs":0}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/user/:pkh > returns 500 on service error
+{"level":"info","timestamp":"2026-04-06T09:44:55.793Z","message":"request completed","requestId":"18e40e5f","method":"GET","path":"/user/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":500,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids > passes refresh=true to skip cache
+{"level":"info","timestamp":"2026-04-06T09:44:55.795Z","message":"request completed","requestId":"fe4e589a","method":"GET","path":"/","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/:tokenName > returns bid when found
+{"level":"info","timestamp":"2026-04-06T09:44:55.799Z","message":"request completed","requestId":"8514bd2d","method":"GET","path":"/b1","status":200,"durationMs":2}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/status/:status > returns filtered encryptions for valid status
+{"level":"info","timestamp":"2026-04-06T09:44:55.798Z","message":"request completed","requestId":"8f4d51c8","method":"GET","path":"/status/active","status":200,"durationMs":1}
+
+ ✓ src/services/__tests__/cache.test.ts (19 tests) 14ms
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/:tokenName > returns 404 when not found
+{"level":"info","timestamp":"2026-04-06T09:44:55.802Z","message":"request completed","requestId":"3105f118","method":"GET","path":"/aabb","status":404,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/status/:status > returns 400 for invalid status
+{"level":"info","timestamp":"2026-04-06T09:44:55.803Z","message":"request completed","requestId":"006c8b3c","method":"GET","path":"/status/invalid","status":400,"durationMs":0}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/:tokenName > passes refresh=true to skip cache
+{"level":"info","timestamp":"2026-04-06T09:44:55.806Z","message":"request completed","requestId":"6dc231b4","method":"GET","path":"/b1","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/status/:status > accepts pending status
+{"level":"info","timestamp":"2026-04-06T09:44:55.807Z","message":"request completed","requestId":"d78d18ab","method":"GET","path":"/status/pending","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/status/:status > accepts completed status
+{"level":"info","timestamp":"2026-04-06T09:44:55.810Z","message":"request completed","requestId":"73c1ab9a","method":"GET","path":"/status/completed","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/user/:pkh > returns user bids
+{"level":"info","timestamp":"2026-04-06T09:44:55.809Z","message":"request completed","requestId":"82a85240","method":"GET","path":"/user/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","status":200,"durationMs":1}
+
+stdout | src/__tests__/app.test.ts > 404 handler > returns 404 with correct error format for unknown routes
+{"level":"info","timestamp":"2026-04-06T09:44:55.811Z","message":"request completed","requestId":"6ff951a4","method":"GET","path":"/nonexistent","status":404,"durationMs":0}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/:tokenName/levels > returns encryption levels with pagination
+{"level":"info","timestamp":"2026-04-06T09:44:55.812Z","message":"request completed","requestId":"6941eb51","method":"GET","path":"/ab01/levels","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/:tokenName/levels > respects pagination params
+{"level":"info","timestamp":"2026-04-06T09:44:55.816Z","message":"request completed","requestId":"ebda42b6","method":"GET","path":"/ab01/levels","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/encryption/:encryptionToken > returns bids for encryption
+{"level":"info","timestamp":"2026-04-06T09:44:55.815Z","message":"request completed","requestId":"3789f2df","method":"GET","path":"/encryption/aabb","status":200,"durationMs":4}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/status/:status > returns filtered bids for valid status
+{"level":"info","timestamp":"2026-04-06T09:44:55.818Z","message":"request completed","requestId":"a942258e","method":"GET","path":"/status/pending","status":200,"durationMs":0}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/status/:status > returns 400 for invalid status
+{"level":"info","timestamp":"2026-04-06T09:44:55.820Z","message":"request completed","requestId":"ce446beb","method":"GET","path":"/status/bogus","status":400,"durationMs":0}
+
+stdout | src/__tests__/app.test.ts > 404 handler > returns 404 for unknown API paths
+{"level":"info","timestamp":"2026-04-06T09:44:55.822Z","message":"request completed","requestId":"2bdf94d7","method":"GET","path":"/api/does-not-exist","status":404,"durationMs":1}
+
+stdout | src/routes/__tests__/encryptions.test.ts > GET /api/encryptions/:tokenName/levels > returns 500 on service error
+{"level":"info","timestamp":"2026-04-06T09:44:55.823Z","message":"request completed","requestId":"c1a74337","method":"GET","path":"/ab01/levels","status":500,"durationMs":5}
+
+ ✓ src/services/__tests__/kupo.test.ts (12 tests) 29ms
+ ✓ src/routes/__tests__/encryptions.test.ts (19 tests) 87ms
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/status/:status > accepts all valid bid statuses
+{"level":"info","timestamp":"2026-04-06T09:44:55.826Z","message":"request completed","requestId":"0bc54c1d","method":"GET","path":"/status/pending","status":200,"durationMs":1}
+
+stdout | src/__tests__/app.test.ts > 404 handler > includes requestId in 404 response
+{"level":"info","timestamp":"2026-04-06T09:44:55.827Z","message":"request completed","requestId":"5c1e2e54","method":"GET","path":"/nonexistent","status":404,"durationMs":0}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/status/:status > accepts all valid bid statuses
+{"level":"info","timestamp":"2026-04-06T09:44:55.833Z","message":"request completed","requestId":"645e7fd7","method":"GET","path":"/status/accepted","status":200,"durationMs":1}
+
+stdout | src/__tests__/app.test.ts > 404 handler > returns JSON content-type
+{"level":"info","timestamp":"2026-04-06T09:44:55.834Z","message":"request completed","requestId":"27d0740f","method":"GET","path":"/nonexistent","status":404,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/status/:status > accepts all valid bid statuses
+{"level":"info","timestamp":"2026-04-06T09:44:55.836Z","message":"request completed","requestId":"1f1d0c47","method":"GET","path":"/status/rejected","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/bids.test.ts > GET /api/bids/status/:status > accepts all valid bid statuses
+{"level":"info","timestamp":"2026-04-06T09:44:55.838Z","message":"request completed","requestId":"7271abe0","method":"GET","path":"/status/cancelled","status":200,"durationMs":0}
+
+stdout | src/__tests__/app.test.ts > middleware ordering > health endpoint is accessible and returns valid structure
+{"level":"info","timestamp":"2026-04-06T09:44:55.836Z","message":"request completed","requestId":"f2e3f420","method":"GET","path":"/health","status":200,"durationMs":0}
+
+stdout | src/__tests__/app.test.ts > middleware ordering > readiness probe is accessible
+{"level":"info","timestamp":"2026-04-06T09:44:55.839Z","message":"request completed","requestId":"bdcdab00","method":"GET","path":"/health/ready","status":200,"durationMs":1}
+
+stdout | src/__tests__/app.test.ts > middleware ordering > API routes are mounted under /api prefix
+{"level":"info","timestamp":"2026-04-06T09:44:55.843Z","message":"request completed","requestId":"d4e97c06","method":"GET","path":"/","status":500,"durationMs":2}
+
+ ✓ src/routes/__tests__/bids.test.ts (16 tests) 94ms
+ ✓ src/__tests__/app.test.ts (14 tests) 99ms
+ ✓ src/services/__tests__/fetchWithRetry.test.ts (12 tests) 83ms
+ ✓ src/middleware/__tests__/pagination.test.ts (19 tests) 6ms
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns confirmation count, blockHeight, and status for confirmed tx
+{"level":"info","timestamp":"2026-04-06T09:44:55.939Z","message":"request completed","requestId":"b170ab81","method":"GET","path":"/confirmations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":200,"durationMs":5}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health > returns health status from service
+{"level":"info","timestamp":"2026-04-06T09:44:55.939Z","message":"request completed","requestId":"19c815a2","method":"GET","path":"/health","status":200,"durationMs":5}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health > returns degraded status
+{"level":"info","timestamp":"2026-04-06T09:44:55.948Z","message":"request completed","requestId":"47b011cd","method":"GET","path":"/health","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns 0 confirmations with pending status when tx not found
+{"level":"info","timestamp":"2026-04-06T09:44:55.948Z","message":"request completed","requestId":"2400b0cd","method":"GET","path":"/confirmations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health > returns 503 when unhealthy
+{"level":"info","timestamp":"2026-04-06T09:44:55.952Z","message":"request completed","requestId":"0d2b2e34","method":"GET","path":"/health","status":503,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns 0 with pending status when block_height is not a number
+{"level":"info","timestamp":"2026-04-06T09:44:55.952Z","message":"request completed","requestId":"e7de28e4","method":"GET","path":"/confirmations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health > returns 503 when health service throws
+{"level":"info","timestamp":"2026-04-06T09:44:55.957Z","message":"request completed","requestId":"74439f78","method":"GET","path":"/health","status":503,"durationMs":0}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns 400 for invalid tx hash (too short)
+{"level":"info","timestamp":"2026-04-06T09:44:55.956Z","message":"request completed","requestId":"34251706","method":"GET","path":"/confirmations/abc","status":400,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns 400 for invalid tx hash (too long)
+{"level":"info","timestamp":"2026-04-06T09:44:55.959Z","message":"request completed","requestId":"a4c4e090","method":"GET","path":"/confirmations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":400,"durationMs":0}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health/ready > returns 200 when healthy
+{"level":"info","timestamp":"2026-04-06T09:44:55.963Z","message":"request completed","requestId":"103b507d","method":"GET","path":"/health/ready","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns confirmations as 0 (never negative) when tip is behind
+{"level":"info","timestamp":"2026-04-06T09:44:55.964Z","message":"request completed","requestId":"07c76ff8","method":"GET","path":"/confirmations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health/ready > returns 200 when degraded
+{"level":"info","timestamp":"2026-04-06T09:44:55.967Z","message":"request completed","requestId":"8288b547","method":"GET","path":"/health/ready","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns pending when tx lookup fails (Koios unreachable)
+{"level":"info","timestamp":"2026-04-06T09:44:55.967Z","message":"request completed","requestId":"d225d707","method":"GET","path":"/confirmations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health/ready > returns 503 when unhealthy
+{"level":"info","timestamp":"2026-04-06T09:44:55.971Z","message":"request completed","requestId":"f0e5817a","method":"GET","path":"/health/ready","status":503,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/confirmations/:txHash > returns 503 when confirmed tx tip lookup fails without tipHeight param
+{"level":"info","timestamp":"2026-04-06T09:44:55.972Z","message":"request completed","requestId":"c4e55df8","method":"GET","path":"/confirmations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","status":503,"durationMs":1}
+
+stdout | src/routes/__tests__/health.test.ts > GET /health/ready > returns 503 when health service throws
+{"level":"info","timestamp":"2026-04-06T09:44:55.975Z","message":"request completed","requestId":"3e62132d","method":"GET","path":"/health/ready","status":503,"durationMs":1}
+
+stdout | src/routes/__tests__/health.test.ts > 404 handler > returns 404 for unknown endpoints
+{"level":"info","timestamp":"2026-04-06T09:44:55.978Z","message":"request completed","requestId":"f827986f","method":"GET","path":"/nonexistent","status":404,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/tip > returns the current network tip with abs_slot
+{"level":"info","timestamp":"2026-04-06T09:44:55.978Z","message":"request completed","requestId":"fa070b41","method":"GET","path":"/tip","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/chain.test.ts > GET /api/chain/tip > returns 503 when Koios is unreachable
+{"level":"info","timestamp":"2026-04-06T09:44:55.982Z","message":"request completed","requestId":"95a60156","method":"GET","path":"/tip","status":503,"durationMs":1}
+
+stdout | src/routes/__tests__/health.test.ts > 404 handler > returns 404 for unknown API paths
+{"level":"info","timestamp":"2026-04-06T09:44:55.982Z","message":"request completed","requestId":"ddc6d26c","method":"GET","path":"/api/nonexistent","status":404,"durationMs":1}
+
+stdout | src/routes/__tests__/protocol.test.ts > GET /api/protocol/config > returns protocol configuration
+{"level":"info","timestamp":"2026-04-06T09:44:55.983Z","message":"request completed","requestId":"9b0ffff8","method":"GET","path":"/config","status":200,"durationMs":4}
+
+ ✓ src/routes/__tests__/chain.test.ts (10 tests) 61ms
+ ✓ src/routes/__tests__/health.test.ts (10 tests) 58ms
+stdout | src/routes/__tests__/protocol.test.ts > GET /api/protocol/config > returns stub data when useStubs is true
+{"level":"info","timestamp":"2026-04-06T09:44:55.990Z","message":"request completed","requestId":"687bbc01","method":"GET","path":"/config","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/protocol.test.ts > GET /api/protocol/reference > returns keyed reference scripts from config
+{"level":"info","timestamp":"2026-04-06T09:44:55.993Z","message":"request completed","requestId":"8f6f28d6","method":"GET","path":"/reference","status":200,"durationMs":0}
+
+stdout | src/routes/__tests__/protocol.test.ts > GET /api/protocol/reference > returns stub data when useStubs is true
+{"level":"info","timestamp":"2026-04-06T09:44:55.996Z","message":"request completed","requestId":"45ac6d0e","method":"GET","path":"/reference","status":200,"durationMs":0}
+
+stdout | src/routes/__tests__/protocol.test.ts > GET /api/protocol/scripts > returns script addresses and policy IDs
+{"level":"info","timestamp":"2026-04-06T09:44:55.998Z","message":"request completed","requestId":"e670c9f2","method":"GET","path":"/scripts","status":200,"durationMs":0}
+
+stdout | src/routes/__tests__/protocol.test.ts > GET /api/protocol/params > returns protocol parameters from Koios
+{"level":"info","timestamp":"2026-04-06T09:44:56.002Z","message":"request completed","requestId":"a5a69263","method":"GET","path":"/params","status":200,"durationMs":1}
+
+stdout | src/routes/__tests__/protocol.test.ts > GET /api/protocol/params > returns 500 on Koios error
+{"level":"info","timestamp":"2026-04-06T09:44:56.006Z","message":"request completed","requestId":"fa6e58a5","method":"GET","path":"/params","status":500,"durationMs":1}
+
+ ✓ src/routes/__tests__/protocol.test.ts (7 tests) 41ms
+ ✓ src/services/__tests__/logger.test.ts (9 tests) 8ms
+stdout | src/config/__tests__/index.test.ts
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+
+ ✓ src/config/__tests__/index.test.ts (10 tests) 3ms
+ ✓ src/middleware/__tests__/requestLogger.test.ts (7 tests) 28ms
+ ✓ src/middleware/__tests__/timeout.test.ts (7 tests) 537ms
+
+ Test Files  23 passed (23)
+      Tests  442 passed (442)
+   Start at  02:44:55
+   Duration  1.46s (transform 1.06s, setup 0ms, collect 3.50s, tests 1.34s, environment 4ms, prepare 1.53s)
+
+All tests passed.
