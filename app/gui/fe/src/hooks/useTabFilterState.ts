@@ -8,9 +8,12 @@ type ViewMode = 'grid' | 'list'
 
 export interface MarketplaceFilters {
   searchQuery: string
-  sortBy: 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids'
+  sortBy: 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids' | 'alpha-asc' | 'alpha-desc'
   statusFilter: 'all' | 'active' | 'pending'
-  categoryFilter: string
+  categoryFilter: string[]
+  sellerFilter: 'all' | 'mine' | 'others'
+  dateFrom: string
+  dateTo: string
   viewMode: ViewMode
   priceMin: string
   priceMax: string
@@ -22,7 +25,10 @@ export type MarketplaceAction =
   | { type: 'SET_SEARCH'; payload: string }
   | { type: 'SET_SORT'; payload: MarketplaceFilters['sortBy'] }
   | { type: 'SET_STATUS'; payload: MarketplaceFilters['statusFilter'] }
-  | { type: 'SET_CATEGORY'; payload: string }
+  | { type: 'SET_CATEGORY'; payload: string[] }
+  | { type: 'SET_SELLER'; payload: MarketplaceFilters['sellerFilter'] }
+  | { type: 'SET_DATE_FROM'; payload: string }
+  | { type: 'SET_DATE_TO'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
   | { type: 'SET_PRICE_MIN'; payload: string }
   | { type: 'SET_PRICE_MAX'; payload: string }
@@ -33,7 +39,8 @@ export type MarketplaceAction =
 
 export const MARKETPLACE_INITIAL: MarketplaceFilters = {
   searchQuery: '', sortBy: 'newest', statusFilter: 'all',
-  categoryFilter: 'all', viewMode: 'grid', priceMin: '', priceMax: '',
+  categoryFilter: ['all'], sellerFilter: 'all', dateFrom: '', dateTo: '',
+  viewMode: 'grid', priceMin: '', priceMax: '',
   showFavoritesOnly: false, currentPage: 1,
 }
 
@@ -43,6 +50,9 @@ export function marketplaceReducer(state: MarketplaceFilters, action: Marketplac
     case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
     case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload, currentPage: 1 }
+    case 'SET_SELLER': return { ...state, sellerFilter: action.payload, currentPage: 1 }
+    case 'SET_DATE_FROM': return { ...state, dateFrom: action.payload, currentPage: 1 }
+    case 'SET_DATE_TO': return { ...state, dateTo: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
     case 'SET_PRICE_MIN': return { ...state, priceMin: action.payload, currentPage: 1 }
     case 'SET_PRICE_MAX': return { ...state, priceMax: action.payload, currentPage: 1 }
