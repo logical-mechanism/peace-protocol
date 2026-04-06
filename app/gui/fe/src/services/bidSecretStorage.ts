@@ -83,6 +83,16 @@ export async function getBidSecretsForEncryption(
 }
 
 /**
+ * List all encryption token names that have stored bid secrets.
+ * Used to discover purchased items even after re-sale (when sellerPkh has changed).
+ *
+ * @returns Array of encryption token names
+ */
+export async function listBidSecretTokens(): Promise<string[]> {
+  return invoke<string[]>('list_bid_secret_tokens');
+}
+
+/**
  * Check if secrets exist for a bid.
  *
  * @param bidTokenName - Bid token name

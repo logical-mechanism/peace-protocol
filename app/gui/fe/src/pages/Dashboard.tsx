@@ -897,6 +897,7 @@ export default function Dashboard() {
         isIagonConnected={effects.iagonConnected}
         onDecryptResult={buyer.handleDecryptResult}
         onSaveWarning={(msg) => toast.warning('Save failed', msg)}
+        ownerPkh={buyer.decryptOwnerPkh}
       />
 
       {/* Confirmation Modal (destructive actions) */}

@@ -47,14 +47,24 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/encryptions/:tokenName/levels
+ * GET /api/encryptions/:tokenName/levels?ownerPkh=<hex>
  * Get all encryption levels for recursive decryption (queries full tx history).
+ * When ownerPkh is provided, returns levels scoped to that owner's window
+ * (for decrypting after the item has been re-sold).
  * Must be registered BEFORE /:tokenName to avoid being caught by it.
  */
 router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{tokenName: string}>, res: Response) => {
   try {
     const { tokenName } = req.params;
+    const ownerPkh = typeof req.query.ownerPkh === 'string' ? req.query.ownerPkh : undefined;
     const paginationParams = parsePagination(req);
+
+    // Validate ownerPkh if provided (must be 56 hex chars)
+    if (ownerPkh && !/^[0-9a-fA-F]{56}$/.test(ownerPkh)) {
+      return res.status(400).json({
+        error: { code: 'INVALID_PARAM', message: 'ownerPkh must be 56 hex characters' },
+      });
+    }
 
     if (config.useStubs) {
       // Stub: return empty levels (stub decryption doesn't use real levels)
@@ -63,7 +73,7 @@ router.get('/:tokenName/levels', validateTokenNameParam, async (req: Request<{to
       return res.json({ data, pagination });
     }
 
-    const levels = await getEncryptionLevels(tokenName);
+    const levels = await getEncryptionLevels(tokenName, ownerPkh);
     const { data, pagination } = paginate(levels, paginationParams);
     res.set('Cache-Control', CACHE_HEADER_DATA);
     return res.json({ data, pagination });

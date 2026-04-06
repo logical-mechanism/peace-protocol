@@ -19,6 +19,7 @@ interface DecryptModalProps {
   isIagonConnected?: boolean;
   onDecryptResult?: (result: { success: boolean; encryptionToken: string }) => void;
   onSaveWarning?: (message: string) => void;
+  ownerPkh?: string;
 }
 
 type DecryptState = 'idle' | 'decrypting' | 'success' | 'error';
@@ -31,6 +32,7 @@ export default function DecryptModal({
   isIagonConnected = false,
   onDecryptResult,
   onSaveWarning,
+  ownerPkh,
 }: DecryptModalProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletContext();
@@ -82,7 +84,7 @@ export default function DecryptModal({
       // Use bid-based decryption if bid is available, otherwise decrypt directly from encryption
       const result = bid
         ? await decryptBid(wallet, bid, encryption, onProgress)
-        : await decryptEncryption(wallet, encryption, onProgress);
+        : await decryptEncryption(wallet, encryption, onProgress, ownerPkh);
 
       if (result.success && result.message) {
         // Brief pause at 100% so user sees the completed bar
@@ -145,7 +147,7 @@ export default function DecryptModal({
         onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
       }
     }
-  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning]);
+  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning, ownerPkh]);
 
   const handleCopy = useCallback(async () => {
     if (!decryptedMessage) return;

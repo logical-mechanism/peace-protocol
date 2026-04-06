@@ -19,6 +19,7 @@ vi.mock('../../services/api', () => ({
 
 vi.mock('../../services/bidSecretStorage', () => ({
   getBidSecretsForEncryption: vi.fn(),
+  listBidSecretTokens: vi.fn(),
 }));
 
 vi.mock('../../services/libraryService', () => ({
@@ -26,7 +27,7 @@ vi.mock('../../services/libraryService', () => ({
 }));
 
 import { bidsApi, encryptionsApi } from '../../services/api';
-import { getBidSecretsForEncryption } from '../../services/bidSecretStorage';
+import { getBidSecretsForEncryption, listBidSecretTokens } from '../../services/bidSecretStorage';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -84,12 +85,14 @@ beforeEach(() => {
   (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
 describe('MyPurchasesTab — bid secrets error feedback', () => {
   it('shows purchased encryption even when getBidSecretsForEncryption throws', async () => {
     const enc = makeEncryption({ tokenName: 'enc_failing_secrets' });
 
+    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_failing_secrets']);
     (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
     (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Decryption key mismatch')
@@ -106,6 +109,7 @@ describe('MyPurchasesTab — bid secrets error feedback', () => {
   it('shows warning banner when secrets fail to load', async () => {
     const enc = makeEncryption({ tokenName: 'enc_with_error' });
 
+    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_with_error']);
     (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
     (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Corrupt secrets file')
@@ -123,6 +127,7 @@ describe('MyPurchasesTab — bid secrets error feedback', () => {
   it('shows warning icon on cards with secret load errors', async () => {
     const enc = makeEncryption({ tokenName: 'enc_icon_test' });
 
+    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_icon_test']);
     (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
     (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Read failed')
@@ -140,6 +145,7 @@ describe('MyPurchasesTab — bid secrets error feedback', () => {
   it('does not show warning banner when secrets load successfully', async () => {
     const enc = makeEncryption({ tokenName: 'enc_success' });
 
+    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_success']);
     (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
     (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([
       { bidTokenName: 'bid1', b: BigInt(42) },
@@ -158,6 +164,7 @@ describe('MyPurchasesTab — bid secrets error feedback', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const enc = makeEncryption({ tokenName: 'enc_console_test' });
 
+    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_console_test']);
     (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
     (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Key mismatch')
