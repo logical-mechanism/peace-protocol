@@ -243,9 +243,12 @@ export const encryptionsApi = {
 
   /**
    * Get all encryption levels for recursive decryption (queries full tx history).
+   * When ownerPkh is provided, returns levels scoped to that owner's window
+   * (for decrypting after the item has been re-sold to someone else).
    */
-  async getLevels(tokenName: string): Promise<EncryptionLevelResponse[]> {
-    const response = await apiFetch<ApiResponse<EncryptionLevelResponse[]>>(`/api/encryptions/${tokenName}/levels`);
+  async getLevels(tokenName: string, ownerPkh?: string): Promise<EncryptionLevelResponse[]> {
+    const params = ownerPkh ? `?ownerPkh=${ownerPkh}` : '';
+    const response = await apiFetch<ApiResponse<EncryptionLevelResponse[]>>(`/api/encryptions/${tokenName}/levels${params}`);
     return response.data;
   },
 };

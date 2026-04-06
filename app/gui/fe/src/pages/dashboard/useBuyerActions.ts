@@ -24,6 +24,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
   // Decrypt modal state
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
+  const [decryptOwnerPkh, setDecryptOwnerPkh] = useState<string | undefined>(undefined)
   const [failedDecryptTokens, setFailedDecryptTokens] = useState<Set<string>>(new Set())
 
   // Update bid modal state
@@ -221,9 +222,10 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     }
   }, [toast])
 
-  const handleDecryptEncryption = useCallback((encryption: EncryptionDisplay) => {
+  const handleDecryptEncryption = useCallback((encryption: EncryptionDisplay, ownerPkh?: string) => {
     setSelectedBid(null)
     setSelectedEncryption(encryption)
+    setDecryptOwnerPkh(ownerPkh)
     setShowDecrypt(true)
   }, [])
 
@@ -304,6 +306,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     setShowDecrypt(false)
     setSelectedBid(null)
     setSelectedEncryption(null)
+    setDecryptOwnerPkh(undefined)
   }, [])
 
   return {
@@ -325,6 +328,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     // Decrypt
     showDecrypt,
     selectedBid,
+    decryptOwnerPkh,
     failedDecryptTokens,
     handleDecrypt,
     handleDecryptEncryption,

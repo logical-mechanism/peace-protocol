@@ -3,7 +3,7 @@ import { useNode } from '../contexts/NodeContext';
 import { bidsApi, encryptionsApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
-import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
+import { getBidSecretsForEncryption, listBidSecretTokens } from '../services/bidSecretStorage';
 import { listLibraryItems } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
@@ -21,7 +21,7 @@ interface MyPurchasesTabProps {
   onCancelBid?: (bid: BidDisplay) => void;
   onUpdateBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
-  onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
+  onDecryptEncryption?: (encryption: EncryptionDisplay, ownerPkh?: string) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   onLocalRefresh?: () => void;
   refreshSignal?: number;
@@ -46,7 +46,7 @@ function MyPurchasesTab({
   const { expressReady } = useNode();
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
-  const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
+  const [purchasedEncryptions, setPurchasedEncryptions] = useState<(EncryptionDisplay & { resold?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prevDataCount, setPrevDataCount] = useState(0);
@@ -90,24 +90,32 @@ function MyPurchasesTab({
       });
       setEncryptionsMap(newEncryptionsMap);
 
-      // Find purchased encryptions: user is owner AND has bid secrets in IndexedDB
+      // Find purchased encryptions: discover via bid secrets (works even after re-sale)
       if (userPkh) {
-        const userOwnedEncryptions = allEncryptions.filter(
-          (e) => e.sellerPkh === userPkh && e.datum.full_level !== null
-        );
+        let secretTokens: string[] = [];
+        try {
+          secretTokens = await listBidSecretTokens();
+        } catch (err) {
+          console.warn('Failed to list bid secret tokens:', err);
+        }
 
-        const purchased: EncryptionDisplay[] = [];
+        const purchased: (EncryptionDisplay & { resold?: boolean })[] = [];
         const failedTokens = new Set<string>();
-        for (const enc of userOwnedEncryptions) {
+        for (const token of secretTokens) {
+          const enc = allEncryptions.find((e) => e.tokenName === token);
+          if (!enc) continue; // token no longer on-chain
+          const isCurrentOwner = enc.sellerPkh === userPkh;
+          // If we still own it but full_level is null, purchase isn't complete yet
+          if (isCurrentOwner && enc.datum.full_level === null) continue;
           try {
             const secrets = await getBidSecretsForEncryption(enc.tokenName);
             if (secrets.length > 0) {
-              purchased.push(enc);
+              purchased.push({ ...enc, resold: !isCurrentOwner });
             }
           } catch (err) {
             console.warn(`Failed to load bid secrets for ${enc.tokenName}:`, err);
             failedTokens.add(enc.tokenName);
-            purchased.push(enc);
+            purchased.push({ ...enc, resold: !isCurrentOwner });
           }
         }
         setPurchasedEncryptions(purchased);
@@ -334,6 +342,11 @@ function MyPurchasesTab({
                       <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
                       Purchased
                     </span>
+                    {enc.resold && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--warning-muted)] text-[var(--warning)] rounded-full">
+                        Re-sold
+                      </span>
+                    )}
                     {hasSecretError && (
                       <span title="Bid secrets could not be loaded. Decryption may not be available.">
                         <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -366,7 +379,7 @@ function MyPurchasesTab({
                 )}
 
                 <button
-                  onClick={() => onDecryptEncryption?.(enc)}
+                  onClick={() => onDecryptEncryption?.(enc, enc.resold ? userPkh : undefined)}
                   className="w-full mt-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

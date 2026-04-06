@@ -621,6 +621,7 @@ pub fn run() {
             commands::secrets::get_bid_secrets,
             commands::secrets::get_bid_secrets_for_encryption,
             commands::secrets::remove_bid_secrets,
+            commands::secrets::list_bid_secret_tokens,
             commands::secrets::store_accept_bid_secrets,
             commands::secrets::get_accept_bid_secrets,
             commands::secrets::remove_accept_bid_secrets,

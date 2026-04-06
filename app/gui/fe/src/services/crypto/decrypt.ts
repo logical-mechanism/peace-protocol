@@ -600,7 +600,8 @@ export async function canDecrypt(
 export async function decryptEncryption(
   wallet: IWallet,
   encryption: EncryptionDisplay,
-  onProgress?: OnDecryptProgress
+  onProgress?: OnDecryptProgress,
+  ownerPkh?: string
 ): Promise<DecryptionResult> {
   // Step 1: Check if WASM is available
   if (!isWasmDecryptAvailable()) {
@@ -629,7 +630,7 @@ export async function decryptEncryption(
   // This matches commands/08_decryptMessage.sh and src/commands.py:recursive_decrypt
   let levels: EncryptionLevel[];
   try {
-    const apiLevels = await encryptionsApi.getLevels(encryption.tokenName);
+    const apiLevels = await encryptionsApi.getLevels(encryption.tokenName, ownerPkh);
     levels = apiLevels.map(l => ({
       r1: l.r1,
       r2_g1: l.r2_g1,
