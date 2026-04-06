@@ -653,6 +653,33 @@ select option {
   animation: marquee-scroll var(--marquee-duration, 4s) linear infinite;
 }
 
+/* react-day-picker — match app dark/light theme */
+.rdp-theme {
+  --rdp-accent-color: var(--accent);
+  --rdp-accent-background-color: var(--accent-muted);
+  --rdp-day-height: 2rem;
+  --rdp-day-width: 2rem;
+}
+
+.rdp-theme .rdp-root {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.rdp-theme .rdp-chevron {
+  fill: var(--text-muted);
+}
+
+.rdp-theme .rdp-month_caption {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.rdp-theme .rdp-weekday {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -11,6 +11,7 @@ import { listCachedImages, type ImageCacheStatus } from '../services/imageCache'
 import { getFavorites, toggleFavorite } from '../services/favoritesStorage';
 import PriceRangeSlider from './PriceRangeSlider';
 import CategoryFilter from './CategoryFilter';
+import DateFilter from './DateFilter';
 import RefreshIndicator from './RefreshIndicator';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
@@ -472,50 +473,18 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             />
 
             {/* Date Range (filters by UTxO creation date, not original listing date) */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[var(--text-muted)] whitespace-nowrap">After</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => dispatch({ type: 'SET_DATE_FROM', payload: e.target.value })}
-                  aria-label="UTxO created after date"
-                  className="px-2 py-1.5 pr-7 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                />
-                {dateFrom && (
-                  <button
-                    onClick={() => dispatch({ type: 'SET_DATE_FROM', payload: '' })}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-                    aria-label="Clear after date"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              <label className="text-xs text-[var(--text-muted)] whitespace-nowrap">Before</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => dispatch({ type: 'SET_DATE_TO', payload: e.target.value })}
-                  aria-label="UTxO created before date"
-                  className="px-2 py-1.5 pr-7 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                />
-                {dateTo && (
-                  <button
-                    onClick={() => dispatch({ type: 'SET_DATE_TO', payload: '' })}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-                    aria-label="Clear before date"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
+            <DateFilter
+              label="After"
+              value={dateFrom}
+              onChange={(v) => dispatch({ type: 'SET_DATE_FROM', payload: v })}
+              ariaLabel="UTxO created after date"
+            />
+            <DateFilter
+              label="Before"
+              value={dateTo}
+              onChange={(v) => dispatch({ type: 'SET_DATE_TO', payload: v })}
+              ariaLabel="UTxO created before date"
+            />
 
             {/* Sort */}
             <select
