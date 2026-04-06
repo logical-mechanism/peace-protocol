@@ -441,7 +441,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
 
         {/* Collapsible filter panel */}
         {filtersOpen && (
-          <div className="flex flex-wrap items-center gap-3 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          <div className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
             {/* Status Filter */}
             <select
               value={statusFilter}
