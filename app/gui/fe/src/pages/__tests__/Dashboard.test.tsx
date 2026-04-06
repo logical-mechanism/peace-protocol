@@ -55,6 +55,15 @@ vi.mock('../../contexts/ModalContext', () => ({
     isTopModal: () => true,
   }),
 }));
+vi.mock('../../contexts/AcceptBidQueueContext', () => ({
+  useAcceptBidQueue: () => ({
+    queue: [], currentItem: null, isProcessing: false, autoAcceptEnabled: false,
+    queuedCount: 0, completedCount: 0, failedCount: 0,
+    enqueue: vi.fn(), remove: vi.fn(), retry: vi.fn(), clear: vi.fn(),
+    setAutoAccept: vi.fn(), hasEncryptionInQueue: vi.fn(() => false),
+    setToast: vi.fn(), setRefreshTrigger: vi.fn(),
+  }),
+}));
 
 // Mock lazy-loaded tab components to avoid deep dependency chains
 vi.mock('../../components/MarketplaceTab', () => ({
