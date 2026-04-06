@@ -21,14 +21,18 @@ export type SortKey = MarketplaceFilters['sortBy'];
 
 // ── Date helpers ─────────────────────────────────────────────────
 
-/** Parse 'YYYY-MM-DD' as local-time start-of-day (midnight). */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Parse 'YYYY-MM-DD' as local-time start-of-day (midnight). Returns NaN for invalid/partial input. */
 function localStartOfDay(dateStr: string): number {
+  if (!DATE_RE.test(dateStr)) return NaN;
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
 }
 
-/** Parse 'YYYY-MM-DD' as local-time end-of-day (23:59:59.999). */
+/** Parse 'YYYY-MM-DD' as local-time end-of-day (23:59:59.999). Returns NaN for invalid/partial input. */
 function localEndOfDay(dateStr: string): number {
+  if (!DATE_RE.test(dateStr)) return NaN;
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
 }
