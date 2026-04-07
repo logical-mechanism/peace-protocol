@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - UTxO value lookup failures for pre-`--since` UTxOs: replaced Koios merge in `fetchAddressUTxOs` with live Koios fallback in `fetchUTxOs` to avoid stale spent UTxOs polluting wallet state
 - `kupo_since` slot moved before reference script deployment to ensure Kupo indexes all protocol UTxOs
 - BidTimeline showing "complete" immediately for re-purchased content: now compares library `decryptedAt` against bid `createdAt` to only mark complete for the current purchase
+- Optimistic listing price displayed as raw ADA instead of lovelace
+- Price inputs now clamp to Cardano max supply (45B ADA) instead of erroring
 - Accept-bid queue: memoize context, fix dedup bug, type safety, safe PKH derivation (#80)
 - Accept-bid queue: decouple queue processing from Dashboard lifecycle (#80)
 - Purchased card layout: flex-wrap for badges, consistent token hex truncation (#81)
@@ -29,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Lint fixes: eslint-disable placement, unused vars, setState-in-effect (#80, #82)
 
 ### Changed
+- Marketplace "You have a bid" indicator updates instantly via optimistic store (no API round-trip delay)
 - Transaction success toasts show clickable "View History" link instead of auto-switching to the History tab
 - Marketplace filter controls evenly distributed across full panel width (#82)
 - Hide-own-listings toggle changed to icon-only next to favorites (#82)
