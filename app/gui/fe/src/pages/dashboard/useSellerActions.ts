@@ -98,11 +98,10 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       }
 
       if (result.txHash) {
-        toast.transactionSuccess('Listing Resumed!', result.txHash, { type: 'create-listing' })
+        toast.transactionSuccess('Listing Resumed!', result.txHash, { type: 'create-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
       }
       setRecoverableDraft(null)
       triggerTransactionRefresh()
-      setActiveTab('history')
     } catch (error) {
       toast.error(
         'Retry Failed',
@@ -213,7 +212,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' })
+      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
     } else {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }
@@ -259,9 +258,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       })
     }
 
-    // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
-    setActiveTab('history')
   }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRelistFromLibrary = useCallback(async (item: LibraryItem) => {
@@ -328,7 +325,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     if (result.isStub) {
       toast.warning('Listing Created (Stub Mode)', `Import listing created in stub mode.`, 8000)
     } else if (result.txHash) {
-      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' })
+      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
     } else {
       toast.success('Listing Created!', 'Transaction submitted successfully')
     }
@@ -362,7 +359,6 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     triggerTransactionRefresh()
-    setActiveTab('history')
   }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
@@ -415,7 +411,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
               })
             }
           } else if (result.txHash) {
-            toast.transactionSuccess('Listing Removed!', result.txHash, { type: 'remove-listing' })
+            toast.transactionSuccess('Listing Removed!', result.txHash, { type: 'remove-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
           } else {
             toast.success('Listing Removed!', 'Transaction submitted successfully')
           }
@@ -426,7 +422,6 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           }
 
           triggerTransactionRefresh()
-          setActiveTab('history')
         } catch (error) {
           console.error('Failed to remove listing:', error)
           toast.error(
@@ -524,11 +519,10 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
               })
             }
           } else if (result.txHash) {
-            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash, { type: 'cancel-pending' })
+            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash, { type: 'cancel-pending' }, { label: 'View History', onClick: () => setActiveTab('history') })
           }
 
           triggerTransactionRefresh()
-          setActiveTab('history')
         } catch (error) {
           console.error('Failed to cancel pending listing:', error)
           toast.error(
@@ -609,11 +603,10 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           })
         }
       } else if (result.txHash) {
-        toast.transactionSuccess('Sale Completed!', result.txHash, { type: 'complete-sale', amountLovelace: acceptedBid.amount })
+        toast.transactionSuccess('Sale Completed!', result.txHash, { type: 'complete-sale', amountLovelace: acceptedBid.amount }, { label: 'View History', onClick: () => setActiveTab('history') })
       }
 
       triggerTransactionRefresh()
-      setActiveTab('history')
     } catch (error) {
       console.error('Failed to complete sale:', error)
       toast.error(
@@ -667,13 +660,12 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         })
       }
     } else if (result.txHash) {
-      toast.transactionSuccess('Price Updated!', result.txHash, { type: 'update-price' })
+      toast.transactionSuccess('Price Updated!', result.txHash, { type: 'update-price' }, { label: 'View History', onClick: () => setActiveTab('history') })
     }
 
     triggerTransactionRefresh()
     setShowUpdatePriceModal(false)
     setUpdatePriceEncryption(null)
-    setActiveTab('history')
   }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
 
   return {

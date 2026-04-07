@@ -27,6 +27,7 @@ export interface ToastMessage {
   message?: string;
   duration?: number;
   action?: ToastAction;
+  secondaryAction?: ToastAction;
   variant?: string;
 }
 
@@ -164,39 +165,49 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
         {toast.message && (
           <p className="mt-1 text-xs text-[var(--text-secondary)]">{toast.message}</p>
         )}
-        {toast.action && (
-          <div className="mt-2">
-            {toast.action.href ? (
-              <a
-                href={toast.action.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`inline-flex items-center gap-1 text-xs font-medium ${colors.icon} hover:underline rounded focus-visible:shadow-[var(--focus-ring)]`}
-              >
-                {toast.action.label}
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
+        {(toast.action || toast.secondaryAction) && (
+          <div className="mt-2 flex items-center gap-3">
+            {toast.action && (
+              toast.action.href ? (
+                <a
+                  href={toast.action.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-1 text-xs font-medium ${colors.icon} hover:underline rounded focus-visible:shadow-[var(--focus-ring)]`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </a>
-            ) : toast.action.onClick ? (
+                  {toast.action.label}
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              ) : toast.action.onClick ? (
+                <button
+                  onClick={toast.action.onClick}
+                  className={`text-xs font-medium ${colors.icon} hover:underline cursor-pointer rounded focus-visible:shadow-[var(--focus-ring)]`}
+                >
+                  {toast.action.label}
+                </button>
+              ) : null
+            )}
+            {toast.secondaryAction?.onClick && (
               <button
-                onClick={toast.action.onClick}
-                className={`text-xs font-medium ${colors.icon} hover:underline cursor-pointer rounded focus-visible:shadow-[var(--focus-ring)]`}
+                onClick={toast.secondaryAction.onClick}
+                className={`text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline cursor-pointer rounded focus-visible:shadow-[var(--focus-ring)]`}
               >
-                {toast.action.label}
+                {toast.secondaryAction.label}
               </button>
-            ) : null}
+            )}
           </div>
         )}
       </div>
@@ -279,10 +290,11 @@ export function useToast() {
       message?: string,
       duration?: number,
       action?: ToastAction,
-      variant?: string
+      variant?: string,
+      secondaryAction?: ToastAction
     ) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newToast: ToastMessage = { id, type, title, message, duration, action, variant };
+      const newToast: ToastMessage = { id, type, title, message, duration, action, secondaryAction, variant };
       setVisibleToasts((prev) => {
         if (prev.length < MAX_VISIBLE_TOASTS) {
           return [...prev, newToast];
@@ -350,7 +362,7 @@ export function useToast() {
    * type and amount for richer display.
    */
   const transactionSuccess = useCallback(
-    (title: string, txHash: string, messageOrDetails?: string | TransactionDetails) => {
+    (title: string, txHash: string, messageOrDetails?: string | TransactionDetails, secondaryAction?: ToastAction) => {
       const base = getToastDurationMs();
       const action: ToastAction | undefined = isValidTxHash(txHash)
         ? { label: 'View on CardanoScan', href: getTransactionUrl(txHash) }
@@ -381,7 +393,7 @@ export function useToast() {
         message = `Transaction: ${txHash.slice(0, 16)}...`;
       }
 
-      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action, 'transaction');
+      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action, 'transaction', secondaryAction);
     },
     [addToast]
   );
