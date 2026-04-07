@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Lint fixes: eslint-disable placement, unused vars, setState-in-effect (#80, #82)
 
 ### Changed
+- Transaction success toasts show clickable "View History" link instead of auto-switching to the History tab
 - Marketplace filter controls evenly distributed across full panel width (#82)
 - Hide-own-listings toggle changed to icon-only next to favorites (#82)
 - CategoryFilter extracted into its own component (#82)

@@ -84,7 +84,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Bid Placed!', result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) })
+      toast.transactionSuccess('Bid Placed!', result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) }, { label: 'View History', onClick: () => setActiveTab('history') })
     } else {
       toast.success('Bid Placed!', 'Transaction submitted successfully')
     }
@@ -121,9 +121,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
       })
     }
 
-    // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
-    setActiveTab('history')
   }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption, userPkh, address])
 
   const handleCancelBid = useCallback((bid: BidDisplay) => {
@@ -182,7 +180,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
               })
             }
           } else if (result.txHash) {
-            toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount })
+            toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount }, { label: 'View History', onClick: () => setActiveTab('history') })
           } else {
             toast.success('Bid Cancelled!', 'Transaction submitted successfully')
           }
@@ -193,7 +191,6 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
           }
 
           triggerTransactionRefresh()
-          setActiveTab('history')
         } catch (error) {
           console.error('Failed to cancel bid:', error)
           toast.error(
@@ -287,13 +284,12 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         })
       }
     } else if (result.txHash) {
-      toast.transactionSuccess('Bid Updated!', result.txHash, { type: 'update-bid', amountLovelace: newAmountLovelace })
+      toast.transactionSuccess('Bid Updated!', result.txHash, { type: 'update-bid', amountLovelace: newAmountLovelace }, { label: 'View History', onClick: () => setActiveTab('history') })
     }
 
     triggerTransactionRefresh()
     setShowUpdateBid(false)
     setUpdateBidTarget(null)
-    setActiveTab('history')
   }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
 
   const closePlaceBidModal = useCallback(() => {

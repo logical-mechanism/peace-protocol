@@ -420,6 +420,57 @@ describe('useToast', () => {
       expect(result.current.toasts[0].message).toContain('Transaction:')
     })
   })
+
+  it('transactionSuccess passes secondary action through', () => {
+    const { result } = renderHook(() => useToast())
+    const validHash = 'c'.repeat(64)
+    const onClick = vi.fn()
+
+    act(() => {
+      result.current.transactionSuccess('Bid Placed!', validHash, { type: 'place-bid' }, { label: 'View History', onClick })
+    })
+
+    const toast = result.current.toasts[0]
+    expect(toast.action?.label).toBe('View on CardanoScan')
+    expect(toast.secondaryAction).toBeDefined()
+    expect(toast.secondaryAction?.label).toBe('View History')
+    expect(toast.secondaryAction?.onClick).toBe(onClick)
+  })
+})
+
+describe('Toast secondary action rendering', () => {
+  const mockOnClose = vi.fn()
+
+  it('renders both primary and secondary actions', () => {
+    const onClick = vi.fn()
+    const toasts: ToastMessage[] = [{
+      id: '1',
+      type: 'success',
+      title: 'Test',
+      duration: 0,
+      action: { label: 'View on CardanoScan', href: 'https://example.com' },
+      secondaryAction: { label: 'View History', onClick },
+    }]
+    render(<ToastContainer toasts={toasts} onClose={mockOnClose} />)
+
+    expect(screen.getByText('View on CardanoScan')).toBeInTheDocument()
+    expect(screen.getByText('View History')).toBeInTheDocument()
+  })
+
+  it('secondary action onClick fires when clicked', () => {
+    const onClick = vi.fn()
+    const toasts: ToastMessage[] = [{
+      id: '1',
+      type: 'success',
+      title: 'Test',
+      duration: 0,
+      secondaryAction: { label: 'View History', onClick },
+    }]
+    render(<ToastContainer toasts={toasts} onClose={mockOnClose} />)
+
+    fireEvent.click(screen.getByText('View History'))
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('Toast stagger animation', () => {
