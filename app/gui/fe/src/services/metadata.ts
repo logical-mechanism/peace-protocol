@@ -58,7 +58,8 @@ export function splitMetadataString(str: string, maxBytes = 64): string[] {
  *   msg: [...descriptionChunks],  // CIP-20 msg field (description chunks, <=64 bytes each)
  *   s: "on-chain",                 // storage layer
  *   i: [...imageLinkChunks],       // image link chunks (<=64 bytes each)
- *   c: "text"                      // category
+ *   c: "audio:music"               // category (colon-delimited path)
+ *   n: "1"                          // NSFW flag (only present when true)
  * }
  *
  * Note: price is now stored in the datum's new_price field, not in metadata.
@@ -68,13 +69,18 @@ export function buildEncryptionMetadata(
   storageLayer: string,
   imageLink: string,
   category: string,
+  nsfw?: boolean,
 ): Record<string, unknown> {
-  return {
+  const metadata: Record<string, unknown> = {
     msg: splitMetadataString(description || ''),
     s: storageLayer || '',
     i: splitMetadataString(imageLink || ''),
     c: category || '',
   };
+  if (nsfw) {
+    metadata.n = '1';
+  }
+  return metadata;
 }
 
 /**

@@ -15,7 +15,7 @@ import { buildPayload } from '../crypto/payload';
 import { protocolApi } from '../api';
 import type { EncryptionDisplay } from '../api';
 import type { CreateListingFormData } from '../../components/CreateListingModal';
-import type { FileCategory } from '../../config/categories';
+import { buildCategoryPath, type FileCategory } from '../../config/categories';
 import { buildEncryptionMetadata } from '../metadata';
 import { encodeFileSecret } from '../crypto/fileEncryption';
 import { encryptAndUpload, listFiles as iagonListFiles } from '../iagonApi';
@@ -224,7 +224,7 @@ export async function createListing(
       onProgress?.('encrypting');
       await createListingDraft(
         draftId,
-        formData.category,
+        buildCategoryPath(formData.category, formData.subcategory),
         formData.description,
         formData.suggestedPrice || '0',
         formData.imageLink || '',
@@ -415,7 +415,8 @@ export async function createListing(
           formData.description,
           getStorageLayerUri(formData),
           formData.imageLink || '',
-          formData.category,
+          buildCategoryPath(formData.category, formData.subcategory),
+          formData.nsfw,
         ))
         .changeAddress(changeAddress)
         .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
@@ -671,6 +672,7 @@ export async function retryListingFromDraft(
           'iagon',
           draft.imageLink || '',
           draft.category,
+          draft.nsfw,
         ))
         .changeAddress(changeAddress)
         .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
@@ -963,6 +965,7 @@ export async function cancelPendingListing(
           encryption.storageLayer || '',
           encryption.imageLink || '',
           encryption.category || '',
+          encryption.nsfw,
         ))
         .changeAddress(changeAddress)
         .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
@@ -1117,6 +1120,7 @@ export async function updateListingPrice(
           encryption.storageLayer || '',
           encryption.imageLink || '',
           encryption.category || '',
+          encryption.nsfw,
         ))
         .changeAddress(changeAddress)
         .selectUtxosFrom(excludeUtxos(utxos, collateral[0]))
@@ -1159,6 +1163,8 @@ export interface ImportListingData {
   suggestedPrice: string;
   imageLink: string;
   category: FileCategory;
+  subcategory?: string;
+  nsfw?: boolean;
 }
 
 /**
@@ -1294,7 +1300,8 @@ export async function createListingFromImport(
           data.description,
           storageLayer,
           data.imageLink || '',
-          data.category,
+          buildCategoryPath(data.category, data.subcategory),
+          data.nsfw,
         ))
         .changeAddress(changeAddress)
         .selectUtxosFrom(excludeUtxos(utxos, firstUtxo, collateral[0]))
