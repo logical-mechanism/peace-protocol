@@ -104,6 +104,7 @@ export interface EncryptionDisplay {
   storageLayer?: string;
   imageLink?: string;
   category?: string;
+  nsfw?: boolean;
   createdAt: string;
   utxo: {
     txHash: string;

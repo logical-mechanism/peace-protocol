@@ -78,7 +78,8 @@ export interface EncryptionDisplay {
   suggestedPrice?: number;        // lovelace, from datum new_price field
   storageLayer?: string;          // Storage layer info (e.g., "on-chain", "data-layer")
   imageLink?: string;             // Optional preview image URL (from CIP-20 metadata msg[3])
-  category?: string;              // File category (from CIP-20 metadata msg[4])
+  category?: string;              // File category, colon-delimited path (from CIP-20 metadata field `c`)
+  nsfw?: boolean;                 // NSFW flag (from CIP-20 metadata field `n`)
   createdAt: string | null;       // ISO date, null if block_time unavailable
   utxo: {
     txHash: string;
