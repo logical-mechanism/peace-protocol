@@ -32,7 +32,6 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const { expressReady } = useNode();
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
-  const [userBidEncryptionTokens, setUserBidEncryptionTokens] = useState<Set<string>>(new Set());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [], total_bytes: 0 });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -52,6 +51,18 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [filtersOpen]);
 
+
+  // Derive user bid tokens reactively from allBids + optimistic store.
+  // Re-evaluates whenever allBids changes, so newly placed
+  // bids show instantly via the optimistic merge in triggerTransactionRefresh.
+  const userBidEncryptionTokens = useMemo(() => {
+    const merged = optimisticStore.mergeBids(allBids);
+    return new Set<string>(
+      merged
+        .filter((b) => b.bidderPkh === userPkh && b.status === 'pending')
+        .map((b) => b.encryptionToken)
+    );
+  }, [allBids, userPkh]);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
@@ -81,15 +92,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
         console.warn('Image cache refresh failed:', err);
       });
 
-      // Build set of encryption tokens the user has pending bids on
-      if (userPkh) {
-        const userBidTokens = new Set<string>(
-          bidResult.data
-            .filter((b) => b.bidderPkh === userPkh && b.status === 'pending')
-            .map((b) => b.encryptionToken)
-        );
-        setUserBidEncryptionTokens(userBidTokens);
-      }
+      // userBidEncryptionTokens is now derived via useMemo from allBids + optimistic store
     } catch (err) {
       if (hasDataRef.current) {
         // Keep showing previously loaded data with a stale warning
@@ -101,7 +104,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [userPkh]);
+  }, []);
 
   // Fetch on mount and re-fetch when refreshSignal changes (waits for Express backend)
   useEffect(() => {
