@@ -19,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Extracted marketplace filter/sort logic into pure testable functions with comprehensive tests (#82)
 
 ### Fixed
+- UTxO value lookup failures for wallet UTxOs predating Kupo's `--since` point: added Koios UTxO cache fallback in KupoAdapter
+- `kupo_since` slot moved before reference script deployment to ensure Kupo indexes all protocol UTxOs
 - Accept-bid queue: memoize context, fix dedup bug, type safety, safe PKH derivation (#80)
 - Accept-bid queue: decouple queue processing from Dashboard lifecycle (#80)
 - Purchased card layout: flex-wrap for badges, consistent token hex truncation (#81)
