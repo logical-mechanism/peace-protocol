@@ -62,6 +62,13 @@ interface KupoScript {
 export class KupoAdapter implements IFetcher {
   private baseUrl: string;
 
+  /**
+   * Cache of Koios-sourced UTxOs, keyed by "txHash:outputIndex".
+   * Populated during fetchAddressUTxOs, used as fallback in fetchUTxOs
+   * for wallet UTxOs that predate Kupo's --since point.
+   */
+  private koiosUtxoCache: Map<string, UTxO> = new Map();
+
   constructor(baseUrl: string = 'http://127.0.0.1:44203') {
     this.baseUrl = baseUrl;
   }
@@ -81,21 +88,24 @@ export class KupoAdapter implements IFetcher {
 
     const utxos = await Promise.all(matches.map((m) => this.matchToUtxo(m)));
 
-    // Merge Koios UTxOs, deduplicating by txHash:outputIndex
+    // Merge Koios UTxOs, deduplicating by txHash:outputIndex.
+    // Also cache them so fetchUTxOs can resolve wallet UTxOs that Kupo doesn't have.
     if (koiosUtxos.length > 0) {
       const seen = new Set(utxos.map((u) => `${u.input.txHash}:${u.input.outputIndex}`));
       for (const ku of koiosUtxos) {
         const key = `${ku.input.txHash}:${ku.input.outputIndex}`;
+        const utxo: UTxO = {
+          input: ku.input,
+          output: {
+            address: ku.output.address,
+            amount: ku.output.amount,
+            dataHash: ku.output.dataHash,
+            plutusData: ku.output.plutusData,
+          },
+        };
+        this.koiosUtxoCache.set(key, utxo);
         if (!seen.has(key)) {
-          utxos.push({
-            input: ku.input,
-            output: {
-              address: ku.output.address,
-              amount: ku.output.amount,
-              dataHash: ku.output.dataHash,
-              plutusData: ku.output.plutusData,
-            },
-          });
+          utxos.push(utxo);
           seen.add(key);
         }
       }
@@ -118,7 +128,23 @@ export class KupoAdapter implements IFetcher {
   async fetchUTxOs(hash: string, index?: number): Promise<UTxO[]> {
     const pattern = index !== undefined ? `${index}@${hash}` : `*@${hash}`;
     const matches = await this.queryMatches(pattern);
-    return Promise.all(matches.map((m) => this.matchToUtxo(m)));
+    const results = await Promise.all(matches.map((m) => this.matchToUtxo(m)));
+
+    if (results.length > 0) return results;
+
+    // Kupo didn't have it — check Koios cache for wallet UTxOs
+    // that predate Kupo's --since point.
+    if (index !== undefined) {
+      const cached = this.koiosUtxoCache.get(`${hash}:${index}`);
+      if (cached) return [cached];
+    } else {
+      const cached = [...this.koiosUtxoCache.values()].filter(
+        (u) => u.input.txHash === hash
+      );
+      if (cached.length > 0) return cached;
+    }
+
+    return results;
   }
 
   /** Raw HTTP GET passthrough (routed through Tauri IPC). */
