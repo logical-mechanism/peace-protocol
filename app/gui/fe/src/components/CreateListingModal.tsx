@@ -17,6 +17,8 @@ import {
 
 export interface CreateListingFormData {
   category: FileCategory;
+  subcategory: string;
+  nsfw: boolean;
   secretMessage: string;
   file: File | null;
   /** Absolute path to the file on disk (from native dialog). Used by Rust for encrypt+upload. */
@@ -91,6 +93,8 @@ function formatPrice(raw: string): string {
 
 const INITIAL_FORM_DATA: CreateListingFormData = {
   category: 'text',
+  subcategory: '',
+  nsfw: false,
   secretMessage: '',
   file: null,
   filePath: null,
@@ -171,6 +175,8 @@ export default function CreateListingModal({
       if (formData.description || formData.secretMessage || formData.suggestedPrice || formData.imageLink) {
         saveListingFormDraft({
           category: formData.category,
+          subcategory: formData.subcategory,
+          nsfw: formData.nsfw,
           secretMessage: formData.secretMessage,
           description: formData.description,
           suggestedPrice: formData.suggestedPrice,
@@ -282,6 +288,7 @@ export default function CreateListingModal({
     setFormData((prev) => ({
       ...prev,
       category: mode === 'text' ? 'text' : 'other',
+      subcategory: '',
       secretMessage: '',
       file: null,
       filePath: null,
@@ -297,6 +304,8 @@ export default function CreateListingModal({
     if (draft) {
       setFormData({
         category: (draft.category as FileCategory) || 'text',
+        subcategory: draft.subcategory || '',
+        nsfw: draft.nsfw || false,
         secretMessage: draft.secretMessage || '',
         file: null,
         filePath: null,
@@ -340,7 +349,7 @@ export default function CreateListingModal({
       }
 
       const category = detectCategoryFromExtension(fileName);
-      setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category }));
+      setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category, subcategory: '' }));
       if (errors.file) {
         setErrors((prev) => ({ ...prev, file: undefined }));
       }
