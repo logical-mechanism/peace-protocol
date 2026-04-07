@@ -1,17 +1,19 @@
-import { useState, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { EncryptionDisplay } from '../services/api';
-import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
 import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
+import { formatPrice } from '../utils/formatListing';
+import TransactionLink, { TransactionLinkInline } from './TransactionLink';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
   bidCount: number;
   onViewBids?: (encryption: EncryptionDisplay) => void;
   onRemove?: (encryption: EncryptionDisplay) => void;
+  onUpdatePrice?: (encryption: EncryptionDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   compact?: boolean;
@@ -24,6 +26,7 @@ function SalesListingCard({
   bidCount,
   onViewBids,
   onRemove,
+  onUpdatePrice,
   onCancelPending,
   onCompleteSale,
   compact = false,
@@ -35,24 +38,12 @@ function SalesListingCard({
   const [bidPulseKey, setBidPulseKey] = useState(0);
   const isOptimistic = encryption._optimistic === true;
 
-  if (bidCount > prevBidCount) {
-    setPrevBidCount(bidCount);
-    setBidPulseKey(k => k + 1);
-  }
-
-  // Format price with fallback matching EncryptionCard behavior
-  const formatPrice = (price?: number): string => {
-    if (price === undefined || price === null || isNaN(price) || price < 0) {
-      return 'No suggested price';
+  useEffect(() => {
+    if (bidCount > prevBidCount) {
+      setPrevBidCount(bidCount);
+      setBidPulseKey(k => k + 1);
     }
-    return `${price.toLocaleString()} ADA`;
-  };
-
-  // Get category label, defaulting to "Text" for backward compatibility
-  const getCategoryLabel = (category?: string): string => {
-    if (!category) return 'Text';
-    return category.charAt(0).toUpperCase() + category.slice(1);
-  };
+  }, [bidCount, prevBidCount]);
 
   // Get storage layer label - returns "No data layer" for unknown/missing values
   const getStorageLayerLabel = (storageLayer?: string): string => {
@@ -102,72 +93,61 @@ function SalesListingCard({
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+        <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+          {/* Row 1: Spacer + Tx Hash + Storage + Status */}
+          <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)] min-w-0">
+            <div className="w-5 flex-shrink-0" />
+            <TransactionLink txHash={encryption.utxo.txHash} className="text-xs" />
+            <span
+              className={`ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border flex-shrink-0 ${
+                isUnknownStorageLayer(encryption.storageLayer)
+                  ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+              }`}
+            >
+              {getStorageLayerLabel(encryption.storageLayer)}
+            </span>
+            <EncryptionStatusBadge status={encryption.status} />
+            {isOptimistic && (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
+                Awaiting confirmation
+              </span>
+            )}
+          </div>
+          {/* Row 2: Description */}
+          {encryption.description && (
+            <p
+              className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] mb-[var(--space-2)] max-w-md relative z-10"
+              onClick={() => setDescriptionModalOpen(true)}
+              title={encryption.description}
+            >
+              {truncateDescription(encryption.description)}
+            </p>
+          )}
+          {/* Row 3: Price + Actions */}
           <div className="flex items-center justify-between gap-[var(--space-md)]">
-            {/* Left: Token info */}
-            <div className="flex items-center gap-[var(--space-3)] min-w-0 flex-1">
-              {/* Image / Lock icon */}
-              <ListingImage
-                tokenName={encryption.tokenName}
-                imageLink={encryption.imageLink}
-                size="sm"
-                initialCached={initialCached}
-                initialBanned={initialBanned}
-              />
-
-              <div className="min-w-0">
-                <div className="flex items-center gap-[var(--space-2)] mb-0.5 flex-wrap">
-                  <span className="text-xs font-mono text-[var(--text-muted)]" title={encryption.tokenName}>
-                    {truncateHex(encryption.tokenName, 8, 4)}
-                  </span>
-                  <EncryptionStatusBadge status={encryption.status} />
-                  {isOptimistic && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                      Awaiting confirmation
-                    </span>
-                  )}
-                  <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                    {getCategoryLabel(encryption.category)}
-                  </span>
-                </div>
-                {encryption.description && (
-                  <p
-                    className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
-                    onClick={() => setDescriptionModalOpen(true)}
+            <div className="flex items-center gap-[var(--space-2)]">
+              <span className="text-lg font-semibold text-[var(--accent)] inline-flex items-center gap-[var(--space-1)]">
+                {formatPrice(encryption.suggestedPrice)}
+                {isActive && !isOptimistic && onUpdatePrice && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
+                    className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                    title="Update price"
+                    aria-label="Update price"
                   >
-                    {truncateDescription(encryption.description)}
-                  </p>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                    </svg>
+                  </button>
                 )}
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  {isActive && (
-                    <>
-                      <span>Bids: {bidCount}</span>
-                      <span className="mx-[var(--space-1)]">|</span>
-                    </>
-                  )}
-                  <span>{formatRelativeTime(encryption.createdAt)}</span>
-                </p>
-              </div>
+              </span>
+              {isPending && pendingTTL && (
+                <span className="text-xs text-[var(--warning)]">{pendingTTL}</span>
+              )}
             </div>
 
-            {/* Middle: Price & Bids */}
-            <div className="flex items-center gap-[var(--space-lg)] flex-shrink-0">
-              <div className="text-right">
-                <span className="text-lg font-semibold text-[var(--accent)]">
-                  {formatPrice(encryption.suggestedPrice)}
-                </span>
-                {isActive && bidCount > 0 && (
-                  <p className="text-xs text-[var(--text-muted)]">
-                    {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
-                  </p>
-                )}
-                {isPending && pendingTTL && (
-                  <p className="text-xs text-[var(--warning)]">{pendingTTL}</p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-[var(--space-2)]">
+            <div className="flex gap-[var(--space-2)]">
                 {isActive && !isOptimistic && (
                   <>
                     <button
@@ -209,10 +189,9 @@ function SalesListingCard({
                     </button>
                   </>
                 )}
-              </div>
             </div>
           </div>
-        </div>
+        </article>
 
         {/* Description Modal */}
         <DescriptionModal
@@ -227,37 +206,29 @@ function SalesListingCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
-        <div className="flex items-start justify-between mb-[var(--space-md)]">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-1)]">
-              <span className="text-xs font-mono text-[var(--text-muted)] truncate min-w-0" title={encryption.tokenName}>
-                {truncateHex(encryption.tokenName, 8, 4)}
-              </span>
-              <EncryptionStatusBadge status={encryption.status} />
-              <span
-                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border shrink-0 ${
-                  isUnknownStorageLayer(encryption.storageLayer)
-                    ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
-                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
-                }`}
-              >
-                {getStorageLayerLabel(encryption.storageLayer)}
-              </span>
-            </div>
-            <p className="text-xs text-[var(--text-muted)]">
-              {isActive && (
-                <>
-                  <span>Bids: {bidCount}</span>
-                  <span className="mx-1.5">|</span>
-                </>
-              )}
-              <span>Views: N/A</span>
-              <span className="mx-1.5">|</span>
-              <span>Created: {formatRelativeTime(encryption.createdAt)}</span>
-            </p>
+        <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
+          {/* Row 1: Status + Transaction Hash */}
+          <div className="flex items-center gap-[var(--space-2)] min-w-0">
+            <div className="w-5 flex-shrink-0" />
+            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
+            <EncryptionStatusBadge status={encryption.status} />
           </div>
+          {/* Row 2: Storage Layer */}
+          <span
+            className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border inline-block ${
+              isUnknownStorageLayer(encryption.storageLayer)
+                ? 'bg-[var(--warning-muted)] text-[var(--warning)] border-[var(--warning)]'
+                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]'
+            }`}
+          >
+            {getStorageLayerLabel(encryption.storageLayer)}
+          </span>
+          {/* Row 3: Created Date */}
+          <p className="text-xs text-[var(--text-muted)] text-center">
+            Created: {formatRelativeTime(encryption.createdAt)}
+          </p>
         </div>
 
         {/* Description */}
@@ -286,25 +257,22 @@ function SalesListingCard({
 
         {/* Price */}
         <div className="text-center mb-[var(--space-md)]">
-          <p className="text-2xl font-semibold text-[var(--accent)]">
+          <p className="text-2xl font-semibold text-[var(--accent)] inline-flex items-center justify-center gap-[var(--space-1)]">
             {formatPrice(encryption.suggestedPrice)}
+            {isActive && !isOptimistic && onUpdatePrice && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
+                className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                title="Update price"
+                    aria-label="Update price"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                </svg>
+              </button>
+            )}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">Suggested Price</p>
         </div>
-
-        {/* Bids Info (for active listings) */}
-        {isActive && (
-          <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Active Bids</span>
-            <span
-              className={`text-sm font-medium ${
-                bidCount > 0 ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
-              }`}
-            >
-              {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
-            </span>
-          </div>
-        )}
 
         {/* Pending Status Info */}
         {isPending && (
@@ -371,7 +339,7 @@ function SalesListingCard({
             </>
           )}
         </div>
-      </div>
+      </article>
 
       {/* Description Modal */}
       <DescriptionModal
@@ -401,6 +369,7 @@ function arePropsEqual(prev: SalesListingCardProps, next: SalesListingCardProps)
     prev.initialBanned === next.initialBanned &&
     prev.onViewBids === next.onViewBids &&
     prev.onRemove === next.onRemove &&
+    prev.onUpdatePrice === next.onUpdatePrice &&
     prev.onCancelPending === next.onCancelPending &&
     prev.onCompleteSale === next.onCompleteSale
   );

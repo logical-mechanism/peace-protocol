@@ -1,24 +1,24 @@
 import type { Request, Response, NextFunction } from 'express';
 
-export function isValidHex(value: string): boolean {
+function isValidHex(value: string): boolean {
   return /^[0-9a-fA-F]*$/.test(value);
 }
 
-export function isValidPkh(value: string): boolean {
+function isValidPkh(value: string): boolean {
   return value.length === 56 && isValidHex(value);
 }
 
-export function isValidTokenName(value: string): boolean {
+function isValidTokenName(value: string): boolean {
   return value.length > 0 && value.length <= 64 && isValidHex(value);
 }
 
-export function isValidTxHash(value: string): boolean {
+function isValidTxHash(value: string): boolean {
   return value.length === 64 && isValidHex(value);
 }
 
 type ParamValidator = (value: string) => boolean;
 
-export function validateParam(
+function validateParam(
   paramName: string,
   validator: ParamValidator,
   errorMessage: string,

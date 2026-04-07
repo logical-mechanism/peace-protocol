@@ -34,6 +34,7 @@ pub type EncryptionDatum {
   full_level: Option<FullEncryptionLevel>,
   capsule: Capsule,
   status: Status,
+  new_price: Int,
 }
 
 pub type EncryptionMintRedeemer {
@@ -48,4 +49,5 @@ pub type EncryptionSpendRedeemer {
   // groth proof and public come from groth_witness withdraw redeemer
   UseSnark
   CancelEncryption
+  UpdateEncryptionPrice(Int)
 }

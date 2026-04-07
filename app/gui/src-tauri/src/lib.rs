@@ -28,6 +28,49 @@ pub struct NodeSocketReady(pub AtomicBool);
 /// can reach the backend API.
 pub struct ExpressReady(pub AtomicBool);
 
+/// Optional CPU core limit from `--max-cores N` CLI flag or `VEILED_MAX_CORES` env var.
+/// When set, subprocess spawns inject RTS flags (Haskell) and env vars (Go/Rust)
+/// to cap CPU usage. `None` means no limit (use all cores, default behavior).
+pub struct MaxCores(pub Option<u32>);
+
+/// Parse `--max-cores N` from CLI args, falling back to `VEILED_MAX_CORES` env var.
+/// Returns `None` if neither is set or if the value is invalid.
+fn parse_max_cores() -> Option<u32> {
+    let args: Vec<String> = std::env::args().collect();
+    for i in 0..args.len() {
+        if args[i] == "--max-cores" {
+            if let Some(val) = args.get(i + 1) {
+                match val.parse::<u32>() {
+                    Ok(n) if n >= 1 => return Some(n),
+                    _ => {
+                        eprintln!(
+                            "Warning: invalid --max-cores value '{}', using all cores",
+                            val
+                        );
+                        return None;
+                    }
+                }
+            } else {
+                eprintln!("Warning: --max-cores requires a value, using all cores");
+                return None;
+            }
+        }
+    }
+    // Env var fallback
+    if let Ok(val) = std::env::var("VEILED_MAX_CORES") {
+        match val.parse::<u32>() {
+            Ok(n) if n >= 1 => return Some(n),
+            _ => {
+                eprintln!(
+                    "Warning: invalid VEILED_MAX_CORES='{}', using all cores",
+                    val
+                );
+            }
+        }
+    }
+    None
+}
+
 // ── Media streaming server ──────────────────────────────────────────────────
 // WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes
 // (asset://, media://) for <video>/<audio> elements. Work around this by
@@ -59,6 +102,7 @@ fn media_mime_type(path: &str) -> &'static str {
         "m2ts" => "video/mp2t",
         "wmv" => "video/x-ms-wmv",
         "wma" => "audio/x-ms-wma",
+        "raw" | "bin" => "application/octet-stream",
         "vtt" => "text/vtt",
         "srt" => "text/plain; charset=utf-8",
         _ => "application/octet-stream",
@@ -66,7 +110,11 @@ fn media_mime_type(path: &str) -> &'static str {
 }
 
 /// Parse a single-range `Range: bytes=START-END` header.
-/// Returns (start, end) inclusive, capped at 2 MB per chunk.
+/// Returns (start, end) inclusive. Open-ended ranges serve to EOF;
+/// explicit ranges honor the client's requested end (clamped to file length).
+/// No artificial chunk cap — files are served from localhost so throughput is
+/// not a bottleneck, and GStreamer (WebKitGTK) needs full range responses to
+/// avoid stalling at chunk boundaries.
 fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
     let range = header.strip_prefix("bytes=")?;
     let (start_str, end_str) = range.split_once('-')?;
@@ -78,14 +126,12 @@ fn parse_byte_range(header: &str, file_len: u64) -> Option<(u64, u64)> {
         start_str.parse().ok()?
     };
 
-    const MAX_CHUNK: u64 = 2 * 1024 * 1024; // 2 MB
-
     let end: u64 = if end_str.is_empty() || start_str.is_empty() {
-        (start + MAX_CHUNK - 1).min(file_len - 1)
+        // Open-ended or suffix range: serve to end of file
+        file_len - 1
     } else {
         let requested: u64 = end_str.parse().ok()?;
-        let capped = start + (requested - start).min(MAX_CHUNK - 1);
-        capped.min(file_len - 1)
+        requested.min(file_len - 1)
     };
 
     if start >= file_len || end < start {
@@ -106,7 +152,7 @@ async fn serve_media_file(
     use std::io::{Read, Seek, SeekFrom};
 
     let raw_path = request.uri().path();
-    let decoded = percent_encoding::percent_decode(&raw_path.as_bytes()[1..])
+    let decoded = percent_encoding::percent_decode(raw_path.as_bytes())
         .decode_utf8_lossy()
         .to_string();
 
@@ -115,7 +161,13 @@ async fn serve_media_file(
     // Security: resolved path must be within the media directory
     let canonical = match std::fs::canonicalize(path) {
         Ok(p) => p,
-        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            eprintln!(
+                "[media-server] canonicalize failed for {:?}: {}",
+                decoded, e
+            );
+            return StatusCode::NOT_FOUND.into_response();
+        }
     };
     let canonical_media = std::fs::canonicalize(&media_dir).unwrap_or_else(|_| media_dir.clone());
     if !canonical.starts_with(&canonical_media) {
@@ -353,13 +405,15 @@ pub fn run() {
         std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", paths.join(":"));
     }
 
+    let max_cores = parse_max_cores();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
-        .setup(|app| {
+        .setup(move |app| {
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -394,8 +448,10 @@ pub fn run() {
             app.manage(app_config);
 
             // Node manager (Phase 2) — pass service ports for periodic health checks
-            let node_manager = NodeManager::new(app.handle().clone(), ogmios_port, kupo_port);
+            let node_manager =
+                NodeManager::new(app.handle().clone(), ogmios_port, kupo_port, max_cores);
             app.manage(node_manager);
+            app.manage(MaxCores(max_cores));
 
             // Node socket readiness flag — prevents cardano-cli queries before
             // the node has finished initialization (outgoing peer connections).
@@ -487,6 +543,9 @@ pub fn run() {
             let port = start_media_server(media_dir);
             app.manage(MediaServerPort(port));  // None if bind failed — streaming degrades gracefully
 
+            // Audio playback via rodio (bypasses WebKitGTK/GStreamer)
+            app.manage(commands::audio::AudioPlayback::new());
+
             // Warn frontend if config fell back to defaults
             if config_used_defaults {
                 let _ = app.emit(
@@ -562,6 +621,7 @@ pub fn run() {
             commands::secrets::get_bid_secrets,
             commands::secrets::get_bid_secrets_for_encryption,
             commands::secrets::remove_bid_secrets,
+            commands::secrets::list_bid_secret_tokens,
             commands::secrets::store_accept_bid_secrets,
             commands::secrets::get_accept_bid_secrets,
             commands::secrets::remove_accept_bid_secrets,
@@ -613,12 +673,26 @@ pub fn run() {
             commands::media::export_library_content,
             commands::media::export_text_file,
             commands::media::open_with_system,
+            // Audio waveform decode + metadata (symphonia)
+            commands::media::decode_audio_waveform,
+            commands::media::decode_audio_waveform_fast,
+            commands::media::decode_audio_metadata,
             // Media streaming server
             get_media_server_port,
             // Updater commands
             commands::updater::get_current_version,
             commands::updater::check_for_update,
             commands::updater::download_update,
+            // Audio playback commands (rodio — bypasses WebKitGTK/GStreamer)
+            commands::audio::audio_play,
+            commands::audio::audio_pause,
+            commands::audio::audio_resume,
+            commands::audio::audio_stop,
+            commands::audio::audio_seek,
+            commands::audio::audio_set_volume,
+            commands::audio::audio_set_speed,
+            commands::audio::audio_set_loop,
+            commands::audio::audio_get_status,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -6,6 +6,7 @@ import EmptyState from './EmptyState';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { formatDateTime } from '../utils/formatDate';
+import { formatAda } from '../utils/formatAda';
 
 interface BidsModalProps {
   isOpen: boolean;
@@ -99,7 +100,7 @@ export default function BidsModal({
               <p className="text-xs text-[var(--text-muted)]">Suggested Price</p>
               <p className="text-sm font-medium text-[var(--accent)]">
                 {encryption.suggestedPrice
-                  ? `${encryption.suggestedPrice.toLocaleString()} ADA`
+                  ? `${formatAda(encryption.suggestedPrice)} ADA`
                   : 'No price set'}
               </p>
             </div>

@@ -382,13 +382,11 @@ describe('ImportListingModal', () => {
     expect(await screen.findByText('Price must be a positive number')).toBeInTheDocument();
   });
 
-  it('validates price not too high', async () => {
+  it('clamps price to Cardano max supply (45B ADA)', () => {
     renderModal();
     const input = getInput('import-suggestedPrice');
-    fireEvent.focus(input);
-    fireEvent.change(input, { target: { name: 'suggestedPrice', value: '9999999999' } });
-    fireEvent.blur(input);
-    expect(await screen.findByText('Price is too high')).toBeInTheDocument();
+    fireEvent.change(input, { target: { name: 'suggestedPrice', value: '99999999999' } });
+    expect(input.value).toBe('45000000000');
   });
 
   // --- Description Validation ---

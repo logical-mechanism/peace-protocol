@@ -3,7 +3,7 @@ import { useNode } from '../contexts/NodeContext';
 import { bidsApi, encryptionsApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
-import { getBidSecretsForEncryption } from '../services/bidSecretStorage';
+import { getBidSecretsForEncryption, listBidSecretTokens } from '../services/bidSecretStorage';
 import { listLibraryItems } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
@@ -19,8 +19,9 @@ import { useDebounce } from '../hooks/useDebounce';
 interface MyPurchasesTabProps {
   userPkh?: string;
   onCancelBid?: (bid: BidDisplay) => void;
+  onUpdateBid?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
-  onDecryptEncryption?: (encryption: EncryptionDisplay) => void;
+  onDecryptEncryption?: (encryption: EncryptionDisplay, ownerPkh?: string) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   onLocalRefresh?: () => void;
   refreshSignal?: number;
@@ -32,6 +33,7 @@ interface MyPurchasesTabProps {
 function MyPurchasesTab({
   userPkh,
   onCancelBid,
+  onUpdateBid,
   onDecrypt,
   onDecryptEncryption,
   onSwitchTab,
@@ -44,11 +46,11 @@ function MyPurchasesTab({
   const { expressReady } = useNode();
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
-  const [purchasedEncryptions, setPurchasedEncryptions] = useState<EncryptionDisplay[]>([]);
+  const [purchasedEncryptions, setPurchasedEncryptions] = useState<(EncryptionDisplay & { resold?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prevDataCount, setPrevDataCount] = useState(0);
-  const [completedTokens, setCompletedTokens] = useState<Set<string>>(new Set());
+  const [completedTokens, setCompletedTokens] = useState<Map<string, string>>(new Map());
   const [secretsLoadErrors, setSecretsLoadErrors] = useState<Set<string>>(new Set());
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
@@ -88,24 +90,32 @@ function MyPurchasesTab({
       });
       setEncryptionsMap(newEncryptionsMap);
 
-      // Find purchased encryptions: user is owner AND has bid secrets in IndexedDB
+      // Find purchased encryptions: discover via bid secrets (works even after re-sale)
       if (userPkh) {
-        const userOwnedEncryptions = allEncryptions.filter(
-          (e) => e.sellerPkh === userPkh && e.datum.full_level !== null
-        );
+        let secretTokens: string[] = [];
+        try {
+          secretTokens = await listBidSecretTokens();
+        } catch (err) {
+          console.warn('Failed to list bid secret tokens:', err);
+        }
 
-        const purchased: EncryptionDisplay[] = [];
+        const purchased: (EncryptionDisplay & { resold?: boolean })[] = [];
         const failedTokens = new Set<string>();
-        for (const enc of userOwnedEncryptions) {
+        for (const token of secretTokens) {
+          const enc = allEncryptions.find((e) => e.tokenName === token);
+          if (!enc) continue; // token no longer on-chain
+          const isCurrentOwner = enc.sellerPkh === userPkh;
+          // If we still own it but full_level is null, purchase isn't complete yet
+          if (isCurrentOwner && enc.datum.full_level === null) continue;
           try {
             const secrets = await getBidSecretsForEncryption(enc.tokenName);
             if (secrets.length > 0) {
-              purchased.push(enc);
+              purchased.push({ ...enc, resold: !isCurrentOwner });
             }
           } catch (err) {
             console.warn(`Failed to load bid secrets for ${enc.tokenName}:`, err);
             failedTokens.add(enc.tokenName);
-            purchased.push(enc);
+            purchased.push({ ...enc, resold: !isCurrentOwner });
           }
         }
         setPurchasedEncryptions(purchased);
@@ -117,7 +127,7 @@ function MyPurchasesTab({
       // Fetch library items to determine completed purchases
       try {
         const libraryItems = await listLibraryItems();
-        setCompletedTokens(new Set(libraryItems.map((item) => item.tokenName)));
+        setCompletedTokens(new Map(libraryItems.map((item) => [item.tokenName, item.decryptedAt])));
       } catch {
         // Library lookup failure is non-critical
       }
@@ -142,22 +152,33 @@ function MyPurchasesTab({
     [encryptionsMap]
   );
 
+  // Check if a bid's encryption was decrypted AFTER the bid was placed.
+  // Prevents re-purchases from showing "complete" due to a prior library entry.
+  const isCompletedAfterBid = useCallback(
+    (bid: BidDisplay): boolean => {
+      const decryptedAt = completedTokens.get(bid.encryptionToken);
+      if (!decryptedAt) return false;
+      return new Date(decryptedAt) > new Date(bid.createdAt);
+    },
+    [completedTokens]
+  );
+
   // Derive purchase stage from on-chain status + local state
   const getPurchaseStage = useCallback(
     (bid: BidDisplay): PurchaseStage => {
-      if (completedTokens.has(bid.encryptionToken)) return 'complete';
+      if (isCompletedAfterBid(bid)) return 'complete';
       if (failedDecryptTokens?.has(bid.encryptionToken)) return 'failed';
       if (bid.status === 'accepted') return 'accepted';
       return 'placed';
     },
-    [completedTokens, failedDecryptTokens]
+    [isCompletedAfterBid, failedDecryptTokens]
   );
 
   // Count bids per filter status (for chip badges)
   const statusCounts = useMemo(() => {
     const counts = { all: bids.length, pending: 0, accepted: 0, complete: 0 };
     for (const bid of bids) {
-      if (completedTokens.has(bid.encryptionToken)) {
+      if (isCompletedAfterBid(bid)) {
         counts.complete++;
       } else if (bid.status === 'accepted') {
         counts.accepted++;
@@ -166,7 +187,7 @@ function MyPurchasesTab({
       }
     }
     return counts;
-  }, [bids, completedTokens]);
+  }, [bids, isCompletedAfterBid]);
 
   // Filter and sort bids
   const filteredAndSorted = useMemo(() => {
@@ -174,10 +195,10 @@ function MyPurchasesTab({
 
     // Filter by status (using derived purchase stage for 'complete' and 'accepted')
     if (statusFilter === 'complete') {
-      result = result.filter((b) => completedTokens.has(b.encryptionToken));
+      result = result.filter((b) => isCompletedAfterBid(b));
     } else if (statusFilter === 'accepted') {
       result = result.filter(
-        (b) => b.status === 'accepted' && !completedTokens.has(b.encryptionToken)
+        (b) => b.status === 'accepted' && !isCompletedAfterBid(b)
       );
     } else if (statusFilter !== 'all') {
       result = result.filter((b) => b.status === statusFilter);
@@ -217,7 +238,7 @@ function MyPurchasesTab({
     }
 
     return result;
-  }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, completedTokens]);
+  }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, isCompletedAfterBid]);
 
   // Handlers
   const handleCancelBid = useCallback(
@@ -327,11 +348,11 @@ function MyPurchasesTab({
                 className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]"
               >
                 <div className="flex items-center justify-between mb-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                    Purchased
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-                      Purchased
-                    </span>
                     {hasSecretError && (
                       <span title="Bid secrets could not be loaded. Decryption may not be available.">
                         <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,11 +360,16 @@ function MyPurchasesTab({
                         </svg>
                       </span>
                     )}
+                    {enc.resold && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--warning-muted)] text-[var(--warning)] rounded-full">
+                        Re-sold
+                      </span>
+                    )}
                   </div>
-                  <span className="text-xs text-[var(--text-muted)] font-mono">
-                    {truncateHex(enc.tokenName, 12, 8)}
-                  </span>
                 </div>
+                <p className="text-xs text-[var(--text-muted)] font-mono mb-3">
+                  {truncateHex(enc.tokenName, 12, 8)}
+                </p>
 
                 {enc.description && (
                   <div
@@ -364,7 +390,7 @@ function MyPurchasesTab({
                 )}
 
                 <button
-                  onClick={() => onDecryptEncryption?.(enc)}
+                  onClick={() => onDecryptEncryption?.(enc, enc.resold ? userPkh : undefined)}
                   className="w-full mt-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -552,6 +578,7 @@ function MyPurchasesTab({
                 bid={bid}
                 encryption={getEncryption(bid.encryptionToken)}
                 onCancel={handleCancelBid}
+                onUpdateBid={onUpdateBid}
                 onDecrypt={handleDecrypt}
                 purchaseStage={getPurchaseStage(bid)}
                 decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}
@@ -567,6 +594,7 @@ function MyPurchasesTab({
                 bid={bid}
                 encryption={getEncryption(bid.encryptionToken)}
                 onCancel={handleCancelBid}
+                onUpdateBid={onUpdateBid}
                 onDecrypt={handleDecrypt}
                 purchaseStage={getPurchaseStage(bid)}
                 decryptFailed={failedDecryptTokens?.has(bid.encryptionToken)}

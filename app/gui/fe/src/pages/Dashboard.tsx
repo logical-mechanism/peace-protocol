@@ -19,8 +19,9 @@ import CreateListingModal from '../components/CreateListingModal'
 import ImportListingModal from '../components/ImportListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
 import DecryptModal from '../components/DecryptModal'
-const SnarkProvingModal = lazy(() => import('../components/SnarkProvingModal'))
 import ConfirmModal from '../components/ConfirmModal'
+import UpdatePriceModal from '../components/UpdatePriceModal'
+import UpdateBidModal from '../components/UpdateBidModal'
 import { useToast, ToastContainer } from '../components/Toast'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
@@ -38,6 +39,7 @@ import { TABS, type TabId, type ConfirmAction } from './dashboard/dashboardTypes
 import { useSellerActions } from './dashboard/useSellerActions'
 import { useBuyerActions } from './dashboard/useBuyerActions'
 import { useDashboardEffects } from './dashboard/useDashboardEffects'
+import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
 
 export type { TabId } from './dashboard/dashboardTypes'
 
@@ -178,6 +180,14 @@ export default function Dashboard() {
   }), [wallet, address, userPkh, toast, effects.recordTransaction, triggerTransactionRefresh, triggerRefresh, setActiveTab])
 
   // ── Seller actions hook ───────────────────────────────────────────
+  // ── Accept-bid queue — supply optional UI handles ────────────────
+  const { setToast: setQueueToast, setRefreshTrigger: setQueueRefresh } = useAcceptBidQueue()
+  useEffect(() => {
+    setQueueToast(toast)
+    setQueueRefresh(triggerTransactionRefresh)
+    return () => { setQueueToast(null); setQueueRefresh(null) }
+  }, [setQueueToast, setQueueRefresh, toast, triggerTransactionRefresh])
+
   const seller = useSellerActions({
     actions: dashboardActions,
     iagonConnected: effects.iagonConnected,
@@ -626,7 +636,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-[var(--border-subtle)] mb-6">
+        <nav className="border-b border-[var(--border-subtle)] mb-6" aria-label="Dashboard tabs">
           <div className="flex items-center justify-between">
           <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
             {TABS.map((tab, index) => (
@@ -692,7 +702,7 @@ export default function Dashboard() {
             </button>
           </div>
           </div>
-        </div>
+        </nav>
 
         {/* Tab Content — tabs stay mounted once visited for instant switching */}
         {visitedTabs.has('marketplace') && (
@@ -734,6 +744,7 @@ export default function Dashboard() {
                 refreshSignal={refreshSignal}
                 userPkh={userPkh}
                 onRemoveListing={seller.handleRemoveListing}
+                onUpdatePrice={seller.handleOpenUpdatePrice}
                 onAcceptBid={seller.handleAcceptBid}
                 onCancelPending={seller.handleCancelPending}
                 onCompleteSale={seller.handleCompleteSale}
@@ -761,6 +772,7 @@ export default function Dashboard() {
                 refreshSignal={refreshSignal}
                 userPkh={userPkh}
                 onCancelBid={buyer.handleCancelBid}
+                onUpdateBid={buyer.handleOpenUpdateBid}
                 onDecrypt={buyer.handleDecrypt}
                 onDecryptEncryption={buyer.handleDecryptEncryption}
                 onSwitchTab={setActiveTab}
@@ -847,6 +859,25 @@ export default function Dashboard() {
         onSubmit={seller.handleImportListing}
       />
 
+      {/* Update Price Modal */}
+      <UpdatePriceModal
+        isOpen={seller.showUpdatePriceModal}
+        onClose={() => {
+          seller.setShowUpdatePriceModal(false)
+          // Keep encryption reference for animation exit
+        }}
+        onSubmit={seller.handleSubmitUpdatePrice}
+        encryption={seller.updatePriceEncryption}
+      />
+
+      {/* Update Bid Modal */}
+      <UpdateBidModal
+        isOpen={buyer.showUpdateBid}
+        onClose={buyer.closeUpdateBidModal}
+        onSubmit={buyer.handleSubmitUpdateBid}
+        bid={buyer.updateBidTarget}
+      />
+
       {/* Place Bid Modal */}
       <PlaceBidModal
         isOpen={buyer.showPlaceBid}
@@ -866,6 +897,7 @@ export default function Dashboard() {
         isIagonConnected={effects.iagonConnected}
         onDecryptResult={buyer.handleDecryptResult}
         onSaveWarning={(msg) => toast.warning('Save failed', msg)}
+        ownerPkh={buyer.decryptOwnerPkh}
       />
 
       {/* Confirmation Modal (destructive actions) */}
@@ -893,16 +925,6 @@ export default function Dashboard() {
         confirmVariant="danger"
         loading={confirmLoading}
       />
-
-      {/* SNARK Proving Modal (Accept Bid Step 1) */}
-      <Suspense fallback={null}>
-        <SnarkProvingModal
-          isOpen={seller.showSnarkModal}
-          onClose={seller.closeSnarkModal}
-          onProofGenerated={seller.handleProofGenerated}
-          inputs={seller.snarkInputs}
-        />
-      </Suspense>
 
       {/* Toast Notifications */}
       <KeyboardShortcutsOverlay isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />

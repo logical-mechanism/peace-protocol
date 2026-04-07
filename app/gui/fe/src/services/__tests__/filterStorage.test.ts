@@ -34,7 +34,10 @@ describe('filterStorage', () => {
         searchQuery: 'hello',
         sortBy: 'most-bids' as const,
         statusFilter: 'active' as const,
-        categoryFilter: 'document',
+        categoryFilter: ['document'] as string[],
+        hideOwnListings: true,
+        dateFrom: '2025-01-01',
+        dateTo: '2025-12-31',
         viewMode: 'list' as const,
         priceMin: '5',
         priceMax: '100',
@@ -69,6 +72,51 @@ describe('filterStorage', () => {
       clearPersistedFilters('pkh1');
       expect(getPersistedFilters('pkh1')).toBeNull();
       expect(getPersistedFilters('pkh2')!.searchQuery).toBe('beta');
+    });
+  });
+
+  describe('migration', () => {
+    it('migrates legacy string categoryFilter to array', () => {
+      // Simulate v1 persisted data with categoryFilter as string
+      localStorage.setItem('veiled_marketplace_filters_pkh1', JSON.stringify({
+        ...MARKETPLACE_INITIAL,
+        categoryFilter: 'audio',
+      }));
+      const loaded = getPersistedFilters('pkh1');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.categoryFilter).toEqual(['audio']);
+    });
+
+    it('migrates legacy "all" string to ["all"] array', () => {
+      localStorage.setItem('veiled_marketplace_filters_pkh1', JSON.stringify({
+        categoryFilter: 'all',
+      }));
+      const loaded = getPersistedFilters('pkh1');
+      expect(loaded!.categoryFilter).toEqual(['all']);
+    });
+
+    it('leaves array categoryFilter unchanged', () => {
+      localStorage.setItem('veiled_marketplace_filters_pkh1', JSON.stringify({
+        categoryFilter: ['audio', 'video'],
+      }));
+      const loaded = getPersistedFilters('pkh1');
+      expect(loaded!.categoryFilter).toEqual(['audio', 'video']);
+    });
+
+    it('tolerates missing new fields (hideOwnListings, dateFrom, dateTo)', () => {
+      // Legacy data has no hideOwnListings/dateFrom/dateTo
+      localStorage.setItem('veiled_marketplace_filters_pkh1', JSON.stringify({
+        searchQuery: 'test',
+        categoryFilter: 'text',
+      }));
+      const loaded = getPersistedFilters('pkh1');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.searchQuery).toBe('test');
+      expect(loaded!.categoryFilter).toEqual(['text']);
+      // Missing fields are simply absent — HYDRATE fills defaults
+      expect(loaded!.hideOwnListings).toBeUndefined();
+      expect(loaded!.dateFrom).toBeUndefined();
+      expect(loaded!.dateTo).toBeUndefined();
     });
   });
 

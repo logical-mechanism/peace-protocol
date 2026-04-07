@@ -141,6 +141,7 @@ export class SnarkProver {
       commitmentPok: 'e'.repeat(96),
     }
 
+    // 36 public inputs matching the Groth16 circuit's expected public input count
     const stubPublic = {
       inputs: Array(36).fill('0').map((_, i) => String(i + 1)),
       commitmentWire: '12345678901234567890',

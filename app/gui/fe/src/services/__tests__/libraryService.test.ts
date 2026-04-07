@@ -9,6 +9,7 @@ import {
   exportLibraryContent,
   getLibraryContentUrl,
   getLibrarySubtitleUrl,
+  decodeAudioWaveform,
 } from '../libraryService';
 import type { LibraryItem } from '../libraryService';
 
@@ -114,28 +115,25 @@ describe('libraryService', () => {
   describe('getLibraryContentUrl', () => {
     it('returns localhost URL with media server port', async () => {
       mockInvoke
-        .mockResolvedValueOnce('content/video/token1/file.mp4') // get_library_content_path
+        .mockResolvedValueOnce('/data/media/content/video/token1/file.mp4') // get_library_content_path
         .mockResolvedValueOnce(9876); // get_media_server_port
       const url = await getLibraryContentUrl('token1', 'video');
-      expect(url).toContain('http://127.0.0.1:9876/');
-      expect(url).toContain('file.mp4');
+      expect(url).toBe('http://127.0.0.1:9876/data/media/content/video/token1/file.mp4');
     });
 
     it('caches media server port on subsequent calls', async () => {
       // Port was cached from previous test, so only content path invoke needed
-      mockInvoke.mockResolvedValueOnce('content/audio/token2/song.mp3');
+      mockInvoke.mockResolvedValueOnce('/data/media/content/audio/token2/song.mp3');
       const url = await getLibraryContentUrl('token2', 'audio');
-      expect(url).toContain('http://127.0.0.1:9876/');
-      expect(url).toContain('song.mp3');
+      expect(url).toBe('http://127.0.0.1:9876/data/media/content/audio/token2/song.mp3');
     });
   });
 
   describe('getLibrarySubtitleUrl', () => {
     it('returns URL when subtitle path exists', async () => {
-      mockInvoke.mockResolvedValueOnce('content/video/token1/subs.vtt');
+      mockInvoke.mockResolvedValueOnce('/data/media/content/video/token1/subs.vtt');
       const url = await getLibrarySubtitleUrl('token1', 'video');
-      expect(url).toContain('http://127.0.0.1:9876/');
-      expect(url).toContain('subs.vtt');
+      expect(url).toBe('http://127.0.0.1:9876/data/media/content/video/token1/subs.vtt');
     });
 
     it('returns null when no subtitle path', async () => {
@@ -176,6 +174,29 @@ describe('libraryService', () => {
     it('exportLibraryContent propagates invoke rejection', async () => {
       mockInvoke.mockRejectedValueOnce(new Error('disk full'));
       await expect(exportLibraryContent('token1', 'document', 'f.pdf')).rejects.toThrow('disk full');
+    });
+  });
+
+  describe('decodeAudioWaveform', () => {
+    it('calls decode_audio_waveform and returns waveform result', async () => {
+      const waveformResult = {
+        waveform: Array(480).fill(0.5),
+        sampleRate: 44100,
+        durationSecs: 120,
+        channels: 2,
+      };
+      mockInvoke.mockResolvedValueOnce(waveformResult);
+      const result = await decodeAudioWaveform('token1', 'audio');
+      expect(mockInvoke).toHaveBeenCalledWith('decode_audio_waveform', {
+        tokenName: 'token1',
+        category: 'audio',
+      });
+      expect(result).toEqual(waveformResult);
+    });
+
+    it('propagates invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('unsupported format'));
+      await expect(decodeAudioWaveform('token1', 'audio')).rejects.toThrow('unsupported format');
     });
   });
 });

@@ -5,6 +5,7 @@ import { getNetworkConfig } from '../config/index.js';
 import { apiCache } from '../services/cache.js';
 import { logger } from '../services/logger.js';
 import { validateTxHashParam, validatePkhParam } from '../middleware/validate.js';
+import { CACHE_TTL_PENDING, CACHE_TTL_CHAIN } from '../config/cacheConstants.js';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ router.get('/confirmations/:txHash', validateTxHashParam, async (req, res) => {
 
       if (!txInfo || typeof txInfo.block_height !== 'number') {
         // Cache "pending" for 15 seconds to avoid repeated Koios calls
-        apiCache.set(pendingCacheKey, true, 15_000);
+        apiCache.set(pendingCacheKey, true, CACHE_TTL_PENDING);
         return res.json({ data: { confirmations: 0, status: 'pending' } });
       }
 
@@ -151,7 +152,7 @@ router.get('/history/:pkh', validatePkhParam, async (req, res) => {
     }
 
     if (protocolTxHashes.length === 0) {
-      apiCache.set(cacheKey, [], 60_000);
+      apiCache.set(cacheKey, [], CACHE_TTL_CHAIN);
       return res.json({ data: [] });
     }
 
@@ -171,7 +172,7 @@ router.get('/history/:pkh', validatePkhParam, async (req, res) => {
     // Sort newest first
     records.sort((a, b) => b.timestamp - a.timestamp);
 
-    apiCache.set(cacheKey, records, 60_000);
+    apiCache.set(cacheKey, records, CACHE_TTL_CHAIN);
     return res.json({ data: records });
   } catch (error) {
     logger.error('Failed to recover history', { error: String(error), pkh, requestId: req.requestId });
@@ -184,6 +185,134 @@ router.get('/history/:pkh', validatePkhParam, async (req, res) => {
 
     return res.status(503).json({
       error: { code: 'HISTORY_UNAVAILABLE', message: 'Unable to recover transaction history', requestId: req.requestId },
+    });
+  }
+});
+
+/**
+ * GET /utxos/:address
+ *
+ * Returns UTxOs at an address from Koios. Used to fill the gap when Kupo
+ * starts from a --since point and misses pre-deployment wallet UTxOs.
+ * Response shape matches MeshSDK UTxO format for direct frontend consumption.
+ */
+router.get('/utxos/:address', async (req, res) => {
+  const address = req.params.address as string;
+
+  // Basic bech32 address validation
+  if (!address.startsWith('addr') || address.length < 40) {
+    return res.status(400).json({
+      error: { code: 'INVALID_PARAM', message: 'Invalid address format' },
+    });
+  }
+
+  try {
+    const koios = getKoiosClient();
+    const utxos = await koios.getAddressUtxos(address);
+
+    const meshUtxos = utxos
+      .filter(u => !u.is_spent)
+      .map(u => {
+        const amount: Array<{ unit: string; quantity: string }> = [
+          { unit: 'lovelace', quantity: u.value },
+        ];
+
+        if (u.asset_list) {
+          for (const asset of u.asset_list) {
+            amount.push({
+              unit: asset.policy_id + asset.asset_name,
+              quantity: asset.quantity,
+            });
+          }
+        }
+
+        return {
+          input: {
+            txHash: u.tx_hash,
+            outputIndex: u.tx_index,
+          },
+          output: {
+            address: u.address,
+            amount,
+            dataHash: u.datum_hash ?? undefined,
+            plutusData: u.inline_datum?.bytes ?? undefined,
+          },
+        };
+      });
+
+    res.set('Cache-Control', `max-age=${CACHE_TTL_CHAIN}`);
+    return res.json({ data: meshUtxos });
+  } catch (error) {
+    logger.error('Failed to fetch wallet UTxOs from Koios', { error: String(error), requestId: req.requestId });
+    return res.status(503).json({
+      error: { code: 'UTXO_UNAVAILABLE', message: 'Unable to fetch wallet UTxOs', requestId: req.requestId },
+    });
+  }
+});
+
+/**
+ * GET /utxo-info/:txHash
+ *
+ * Look up all unspent UTxOs from a transaction via Koios.
+ * Fallback for fetchUTxOs when Kupo doesn't have a UTxO (predates --since).
+ * Queries indices 0-9 via Koios utxo_info to cover typical transactions.
+ */
+router.get('/utxo-info/:txHash', async (req, res) => {
+  const { txHash } = req.params;
+
+  if (!/^[0-9a-f]{64}$/.test(txHash as string)) {
+    return res.status(400).json({
+      error: { code: 'INVALID_PARAM', message: 'Invalid txHash format' },
+    });
+  }
+
+  try {
+    const koios = getKoiosClient();
+    // Query indices 0-9 to cover typical transaction output counts
+    const refs = Array.from({ length: 10 }, (_, i) => `${txHash}#${i}`);
+    const utxos = await koios.getUtxoInfo(refs);
+
+    const meshUtxos = utxos
+      .filter(u => !u.is_spent)
+      .map(u => {
+        const amount: Array<{ unit: string; quantity: string }> = [
+          { unit: 'lovelace', quantity: u.value },
+        ];
+        if (u.asset_list) {
+          for (const asset of u.asset_list) {
+            amount.push({
+              unit: asset.policy_id + asset.asset_name,
+              quantity: asset.quantity,
+            });
+          }
+        }
+
+        let scriptRef: string | undefined;
+        if (u.reference_script && typeof u.reference_script === 'object') {
+          const rs = u.reference_script as Record<string, unknown>;
+          if (typeof rs.bytes === 'string') {
+            scriptRef = rs.bytes;
+          }
+        }
+
+        return {
+          input: { txHash: u.tx_hash, outputIndex: u.tx_index },
+          output: {
+            address: u.address,
+            amount,
+            dataHash: u.datum_hash ?? undefined,
+            plutusData: u.inline_datum?.bytes ?? undefined,
+            scriptRef,
+          },
+        };
+      });
+
+    res.set('Cache-Control', `max-age=${CACHE_TTL_CHAIN}`);
+    return res.json({ data: meshUtxos });
+  } catch (error) {
+    logger.error('Failed to fetch UTxO info from Koios', { error: String(error), requestId: req.requestId });
+    return res.status(503).json({
+      error: { code: 'UTXO_UNAVAILABLE', message: 'Unable to fetch UTxO info', requestId: req.requestId },
     });
   }
 });

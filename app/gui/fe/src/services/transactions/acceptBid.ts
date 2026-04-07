@@ -110,6 +110,7 @@ export async function acceptBidSnark(
     if (USE_STUBS) {
       console.warn('[STUB] acceptBidSnark');
 
+      // 36 public inputs matching the Groth16 circuit's expected public input count
       const stubPublic = Array(36).fill(0).map((_, i) => String(i + 1));
       const ttl = Date.now() + 6 * 60 * 60 * 1000 + 40 * 60 * 1000; // now + 6h40m
 
@@ -262,6 +263,7 @@ export async function acceptBidSnark(
           ],
         },
         pendingStatus, // status: Pending
+        { int: encryption.datum.new_price }, // new_price: carry forward from current datum
       ],
     };
 
@@ -334,7 +336,6 @@ export async function acceptBidSnark(
       // CIP-20 metadata: carry forward from original listing so Phase 12f can read it
       .metadataValue(674, buildEncryptionMetadata(
         encryption.description || '',
-        encryption.suggestedPrice?.toString() || '0',
         encryption.storageLayer || '',
         encryption.imageLink || '',
         encryption.category || '',
@@ -628,6 +629,7 @@ export async function completeReEncryption(
           ],
         },
         { constructor: 0, fields: [] }, // status: Open
+        { int: bid.datum.new_price }, // new_price: from bid datum (bidder's desired resale price)
       ],
     };
 
@@ -703,10 +705,9 @@ export async function completeReEncryption(
         )
         // Required signer
         .requiredSignerHash(ownerPkh)
-        // CIP-20 metadata: carry forward description, storageLayer, category; use bidder's future price
+        // CIP-20 metadata: carry forward description, storageLayer, category
         .metadataValue(674, buildEncryptionMetadata(
           encryption.description || '',
-          (bid.futurePrice ?? bid.amount / 1_000_000).toString(),
           encryption.storageLayer || '',
           encryption.imageLink || '',
           encryption.category || '',

@@ -1,6 +1,6 @@
 [package]
 name = "veiled"
-version = "0.4.3"
+version = "0.5.0"
 description = "Veiled - Peace Protocol Encrypted Data Marketplace"
 edition = "2021"
 rust-version = "1.89.0"
@@ -36,6 +36,8 @@ sha2 = "0.10"
 zeroize = "1"
 percent-encoding = "2"
 bip39 = { version = "2", default-features = false }
+symphonia = { version = "0.5", default-features = false, features = ["mp3", "wav", "flac", "ogg", "aac", "isomp4", "pcm", "vorbis"] }
+rodio = { version = "0.20", default-features = false, features = ["symphonia-all"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

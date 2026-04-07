@@ -19,5 +19,6 @@ export const searchableSections: { tab: string; title: string; keywords: string[
   { tab: 'storage', title: 'Transaction History', keywords: ['transaction', 'history', 'clear', 'cleanup', 'failed'] },
   { tab: 'logs', title: 'Process Logs', keywords: ['log', 'logs', 'process', 'stdout', 'stderr'] },
   { tab: 'logs', title: 'Developer Mode', keywords: ['debug', 'developer', 'config', 'localstorage', 'advanced'] },
+  { tab: 'automation', title: 'Auto-Accept Bids', keywords: ['auto', 'accept', 'automation', 'queue', 'bid', 'snark', 'reencrypt', 'background'] },
   { tab: 'update', title: 'App Updates', keywords: ['update', 'version', 'upgrade', 'download', 'release', 'appimage', 'about'] },
 ]

@@ -13,7 +13,10 @@ import type { CreateListingFormData } from '../../components/CreateListingModal'
 // Environment flag for stub mode
 export const USE_STUBS = import.meta.env.VITE_USE_STUBS === 'true';
 
-// Cardano protocol parameter (preprod/mainnet)
+/**
+ * Cardano protocol parameter: lovelace cost per UTxO byte (Babbage/Conway era).
+ * Source: protocol parameters `coinsPerUTxOByte`. Consistent across preprod and mainnet.
+ */
 export const COINS_PER_UTXO_BYTE = 4310;
 
 /**

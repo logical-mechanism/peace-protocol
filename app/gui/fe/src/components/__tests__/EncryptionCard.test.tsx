@@ -96,8 +96,8 @@ describe('EncryptionCard', () => {
     });
 
     it('renders suggested price', () => {
-      renderCard({ suggestedPrice: 100 });
-      expect(screen.getByText('100 ADA')).toBeInTheDocument();
+      renderCard({ suggestedPrice: 100_000_000 });
+      expect(screen.getByText('100.00 ADA')).toBeInTheDocument();
     });
 
     it('renders "No suggested price" when price is undefined', () => {
@@ -152,9 +152,9 @@ describe('EncryptionCard', () => {
       expect(screen.getByText('1 bid')).toBeInTheDocument();
     });
 
-    it('does not render bid count when 0', () => {
+    it('shows "0 bids" when count is 0', () => {
       renderCard({ status: 'active' }, { bidCount: 0 });
-      expect(screen.queryByText(/bid/)).not.toBeInTheDocument();
+      expect(screen.getByText('0 bids')).toBeInTheDocument();
     });
   });
 
@@ -317,9 +317,9 @@ describe('EncryptionCard', () => {
       expect(screen.queryByTestId('listing-image')).not.toBeInTheDocument();
     });
 
-    it('renders bid count in compact mode', () => {
+    it('does not render bid count in compact mode', () => {
       renderCard({ status: 'active' }, { compact: true, bidCount: 5 });
-      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.queryByText('5')).not.toBeInTheDocument();
     });
   });
 });

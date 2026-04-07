@@ -27,12 +27,12 @@ app/gui/
 ├── fe/                              # React 19 frontend (Vite)
 │   ├── src/
 │   │   ├── App.tsx                  # Router + auth/state guards
-│   │   ├── main.tsx                 # Entry: initializeTheme → ErrorBoundary → ShutdownOverlay → Wallet → Node → Wasm → Router → Modal → App
+│   │   ├── main.tsx                 # Entry: initializeTheme → ErrorBoundary → ShutdownOverlay → Wallet → Node → Wasm → AcceptBidQueue → Router → Modal → App
 │   │   ├── index.css                # CSS variables (dark/light theme) + Tailwind v4
 │   │   ├── fonts.css                # @font-face declarations for Inter + JetBrains Mono (self-hosted woff2)
 │   │   ├── config/                 # App configuration
 │   │   │   └── categories.ts      # File category definitions + integration flags
-│   │   ├── contexts/               # WalletContext, NodeContext, WasmContext, ModalContext
+│   │   ├── contexts/               # WalletContext, NodeContext, WasmContext, ModalContext, AcceptBidQueueContext
 │   │   ├── pages/                   # WalletSetup, WalletUnlock, NodeSync, Dashboard, Settings
 │   │   │   ├── dashboard/           # Dashboard extracted hooks
 │   │   │   │   ├── dashboardTypes.ts    # Shared Dashboard type definitions
@@ -42,10 +42,31 @@ app/gui/
 │   │   │   ├── settings/            # Settings page section components
 │   │   │   │   ├── NetworkSection.tsx, NodeSection.tsx, WalletSection.tsx
 │   │   │   │   ├── DataLayerSection.tsx, StorageSection.tsx, LogsSection.tsx
+│   │   │   │   ├── AutomationSection.tsx   # Auto-accept queue automation settings
 │   │   │   │   ├── UpdateSection.tsx       # App update checker and downloader
 │   │   │   │   ├── settingsTypes.ts     # Settings type definitions
 │   │   │   │   └── settingsSearch.ts    # Settings search/filter logic
 │   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, InfoTooltip, presentational
+│   │   │   ├── audio/               # AudioPlayer module (extracted)
+│   │   │   │   ├── AudioPlayer.tsx  # Main player component (Winamp-style, rodio backend)
+│   │   │   │   ├── index.ts        # Barrel export
+│   │   │   │   ├── audioTypes.ts   # Type definitions
+│   │   │   │   ├── audioConstants.ts # Visualization + playback constants
+│   │   │   │   ├── audioUtils.ts   # FFT, formatting, visualization helpers
+│   │   │   │   ├── audioPlayerUtils.ts # Player utility functions
+│   │   │   │   ├── useAudioPlayback.ts # Rust rodio playback hook (play/pause/stop/seek/volume/speed)
+│   │   │   │   ├── useAudioWaveform.ts # Waveform decode hook (Rust symphonia backend)
+│   │   │   │   └── usePopover.ts  # Keyboard shortcuts popover hook
+│   │   │   ├── video/               # VideoPlayer module (extracted, matches audio pattern)
+│   │   │   │   ├── VideoPlayer.tsx  # Main video player component
+│   │   │   │   ├── index.ts        # Barrel export
+│   │   │   │   ├── videoTypes.ts   # Type definitions
+│   │   │   │   ├── videoConstants.ts # Video player constants
+│   │   │   │   ├── videoUtils.ts   # Video utility functions
+│   │   │   │   ├── useVideoPlayback.ts # Video playback hook
+│   │   │   │   ├── useVideoFullscreen.ts # Fullscreen management hook
+│   │   │   │   ├── useVideoKeyboard.ts # Keyboard shortcut handling
+│   │   │   │   └── useVideoSeekBar.ts # Seek bar interaction hook
 │   │   ├── services/
 │   │   │   ├── api.ts               # REST client for backend
 │   │   │   ├── providers.ts         # Kupo + Ogmios + PendingTxPool + ChainingAdapter singletons
@@ -54,11 +75,11 @@ app/gui/
 │   │   │   ├── pendingTxPool.ts     # Virtual UTxO state: tracks submitted-but-unconfirmed tx inputs/outputs
 │   │   │   ├── txOutputParser.ts    # Extracts UTxO inputs/outputs from signed tx CBOR (@meshsdk/core-cst)
 │   │   │   ├── transactionBuilder.ts # Compatibility shim → re-exports from transactions/
-│   │   │   ├── transactions/        # Modular tx building (~2514 lines total)
+│   │   │   ├── transactions/        # Modular tx building (~2979 lines total)
 │   │   │   │   ├── index.ts         # Barrel re-export
 │   │   │   │   ├── txUtils.ts       # Shared utilities, types, constants
-│   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel)
-│   │   │   │   ├── bids.ts          # Bidding lifecycle (place, cancel)
+│   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel, update price, create from import)
+│   │   │   │   ├── bids.ts          # Bidding lifecycle (place, cancel, update)
 │   │   │   │   └── acceptBid.ts     # Accept-bid SNARK proof + re-encryption
 │   │   │   ├── autolock.ts          # Inactivity auto-lock timer config (localStorage)
 │   │   │   ├── imageCache.ts        # Tauri IPC client for image download/cache/ban
@@ -72,6 +93,8 @@ app/gui/
 │   │   │   ├── listingDraftStorage.ts # Persists multi-step listing creation state (Tauri-backed)
 │   │   │   ├── listingFormDraftStorage.ts # Pre-upload listing form state recovery (localStorage)
 │   │   │   ├── bidFormDraftStorage.ts # Bid form draft state recovery (localStorage)
+│   │   │   ├── acceptBidQueueService.ts # Queue state machine + processing orchestration for accept-bid
+│   │   │   ├── acceptBidQueueStorage.ts # localStorage persistence for accept-bid queue
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation, file encryption
 │   │   │   ├── snark/               # Native SNARK prover interface
 │   │   │   │   ├── index.ts         # Barrel export
@@ -90,17 +113,23 @@ app/gui/
 │   │   │   ├── desktopNotifications.ts # OS-level notifications via @tauri-apps/plugin-notification
 │   │   │   ├── notificationSound.ts # Programmatic WAV notification ping generation + volume control
 │   │   │   ├── walletManagement.ts  # Collateral creation + UTxO defragmentation (MeshTxBuilder)
+│   │   │   ├── audioPreferences.ts  # Audio volume/muted/speed preferences (localStorage)
+│   │   │   ├── videoPreferences.ts  # Video volume/muted/speed preferences (localStorage)
+│   │   │   ├── videoResumeStorage.ts # Video resume position persistence (localStorage)
 │   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
+│   │   │   ├── storageUtils.ts      # Shared localStorage try-catch helpers (storageGet/Set/Remove/GetJSON/SetJSON)
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
-│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth, useUpdateCheck
-│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, time, logClassification, contentType, formatDate
+│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth, useUpdateCheck, useAutoAcceptDetection
+│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, formatListing, time, logClassification, contentType, formatDate
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
 │   ├── src/
 │   │   ├── index.ts                 # Server entry (imports createApp, listens on port 3001)
 │   │   ├── app.ts                   # Express app factory (CORS, middleware, routes, error handler)
-│   │   ├── config/index.ts          # Env-based config (network, ports, contracts)
-│   │   ├── routes/                  # encryptions, bids, protocol, chain
+│   │   ├── config/
+│   │   │   ├── index.ts             # Env-based config (network, ports, contracts)
+│   │   │   └── cacheConstants.ts    # Cache-Control headers + in-memory TTL constants
+│   │   ├── routes/                  # encryptions, bids, protocol, chain, routeUtils
 │   │   ├── middleware/
 │   │   │   ├── validate.ts          # Param validators (pkh, tokenName, txHash, encryptionToken)
 │   │   │   ├── requestLogger.ts     # Request/response JSON logging with request IDs
@@ -147,13 +176,18 @@ app/gui/
 │   │       ├── secrets.rs           # store/get/remove seller, bid, accept-bid, listing-draft secrets
 │   │       ├── iagon.rs             # Iagon API key storage + HTTP proxy (reqwest, CORS bypass)
 │   │       ├── kupo_proxy.rs        # Kupo/Ogmios HTTP proxy (reqwest, bypasses WebKitGTK CORS)
-│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save, library CRUD
+│   │       ├── media.rs             # image download, cache, ban/unban, delete, content save, library CRUD, audio waveform decode
 │   │       ├── chain.rs             # get_network_tip (Koios direct)
-│   │       └── updater.rs           # get_current_version, check_for_update, download_update
+│   │       ├── updater.rs           # get_current_version, check_for_update, download_update
+│   │       └── audio.rs             # Native audio playback via rodio (play, pause, stop, seek, volume, speed)
 │   ├── resources/
 │   │   ├── config.json              # Contract addresses, policy IDs, ports
 │   │   ├── cardano/{network}/       # Node configs (topology, genesis files)
-│   │   └── snark/vk.json            # SNARK verification key
+│   │   └── snark/                   # SNARK artifacts
+│   │       ├── vk.json              # Verification key (JSON)
+│   │       ├── vk.bin               # Verification key (binary)
+│   │       ├── ccs.bin.zst          # Compressed CCS (~250MB)
+│   │       └── pk.bin.zst           # Compressed proving key (~350MB)
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn, notification:default)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
@@ -163,18 +197,18 @@ app/gui/
 ├── run.sh                           # Sources check-prereqs.sh, kills stale dev-port processes, installs deps, tsc watch for be, runs `tauri dev`
 ├── check-prereqs.sh                 # Prerequisite validator (Node 20+, npm, Rust, sidecar binaries, WebKitGTK)
 ├── lint.sh                          # eslint (fe), tsc + eslint (be), cargo fmt, clippy
-├── test.sh                          # vitest (fe) + vitest (be)
-└── CHANGELOG.md                     # Version history
+└── test.sh                          # vitest (fe) + vitest (be)
 ```
 
 ## Frontend Patterns
 
 **Stack:** React 19 + Vite 7.2 + Tailwind v4 + React Router v7 + TypeScript 5.9 + MeshSDK 1.8 + @meshsdk/core-cst 1.8
 
-**State management — 4 React Contexts** (nested in main.tsx):
+**State management — 5 React Contexts** (nested in main.tsx):
 - `WalletContext` — lifecycle (`loading`→`no_wallet`→`locked`→`unlocked`), MeshWallet instance, address, balance, payment key hex
 - `NodeContext` — stage (`stopped`→`bootstrapping`→`starting`→`syncing`→`synced`→`error`), sync progress, tip slot/height, epoch/era/slot-in-epoch, kupo connection status + stall detection, process info
 - `WasmContext` — SNARK setup files (`idle`→`checking-cache`→`decompressing`→`ready`→`error`)
+- `AcceptBidQueueContext` — Queue-based accept-bid orchestration; manages queued/processing/completed/failed states, sequential processing with SNARK proving + re-encryption chaining
 - `ModalContext` — Stack-based modal management, tracks open modals so only topmost handles Escape; provides z-index stacking (base 50, +2 per level)
 
 **Routing** (App.tsx guards based on wallet + node state):
@@ -186,12 +220,12 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdateBid, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + AcceptBidQueuePanel + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactions/ ~2514 lines, re-exported via transactionBuilder.ts shim):
+**Transaction building** (fe/src/services/transactions/ ~2979 lines, re-exported via transactionBuilder.ts shim):
 - Split into domain modules: `txUtils.ts` (shared), `listings.ts`, `bids.ts`, `acceptBid.ts`
-- Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`
-- Bids: `placeBid()`, `cancelBid()`
+- Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`, `updateListingPrice()`, `createListingFromImport()`
+- Bids: `placeBid()`, `cancelBid()`, `updateBid()`
 - Accept-bid: `acceptBidSnark()`, `prepareSnarkInputs()`, `completeReEncryption()`, `acceptBidAndReEncrypt()`
 - `acceptBidAndReEncrypt()` — chains 12e→12f: submits SNARK proof then immediately chains re-encryption tx
 - Utils: `estimateMinLovelace()`, `computeTokenName()`, `getStorageLayerUri()`, `extractPaymentKeyHash()`, `isRealTransactionsAvailable()`, `getTransactionStubWarning()`
@@ -234,6 +268,10 @@ app/gui/
 - `toastSettings` — toast auto-dismiss duration in ms (localStorage, default 5000, 0 = never)
 - `themeStorage` — dark/light theme preference (localStorage, default dark); applied before first paint via `initializeTheme()`
 - `optimisticStore` — in-memory optimistic UI state for pending tx entries (add/remove/update actions, 5-min auto-prune, graduates when tokenName appears in chain data)
+- `audioPreferences` — audio volume, muted state, and playback speed persistence (localStorage)
+- `videoPreferences` — video volume, muted state, and playback speed persistence (localStorage)
+- `videoResumeStorage` — video resume position persistence, max 50 entries (localStorage)
+- `acceptBidQueueStorage` — accept-bid queue state persistence (localStorage, queued/processing/completed/failed items)
 
 **Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`); dark is default. All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
@@ -338,11 +376,11 @@ app/gui/
 - Two spawn methods: sidecar (`tauri_plugin_shell`) for bundled binaries vs `tokio::process::Command` for Express/Node.js
 - Auto-restart with exponential backoff (max 5 retries, 1s initial delay, 2x multiplier → up to 31s total)
 - Circular log buffer (500 lines per process), emitted as Tauri events
-- SIGTERM → configurable wait → SIGKILL: cardano-node 45s (flush in-memory ledger), mithril-client 30s, others 10s
+- SIGTERM → configurable wait → SIGKILL: cardano-node 90s (flush in-memory ledger), mithril-client 30s, others 10s
 - `user_stopped` flag prevents auto-restart after intentional shutdown
 - Linux: uses `libc::kill` directly (avoids AppImage /usr/bin/kill issues)
 - Orphan cleanup on startup: reads `managed_pids.json` from previous session → SIGTERM → 30s → SIGKILL; also port-scans 3001/1337/44203
-- Health check: only Express has one (`GET /health`); no built-in checks for cardano-node/Ogmios/Kupo
+- Liveness monitor: background HTTP health checks at 10s intervals for Ogmios, Kupo, Express; stall detection after 120s of same tip slot; auto-restart on 180s health check failure
 - `cardano_cli.rs` — short-lived sidecar query (not a long-running process); spawns `cardano-cli conway query tip` with 10s timeout to get sync data from the node socket
 
 **Wallet** (src-tauri/src/crypto/wallet.rs):
@@ -394,15 +432,15 @@ app/gui/
 ## Key Types
 
 **On-chain datums** (defined in both fe and be):
-- `EncryptionDatum` — owner_vkh, owner_g1 (Register), token, half_level, full_level|null, capsule, status (Open|Pending)
-- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token), locked_until (POSIX ms)
+- `EncryptionDatum` — owner_vkh, owner_g1 (Register), token, half_level, full_level|null, capsule, status (Open|Pending), new_price (lovelace)
+- `BidDatum` — owner_vkh, owner_g1 (Register), pointer (bid token), token (encryption token), locked_until (POSIX ms), new_price (lovelace)
 - `Register` — { generator: hex, public_value: hex } (BLS12-381 G1 points, 96 hex chars each)
 - `Capsule` — { nonce: 24 hex, aad: 64 hex, ct: variable hex } (ChaCha20-Poly1305)
 - `HalfEncryptionLevel` — { r1b, r2_g1b, r4b } (G1, G1, G2)
 - `FullEncryptionLevel` — { r1b, r2_g1b, r2_g2b, r4b } (G1, G1, G2, G2)
 
 **Display models** (be types, consumed by fe):
-- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice?, storageLayer?, imageLink?, category?, createdAt, utxo, datum
+- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice? (from datum new_price), storageLayer?, imageLink?, category?, createdAt, utxo, datum
 - `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, lockedUntil, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
@@ -413,7 +451,7 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (94 commands, invoke from frontend):
+**Tauri commands** (92 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
@@ -426,8 +464,10 @@ app/gui/
 - Iagon HTTP: `iagon_get_nonce`, `iagon_verify`, `iagon_generate_api_key`, `iagon_verify_api_key`, `iagon_upload`, `iagon_download`, `iagon_encrypt_and_upload`, `iagon_download_and_save`, `iagon_delete_file`, `iagon_search_files`, `iagon_list_files`
 - Media: `download_image`, `get_cached_image`, `list_cached_images`, `ban_image`, `unban_image`, `delete_cached_image`, `save_content`, `copy_to_library`
 - Library: `list_library_items`, `read_library_content`, `get_library_content_path`, `get_library_subtitle_path`, `read_subtitle_file`, `delete_library_item`, `export_library_content`, `export_text_file`, `open_with_system`
+- Audio Waveform: `decode_audio_waveform`, `decode_audio_waveform_fast`, `decode_audio_metadata`
 - Media Server: `get_media_server_port`
 - Updater: `get_current_version`, `check_for_update`, `download_update`
+- Audio: `audio_play`, `audio_pause`, `audio_resume`, `audio_stop`, `audio_seek`, `audio_set_volume`, `audio_set_speed`, `audio_set_loop`, `audio_get_status`
 
 **Tauri events** (listen from frontend):
 - `process-status` — stdout/stderr log lines from child processes
@@ -436,6 +476,7 @@ app/gui/
 - `config-warning` — warning if config.json not found (using defaults)
 - `app-shutting-down` — signal to show shutdown overlay before exit
 - `shutdown-progress` — elapsed time + remaining process count during shutdown
+- `update-download-progress` — download percentage during app update
 
 ## Development Workflow
 
@@ -457,15 +498,16 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidStorage, api, apiCache, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, walletManagement (39 files)
+  - `fe/src/services/__tests__/` — acceptBidQueueService, acceptBidQueueStorage, acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, storageUtils, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (45 files)
+  - `fe/src/services/transactions/__tests__/` — acceptBid, bids, listings (3 files)
   - `fe/src/config/__tests__/` — categories (1 file)
-  - `fe/src/hooks/__tests__/` — useAsyncAction, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (12 files)
+  - `fe/src/hooks/__tests__/` — useAsyncAction, useAutoAcceptDetection, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (13 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (45 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, audioPlayerUtils, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, ImportListingModal, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (47 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
   - `fe/src/pages/settings/__tests__/` — UpdateSection (1 file)
   - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
-  - `fe/src/utils/__tests__/` — formatDate (1 file)
+  - `fe/src/utils/__tests__/` — formatDate, formatListing (2 files)
   - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
   - `fe/src/test/__mocks__/tauri-notification.ts` — Tauri notification plugin mock
@@ -478,7 +520,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Setup file (`fe/src/test/setup.ts`) mocks `matchMedia`, `clipboard`, `ResizeObserver` (guarded for node environment)
 - Tests using WebCrypto (ecies) use `// @vitest-environment node` pragma
 - Tests importing transactionBuilder mock `@meshsdk/core`, `@meshsdk/provider`, and Tauri storage modules to avoid libsodium WASM
-- Component tests (AudioPlayer, PlaceBidModal) and context tests (all 4 contexts) use Tauri mock at `fe/src/test/__mocks__/tauri.ts`
+- Component tests (AudioPlayer, PlaceBidModal) and context tests (WalletContext, NodeContext, WasmContext, ModalContext) use Tauri mock at `fe/src/test/__mocks__/tauri.ts`
 
 **Production build:** `npx tauri build` (creates platform installer with bundled binaries)
 
@@ -488,7 +530,6 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 3. `package.json` — version
 4. `fe/package.json` — version
 5. `be/package.json` — version
-6. `CHANGELOG.md` — new entry at top
 
 ## Common Modification Patterns
 
@@ -574,14 +615,14 @@ const json: ApiResponse<YourType> = await res.json();
 - **Datum parsing failures are silent** — bad datums logged as warnings, skipped from results; frontend sees incomplete data
 - **Auto-lock timer** — configurable inactivity timeout (default 15 min, 0 = never); stored in localStorage; timer runs in WalletContext
 - **Secret cleanup** — secrets deleted only after on-chain confirmation (15+ blocks); prevents data loss on chain rollback
-- **Provider nesting order** — ErrorBoundary → ShutdownOverlay → WalletProvider → NodeProvider → WasmProvider → BrowserRouter → ModalProvider → App (in main.tsx); `initializeTheme()` called before `createRoot()` to prevent flash; order matters for context dependencies
+- **Provider nesting order** — ErrorBoundary → ShutdownOverlay → WalletProvider → NodeProvider → WasmProvider → AcceptBidQueueProvider → BrowserRouter → ModalProvider → App (in main.tsx); `initializeTheme()` called before `createRoot()` to prevent flash; order matters for context dependencies
 - **File categories** — Defined in `fe/src/config/categories.ts`. All categories now enabled. `text` uses on-chain storage (capsule only); all other categories (document, audio, image, video, other) use Iagon off-chain storage (AES-256-GCM encrypted before upload). Category stored in CIP-20 metadata. Decrypted content saved to `media/content/{category}/{tokenName}/` via Tauri `save_content` command
 - **Library tab** — Reads from local `media/content/` directory (not on-chain). `list_library_items` scans for metadata JSON files, `read_library_content` loads file bytes (text/PDF/image), `getLibraryContentUrl` returns `http://127.0.0.1:{port}/...` URL for streaming (video/audio) via the Axum media server, `delete_library_item` removes the token directory, `export_library_content` opens native save dialog. LibraryContentModal lazy-loads PdfViewer, ImageViewer, AudioPlayer, VideoPlayer via React `lazy()` + `Suspense`. Video/audio use URL-based streaming to avoid IPC serialization bottleneck; text/PDF/image read into memory. Uses wide modal (`max-w-4xl`) for rich media. View mode determined by `getViewMode()`: prioritizes fileExtension from payload field 3, falls back to category. Modes: text (inline), PDF (PdfViewer), image (ImageViewer), audio (AudioPlayer), video (VideoPlayer), or download-only fallback. LibraryCard supports grid/compact modes like SalesListingCard
 - **PdfViewer** — Uses `react-pdf` (pdfjs-dist worker). Renders decrypted PDFs from `Uint8Array` via Blob URL. Zoom 0.5x-3.0x, page navigation, fullscreen overlay at `z-[60]` (above modal `z-50`). Blob URL created in useEffect to handle React StrictMode double-mount
 - **ImageViewer** — Renders decrypted images from `Uint8Array` via Blob URL with MIME type derived from fileExtension. Zoom and fullscreen overlay at `z-[60]` (above modal `z-50`). Supports PNG, JPEG, GIF, WebP, SVG, BMP
-- **AudioPlayer** — Winamp-style player using native `<audio>` element for GStreamer playback (bypasses broken WebKitGTK Web Audio API). Streams from disk via `http://127.0.0.1:{port}/...` URL served by the Axum media server in lib.rs. Custom FFT visualization (32 bars, Cooley-Tukey radix-2). Transport controls: play, pause, stop, skip ±10s. Volume slider. Supports: mp3, wav, flac, ogg, aac, m4a, opus
-- **VideoPlayer** — Native `<video>` element with `<source src={url} type={mimeType}>` streaming from disk via `http://127.0.0.1:{port}/...` URL served by the Axum media server in lib.rs. Uses `<source>` child element (not `src` attribute on `<video>`) to provide explicit MIME type — required for correct GStreamer codec selection. No in-memory blob loading — avoids Tauri IPC serialization bottleneck for large files. Single unified return path with CSS-based fullscreen toggle (`display: contents` ↔ `fixed inset-0 z-[60]`) to preserve playback state across fullscreen transitions. Auto-hide controls with 5s initial delay on fullscreen entry. Subtitle support via `<track>` element with media server URL. Shows conversion hints for unsupported formats. Supports common video formats
-- **WebKitGTK Web Audio API broken** — `AnalyserNode` and `AudioContext` don't work reliably in WebKitGTK; AudioPlayer uses native `<audio>` element (which routes through GStreamer) instead of Web Audio API
+- **AudioPlayer** — Winamp-style player using Rust rodio for native audio playback (bypasses WebKitGTK/GStreamer entirely). Refactored into `components/audio/` subdirectory with extracted hooks: `useAudioPlayback` (rodio IPC via Tauri commands), `useAudioWaveform` (symphonia-based waveform decode), `usePopover` (keyboard shortcuts popover). Utilities: `audioPlayerUtils` (player helpers), `audioUtils` (FFT, formatting, visualization). Waveform visualization from pre-decoded samples (not live FFT). Transport controls: play, pause, stop, seek, skip ±10s, variable speed (0.5x-2.0x). Volume slider. Supports: mp3, wav, flac, ogg, aac, m4a, opus
+- **VideoPlayer** — Native `<video>` element with `<source src={url} type={mimeType}>` streaming from disk via `http://127.0.0.1:{port}/...` URL served by the Axum media server in lib.rs. Refactored into `components/video/` subdirectory (matching audio pattern) with extracted hooks: `useVideoPlayback` (playback state management), `useVideoFullscreen` (fullscreen toggle + auto-hide controls), `useVideoKeyboard` (keyboard shortcuts), `useVideoSeekBar` (seek bar interaction). Uses `<source>` child element (not `src` attribute on `<video>`) to provide explicit MIME type — required for correct GStreamer codec selection. No in-memory blob loading — avoids Tauri IPC serialization bottleneck for large files. Single unified return path with CSS-based fullscreen toggle (`display: contents` ↔ `fixed inset-0 z-[60]`) to preserve playback state across fullscreen transitions. Auto-hide controls with 5s initial delay on fullscreen entry. Subtitle support via `<track>` element with media server URL. Shows conversion hints for unsupported formats. Supports common video formats
+- **WebKitGTK Web Audio API broken** — `AnalyserNode` and `AudioContext` don't work reliably in WebKitGTK; AudioPlayer uses Rust rodio for native audio playback, bypassing both Web Audio API and GStreamer entirely
 - **Iagon requires internet** — Iagon operations (upload, download, auth) require internet access. Unlike on-chain text listings, file-based listings fail if `gw.iagon.com` is unreachable. The `reqwest` client has a 60s timeout
 - **Listing drafts persist across WebView resets** — Stored as encrypted JSON in `secrets/listing-drafts/` (filesystem), not IndexedDB (which WebKitGTK can clear). This is why `listingDraftStorage` uses Tauri invoke instead of localStorage
 - **File encryption key in capsule** — The peace-payload capsule for file listings contains: field 0 (Iagon file ID), field 1 (AES key + nonce, 44 bytes), field 2 (SHA-256 digest), field 3 (original file extension). Losing the capsule means losing access to the file
@@ -606,3 +647,4 @@ const json: ApiResponse<YourType> = await res.json();
 - **Media server streaming** — Video and audio files are streamed from disk via an Axum HTTP server embedded in lib.rs, listening on a random `127.0.0.1` port. This replaces the previous `asset://` protocol approach because WebKitGTK's GStreamer backend cannot fetch from Tauri custom URI schemes (`asset://`, `media://`). The server supports HTTP range requests (206 Partial Content, 2 MB max chunk) and maps file extensions to correct MIME types. `get_library_content_path` and `get_library_subtitle_path` Rust commands return relative file paths; `libraryService.ts` wraps them with `getLibraryContentUrl()` which constructs `http://127.0.0.1:{port}/{path}` URLs. Text, PDF, and image files still use `readLibraryContent()` (small enough for IPC). Avoids the Tauri IPC serialization bottleneck where `Vec<u8>` is serialized as JSON `number[]` (a 100MB file becomes ~300MB of JSON text)
 - **Transaction chaining** — `ChainingAdapter` wraps `KupoAdapter` to overlay pending UTxO state from `PendingTxPool`. After submitting tx A, its outputs are immediately available as inputs for tx B without waiting for Kupo to index the on-chain state. Works because Ogmios evaluates/accepts txs referencing mempool UTxOs from the same instance. `acceptBidAndReEncrypt()` chains the SNARK proof tx (12e) → re-encryption tx (12f) automatically. Pool cleans up on: tx confirmation (`confirmTx`), tx failure (`invalidateChain`), wallet lock (`clear`), and staleness (5 min auto-prune). `txOutputParser.ts` uses `@meshsdk/core-cst` `deserializeTx()` to extract UTxO inputs/outputs from signed tx CBOR
 - **Background cleanup** — Hourly async task in lib.rs: securely deletes orphaned SNARK temp files older than 1 hour, evicts cached images older than 30 days or exceeding 500MB total
+- **Accept-bid queue** — `AcceptBidQueueContext` + `acceptBidQueueService.ts` + `acceptBidQueueStorage.ts` provide sequential accept-bid processing. Queue items flow through states: queued → processing → completed/failed. Processing involves SNARK proving + chained re-encryption tx. `useAutoAcceptDetection` hook monitors incoming bids and can auto-enqueue. `AcceptBidQueuePanel` component shows queue status in Dashboard/Settings. `AutomationSection` in Settings controls auto-accept behavior. Queue state persisted in localStorage; processing resumes on app restart

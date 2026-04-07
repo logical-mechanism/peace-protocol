@@ -4,6 +4,39 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] - 2026-04-05
+
+### Added
+- Auto-accept bid queue: background queue for automated bid acceptance with sequential SNARK proof processing (#80)
+- Queue management UI panel and automation settings section (#80)
+- Auto-accept bid detection hook for incoming bids (#80)
+- Re-sold purchase handling: owner-scoped decrypt and bid-secret discovery (#81)
+- Marketplace seller filter, date range filter, multi-select category filter, and alphabetical sort (#82)
+- Search match highlighting in seller address on EncryptionCard (#82)
+- `react-day-picker` date picker with app accent color theming (#82)
+- `kupo_since` config option to skip syncing from genesis (#82)
+- Filter storage migration for categoryFilter string-to-array upgrade (#82)
+- Extracted marketplace filter/sort logic into pure testable functions with comprehensive tests (#82)
+
+### Fixed
+- UTxO value lookup failures for pre-`--since` UTxOs: replaced Koios merge in `fetchAddressUTxOs` with live Koios fallback in `fetchUTxOs` to avoid stale spent UTxOs polluting wallet state
+- `kupo_since` slot moved before reference script deployment to ensure Kupo indexes all protocol UTxOs
+- BidTimeline showing "complete" immediately for re-purchased content: now compares library `decryptedAt` against bid `createdAt` to only mark complete for the current purchase
+- Optimistic listing price displayed as raw ADA instead of lovelace
+- Price inputs now clamp to Cardano max supply (45B ADA) instead of erroring
+- Accept-bid queue: memoize context, fix dedup bug, type safety, safe PKH derivation (#80)
+- Accept-bid queue: decouple queue processing from Dashboard lifecycle (#80)
+- Purchased card layout: flex-wrap for badges, consistent token hex truncation (#81)
+- Date picker: document-level listener to dismiss WebKitGTK date picker (#82)
+- Lint fixes: eslint-disable placement, unused vars, setState-in-effect (#80, #82)
+
+### Changed
+- Marketplace "You have a bid" indicator updates instantly via optimistic store (no API round-trip delay)
+- Transaction success toasts show clickable "View History" link instead of auto-switching to the History tab
+- Marketplace filter controls evenly distributed across full panel width (#82)
+- Hide-own-listings toggle changed to icon-only next to favorites (#82)
+- CategoryFilter extracted into its own component (#82)
+
 ## [0.4.3] - 2026-03-20
 
 ### Added

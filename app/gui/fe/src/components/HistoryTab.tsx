@@ -129,7 +129,7 @@ function HistoryTab({
             tokenName: e.tokenName,
             timestamp: new Date(e.createdAt).getTime(),
             status: 'confirmed',
-            description: e.description || `Listing ${e.tokenName.slice(0, 12)}...`,
+            description: e.description || `Listing ${e.tokenName}`,
           });
         }
       }
@@ -669,7 +669,7 @@ function VirtualizedHistoryList({
                     <TransactionLink txHash={tx.txHash} truncate={!hashMatchesSearch} className="text-xs" />
                   </div>
                   {tx.description && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
+                    <p className="text-xs text-[var(--text-muted)] mt-1 truncate max-w-md" title={tx.description}>
                       {tx.description}
                     </p>
                   )}

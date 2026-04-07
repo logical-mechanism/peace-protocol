@@ -174,21 +174,14 @@ describe('CreateListingModal', () => {
     expect(await screen.findByText('Price must be a positive number')).toBeInTheDocument();
   });
 
-  it('validates excessively high price', async () => {
+  it('clamps price to Cardano max supply (45B ADA)', () => {
     renderModal();
-    fireEvent.change(screen.getByLabelText(/Secret Message/), {
-      target: { value: 'secret', name: 'secretMessage' },
-    });
-    fireEvent.change(screen.getByLabelText(/Description/), {
-      target: { value: 'desc', name: 'description' },
-    });
     fireEvent.change(screen.getByLabelText(/Suggested Price/), {
-      target: { value: '9999999999', name: 'suggestedPrice' },
+      target: { value: '99999999999' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Create Listing/ }));
-
-    expect(await screen.findByText('Price is too high')).toBeInTheDocument();
+    const input = screen.getByLabelText(/Suggested Price/) as HTMLInputElement;
+    expect(input.value).toBe('45000000000');
   });
 
   it('allows empty price (optional field)', async () => {

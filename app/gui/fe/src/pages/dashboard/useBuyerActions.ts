@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import {
-  placeBid, cancelBid,
+  placeBid, cancelBid, updateBid,
   getTransactionStubWarning,
 } from '../../services/transactionBuilder'
 import { encryptionsApi } from '../../services/api'
@@ -24,7 +24,12 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
   // Decrypt modal state
   const [showDecrypt, setShowDecrypt] = useState(false)
   const [selectedBid, setSelectedBid] = useState<BidDisplay | null>(null)
+  const [decryptOwnerPkh, setDecryptOwnerPkh] = useState<string | undefined>(undefined)
   const [failedDecryptTokens, setFailedDecryptTokens] = useState<Set<string>>(new Set())
+
+  // Update bid modal state
+  const [showUpdateBid, setShowUpdateBid] = useState(false)
+  const [updateBidTarget, setUpdateBidTarget] = useState<BidDisplay | null>(null)
 
   const handlePlaceBid = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
     if (!navigator.onLine) {
@@ -79,7 +84,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Bid Placed!', result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) })
+      toast.transactionSuccess('Bid Placed!', result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) }, { label: 'View History', onClick: () => setActiveTab('history') })
     } else {
       toast.success('Bid Placed!', 'Transaction submitted successfully')
     }
@@ -111,14 +116,12 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         createdAt: new Date().toISOString(),
         lockedUntil: 0,
         utxo: { txHash: result.txHash, outputIndex: 0 },
-        datum: { owner_vkh: userPkh, owner_g1: { generator: '', public_value: '' }, pointer: result.tokenName, token: encryptionTokenName, locked_until: 0 },
+        datum: { owner_vkh: userPkh, owner_g1: { generator: '', public_value: '' }, pointer: result.tokenName, token: encryptionTokenName, locked_until: 0, new_price: 0 },
         _optimistic: true,
       })
     }
 
-    // Refresh and switch to History tab to show pending tx
     triggerTransactionRefresh()
-    setActiveTab('history')
   }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption, userPkh, address])
 
   const handleCancelBid = useCallback((bid: BidDisplay) => {
@@ -177,7 +180,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
               })
             }
           } else if (result.txHash) {
-            toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount })
+            toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount }, { label: 'View History', onClick: () => setActiveTab('history') })
           } else {
             toast.success('Bid Cancelled!', 'Transaction submitted successfully')
           }
@@ -188,7 +191,6 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
           }
 
           triggerTransactionRefresh()
-          setActiveTab('history')
         } catch (error) {
           console.error('Failed to cancel bid:', error)
           toast.error(
@@ -217,9 +219,10 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     }
   }, [toast])
 
-  const handleDecryptEncryption = useCallback((encryption: EncryptionDisplay) => {
+  const handleDecryptEncryption = useCallback((encryption: EncryptionDisplay, ownerPkh?: string) => {
     setSelectedBid(null)
     setSelectedEncryption(encryption)
+    setDecryptOwnerPkh(ownerPkh)
     setShowDecrypt(true)
   }, [])
 
@@ -236,6 +239,59 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     }
   }, [triggerRefresh])
 
+  // ── Update Bid ──────────────────────────────────────────────────
+
+  const handleOpenUpdateBid = useCallback((bid: BidDisplay) => {
+    if (!wallet) {
+      toast.error('Error', 'Wallet not connected')
+      return
+    }
+    setUpdateBidTarget(bid)
+    setShowUpdateBid(true)
+  }, [wallet, toast])
+
+  const handleSubmitUpdateBid = useCallback(async (bid: BidDisplay, newAmountLovelace: number, newFuturePriceLovelace: number) => {
+    if (!wallet) throw new Error('Wallet not connected')
+
+    const amountAda = (newAmountLovelace / 1_000_000).toLocaleString()
+    const result = await updateBid(wallet, bid, newAmountLovelace, newFuturePriceLovelace, (txHash) => {
+      recordTransaction({
+        txHash,
+        type: 'update-bid',
+        tokenName: bid.tokenName,
+        timestamp: Date.now(),
+        status: 'pending',
+        description: `Update bid to ${amountAda} ADA on ${bid.encryptionToken.slice(0, 12)}...`,
+        amountLovelace: newAmountLovelace,
+      })
+    })
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update bid')
+    }
+
+    if (result.isStub) {
+      toast.warning('Bid Updated (Stub Mode)', 'Bid updated in stub mode.', 8000)
+      if (result.txHash) {
+        recordTransaction({
+          txHash: result.txHash,
+          type: 'update-bid',
+          tokenName: bid.tokenName,
+          timestamp: Date.now(),
+          status: 'confirmed',
+          description: `Update bid to ${amountAda} ADA on ${bid.encryptionToken.slice(0, 12)}...`,
+          amountLovelace: newAmountLovelace,
+        })
+      }
+    } else if (result.txHash) {
+      toast.transactionSuccess('Bid Updated!', result.txHash, { type: 'update-bid', amountLovelace: newAmountLovelace }, { label: 'View History', onClick: () => setActiveTab('history') })
+    }
+
+    triggerTransactionRefresh()
+    setShowUpdateBid(false)
+    setUpdateBidTarget(null)
+  }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
+
   const closePlaceBidModal = useCallback(() => {
     setShowPlaceBid(false)
     setSelectedEncryption(null)
@@ -246,6 +302,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     setShowDecrypt(false)
     setSelectedBid(null)
     setSelectedEncryption(null)
+    setDecryptOwnerPkh(undefined)
   }, [])
 
   return {
@@ -258,9 +315,16 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     closePlaceBidModal,
     // Cancel bid
     handleCancelBid,
+    // Update bid
+    showUpdateBid,
+    updateBidTarget,
+    handleOpenUpdateBid,
+    handleSubmitUpdateBid,
+    closeUpdateBidModal: useCallback(() => { setShowUpdateBid(false); setUpdateBidTarget(null); }, []),
     // Decrypt
     showDecrypt,
     selectedBid,
+    decryptOwnerPkh,
     failedDecryptTokens,
     handleDecrypt,
     handleDecryptEncryption,

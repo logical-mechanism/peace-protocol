@@ -40,11 +40,6 @@ fn acquire_file_lock(path: &std::path::Path, exclusive: bool) -> Result<std::fs:
             if let Ok(modified) = meta.modified() {
                 if let Ok(age) = std::time::SystemTime::now().duration_since(modified) {
                     if age > std::time::Duration::from_secs(3600) {
-                        eprintln!(
-                            "[secrets] Removing stale lock file (age: {}s): {}",
-                            age.as_secs(),
-                            lock_path.display()
-                        );
                         let _ = std::fs::remove_file(&lock_path);
                     }
                 }
@@ -395,7 +390,41 @@ pub fn remove_bid_secrets(
     secure_delete(&path)
 }
 
-// ── Accept-bid (hop) secrets ────────────────────────────────────────────
+#[tauri::command]
+pub fn list_bid_secret_tokens(
+    state: tauri::State<'_, SecretsDir>,
+    key_state: tauri::State<'_, SecretsKey>,
+    audit: tauri::State<'_, AuditLog>,
+) -> Result<Vec<String>, String> {
+    audit.log("LIST", "bid/ (encryption tokens)");
+    let key = get_secrets_key(&key_state)?;
+    let dir = bid_dir(&state.0);
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut tokens = Vec::new();
+    for entry in
+        std::fs::read_dir(&dir).map_err(|e| format!("Failed to read bid secrets dir: {e}"))?
+    {
+        let entry = entry.map_err(|e| format!("Failed to read dir entry: {e}"))?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        if let Ok(plaintext) = read_and_decrypt(&key, &path) {
+            if let Ok(plaintext_str) = String::from_utf8(plaintext) {
+                if let Ok(file) = serde_json::from_str::<BidSecretFile>(&plaintext_str) {
+                    if !tokens.contains(&file.encryption_token_name) {
+                        tokens.push(file.encryption_token_name);
+                    }
+                }
+            }
+        }
+    }
+    Ok(tokens)
+}
+
+// ── Accept-bid (hop) secrets ──────────��─────────────────────────────────
 
 #[derive(Serialize, Deserialize)]
 struct AcceptBidSecretFile {

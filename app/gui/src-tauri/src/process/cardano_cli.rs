@@ -1,6 +1,8 @@
 use crate::config::{AppConfig, Network};
+use crate::MaxCores;
 use serde::Deserialize;
 use std::path::Path;
+use tauri::Manager;
 
 /// Parsed response from `cardano-cli conway query tip --output-json`.
 #[derive(Debug, Clone, Deserialize)]
@@ -64,7 +66,7 @@ fn build_query_tip_args(app_config: &AppConfig, app_data_dir: &Path) -> Vec<Stri
 /// zombie cardano-cli processes from accumulating and exhausting the node socket
 /// connection backlog.
 pub async fn query_tip(
-    _app_handle: &tauri::AppHandle,
+    app_handle: &tauri::AppHandle,
     app_config: &AppConfig,
     app_data_dir: &Path,
 ) -> Result<CardanoCliTip, String> {
@@ -75,10 +77,11 @@ pub async fn query_tip(
     }
 
     let args = build_query_tip_args(app_config, app_data_dir);
+    let max_cores = app_handle.state::<MaxCores>().0;
 
     // Spawn sidecar — get a Command, then spawn to get a Child handle we can kill on timeout.
     use crate::process::manager::spawn_clean_sidecar;
-    let mut cmd = spawn_clean_sidecar("binaries/cardano-cli", &args)
+    let mut cmd = spawn_clean_sidecar("binaries/cardano-cli", &args, max_cores)
         .map_err(|e| format!("Failed to create cardano-cli command: {e}"))?;
 
     cmd.stdout(std::process::Stdio::piped())

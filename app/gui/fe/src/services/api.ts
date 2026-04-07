@@ -81,6 +81,7 @@ export interface EncryptionDatum {
   full_level: FullEncryptionLevel | null;
   capsule: Capsule;
   status: EncryptionStatus;
+  new_price: number;
 }
 
 // CIP-20 metadata parsed from transaction (key 674)
@@ -97,9 +98,9 @@ export interface EncryptionDisplay {
   seller: string;
   sellerPkh: string;
   status: 'active' | 'pending' | 'completed';
-  // CIP-20 metadata fields (from tx metadata key 674)
+  // CIP-20 metadata fields (description, storageLayer, imageLink, category from tx metadata key 674)
   description?: string;
-  suggestedPrice?: number;
+  suggestedPrice?: number; // lovelace, from datum new_price field
   storageLayer?: string;
   imageLink?: string;
   category?: string;
@@ -120,6 +121,7 @@ export interface BidDatum {
   pointer: string;
   token: string;
   locked_until: number;
+  new_price: number;
 }
 
 export interface BidDisplay {
@@ -241,9 +243,12 @@ export const encryptionsApi = {
 
   /**
    * Get all encryption levels for recursive decryption (queries full tx history).
+   * When ownerPkh is provided, returns levels scoped to that owner's window
+   * (for decrypting after the item has been re-sold to someone else).
    */
-  async getLevels(tokenName: string): Promise<EncryptionLevelResponse[]> {
-    const response = await apiFetch<ApiResponse<EncryptionLevelResponse[]>>(`/api/encryptions/${tokenName}/levels`);
+  async getLevels(tokenName: string, ownerPkh?: string): Promise<EncryptionLevelResponse[]> {
+    const params = ownerPkh ? `?ownerPkh=${ownerPkh}` : '';
+    const response = await apiFetch<ApiResponse<EncryptionLevelResponse[]>>(`/api/encryptions/${tokenName}/levels${params}`);
     return response.data;
   },
 };
@@ -363,6 +368,33 @@ export const chainApi = {
   },
 
   /**
+   * Fetch wallet UTxOs from Koios via backend.
+   * Fills the gap when Kupo starts from --since and misses pre-deployment UTxOs.
+   * Returns MeshSDK-format UTxOs, or empty array on failure.
+   */
+  async getWalletUtxos(address: string): Promise<KoiosWalletUtxo[]> {
+    try {
+      const response = await apiFetch<ApiResponse<KoiosWalletUtxo[]>>(`/api/chain/utxos/${address}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Look up all unspent UTxOs from a transaction via Koios.
+   * Fallback for fetchUTxOs when Kupo doesn't have them (predates --since).
+   */
+  async getUtxosByTxHash(txHash: string): Promise<KoiosWalletUtxo[]> {
+    try {
+      const response = await apiFetch<ApiResponse<KoiosWalletUtxo[]>>(`/api/chain/utxo-info/${txHash}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  /**
    * Recover transaction history from Koios for a payment credential.
    * Expensive query — backend caches for 60s. Used on-demand, not for polling.
    */
@@ -375,6 +407,17 @@ export const chainApi = {
     }
   },
 };
+
+export interface KoiosWalletUtxo {
+  input: { txHash: string; outputIndex: number };
+  output: {
+    address: string;
+    amount: Array<{ unit: string; quantity: string }>;
+    dataHash?: string;
+    plutusData?: string;
+    scriptRef?: string;
+  };
+}
 
 export interface HistoryRecoveryRecord {
   txHash: string;

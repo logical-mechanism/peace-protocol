@@ -444,7 +444,7 @@ export default function NodeSync() {
   }, [stage, syncProgress])
 
   // Navigate to dashboard when synced (including Express backend ready)
-  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99 && kupoSyncProgress >= 99 && expressReady)
+  const canContinue = stage === 'synced' || (stage === 'syncing' && syncProgress >= 99.9 && kupoSyncProgress >= 99.9 && expressReady)
 
   const handleContinue = () => {
     navigate('/dashboard')
@@ -628,6 +628,11 @@ export default function NodeSync() {
                       ? 'Stalled'
                       : `Indexing ${kupoSyncProgress.toFixed(1)}%`,
                     warning: kupoConnected === false || (kupoSecondsSinceLastBlock != null && kupoSecondsSinceLastBlock > 120),
+                  },
+                  {
+                    label: 'Backend Server',
+                    synced: expressReady,
+                    activeText: syncProgress >= 99.9 && kupoSyncProgress >= 99.9 ? 'Starting...' : 'Waiting...',
                   },
                 ].map(({ label, synced, activeText, warning }) => (
                   <div key={label} className="flex items-center gap-[var(--space-3)]">

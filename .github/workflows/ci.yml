@@ -68,22 +68,6 @@ jobs:
       - run: go vet ./...
       - run: go test ./... -short -count=1 -v
 
-  typescript:
-    name: TypeScript (UI tests)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app/ui/fe
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: app/ui/fe/package-lock.json
-      - run: npm ci
-      - run: npx vitest run
-
   tauri:
     name: Tauri (desktop app)
     runs-on: ubuntu-latest
@@ -116,6 +100,7 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
+            libasound2-dev \
             patchelf
       - uses: actions/setup-node@v4
         with:
@@ -132,8 +117,10 @@ jobs:
         with:
           workspaces: app/gui/src-tauri
       - run: npm run install:all
-      - name: Build backend
-        run: npm --prefix be run build
+      - name: Build and bundle backend
+        run: |
+          npm --prefix be run build
+          npm run bundle:be
       - name: Create stub sidecar binaries
         run: |
           mkdir -p src-tauri/binaries

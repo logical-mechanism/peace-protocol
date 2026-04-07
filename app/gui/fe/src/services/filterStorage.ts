@@ -5,6 +5,7 @@
  * Each wallet gets independent filter preferences that survive app restarts.
  */
 
+import { storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 import type { MarketplaceFilters } from '../hooks/useTabFilterState';
 
 const STORAGE_KEY_PREFIX = 'veiled_marketplace_filters_';
@@ -13,24 +14,37 @@ function getStorageKey(userPkh: string): string {
   return STORAGE_KEY_PREFIX + userPkh;
 }
 
-export function getPersistedFilters(userPkh: string): Partial<MarketplaceFilters> | null {
-  try {
-    const raw = localStorage.getItem(getStorageKey(userPkh));
-    if (!raw) return null;
-    return JSON.parse(raw) as Partial<MarketplaceFilters>;
-  } catch {
-    return null;
+/** Migrate legacy persisted filter shapes to the current format. */
+function migrateFilters(raw: Record<string, unknown>): Partial<MarketplaceFilters> {
+  const migrated = { ...raw };
+
+  // v1 → v2: categoryFilter was a single string, now string[]
+  if (typeof migrated.categoryFilter === 'string') {
+    migrated.categoryFilter = [migrated.categoryFilter as string];
   }
+
+  // v2 → v3: sellerFilter ('all'|'mine'|'others') → hideOwnListings (boolean)
+  if ('sellerFilter' in migrated) {
+    migrated.hideOwnListings = migrated.sellerFilter === 'others';
+    delete migrated.sellerFilter;
+  }
+
+  // New fields (hideOwnListings, dateFrom, dateTo) are simply absent in legacy
+  // data — HYDRATE fills defaults from MARKETPLACE_INITIAL, so no action needed.
+
+  return migrated as Partial<MarketplaceFilters>;
+}
+
+export function getPersistedFilters(userPkh: string): Partial<MarketplaceFilters> | null {
+  const raw = storageGetJSON<Record<string, unknown> | null>(getStorageKey(userPkh), null);
+  if (!raw) return null;
+  return migrateFilters(raw);
 }
 
 export function persistFilters(userPkh: string, filters: MarketplaceFilters): void {
-  try {
-    localStorage.setItem(getStorageKey(userPkh), JSON.stringify(filters));
-  } catch { /* best-effort */ }
+  storageSetJSON(getStorageKey(userPkh), filters);
 }
 
 export function clearPersistedFilters(userPkh: string): void {
-  try {
-    localStorage.removeItem(getStorageKey(userPkh));
-  } catch { /* best-effort */ }
+  storageRemove(getStorageKey(userPkh));
 }

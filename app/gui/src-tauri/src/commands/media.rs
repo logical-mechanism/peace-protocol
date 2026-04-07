@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use symphonia::core::audio::SampleBuffer;
+use symphonia::core::codecs::DecoderOptions;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::{MetadataOptions, StandardTagKey};
+use symphonia::core::probe::Hint;
 
 /// Managed state holding the base directory for cached images.
 pub struct MediaDir(pub PathBuf);
@@ -794,7 +801,12 @@ fn find_content_file(token_dir: &Path, token_name: &str) -> Option<PathBuf> {
     for entry in entries.flatten() {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str != json_name && entry.path().is_file() {
+        // Skip metadata JSON and derived files (pcm.raw, waveform.cache from audio decoder)
+        if name_str != json_name
+            && name_str != "pcm.raw"
+            && name_str != "waveform.cache"
+            && entry.path().is_file()
+        {
             return Some(entry.path());
         }
     }
@@ -826,6 +838,847 @@ pub async fn open_with_system(
     app.opener()
         .open_path(&path_str, None::<&str>)
         .map_err(|e| format!("Failed to open with system player: {e}"))
+}
+
+// ── Audio waveform decode (symphonia) ──────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlbumArt {
+    pub data: Vec<u8>,
+    pub format: String, // MIME type e.g. "image/jpeg"
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WaveformResult {
+    pub waveform: Vec<f32>,
+    pub sample_rate: u32,
+    pub duration_secs: f64,
+    pub channels: u32,
+    /// Absolute path to a raw PCM file (f32 LE) for FFT visualization.
+    /// Present when `pcm_output_path` was provided during decode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fft_pcm_path: Option<String>,
+    // ── Audio metadata (extracted from ID3v2 / Vorbis comments / MP4 atoms) ──
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub album: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub track_number: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub year: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub picture: Option<AlbumArt>,
+}
+
+/// Collect metadata tags from a symphonia `MetadataRevision`.
+fn collect_tags_from_revision(
+    rev: &symphonia::core::meta::MetadataRevision,
+    title: &mut Option<String>,
+    artist: &mut Option<String>,
+    album: &mut Option<String>,
+    track_number: &mut Option<u32>,
+    year: &mut Option<u32>,
+    picture: &mut Option<AlbumArt>,
+) {
+    for tag in rev.tags() {
+        if let Some(std_key) = tag.std_key {
+            match std_key {
+                StandardTagKey::TrackTitle if title.is_none() => {
+                    title.replace(tag.value.to_string());
+                }
+                StandardTagKey::Artist | StandardTagKey::AlbumArtist if artist.is_none() => {
+                    artist.replace(tag.value.to_string());
+                }
+                StandardTagKey::Album if album.is_none() => {
+                    album.replace(tag.value.to_string());
+                }
+                StandardTagKey::TrackNumber if track_number.is_none() => {
+                    // Track numbers can be "3" or "3/12"
+                    let s = tag.value.to_string();
+                    *track_number = s.split('/').next().and_then(|n| n.trim().parse().ok());
+                }
+                StandardTagKey::Date if year.is_none() => {
+                    let s = tag.value.to_string();
+                    // Extract 4-digit year from "2023" or "2023-01-15"
+                    *year = s.get(..4).and_then(|y| y.parse().ok());
+                }
+                _ => {}
+            }
+        }
+    }
+    if picture.is_none() {
+        if let Some(visual) = rev.visuals().first() {
+            if !visual.data.is_empty() {
+                *picture = Some(AlbumArt {
+                    data: visual.data.to_vec(),
+                    format: visual.media_type.clone(),
+                });
+            }
+        }
+    }
+}
+
+type AudioMetadata = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<u32>,
+    Option<u32>,
+    Option<AlbumArt>,
+);
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioMetadataResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub album: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub track_number: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub year: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub picture: Option<AlbumArt>,
+    pub sample_rate: Option<u32>,
+    pub channels: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bitrate: Option<u32>,
+}
+
+/// Quick metadata-only probe — opens the file, reads tags, returns metadata without decoding.
+/// Used when waveform is served from cache but metadata is still needed.
+fn probe_metadata_sync(path: &Path) -> AudioMetadata {
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return (None, None, None, None, None, None),
+    };
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let mut probed = match symphonia::default::get_probe().format(
+        &hint,
+        mss,
+        &FormatOptions::default(),
+        &MetadataOptions::default(),
+    ) {
+        Ok(p) => p,
+        Err(_) => return (None, None, None, None, None, None),
+    };
+
+    let mut title = None;
+    let mut artist = None;
+    let mut album = None;
+    let mut track_number = None;
+    let mut year = None;
+    let mut picture = None;
+
+    // Probe-level metadata (e.g. ID3v2 tags prepended to MP3)
+    if let Some(log) = probed.metadata.get().as_ref() {
+        if let Some(rev) = log.current() {
+            collect_tags_from_revision(
+                rev,
+                &mut title,
+                &mut artist,
+                &mut album,
+                &mut track_number,
+                &mut year,
+                &mut picture,
+            );
+        }
+    }
+    // Format-level metadata (e.g. Vorbis comments in OGG/FLAC, MP4 atoms)
+    if let Some(rev) = probed.format.metadata().current() {
+        collect_tags_from_revision(
+            rev,
+            &mut title,
+            &mut artist,
+            &mut album,
+            &mut track_number,
+            &mut year,
+            &mut picture,
+        );
+    }
+
+    (title, artist, album, track_number, year, picture)
+}
+
+/// Decode an audio file and produce a waveform overview with `bucket_count` buckets.
+/// Each bucket is the normalized (0.0–1.0) average absolute amplitude of the samples
+/// falling into that time slice. Optionally writes mono PCM (f32 LE) to `pcm_output_path`
+/// for FFT visualization, with an 8-byte header: [sample_rate: u32 LE, total_samples: u32 LE].
+/// Runs synchronously — call from a blocking thread.
+fn decode_waveform_sync(
+    path: &Path,
+    bucket_count: usize,
+    pcm_output_path: Option<&Path>,
+) -> Result<WaveformResult, String> {
+    let file = std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|e| format!("Failed to probe audio format: {e}"))?;
+
+    let mut format = probed.format;
+
+    let track = format
+        .default_track()
+        .ok_or_else(|| "No audio track found".to_string())?;
+
+    let codec_params = track.codec_params.clone();
+    let track_id = track.id;
+
+    let sample_rate = codec_params.sample_rate.unwrap_or(44100);
+    let channels = codec_params.channels.map(|c| c.count() as u32).unwrap_or(1);
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&codec_params, &DecoderOptions::default())
+        .map_err(|e| format!("Failed to create audio decoder: {e}"))?;
+
+    // Streaming bucket assignment: compute bucket boundaries from track metadata
+    // (n_frames) so we never store the full sample vector. Falls back to Vec
+    // accumulation if n_frames is unavailable (rare streaming formats).
+    const MAX_SAMPLES: u64 = 50_000_000;
+    let total_frames = codec_params.n_frames;
+
+    // Reuse a single SampleBuffer across packets to avoid per-packet allocation.
+    let mut sample_buf: Option<SampleBuffer<f32>> = None;
+    let mut buf_capacity: u64 = 0;
+
+    // Optional PCM writer for FFT visualization data
+    let mut pcm_writer: Option<BufWriter<std::fs::File>> = None;
+    let mut pcm_sample_count: u32 = 0;
+    if let Some(pcm_path) = pcm_output_path {
+        if let Ok(f) = std::fs::File::create(pcm_path) {
+            let mut w = BufWriter::new(f);
+            // Write 8-byte header placeholder: [sample_rate: u32 LE, total_samples: u32 LE]
+            let _ = w.write_all(&sample_rate.to_le_bytes());
+            let _ = w.write_all(&0u32.to_le_bytes()); // placeholder, patched after decode
+            pcm_writer = Some(w);
+        }
+    }
+
+    // Streaming path: direct bucket assignment when total frame count is known
+    if let Some(n_frames) = total_frames {
+        let total_samples = n_frames.min(MAX_SAMPLES);
+        let samples_per_bucket = if total_samples >= bucket_count as u64 {
+            total_samples / bucket_count as u64
+        } else {
+            1
+        };
+
+        let mut bucket_sums = vec![0.0f64; bucket_count];
+        let mut bucket_counts = vec![0u64; bucket_count];
+        let mut global_idx: u64 = 0;
+
+        loop {
+            let packet = match format.next_packet() {
+                Ok(p) => p,
+                Err(symphonia::core::errors::Error::IoError(ref e))
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                {
+                    break;
+                }
+                Err(symphonia::core::errors::Error::ResetRequired) => {
+                    decoder.reset();
+                    continue;
+                }
+                Err(e) => return Err(format!("Error reading audio packet: {e}")),
+            };
+
+            if packet.track_id() != track_id {
+                continue;
+            }
+
+            let decoded = match decoder.decode(&packet) {
+                Ok(d) => d,
+                Err(symphonia::core::errors::Error::DecodeError(_)) => continue,
+                Err(e) => return Err(format!("Decode error: {e}")),
+            };
+
+            let spec = *decoded.spec();
+            let num_frames = decoded.frames();
+            let num_channels = spec.channels.count();
+
+            if num_frames == 0 || num_channels == 0 {
+                continue;
+            }
+
+            let num_frames_u64 = num_frames as u64;
+            if sample_buf.is_none() || num_frames_u64 > buf_capacity {
+                sample_buf = Some(SampleBuffer::<f32>::new(num_frames_u64, spec));
+                buf_capacity = num_frames_u64;
+            }
+            let sb = sample_buf.as_mut().unwrap();
+            sb.copy_interleaved_ref(decoded);
+            let interleaved = sb.samples();
+
+            for frame in 0..num_frames {
+                if global_idx >= MAX_SAMPLES {
+                    break;
+                }
+                let mut sum = 0.0f32;
+                for ch in 0..num_channels {
+                    sum += interleaved[frame * num_channels + ch];
+                }
+                let mono = sum / num_channels as f32;
+                let mono_abs = mono.abs();
+                let bucket_idx = ((global_idx / samples_per_bucket) as usize).min(bucket_count - 1);
+                bucket_sums[bucket_idx] += mono_abs as f64;
+                bucket_counts[bucket_idx] += 1;
+
+                // Write signed mono sample to PCM file (FFT needs signed values)
+                if let Some(ref mut w) = pcm_writer {
+                    let _ = w.write_all(&mono.to_le_bytes());
+                    pcm_sample_count = pcm_sample_count.saturating_add(1);
+                }
+
+                global_idx += 1;
+            }
+
+            if global_idx >= MAX_SAMPLES {
+                break;
+            }
+        }
+
+        // Finalize PCM file: patch total_samples in header
+        if let Some(ref mut w) = pcm_writer {
+            let _ = w.flush();
+            if let Ok(inner) = w.get_mut().seek(SeekFrom::Start(4)) {
+                if inner == 4 {
+                    let _ = w.get_mut().write_all(&pcm_sample_count.to_le_bytes());
+                }
+            }
+        }
+
+        if global_idx == 0 {
+            return Err("No audio samples decoded".to_string());
+        }
+
+        let duration_secs = global_idx as f64 / sample_rate as f64;
+
+        let mut waveform = vec![0.0f32; bucket_count];
+        for (i, v) in waveform.iter_mut().enumerate() {
+            if bucket_counts[i] > 0 {
+                *v = (bucket_sums[i] / bucket_counts[i] as f64) as f32;
+            }
+        }
+
+        // Normalize to [0, 1]
+        let max = waveform.iter().copied().fold(0.0f32, f32::max);
+        if max > 0.0 {
+            for v in &mut waveform {
+                *v /= max;
+            }
+        }
+
+        return Ok(WaveformResult {
+            waveform,
+            sample_rate,
+            duration_secs,
+            channels,
+            fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
+            title: None,
+            artist: None,
+            album: None,
+            track_number: None,
+            year: None,
+            picture: None,
+        });
+    }
+
+    // Fallback path: accumulate all samples when n_frames is unavailable
+    let mut samples: Vec<f32> = Vec::new();
+
+    loop {
+        let packet = match format.next_packet() {
+            Ok(p) => p,
+            Err(symphonia::core::errors::Error::IoError(ref e))
+                if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+            {
+                break;
+            }
+            Err(symphonia::core::errors::Error::ResetRequired) => {
+                decoder.reset();
+                continue;
+            }
+            Err(e) => return Err(format!("Error reading audio packet: {e}")),
+        };
+
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        let decoded = match decoder.decode(&packet) {
+            Ok(d) => d,
+            Err(symphonia::core::errors::Error::DecodeError(_)) => continue,
+            Err(e) => return Err(format!("Decode error: {e}")),
+        };
+
+        let spec = *decoded.spec();
+        let num_frames = decoded.frames();
+        let num_channels = spec.channels.count();
+
+        if num_frames == 0 || num_channels == 0 {
+            continue;
+        }
+
+        let num_frames_u64 = num_frames as u64;
+        if sample_buf.is_none() || num_frames_u64 > buf_capacity {
+            sample_buf = Some(SampleBuffer::<f32>::new(num_frames_u64, spec));
+            buf_capacity = num_frames_u64;
+        }
+        let sb = sample_buf.as_mut().unwrap();
+        sb.copy_interleaved_ref(decoded);
+        let interleaved = sb.samples();
+
+        for frame in 0..num_frames {
+            if samples.len() as u64 >= MAX_SAMPLES {
+                break;
+            }
+            let mut sum = 0.0f32;
+            for ch in 0..num_channels {
+                sum += interleaved[frame * num_channels + ch];
+            }
+            let mono = sum / num_channels as f32;
+            samples.push(mono.abs());
+
+            // Write signed mono sample to PCM file
+            if let Some(ref mut w) = pcm_writer {
+                let _ = w.write_all(&mono.to_le_bytes());
+                pcm_sample_count = pcm_sample_count.saturating_add(1);
+            }
+        }
+
+        if samples.len() as u64 >= MAX_SAMPLES {
+            break;
+        }
+    }
+
+    // Finalize PCM file: patch total_samples in header
+    if let Some(ref mut w) = pcm_writer {
+        let _ = w.flush();
+        if let Ok(inner) = w.get_mut().seek(SeekFrom::Start(4)) {
+            if inner == 4 {
+                let _ = w.get_mut().write_all(&pcm_sample_count.to_le_bytes());
+            }
+        }
+    }
+
+    if samples.is_empty() {
+        return Err("No audio samples decoded".to_string());
+    }
+
+    let duration_secs = samples.len() as f64 / sample_rate as f64;
+
+    // Downsample into buckets
+    let mut waveform = vec![0.0f32; bucket_count];
+    let bucket_size = samples.len() / bucket_count;
+
+    if bucket_size > 0 {
+        for (i, bucket) in waveform.iter_mut().enumerate() {
+            let start = i * bucket_size;
+            let end = (start + bucket_size).min(samples.len());
+            let mut sum = 0.0f32;
+            for &s in &samples[start..end] {
+                sum += s;
+            }
+            *bucket = sum / (end - start) as f32;
+        }
+    } else {
+        for (i, &s) in samples.iter().enumerate() {
+            let bucket_idx = (i * bucket_count) / samples.len();
+            waveform[bucket_idx] = waveform[bucket_idx].max(s);
+        }
+    }
+
+    // Normalize to [0, 1]
+    let max = waveform.iter().copied().fold(0.0f32, f32::max);
+    if max > 0.0 {
+        for v in &mut waveform {
+            *v /= max;
+        }
+    }
+
+    Ok(WaveformResult {
+        waveform,
+        sample_rate,
+        duration_secs,
+        channels,
+        fft_pcm_path: pcm_output_path.map(|p| p.to_string_lossy().to_string()),
+        title: None,
+        artist: None,
+        album: None,
+        track_number: None,
+        year: None,
+        picture: None,
+    })
+}
+
+/// Fast low-resolution waveform: seeks to `bucket_count` evenly-spaced positions,
+/// decodes one packet at each, and returns the average absolute amplitude.
+/// Completes in <1s for most formats, giving immediate visual feedback.
+fn decode_waveform_fast_sync(path: &Path, bucket_count: usize) -> Result<WaveformResult, String> {
+    use symphonia::core::formats::{SeekMode, SeekTo};
+    use symphonia::core::units::Time;
+
+    let file = std::fs::File::open(path).map_err(|e| format!("Failed to open audio file: {e}"))?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|e| format!("Failed to probe audio format: {e}"))?;
+
+    let mut format = probed.format;
+
+    let track = format
+        .default_track()
+        .ok_or_else(|| "No audio track found".to_string())?;
+
+    let codec_params = track.codec_params.clone();
+    let track_id = track.id;
+
+    let sample_rate = codec_params.sample_rate.unwrap_or(44100);
+    let channels = codec_params.channels.map(|c| c.count() as u32).unwrap_or(1);
+    let n_frames = codec_params
+        .n_frames
+        .ok_or_else(|| "Track duration unknown — cannot fast-seek".to_string())?;
+
+    let duration_secs = n_frames as f64 / sample_rate as f64;
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&codec_params, &DecoderOptions::default())
+        .map_err(|e| format!("Failed to create audio decoder: {e}"))?;
+
+    let mut waveform = vec![0.0f32; bucket_count];
+    let mut sample_buf: Option<SampleBuffer<f32>> = None;
+    let mut buf_capacity: u64 = 0;
+
+    for (i, waveform_val) in waveform.iter_mut().enumerate().take(bucket_count) {
+        let seek_time = (i as f64 / bucket_count as f64) * duration_secs;
+
+        // Seek to the target position (coarse mode for speed)
+        if format
+            .seek(
+                SeekMode::Coarse,
+                SeekTo::Time {
+                    time: Time::from(seek_time),
+                    track_id: Some(track_id),
+                },
+            )
+            .is_err()
+        {
+            continue; // Skip this bucket if seek fails
+        }
+
+        // Decode one packet at the seek position
+        let packet = match format.next_packet() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        let decoded = match decoder.decode(&packet) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        let spec = *decoded.spec();
+        let num_frames = decoded.frames();
+        let num_channels = spec.channels.count();
+
+        if num_frames == 0 || num_channels == 0 {
+            continue;
+        }
+
+        let num_frames_u64 = num_frames as u64;
+        if sample_buf.is_none() || num_frames_u64 > buf_capacity {
+            sample_buf = Some(SampleBuffer::<f32>::new(num_frames_u64, spec));
+            buf_capacity = num_frames_u64;
+        }
+        let sb = sample_buf.as_mut().unwrap();
+        sb.copy_interleaved_ref(decoded);
+        let interleaved = sb.samples();
+
+        // Average absolute amplitude of all samples in the packet (mixed to mono)
+        let mut sum = 0.0f64;
+        for frame in 0..num_frames {
+            let mut ch_sum = 0.0f32;
+            for ch in 0..num_channels {
+                ch_sum += interleaved[frame * num_channels + ch];
+            }
+            sum += (ch_sum / num_channels as f32).abs() as f64;
+        }
+        *waveform_val = (sum / num_frames as f64) as f32;
+    }
+
+    // Normalize to [0, 1]
+    let max = waveform.iter().copied().fold(0.0f32, f32::max);
+    if max > 0.0 {
+        for v in &mut waveform {
+            *v /= max;
+        }
+    }
+
+    Ok(WaveformResult {
+        waveform,
+        sample_rate,
+        duration_secs,
+        channels,
+        fft_pcm_path: None,
+        title: None,
+        artist: None,
+        album: None,
+        track_number: None,
+        year: None,
+        picture: None,
+    })
+}
+
+/// Metadata-only probe: extracts ID3v2/Vorbis/MP4 tags + codec info without decoding.
+/// Called in parallel with waveform decode so metadata doesn't block canvas rendering.
+#[tauri::command]
+pub async fn decode_audio_metadata(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<AudioMetadataResult, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    tokio::task::spawn_blocking(move || {
+        let (title, artist, album, track_number, year, picture) =
+            probe_metadata_sync(&content_path);
+
+        // Also probe codec params for sample_rate, channels, and bitrate
+        let file_size = std::fs::metadata(&content_path).ok().map(|m| m.len());
+        let (sample_rate, channels, bitrate) = {
+            let file = std::fs::File::open(&content_path).ok();
+            file.and_then(|f| {
+                let mss = MediaSourceStream::new(Box::new(f), Default::default());
+                let mut hint = Hint::new();
+                if let Some(ext) = content_path.extension().and_then(|e| e.to_str()) {
+                    hint.with_extension(ext);
+                }
+                let probed = symphonia::default::get_probe()
+                    .format(
+                        &hint,
+                        mss,
+                        &FormatOptions::default(),
+                        &MetadataOptions::default(),
+                    )
+                    .ok()?;
+                let track = probed.format.default_track()?;
+                // Estimate bitrate from file size and duration (n_frames / sample_rate)
+                let br = file_size.and_then(|size| {
+                    let sr = track.codec_params.sample_rate? as f64;
+                    let frames = track.codec_params.n_frames? as f64;
+                    let duration_secs = frames / sr;
+                    if duration_secs > 0.0 {
+                        Some(((size as f64 * 8.0) / duration_secs) as u32)
+                    } else {
+                        None
+                    }
+                });
+                Some((
+                    track.codec_params.sample_rate,
+                    track.codec_params.channels.map(|c| c.count() as u32),
+                    br,
+                ))
+            })
+            .unwrap_or((None, None, None))
+        };
+
+        Ok(AudioMetadataResult {
+            title,
+            artist,
+            album,
+            track_number,
+            year,
+            picture,
+            sample_rate,
+            channels,
+            bitrate,
+        })
+    })
+    .await
+    .map_err(|e| format!("Metadata probe task failed: {e}"))?
+}
+
+/// Fast low-resolution waveform decode via seeking. Returns 48 buckets in <1 second.
+/// Used for immediate visual feedback while the full decode runs in the background.
+#[tauri::command]
+pub async fn decode_audio_waveform_fast(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<WaveformResult, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    const FAST_BUCKET_COUNT: usize = 48;
+
+    tokio::task::spawn_blocking(move || decode_waveform_fast_sync(&content_path, FAST_BUCKET_COUNT))
+        .await
+        .map_err(|e| format!("Fast waveform decode task failed: {e}"))?
+}
+
+// ── Waveform cache ──────────────────────────────────────────────────
+// Binary format: magic(4) + version(4) + sample_rate(4) + channels(4) + duration(8) + count(4) + f32×count
+const WAVEFORM_CACHE_MAGIC: &[u8; 4] = b"WAVE";
+const WAVEFORM_CACHE_VERSION: u32 = 1;
+
+fn read_waveform_cache(cache_path: &Path) -> Option<WaveformResult> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(cache_path).ok()?;
+    let mut header = [0u8; 28];
+    f.read_exact(&mut header).ok()?;
+
+    if &header[0..4] != WAVEFORM_CACHE_MAGIC {
+        return None;
+    }
+    let version = u32::from_le_bytes(header[4..8].try_into().ok()?);
+    if version != WAVEFORM_CACHE_VERSION {
+        return None;
+    }
+    let sample_rate = u32::from_le_bytes(header[8..12].try_into().ok()?);
+    let channels = u32::from_le_bytes(header[12..16].try_into().ok()?);
+    let duration_secs = f64::from_le_bytes(header[16..24].try_into().ok()?);
+    let bucket_count = u32::from_le_bytes(header[24..28].try_into().ok()?) as usize;
+
+    let mut waveform_bytes = vec![0u8; bucket_count * 4];
+    f.read_exact(&mut waveform_bytes).ok()?;
+
+    let waveform: Vec<f32> = waveform_bytes
+        .chunks_exact(4)
+        .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
+        .collect();
+
+    Some(WaveformResult {
+        waveform,
+        sample_rate,
+        duration_secs,
+        channels,
+        fft_pcm_path: None, // Caller sets this based on pcm.raw existence
+        title: None,
+        artist: None,
+        album: None,
+        track_number: None,
+        year: None,
+        picture: None,
+    })
+}
+
+fn write_waveform_cache(cache_path: &Path, result: &WaveformResult) {
+    let Ok(f) = std::fs::File::create(cache_path) else {
+        return;
+    };
+    let mut w = BufWriter::new(f);
+    let _ = w.write_all(WAVEFORM_CACHE_MAGIC);
+    let _ = w.write_all(&WAVEFORM_CACHE_VERSION.to_le_bytes());
+    let _ = w.write_all(&result.sample_rate.to_le_bytes());
+    let _ = w.write_all(&result.channels.to_le_bytes());
+    let _ = w.write_all(&result.duration_secs.to_le_bytes());
+    let _ = w.write_all(&(result.waveform.len() as u32).to_le_bytes());
+    for &v in &result.waveform {
+        let _ = w.write_all(&v.to_le_bytes());
+    }
+    let _ = w.flush();
+}
+
+/// Decode an audio file from the library and return waveform data for visualization.
+/// Uses symphonia (pure Rust) so all common audio formats are supported, unlike
+/// WebKitGTK's OfflineAudioContext which only handles MP3/WAV/OGG.
+/// Results are cached to disk (~2KB) to avoid re-decoding on subsequent opens.
+#[tauri::command]
+pub async fn decode_audio_waveform(
+    state: tauri::State<'_, ContentDir>,
+    token_name: String,
+    category: String,
+) -> Result<WaveformResult, String> {
+    validate_token_name(&token_name)?;
+    validate_category(&category)?;
+
+    let token_dir = state.0.join(&category).join(&token_name);
+    if !token_dir.is_dir() {
+        return Err("Library item not found".to_string());
+    }
+
+    let content_path = find_content_file(&token_dir, &token_name)
+        .ok_or_else(|| "Content file not found".to_string())?;
+
+    const BUCKET_COUNT: usize = 480;
+    let cache_path = token_dir.join("waveform.cache");
+    let pcm_path = token_dir.join("pcm.raw");
+
+    tokio::task::spawn_blocking(move || {
+        // Metadata is now fetched separately via decode_audio_metadata — skip probing here.
+
+        // Check waveform cache first — audio files are immutable, no staleness concern
+        if let Some(mut cached) = read_waveform_cache(&cache_path) {
+            if pcm_path.exists() {
+                cached.fft_pcm_path = Some(pcm_path.to_string_lossy().to_string());
+            }
+            return Ok(cached);
+        }
+
+        let result = decode_waveform_sync(&content_path, BUCKET_COUNT, Some(&pcm_path))?;
+        write_waveform_cache(&cache_path, &result);
+        Ok(result)
+    })
+    .await
+    .map_err(|e| format!("Waveform decode task failed: {e}"))?
 }
 
 #[cfg(test)]

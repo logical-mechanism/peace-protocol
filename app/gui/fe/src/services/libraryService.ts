@@ -65,7 +65,7 @@ export async function getLibraryContentUrl(
     invoke<string>('get_library_content_path', { tokenName, category }),
     getMediaPort(),
   ]);
-  return `http://127.0.0.1:${port}/${encodeURIComponent(path)}`;
+  return `http://127.0.0.1:${port}${path}`;
 }
 
 /** Get an HTTP URL for a library item's subtitle file, if one exists. */
@@ -77,7 +77,69 @@ export async function getLibrarySubtitleUrl(
     invoke<string | null>('get_library_subtitle_path', { tokenName, category }),
     getMediaPort(),
   ]);
-  return path ? `http://127.0.0.1:${port}/${encodeURIComponent(path)}` : null;
+  return path ? `http://127.0.0.1:${port}${path}` : null;
+}
+
+export interface WaveformResult {
+  waveform: number[];
+  sampleRate: number;
+  durationSecs: number;
+  channels: number;
+  /** Absolute path to raw PCM file (f32 LE) for FFT visualization. */
+  fftPcmPath?: string;
+  // Audio metadata (from ID3v2 / Vorbis comments / MP4 atoms)
+  title?: string;
+  artist?: string;
+  album?: string;
+  trackNumber?: number;
+  year?: number;
+  picture?: { data: number[]; format: string };
+}
+
+/** Build a media server URL for a raw PCM file path returned by Rust. */
+export async function getPcmUrl(absolutePath: string): Promise<string> {
+  const port = await getMediaPort();
+  return `http://127.0.0.1:${port}${absolutePath}`;
+}
+
+/** Fast low-resolution waveform decode via seeking (48 buckets in <1s).
+ *  Used for immediate visual feedback while the full decode runs. */
+export async function decodeAudioWaveformFast(
+  tokenName: string,
+  category: string
+): Promise<WaveformResult> {
+  return invoke<WaveformResult>('decode_audio_waveform_fast', { tokenName, category });
+}
+
+/** Decode an audio file from the library and return waveform data (no metadata).
+ *  Uses symphonia (Rust) so all common formats are supported, unlike
+ *  WebKitGTK's OfflineAudioContext which only handles MP3/WAV/OGG. */
+export async function decodeAudioWaveform(
+  tokenName: string,
+  category: string
+): Promise<WaveformResult> {
+  return invoke<WaveformResult>('decode_audio_waveform', { tokenName, category });
+}
+
+export interface AudioMetadataResult {
+  title?: string;
+  artist?: string;
+  album?: string;
+  trackNumber?: number;
+  year?: number;
+  picture?: { data: number[]; format: string };
+  sampleRate?: number;
+  channels?: number;
+  bitrate?: number;
+}
+
+/** Metadata-only probe: extracts tags + codec info without decoding audio.
+ *  Call in parallel with waveform decode so metadata doesn't block canvas. */
+export async function decodeAudioMetadata(
+  tokenName: string,
+  category: string
+): Promise<AudioMetadataResult> {
+  return invoke<AudioMetadataResult>('decode_audio_metadata', { tokenName, category });
 }
 
 export async function openWithSystem(

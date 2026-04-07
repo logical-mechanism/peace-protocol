@@ -125,6 +125,21 @@ class KoiosClient {
   }
 
   /**
+   * Look up specific UTxOs by tx_hash#tx_index.
+   * Used as fallback when Kupo doesn't have a UTxO (predates --since).
+   */
+  async getUtxoInfo(utxoRefs: string[], signal?: AbortSignal): Promise<KoiosUtxo[]> {
+    if (utxoRefs.length === 0) return [];
+    return this.request<KoiosUtxo[]>('/utxo_info', {
+      method: 'POST',
+      body: JSON.stringify({
+        _utxo_refs: utxoRefs,
+        _extended: true,
+      }),
+    }, signal);
+  }
+
+  /**
    * Get UTxOs containing a specific asset
    */
   async getAssetUtxos(policyId: string, assetName?: string, signal?: AbortSignal): Promise<KoiosUtxo[]> {

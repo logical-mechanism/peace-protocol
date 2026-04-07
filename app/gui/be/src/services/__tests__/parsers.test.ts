@@ -114,6 +114,7 @@ function mkEncryptionDatum(
       fullLevel,                 // 4: full_level (Option)
       mkCapsule(),               // 5: capsule
       status,                    // 6: status
+      { int: 0 },               // 7: new_price
     ],
   };
 }
@@ -129,6 +130,7 @@ function mkBidDatum() {
       { bytes: pointer },        // 2: pointer
       { bytes: TOKEN_HEX },     // 3: token
       { int: 1234567890000 },    // 4: locked_until (POSIX ms)
+      { int: 0 },               // 5: new_price
     ],
   };
 }
@@ -138,7 +140,7 @@ function mkBidDatum() {
 // ===========================================================================
 
 describe('parseEncryptionDatum', () => {
-  it('parses all 7 fields with Open status', () => {
+  it('parses all 8 fields with Open status', () => {
     const datum = mkEncryptionDatum({ status: mkStatusOpen(), fullLevel: mkNone() });
     const result = parseEncryptionDatum(datum);
 
@@ -157,6 +159,7 @@ describe('parseEncryptionDatum', () => {
       ct: CT_HEX,
     });
     expect(result.status).toEqual({ type: 'Open' });
+    expect(result.new_price).toBe(0);
   });
 
   it('parses Pending status with GrothProof, groth_public, and ttl', () => {
@@ -194,7 +197,7 @@ describe('parseEncryptionDatum', () => {
 });
 
 describe('parseBidDatum', () => {
-  it('parses all 5 fields correctly', () => {
+  it('parses all 6 fields correctly', () => {
     const datum = mkBidDatum();
     const result = parseBidDatum(datum);
 
@@ -203,6 +206,7 @@ describe('parseBidDatum', () => {
     expect(result.pointer).toBe('ab'.repeat(32));
     expect(result.token).toBe(TOKEN_HEX);
     expect(result.locked_until).toBe(1234567890000);
+    expect(result.new_price).toBe(0);
   });
 });
 
@@ -256,7 +260,7 @@ describe('error handling', () => {
     expect(() => parseBidDatum(badBid)).toThrow('Expected bytes');
   });
 
-  it('throws when constructor has too few fields (3 instead of 7)', () => {
+  it('throws when constructor has too few fields (3 instead of 8)', () => {
     const shortDatum = {
       constructor: 0,
       fields: [
@@ -273,7 +277,6 @@ describe('error handling', () => {
 
 // CIP-20 metadata parsing
 import { parseCip20Fields } from '../encryptions.js';
-import { parseBidCip20Fields } from '../bids.js';
 
 describe('parseCip20Fields', () => {
   it('parses complete msg array correctly', () => {
@@ -395,23 +398,6 @@ describe('parseCip20Fields — new structured format', () => {
   });
 });
 
-describe('parseBidCip20Fields', () => {
-  it('parses valid future price', () => {
-    const result = parseBidCip20Fields(['10.5']);
-    expect(result.futurePrice).toBe(10.5);
-  });
-
-  it('preserves zero price (not treated as falsy)', () => {
-    const result = parseBidCip20Fields(['0']);
-    expect(result.futurePrice).toBe(0);
-  });
-
-  it('returns empty object for empty array', () => {
-    const result = parseBidCip20Fields([]);
-    expect(result.futurePrice).toBeUndefined();
-  });
-});
-
 describe('parseCip20Fields — edge cases', () => {
   it('UTF-8 multi-byte characters across chunk boundaries join correctly', () => {
     // "ñ" is 2 bytes in UTF-8. Splitting mid-character would corrupt, but
@@ -497,25 +483,10 @@ describe('parseCip20Fields — edge cases', () => {
     expect(result.category).toBeUndefined();
   });
 
-  it('parseBidCip20Fields with NaN price → undefined', () => {
-    const result = parseBidCip20Fields(['not-a-number']);
-    expect(result.futurePrice).toBeUndefined();
-  });
-
-  it('parseBidCip20Fields with negative price parses correctly', () => {
-    const result = parseBidCip20Fields(['-5']);
-    expect(result.futurePrice).toBe(-5);
-  });
-
-  it('parseBidCip20Fields with empty string → undefined', () => {
-    const result = parseBidCip20Fields(['']);
-    expect(result.futurePrice).toBeUndefined();
-  });
 });
 
 // --- Batch metadata extraction helpers ---
 import { extractCip20FromMetadata } from '../encryptions.js';
-import { extractBidCip20FromMetadata } from '../bids.js';
 
 describe('extractCip20FromMetadata', () => {
   it('extracts CIP-20 fields from metadata entries (new structured format)', () => {
@@ -554,19 +525,3 @@ describe('extractCip20FromMetadata', () => {
   });
 });
 
-describe('extractBidCip20FromMetadata', () => {
-  it('extracts future price from bid metadata', () => {
-    const entries = [{ key: '674', json: { msg: ['10.5'] } }];
-    const result = extractBidCip20FromMetadata(entries);
-    expect(result.futurePrice).toBe(10.5);
-  });
-
-  it('returns empty when no 674 key', () => {
-    expect(extractBidCip20FromMetadata([])).toEqual({});
-  });
-
-  it('returns empty when msg array is empty', () => {
-    const entries = [{ key: '674', json: { msg: [] } }];
-    expect(extractBidCip20FromMetadata(entries)).toEqual({});
-  });
-});

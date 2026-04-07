@@ -1,3 +1,5 @@
+import { storageGetJSON, storageSetJSON, storageRemove } from './storageUtils'
+
 const ONBOARDING_KEY = 'veiled_onboarding'
 
 export type OnboardingStep = 0 | 1 | 2 | 3
@@ -10,23 +12,16 @@ export interface OnboardingState {
 
 /** Read onboarding state from localStorage. Returns step 0 if not found. */
 export function getOnboardingState(): OnboardingState {
-  try {
-    const stored = localStorage.getItem(ONBOARDING_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (typeof parsed.step === 'number' && typeof parsed.completed === 'boolean') {
-        return parsed as OnboardingState
-      }
-    }
-  } catch { /* best-effort */ }
+  const parsed = storageGetJSON<OnboardingState | null>(ONBOARDING_KEY, null)
+  if (parsed && typeof parsed.step === 'number' && typeof parsed.completed === 'boolean') {
+    return parsed
+  }
   return { step: 0, completed: false }
 }
 
 /** Save onboarding state. */
 export function setOnboardingState(state: OnboardingState): void {
-  try {
-    localStorage.setItem(ONBOARDING_KEY, JSON.stringify(state))
-  } catch { /* best-effort */ }
+  storageSetJSON(ONBOARDING_KEY, state)
 }
 
 /** Mark onboarding as completed. */
@@ -50,7 +45,5 @@ export function advanceOnboardingStep(): OnboardingState {
 
 /** Reset onboarding (for testing or re-triggering). */
 export function resetOnboarding(): void {
-  try {
-    localStorage.removeItem(ONBOARDING_KEY)
-  } catch { /* best-effort */ }
+  storageRemove(ONBOARDING_KEY)
 }

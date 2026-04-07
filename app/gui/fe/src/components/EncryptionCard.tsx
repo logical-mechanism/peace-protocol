@@ -8,6 +8,8 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
+import { formatPrice, getCategoryLabel } from '../utils/formatListing';
+import TransactionLink, { TransactionLinkInline } from './TransactionLink';
 
 
 interface EncryptionCardProps {
@@ -40,33 +42,15 @@ function EncryptionCard({
   searchQuery = '',
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
-  const [prevBidCount, setPrevBidCount] = useState(bidCount);
-  const [bidPulseKey, setBidPulseKey] = useState(0);
+  const [initialBidCount] = useState(bidCount);
   const [copied, setCopied] = useState(false);
   const [favPulseKey, setFavPulseKey] = useState(0);
 
-  if (bidCount > prevBidCount) {
-    setPrevBidCount(bidCount);
-    setBidPulseKey(k => k + 1);
-  }
-
-  // Format price with "No suggested price" fallback for missing/invalid values
-  const formatPrice = (price?: number): string => {
-    if (price === undefined || price === null || isNaN(price) || price < 0) {
-      return 'No suggested price';
-    }
-    return `${price.toLocaleString()} ADA`;
-  };
+  const hasBidPulse = bidCount > initialBidCount;
 
   const hasLowBalance = lovelace !== undefined && (lovelace === null || parseInt(lovelace) < 2_000_000);
   const isOptimistic = encryption._optimistic === true;
   const canBid = encryption.status === 'active' && !isOwnListing && !hasBid && !isOptimistic;
-
-  // Get category label, defaulting to "Text" for backward compatibility
-  const getCategoryLabel = (category?: string): string => {
-    if (!category) return 'Text';
-    return category.charAt(0).toUpperCase() + category.slice(1);
-  };
 
   const handleCopySeller = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -86,58 +70,44 @@ function EncryptionCard({
   if (compact) {
     return (
       <>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
-          <div className="flex items-center justify-between mb-[var(--space-2)]">
-            <div className="flex items-center gap-[var(--space-2)]">
-              {onToggleFavorite && (
-                <button
-                  onClick={handleToggleFavorite}
-                  className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
-                  title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                  aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                  aria-pressed={isFavorite}
-                >
-                  <svg key={favPulseKey} className={`w-3.5 h-3.5${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                </button>
-              )}
-              <span title={encryption.tokenName}>
-                <HighlightText
-                  text={truncateHex(encryption.tokenName, 8, 4)}
-                  query={searchQuery}
-                  className="text-xs font-mono text-[var(--text-muted)]"
-                />
+        <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)] relative z-0">
+          {/* Row 1: Star + Tx Hash + Category + Status */}
+          <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)] min-w-0">
+            {onToggleFavorite && (
+              <button
+                onClick={handleToggleFavorite}
+                className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
+                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                aria-pressed={isFavorite}
+              >
+                <svg key={favPulseKey} className={`w-3.5 h-3.5${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </button>
+            )}
+            <TransactionLink txHash={encryption.utxo.txHash} className="text-xs" />
+            <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
+              {getCategoryLabel(encryption.category)}
+            </span>
+            <EncryptionStatusBadge status={encryption.status} />
+            {isOptimistic && (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
+                Awaiting confirmation
               </span>
-            </div>
-            <div className="flex items-center gap-[var(--space-2)]">
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                {getCategoryLabel(encryption.category)}
-              </span>
-              <EncryptionStatusBadge status={encryption.status} />
-              {isOptimistic && (
-                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                  Awaiting confirmation
-                </span>
-              )}
-              {bidCount > 0 && (
-                <span
-                  key={bidPulseKey}
-                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
-                >
-                  {bidCount}
-                </span>
-              )}
-            </div>
+            )}
           </div>
+          {/* Row 2: Description */}
           {encryption.description && (
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-[var(--space-2)] cursor-pointer hover:text-[var(--text-primary)]"
+              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1 mb-[var(--space-2)] cursor-pointer hover:text-[var(--text-primary)] relative z-10 max-w-md"
               onClick={() => setDescriptionModalOpen(true)}
+              title={encryption.description}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
             </p>
           )}
+          {/* Row 3: Price + Action */}
           <div className="flex items-center justify-between">
             <span className="text-lg font-semibold text-[var(--accent)]">
               {formatPrice(encryption.suggestedPrice)}
@@ -163,7 +133,7 @@ function EncryptionCard({
               </span>
             )}
           </div>
-        </div>
+        </article>
 
         {/* Description Modal */}
         <DescriptionModal
@@ -178,53 +148,52 @@ function EncryptionCard({
 
   return (
     <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
         {/* Header */}
-        <div className="flex items-start justify-between mb-[var(--space-md)]">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-1)] flex-wrap">
-              {onToggleFavorite && (
-                <button
-                  onClick={handleToggleFavorite}
-                  className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
-                  title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                  aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                  aria-pressed={isFavorite}
-                >
-                  <svg key={favPulseKey} className={`w-4 h-4${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                </button>
-              )}
-              <span title={encryption.tokenName}>
-                <HighlightText
-                  text={truncateHex(encryption.tokenName, 8, 4)}
-                  query={searchQuery}
-                  className="text-xs font-mono text-[var(--text-muted)] truncate"
-                />
+        <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
+          {/* Row 1: Star + Status + Transaction Hash */}
+          <div className="flex items-center gap-[var(--space-2)] min-w-0">
+            {onToggleFavorite && (
+              <button
+                onClick={handleToggleFavorite}
+                className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
+                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                aria-pressed={isFavorite}
+              >
+                <svg key={favPulseKey} className={`w-4 h-4${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </button>
+            )}
+            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
+            <EncryptionStatusBadge status={encryption.status} />
+            {isOptimistic && (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
+                Awaiting confirmation
               </span>
-              <EncryptionStatusBadge status={encryption.status} />
-              {isOptimistic && (
-                <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                  Awaiting confirmation
-                </span>
-              )}
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                {getCategoryLabel(encryption.category)}
-              </span>
-              {bidCount > 0 && (
-                <span
-                  key={bidPulseKey}
-                  className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${bidPulseKey > 0 ? ' bid-pulse' : ''}`}
-                >
-                  {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-[var(--text-muted)]">
-              Listed {formatDate(encryption.createdAt)}
-            </p>
+            )}
           </div>
+          {/* Row 2: Category (left) + Bid Count (right) */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
+              {getCategoryLabel(encryption.category)}
+            </span>
+            {bidCount > 0 ? (
+              <span
+                key={bidCount}
+                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
+              >
+                {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
+              </span>
+            ) : (
+              <span className="text-xs text-[var(--text-muted)]">0 bids</span>
+            )}
+          </div>
+          {/* Row 3: Listed Date */}
+          <p className="text-xs text-[var(--text-muted)] text-center">
+            Listed {formatDate(encryption.createdAt)}
+          </p>
         </div>
 
         {/* Description */}
@@ -256,7 +225,6 @@ function EncryptionCard({
           <p className="text-2xl font-semibold text-[var(--accent)]">
             {formatPrice(encryption.suggestedPrice)}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">Suggested Price</p>
         </div>
 
         {/* Seller Info */}
@@ -264,7 +232,7 @@ function EncryptionCard({
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-mono text-[var(--text-secondary)]">
-              {truncateHex(encryption.seller, 10, 6)}
+              <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
             </span>
             <button
               onClick={handleCopySeller}
@@ -325,7 +293,7 @@ function EncryptionCard({
             <p className="text-xs text-[var(--success)]">Sale completed</p>
           </div>
         )}
-      </div>
+      </article>
 
       {/* Description Modal */}
       <DescriptionModal

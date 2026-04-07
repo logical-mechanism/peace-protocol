@@ -13,6 +13,12 @@ vi.mock('../../services/libraryService', () => ({
   deleteLibraryItem: vi.fn(),
 }));
 
+vi.mock('../../contexts/WalletContext', () => ({
+  useWalletContext: () => ({
+    address: 'addr_test1_mock_library_address',
+  }),
+}));
+
 // Mock LibraryContentModal to avoid heavy deps (PdfViewer, VideoPlayer, etc.)
 vi.mock('../LibraryContentModal', () => ({
   default: () => <div data-testid="library-content-modal">LibraryContentModal</div>,

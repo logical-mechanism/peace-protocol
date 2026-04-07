@@ -31,6 +31,7 @@ export const STUB_BIDS: BidDisplay[] = [
       pointer: '00abc123def456789012345678901234567890123456789012345678901234',
       token: '10bid001abc234567890123456789012345678901234567890123456789012',
       locked_until: Date.now() + 12 * 60 * 60 * 1000,
+      new_price: 0,
     },
   },
   {
@@ -55,6 +56,7 @@ export const STUB_BIDS: BidDisplay[] = [
       pointer: '00abc123def456789012345678901234567890123456789012345678901234',
       token: '11bid002def345678901234567890123456789012345678901234567890123',
       locked_until: Date.now() + 12 * 60 * 60 * 1000,
+      new_price: 0,
     },
   },
   {
@@ -79,6 +81,7 @@ export const STUB_BIDS: BidDisplay[] = [
       pointer: '01def456abc789012345678901234567890123456789012345678901234567',
       token: '12bid003ghi456789012345678901234567890123456789012345678901234',
       locked_until: Date.now() + 12 * 60 * 60 * 1000,
+      new_price: 0,
     },
   },
   {
@@ -103,6 +106,7 @@ export const STUB_BIDS: BidDisplay[] = [
       pointer: '02ghi789jkl012345678901234567890123456789012345678901234567890',
       token: '13bid004jkl567890123456789012345678901234567890123456789012345',
       locked_until: Date.now() + 12 * 60 * 60 * 1000,
+      new_price: 0,
     },
   },
   {
@@ -127,6 +131,7 @@ export const STUB_BIDS: BidDisplay[] = [
       pointer: '04stu345vwx678901234567890123456789012345678901234567890123456',
       token: '14bid005mno678901234567890123456789012345678901234567890123456',
       locked_until: Date.now() + 12 * 60 * 60 * 1000,
+      new_price: 0,
     },
   },
   // TEST WALLET: Accepted bid for decrypt modal testing
@@ -152,6 +157,7 @@ export const STUB_BIDS: BidDisplay[] = [
       pointer: '00abc123def456789012345678901234567890123456789012345678901234',
       token: '15bid006test78901234567890123456789012345678901234567890123456',
       locked_until: Date.now() + 12 * 60 * 60 * 1000,
+      new_price: 0,
     },
   },
 ];

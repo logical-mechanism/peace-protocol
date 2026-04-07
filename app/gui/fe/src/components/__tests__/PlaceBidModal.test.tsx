@@ -16,7 +16,7 @@ const baseEncryption: EncryptionDisplay = {
   createdAt: '2024-01-01T00:00:00Z',
   utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
   datum: {} as EncryptionDisplay['datum'],
-  suggestedPrice: 100,
+  suggestedPrice: 100_000_000,
   description: 'Test encrypted data listing',
 };
 
@@ -64,7 +64,7 @@ describe('PlaceBidModal', () => {
 
   it('shows listing details from encryption', () => {
     renderModal();
-    expect(screen.getByText('100 ADA')).toBeInTheDocument();
+    expect(screen.getByText('100.00 ADA')).toBeInTheDocument();
     expect(screen.getByText('Test encrypted data listing')).toBeInTheDocument();
   });
 
@@ -115,15 +115,13 @@ describe('PlaceBidModal', () => {
     expect(await screen.findByText(/Minimum bid is 2 ADA/)).toBeInTheDocument();
   });
 
-  it('validates bid amount exceeding maximum', async () => {
+  it('clamps bid amount to Cardano max supply (45B ADA)', async () => {
     renderModal();
 
     const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '9999999999' } });
+    fireEvent.change(input, { target: { value: '99999999999' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
-
-    expect(await screen.findByText('Bid amount is too high')).toBeInTheDocument();
+    expect(input.value).toBe('45000000000');
   });
 
   it('calls onSubmit with correct args on valid submission', async () => {

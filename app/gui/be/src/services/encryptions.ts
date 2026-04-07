@@ -1,4 +1,5 @@
 import { getNetworkConfig } from '../config/index.js';
+import { CACHE_TTL_DATA } from '../config/cacheConstants.js';
 import { apiCache } from './cache.js';
 import { getKupoClient } from './kupo.js';
 import { getKoiosClient, type KoiosUtxo } from './koios.js';
@@ -36,18 +37,23 @@ export function clearMetadataCache(): void {
 /**
  * Parse CIP-20 metadata into structured fields.
  *
- * Supports two formats:
- * - New (structured): { msg: [...descChunks], p: "price", s: "storage", i: [...urlChunks], c: "category" }
+ * Supports three formats:
+ * - Current (structured, no price): { msg: [...descChunks], s: "storage", i: [...urlChunks], c: "category" }
+ * - Legacy structured (with price):  { msg: [...descChunks], p: "price", s: "storage", i: [...urlChunks], c: "category" }
  * - Old (flat array):  { msg: [description, suggestedPrice, storageLayer, imageLink, category] }
  *
- * Detection: if the object has a `p` key, it's the new format.
+ * Detection: if the object has `s`, `c`, or `p` keys, it's a structured format.
+ * Price is now stored in the datum's new_price field, not in metadata.
  */
 export function parseCip20Fields(msg: string[], fullJson?: Record<string, unknown>): ParsedCip20 {
-  // New structured format: detect by presence of `p` key
-  if (fullJson && 'p' in fullJson) {
+  // New structured format: detect by presence of `s` (storageLayer) or `c` (category) key.
+  // Also supports legacy structured format that included `p` (price) key.
+  // Price is now stored in the datum's new_price field, not in metadata.
+  if (fullJson && ('s' in fullJson || 'c' in fullJson || 'p' in fullJson)) {
     const descChunks = Array.isArray(fullJson.msg) ? (fullJson.msg as string[]) : [];
     const description = descChunks.join('') || undefined;
 
+    // Legacy: `p` key may be present in old structured metadata
     const priceStr = typeof fullJson.p === 'string' ? fullJson.p : '';
     const suggestedPrice = priceStr ? parseFloat(priceStr) : undefined;
 
@@ -113,7 +119,7 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
     sellerPkh: datum.owner_vkh,
     status,
     description: cip20.description,
-    suggestedPrice: cip20.suggestedPrice,
+    suggestedPrice: datum.new_price,
     storageLayer: cip20.storageLayer,
     imageLink: cip20.imageLink,
     category: cip20.category,
@@ -156,6 +162,7 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
           txHash: utxo.tx_hash,
           txIndex: utxo.tx_index,
           error: String(err),
+          fieldCount: (utxo.inline_datum?.value as { fields?: unknown[] })?.fields?.length,
           datumPreview: JSON.stringify(utxo.inline_datum)?.slice(0, 200),
         });
       }
@@ -196,7 +203,7 @@ export async function getAllEncryptions(skipCache = false): Promise<ServiceResul
       encryptions.push(utxoToEncryptionDisplay(utxo, datum, cip20));
     }
 
-    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions, 15_000);
+    apiCache.set(CACHE_KEY_ALL_ENCRYPTIONS, encryptions, CACHE_TTL_DATA);
     const warnings: ResponseWarnings = skippedDatums > 0 ? { skippedDatums } : {};
     return { data: encryptions, warnings };
   } catch (err) {
@@ -250,7 +257,7 @@ export async function getEncryptionsByStatus(
  * 5. From older txs: extract full_level (if Some)
  * 6. Return ordered array for recursive decryption
  */
-export async function getEncryptionLevels(tokenName: string): Promise<EncryptionLevel[]> {
+export async function getEncryptionLevels(tokenName: string, ownerPkh?: string): Promise<EncryptionLevel[]> {
   const { contracts } = getNetworkConfig();
   const koios = getKoiosClient();
 
@@ -299,9 +306,15 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
     return (b.tx_block_index ?? 0) - (a.tx_block_index ?? 0);
   });
 
-  // Step 4-5: Extract levels from inline datums at the encryption contract address
-  const levels: EncryptionLevel[] = [];
-  let isNewest = true; // Track first matching tx (not just i===0, since address_txs fallback includes other tokens)
+  // Step 4-5: Extract levels from inline datums at the encryption contract address.
+  // Parse all valid datums first, then extract levels based on ownership scope.
+  interface ParsedDatum {
+    txHash: string;
+    ownerVkh: string;
+    halfLevel: ReturnType<typeof parseHalfEncryptionLevel> | null;
+    fullLevel: ReturnType<typeof parseOptionalFullLevel>;
+  }
+  const parsedDatums: ParsedDatum[] = [];
   const skipped = { noEncOutput: 0, noInlineDatum: 0, tooFewFields: 0, wrongToken: 0 };
 
   for (let i = 0; i < txInfos.length; i++) {
@@ -320,7 +333,7 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
       continue;
     }
 
-    // The datum is a Plutus constructor: fields[3] = half_level, fields[4] = full_level
+    // The datum is a Plutus constructor: fields[0] = owner_vkh, fields[3] = half_level, fields[4] = full_level
     const datumValue = encOutput.inline_datum.value as { constructor: number; fields: unknown[] };
     logger.debug('Parsing datum for tx', {
       txHash: tx.tx_hash,
@@ -341,49 +354,82 @@ export async function getEncryptionLevels(tokenName: string): Promise<Encryption
       continue;
     }
 
-    if (isNewest) {
-      // Newest tx: extract half_level (fields[3])
-      try {
-        const halfLevel = parseHalfEncryptionLevel(datumValue.fields[3] as never);
-        levels.push({
-          r1: halfLevel.r1b,
-          r2_g1: halfLevel.r2_g1b,
-        });
-      } catch (err) {
-        logger.warn('Failed to parse half_level', {
-          txHash: tx.tx_hash,
-          error: String(err),
-          field3: JSON.stringify(datumValue.fields[3]).slice(0, 200),
-        });
-      }
-      isNewest = false;
+    const datumOwnerVkh = (datumValue.fields[0] as { bytes?: string })?.bytes || '';
+
+    let halfLevel: ReturnType<typeof parseHalfEncryptionLevel> | null = null;
+    try {
+      halfLevel = parseHalfEncryptionLevel(datumValue.fields[3] as never);
+    } catch (err) {
+      logger.warn('Failed to parse half_level', {
+        txHash: tx.tx_hash,
+        error: String(err),
+        field3: JSON.stringify(datumValue.fields[3]).slice(0, 200),
+      });
     }
 
-    // All txs (including newest): extract full_level if Some (fields[4])
-    // Deduplicate: UseSnark preserves the existing full_level unchanged,
-    // so consecutive txs can carry the same full_level — skip duplicates.
+    let fullLevel: ReturnType<typeof parseOptionalFullLevel> = null;
     try {
-      const fullLevel = parseOptionalFullLevel(datumValue.fields[4] as never);
-      if (fullLevel) {
-        const prev = levels[levels.length - 1];
-        const isDuplicate = prev &&
-          prev.r1 === fullLevel.r1b &&
-          prev.r2_g1 === fullLevel.r2_g1b &&
-          prev.r2_g2 === fullLevel.r2_g2b;
-        if (!isDuplicate) {
-          levels.push({
-            r1: fullLevel.r1b,
-            r2_g1: fullLevel.r2_g1b,
-            r2_g2: fullLevel.r2_g2b,
-          });
-        }
-      }
+      fullLevel = parseOptionalFullLevel(datumValue.fields[4] as never);
     } catch (err) {
       logger.warn('Failed to parse full_level', {
         txHash: tx.tx_hash,
         error: String(err),
         field4: JSON.stringify(datumValue.fields[4]).slice(0, 200),
       });
+    }
+
+    parsedDatums.push({ txHash: tx.tx_hash, ownerVkh: datumOwnerVkh, halfLevel, fullLevel });
+  }
+
+  // Step 5: Extract levels from parsed datums.
+  // When ownerPkh is provided, scope levels to that owner's window:
+  //   - Find the newest tx where owner_vkh === ownerPkh (their buy tx)
+  //   - Use their half_level, collect full_levels from that tx and older
+  // When ownerPkh is omitted, use newest tx's half_level + all full_levels (original behavior).
+  const levels: EncryptionLevel[] = [];
+
+  // Determine where to start extracting (newest-first order)
+  let startIdx = 0;
+  if (ownerPkh) {
+    // Find the newest tx where this ownerPkh is the owner
+    const idx = parsedDatums.findIndex(d => d.ownerVkh === ownerPkh);
+    if (idx === -1) {
+      logger.warn('getEncryptionLevels: ownerPkh not found in tx history', { tokenName, ownerPkh });
+      // Fall back to current owner behavior
+    } else {
+      startIdx = idx;
+    }
+  }
+
+  let isFirst = true;
+  for (let i = startIdx; i < parsedDatums.length; i++) {
+    const datum = parsedDatums[i];
+
+    if (isFirst) {
+      // Extract half_level from the target owner's tx
+      if (datum.halfLevel) {
+        levels.push({
+          r1: datum.halfLevel.r1b,
+          r2_g1: datum.halfLevel.r2_g1b,
+        });
+      }
+      isFirst = false;
+    }
+
+    // Extract full_level if Some (deduplicate consecutive duplicates)
+    if (datum.fullLevel) {
+      const prev = levels[levels.length - 1];
+      const isDuplicate = prev &&
+        prev.r1 === datum.fullLevel.r1b &&
+        prev.r2_g1 === datum.fullLevel.r2_g1b &&
+        prev.r2_g2 === datum.fullLevel.r2_g2b;
+      if (!isDuplicate) {
+        levels.push({
+          r1: datum.fullLevel.r1b,
+          r2_g1: datum.fullLevel.r2_g1b,
+          r2_g2: datum.fullLevel.r2_g2b,
+        });
+      }
     }
   }
 

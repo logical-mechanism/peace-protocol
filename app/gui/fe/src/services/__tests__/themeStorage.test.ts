@@ -92,16 +92,15 @@ describe('themeStorage', () => {
       vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
         throw new DOMException('SecurityError')
       })
-      // getTheme has no try-catch, but getItem returning null is handled
-      // When getItem throws, it propagates
-      expect(() => getTheme()).toThrow('SecurityError')
+      // storageUtils catches the error and returns null, so getTheme falls back to dark
+      expect(getTheme()).toBe('dark')
     })
 
-    it('setTheme propagates when setItem throws (no try-catch)', () => {
+    it('setTheme does not throw when setItem fails', () => {
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new DOMException('QuotaExceededError')
       })
-      expect(() => setTheme('dark')).toThrow('QuotaExceededError')
+      expect(() => setTheme('dark')).not.toThrow()
     })
   })
 })

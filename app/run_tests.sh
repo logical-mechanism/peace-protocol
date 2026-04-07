@@ -52,15 +52,6 @@ go tool cover -func=cover.out | tee -a "../$OUT"
 cd ..
 
 # --------------------
-# TYPESCRIPT (UI)
-# --------------------
-
-echo -e "\033[1;36m\nRunning Frontend Tests\033[0m"
-cd ui/fe
-npx vitest run 2>&1 | tee -a "../../$OUT"
-cd ../..
-
-# --------------------
 # TAURI (GUI)
 # --------------------
 

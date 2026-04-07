@@ -13,8 +13,8 @@ import { formatDateTime } from '../utils/formatDate';
 
 const PdfViewer = lazy(() => import('./PdfViewer'));
 const ImageViewer = lazy(() => import('./ImageViewer'));
-const AudioPlayer = lazy(() => import('./AudioPlayer'));
-const VideoPlayer = lazy(() => import('./VideoPlayer'));
+const AudioPlayer = lazy(() => import('./audio'));
+const VideoPlayer = lazy(() => import('./video'));
 
 interface LibraryContentModalProps {
   isOpen: boolean;
@@ -246,17 +246,17 @@ export default function LibraryContentModal({
       try {
         const viewMode = getViewMode(item.category, item.fileExtension);
 
-        if (viewMode === 'video' || viewMode === 'audio') {
-          // Stream from disk via asset:// URL — avoids reading entire file into memory via IPC
+        if (viewMode === 'video') {
+          // Stream from disk via media server URL — avoids reading entire file into memory via IPC
           const url = await getLibraryContentUrl(item.tokenName, item.category);
           if (cancelled) return;
           setContentUrl(url);
           // Load subtitle URL for videos (best-effort, non-blocking)
-          if (viewMode === 'video') {
-            getLibrarySubtitleUrl(item.tokenName, item.category)
-              .then(subUrl => { if (!cancelled) setSubtitleUrl(subUrl); })
-              .catch(() => {}); // Subtitle not found is fine
-          }
+          getLibrarySubtitleUrl(item.tokenName, item.category)
+            .then(subUrl => { if (!cancelled) setSubtitleUrl(subUrl); })
+            .catch(() => {}); // Subtitle not found is fine
+        } else if (viewMode === 'audio') {
+          // Audio playback handled by rodio (Rust) via Tauri IPC — no URL needed
         } else {
           // For non-streamable content, read into memory (text, PDF, image, download)
           const data = await readLibraryContent(item.tokenName, item.category);
@@ -551,10 +551,10 @@ export default function LibraryContentModal({
               </Suspense>
             )}
 
-            {/* Loaded state — Audio player */}
-            {state === 'loaded' && viewMode === 'audio' && contentUrl && (
+            {/* Loaded state — Audio player (rodio handles playback via Tauri IPC) */}
+            {state === 'loaded' && viewMode === 'audio' && (
               <Suspense fallback={<ContentSkeleton viewMode="audio" />}>
-                <AudioPlayer src={contentUrl} fileExtension={item.fileExtension || '.mp3'} onExport={handleExport} />
+                <AudioPlayer fileExtension={item.fileExtension || '.mp3'} tokenName={item.tokenName} category={item.category} onExport={handleExport} />
               </Suspense>
             )}
 

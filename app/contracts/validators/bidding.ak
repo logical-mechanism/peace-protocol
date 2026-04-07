@@ -12,7 +12,7 @@ use cardano/transaction.{
 use search
 use types/bidding.{
   BidDatum, BidMintRedeemer, BidSpendRedeemer, EntryBidMint, LeaveBidBurn,
-  RemoveBid, UseBid,
+  RemoveBid, UpdateBidPrice, UseBid,
 }
 use types/encryption.{UseEncryption}
 use types/reference.{ReferenceDatum}
@@ -44,8 +44,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         }): Option<Output> =
           search.for_output_by_token(outputs, policy_id, token_name)
         // reputation datum needs to be validated so destruct it
-        expect BidDatum { owner_vkh, owner_g1, pointer, token, locked_until }: BidDatum =
-          output_datum_data
+        expect BidDatum {
+          owner_vkh,
+          owner_g1,
+          pointer,
+          token,
+          locked_until,
+          ..
+        }: BidDatum = output_datum_data
         // get encryption contract info from reference data
         let ReferenceDatum { encryption, .. }: ReferenceDatum =
           search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
@@ -184,6 +190,41 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 burn_token,
                 assets.has_nft_strict(encryption_value, encryption, token),
                 selected_bid_token == pointer,
+              }
+            }
+
+            UpdateBidPrice(price) -> {
+              // this pointer going back
+              expect Some(Output {
+                address: Address { payment_credential, .. },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                value: output_value,
+              }): Option<Output> =
+                search.for_output_by_token(outputs, this_script, pointer)
+              // everything is constant but the new_price
+              let expected_output_datum_data: Data =
+                BidDatum { ..this_datum, new_price: price }
+              // ensure non-ADA tokens are preserved
+              let input_tokens =
+                this_input.output.value |> assets.without_lovelace
+              let output_tokens = output_value |> assets.without_lovelace
+              //
+              and {
+                // price must be non-negative
+                price >= 0,
+                // only the new_price field can change
+                output_datum_data == expected_output_datum_data,
+                // non-ADA tokens must be preserved
+                input_tokens == output_tokens,
+                // owner_vkh must sign
+                has(extra_signatories, owner_vkh),
+                // check if correct script hashes
+                Script(this_script) == payment_credential,
+                // script output can not have a reference script
+                reference_script == None,
+                // force pointer to already exist
+                assets.has_nft(this_input.output.value, this_script, pointer),
               }
             }
           }

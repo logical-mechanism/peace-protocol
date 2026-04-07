@@ -20,6 +20,7 @@ import DataLayerSection from './settings/DataLayerSection'
 import StorageSection from './settings/StorageSection'
 import LogsSection from './settings/LogsSection'
 import UpdateSection from './settings/UpdateSection'
+import AutomationSection from './settings/AutomationSection'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -73,6 +74,11 @@ export default function Settings() {
       { id: 'wallet', label: 'Wallet', icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 110-6h5.25A2.25 2.25 0 0121 6v6zm0 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V6a2.25 2.25 0 012.25-2.25h13.5" />
+        </svg>
+      )},
+      { id: 'automation', label: 'Automation', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12" />
         </svg>
       )},
     ]},
@@ -249,6 +255,11 @@ export default function Settings() {
           <LogsSection
             processes={processes}
           />
+        )}
+
+        {/* Automation Section */}
+        {!searchResults && activeSection === 'automation' && (
+          <AutomationSection />
         )}
 
         {/* Updates Section */}

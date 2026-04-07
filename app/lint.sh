@@ -20,11 +20,6 @@ gofmt -w .
 go vet ./...
 
 echo ""
-echo "=== TypeScript (ui) ==="
-cd "$SCRIPT_DIR/ui"
-npm run lint
-
-echo ""
 echo "=== Tauri (gui) ==="
 cd "$SCRIPT_DIR/gui"
 ./lint.sh

@@ -9,12 +9,16 @@ import type { PurchaseStage } from './BidTimeline';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { formatDate } from '../utils/formatDate';
+import ListingImage from './ListingImage';
+import TransactionLink, { TransactionLinkInline } from './TransactionLink';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface MyPurchaseBidCardProps {
   bid: BidDisplay;
   encryption?: EncryptionDisplay;
   onCancel?: (bid: BidDisplay) => void;
   onDecrypt?: (bid: BidDisplay) => void;
+  onUpdateBid?: (bid: BidDisplay) => void;
   compact?: boolean;
   purchaseStage?: PurchaseStage;
   decryptFailed?: boolean;
@@ -25,11 +29,22 @@ function MyPurchaseBidCard({
   encryption,
   onCancel,
   onDecrypt,
+  onUpdateBid,
   compact = false,
   purchaseStage,
   decryptFailed = false,
 }: MyPurchaseBidCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
+  const [copiedSeller, setCopiedSeller] = useState(false);
+
+  const handleCopySeller = async () => {
+    if (!encryption?.seller) return;
+    const success = await copyToClipboard(encryption.seller);
+    if (success) {
+      setCopiedSeller(true);
+      setTimeout(() => setCopiedSeller(false), 1500);
+    }
+  };
 
   const isOptimistic = bid._optimistic === true;
   const isPending = bid.status === 'pending';
@@ -65,122 +80,103 @@ function MyPurchaseBidCard({
   if (compact) {
     return (
       <>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
-        <div className="flex items-center justify-between gap-4">
-          {/* Left: Bid info */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            {/* Bid icon */}
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-              isAccepted
-                ? 'bg-[var(--success-muted)]'
-                : isPending
-                ? 'bg-[var(--warning-muted)]'
-                : 'bg-[var(--bg-secondary)]'
-            }`}>
-              <svg
-                className={`w-5 h-5 ${
-                  isAccepted
-                    ? 'text-[var(--success)]'
-                    : isPending
-                    ? 'text-[var(--warning)]'
-                    : 'text-[var(--text-muted)]'
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                <span className="text-xs font-mono text-[var(--text-muted)]" title={bid.encryptionToken}>
-                  Bid on {truncateHex(bid.encryptionToken, 8, 4)}
-                </span>
-                <BidStatusBadge status={bid.status} />
-                {isOptimistic && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                    Awaiting confirmation
-                  </span>
-                )}
-                <InfoTooltip text={getStatusTooltip()} position="bottom" />
-              </div>
-              {encryption?.description && (
-                <p
-                  className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)]"
-                  onClick={() => setDescriptionModalOpen(true)}
-                >
-                  {truncateDescription(encryption.description)}
-                </p>
-              )}
-              {!encryption?.description && (
-                <p className="text-xs text-[var(--text-muted)]">
-                  {isPending ? 'Waiting for seller' : formatDate(bid.createdAt)}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Timeline (compact) */}
-          {purchaseStage && (
-            <div className="flex-shrink-0 w-40 hidden lg:block">
-              <BidTimeline stage={purchaseStage} bidStatus={bid.status} compact />
-            </div>
+      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
+        {/* Row 1: Info Icon + Tx Hash + Status */}
+        <div className="flex items-center gap-2 mb-[var(--space-2)] min-w-0">
+          <InfoTooltip text={getStatusTooltip()} position="bottom" />
+          <TransactionLink txHash={bid.utxo.txHash} className="text-xs" />
+          <span className="ml-auto" />
+          <BidStatusBadge status={bid.status} />
+          {isOptimistic && (
+            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
+              Awaiting confirmation
+            </span>
           )}
-
-          {/* Middle: Amount & Seller */}
-          <div className="flex items-center gap-6 flex-shrink-0">
-            <div className="text-right">
-              <span className={`text-lg font-semibold ${
-                isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
-              }`}>
-                {formatAda(bid.amount)} ADA
+        </div>
+        {/* Row 2: Description or date */}
+        {encryption?.description ? (
+          <p
+            className="text-sm font-medium text-[var(--text-secondary)] truncate cursor-pointer hover:text-[var(--text-primary)] mb-[var(--space-2)] max-w-md relative z-10"
+            onClick={() => setDescriptionModalOpen(true)}
+            title={encryption.description}
+          >
+            {truncateDescription(encryption.description)}
+          </p>
+        ) : (
+          <p className="text-xs text-[var(--text-muted)] mb-[var(--space-2)]">
+            {isPending ? 'Waiting for seller' : formatDate(bid.createdAt)}
+          </p>
+        )}
+        {/* Row 3: Price + Seller + Actions */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className={`text-lg font-semibold inline-flex items-center gap-[var(--space-1)] ${
+              isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
+            }`}>
+              {formatAda(bid.amount)} ADA
+              {isPending && !isOptimistic && onUpdateBid && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
+                  className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+                  title="Update bid"
+                    aria-label="Update bid"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                  </svg>
+                </button>
+              )}
+            </span>
+            {encryption && (
+              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1" title={encryption.seller}>
+                {truncateHex(encryption.seller, 8, 4)}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
+                  className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                  title="Copy seller address"
+                  aria-label="Copy seller address"
+                >
+                  <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {copiedSeller ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    )}
+                  </svg>
+                </button>
               </span>
-              {encryption && (
-                <p className="text-xs text-[var(--text-muted)]" title={encryption.seller}>
-                  Seller: {truncateHex(encryption.seller, 12, 8)}
-                </p>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              {isPending && !isOptimistic && (
-                <button
-                  onClick={() => onCancel?.(bid)}
-                  disabled={isLocked}
-                  title={isLocked ? `Locked until ${new Date(bid.lockedUntil).toLocaleString()}` : undefined}
-                  className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary ${
-                    isLocked
-                      ? 'opacity-50 cursor-not-allowed text-[var(--text-muted)]'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)]'
-                  }`}
-                >
-                  {isLocked ? 'Locked' : 'Cancel'}
-                </button>
-              )}
-              {isAccepted && (
-                <button
-                  onClick={() => onDecrypt?.(bid)}
-                  className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] btn-base ${
-                    decryptFailed
-                      ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
-                      : 'btn-success'
-                  }`}
-                >
-                  {decryptFailed ? 'Retry' : 'Decrypt'}
-                </button>
-              )}
-            </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {isPending && !isOptimistic && (
+              <button
+                onClick={() => onCancel?.(bid)}
+                disabled={isLocked}
+                title={isLocked ? `Locked until ${new Date(bid.lockedUntil).toLocaleString()}` : undefined}
+                className={`px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary ${
+                  isLocked
+                    ? 'opacity-50 cursor-not-allowed text-[var(--text-muted)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)]'
+                }`}
+              >
+                {isLocked ? 'Locked' : 'Cancel'}
+              </button>
+            )}
+            {isAccepted && (
+              <button
+                onClick={() => onDecrypt?.(bid)}
+                className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] btn-base ${
+                  decryptFailed
+                    ? 'bg-[var(--warning)] hover:bg-[var(--warning)]/90'
+                    : 'btn-success'
+                }`}
+              >
+                {decryptFailed ? 'Retry' : 'Decrypt'}
+              </button>
+            )}
           </div>
         </div>
-      </div>
+      </article>
 
       <DescriptionModal
         isOpen={descriptionModalOpen}
@@ -194,27 +190,24 @@ function MyPurchaseBidCard({
 
   return (
     <>
-    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+    <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs text-[var(--text-muted)]">Bid on</span>
-            <span className="text-xs font-mono text-[var(--text-secondary)] truncate" title={bid.encryptionToken}>
-              {truncateHex(bid.encryptionToken, 8, 4)}
+      <div className="mb-4 space-y-1">
+        {/* Row 1: Transaction Hash + Status */}
+        <div className="flex items-center gap-2 min-w-0">
+          <InfoTooltip text={getStatusTooltip()} position="bottom" />
+          <TransactionLinkInline txHash={bid.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
+          <BidStatusBadge status={bid.status} />
+          {isOptimistic && (
+            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
+              Awaiting confirmation
             </span>
-            <BidStatusBadge status={bid.status} />
-            {isOptimistic && (
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
-                Awaiting confirmation
-              </span>
-            )}
-            <InfoTooltip text={getStatusTooltip()} position="bottom" />
-          </div>
-          <p className="text-xs text-[var(--text-muted)]">
-            {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
-          </p>
+          )}
         </div>
+        {/* Row 2: Date */}
+        <p className="text-xs text-[var(--text-muted)] text-center">
+          {isPending ? 'Placed' : isAccepted ? 'Won' : 'Placed'} {formatDate(bid.createdAt)}
+        </p>
       </div>
 
       {/* Bid Status Timeline */}
@@ -239,53 +232,54 @@ function MyPurchaseBidCard({
         </div>
       )}
 
-      {/* Amount Icon */}
-      <div className="flex justify-center py-4">
-        <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-          isAccepted
-            ? 'bg-[var(--success-muted)]'
-            : isPending
-            ? 'bg-[var(--warning-muted)]'
-            : 'bg-[var(--bg-secondary)]'
-        }`}>
-          <svg
-            className={`w-7 h-7 ${
-              isAccepted
-                ? 'text-[var(--success)]'
-                : isPending
-                ? 'text-[var(--warning)]'
-                : 'text-[var(--text-muted)]'
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </div>
-      </div>
+      {/* Listing Image */}
+      <ListingImage
+        tokenName={encryption?.tokenName ?? bid.encryptionToken}
+        imageLink={encryption?.imageLink}
+        size="md"
+      />
 
       {/* Bid Amount */}
       <div className="text-center mb-4">
-        <p className={`text-2xl font-semibold ${
+        <p className={`text-2xl font-semibold inline-flex items-center justify-center gap-[var(--space-1)] ${
           isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
         }`}>
           {formatAda(bid.amount)} ADA
+          {isPending && !isOptimistic && onUpdateBid && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpdateBid(bid); }}
+              className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
+              title="Update bid"
+                    aria-label="Update bid"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+              </svg>
+            </button>
+          )}
         </p>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Your Bid</p>
       </div>
 
       {/* Seller Info */}
       {encryption && (
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-          <span className="text-sm font-mono text-[var(--text-secondary)]" title={encryption.seller}>
+          <span className="text-sm font-mono text-[var(--text-secondary)] flex items-center gap-1" title={encryption.seller}>
             {truncateHex(encryption.seller, 12, 8)}
+            <button
+              onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
+              className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+              title="Copy seller address"
+              aria-label="Copy seller address"
+            >
+              <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {copiedSeller ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                )}
+              </svg>
+            </button>
           </span>
         </div>
       )}
@@ -295,7 +289,7 @@ function MyPurchaseBidCard({
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs text-[var(--text-muted)]">Suggested Price</span>
           <span className="text-sm text-[var(--text-secondary)]">
-            {encryption.suggestedPrice.toLocaleString()} ADA
+            {formatAda(encryption.suggestedPrice)} ADA
           </span>
         </div>
       )}
@@ -380,7 +374,7 @@ function MyPurchaseBidCard({
           </button>
         )}
       </div>
-    </div>
+    </article>
 
     <DescriptionModal
       isOpen={descriptionModalOpen}
@@ -408,7 +402,8 @@ function arePropsEqual(prev: MyPurchaseBidCardProps, next: MyPurchaseBidCardProp
     prev.purchaseStage === next.purchaseStage &&
     prev.decryptFailed === next.decryptFailed &&
     prev.onCancel === next.onCancel &&
-    prev.onDecrypt === next.onDecrypt
+    prev.onDecrypt === next.onDecrypt &&
+    prev.onUpdateBid === next.onUpdateBid
   );
 }
 

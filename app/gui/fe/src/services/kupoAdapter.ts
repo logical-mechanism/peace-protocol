@@ -26,6 +26,7 @@ import type {
   TransactionInfo,
   GovernanceProposalInfo,
 } from '@meshsdk/core';
+import { chainApi } from './api';
 
 /** Kupo /matches response item */
 interface KupoMatch {
@@ -67,6 +68,7 @@ export class KupoAdapter implements IFetcher {
 
   /**
    * Fetch UTxOs at an address, optionally filtered by asset.
+   * Kupo is the sole source of truth for current UTxO state.
    *
    * Queries: GET /matches/{address}?unspent&resolve_hashes
    */
@@ -85,13 +87,38 @@ export class KupoAdapter implements IFetcher {
 
   /**
    * Fetch UTxOs by transaction hash and optional output index.
+   * Falls back to a live Koios lookup when Kupo doesn't have the UTxO
+   * (e.g. pre --since UTxOs like reference scripts).
    *
    * Queries: GET /matches/{index}@{hash}?unspent&resolve_hashes
    */
   async fetchUTxOs(hash: string, index?: number): Promise<UTxO[]> {
     const pattern = index !== undefined ? `${index}@${hash}` : `*@${hash}`;
     const matches = await this.queryMatches(pattern);
-    return Promise.all(matches.map((m) => this.matchToUtxo(m)));
+    const results = await Promise.all(matches.map((m) => this.matchToUtxo(m)));
+
+    if (results.length > 0) return results;
+
+    // Kupo doesn't have it — live Koios fallback for pre-since UTxOs.
+    const koiosUtxos = await chainApi.getUtxosByTxHash(hash);
+    if (koiosUtxos.length > 0) {
+      const mapped = koiosUtxos.map((ku) => ({
+        input: ku.input,
+        output: {
+          address: ku.output.address,
+          amount: ku.output.amount,
+          dataHash: ku.output.dataHash,
+          plutusData: ku.output.plutusData,
+          scriptRef: ku.output.scriptRef,
+        },
+      }));
+      if (index !== undefined) {
+        return mapped.filter((u) => u.input.outputIndex === index);
+      }
+      return mapped;
+    }
+
+    return results;
   }
 
   /** Raw HTTP GET passthrough (routed through Tauri IPC). */

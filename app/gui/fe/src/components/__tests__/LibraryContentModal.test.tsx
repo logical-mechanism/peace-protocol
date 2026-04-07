@@ -73,7 +73,7 @@ vi.mock('../LoadingSpinner', () => ({
 // Mock lazy-loaded components (paths relative to test file → src/components/)
 vi.mock('../PdfViewer', () => ({ default: () => <div data-testid="pdf-viewer">PDF</div> }));
 vi.mock('../ImageViewer', () => ({ default: () => <div data-testid="image-viewer">Image</div> }));
-vi.mock('../AudioPlayer', () => ({ default: () => <div data-testid="audio-player">Audio</div> }));
+vi.mock('../audio', () => ({ default: () => <div data-testid="audio-player">Audio</div> }));
 vi.mock('../VideoPlayer', () => ({ default: () => <div data-testid="video-player">Video</div> }));
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -244,7 +244,7 @@ describe('getViewMode (via rendering)', () => {
   });
 
   it('renders audio player for .mp3 extension', async () => {
-    mockGetLibraryContentUrl.mockResolvedValue('asset://localhost/mock-audio.mp3');
+    // Audio uses rodio (Rust) via Tauri IPC — no content URL needed
     render(
       <LibraryContentModal
         {...defaultProps}

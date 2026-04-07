@@ -10,13 +10,16 @@ import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
 import RefreshIndicator from './RefreshIndicator';
+import AcceptBidQueuePanel from './AcceptBidQueuePanel';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
 import { getTransactions } from '../services/transactionHistory';
 import { useDebounce } from '../hooks/useDebounce';
+import { formatAda } from '../utils/formatAda';
 
 interface MySalesTabProps {
   userPkh?: string;
   onRemoveListing?: (encryption: EncryptionDisplay) => void;
+  onUpdatePrice?: (encryption: EncryptionDisplay) => void;
   onAcceptBid?: (encryption: EncryptionDisplay, bid: BidDisplay) => void;
   onCancelPending?: (encryption: EncryptionDisplay) => void;
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
@@ -31,6 +34,7 @@ interface MySalesTabProps {
 function MySalesTab({
   userPkh,
   onRemoveListing,
+  onUpdatePrice,
   onAcceptBid,
   onCancelPending,
   onCompleteSale,
@@ -320,6 +324,8 @@ function MySalesTab({
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       <RefreshIndicator visible={isRefreshing} />
+      {/* Auto-Accept Queue Panel */}
+      <AcceptBidQueuePanel />
       {/* Earnings Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
@@ -329,7 +335,7 @@ function MySalesTab({
           </p>
           {salesStats.listedValue > 0 && (
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              {salesStats.listedValue.toLocaleString()} ADA listed
+              {formatAda(salesStats.listedValue)} ADA listed
             </p>
           )}
         </div>
@@ -519,6 +525,7 @@ function MySalesTab({
                 bidCount={getBidCount(encryption.tokenName)}
                 onViewBids={handleViewBids}
                 onRemove={handleRemoveListing}
+                onUpdatePrice={onUpdatePrice}
                 onCancelPending={handleCancelPending}
                 onCompleteSale={onCompleteSale}
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
@@ -536,6 +543,7 @@ function MySalesTab({
                 bidCount={getBidCount(encryption.tokenName)}
                 onViewBids={handleViewBids}
                 onRemove={handleRemoveListing}
+                onUpdatePrice={onUpdatePrice}
                 onCancelPending={handleCancelPending}
                 compact
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}

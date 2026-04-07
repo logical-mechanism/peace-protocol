@@ -82,8 +82,8 @@ describe('SalesListingCard', () => {
     });
 
     it('renders suggested price', () => {
-      renderCard({ suggestedPrice: 100 });
-      expect(screen.getByText('100 ADA')).toBeInTheDocument();
+      renderCard({ suggestedPrice: 100_000_000 });
+      expect(screen.getByText('100.00 ADA')).toBeInTheDocument();
     });
 
     it('renders fallback price when undefined', () => {
@@ -96,14 +96,14 @@ describe('SalesListingCard', () => {
       expect(screen.getByText('A test listing')).toBeInTheDocument();
     });
 
-    it('renders category badge in compact mode', () => {
-      renderCard({ category: 'document' }, { compact: true });
-      expect(screen.getByText('Document')).toBeInTheDocument();
+    it('renders storage layer badge in compact mode', () => {
+      renderCard({ storageLayer: 'on-chain' }, { compact: true });
+      expect(screen.getByText('On-chain')).toBeInTheDocument();
     });
 
-    it('defaults category to Text when not provided (compact)', () => {
-      renderCard({ category: undefined }, { compact: true });
-      expect(screen.getByText('Text')).toBeInTheDocument();
+    it('defaults storage layer label when not provided (compact)', () => {
+      renderCard({ storageLayer: undefined }, { compact: true });
+      expect(screen.getByText('No data layer')).toBeInTheDocument();
     });
 
     it('renders listing image', () => {
@@ -140,14 +140,10 @@ describe('SalesListingCard', () => {
       expect(screen.getByText('Remove Listing')).toBeInTheDocument();
     });
 
-    it('shows bid count', () => {
-      renderCard({ status: 'active' }, { bidCount: 5 });
-      expect(screen.getByText('5 bids')).toBeInTheDocument();
-    });
-
-    it('shows singular bid text for 1 bid', () => {
-      renderCard({ status: 'active' }, { bidCount: 1 });
-      expect(screen.getByText('1 bid')).toBeInTheDocument();
+    it('shows bid count in View Bids button badge', () => {
+      renderCard({ status: 'active' }, { bidCount: 5, onViewBids: vi.fn() });
+      const badge = screen.getByText('5');
+      expect(badge).toBeInTheDocument();
     });
 
     it('calls onViewBids when clicked', () => {
