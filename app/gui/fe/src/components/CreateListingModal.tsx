@@ -8,6 +8,7 @@ import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
+import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 import {
   saveListingFormDraft,
@@ -586,6 +587,32 @@ export default function CreateListingModal({
                   : 'Text listings store content directly on-chain in the encrypted capsule.'}
               </p>
             </div>
+
+            {/* Sub-category selector */}
+            <SubCategorySelector
+              category={formData.category}
+              selected={formData.subcategory}
+              onChange={(sub) => {
+                setFormData((prev) => ({ ...prev, subcategory: sub }));
+                setIsDirty(true);
+              }}
+              disabled={isSubmitting}
+            />
+
+            {/* NSFW checkbox */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={formData.nsfw}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, nsfw: e.target.checked }));
+                  setIsDirty(true);
+                }}
+                disabled={isSubmitting}
+                className="accent-[var(--accent)] w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+              />
+              <span className="text-sm text-[var(--text-primary)]">This listing contains NSFW content</span>
+            </label>
 
             {/* Content Area — Text category */}
             {formData.category === 'text' && (
