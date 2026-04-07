@@ -382,6 +382,19 @@ export const chainApi = {
   },
 
   /**
+   * Look up all unspent UTxOs from a transaction via Koios.
+   * Fallback for fetchUTxOs when Kupo doesn't have them (predates --since).
+   */
+  async getUtxosByTxHash(txHash: string): Promise<KoiosWalletUtxo[]> {
+    try {
+      const response = await apiFetch<ApiResponse<KoiosWalletUtxo[]>>(`/api/chain/utxo-info/${txHash}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  /**
    * Recover transaction history from Koios for a payment credential.
    * Expensive query — backend caches for 60s. Used on-demand, not for polling.
    */
@@ -402,6 +415,7 @@ export interface KoiosWalletUtxo {
     amount: Array<{ unit: string; quantity: string }>;
     dataHash?: string;
     plutusData?: string;
+    scriptRef?: string;
   };
 }
 

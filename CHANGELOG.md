@@ -19,8 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Extracted marketplace filter/sort logic into pure testable functions with comprehensive tests (#82)
 
 ### Fixed
-- UTxO value lookup failures for wallet UTxOs predating Kupo's `--since` point: added Koios UTxO cache fallback in KupoAdapter
+- UTxO value lookup failures for pre-`--since` UTxOs: replaced Koios merge in `fetchAddressUTxOs` with live Koios fallback in `fetchUTxOs` to avoid stale spent UTxOs polluting wallet state
 - `kupo_since` slot moved before reference script deployment to ensure Kupo indexes all protocol UTxOs
+- BidTimeline showing "complete" immediately for re-purchased content: now compares library `decryptedAt` against bid `createdAt` to only mark complete for the current purchase
 - Accept-bid queue: memoize context, fix dedup bug, type safety, safe PKH derivation (#80)
 - Accept-bid queue: decouple queue processing from Dashboard lifecycle (#80)
 - Purchased card layout: flex-wrap for badges, consistent token hex truncation (#81)

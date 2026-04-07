@@ -50,7 +50,7 @@ function MyPurchasesTab({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prevDataCount, setPrevDataCount] = useState(0);
-  const [completedTokens, setCompletedTokens] = useState<Set<string>>(new Set());
+  const [completedTokens, setCompletedTokens] = useState<Map<string, string>>(new Map());
   const [secretsLoadErrors, setSecretsLoadErrors] = useState<Set<string>>(new Set());
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
@@ -127,7 +127,7 @@ function MyPurchasesTab({
       // Fetch library items to determine completed purchases
       try {
         const libraryItems = await listLibraryItems();
-        setCompletedTokens(new Set(libraryItems.map((item) => item.tokenName)));
+        setCompletedTokens(new Map(libraryItems.map((item) => [item.tokenName, item.decryptedAt])));
       } catch {
         // Library lookup failure is non-critical
       }
@@ -152,22 +152,33 @@ function MyPurchasesTab({
     [encryptionsMap]
   );
 
+  // Check if a bid's encryption was decrypted AFTER the bid was placed.
+  // Prevents re-purchases from showing "complete" due to a prior library entry.
+  const isCompletedAfterBid = useCallback(
+    (bid: BidDisplay): boolean => {
+      const decryptedAt = completedTokens.get(bid.encryptionToken);
+      if (!decryptedAt) return false;
+      return new Date(decryptedAt) > new Date(bid.createdAt);
+    },
+    [completedTokens]
+  );
+
   // Derive purchase stage from on-chain status + local state
   const getPurchaseStage = useCallback(
     (bid: BidDisplay): PurchaseStage => {
-      if (completedTokens.has(bid.encryptionToken)) return 'complete';
+      if (isCompletedAfterBid(bid)) return 'complete';
       if (failedDecryptTokens?.has(bid.encryptionToken)) return 'failed';
       if (bid.status === 'accepted') return 'accepted';
       return 'placed';
     },
-    [completedTokens, failedDecryptTokens]
+    [isCompletedAfterBid, failedDecryptTokens]
   );
 
   // Count bids per filter status (for chip badges)
   const statusCounts = useMemo(() => {
     const counts = { all: bids.length, pending: 0, accepted: 0, complete: 0 };
     for (const bid of bids) {
-      if (completedTokens.has(bid.encryptionToken)) {
+      if (isCompletedAfterBid(bid)) {
         counts.complete++;
       } else if (bid.status === 'accepted') {
         counts.accepted++;
@@ -176,7 +187,7 @@ function MyPurchasesTab({
       }
     }
     return counts;
-  }, [bids, completedTokens]);
+  }, [bids, isCompletedAfterBid]);
 
   // Filter and sort bids
   const filteredAndSorted = useMemo(() => {
@@ -184,10 +195,10 @@ function MyPurchasesTab({
 
     // Filter by status (using derived purchase stage for 'complete' and 'accepted')
     if (statusFilter === 'complete') {
-      result = result.filter((b) => completedTokens.has(b.encryptionToken));
+      result = result.filter((b) => isCompletedAfterBid(b));
     } else if (statusFilter === 'accepted') {
       result = result.filter(
-        (b) => b.status === 'accepted' && !completedTokens.has(b.encryptionToken)
+        (b) => b.status === 'accepted' && !isCompletedAfterBid(b)
       );
     } else if (statusFilter !== 'all') {
       result = result.filter((b) => b.status === statusFilter);
@@ -227,7 +238,7 @@ function MyPurchasesTab({
     }
 
     return result;
-  }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, completedTokens]);
+  }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, isCompletedAfterBid]);
 
   // Handlers
   const handleCancelBid = useCallback(

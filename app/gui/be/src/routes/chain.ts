@@ -250,6 +250,73 @@ router.get('/utxos/:address', async (req, res) => {
   }
 });
 
+/**
+ * GET /utxo-info/:txHash
+ *
+ * Look up all unspent UTxOs from a transaction via Koios.
+ * Fallback for fetchUTxOs when Kupo doesn't have a UTxO (predates --since).
+ * Queries indices 0-9 via Koios utxo_info to cover typical transactions.
+ */
+router.get('/utxo-info/:txHash', async (req, res) => {
+  const { txHash } = req.params;
+
+  if (!/^[0-9a-f]{64}$/.test(txHash as string)) {
+    return res.status(400).json({
+      error: { code: 'INVALID_PARAM', message: 'Invalid txHash format' },
+    });
+  }
+
+  try {
+    const koios = getKoiosClient();
+    // Query indices 0-9 to cover typical transaction output counts
+    const refs = Array.from({ length: 10 }, (_, i) => `${txHash}#${i}`);
+    const utxos = await koios.getUtxoInfo(refs);
+
+    const meshUtxos = utxos
+      .filter(u => !u.is_spent)
+      .map(u => {
+        const amount: Array<{ unit: string; quantity: string }> = [
+          { unit: 'lovelace', quantity: u.value },
+        ];
+        if (u.asset_list) {
+          for (const asset of u.asset_list) {
+            amount.push({
+              unit: asset.policy_id + asset.asset_name,
+              quantity: asset.quantity,
+            });
+          }
+        }
+
+        let scriptRef: string | undefined;
+        if (u.reference_script && typeof u.reference_script === 'object') {
+          const rs = u.reference_script as Record<string, unknown>;
+          if (typeof rs.bytes === 'string') {
+            scriptRef = rs.bytes;
+          }
+        }
+
+        return {
+          input: { txHash: u.tx_hash, outputIndex: u.tx_index },
+          output: {
+            address: u.address,
+            amount,
+            dataHash: u.datum_hash ?? undefined,
+            plutusData: u.inline_datum?.bytes ?? undefined,
+            scriptRef,
+          },
+        };
+      });
+
+    res.set('Cache-Control', `max-age=${CACHE_TTL_CHAIN}`);
+    return res.json({ data: meshUtxos });
+  } catch (error) {
+    logger.error('Failed to fetch UTxO info from Koios', { error: String(error), requestId: req.requestId });
+    return res.status(503).json({
+      error: { code: 'UTXO_UNAVAILABLE', message: 'Unable to fetch UTxO info', requestId: req.requestId },
+    });
+  }
+});
+
 interface HistoryRecord {
   txHash: string;
   type: string;
