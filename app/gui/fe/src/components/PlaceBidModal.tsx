@@ -120,8 +120,8 @@ export default function PlaceBidModal({
         newErrors.bidAmount = 'Bid amount must be a positive number';
       } else if (amount < MIN_BID_ADA) {
         newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA`;
-      } else if (amount > 1000000000) {
-        newErrors.bidAmount = 'Bid amount is too high';
+      } else if (amount > 45_000_000_000) {
+        newErrors.bidAmount = 'Bid exceeds maximum (45B ADA)';
       } else if (balanceAda !== undefined && amount > balanceAda) {
         newErrors.bidAmount = 'Bid exceeds your wallet balance';
       }
@@ -132,8 +132,8 @@ export default function PlaceBidModal({
       const price = parseFloat(formData.futurePrice.replace(/,/g, ''));
       if (isNaN(price) || price < 0) {
         newErrors.futurePrice = 'Future price must be a non-negative number';
-      } else if (price > 1000000000) {
-        newErrors.futurePrice = 'Future price is too high';
+      } else if (price > 45_000_000_000) {
+        newErrors.futurePrice = 'Future price exceeds maximum (45B ADA)';
       }
     }
 
@@ -144,13 +144,16 @@ export default function PlaceBidModal({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     // Strip commas from ADA amounts so "1,000" parses as 1000, not 1
-    const sanitized = (name === 'bidAmount' || name === 'futurePrice')
+    let sanitized = (name === 'bidAmount' || name === 'futurePrice')
       ? value.replace(/,/g, '')
       : value;
     // Cap price fields at 6 decimal places (1 lovelace = 0.000001 ADA)
     if (name === 'bidAmount' || name === 'futurePrice') {
       const dotIndex = sanitized.indexOf('.');
       if (dotIndex !== -1 && sanitized.length - dotIndex - 1 > 6) return;
+      // Clamp to Cardano max supply (45 billion ADA)
+      const parsed = parseFloat(sanitized);
+      if (!isNaN(parsed) && parsed > 45_000_000_000) sanitized = '45000000000';
     }
     setFormData((prev) => ({ ...prev, [name]: sanitized }));
     // Clear error when user starts typing

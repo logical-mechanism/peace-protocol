@@ -75,8 +75,8 @@ export default function UpdateBidModal({
       setError('Bid amount must be greater than zero');
       return false;
     }
-    if (parsedAmount > 1000000000) {
-      setError('Bid amount is too high');
+    if (parsedAmount > 45_000_000_000) {
+      setError('Bid exceeds maximum (45B ADA)');
       return false;
     }
 
@@ -93,8 +93,8 @@ export default function UpdateBidModal({
       setError('Future price cannot be negative');
       return false;
     }
-    if (parsedPrice > 1000000000) {
-      setError('Future price is too high');
+    if (parsedPrice > 45_000_000_000) {
+      setError('Future price exceeds maximum (45B ADA)');
       return false;
     }
 
@@ -113,6 +113,9 @@ export default function UpdateBidModal({
     const cleaned = value.replace(/,/g, '');
     const dotIndex = cleaned.indexOf('.');
     if (dotIndex !== -1 && cleaned.length - dotIndex - 1 > 6) return null;
+    // Clamp to Cardano max supply (45 billion ADA)
+    const parsed = parseFloat(cleaned);
+    if (!isNaN(parsed) && parsed > 45_000_000_000) return '45000000000';
     return value;
   };
 

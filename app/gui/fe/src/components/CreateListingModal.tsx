@@ -231,7 +231,7 @@ export default function CreateListingModal({
         if (formData.suggestedPrice) {
           const price = parseFloat(formData.suggestedPrice);
           if (isNaN(price) || price < 0) return 'Price must be a positive number';
-          if (price > 1000000000) return 'Price is too high';
+          if (price > 45_000_000_000) return 'Price exceeds maximum (45B ADA)';
         }
         return undefined;
       case 'imageLink':
@@ -387,12 +387,15 @@ export default function CreateListingModal({
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/,/g, '');
+    let raw = e.target.value.replace(/,/g, '');
     // Cap at 6 decimal places (1 lovelace = 0.000001 ADA)
     const dotIndex = raw.indexOf('.');
     if (dotIndex !== -1 && raw.length - dotIndex - 1 > 6) return;
+    // Clamp to Cardano max supply (45 billion ADA)
+    const parsed = parseFloat(raw);
+    if (!isNaN(parsed) && parsed > 45_000_000_000) raw = '45000000000';
     setFormData((prev) => ({ ...prev, suggestedPrice: raw }));
-    setDisplayPrice(e.target.value);
+    setDisplayPrice(raw);
     if (errors.suggestedPrice) {
       setErrors((prev) => ({ ...prev, suggestedPrice: undefined }));
     }

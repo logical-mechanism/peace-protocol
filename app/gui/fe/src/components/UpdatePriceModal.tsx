@@ -63,8 +63,8 @@ export default function UpdatePriceModal({
       setError('Price cannot be negative');
       return false;
     }
-    if (parsed > 1000000000) {
-      setError('Price is too high');
+    if (parsed > 45_000_000_000) {
+      setError('Price exceeds maximum (45B ADA)');
       return false;
     }
     const newLovelace = Math.floor(parsed * 1_000_000);
@@ -77,10 +77,13 @@ export default function UpdatePriceModal({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/,/g, '');
+    let value = e.target.value.replace(/,/g, '');
     // Cap at 6 decimal places (1 lovelace = 0.000001 ADA)
     const dotIndex = value.indexOf('.');
     if (dotIndex !== -1 && value.length - dotIndex - 1 > 6) return;
+    // Clamp to Cardano max supply (45 billion ADA)
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed) && parsed > 45_000_000_000) value = '45000000000';
     setPriceAda(value);
     if (error) setError(null);
     if (submitError) setSubmitError(null);
