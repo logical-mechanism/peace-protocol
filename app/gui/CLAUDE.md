@@ -75,7 +75,7 @@ app/gui/
 │   │   │   ├── pendingTxPool.ts     # Virtual UTxO state: tracks submitted-but-unconfirmed tx inputs/outputs
 │   │   │   ├── txOutputParser.ts    # Extracts UTxO inputs/outputs from signed tx CBOR (@meshsdk/core-cst)
 │   │   │   ├── transactionBuilder.ts # Compatibility shim → re-exports from transactions/
-│   │   │   ├── transactions/        # Modular tx building (~2979 lines total)
+│   │   │   ├── transactions/        # Modular tx building (~2987 lines total)
 │   │   │   │   ├── index.ts         # Barrel re-export
 │   │   │   │   ├── txUtils.ts       # Shared utilities, types, constants
 │   │   │   │   ├── listings.ts      # Listing lifecycle (create, retry, remove, cancel, update price, create from import)
@@ -95,6 +95,8 @@ app/gui/
 │   │   │   ├── bidFormDraftStorage.ts # Bid form draft state recovery (localStorage)
 │   │   │   ├── acceptBidQueueService.ts # Queue state machine + processing orchestration for accept-bid
 │   │   │   ├── acceptBidQueueStorage.ts # localStorage persistence for accept-bid queue
+│   │   │   ├── marketplaceFilters.ts # Marketplace filter logic (category, price, status filtering)
+│   │   │   ├── nsfwStorage.ts       # localStorage: NSFW visibility preference (PKH-keyed)
 │   │   │   ├── crypto/              # BLS12-381, Schnorr, ECIES, CBOR, ZK key derivation, file encryption
 │   │   │   ├── snark/               # Native SNARK prover interface
 │   │   │   │   ├── index.ts         # Barrel export
@@ -220,9 +222,9 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdateBid, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + AcceptBidQueuePanel + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdateBid, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + AcceptBidQueuePanel + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + Filters (CategoryFilter, DateFilter, SubCategorySelector) + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
 
-**Transaction building** (fe/src/services/transactions/ ~2979 lines, re-exported via transactionBuilder.ts shim):
+**Transaction building** (fe/src/services/transactions/ ~2987 lines, re-exported via transactionBuilder.ts shim):
 - Split into domain modules: `txUtils.ts` (shared), `listings.ts`, `bids.ts`, `acceptBid.ts`
 - Listings: `createListing()`, `retryListingFromDraft()`, `removeListing()`, `cancelPendingListing()`, `updateListingPrice()`, `createListingFromImport()`
 - Bids: `placeBid()`, `cancelBid()`, `updateBid()`
@@ -272,6 +274,8 @@ app/gui/
 - `videoPreferences` — video volume, muted state, and playback speed persistence (localStorage)
 - `videoResumeStorage` — video resume position persistence, max 50 entries (localStorage)
 - `acceptBidQueueStorage` — accept-bid queue state persistence (localStorage, queued/processing/completed/failed items)
+- `marketplaceFilters` — marketplace filter logic (category, price range, status filtering)
+- `nsfwStorage` — NSFW content visibility preference, PKH-keyed (localStorage)
 
 **Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`); dark is default. All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
@@ -320,14 +324,14 @@ app/gui/
 - `GET /api/encryptions[/:tokenName|/user/:pkh|/status/:status|/:tokenName/levels]`
 - `GET /api/bids[/:tokenName|/user/:pkh|/encryption/:token|/status/:status]`
 - `GET /api/protocol[/config|/reference|/scripts|/params]`
-- `GET /api/chain[/confirmations/:txHash|/tip|/history/:pkh]`
+- `GET /api/chain[/confirmations/:txHash|/tip|/history/:pkh|/utxos/:address|/utxo-info/:txHash]`
 - `GET /health` — status (healthy/degraded/unhealthy), uptimeSeconds, kupo/koios dependency health (reachable, latencyMs, lastSuccess, error?), network, useStubs
 - `GET /health/ready` — readiness probe (returns 503 if unhealthy)
 
 **Datum parsing** (be/src/services/parsers.ts): Decodes CBOR/Plutus JSON inline datums into TypeScript types. Handles indefinite-length byte strings (G2 points > 64 bytes are CBOR-chunked).
 
 **CIP-20 metadata** (key 674): Two formats exist (Cardano metadata strings have a 64-byte limit):
-- **New (structured)**: `{ msg: [...descriptionChunks], p: "price", s: "storageLayer", i: [...imageLinkChunks], c: "category" }`. Long strings (description, imageLink) are split into <=64-byte UTF-8 chunks via `fe/src/services/metadata.ts`. Detected by presence of `p` key.
+- **New (structured)**: `{ msg: [...descriptionChunks], s: "storageLayer", i: [...imageLinkChunks], c: "category", n?: "1" }`. Long strings (description, imageLink) are split into <=64-byte UTF-8 chunks via `fe/src/services/metadata.ts`. `n: "1"` marks NSFW content. Detected by presence of structured keys.
 - **Old (flat array)**: `{ msg: [description, suggestedPrice, storageLayer, imageLink?, category?] }`. Breaks if any string exceeds 64 bytes.
 - **Bid tx**: `{ msg: [futurePrice] }` (unchanged; futurePrice is always short).
 - Backend `parseCip20Fields()` in `be/src/services/encryptions.ts` handles both formats via backward-compatible detection.
@@ -440,7 +444,7 @@ app/gui/
 - `FullEncryptionLevel` — { r1b, r2_g1b, r2_g2b, r4b } (G1, G1, G2, G2)
 
 **Display models** (be types, consumed by fe):
-- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice? (from datum new_price), storageLayer?, imageLink?, category?, createdAt, utxo, datum
+- `EncryptionDisplay` — tokenName, seller, sellerPkh, status, description?, suggestedPrice? (from datum new_price), storageLayer?, imageLink?, category?, nsfw?, createdAt, utxo, datum
 - `BidDisplay` — tokenName, bidder, bidderPkh, encryptionToken, amount, futurePrice?, status, createdAt, lockedUntil, utxo, datum
 - `ProtocolConfig` — network, contracts (addresses + policy IDs), referenceScripts (UTxO refs), genesisToken
 
@@ -451,13 +455,13 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (92 commands, invoke from frontend):
+**Tauri commands** (93 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
 - Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`, `get_available_disk_space`
 - SNARK: `snark_check_setup`, `snark_decompress_setup`, `snark_prove`, `snark_gt_to_hash`, `snark_decrypt_to_hash`
-- Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
+- Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `list_bid_secret_tokens`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
 - Listing Drafts: `store_listing_draft`, `update_listing_draft`, `get_listing_draft`, `list_listing_drafts`, `remove_listing_draft`
 - Iagon Keys: `store_iagon_api_key`, `get_iagon_api_key`, `remove_iagon_api_key`, `has_iagon_api_key`
 - Kupo/Ogmios Proxy: `kupo_fetch`, `ogmios_fetch`, `ogmios_post`
@@ -498,7 +502,7 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidQueueService, acceptBidQueueStorage, acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, metadata, notificationSound, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, storageUtils, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (45 files)
+  - `fe/src/services/__tests__/` — acceptBidQueueService, acceptBidQueueStorage, acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, marketplaceFilters, metadata, notificationSound, nsfwStorage, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, storageUtils, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (47 files)
   - `fe/src/services/transactions/__tests__/` — acceptBid, bids, listings (3 files)
   - `fe/src/config/__tests__/` — categories (1 file)
   - `fe/src/hooks/__tests__/` — useAsyncAction, useAutoAcceptDetection, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (13 files)

@@ -6,7 +6,7 @@ argument-hint: "[keyword or draft title]"
 
 # Work on a Feature
 
-Pick up a draft from the **Veiled Application** GitHub Project board, convert it to a real issue, and implement it following the embedded Claude Prompt.
+Pick up a draft from the **Veiled Application** GitHub Project board and implement it following the embedded Claude Prompt. Work directly with project board drafts — no GitHub issues.
 
 ## Project Board Constants
 
@@ -35,30 +35,15 @@ Filter the results to items with Status = "Todo".
 
 If there are no Todo items, tell the user and suggest running `/create-feature`.
 
-## Phase 2: Convert Draft to Issue
+## Phase 2: Move to In Progress
 
-Extract the title and body from the selected draft item.
-
-Create a real GitHub issue:
+Set the selected draft item to "In Progress":
 
 ```bash
-gh issue create --repo logical-mechanism/Peace-Protocol --title "<title>" --body "<body>" --label "enhancement"
+gh project item-edit --project-id PVT_kwDOCrNGAc4BT-hV --id <DRAFT_ITEM_ID> --field-id PVTSSF_lADOCrNGAc4BT-hVzhBJw4k --single-select-option-id 47fc9ee4
 ```
 
-Capture the issue number and URL from the output.
-
-Now add the new issue to the project board and remove the old draft:
-
-```bash
-# Add the issue to the board
-gh project item-add 5 --owner logical-mechanism --url <issue_url> --format json
-
-# Set the new item to "In Progress"
-gh project item-edit --project-id PVT_kwDOCrNGAc4BT-hV --id <NEW_ITEM_ID> --field-id PVTSSF_lADOCrNGAc4BT-hVzhBJw4k --single-select-option-id 47fc9ee4
-
-# Delete the old draft item
-gh project item-delete 5 --owner logical-mechanism --id <OLD_DRAFT_ITEM_ID>
-```
+Extract the title and body from the selected draft item for use in later phases.
 
 ## Phase 3: Branch Setup
 
@@ -67,14 +52,14 @@ Create and checkout a feature branch from `dev`:
 ```bash
 git checkout dev
 git pull origin dev
-git checkout -b feature/<issue-number>-<short-kebab-name>
+git checkout -b feature/<short-kebab-name>
 ```
 
-The short kebab name should be derived from the issue title (e.g., "Subcategories with NSFW filtering" → `feature/42-subcategory-nsfw-filtering`). Keep it under 50 chars.
+The short kebab name should be derived from the draft title (e.g., "Subcategories with NSFW filtering" → `feature/subcategory-nsfw-filtering`). Keep it under 50 chars.
 
 ## Phase 4: Extract and Execute the Prompt
 
-Read the issue body and extract the content between `## Claude Prompt` and the next `##` heading (or end of body).
+Read the draft body and extract the content between `## Claude Prompt` and the next `##` heading (or end of body).
 
 Before executing:
 1. Read `app/gui/CLAUDE.md` to refresh on project conventions
@@ -96,22 +81,16 @@ Then execute the prompt, working through the `## Tasks` checklist in order.
    ```bash
    cd app/gui/fe && npx eslint src/path/to/YourFile.tsx 2>&1 | tail -n 30
    ```
-4. **Commit** — stage only files you changed, reference the issue:
+4. **Commit** — stage only files you changed:
    ```bash
    git add <file1> <file2> ...
    git commit -m "$(cat <<'EOF'
-   feat: description of what this task accomplished (#<issue-number>)
+   feat: description of what this task accomplished
 
    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
    EOF
    )"
    ```
-5. **Check off the task** in the GitHub issue body:
-   ```bash
-   # Get current body, replace "- [ ] Task description" with "- [x] Task description"
-   gh issue edit <issue-number> --repo logical-mechanism/Peace-Protocol --body "<updated body>"
-   ```
-   Use `gh issue view` to get the current body before editing to avoid overwriting other changes.
 
 ### Task Failure
 
@@ -129,16 +108,14 @@ When all tasks are done:
 
 1. **Push the branch:**
    ```bash
-   git push -u origin feature/<issue-number>-<short-name>
+   git push -u origin feature/<short-name>
    ```
 
 2. **Create a PR:**
    ```bash
-   gh pr create --repo logical-mechanism/Peace-Protocol --title "<issue title>" --body "$(cat <<'EOF'
+   gh pr create --repo logical-mechanism/Peace-Protocol --base dev --title "<draft title>" --body "$(cat <<'EOF'
    ## Summary
    <bullet points summarizing what was implemented>
-
-   Closes #<issue-number>
 
    ## Test plan
    - [ ] Visual review of UI changes (if applicable)
