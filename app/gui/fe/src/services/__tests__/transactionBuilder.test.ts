@@ -13,7 +13,7 @@ import { computeTokenName, estimateMinLovelace, getStorageLayerUri } from '../tr
 import type { FileCategory } from '../../config/categories';
 
 function makeFormData(category: FileCategory) {
-  return { category, secretMessage: '', file: null, filePath: null, fileName: null, fileSize: null, description: '', suggestedPrice: '', imageLink: '' };
+  return { category, subcategory: '', nsfw: false, secretMessage: '', file: null, filePath: null, fileName: null, fileSize: null, description: '', suggestedPrice: '', imageLink: '' };
 }
 
 describe('computeTokenName', () => {
