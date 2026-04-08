@@ -3,6 +3,7 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
 import { FILE_CATEGORIES } from '../config/categories';
 import { formatBytes } from '../utils/formatBytes';
+import { fuzzyMatch } from '../utils/fuzzySearch';
 import LibraryCard from './LibraryCard';
 import LibraryContentModal from './LibraryContentModal';
 import ConfirmModal from './ConfirmModal';
@@ -86,15 +87,31 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       result = result.filter((item) => item.category === categoryFilter);
     }
 
-    // Search filter
+    // Search filter (fuzzy matching across all metadata fields)
+    const searchScores = new Map<string, number>();
     if (debouncedSearch.trim()) {
-      const query = debouncedSearch.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.tokenName.toLowerCase().includes(query) ||
-          (item.description && item.description.toLowerCase().includes(query)) ||
-          (item.seller && item.seller.toLowerCase().includes(query))
-      );
+      const query = debouncedSearch.trim();
+      result = result.filter((item) => {
+        const fields = [
+          item.tokenName,
+          item.description ?? '',
+          item.seller ?? '',
+          item.category ?? '',
+          item.fileExtension ?? '',
+          item.storageLayer ?? '',
+        ];
+        let bestScore = 0;
+        for (const field of fields) {
+          if (!field) continue;
+          const { match, score } = fuzzyMatch(query, field);
+          if (match && score > bestScore) bestScore = score;
+        }
+        if (bestScore > 0) {
+          searchScores.set(item.tokenName, bestScore);
+          return true;
+        }
+        return false;
+      });
     }
 
     // Sort
@@ -131,6 +148,11 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       case 'type-desc':
         result.sort((a, b) => (b.category || '').localeCompare(a.category || ''));
         break;
+    }
+
+    // When searching, use fuzzy score as tiebreaker (best matches first)
+    if (searchScores.size > 0) {
+      result.sort((a, b) => (searchScores.get(b.tokenName) ?? 0) - (searchScores.get(a.tokenName) ?? 0));
     }
 
     return result;
