@@ -29,7 +29,9 @@ function migrateFilters(raw: Record<string, unknown>): Partial<MarketplaceFilter
     delete migrated.sellerFilter;
   }
 
-  // New fields (hideOwnListings, dateFrom, dateTo) are simply absent in legacy
+  // v3 → v4: added hideNsfw (boolean), defaults handled by HYDRATE
+
+  // New fields (hideOwnListings, dateFrom, dateTo, hideNsfw) are simply absent in legacy
   // data — HYDRATE fills defaults from MARKETPLACE_INITIAL, so no action needed.
 
   return migrated as Partial<MarketplaceFilters>;
