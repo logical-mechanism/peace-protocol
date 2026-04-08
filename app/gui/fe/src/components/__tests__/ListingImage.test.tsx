@@ -77,8 +77,8 @@ describe('ListingImage', () => {
     });
   });
 
-  describe('loading from cache', () => {
-    it('shows spinner when initialCached is true', () => {
+  describe('loading from cache (deferred)', () => {
+    it('does not call getCachedImage on mount — waits for intersection', () => {
       mockGetCachedImage.mockImplementation(() => new Promise(() => {}));
       render(
         <ListingImage
@@ -88,10 +88,13 @@ describe('ListingImage', () => {
           initialCached
         />,
       );
-      expect(screen.getByTestId('spinner')).toBeInTheDocument();
+      // Before intersection, getCachedImage should NOT be called
+      expect(mockGetCachedImage).not.toHaveBeenCalled();
+      // Should show default state (blurred preview), not spinner
+      expect(screen.getByAltText('Loading preview')).toBeInTheDocument();
     });
 
-    it('loads cached image on mount', async () => {
+    it('shows spinner then loaded image after intersection triggers cache fetch', async () => {
       mockGetCachedImage.mockResolvedValue({
         content_type: 'image/png',
         base64: 'abc123',
@@ -104,7 +107,15 @@ describe('ListingImage', () => {
           initialCached
         />,
       );
+
+      // Simulate intersection
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
       await waitFor(() => {
+        expect(mockGetCachedImage).toHaveBeenCalledWith('token1');
         expect(screen.getByAltText('Listing preview')).toHaveAttribute(
           'src',
           'data:image/png;base64,abc123',
@@ -112,7 +123,7 @@ describe('ListingImage', () => {
       });
     });
 
-    it('falls back to default state if cache returns null', async () => {
+    it('falls back to default state if cache returns null after intersection', async () => {
       mockGetCachedImage.mockResolvedValue(null);
       render(
         <ListingImage
@@ -122,6 +133,12 @@ describe('ListingImage', () => {
           initialCached
         />,
       );
+
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
       await waitFor(() => {
         expect(screen.getByAltText('Loading preview')).toBeInTheDocument();
       });
