@@ -16,6 +16,7 @@ import RefreshIndicator from './RefreshIndicator';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
+import { getNsfwEnabled } from '../services/nsfwStorage';
 
 interface MarketplaceTabProps {
   userPkh?: string;
@@ -40,6 +41,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [nsfwEnabled] = useState(() => getNsfwEnabled());
 
   // Close filters panel on Escape key
   useEffect(() => {
@@ -609,6 +611,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}
@@ -630,6 +633,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}

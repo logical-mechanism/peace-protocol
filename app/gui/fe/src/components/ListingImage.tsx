@@ -10,6 +10,8 @@ interface ListingImageProps {
   size: 'sm' | 'md';
   initialCached?: boolean;
   initialBanned?: boolean;
+  nsfw?: boolean;
+  nsfwEnabled?: boolean;
 }
 
 export default function ListingImage({
@@ -18,6 +20,8 @@ export default function ListingImage({
   size,
   initialCached = false,
   initialBanned = false,
+  nsfw = false,
+  nsfwEnabled = false,
 }: ListingImageProps) {
   const [state, setState] = useState<ImageState>(() => {
     if (!imageLink) return 'no-link';
@@ -26,6 +30,9 @@ export default function ListingImage({
     return 'default';
   });
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [nsfwRevealed, setNsfwRevealed] = useState(false);
+
+  const shouldBlur = nsfw && !nsfwEnabled && !nsfwRevealed;
 
   // Load cached image on mount if initialCached
   useEffect(() => {
@@ -167,12 +174,20 @@ export default function ListingImage({
           </div>
         )}
         {state === 'loaded' && dataUrl && (
-          <img
-            loading="lazy"
-            src={dataUrl}
-            alt="Listing preview"
-            className="w-full h-full object-cover"
-          />
+          <>
+            <img
+              loading="lazy"
+              src={dataUrl}
+              alt="Listing preview"
+              className={`w-full h-full object-cover${shouldBlur ? ' blur-lg cursor-pointer' : ''}`}
+              onClick={shouldBlur ? () => setNsfwRevealed(true) : undefined}
+            />
+            {shouldBlur && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[6px] font-bold text-white bg-[var(--error)] px-1 rounded">NSFW</span>
+              </div>
+            )}
+          </>
         )}
         {state === 'banned' && (
           <img
@@ -221,30 +236,42 @@ export default function ListingImage({
             loading="lazy"
             src={dataUrl}
             alt="Listing preview"
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover${shouldBlur ? ' blur-xl' : ''}`}
           />
-          {/* Ban button — visible on hover */}
-          <button
-            onClick={handleBan}
-            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-[var(--error)] transition-all duration-[var(--transition-fast)] opacity-0 group-hover:opacity-100 cursor-pointer"
-            title="Ban this image"
-            aria-label="Ban this image"
-          >
-            <svg
-              className="w-3 h-3 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
+          {shouldBlur && (
+            <button
+              onClick={() => setNsfwRevealed(true)}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 cursor-pointer"
+              aria-label="Reveal NSFW content"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <span className="px-2 py-0.5 text-xs font-bold text-white bg-[var(--error)] rounded">NSFW</span>
+              <span className="text-[10px] text-white/70 mt-1">Click to reveal</span>
+            </button>
+          )}
+          {/* Ban button — visible on hover */}
+          {!shouldBlur && (
+            <button
+              onClick={handleBan}
+              className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-[var(--error)] transition-all duration-[var(--transition-fast)] opacity-0 group-hover:opacity-100 cursor-pointer"
+              title="Ban this image"
+              aria-label="Ban this image"
+            >
+              <svg
+                className="w-3 h-3 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
         </>
       )}
 

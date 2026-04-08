@@ -9,6 +9,7 @@ import { SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
+import { getNsfwEnabled } from '../services/nsfwStorage';
 import RefreshIndicator from './RefreshIndicator';
 import AcceptBidQueuePanel from './AcceptBidQueuePanel';
 import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
@@ -49,6 +50,7 @@ function MySalesTab({
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
   const [imageCacheStatus, setImageCacheStatus] = useState<ImageCacheStatus>({ cached: [], banned: [], total_bytes: 0 });
+  const [nsfwEnabled] = useState(() => getNsfwEnabled());
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -530,6 +532,7 @@ function MySalesTab({
                 onCompleteSale={onCompleteSale}
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}
@@ -548,6 +551,7 @@ function MySalesTab({
                 compact
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}

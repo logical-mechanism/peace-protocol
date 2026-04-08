@@ -8,6 +8,7 @@ import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '
 import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, playNotificationSound } from '../../services/notificationSound'
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, type Theme } from '../../services/themeStorage'
+import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
 import { formatAdaDisplay } from '../../utils/formatAda'
 import { setLastActiveTab } from '../../services/tabStorage'
 import { addTransaction } from '../../services/transactionHistory'
@@ -52,6 +53,7 @@ export default function WalletSection({
 
   // Preferences state
   const [currentTheme, setCurrentTheme] = useState<Theme>(() => getTheme())
+  const [showNsfw, setShowNsfw] = useState(() => getNsfwEnabled())
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
   const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
@@ -427,6 +429,34 @@ export default function WalletSection({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* NSFW Content */}
+        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+          <h2 className="text-lg font-medium mb-2">NSFW Content</h2>
+          <p className="text-sm text-[var(--text-muted)] mb-4">
+            When disabled, NSFW listings have blurred images.
+          </p>
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <button
+              onClick={() => {
+                const next = !showNsfw
+                setShowNsfw(next)
+                setNsfwEnabled(next)
+              }}
+              className={`relative w-10 h-6 rounded-full transition-colors duration-[var(--transition-fast)] cursor-pointer ${
+                showNsfw ? 'bg-[var(--accent)]' : 'bg-[var(--bg-elevated)]'
+              }`}
+              role="switch"
+              aria-checked={showNsfw}
+              aria-label="Show NSFW content"
+            >
+              <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-[var(--transition-fast)] ${
+                showNsfw ? 'translate-x-4' : ''
+              }`} />
+            </button>
+            <span className="text-sm text-[var(--text-primary)]">Show NSFW content</span>
+          </label>
         </div>
 
         {/* Auto-Lock */}
