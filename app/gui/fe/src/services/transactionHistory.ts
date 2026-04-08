@@ -219,12 +219,14 @@ export async function resolvePendingTxs(walletPkh: string): Promise<TransactionR
       if (Array.isArray(matches) && matches.length > 0) {
         rec.status = 'confirmed';
         changed = true;
+        playSound('tx_confirmed');
         // Remove from pending tx pool — Kupo now has the real UTxO state
         getPendingTxPool().confirmTx(rec.txHash);
       } else if (Date.now() - rec.timestamp > 5 * 60 * 1000) {
         // No matches after 5 minutes — likely failed
         rec.status = 'failed';
         changed = true;
+        playSound('tx_failed');
         // Invalidate this tx and any chained dependents in the pool
         getPendingTxPool().invalidateChain(rec.txHash);
       }
