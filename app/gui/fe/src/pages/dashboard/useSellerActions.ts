@@ -18,6 +18,7 @@ import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 import type { CreateListingFormData } from '../../components/CreateListingModal'
+import { buildCategoryPath } from '../../config/categories'
 import { readLibraryContent, type LibraryItem } from '../../services/libraryService'
 import { invoke } from '@tauri-apps/api/core'
 
@@ -241,7 +242,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         suggestedPrice: formData.suggestedPrice ? Math.round(parseFloat(formData.suggestedPrice) * 1_000_000) : undefined,
         storageLayer: formData.category === 'text' ? 'on-chain' : 'iagon',
         imageLink: formData.imageLink || undefined,
-        category: formData.category,
+        category: buildCategoryPath(formData.category, formData.subcategory),
+        nsfw: formData.nsfw || undefined,
         createdAt: new Date().toISOString(),
         utxo: { txHash: result.txHash, outputIndex: 0 },
         datum: {
@@ -341,7 +343,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         suggestedPrice: data.suggestedPrice ? Math.round(parseFloat(data.suggestedPrice) * 1_000_000) : undefined,
         storageLayer: 'iagon',
         imageLink: data.imageLink || undefined,
-        category: data.category,
+        category: buildCategoryPath(data.category, data.subcategory),
+        nsfw: data.nsfw || undefined,
         createdAt: new Date().toISOString(),
         utxo: { txHash: result.txHash, outputIndex: 0 },
         datum: {
