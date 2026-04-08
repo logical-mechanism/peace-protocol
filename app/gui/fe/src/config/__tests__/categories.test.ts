@@ -135,6 +135,18 @@ describe('categories', () => {
     it('falls back to raw subcategory id when subcategory not found', () => {
       expect(getCategoryPathLabel('audio:nonexistent')).toBe('Audio > nonexistent');
     });
+
+    it('returns 3-level label for genre path', () => {
+      expect(getCategoryPathLabel('audio:music:rock')).toBe('Audio > Music > Rock');
+    });
+
+    it('falls back to raw genre id when genre not found', () => {
+      expect(getCategoryPathLabel('audio:music:nonexistent')).toBe('Audio > Music > nonexistent');
+    });
+
+    it('handles video:film genre path', () => {
+      expect(getCategoryPathLabel('video:film:horror')).toBe('Video > Film > Horror');
+    });
   });
 
   describe('categoryMatchesFilter', () => {

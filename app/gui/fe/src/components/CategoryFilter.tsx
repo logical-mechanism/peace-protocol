@@ -23,6 +23,10 @@ function buildCategoryTree(): CategoryNode[] {
     children: c.subcategories?.map((sub) => ({
       id: `${c.id}:${sub.id}`,
       label: sub.label,
+      children: sub.children?.map((child) => ({
+        id: `${c.id}:${sub.id}:${child.id}`,
+        label: child.label,
+      })),
     })),
   }));
 }

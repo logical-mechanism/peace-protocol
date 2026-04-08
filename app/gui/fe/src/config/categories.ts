@@ -59,7 +59,23 @@ export const FILE_CATEGORIES: CategoryConfig[] = [
     enabled: true,
     acceptedExtensions: ['.mp3', '.wav', '.flac', '.ogg', '.aac', '.m4a', '.opus'],
     subcategories: [
-      { id: 'music', label: 'Music' },
+      { id: 'music', label: 'Music', children: [
+        { id: 'rock', label: 'Rock' },
+        { id: 'pop', label: 'Pop' },
+        { id: 'hiphop', label: 'Hip-Hop' },
+        { id: 'electronic', label: 'Electronic' },
+        { id: 'jazz', label: 'Jazz' },
+        { id: 'classical', label: 'Classical' },
+        { id: 'country', label: 'Country' },
+        { id: 'rnb', label: 'R&B' },
+        { id: 'metal', label: 'Metal' },
+        { id: 'folk', label: 'Folk' },
+        { id: 'reggae', label: 'Reggae' },
+        { id: 'blues', label: 'Blues' },
+        { id: 'latin', label: 'Latin' },
+        { id: 'indie', label: 'Indie' },
+        { id: 'ambient', label: 'Ambient' },
+      ]},
       { id: 'podcast', label: 'Podcast' },
       { id: 'audiobook', label: 'Audiobook' },
       { id: 'soundeffect', label: 'Sound Effect' },
@@ -96,7 +112,23 @@ export const FILE_CATEGORIES: CategoryConfig[] = [
     enabled: true,
     acceptedExtensions: ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v'],
     subcategories: [
-      { id: 'film', label: 'Film' },
+      { id: 'film', label: 'Film', children: [
+        { id: 'action', label: 'Action' },
+        { id: 'comedy', label: 'Comedy' },
+        { id: 'drama', label: 'Drama' },
+        { id: 'horror', label: 'Horror' },
+        { id: 'scifi', label: 'Sci-Fi' },
+        { id: 'thriller', label: 'Thriller' },
+        { id: 'documentary', label: 'Documentary' },
+        { id: 'romance', label: 'Romance' },
+        { id: 'animation', label: 'Animation' },
+        { id: 'fantasy', label: 'Fantasy' },
+        { id: 'mystery', label: 'Mystery' },
+        { id: 'western', label: 'Western' },
+        { id: 'crime', label: 'Crime' },
+        { id: 'adventure', label: 'Adventure' },
+        { id: 'war', label: 'War' },
+      ]},
       { id: 'clip', label: 'Clip' },
       { id: 'tutorial', label: 'Tutorial' },
       { id: 'animation', label: 'Animation' },
@@ -159,7 +191,7 @@ export function buildCategoryPath(category: FileCategory, subcategory?: string):
   return `${category}:${subcategory}`;
 }
 
-/** Get the display label for a full category path (e.g. "audio:music" → "Audio > Music"). */
+/** Get the display label for a full category path (e.g. "audio:music:rock" → "Audio > Music > Rock"). */
 export function getCategoryPathLabel(categoryPath: string): string {
   const parts = categoryPath.split(':');
   const topLevel = getCategoryConfig(parts[0] as FileCategory);
@@ -167,7 +199,14 @@ export function getCategoryPathLabel(categoryPath: string): string {
   if (parts.length === 1) return topLevel.label;
 
   const sub = topLevel.subcategories?.find((s) => s.id === parts[1]);
-  return `${topLevel.label} > ${sub?.label ?? parts[1]}`;
+  const labels = [topLevel.label, sub?.label ?? parts[1]];
+
+  if (parts.length >= 3 && sub?.children) {
+    const child = sub.children.find((c) => c.id === parts[2]);
+    labels.push(child?.label ?? parts[2]);
+  }
+
+  return labels.join(' > ');
 }
 
 /** Check if a listing's category path matches a filter (supports startsWith for hierarchy). */
