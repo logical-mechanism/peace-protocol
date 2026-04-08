@@ -5,6 +5,7 @@ import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { detectCategoryFromExtension, type FileCategory } from '../config/categories';
+import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 import type { ImportListingData } from '../services/transactionBuilder';
 
@@ -18,6 +19,8 @@ interface ImportFormData {
   suggestedPrice: string;
   imageLink: string;
   category: FileCategory;
+  subcategory: string;
+  nsfw: boolean;
 }
 
 interface FormErrors {
@@ -47,6 +50,8 @@ const INITIAL_FORM_DATA: ImportFormData = {
   suggestedPrice: '',
   imageLink: '',
   category: 'other',
+  subcategory: '',
+  nsfw: false,
 };
 
 const HEX_REGEX = /^[0-9a-fA-F]+$/;
@@ -189,7 +194,7 @@ export default function ImportListingModal({
     const ext = e.target.value;
     setFormData((prev) => {
       const category = ext ? detectCategoryFromExtension(`file${ext}`) : 'other';
-      return { ...prev, fileExtension: ext, category };
+      return { ...prev, fileExtension: ext, category, subcategory: '' };
     });
     if (errors.fileExtension) {
       setErrors((prev) => ({ ...prev, fileExtension: undefined }));
@@ -211,6 +216,7 @@ export default function ImportListingModal({
         const ext = parsed.ext || parsed.fileExtension;
         updates.fileExtension = ext;
         updates.category = ext ? detectCategoryFromExtension(`file${ext}`) : 'other';
+        updates.subcategory = '';
       }
 
       if (Object.keys(updates).length > 0) {
@@ -267,6 +273,8 @@ export default function ImportListingModal({
         suggestedPrice: formData.suggestedPrice,
         imageLink: formData.imageLink,
         category: formData.category,
+        subcategory: formData.subcategory,
+        nsfw: formData.nsfw,
       }, setCreationStep);
       onClose();
     } catch (error) {
@@ -536,6 +544,26 @@ export default function ImportListingModal({
                   Category auto-detected: <span className="font-medium text-[var(--text-secondary)]">{formData.category}</span>
                 </p>
               )}
+
+              {/* Sub-category selector */}
+              <SubCategorySelector
+                category={formData.category}
+                selected={formData.subcategory}
+                onChange={(sub) => setFormData((prev) => ({ ...prev, subcategory: sub }))}
+                disabled={isSubmitting}
+              />
+
+              {/* NSFW checkbox */}
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={formData.nsfw}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, nsfw: e.target.checked }))}
+                  disabled={isSubmitting}
+                  className="accent-[var(--accent)] w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <span className="text-sm text-[var(--text-primary)]">This listing contains NSFW content</span>
+              </label>
             </div>
 
             {/* Submit Error */}
