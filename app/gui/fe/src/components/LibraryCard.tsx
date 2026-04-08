@@ -9,6 +9,7 @@ import { getContentType } from '../utils/contentType';
 import { formatDate } from '../utils/formatDate';
 import { copyToClipboard } from '../utils/clipboard';
 import ListingImage from './ListingImage';
+import HighlightText from './HighlightText';
 
 interface LibraryCardProps {
   item: LibraryItem;
@@ -16,6 +17,7 @@ interface LibraryCardProps {
   onView: (item: LibraryItem) => void;
   onDelete: (item: LibraryItem) => void;
   onRelist?: (item: LibraryItem) => void;
+  searchQuery?: string;
   compact?: boolean;
   selectMode?: boolean;
   selected?: boolean;
@@ -86,6 +88,7 @@ function LibraryCard({
   onView,
   onDelete,
   onRelist,
+  searchQuery = '',
   compact = false,
   selectMode = false,
   selected = false,
@@ -157,7 +160,11 @@ function LibraryCard({
                     onClick={() => setDescriptionModalOpen(true)}
                     title={item.description}
                   >
-                    {truncateDescription(item.description)}
+                    {searchQuery ? (
+                      <HighlightText text={truncateDescription(item.description)} query={searchQuery} />
+                    ) : (
+                      truncateDescription(item.description)
+                    )}
                   </p>
                 )}
               </div>
@@ -277,7 +284,11 @@ function LibraryCard({
               <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
             </div>
             <span className="text-xs font-mono text-[var(--text-muted)] tracking-wide truncate" title={item.tokenName}>
-              {truncateHex(item.tokenName, 12, 8)}
+              {searchQuery ? (
+                <HighlightText text={truncateHex(item.tokenName, 12, 8)} query={searchQuery} />
+              ) : (
+                truncateHex(item.tokenName, 12, 8)
+              )}
             </span>
             <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
             {item.contentMissing && (
@@ -318,7 +329,11 @@ function LibraryCard({
               className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
               title={item.description}
             >
-              {truncateDescription(item.description)}
+              {searchQuery ? (
+                <HighlightText text={truncateDescription(item.description)} query={searchQuery} />
+              ) : (
+                truncateDescription(item.description)
+              )}
             </p>
           </div>
         ) : (
@@ -408,6 +423,7 @@ function arePropsEqual(prev: LibraryCardProps, next: LibraryCardProps): boolean 
     prev.item.seller === next.item.seller &&
     prev.item.decryptedAt === next.item.decryptedAt &&
     prev.walletAddress === next.walletAddress &&
+    prev.searchQuery === next.searchQuery &&
     prev.compact === next.compact &&
     prev.selectMode === next.selectMode &&
     prev.selected === next.selected &&

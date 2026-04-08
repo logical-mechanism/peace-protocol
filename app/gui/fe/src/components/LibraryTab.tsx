@@ -587,6 +587,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 onView={handleView}
                 onDelete={handleDeleteFromCard}
                 onRelist={onRelist}
+                searchQuery={debouncedSearch}
                 selectMode={selectMode}
                 selected={selectedItems.has(item.tokenName)}
                 onToggleSelect={handleToggleSelect}
