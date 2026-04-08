@@ -426,7 +426,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           </svg>
           <input
             type="text"
-            placeholder="Search by token, description, or seller..."
+            placeholder="Search library..."
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search library"
