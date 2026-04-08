@@ -145,6 +145,57 @@ describe('ListingImage', () => {
     });
   });
 
+  describe('deferred loading: cached vs uncached', () => {
+    it('calls getCachedImage (not downloadImage) on intersection when initialCached', async () => {
+      mockGetCachedImage.mockResolvedValue({
+        content_type: 'image/png',
+        base64: 'cached',
+      });
+      render(
+        <ListingImage
+          tokenName="token1"
+          imageLink="https://example.com/img.png"
+          size="md"
+          initialCached
+        />,
+      );
+
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
+      await waitFor(() => {
+        expect(mockGetCachedImage).toHaveBeenCalledWith('token1');
+      });
+      expect(mockDownloadImage).not.toHaveBeenCalled();
+    });
+
+    it('calls downloadImage (not getCachedImage) on intersection when not initialCached', async () => {
+      mockDownloadImage.mockResolvedValue({
+        content_type: 'image/jpeg',
+        base64: 'downloaded',
+      });
+      render(
+        <ListingImage
+          tokenName="token1"
+          imageLink="https://example.com/img.png"
+          size="md"
+        />,
+      );
+
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
+      await waitFor(() => {
+        expect(mockDownloadImage).toHaveBeenCalledWith('token1', 'https://example.com/img.png');
+      });
+      expect(mockGetCachedImage).not.toHaveBeenCalled();
+    });
+  });
+
   describe('banned state', () => {
     it('shows banned image when initialBanned', () => {
       render(
