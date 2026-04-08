@@ -8,6 +8,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
 import { storageGet, storageSet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
+import { playSound } from './notificationSound';
 
 export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
@@ -78,11 +79,15 @@ export function updateTransactionStatus(
   const records = getTransactions(walletPkh);
   const record = records.find(r => r.txHash === txHash);
   if (record) {
+    const wasNotConfirmed = record.status !== 'confirmed';
     record.status = status;
     if (extra?.confirmedAtBlock !== undefined) {
       record.confirmedAtBlock = extra.confirmedAtBlock;
     }
     storageSetJSON(getStorageKey(walletPkh), records);
+    if (status === 'confirmed' && wasNotConfirmed) {
+      playSound('tx_confirmed');
+    }
   }
 }
 
@@ -167,6 +172,7 @@ export function reconcileWithOnChain(
       });
       rec.status = 'confirmed';
       changed = true;
+      playSound('tx_confirmed');
     }
   }
 
