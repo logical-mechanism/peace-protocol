@@ -122,11 +122,23 @@ vi.mock('../../services/apiCache', () => ({
 }));
 
 vi.mock('../../services/notificationSound', () => ({
-  isSoundEnabled: vi.fn().mockReturnValue(true),
-  setSoundEnabled: vi.fn(),
-  getSoundVolume: vi.fn().mockReturnValue(50),
-  setSoundVolume: vi.fn(),
-  playNotificationSound: vi.fn(),
+  previewSound: vi.fn(),
+}));
+
+vi.mock('../../services/soundPreferences', () => ({
+  isMasterSoundEnabled: vi.fn().mockReturnValue(true),
+  setMasterSoundEnabled: vi.fn(),
+  isEventSoundEnabled: vi.fn().mockReturnValue(true),
+  setEventSoundEnabled: vi.fn(),
+  getEventSoundVolume: vi.fn().mockReturnValue(0.5),
+  setEventSoundVolume: vi.fn(),
+  SOUND_EVENTS: ['new_bid', 'tx_confirmed', 'tx_failed', 'bid_accepted'],
+  SOUND_EVENT_LABELS: {
+    new_bid: { label: 'New Bid', description: 'A new bid is placed on one of your listings' },
+    tx_confirmed: { label: 'Transaction Confirmed', description: 'A transaction reaches 15 confirmations' },
+    tx_failed: { label: 'Transaction Failed', description: 'A transaction submission fails' },
+    bid_accepted: { label: 'Bid Accepted', description: 'A bid you placed was accepted by the seller' },
+  },
 }));
 
 vi.mock('../../services/desktopNotifications', () => ({
