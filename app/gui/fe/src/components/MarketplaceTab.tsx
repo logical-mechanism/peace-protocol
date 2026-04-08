@@ -4,7 +4,7 @@ import { encryptionsApi, bidsApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
-import { SkeletonGrid } from './SkeletonCard';
+import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
@@ -15,6 +15,7 @@ import DateFilter from './DateFilter';
 import RefreshIndicator from './RefreshIndicator';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
 import { getNsfwEnabled } from '../services/nsfwStorage';
 
@@ -204,7 +205,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const panelFilterCount = useMemo(() => countPanelFilters(filterParams), [filterParams]);
 
   // Load more pagination — accumulate batches instead of showing a single page
-  const ITEMS_PER_PAGE = 20;
+  const ITEMS_PER_PAGE = 24;
 
   const paginatedResults = useMemo(() => {
     return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
@@ -212,25 +213,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
 
   const hasMore = paginatedResults.length < filteredAndSorted.length;
 
-  // IntersectionObserver for auto-loading when scrolling near the bottom
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          dispatch({ type: 'SET_PAGE', payload: currentPage + 1 });
-        }
-      },
-      { rootMargin: '200px' }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, currentPage, dispatch]);
+  const sentinelRef = useInfiniteScroll({
+    hasMore,
+    onLoadMore: useCallback(() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 }), [currentPage, dispatch]),
+  });
 
   const screenReaderMessage = loading
     ? 'Loading marketplace listings…'
@@ -664,6 +650,9 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
       {/* Load More */}
       {hasMore && (
         <div className="flex flex-col items-center gap-3 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
           <p className="text-xs text-[var(--text-muted)]">
             Showing {paginatedResults.length} of {filteredAndSorted.length}
           </p>

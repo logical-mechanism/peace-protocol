@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import SalesListingCard from './SalesListingCard';
 import BidsModal from './BidsModal';
-import { SkeletonGrid } from './SkeletonCard';
+import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
@@ -57,7 +58,7 @@ function MySalesTab({
   const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, searchQuery } = filters;
+  const { viewMode, sortBy, statusFilter, searchQuery, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
@@ -213,6 +214,20 @@ function MySalesTab({
     }
     return result;
   }, [filtered, sortBy, bidStats.map]);
+
+  // Load more pagination
+  const ITEMS_PER_PAGE = 24;
+
+  const paginatedResults = useMemo(() => {
+    return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
+  }, [filteredAndSorted, currentPage]);
+
+  const hasMore = paginatedResults.length < filteredAndSorted.length;
+
+  const sentinelRef = useInfiniteScroll({
+    hasMore,
+    onLoadMore: useCallback(() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 }), [currentPage, dispatch]),
+  });
 
   // Handlers
   const handleViewBids = useCallback((encryption: EncryptionDisplay) => {
@@ -488,7 +503,9 @@ function MySalesTab({
 
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
-        {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'listing' : 'listings'}
+        {hasMore
+          ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`
+          : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`}
         {statusFilter !== 'all' && ` (${statusFilter})`}
       </div>
 
@@ -520,7 +537,7 @@ function MySalesTab({
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((encryption, index) => (
+          {paginatedResults.map((encryption, index) => (
             <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <SalesListingCard
                 encryption={encryption}
@@ -539,7 +556,7 @@ function MySalesTab({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((encryption, index) => (
+          {paginatedResults.map((encryption, index) => (
             <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <SalesListingCard
                 encryption={encryption}
@@ -555,6 +572,25 @@ function MySalesTab({
               />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex flex-col items-center gap-3 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Showing {paginatedResults.length} of {filteredAndSorted.length}
+          </p>
+          <button
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
+            className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
+          >
+            Load More
+          </button>
+          <div ref={sentinelRef} className="h-1" />
         </div>
       )}
 

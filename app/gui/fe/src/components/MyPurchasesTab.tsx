@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useNode } from '../contexts/NodeContext';
 import { bidsApi, encryptionsApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
@@ -9,7 +10,7 @@ import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
-import { SkeletonGrid } from './SkeletonCard';
+import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import type { MyPurchasesFilters, MyPurchasesAction } from '../hooks/useTabFilterState';
@@ -57,7 +58,7 @@ function MyPurchasesTab({
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, searchQuery } = filters;
+  const { viewMode, sortBy, statusFilter, searchQuery, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -239,6 +240,20 @@ function MyPurchasesTab({
 
     return result;
   }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, isCompletedAfterBid]);
+
+  // Load more pagination
+  const ITEMS_PER_PAGE = 24;
+
+  const paginatedResults = useMemo(() => {
+    return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
+  }, [filteredAndSorted, currentPage]);
+
+  const hasMore = paginatedResults.length < filteredAndSorted.length;
+
+  const sentinelRef = useInfiniteScroll({
+    hasMore,
+    onLoadMore: useCallback(() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 }), [currentPage, dispatch]),
+  });
 
   // Handlers
   const handleCancelBid = useCallback(
@@ -540,7 +555,9 @@ function MyPurchasesTab({
 
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
-        {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'bid' : 'bids'}
+        {hasMore
+          ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'bid' : 'bids'}`
+          : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'bid' : 'bids'}`}
         {statusFilter !== 'all' && ` (${statusFilter})`}
       </div>
 
@@ -572,7 +589,7 @@ function MyPurchasesTab({
         )
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((bid, index) => (
+          {paginatedResults.map((bid, index) => (
             <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <MyPurchaseBidCard
                 bid={bid}
@@ -588,7 +605,7 @@ function MyPurchasesTab({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((bid, index) => (
+          {paginatedResults.map((bid, index) => (
             <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <MyPurchaseBidCard
                 bid={bid}
@@ -602,6 +619,25 @@ function MyPurchasesTab({
               />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex flex-col items-center gap-3 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Showing {paginatedResults.length} of {filteredAndSorted.length}
+          </p>
+          <button
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
+            className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
+          >
+            Load More
+          </button>
+          <div ref={sentinelRef} className="h-1" />
         </div>
       )}
     </div>)}

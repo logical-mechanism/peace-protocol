@@ -74,6 +74,7 @@ export interface MySalesFilters {
   sortBy: 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids'
   statusFilter: 'all' | 'active' | 'pending' | 'completed'
   viewMode: ViewMode
+  currentPage: number
 }
 
 export type MySalesAction =
@@ -81,17 +82,19 @@ export type MySalesAction =
   | { type: 'SET_SORT'; payload: MySalesFilters['sortBy'] }
   | { type: 'SET_STATUS'; payload: MySalesFilters['statusFilter'] }
   | { type: 'SET_VIEW'; payload: ViewMode }
+  | { type: 'SET_PAGE'; payload: number }
 
 export const MY_SALES_INITIAL: MySalesFilters = {
-  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid',
+  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', currentPage: 1,
 }
 
 export function mySalesReducer(state: MySalesFilters, action: MySalesAction): MySalesFilters {
   switch (action.type) {
-    case 'SET_SEARCH': return { ...state, searchQuery: action.payload }
-    case 'SET_SORT': return { ...state, sortBy: action.payload }
-    case 'SET_STATUS': return { ...state, statusFilter: action.payload }
+    case 'SET_SEARCH': return { ...state, searchQuery: action.payload, currentPage: 1 }
+    case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
+    case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
+    case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
 }
@@ -103,6 +106,7 @@ export interface MyPurchasesFilters {
   sortBy: 'newest' | 'oldest' | 'amount-high' | 'amount-low'
   statusFilter: 'all' | 'pending' | 'accepted' | 'complete'
   viewMode: ViewMode
+  currentPage: number
 }
 
 export type MyPurchasesAction =
@@ -110,17 +114,19 @@ export type MyPurchasesAction =
   | { type: 'SET_SORT'; payload: MyPurchasesFilters['sortBy'] }
   | { type: 'SET_STATUS'; payload: MyPurchasesFilters['statusFilter'] }
   | { type: 'SET_VIEW'; payload: ViewMode }
+  | { type: 'SET_PAGE'; payload: number }
 
 export const MY_PURCHASES_INITIAL: MyPurchasesFilters = {
-  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid',
+  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', currentPage: 1,
 }
 
 export function myPurchasesReducer(state: MyPurchasesFilters, action: MyPurchasesAction): MyPurchasesFilters {
   switch (action.type) {
-    case 'SET_SEARCH': return { ...state, searchQuery: action.payload }
-    case 'SET_SORT': return { ...state, sortBy: action.payload }
-    case 'SET_STATUS': return { ...state, statusFilter: action.payload }
+    case 'SET_SEARCH': return { ...state, searchQuery: action.payload, currentPage: 1 }
+    case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
+    case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
+    case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
 }
@@ -163,6 +169,7 @@ export interface LibraryFilters {
   sortBy: 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc' | 'type-asc' | 'type-desc'
   categoryFilter: string
   viewMode: ViewMode
+  currentPage: number
 }
 
 export type LibraryAction =
@@ -170,17 +177,19 @@ export type LibraryAction =
   | { type: 'SET_SORT'; payload: LibraryFilters['sortBy'] }
   | { type: 'SET_CATEGORY'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
+  | { type: 'SET_PAGE'; payload: number }
 
 export const LIBRARY_INITIAL: LibraryFilters = {
-  searchQuery: '', sortBy: 'newest', categoryFilter: 'all', viewMode: 'grid',
+  searchQuery: '', sortBy: 'newest', categoryFilter: 'all', viewMode: 'grid', currentPage: 1,
 }
 
 export function libraryReducer(state: LibraryFilters, action: LibraryAction): LibraryFilters {
   switch (action.type) {
-    case 'SET_SEARCH': return { ...state, searchQuery: action.payload }
-    case 'SET_SORT': return { ...state, sortBy: action.payload }
-    case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload }
+    case 'SET_SEARCH': return { ...state, searchQuery: action.payload, currentPage: 1 }
+    case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
+    case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
+    case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
 }
