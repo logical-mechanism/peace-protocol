@@ -15,14 +15,15 @@ interface CategoryFilterProps {
 }
 
 // ── Category tree ────────────────────────────────────────────────
-// Today: flat list from FILE_CATEGORIES. When subcategories arrive,
-// build a tree here and the recursive renderer below handles it.
 
 function buildCategoryTree(): CategoryNode[] {
   return FILE_CATEGORIES.filter((c) => c.enabled).map((c: CategoryConfig) => ({
     id: c.id,
     label: c.label,
-    // children: [] — add subcategories here later
+    children: c.subcategories?.map((sub) => ({
+      id: `${c.id}:${sub.id}`,
+      label: sub.label,
+    })),
   }));
 }
 
@@ -30,31 +31,32 @@ const CATEGORY_TREE = buildCategoryTree();
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function getAllLeafIds(nodes: CategoryNode[]): string[] {
-  const ids: string[] = [];
-  for (const node of nodes) {
-    if (node.children && node.children.length > 0) {
-      ids.push(...getAllLeafIds(node.children));
-    } else {
-      ids.push(node.id);
-    }
-  }
-  return ids;
+/** Get all top-level category IDs (for "all selected" detection). */
+function getTopLevelIds(nodes: CategoryNode[]): string[] {
+  return nodes.map((n) => n.id);
 }
 
-const ALL_LEAF_IDS = getAllLeafIds(CATEGORY_TREE);
+const TOP_LEVEL_IDS = getTopLevelIds(CATEGORY_TREE);
 
 function isAllSelected(selected: string[]): boolean {
-  return selected.includes('all') || selected.length === ALL_LEAF_IDS.length;
+  return selected.includes('all') || selected.length === TOP_LEVEL_IDS.length;
 }
 
 function getLabel(selected: string[]): string {
   if (isAllSelected(selected)) return 'All Categories';
   if (selected.length === 1) {
-    const match = ALL_LEAF_IDS.includes(selected[0])
-      ? FILE_CATEGORIES.find((c) => c.id === selected[0])
-      : undefined;
-    return match ? match.label : '1 Category';
+    const id = selected[0];
+    // Check top-level
+    const topMatch = FILE_CATEGORIES.find((c) => c.id === id);
+    if (topMatch) return topMatch.label;
+    // Check sub-category (e.g. "audio:music")
+    const parts = id.split(':');
+    if (parts.length > 1) {
+      const parent = FILE_CATEGORIES.find((c) => c.id === parts[0]);
+      const sub = parent?.subcategories?.find((s) => s.id === parts[1]);
+      if (parent && sub) return `${parent.label} > ${sub.label}`;
+    }
+    return '1 Category';
   }
   return `${selected.length} Categories`;
 }
@@ -96,7 +98,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
     onChange(['all']);
   }
 
-  function handleToggleLeaf(id: string) {
+  function handleToggleNode(id: string) {
     if (allChecked) {
       // Switching from "all" to just this one
       onChange([id]);
@@ -112,7 +114,8 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
       }
     } else {
       const next = [...selected, id];
-      if (next.length === ALL_LEAF_IDS.length) {
+      // Check if all top-level are now selected
+      if (TOP_LEVEL_IDS.every((tid) => next.includes(tid))) {
         onChange(['all']);
       } else {
         onChange(next);
@@ -122,9 +125,9 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
 
   function renderNode(node: CategoryNode, depth: number = 0) {
     const hasChildren = node.children && node.children.length > 0;
-    const isLeaf = !hasChildren;
 
-    if (isLeaf) {
+    if (!hasChildren) {
+      // Leaf node (subcategory like "audio:music")
       const checked = allChecked || selected.includes(node.id);
       return (
         <label
@@ -135,7 +138,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
           <input
             type="checkbox"
             checked={checked}
-            onChange={() => handleToggleLeaf(node.id)}
+            onChange={() => handleToggleNode(node.id)}
             className="accent-[var(--accent)]"
           />
           {node.label}
@@ -143,15 +146,22 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
       );
     }
 
-    // Parent node with children — future subcategory support
+    // Parent node with children — selectable top-level + expandable subcategories
+    const parentChecked = allChecked || selected.includes(node.id);
     return (
       <div key={node.id}>
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)]"
+        <label
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] cursor-pointer"
           style={{ paddingLeft: `${12 + depth * 16}px` }}
         >
+          <input
+            type="checkbox"
+            checked={parentChecked}
+            onChange={() => handleToggleNode(node.id)}
+            className="accent-[var(--accent)]"
+          />
           {node.label}
-        </div>
+        </label>
         {node.children!.map((child) => renderNode(child, depth + 1))}
       </div>
     );

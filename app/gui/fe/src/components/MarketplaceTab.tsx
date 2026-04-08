@@ -67,7 +67,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   }, [allBids, userPkh]);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, hideNsfw, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -179,7 +179,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     searchQuery: debouncedSearch,
     dateFrom,
     dateTo,
-  }), [statusFilter, categoryFilter, hideOwnListings, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
+    hideNsfw,
+  }), [statusFilter, categoryFilter, hideOwnListings, hideNsfw, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
 
   const filtered = useMemo(
     () => filterListings(encryptions, filterParams),
@@ -542,6 +543,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 20L20 4" />
                 )}
               </svg>
+            </button>
+
+            {/* Hide NSFW Toggle */}
+            <button
+              onClick={() => dispatch({ type: 'SET_HIDE_NSFW', payload: !hideNsfw })}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                hideNsfw
+                  ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                  : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+              title={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
+              aria-label={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
+              aria-pressed={hideNsfw}
+            >
+              <span className="text-xs font-bold">NSFW</span>
+              {hideNsfw && (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
             </button>
           </div>
         )}
