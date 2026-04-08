@@ -554,16 +554,26 @@ export default function ImportListingModal({
               />
 
               {/* NSFW checkbox */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={formData.nsfw}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nsfw: e.target.checked }))}
-                  disabled={isSubmitting}
-                  className="accent-[var(--accent)] w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
-                />
-                <span className="text-sm text-[var(--text-primary)]">This listing contains NSFW content</span>
-              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSubmitting) setFormData((prev) => ({ ...prev, nsfw: !prev.nsfw }));
+                }}
+                disabled={isSubmitting}
+                className={`self-start flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                  formData.nsfw
+                    ? 'bg-[var(--error)]/15 text-[var(--error)] border-[var(--error)]/40'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+                }`}
+                title={formData.nsfw ? 'Marked as NSFW — click to remove' : 'Mark as NSFW content'}
+                aria-pressed={formData.nsfw}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                  {formData.nsfw && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15.75h.007v.008H12v-.008z" />}
+                </svg>
+                NSFW
+              </button>
             </div>
 
             {/* Submit Error */}
