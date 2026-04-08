@@ -38,6 +38,7 @@ const DEFAULT_PARAMS: FilterParams = {
   searchQuery: '',
   dateFrom: '',
   dateTo: '',
+  hideNsfw: false,
 };
 
 function params(overrides: Partial<FilterParams> = {}): FilterParams {

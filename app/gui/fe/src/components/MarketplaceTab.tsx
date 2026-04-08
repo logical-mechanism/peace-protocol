@@ -16,6 +16,7 @@ import RefreshIndicator from './RefreshIndicator';
 import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
+import { getNsfwEnabled } from '../services/nsfwStorage';
 
 interface MarketplaceTabProps {
   userPkh?: string;
@@ -40,6 +41,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [nsfwEnabled] = useState(() => getNsfwEnabled());
 
   // Close filters panel on Escape key
   useEffect(() => {
@@ -65,7 +67,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   }, [allBids, userPkh]);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, hideNsfw, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -177,7 +179,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     searchQuery: debouncedSearch,
     dateFrom,
     dateTo,
-  }), [statusFilter, categoryFilter, hideOwnListings, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
+    hideNsfw,
+  }), [statusFilter, categoryFilter, hideOwnListings, hideNsfw, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
 
   const filtered = useMemo(
     () => filterListings(encryptions, filterParams),
@@ -541,6 +544,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 )}
               </svg>
             </button>
+
+            {/* Hide NSFW Toggle */}
+            <button
+              onClick={() => dispatch({ type: 'SET_HIDE_NSFW', payload: !hideNsfw })}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                hideNsfw
+                  ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                  : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+              title={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
+              aria-label={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
+              aria-pressed={hideNsfw}
+            >
+              <span className="text-xs font-bold">NSFW</span>
+              {hideNsfw && (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </button>
           </div>
         )}
       </div>
@@ -609,6 +632,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}
@@ -630,6 +654,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
                 searchQuery={searchQuery}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}

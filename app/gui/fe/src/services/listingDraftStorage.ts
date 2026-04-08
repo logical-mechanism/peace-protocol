@@ -32,6 +32,7 @@ export interface ListingDraft {
   updatedAt: string;
   // Form data
   category: string;
+  nsfw?: boolean;
   description: string;
   suggestedPrice: string;
   imageLink: string;

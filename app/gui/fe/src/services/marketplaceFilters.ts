@@ -1,5 +1,6 @@
 import type { EncryptionDisplay } from './api';
 import type { MarketplaceFilters } from '../hooks/useTabFilterState';
+import { categoryMatchesFilter } from '../config/categories';
 
 // ── Filter params ────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ export interface FilterParams {
   searchQuery: string;
   dateFrom: string;
   dateTo: string;
+  hideNsfw: boolean;
 }
 
 export type SortKey = MarketplaceFilters['sortBy'];
@@ -50,9 +52,14 @@ export function filterListings(
   }
 
   if (!params.categoryFilter.includes('all')) {
-    result = result.filter((e) =>
-      params.categoryFilter.includes(e.category || 'text'),
-    );
+    result = result.filter((e) => {
+      const cat = e.category || 'text';
+      return params.categoryFilter.some((f) => categoryMatchesFilter(cat, f));
+    });
+  }
+
+  if (params.hideNsfw) {
+    result = result.filter((e) => !e.nsfw);
   }
 
   if (params.hideOwnListings && params.userPkh) {
@@ -171,6 +178,7 @@ export function countActiveFilters(params: FilterParams): number {
   if (params.priceMin !== '') count++;
   if (params.priceMax !== '') count++;
   if (params.showFavoritesOnly) count++;
+  if (params.hideNsfw) count++;
   return count;
 }
 
@@ -184,5 +192,6 @@ export function countPanelFilters(params: FilterParams): number {
   if (params.priceMin !== '') count++;
   if (params.priceMax !== '') count++;
   if (params.showFavoritesOnly) count++;
+  if (params.hideNsfw) count++;
   return count;
 }

@@ -8,6 +8,7 @@ import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
+import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 import {
   saveListingFormDraft,
@@ -17,6 +18,8 @@ import {
 
 export interface CreateListingFormData {
   category: FileCategory;
+  subcategory: string;
+  nsfw: boolean;
   secretMessage: string;
   file: File | null;
   /** Absolute path to the file on disk (from native dialog). Used by Rust for encrypt+upload. */
@@ -91,6 +94,8 @@ function formatPrice(raw: string): string {
 
 const INITIAL_FORM_DATA: CreateListingFormData = {
   category: 'text',
+  subcategory: '',
+  nsfw: false,
   secretMessage: '',
   file: null,
   filePath: null,
@@ -171,6 +176,8 @@ export default function CreateListingModal({
       if (formData.description || formData.secretMessage || formData.suggestedPrice || formData.imageLink) {
         saveListingFormDraft({
           category: formData.category,
+          subcategory: formData.subcategory,
+          nsfw: formData.nsfw,
           secretMessage: formData.secretMessage,
           description: formData.description,
           suggestedPrice: formData.suggestedPrice,
@@ -282,6 +289,7 @@ export default function CreateListingModal({
     setFormData((prev) => ({
       ...prev,
       category: mode === 'text' ? 'text' : 'other',
+      subcategory: '',
       secretMessage: '',
       file: null,
       filePath: null,
@@ -297,6 +305,8 @@ export default function CreateListingModal({
     if (draft) {
       setFormData({
         category: (draft.category as FileCategory) || 'text',
+        subcategory: draft.subcategory || '',
+        nsfw: draft.nsfw || false,
         secretMessage: draft.secretMessage || '',
         file: null,
         filePath: null,
@@ -340,7 +350,7 @@ export default function CreateListingModal({
       }
 
       const category = detectCategoryFromExtension(fileName);
-      setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category }));
+      setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category, subcategory: '' }));
       if (errors.file) {
         setErrors((prev) => ({ ...prev, file: undefined }));
       }
@@ -577,6 +587,44 @@ export default function CreateListingModal({
                   : 'Text listings store content directly on-chain in the encrypted capsule.'}
               </p>
             </div>
+
+            {/* Sub-category selector — in file mode, only show after file is selected */}
+            {(!isFileMode || formData.filePath) && (
+              <SubCategorySelector
+                category={formData.category}
+                selected={formData.subcategory}
+                onChange={(sub) => {
+                  setFormData((prev) => ({ ...prev, subcategory: sub }));
+                  setIsDirty(true);
+                }}
+                disabled={isSubmitting}
+              />
+            )}
+
+            {/* NSFW toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!isSubmitting) {
+                  setFormData((prev) => ({ ...prev, nsfw: !prev.nsfw }));
+                  setIsDirty(true);
+                }
+              }}
+              disabled={isSubmitting}
+              className={`self-start flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                formData.nsfw
+                  ? 'bg-[var(--error)]/15 text-[var(--error)] border-[var(--error)]/40'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+              }`}
+              title={formData.nsfw ? 'Marked as NSFW — click to remove' : 'Mark as NSFW content'}
+              aria-pressed={formData.nsfw}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                {formData.nsfw && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15.75h.007v.008H12v-.008z" />}
+              </svg>
+              NSFW
+            </button>
 
             {/* Content Area — Text category */}
             {formData.category === 'text' && (

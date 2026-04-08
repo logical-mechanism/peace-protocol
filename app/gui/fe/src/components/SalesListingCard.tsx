@@ -19,6 +19,7 @@ interface SalesListingCardProps {
   compact?: boolean;
   initialCached?: boolean;
   initialBanned?: boolean;
+  nsfwEnabled?: boolean;
 }
 
 function SalesListingCard({
@@ -32,6 +33,7 @@ function SalesListingCard({
   compact = false,
   initialCached = false,
   initialBanned = false,
+  nsfwEnabled = false,
 }: SalesListingCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [prevBidCount, setPrevBidCount] = useState(bidCount);
@@ -253,6 +255,8 @@ function SalesListingCard({
           size="md"
           initialCached={initialCached}
           initialBanned={initialBanned}
+          nsfw={encryption.nsfw}
+          nsfwEnabled={nsfwEnabled}
         />
 
         {/* Price */}

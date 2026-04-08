@@ -5,6 +5,7 @@ import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { detectCategoryFromExtension, type FileCategory } from '../config/categories';
+import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 import type { ImportListingData } from '../services/transactionBuilder';
 
@@ -18,6 +19,8 @@ interface ImportFormData {
   suggestedPrice: string;
   imageLink: string;
   category: FileCategory;
+  subcategory: string;
+  nsfw: boolean;
 }
 
 interface FormErrors {
@@ -47,6 +50,8 @@ const INITIAL_FORM_DATA: ImportFormData = {
   suggestedPrice: '',
   imageLink: '',
   category: 'other',
+  subcategory: '',
+  nsfw: false,
 };
 
 const HEX_REGEX = /^[0-9a-fA-F]+$/;
@@ -189,7 +194,7 @@ export default function ImportListingModal({
     const ext = e.target.value;
     setFormData((prev) => {
       const category = ext ? detectCategoryFromExtension(`file${ext}`) : 'other';
-      return { ...prev, fileExtension: ext, category };
+      return { ...prev, fileExtension: ext, category, subcategory: '' };
     });
     if (errors.fileExtension) {
       setErrors((prev) => ({ ...prev, fileExtension: undefined }));
@@ -211,6 +216,7 @@ export default function ImportListingModal({
         const ext = parsed.ext || parsed.fileExtension;
         updates.fileExtension = ext;
         updates.category = ext ? detectCategoryFromExtension(`file${ext}`) : 'other';
+        updates.subcategory = '';
       }
 
       if (Object.keys(updates).length > 0) {
@@ -267,6 +273,8 @@ export default function ImportListingModal({
         suggestedPrice: formData.suggestedPrice,
         imageLink: formData.imageLink,
         category: formData.category,
+        subcategory: formData.subcategory,
+        nsfw: formData.nsfw,
       }, setCreationStep);
       onClose();
     } catch (error) {
@@ -536,6 +544,36 @@ export default function ImportListingModal({
                   Category auto-detected: <span className="font-medium text-[var(--text-secondary)]">{formData.category}</span>
                 </p>
               )}
+
+              {/* Sub-category selector */}
+              <SubCategorySelector
+                category={formData.category}
+                selected={formData.subcategory}
+                onChange={(sub) => setFormData((prev) => ({ ...prev, subcategory: sub }))}
+                disabled={isSubmitting}
+              />
+
+              {/* NSFW checkbox */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSubmitting) setFormData((prev) => ({ ...prev, nsfw: !prev.nsfw }));
+                }}
+                disabled={isSubmitting}
+                className={`self-start flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                  formData.nsfw
+                    ? 'bg-[var(--error)]/15 text-[var(--error)] border-[var(--error)]/40'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+                }`}
+                title={formData.nsfw ? 'Marked as NSFW — click to remove' : 'Mark as NSFW content'}
+                aria-pressed={formData.nsfw}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                  {formData.nsfw && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15.75h.007v.008H12v-.008z" />}
+                </svg>
+                NSFW
+              </button>
             </div>
 
             {/* Submit Error */}

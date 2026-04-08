@@ -339,6 +339,7 @@ export async function acceptBidSnark(
         encryption.storageLayer || '',
         encryption.imageLink || '',
         encryption.category || '',
+        encryption.nsfw,
       ))
       // Change and UTxO selection
       .changeAddress(changeAddress)

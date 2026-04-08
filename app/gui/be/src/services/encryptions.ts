@@ -19,6 +19,7 @@ export interface ParsedCip20 {
   storageLayer?: string;
   imageLink?: string;
   category?: string;
+  nsfw?: boolean;
 }
 
 /**
@@ -64,12 +65,15 @@ export function parseCip20Fields(msg: string[], fullJson?: Record<string, unknow
 
     const category = (typeof fullJson.c === 'string' ? fullJson.c : '') || undefined;
 
+    const nsfw = typeof fullJson.n === 'string' ? fullJson.n === '1' : undefined;
+
     return {
       description,
       suggestedPrice: suggestedPrice !== undefined && !isNaN(suggestedPrice) ? suggestedPrice : undefined,
       storageLayer,
       imageLink,
       category,
+      nsfw: nsfw || undefined,
     };
   }
 
@@ -123,6 +127,7 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
     storageLayer: cip20.storageLayer,
     imageLink: cip20.imageLink,
     category: cip20.category,
+    nsfw: cip20.nsfw,
     createdAt: utxo.block_time > 0 ? new Date(utxo.block_time * 1000).toISOString() : null,
     utxo: {
       txHash: utxo.tx_hash,

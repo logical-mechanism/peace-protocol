@@ -629,6 +629,10 @@ describe('AudioPlayer component', () => {
     it('Space key calls play (invokes audio_resume)', async () => {
       renderPlayer();
       await waitForReady();
+      await flushMicrotasks();
+
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
 
       await act(async () => {
         fireEvent.keyDown(document, { key: ' ' });
@@ -640,6 +644,10 @@ describe('AudioPlayer component', () => {
     it('Space key calls pause when playing', async () => {
       renderPlayer();
       await waitForReady();
+      await flushMicrotasks();
+
+      mockInvoke.mockClear();
+      setupDefaultInvokeMock();
 
       // Play
       await act(async () => {

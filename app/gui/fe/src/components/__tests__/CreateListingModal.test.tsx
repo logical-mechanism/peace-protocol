@@ -27,6 +27,8 @@ vi.mock('../../config/categories', () => ({
     if (filename.endsWith('.mp3')) return 'audio';
     return 'other';
   },
+  getSubcategories: () => [],
+  buildCategoryPath: (cat: string, sub?: string) => sub ? `${cat}:${sub}` : cat,
 }));
 
 vi.mock('../../utils/clipboard', () => ({

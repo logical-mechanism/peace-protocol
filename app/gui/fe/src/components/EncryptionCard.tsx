@@ -25,6 +25,7 @@ interface EncryptionCardProps {
   isFavorite?: boolean;
   onToggleFavorite?: (tokenName: string) => void;
   searchQuery?: string;
+  nsfwEnabled?: boolean;
 }
 
 function EncryptionCard({
@@ -40,6 +41,7 @@ function EncryptionCard({
   isFavorite = false,
   onToggleFavorite,
   searchQuery = '',
+  nsfwEnabled = false,
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [initialBidCount] = useState(bidCount);
@@ -90,6 +92,9 @@ function EncryptionCard({
             <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
               {getCategoryLabel(encryption.category)}
             </span>
+            {encryption.nsfw && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white flex-shrink-0">NSFW</span>
+            )}
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
@@ -218,6 +223,8 @@ function EncryptionCard({
           size="md"
           initialCached={initialCached}
           initialBanned={initialBanned}
+          nsfw={encryption.nsfw}
+          nsfwEnabled={nsfwEnabled}
         />
 
         {/* Price */}
@@ -314,7 +321,9 @@ function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): bo
     prev.encryption.imageLink === next.encryption.imageLink &&
     prev.encryption.description === next.encryption.description &&
     prev.encryption.category === next.encryption.category &&
+    prev.encryption.nsfw === next.encryption.nsfw &&
     prev.encryption.createdAt === next.encryption.createdAt &&
+    prev.nsfwEnabled === next.nsfwEnabled &&
     prev.bidCount === next.bidCount &&
     prev.compact === next.compact &&
     prev.isOwnListing === next.isOwnListing &&
