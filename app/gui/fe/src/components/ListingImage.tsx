@@ -26,37 +26,12 @@ export default function ListingImage({
   const [state, setState] = useState<ImageState>(() => {
     if (!imageLink) return 'no-link';
     if (initialBanned) return 'banned';
-    if (initialCached) return 'loading'; // will load from cache
     return 'default';
   });
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [nsfwRevealed, setNsfwRevealed] = useState(false);
 
   const shouldBlur = nsfw && !nsfwEnabled && !nsfwRevealed;
-
-  // Load cached image on mount if initialCached
-  useEffect(() => {
-    if (!initialCached || initialBanned || !imageLink) return;
-    let cancelled = false;
-
-    getCachedImage(tokenName)
-      .then((result) => {
-        if (cancelled) return;
-        if (result) {
-          setDataUrl(`data:${result.content_type};base64,${result.base64}`);
-          setState('loaded');
-        } else {
-          setState('default');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setState('default');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tokenName, initialCached, initialBanned, imageLink]);
 
   const handleClick = async () => {
     if (state !== 'default' || !imageLink) return;
@@ -92,24 +67,45 @@ export default function ListingImage({
     }
   };
 
-  // Auto-download when scrolled into view (replaces click-to-load)
+  // Load image when scrolled into view (defers both cached and uncached fetches)
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (state !== 'default' || !imageLink) return;
     const el = containerRef.current;
     if (!el) return;
+    let cancelled = false;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          handleClick();
           observer.disconnect();
+          if (initialCached) {
+            setState('loading');
+            getCachedImage(tokenName)
+              .then((result) => {
+                if (cancelled) return;
+                if (result) {
+                  setDataUrl(`data:${result.content_type};base64,${result.base64}`);
+                  setState('loaded');
+                } else {
+                  setState('default');
+                }
+              })
+              .catch(() => {
+                if (!cancelled) setState('default');
+              });
+          } else {
+            handleClick();
+          }
         }
       },
       { rootMargin: '200px' }
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, imageLink]);
 
