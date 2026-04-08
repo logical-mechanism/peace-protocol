@@ -254,6 +254,36 @@ describe('parseCip20Fields', () => {
     expect(result.imageLink).toBeUndefined();
     expect(result.category).toBeUndefined();
   });
+
+  it('parses NSFW flag n: "1" as true', () => {
+    const fullJson = { msg: ['desc'], s: 'on-chain', c: 'image', n: '1' };
+    const result = parseCip20Fields(['desc'], fullJson);
+    expect(result.nsfw).toBe(true);
+  });
+
+  it('parses NSFW flag n: "0" as undefined', () => {
+    const fullJson = { msg: ['desc'], s: 'on-chain', c: 'image', n: '0' };
+    const result = parseCip20Fields(['desc'], fullJson);
+    expect(result.nsfw).toBeUndefined();
+  });
+
+  it('omits nsfw when n field is absent', () => {
+    const fullJson = { msg: ['desc'], s: 'on-chain', c: 'image' };
+    const result = parseCip20Fields(['desc'], fullJson);
+    expect(result.nsfw).toBeUndefined();
+  });
+
+  it('passes through colon-delimited category path', () => {
+    const fullJson = { msg: ['desc'], s: 'on-chain', c: 'audio:music' };
+    const result = parseCip20Fields(['desc'], fullJson);
+    expect(result.category).toBe('audio:music');
+  });
+
+  it('passes through deeply nested category path', () => {
+    const fullJson = { msg: ['desc'], s: 'on-chain', c: 'audio:music:house' };
+    const result = parseCip20Fields(['desc'], fullJson);
+    expect(result.category).toBe('audio:music:house');
+  });
 });
 
 // ── extractCip20FromMetadata ─────────────────────────────────────────
