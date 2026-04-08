@@ -5,7 +5,14 @@ import type { IWallet } from '@meshsdk/core'
 import { getAutolockMinutes, setAutolockMinutes } from '../../services/autolock'
 import { copyToClipboard } from '../../utils/clipboard'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../../services/toastSettings'
-import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, playNotificationSound } from '../../services/notificationSound'
+import { previewSound } from '../../services/notificationSound'
+import {
+  isMasterSoundEnabled, setMasterSoundEnabled,
+  isEventSoundEnabled, setEventSoundEnabled,
+  getEventSoundVolume, setEventSoundVolume,
+  SOUND_EVENTS, SOUND_EVENT_LABELS,
+  type SoundEvent,
+} from '../../services/soundPreferences'
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, type Theme } from '../../services/themeStorage'
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
@@ -56,8 +63,17 @@ export default function WalletSection({
   const [showNsfw, setShowNsfw] = useState(() => getNsfwEnabled())
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
-  const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
-  const [soundVolume, setSoundVolumeState] = useState(() => getSoundVolume())
+  const [masterSoundEnabled, setMasterSoundEnabledState] = useState(() => isMasterSoundEnabled())
+  const [eventEnabled, setEventEnabledState] = useState<Record<SoundEvent, boolean>>(() => {
+    const initial = {} as Record<SoundEvent, boolean>
+    for (const e of SOUND_EVENTS) initial[e] = isEventSoundEnabled(e)
+    return initial
+  })
+  const [eventVolume, setEventVolumeState] = useState<Record<SoundEvent, number>>(() => {
+    const initial = {} as Record<SoundEvent, number>
+    for (const e of SOUND_EVENTS) initial[e] = getEventSoundVolume(e)
+    return initial
+  })
   const [desktopNotifEnabled, setDesktopNotifEnabledState] = useState(() => isDesktopNotificationsEnabled())
   const [addressCopied, setAddressCopied] = useState(false)
 
@@ -545,54 +561,98 @@ export default function WalletSection({
           </div>
         </div>
 
-        {/* Notification Sound */}
+        {/* Notification Sounds */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-medium">Notification Sound</h2>
+              <h2 className="text-lg font-medium">Notification Sounds</h2>
               <p className="text-sm text-[var(--text-muted)]">
-                Play a sound when new bids arrive or transactions confirm.
+                Play sounds for bids, transactions, and other events.
               </p>
             </div>
             <button
               onClick={() => {
-                const next = !soundEnabled
-                setSoundEnabledState(next)
-                setSoundEnabled(next)
-                if (next) playNotificationSound()
+                const next = !masterSoundEnabled
+                setMasterSoundEnabledState(next)
+                setMasterSoundEnabled(next)
+                if (next) previewSound('new_bid')
               }}
               className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
-                soundEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+                masterSoundEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
               }`}
               role="switch"
-              aria-checked={soundEnabled}
-              aria-label="Toggle notification sound"
+              aria-checked={masterSoundEnabled}
+              aria-label="Toggle all notification sounds"
             >
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                soundEnabled ? 'translate-x-6' : 'translate-x-0'
+                masterSoundEnabled ? 'translate-x-6' : 'translate-x-0'
               }`} />
             </button>
           </div>
-          {soundEnabled && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-[var(--text-secondary)]">Volume</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.1}
-                value={soundVolume}
-                onChange={(e) => {
-                  const v = Number(e.target.value)
-                  setSoundVolumeState(v)
-                  setSoundVolume(v)
-                }}
-                onMouseUp={() => playNotificationSound()}
-                className="flex-1 accent-[var(--accent)]"
-              />
-              <span className="text-sm text-[var(--text-muted)] w-8 text-right">
-                {Math.round(soundVolume * 100)}%
-              </span>
+          {masterSoundEnabled && (
+            <div className="space-y-4">
+              {SOUND_EVENTS.map(event => {
+                const { label, description } = SOUND_EVENT_LABELS[event]
+                const enabled = eventEnabled[event]
+                const volume = eventVolume[event]
+                return (
+                  <div key={event} className="border-t border-[var(--border-subtle)] pt-4 first:border-t-0 first:pt-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium">{label}</span>
+                        <p className="text-xs text-[var(--text-muted)]">{description}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const next = !enabled
+                          setEventEnabledState(prev => ({ ...prev, [event]: next }))
+                          setEventSoundEnabled(event, next)
+                          if (next) previewSound(event, volume)
+                        }}
+                        className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+                          enabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+                        }`}
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={`Toggle ${label} sound`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                          enabled ? 'translate-x-5' : 'translate-x-0'
+                        }`} />
+                      </button>
+                    </div>
+                    {enabled && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-[var(--text-secondary)]">Volume</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.1}
+                          value={volume}
+                          onChange={(e) => {
+                            const v = Number(e.target.value)
+                            setEventVolumeState(prev => ({ ...prev, [event]: v }))
+                            setEventSoundVolume(event, v)
+                          }}
+                          onMouseUp={() => previewSound(event, volume)}
+                          className="flex-1 accent-[var(--accent)]"
+                        />
+                        <span className="text-xs text-[var(--text-muted)] w-8 text-right">
+                          {Math.round(volume * 100)}%
+                        </span>
+                        <button
+                          onClick={() => previewSound(event, volume)}
+                          className="px-2 py-1 text-xs rounded-[var(--radius-sm)] btn-base btn-tertiary flex-shrink-0"
+                          aria-label={`Preview ${label} sound`}
+                        >
+                          &#9654;
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

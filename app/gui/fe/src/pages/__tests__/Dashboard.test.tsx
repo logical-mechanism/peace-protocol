@@ -162,6 +162,7 @@ vi.mock('../../hooks/useBidNotifications', () => ({
 }));
 vi.mock('../../services/notificationSound', () => ({
   playNotificationSound: vi.fn(),
+  playSound: vi.fn(),
 }));
 vi.mock('../../services/desktopNotifications', () => ({
   sendDesktopNotification: vi.fn(),

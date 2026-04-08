@@ -4,6 +4,10 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
 
+vi.mock('../notificationSound', () => ({
+  playSound: vi.fn(),
+}));
+
 import { invoke } from '@tauri-apps/api/core';
 import {
   getTransactions,

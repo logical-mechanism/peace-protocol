@@ -13,6 +13,7 @@ import {
 import { getAcceptBidSecrets } from '../../services/acceptBidStorage'
 import { bidsApi } from '../../services/api'
 import { optimisticStore } from '../../services/optimisticStore'
+import { playSound } from '../../services/notificationSound'
 import { saveDecryptedContent, saveContentMetadata } from '../../services/contentStorage'
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../../services/listingDraftStorage'
 import type { DashboardActions } from './dashboardTypes'
@@ -94,6 +95,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         })
       })
       if (!result.success) {
+        playSound('tx_failed')
         toast.error('Retry Failed', result.error || 'Failed to retry listing')
         return
       }
@@ -137,6 +139,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         })
       })
       if (!result.success) {
+        playSound('tx_failed')
         toast.error('Retry Failed', result.error || 'Failed to retry listing')
         return
       }
@@ -180,6 +183,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to create listing')
     }
 
@@ -321,6 +325,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to create listing from import')
     }
 
@@ -394,6 +399,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           })
 
           if (!result.success) {
+            playSound('tx_failed')
             throw new Error(result.error || 'Failed to remove listing')
           }
 
@@ -502,6 +508,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           })
 
           if (!result.success) {
+            playSound('tx_failed')
             throw new Error(result.error || 'Failed to cancel pending listing')
           }
 
@@ -584,6 +591,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       })
 
       if (!result.success) {
+        playSound('tx_failed')
         throw new Error(result.error || 'Failed to complete re-encryption')
       }
 
@@ -647,6 +655,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to update price')
     }
 
