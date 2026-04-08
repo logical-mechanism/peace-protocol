@@ -588,16 +588,18 @@ export default function CreateListingModal({
               </p>
             </div>
 
-            {/* Sub-category selector */}
-            <SubCategorySelector
-              category={formData.category}
-              selected={formData.subcategory}
-              onChange={(sub) => {
-                setFormData((prev) => ({ ...prev, subcategory: sub }));
-                setIsDirty(true);
-              }}
-              disabled={isSubmitting}
-            />
+            {/* Sub-category selector — in file mode, only show after file is selected */}
+            {(!isFileMode || formData.filePath) && (
+              <SubCategorySelector
+                category={formData.category}
+                selected={formData.subcategory}
+                onChange={(sub) => {
+                  setFormData((prev) => ({ ...prev, subcategory: sub }));
+                  setIsDirty(true);
+                }}
+                disabled={isSubmitting}
+              />
+            )}
 
             {/* NSFW checkbox */}
             <label className="flex items-center gap-2.5 cursor-pointer select-none">
