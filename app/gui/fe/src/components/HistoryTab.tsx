@@ -20,6 +20,7 @@ import {
   toCSV,
 } from '../services/transactionHistory';
 import { exportTextFile } from '../services/fileExport';
+import { playSound } from '../services/notificationSound';
 import type { HistoryFilters, HistoryAction } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -221,6 +222,7 @@ function HistoryTab({
               confirmedAtBlock: blockHeight,
             });
             statusChanged = true;
+            playSound('tx_confirmed');
           }
         } catch {
           // Skip on error, will retry next poll

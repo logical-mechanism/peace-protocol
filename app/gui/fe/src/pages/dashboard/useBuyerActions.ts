@@ -5,6 +5,7 @@ import {
 } from '../../services/transactionBuilder'
 import { encryptionsApi } from '../../services/api'
 import { optimisticStore } from '../../services/optimisticStore'
+import { playSound } from '../../services/notificationSound'
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 
@@ -73,6 +74,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to place bid')
     }
 
@@ -159,6 +161,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
           })
 
           if (!result.success) {
+            playSound('tx_failed')
             throw new Error(result.error || 'Failed to cancel bid')
           }
 
@@ -267,6 +270,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to update bid')
     }
 
