@@ -7,6 +7,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ ! -d "$ROOT/python/venv" ]; then
+  echo "ERROR: Python venv not found. Run ./scripts/build first."
+  exit 1
+fi
 source "$ROOT/python/venv/bin/activate"
 FAIL=0
 
