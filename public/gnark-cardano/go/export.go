@@ -66,8 +66,8 @@ func ExportVKBLS(vk groth16.VerifyingKey, nPublic int) (VKJSON, error) {
 	if nPublic < 0 {
 		return VKJSON{}, fmt.Errorf("invalid nPublic: %d", nPublic)
 	}
-	if len(v.G1.K) < nPublic+1 {
-		return VKJSON{}, fmt.Errorf("vk IC too short: len(IC)=%d, need at least %d", len(v.G1.K), nPublic+1)
+	if len(v.G1.K) < nPublic {
+		return VKJSON{}, fmt.Errorf("vk IC too short: len(IC)=%d, need at least %d", len(v.G1.K), nPublic)
 	}
 
 	vkAlpha, err := G1CompressedHex(v.G1.Alpha)

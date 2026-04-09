@@ -10,6 +10,7 @@ go/gnark-cardano
 go/go.sum
 go/setup/
 go/out/
+go/circuit_test.go
 
 # Aiken
 aiken/build/

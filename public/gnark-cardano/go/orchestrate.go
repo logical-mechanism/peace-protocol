@@ -46,7 +46,6 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	if err != nil {
 		return err
 	}
-	nPublic := len(pub)
 
 	// With commitment extension, IC length = nRawPublic + 1 + nCommitments
 	nRawPublic := len(pubRaw)
@@ -59,7 +58,11 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 		)
 	}
 
-	// 5) Export VK sliced to nPublic+1 (matches the exported public vector).
+	// nPublic follows the Aiken convention: includes the implicit "1" wire.
+	// len(IC) = nPublic + nCommitments, so nPublic = len(IC) - nCommitments.
+	nPublic := icLen - nCommitments
+
+	// 5) Export VK with nPublic matching the Aiken convention.
 	vkj, err := ExportVKBLS(vk, nPublic)
 	if err != nil {
 		return err
@@ -118,8 +121,8 @@ func ExportVKOnly(vk groth16.VerifyingKey, dir string) error {
 		return fmt.Errorf("unexpected vk type (need *groth16/bls12-381.VerifyingKey): %T", vk)
 	}
 
-	// Calculate nPublic from VK structure
-	// len(IC) = nPublic + nCommitments, so nPublic = len(IC) - nCommitments
+	// Calculate nPublic from VK structure (Aiken convention: includes implicit "1" wire)
+	// len(IC) = nPublic + nCommitments
 	nCommitments := len(v.CommitmentKeys)
 	nPublic := len(v.G1.K) - nCommitments
 

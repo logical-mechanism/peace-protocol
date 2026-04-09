@@ -48,7 +48,7 @@ def vk_to_datum(vk: dict[str, Any]) -> dict[str, Any]:
                             {"bytes": ck["gSigmaNeg"]},
                         ],
                     }
-                    for ck in vk["commitmentKeys"]
+                    for ck in vk.get("commitmentKeys", [])
                 ]
             },
         ],

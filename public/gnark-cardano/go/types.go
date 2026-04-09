@@ -22,7 +22,7 @@ type VKJSON struct {
 	VkBeta         string              `json:"vkBeta"`  // G2 compressed hex
 	VkGamma        string              `json:"vkGamma"` // G2 compressed hex
 	VkDelta        string              `json:"vkDelta"` // G2 compressed hex
-	VkIC           []string            `json:"vkIC"`    // list of G1 compressed hex (len = nPublic+1)
+	VkIC           []string            `json:"vkIC"`    // list of G1 compressed hex (len = nPublic + nCommitments)
 	CommitmentKeys []CommitmentKeyJSON `json:"commitmentKeys,omitempty"`
 	// PublicAndCommitmentCommitted maps each commitment to the indices of public
 	// inputs that were committed. Used to compute the hash challenge during verification.

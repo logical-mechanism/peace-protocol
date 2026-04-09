@@ -47,6 +47,8 @@ After the user writes `proof.pattern`, Claude generates TWO files:
 
 Everything else (build, export, datum conversion, Aiken test generation) is handled by the scripts.
 
+**These files are per-user generated artifacts** (`.gitignore`'d). Running "Generate the circuit from proof.pattern" will overwrite them. The repo ships a placeholder `circuit.go` that returns errors prompting the user to generate.
+
 ## Reading proof.pattern
 
 The proof.pattern file describes a zero-knowledge proof using this format:
@@ -87,6 +89,20 @@ When hashing different types, Claude handles the conversion automatically:
 | `H(g1_point)` | Decompose G1 coordinates to Fr limbs → write to MiMC → `Sum()` |
 
 **The user never needs to know about `Fq12ToFrElements` or type decomposition.** Just write `H(k)` and Claude handles it based on `k`'s type from the `compute:` line above.
+
+## gnark v0.14 API
+
+This project uses gnark v0.14.0 which changed the `frontend.Compile` and `frontend.NewWitness`
+signatures to take `*big.Int` (the field modulus) instead of `ecc.ID`:
+
+```go
+// Correct (v0.14):
+ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
+witness, err := frontend.NewWitness(assignment, ecc.BLS12_381.ScalarField())
+
+// WRONG (older gnark):
+// ccs, err := frontend.Compile(ecc.BLS12_381, r1cs.NewBuilder, &circuit)
+```
 
 ## Generating circuit.go from proof.pattern
 
@@ -137,7 +153,7 @@ If any secret inputs should be committed (for CCA security), use gnark's commitm
 A frontend.Variable `gnark:"a,secret"`  // committed secret
 
 // In compile options
-ccs, err := frontend.Compile(ecc.BLS12_381, r1cs.NewBuilder, &circuit,
+ccs, err := frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit,
     frontend.WithCommitment(commitment.Pedersen, "a"))
 ```
 
@@ -151,9 +167,9 @@ The existing `aiken/lib/tests/groth.ak` contains known-good hardcoded tests that
 
 **If you need to understand the test format** (e.g., for debugging), here's the mapping:
 - `out/vk.json` hex strings → Aiken `#"..."` byte literals (direct copy)
-- `out/public.json` `inputs[1:]` → public values list (skip leading "1")
-- `out/public.json` `commitmentWire` → commitment wire integer
-- gnark's `nPublic` includes the implicit witness[0]=1; the Aiken public values list does NOT include it
+- `out/public.json` `inputs` → public values list (used as-is; `ChoosePublicInputs` already stripped the implicit "1")
+- `out/public.json` `commitmentWire` → commitment wire integer (omitted when no Pedersen commitments)
+- `nPublic` in vk.json follows the Aiken convention: includes the implicit "1" wire, so `nPublic = len(IC) - nCommitments`
 
 ## Aiken Verifier Details
 
@@ -186,9 +202,9 @@ The Python package converts gnark's JSON output to Cardano CLI datum format:
 
 1. **Implicit "1" wire:** gnark's public witness includes witness[0]=1 implicitly. The export code handles this via `ChoosePublicInputs()`. The Aiken verifier multiplies IC[0] by 1 (identity).
 
-2. **Commitment wire:** When using Pedersen commitments, gnark computes `hash_to_field(D.Marshal() || committed_publics.Marshal())` as an additional public input. This must be passed separately to the Aiken verifier.
+2. **Commitment wire:** When using Pedersen commitments, gnark computes `hash_to_field(D.Marshal() || committed_publics.Marshal())` as an additional public input. This must be passed separately to the Aiken verifier. When there are no commitments, the commitment wire and commitment fields are omitted entirely.
 
-3. **IC length:** `len(vk.IC) = nPublic + nCommitments`. The first `nPublic` ICs correspond to regular public inputs, the remaining to commitment wires.
+3. **IC length and nPublic convention:** `len(vk.IC) = nPublic + nCommitments`. `nPublic` includes the implicit "1" wire (IC[0]). The Aiken verifier computes `n_raw_public = nPublic - 1` to get the count of actual public inputs, then processes remaining IC entries with commitment wires. This means circuits with 0 commitments must still set `nPublic = len(IC)` (not `len(IC) - 1`).
 
 4. **Point compression:** All G1 points are 48-byte IETF compressed (96 hex chars). All G2 points are 96-byte IETF compressed (192 hex chars). gnark-crypto's `.Bytes()` method produces this format.
 

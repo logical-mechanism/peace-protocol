@@ -89,9 +89,9 @@ commit_lines = []
 for c in proof.get("commitments", []):
     commit_lines.append(f"        {hex_lit(c)},")
 
-# Public values (skip leading "1")
+# Public values (ChoosePublicInputs already excluded the implicit "1" wire)
 inputs = pub.get("inputs", [])
-public_values = inputs[1:] if inputs else []
+public_values = inputs
 # Format in groups of 3 for readability
 pub_lines = []
 for i in range(0, len(public_values), 3):
@@ -107,8 +107,17 @@ if wire:
     wire_hex = format(wire_int, "x")
     if len(wire_hex) % 2 != 0:
         wire_hex = "0" + wire_hex
+    wire_list = f"\n      {wire},\n    "
+    redeemer_wires = "[groth.wire_to_int(redeemer.groth_commitment_wire)]"
 else:
     wire_hex = ""
+    wire_list = ""
+    redeemer_wires = "[]"
+
+imports_list = ["GrothProof", "GrothRedeemer", "SnarkVerificationKey"]
+if ck_lines:
+    imports_list.insert(0, "CommitmentKey")
+imports = ", ".join(imports_list)
 
 test = f"""//// Copyright 2025-2026 Logical Mechanism LLC
 //// SPDX-License-Identifier: Apache-2.0
@@ -116,7 +125,7 @@ test = f"""//// Copyright 2025-2026 Logical Mechanism LLC
 //// Auto-generated circuit test from proof artifacts.
 //// Re-generate by running: ./scripts/prove
 
-use gnark_cardano/groth.{{CommitmentKey, GrothProof, GrothRedeemer, SnarkVerificationKey}}
+use gnark_cardano/groth.{{{imports}}}
 
 test circuit_proof_valid() {{
   let vk: SnarkVerificationKey =
@@ -151,9 +160,7 @@ test circuit_proof_valid() {{
     ]
 
   let commitment_wires: List<Int> =
-    [
-      {wire},
-    ]
+    [{wire_list}]
 
   groth.verify_groth16(vk, proof, public_values, commitment_wires)
 }}
@@ -229,7 +236,7 @@ test circuit_redeemer_valid() {{
     vk,
     redeemer.groth_proof,
     redeemer.groth_public,
-    [groth.wire_to_int(redeemer.groth_commitment_wire)],
+    {redeemer_wires},
   )
 }}
 """
