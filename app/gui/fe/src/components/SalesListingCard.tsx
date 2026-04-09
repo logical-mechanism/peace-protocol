@@ -213,7 +213,7 @@ function SalesListingCard({
   const mbClass = cardSize === 'small' ? 'mb-[var(--space-sm)]' : cardSize === 'large' ? 'mb-[var(--space-lg)]' : 'mb-[var(--space-md)]';
   const priceClass = cardSize === 'small' ? 'text-lg' : cardSize === 'large' ? 'text-3xl' : 'text-2xl';
   const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-1';
-  const imgSize = cardSize === 'small' ? 'sm' as const : 'md' as const;
+  const imgSize = 'md' as const;
 
   return (
     <>
