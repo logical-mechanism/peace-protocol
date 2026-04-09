@@ -10,6 +10,7 @@ import { formatDate } from '../utils/formatDate';
 import { copyToClipboard } from '../utils/clipboard';
 import ListingImage from './ListingImage';
 import HighlightText from './HighlightText';
+import type { CardSize } from '../hooks/useTabFilterState';
 
 interface LibraryCardProps {
   item: LibraryItem;
@@ -19,6 +20,7 @@ interface LibraryCardProps {
   onRelist?: (item: LibraryItem) => void;
   searchQuery?: string;
   compact?: boolean;
+  cardSize?: CardSize;
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (tokenName: string) => void;
@@ -90,6 +92,7 @@ function LibraryCard({
   onRelist,
   searchQuery = '',
   compact = false,
+  cardSize = 'medium',
   selectMode = false,
   selected = false,
   onToggleSelect,
@@ -252,10 +255,15 @@ function LibraryCard({
     );
   }
 
+  const padClass = cardSize === 'small' ? 'p-3' : cardSize === 'large' ? 'p-8' : 'p-6';
+  const mbNum = cardSize === 'small' ? 'mb-2' : cardSize === 'large' ? 'mb-6' : 'mb-4';
+  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-1';
+  const imgHeight = cardSize === 'small' ? 'h-28' : cardSize === 'large' ? 'h-52' : 'h-40';
+
   return (
     <>
       <article
-        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-[var(--transition-fast)] ${
+        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] ${padClass} transition-all duration-[var(--transition-fast)] ${
           selected
             ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
             : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]'
@@ -277,7 +285,7 @@ function LibraryCard({
         )}
 
         {/* Header */}
-        <div className="mb-4 space-y-1">
+        <div className={`${mbNum} space-y-1`}>
           {/* Row 1: Category Icon + Token Name + Category Badge */}
           <div className="flex items-center gap-[var(--space-2)] min-w-0">
             <div className="w-5 h-5 flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
@@ -322,11 +330,11 @@ function LibraryCard({
         {/* Description */}
         {item.description ? (
           <div
-            className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+            className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]`}
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
+              className={`text-sm font-medium text-[var(--text-secondary)] ${descClamp}`}
               title={item.description}
             >
               {searchQuery ? (
@@ -337,8 +345,8 @@ function LibraryCard({
             </p>
           </div>
         ) : (
-          <div className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-            <p className="text-sm font-medium text-[var(--text-muted)] line-clamp-1">
+          <div className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]`}>
+            <p className={`text-sm font-medium text-[var(--text-muted)] ${descClamp}`}>
               No description
             </p>
           </div>
@@ -352,7 +360,7 @@ function LibraryCard({
             size="md"
           />
         ) : (
-          <div className="w-full h-40 rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]">
+          <div className={`w-full ${imgHeight} rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]`}>
             <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
               <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
             </div>
@@ -385,7 +393,7 @@ function LibraryCard({
 
         {/* Action Buttons */}
         {!selectMode && (
-          <div className="mt-4 space-y-2">
+          <div className={`mt-${cardSize === 'small' ? '2' : cardSize === 'large' ? '6' : '4'} space-y-2`}>
             <button
               onClick={() => onView(item)}
               className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
@@ -425,6 +433,7 @@ function arePropsEqual(prev: LibraryCardProps, next: LibraryCardProps): boolean 
     prev.walletAddress === next.walletAddress &&
     prev.searchQuery === next.searchQuery &&
     prev.compact === next.compact &&
+    prev.cardSize === next.cardSize &&
     prev.selectMode === next.selectMode &&
     prev.selected === next.selected &&
     prev.onView === next.onView &&

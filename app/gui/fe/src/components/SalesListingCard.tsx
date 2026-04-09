@@ -7,6 +7,7 @@ import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
 import { formatPrice } from '../utils/formatListing';
 import TransactionLink, { TransactionLinkInline } from './TransactionLink';
+import type { CardSize } from '../hooks/useTabFilterState';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
@@ -17,6 +18,7 @@ interface SalesListingCardProps {
   onCancelPending?: (encryption: EncryptionDisplay) => void;
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   compact?: boolean;
+  cardSize?: CardSize;
   initialCached?: boolean;
   initialBanned?: boolean;
   nsfwEnabled?: boolean;
@@ -31,6 +33,7 @@ function SalesListingCard({
   onCancelPending,
   onCompleteSale,
   compact = false,
+  cardSize = 'medium',
   initialCached = false,
   initialBanned = false,
   nsfwEnabled = false,
@@ -206,11 +209,17 @@ function SalesListingCard({
     );
   }
 
+  const padClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-xl)]' : 'p-[var(--space-lg)]';
+  const mbClass = cardSize === 'small' ? 'mb-[var(--space-sm)]' : cardSize === 'large' ? 'mb-[var(--space-lg)]' : 'mb-[var(--space-md)]';
+  const priceClass = cardSize === 'small' ? 'text-lg' : cardSize === 'large' ? 'text-3xl' : 'text-2xl';
+  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-1';
+  const imgSize = cardSize === 'small' ? 'sm' as const : 'md' as const;
+
   return (
     <>
-      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <article className={`bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] ${padClass} hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]`}>
         {/* Header */}
-        <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
+        <div className={`${mbClass} space-y-[var(--space-1)]`}>
           {/* Row 1: Status + Transaction Hash */}
           <div className="flex items-center gap-[var(--space-2)] min-w-0">
             <div className="w-5 flex-shrink-0" />
@@ -236,11 +245,11 @@ function SalesListingCard({
         {/* Description */}
         {encryption.description && (
           <div
-            className="mb-[var(--space-md)] p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+            className={`${mbClass} p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]`}
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
+              className={`text-sm font-medium text-[var(--text-secondary)] ${descClamp}`}
               title={encryption.description}
             >
               {truncateDescription(encryption.description)}
@@ -252,7 +261,7 @@ function SalesListingCard({
         <ListingImage
           tokenName={encryption.tokenName}
           imageLink={encryption.imageLink}
-          size="md"
+          size={imgSize}
           initialCached={initialCached}
           initialBanned={initialBanned}
           nsfw={encryption.nsfw}
@@ -260,8 +269,8 @@ function SalesListingCard({
         />
 
         {/* Price */}
-        <div className="text-center mb-[var(--space-md)]">
-          <p className="text-2xl font-semibold text-[var(--accent)] inline-flex items-center justify-center gap-[var(--space-1)]">
+        <div className={`text-center ${mbClass}`}>
+          <p className={`${priceClass} font-semibold text-[var(--accent)] inline-flex items-center justify-center gap-[var(--space-1)]`}>
             {formatPrice(encryption.suggestedPrice)}
             {isActive && !isOptimistic && onUpdatePrice && (
               <button
@@ -369,6 +378,7 @@ function arePropsEqual(prev: SalesListingCardProps, next: SalesListingCardProps)
     prev.encryption.datum?.status?.type === next.encryption.datum?.status?.type &&
     prev.bidCount === next.bidCount &&
     prev.compact === next.compact &&
+    prev.cardSize === next.cardSize &&
     prev.initialCached === next.initialCached &&
     prev.initialBanned === next.initialBanned &&
     prev.onViewBids === next.onViewBids &&
