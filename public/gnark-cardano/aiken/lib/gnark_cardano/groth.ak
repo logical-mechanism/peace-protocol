@@ -10,6 +10,7 @@ use aiken/builtin.{
   bls12_381_g1_uncompress, bls12_381_g2_neg, bls12_381_g2_uncompress,
   bls12_381_miller_loop, bls12_381_mul_miller_loop_result,
 }
+use aiken/crypto/bls12_381/scalar
 
 // ---------- Types ----------
 
@@ -59,6 +60,22 @@ pub type GrothPublic =
 
 pub type GrothCommitmentWire =
   ByteArray
+
+/// Generic redeemer bundling proof, commitment wire, and public inputs.
+/// Use this directly or extend with application-specific fields (e.g. ttl).
+pub type GrothRedeemer {
+  groth_proof: GrothProof,
+  groth_commitment_wire: GrothCommitmentWire,
+  groth_public: GrothPublic,
+}
+
+// ---------- Conversions ----------
+
+/// Convert a commitment wire ByteArray (big-endian) to an Int for verify_groth16.
+/// Usage: groth.wire_to_int(redeemer.groth_commitment_wire)
+pub fn wire_to_int(wire: GrothCommitmentWire) -> Int {
+  wire |> scalar.from_bytes |> scalar.to_int
+}
 
 // ---------- Helpers ----------
 

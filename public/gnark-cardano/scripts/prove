@@ -37,8 +37,9 @@ mkdir -p "$ROOT/data"
 cd "$ROOT/python"
 python3 -m gnark_cardano.vk_convert "$ROOT/go/out/vk.json" "$ROOT/data/vk-datum.json"
 python3 -c "
-from gnark_cardano.groth_convert import convert_all
+from gnark_cardano.groth_convert import convert_all, convert_redeemer_file
 convert_all('$ROOT/go/out/proof.json', '$ROOT/go/out/public.json', '$ROOT/data')
+convert_redeemer_file('$ROOT/go/out/proof.json', '$ROOT/go/out/public.json', '$ROOT/data/redeemer.json')
 "
 
 echo "    Datums written to data/"
@@ -95,13 +96,22 @@ for i in range(0, len(public_values), 3):
 # Commitment wire
 wire = pub.get("commitmentWire", "")
 
+# Commitment wire as hex bytes (for GrothRedeemer's ByteArray field)
+if wire:
+    wire_int = int(wire)
+    wire_hex = format(wire_int, "x")
+    if len(wire_hex) % 2 != 0:
+        wire_hex = "0" + wire_hex
+else:
+    wire_hex = ""
+
 test = f"""//// Copyright 2025-2026 Logical Mechanism LLC
 //// SPDX-License-Identifier: Apache-2.0
 ////
 //// Auto-generated circuit test from proof artifacts.
 //// Re-generate by running: ./scripts/prove
 
-use gnark_cardano/groth.{{CommitmentKey, GrothProof, SnarkVerificationKey}}
+use gnark_cardano/groth.{{CommitmentKey, GrothProof, GrothRedeemer, SnarkVerificationKey}}
 
 test circuit_proof_valid() {{
   let vk: SnarkVerificationKey =
@@ -171,6 +181,51 @@ test circuit_commitments_valid() {{
     }}
 
   groth.verify_commitments(vk, proof)
+}}
+
+test circuit_redeemer_valid() {{
+  // Demonstrates using GrothRedeemer to bundle proof + wire + public
+  // into a single redeemer datum for on-chain transaction submission.
+  let vk: SnarkVerificationKey =
+    SnarkVerificationKey {{
+      nPublic: {vk['nPublic']},
+      vkAlpha: {hex_lit(vk['vkAlpha'])},
+      vkBeta: {hex_lit(vk['vkBeta'])},
+      vkGamma: {hex_lit(vk['vkGamma'])},
+      vkDelta: {hex_lit(vk['vkDelta'])},
+      vkIC: [
+{chr(10).join(ic_lines)}
+      ],
+      commitmentKeys: [
+{chr(10).join(ck_lines)}
+      ],
+    }}
+
+  let redeemer: GrothRedeemer =
+    GrothRedeemer {{
+      groth_proof: GrothProof {{
+        piA: {hex_lit(proof['piA'])},
+        piB: {hex_lit(proof['piB'])},
+        piC: {hex_lit(proof['piC'])},
+        commitments: [
+{chr(10).join(commit_lines)}
+        ],
+        commitmentPok: {hex_lit(proof.get('commitmentPok', ''))},
+      }},
+      groth_commitment_wire: {hex_lit(wire_hex)},
+      groth_public: [
+{chr(10).join(pub_lines)}
+      ],
+    }}
+
+  // Extract fields from redeemer and verify
+  // In a real validator, the redeemer comes from the transaction
+  groth.verify_groth16(
+    vk,
+    redeemer.groth_proof,
+    redeemer.groth_public,
+    [groth.wire_to_int(redeemer.groth_commitment_wire)],
+  )
 }}
 """
 

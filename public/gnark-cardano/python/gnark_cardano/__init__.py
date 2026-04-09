@@ -5,9 +5,11 @@
 
 from gnark_cardano.groth_convert import (
     convert_all,
+    convert_redeemer_file,
     gnark_commitment_wires_to_aiken,
     gnark_proof_to_aiken,
     gnark_public_to_aiken,
+    gnark_to_redeemer,
 )
 from gnark_cardano.vk_convert import convert_vk_file, vk_to_datum
 
@@ -17,5 +19,7 @@ __all__ = [
     "gnark_proof_to_aiken",
     "gnark_public_to_aiken",
     "gnark_commitment_wires_to_aiken",
+    "gnark_to_redeemer",
+    "convert_redeemer_file",
     "convert_all",
 ]

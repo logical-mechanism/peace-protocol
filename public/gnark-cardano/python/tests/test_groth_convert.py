@@ -9,9 +9,11 @@ from gnark_cardano.groth_convert import (
     convert_commitment_wires_file,
     convert_proof_file,
     convert_public_file,
+    convert_redeemer_file,
     gnark_commitment_wires_to_aiken,
     gnark_proof_to_aiken,
     gnark_public_to_aiken,
+    gnark_to_redeemer,
 )
 
 # Sample gnark proof output (from actual proof generation)
@@ -240,3 +242,53 @@ class TestRoundTrip:
         for item in result["list"]:
             assert "int" in item
             assert isinstance(item["int"], int)
+
+
+class TestGnarkToRedeemer:
+    """Test bundled redeemer generation."""
+
+    def test_basic_structure(self):
+        result = gnark_to_redeemer(SAMPLE_GNARK_PROOF, SAMPLE_GNARK_PUBLIC)
+        assert result["constructor"] == 0
+        assert len(result["fields"]) == 3
+
+    def test_field_0_is_proof(self):
+        result = gnark_to_redeemer(SAMPLE_GNARK_PROOF, SAMPLE_GNARK_PUBLIC)
+        proof = result["fields"][0]
+        assert proof["constructor"] == 0
+        assert len(proof["fields"]) == 5
+        assert proof["fields"][0] == {"bytes": SAMPLE_GNARK_PROOF["piA"]}
+
+    def test_field_1_is_commitment_wire_bytes(self):
+        result = gnark_to_redeemer(SAMPLE_GNARK_PROOF, SAMPLE_GNARK_PUBLIC)
+        wire = result["fields"][1]
+        assert "bytes" in wire
+        # Verify it's a hex string representing the commitment wire integer
+        wire_int = int(wire["bytes"], 16)
+        assert wire_int == int(SAMPLE_GNARK_PUBLIC["commitmentWire"])
+
+    def test_field_2_is_public_list(self):
+        result = gnark_to_redeemer(SAMPLE_GNARK_PROOF, SAMPLE_GNARK_PUBLIC)
+        public = result["fields"][2]
+        assert "list" in public
+        assert len(public["list"]) == 36
+        assert public["list"][0] == {"int": 17500288565172873801}
+
+    def test_empty_commitment_wire(self):
+        public = {"inputs": ["1", "42"], "commitmentWire": ""}
+        result = gnark_to_redeemer(SAMPLE_GNARK_PROOF, public)
+        assert result["fields"][1] == {"bytes": ""}
+
+    def test_convert_redeemer_file(self, tmp_path: Path):
+        proof_path = tmp_path / "proof.json"
+        public_path = tmp_path / "public.json"
+        output_path = tmp_path / "redeemer.json"
+        with open(proof_path, "w") as f:
+            json.dump(SAMPLE_GNARK_PROOF, f)
+        with open(public_path, "w") as f:
+            json.dump(SAMPLE_GNARK_PUBLIC, f)
+        convert_redeemer_file(proof_path, public_path, output_path)
+        with open(output_path, "r") as f:
+            result = json.load(f)
+        assert result["constructor"] == 0
+        assert len(result["fields"]) == 3

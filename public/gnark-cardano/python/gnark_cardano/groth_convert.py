@@ -158,3 +158,73 @@ def convert_all(
     convert_proof_file(gnark_proof_path, output_dir / proof_filename)
     convert_public_file(gnark_public_path, output_dir / public_filename)
     convert_commitment_wires_file(gnark_public_path, output_dir / wires_filename)
+
+
+def gnark_to_redeemer(
+    gnark_proof: dict[str, Any],
+    gnark_public: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Bundle proof, public inputs, and commitment wires into a single generic
+    redeemer datum (constructor 0).
+
+    Fields:
+      0: GrothProof       — proof (piA, piB, piC, commitments, commitmentPok)
+      1: GrothCommitmentWire — commitment wire as ByteArray (big-endian bytes of the Fr integer)
+      2: GrothPublic      — public inputs as List<Int>
+
+    This matches the field order of a generic redeemer type:
+      type GrothRedeemer {
+        groth_proof: GrothProof,
+        groth_commitment_wire: GrothCommitmentWire,
+        groth_public: GrothPublic,
+      }
+
+    Application-specific redeemers can wrap this or extend it with
+    additional fields (e.g. ttl, script hash).
+    """
+    proof_datum = gnark_proof_to_aiken(gnark_proof)
+
+    inputs = gnark_public.get("inputs", [])
+    public_inputs = inputs[1:] if inputs else []
+    public_datum = {"list": [{"int": int(v)} for v in public_inputs]}
+
+    wire = gnark_public.get("commitmentWire", "")
+    if wire:
+        # Convert decimal integer to big-endian hex bytes
+        wire_int = int(wire)
+        hex_str = format(wire_int, "x")
+        if len(hex_str) % 2 != 0:
+            hex_str = "0" + hex_str
+        wire_datum = {"bytes": hex_str}
+    else:
+        wire_datum = {"bytes": ""}
+
+    return {
+        "constructor": 0,
+        "fields": [
+            proof_datum,
+            wire_datum,
+            public_datum,
+        ],
+    }
+
+
+def convert_redeemer_file(
+    gnark_proof_path: str | Path,
+    gnark_public_path: str | Path,
+    output_path: str | Path,
+) -> None:
+    """
+    Read gnark proof.json and public.json, write a bundled redeemer datum file.
+    """
+    with open(gnark_proof_path, "r") as f:
+        gnark_proof = json.load(f)
+    with open(gnark_public_path, "r") as f:
+        gnark_public = json.load(f)
+
+    redeemer = gnark_to_redeemer(gnark_proof, gnark_public)
+
+    with open(output_path, "w") as f:
+        json.dump(redeemer, f, indent=4)
+        f.write("\n")
