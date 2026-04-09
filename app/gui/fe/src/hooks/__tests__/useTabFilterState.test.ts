@@ -5,6 +5,7 @@ import {
   myPurchasesReducer, MY_PURCHASES_INITIAL,
   historyReducer, HISTORY_INITIAL,
   libraryReducer, LIBRARY_INITIAL,
+  getGridClasses,
 } from '../useTabFilterState'
 
 describe('marketplaceReducer', () => {
@@ -81,6 +82,20 @@ describe('marketplaceReducer', () => {
     const next = marketplaceReducer(state, { type: 'SET_FAVORITES_ONLY', payload: true })
     expect(next.showFavoritesOnly).toBe(true)
     expect(next.currentPage).toBe(1)
+  })
+
+  it('SET_CARD_SIZE updates cardSize without resetting page', () => {
+    const state = { ...MARKETPLACE_INITIAL, currentPage: 3 }
+    const next = marketplaceReducer(state, { type: 'SET_CARD_SIZE', payload: 'large' })
+    expect(next.cardSize).toBe('large')
+    expect(next.currentPage).toBe(3)
+  })
+
+  it('CLEAR_FILTERS preserves cardSize', () => {
+    const state = { ...MARKETPLACE_INITIAL, cardSize: 'small' as const, searchQuery: 'test' }
+    const next = marketplaceReducer(state, { type: 'CLEAR_FILTERS' })
+    expect(next.cardSize).toBe('small')
+    expect(next.searchQuery).toBe('')
   })
 
   it('CLEAR_FILTERS resets all except viewMode', () => {
@@ -171,6 +186,11 @@ describe('mySalesReducer', () => {
     const next = mySalesReducer(MY_SALES_INITIAL, { type: 'SET_VIEW', payload: 'list' })
     expect(next.viewMode).toBe('list')
   })
+
+  it('SET_CARD_SIZE updates cardSize', () => {
+    const next = mySalesReducer(MY_SALES_INITIAL, { type: 'SET_CARD_SIZE', payload: 'small' })
+    expect(next.cardSize).toBe('small')
+  })
 })
 
 describe('myPurchasesReducer', () => {
@@ -191,6 +211,11 @@ describe('myPurchasesReducer', () => {
 
   it('initial statusFilter is "all"', () => {
     expect(MY_PURCHASES_INITIAL.statusFilter).toBe('all')
+  })
+
+  it('SET_CARD_SIZE updates cardSize', () => {
+    const next = myPurchasesReducer(MY_PURCHASES_INITIAL, { type: 'SET_CARD_SIZE', payload: 'large' })
+    expect(next.cardSize).toBe('large')
   })
 })
 
@@ -255,5 +280,33 @@ describe('libraryReducer', () => {
   it('SET_SORT accepts type-desc', () => {
     const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_SORT', payload: 'type-desc' })
     expect(next.sortBy).toBe('type-desc')
+  })
+
+  it('SET_CARD_SIZE updates cardSize', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_CARD_SIZE', payload: 'small' })
+    expect(next.cardSize).toBe('small')
+  })
+})
+
+describe('getGridClasses', () => {
+  it('returns small grid classes', () => {
+    const classes = getGridClasses('small')
+    expect(classes).toContain('grid-cols-2')
+    expect(classes).toContain('xl:grid-cols-5')
+    expect(classes).toContain('gap-4')
+  })
+
+  it('returns medium grid classes (default)', () => {
+    const classes = getGridClasses('medium')
+    expect(classes).toContain('md:grid-cols-2')
+    expect(classes).toContain('xl:grid-cols-4')
+    expect(classes).toContain('gap-6')
+  })
+
+  it('returns large grid classes', () => {
+    const classes = getGridClasses('large')
+    expect(classes).toContain('lg:grid-cols-2')
+    expect(classes).toContain('xl:grid-cols-3')
+    expect(classes).toContain('gap-8')
   })
 })
