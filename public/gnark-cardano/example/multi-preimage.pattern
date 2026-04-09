@@ -1,0 +1,13 @@
+# Multi-Input Hash Preimage — "I know (x, y) such that H(x, y) == z"
+#
+# Proves knowledge of multiple secrets whose combined hash matches
+# a public value. Useful for commit-reveal schemes where the secret
+# has multiple components (e.g., a value and a nonce).
+#
+# This demonstrates: multiple secret inputs, multi-argument hashing.
+
+Secret Int Inputs: (x, y)
+Public Int Inputs: (z)
+
+compute: h = H(x, y)
+check: z == h
