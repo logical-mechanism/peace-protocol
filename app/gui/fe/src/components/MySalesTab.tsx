@@ -13,7 +13,8 @@ import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../s
 import { getNsfwEnabled } from '../services/nsfwStorage';
 import RefreshIndicator from './RefreshIndicator';
 import AcceptBidQueuePanel from './AcceptBidQueuePanel';
-import type { MySalesFilters, MySalesAction } from '../hooks/useTabFilterState';
+import type { MySalesFilters, MySalesAction, CardSize } from '../hooks/useTabFilterState';
+import { getGridClasses } from '../hooks/useTabFilterState';
 import { getTransactions } from '../services/transactionHistory';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatAda } from '../utils/formatAda';
@@ -58,7 +59,7 @@ function MySalesTab({
   const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, searchQuery, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, searchQuery, cardSize, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
@@ -482,6 +483,46 @@ function MySalesTab({
             </button>
           </div>
 
+          {/* Card Size Toggle — grid only */}
+          {viewMode === 'grid' && (
+            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="Card size">
+              {(['small', 'medium', 'large'] as CardSize[]).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => dispatch({ type: 'SET_CARD_SIZE', payload: size })}
+                  className={`px-2.5 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                    cardSize === size
+                      ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
+                      : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                  }`}
+                  title={`${size.charAt(0).toUpperCase() + size.slice(1)} cards`}
+                  aria-label={`${size.charAt(0).toUpperCase() + size.slice(1)} cards`}
+                  aria-pressed={cardSize === size}
+                >
+                  {size === 'small' && (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                      <rect x="1" y="1" width="4" height="4" rx="0.5" /><rect x="6" y="1" width="4" height="4" rx="0.5" /><rect x="11" y="1" width="4" height="4" rx="0.5" />
+                      <rect x="1" y="6" width="4" height="4" rx="0.5" /><rect x="6" y="6" width="4" height="4" rx="0.5" /><rect x="11" y="6" width="4" height="4" rx="0.5" />
+                      <rect x="1" y="11" width="4" height="4" rx="0.5" /><rect x="6" y="11" width="4" height="4" rx="0.5" /><rect x="11" y="11" width="4" height="4" rx="0.5" />
+                    </svg>
+                  )}
+                  {size === 'medium' && (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                      <rect x="1" y="1" width="6" height="6" rx="0.75" /><rect x="9" y="1" width="6" height="6" rx="0.75" />
+                      <rect x="1" y="9" width="6" height="6" rx="0.75" /><rect x="9" y="9" width="6" height="6" rx="0.75" />
+                    </svg>
+                  )}
+                  {size === 'large' && (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                      <rect x="1" y="1" width="14" height="6" rx="1" />
+                      <rect x="1" y="9" width="14" height="6" rx="1" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Refresh */}
           <button
             onClick={() => { fetchData(); onLocalRefresh?.(); }}
@@ -536,7 +577,7 @@ function MySalesTab({
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className={getGridClasses(cardSize)}>
           {paginatedResults.map((encryption, index) => (
             <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <SalesListingCard
@@ -547,6 +588,7 @@ function MySalesTab({
                 onUpdatePrice={onUpdatePrice}
                 onCancelPending={handleCancelPending}
                 onCompleteSale={onCompleteSale}
+                cardSize={cardSize}
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
                 nsfwEnabled={nsfwEnabled}
@@ -578,7 +620,7 @@ function MySalesTab({
       {/* Load More */}
       {hasMore && (
         <div className="flex flex-col items-center gap-3 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+          <div className={`${getGridClasses(cardSize)} w-full`}>
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">
