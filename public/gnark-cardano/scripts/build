@@ -30,13 +30,9 @@ echo "    Built: go/snark"
 
 echo ""
 echo "==> Running trusted setup..."
-if [ -f "$ROOT/go/setup/ccs.bin" ]; then
-  echo "    Setup files already exist (use -force to overwrite)"
-  echo "    Skipping setup."
-else
-  ./snark setup -out setup
-  echo "    Setup complete: go/setup/{ccs.bin, pk.bin, vk.bin}"
-fi
+rm -rf "$ROOT/go/setup"
+./snark setup -out setup
+echo "    Setup complete: go/setup/{ccs.bin, pk.bin, vk.bin}"
 
 echo ""
 echo "Done. Next: ./scripts/prove"

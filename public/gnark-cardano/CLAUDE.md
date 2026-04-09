@@ -130,6 +130,33 @@ When hashing different types, Claude handles the conversion automatically:
 
 **The user never needs to know about `Fq12ToFrElements` or type decomposition.** Just write `H(k)` and Claude handles it based on `k`'s type from the `compute:` line above.
 
+### Native MiMC in CircuitProve test mode
+
+When `CircuitProve` needs to compute a MiMC hash for test inputs (e.g. `y = H(x)`), use the **native** gnark-crypto mimc package — not the in-circuit one. This requires an import alias since both packages are named `mimc`:
+
+```go
+import (
+	nativemimc "github.com/consensys/gnark-crypto/ecc/bls12-381/fr/mimc"  // native (for CircuitProve test mode)
+	"github.com/consensys/gnark/std/hash/mimc"                            // in-circuit (for Define())
+)
+```
+
+The native hash pattern (used in both `CircuitProve` test mode and `circuit_test.go`):
+
+```go
+h := nativemimc.NewMiMC()
+var elem bls12381_fr.Element
+elem.SetBigInt(&x)
+b := elem.Marshal()
+h.Write(b)
+digest := h.Sum(nil)
+var result bls12381_fr.Element
+result.SetBytes(digest)
+result.BigInt(&y)
+```
+
+**There is no `ComputeMiMCHash` helper function.** Always inline this pattern.
+
 ## gnark v0.14 API
 
 This project uses gnark v0.14.0 which changed the `frontend.Compile` and `frontend.NewWitness`
