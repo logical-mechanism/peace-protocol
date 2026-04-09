@@ -150,17 +150,27 @@ These datum files go into your transaction redeemer.
 
 ### For the MPC ceremony (production setup)
 
-The `go/snark` binary also supports multi-party computation for trustworthy setup:
+The single-party `./snark setup` is fine for development, but for production
+you should run a multi-party ceremony so that no single machine ever knows
+the toxic waste. The `go/snark` binary supports the full ceremony flow:
 
 ```bash
-./snark ceremony init -dir ceremony
+./snark ceremony init       -dir ceremony
 ./snark ceremony contribute -dir ceremony -phase 1   # each contributor runs this
-./snark ceremony verify -dir ceremony -phase 1        # anyone can verify
-./snark ceremony finalize -dir ceremony -phase 1 -beacon <random-hex>
-# ... repeat for phase 2
+./snark ceremony verify     -dir ceremony -phase 1   # anyone can verify
+./snark ceremony finalize   -dir ceremony -phase 1 -beacon <hex>
+# repeat for phase 2:
+./snark ceremony contribute -dir ceremony -phase 2
+./snark ceremony verify     -dir ceremony -phase 2
+./snark ceremony finalize   -dir ceremony -phase 2 -beacon <hex> -out setup
 ```
 
-See `example/proof.pattern` README for the full ceremony workflow.
+The output goes to `setup/` in the same format as `./snark setup`, so the
+rest of the pipeline (`./scripts/prove`, etc.) works unchanged.
+
+See [CEREMONY.md](CEREMONY.md) for the full step-by-step guide, including
+how to coordinate contributors, choose beacon values, and publish the
+transcript.
 
 ## On-Chain Verification
 
