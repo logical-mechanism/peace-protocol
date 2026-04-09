@@ -31,8 +31,10 @@ function migrateFilters(raw: Record<string, unknown>): Partial<MarketplaceFilter
 
   // v3 → v4: added hideNsfw (boolean), defaults handled by HYDRATE
 
-  // New fields (hideOwnListings, dateFrom, dateTo, hideNsfw) are simply absent in legacy
-  // data — HYDRATE fills defaults from MARKETPLACE_INITIAL, so no action needed.
+  // v4 → v5: added cardSize ('small'|'medium'|'large'), defaults handled by HYDRATE
+
+  // New fields (hideOwnListings, dateFrom, dateTo, hideNsfw, cardSize) are simply absent
+  // in legacy data — HYDRATE fills defaults from MARKETPLACE_INITIAL, so no action needed.
 
   return migrated as Partial<MarketplaceFilters>;
 }
