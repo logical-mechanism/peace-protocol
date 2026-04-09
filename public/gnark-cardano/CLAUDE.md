@@ -66,9 +66,27 @@ check: <lhs> == <rhs>                            → equality assertion
 - `e(A, B)` → BLS12-381 pairing (A: G1, B: G2 → Fq12)
 - `[scalar]point` → scalar multiplication
 - `A + B` → point addition
-- `H(x)` → hash function (MiMC, SHA256, etc.)
+- `H(x)` → hash function (always MiMC — see below)
 - `q^a` → shorthand for `[a]q` (scalar mul of generator)
 - `x * y` → field multiplication
+- `x >= y` / `x <= y` → range comparison
+
+**Comparisons:** `>=` and `<=` use `api.Cmp()` or bit decomposition. These are expensive in-circuit (many constraints) so use sparingly.
+
+## Hashing: Always Use MiMC
+
+**`H(x)` always means MiMC.** It's the only hash function that's both cheap in-circuit and native to gnark's BLS12-381 field. SHA256 works but costs ~25,000 constraints vs ~300 for MiMC.
+
+When hashing different types, Claude handles the conversion automatically:
+
+| Input to H() | What Claude generates |
+|---|---|
+| `H(int)` | Write the Fr element to MiMC, call `Sum()` |
+| `H(int1, int2, ...)` | Write multiple Fr elements, call `Sum()` |
+| `H(fq12_value)` | Decompose Fq12 to 12 Fp elements → convert each to Fr limbs → write all to MiMC → `Sum()`. This is the `Fq12ToFrElements` pattern — Claude generates the decomposition code automatically. |
+| `H(g1_point)` | Decompose G1 coordinates to Fr limbs → write to MiMC → `Sum()` |
+
+**The user never needs to know about `Fq12ToFrElements` or type decomposition.** Just write `H(k)` and Claude handles it based on `k`'s type from the `compute:` line above.
 
 ## Generating circuit.go from proof.pattern
 
@@ -91,7 +109,8 @@ Map the pattern to gnark circuit code:
 | `e(A, B)` | `pairing.Pair([]*sw_bls12381.G1Affine{&A}, []*sw_bls12381.G2Affine{&B})` |
 | `[s]P` | `sw_bls12381.ScalarMulBase(api, s)` or `ScalarMul(api, P, s)` |
 | `A + B` | `sw_bls12381.Add(api, A, B)` |
-| `H(x)` | `mimc.Sum()` (after writing elements) |
+| `H(x)` | MiMC: `mimc.Write(x)` then `mimc.Sum()` — type-dependent decomposition as above |
+| `x >= y` | `api.AssertIsLessOrEqual(y, x)` or bit decomposition |
 | `check: a == b` | `api.AssertIsEqual(a, b)` or point equality assertion |
 
 ### G1 Public Inputs as Limbs

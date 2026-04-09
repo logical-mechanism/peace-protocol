@@ -11,19 +11,22 @@
 # Types: Int, G1, G2, Fq12
 #
 # Expressions:
-#   e(A, B)       — BLS12-381 pairing
+#   e(A, B)       — BLS12-381 pairing (G1, G2 → Fq12)
 #   [scalar]point — scalar multiplication
 #   A + B         — point addition
-#   H(x)          — hash function (MiMC)
+#   H(x)          — MiMC hash (works on any type — Int, Fq12, G1)
 #   q^a           — exponentiation (shorthand for [a]q)
+#   x * y         — field multiplication
+#   x >= y        — range comparison (expensive in-circuit)
 #
-# Example:
+# Example (hash preimage):
 #
 #   Secret Int Inputs: (x)
 #   Public Int Inputs: (y)
-#   Constants: d  # Fixed Int
-#   compute: result = x * x + d
-#   check: y == result
+#   compute: h = H(x)
+#   check: y == h
+#
+# More examples in example/ — see peace-protocol.pattern, schnorr-knowledge.pattern, etc.
 #
 # After writing your proof, prompt Claude:
 #   "Generate the circuit from proof.pattern"

@@ -1,10 +1,12 @@
-# Peace Protocol — SNARK Proof Specification
+# Peace Protocol — Blinded Identity Proof
 #
-# This is the proof pattern used by the peace-protocol project.
-# It proves knowledge of secret (a, r) such that:
+# Proves knowledge of secret (a, r) such that:
 #   w0 == [hk]q  (commitment to identity)
 #   w1 == [a]q + [r]v  (blinded public key)
-# where hk = H(e(q^a, h0)) is derived from a pairing computation.
+# where hk = H(e(q^a, h0)) is derived from a pairing.
+#
+# This is a real-world pattern from the peace-protocol project.
+# It demonstrates: pairings, hashing, scalar multiplication, point addition.
 
 Secret Int Inputs: (a, r)
 Public G1 Inputs: (v, w0, w1)
@@ -12,11 +14,11 @@ Constants:
     q   # G1 generator
     h0  # Fixed G2 Point
 
-# k is a secret pairing result
+# k is a secret pairing result (Fq12)
 compute: k = e(q^a, h0)
 
-# hk is a secret hash — H converts the Fq12 pairing result to Fr
-compute: hk = H(k)  # H = MiMC(Fq12ToFrElements(k) || DomainTag)
+# hk is a secret scalar — hash the pairing result down to Fr
+compute: hk = H(k)
 
 # p0 is the expected w0 value
 compute: p0 = [hk]q
