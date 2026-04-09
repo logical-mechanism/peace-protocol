@@ -118,6 +118,20 @@ describe('filterStorage', () => {
       expect(loaded!.dateFrom).toBeUndefined();
       expect(loaded!.dateTo).toBeUndefined();
     });
+
+    it('tolerates missing cardSize field (v4 → v5 migration)', () => {
+      // Legacy data has no cardSize
+      localStorage.setItem('veiled_marketplace_filters_pkh1', JSON.stringify({
+        searchQuery: 'hello',
+        categoryFilter: ['audio'],
+        viewMode: 'grid',
+      }));
+      const loaded = getPersistedFilters('pkh1');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.searchQuery).toBe('hello');
+      // cardSize absent — HYDRATE fills default 'medium'
+      expect(loaded!.cardSize).toBeUndefined();
+    });
   });
 
   describe('error paths', () => {
