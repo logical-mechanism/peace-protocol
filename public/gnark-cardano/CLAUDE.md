@@ -2,6 +2,50 @@
 
 This is a toolkit for getting gnark Groth16 proofs onto the Cardano blockchain using Aiken smart contracts. It handles the full pipeline from circuit definition to on-chain verification.
 
+## Table of Contents
+
+**Workflow & orientation**
+- [Project Structure](#project-structure)
+- [The Workflow](#the-workflow)
+- [Scripts](#scripts)
+- [Claude's Job](#claudes-job) — what to generate from `proof.pattern`
+  - [Pattern Mapping Comment (required)](#pattern-mapping-comment-required)
+  - [Negative Tests (required)](#negative-tests-required)
+
+**Pattern reference**
+- [Reading proof.pattern](#reading-proofpattern) — syntax, types, expressions
+  - [Constants vs Public Inputs](#constants-vs-public-inputs) — when to declare which
+- [Compile Time and Constraint Counts](#compile-time-and-constraint-counts) — costs of each gnark operation
+- [Hashing: Always Use MiMC](#hashing-always-use-mimc)
+  - [Hashing G1 Points: the `fpToNativeFr` Helper](#hashing-g1-points-the-fptonativefr-helper)
+  - [Native MiMC in CircuitProve test mode](#native-mimc-in-circuitprove-test-mode)
+- [The `circuitInputs` JSON Convention](#the-circuitinputs-json-convention) — what `example/inputs/*.json` looks like
+
+**Generating `circuit.go`**
+- [gnark v0.14 API](#gnark-v014-api) — `frontend.Compile` signature change
+- [Generating circuit.go from proof.pattern](#generating-circuitgo-from-proofpattern)
+  - [Type Mapping](#type-mapping)
+  - [Expression Mapping](#expression-mapping)
+  - [G1 Public Inputs](#g1-public-inputs) — split-coordinate pattern
+  - [G2 Public Inputs](#g2-public-inputs) — 4-field Fp2 split pattern
+  - [Secret G1/G2 Inputs](#secret-g1g2-inputs)
+  - [Scalar Test Edge Cases](#scalar-test-edge-cases) — `sk=1` trips ScalarMul
+  - [Commitment Extension (Pedersen)](#commitment-extension-pedersen)
+
+**Verification & debugging**
+- [Pre-Generation Sizing](#pre-generation-sizing) — predict `nPublic`, `len(vkIC)` before running
+- [Verification Checklist](#verification-checklist) — what to check after `./run`
+- [Aiken Failure Triage](#aiken-failure-triage) — diagnose on-chain failures in order
+- [Important gnark Quirks](#important-gnark-quirks) — auto-commitments, leading "1", etc.
+
+**On-chain integration**
+- [Aiken Test Generation](#aiken-test-generation)
+- [Aiken Verifier Details](#aiken-verifier-details) — pairing equations
+- [Example Spending Validator](#example-spending-validator) — worked Plutus V3 example
+  - [Limb Compression Library](#limb-compression-library)
+- [Python Converters](#python-converters)
+- [MPC Trusted Setup Ceremony](#mpc-trusted-setup-ceremony)
+
 ## Project Structure
 
 ```
