@@ -1,0 +1,4 @@
+{
+  "_comment": "Pattern: point-commitment (H(p) == y). Single secret G1 point pHex as 96 hex chars (48 bytes IETF compressed G1). The public commitment y = MiMC(p.X mod r, p.Y mod r) is derived inside CircuitProve.",
+  "pHex": "8ce3b57b791798433fd323753489cac9bca43b98deaafaed91f4cb010730ae1e38b186ccd37a09b8aed62ce23b699c48"
+}

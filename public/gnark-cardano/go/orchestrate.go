@@ -47,6 +47,16 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 		return err
 	}
 
+	// Normalize: ensure pub[0] == "1" so public.json["inputs"] always starts with
+	// the implicit constant wire. ChoosePublicInputs's two branches produce different
+	// formats (case 1 = no leading "1", case 2 = leading "1"), and downstream
+	// consumers (Python converter, Aiken test generator) all assume the leading "1"
+	// is present. Without this normalization, circuits without Pedersen commitments
+	// (case 1) silently produce wrong on-chain verifications.
+	if len(pub) == 0 || pub[0] != "1" {
+		pub = append([]string{"1"}, pub...)
+	}
+
 	// With commitment extension, IC length = nRawPublic + 1 + nCommitments
 	nRawPublic := len(pubRaw)
 	nCommitments := len(v.CommitmentKeys)
@@ -71,6 +81,26 @@ func ExportAll(vk groth16.VerifyingKey, proof groth16.Proof, publicWitness backe
 	// 6) Final consistency checks.
 	if len(vkj.VkIC) != expectedICLen {
 		return fmt.Errorf("IC length mismatch: len(IC)=%d, expected %d", len(vkj.VkIC), expectedICLen)
+	}
+
+	// Post-normalization contract on public.json["inputs"] (see Quirk #6 in CLAUDE.md):
+	//   - inputs[0] == "1"  (the implicit constant wire is always present)
+	//   - len(inputs) == nPublic  (= 1 + nRawPublic; commitment wires live in commitmentWire)
+	// This invariant is what both downstream consumers (Python converter, prove script's
+	// inline Aiken-test generator) depend on. If it ever drifts, fail HERE with a clear
+	// message instead of producing a silently-broken on-chain test that fails with a
+	// generic pairing mismatch.
+	if len(pub) != nPublic {
+		return fmt.Errorf(
+			"public.json[\"inputs\"] length mismatch: got %d, expected nPublic=%d (nRawPublic=%d, nCommitments=%d)",
+			len(pub), nPublic, nRawPublic, nCommitments,
+		)
+	}
+	if pub[0] != "1" {
+		return fmt.Errorf(
+			"public.json[\"inputs\"][0] = %q, expected \"1\" (post-normalization contract violated)",
+			pub[0],
+		)
 	}
 
 	// 7) Write JSONs.

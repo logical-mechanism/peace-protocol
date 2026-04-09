@@ -188,6 +188,45 @@ e(D_sum, gSigmaNeg) * e(PoK, g) == 1
 
 Both use Cardano's built-in BLS12-381 primitives with no external dependencies beyond `aiken-lang/stdlib`.
 
+## Advanced: Writing `circuit.go` by Hand
+
+The intended workflow is to write a `proof.pattern` and have Claude generate `go/circuit.go` + `go/circuit_test.go`. If you'd rather skip the pattern step and write the gnark circuit yourself, that works too — the rest of the pipeline (`./scripts/build`, `./scripts/prove`, ceremony, export, datum conversion) is generic and only requires that your `circuit.go` exports three specific functions.
+
+### The contract
+
+Your `go/circuit.go` must define these three exported symbols with exactly these signatures:
+
+```go
+// 1. Compile the circuit. Used by both single-party setup and the MPC ceremony.
+//    The ceremony code (go/ceremony.go) calls this directly, which is why the
+//    name and signature are fixed even though it's a one-liner.
+func CompileCircuit() (constraint.ConstraintSystem, error) {
+    var circuit MyCircuit
+    return frontend.Compile(ecc.BLS12_381.ScalarField(), r1cs.NewBuilder, &circuit)
+}
+
+// 2. Single-party trusted setup. Writes ccs.bin, pk.bin, vk.bin into outDir.
+func CircuitSetup(outDir string, force bool) error
+
+// 3. Generate a proof. Reads inputs from inputFile (JSON), or uses built-in
+//    test values when test=true. Writes proof.bin/witness.bin/vk.bin and the
+//    JSON exports (proof.json, public.json, vk.json) into outDir.
+func CircuitProve(setupDir, outDir, inputFile string, test bool) error
+```
+
+These are the only names the rest of the codebase looks for. As long as they exist with these signatures, [go/main.go](go/main.go) and [go/ceremony.go](go/ceremony.go) will pick them up unchanged.
+
+### Things to know
+
+- **gnark v0.14 API:** `frontend.Compile` and `frontend.NewWitness` take `ecc.BLS12_381.ScalarField()` (a `*big.Int`), not `ecc.BLS12_381`.
+- **G1 public inputs:** gnark can't take `G1Affine` directly as a public witness. Decompose into 12 limbs (`[12]frontend.Variable`, 6 per coordinate) and reconstruct inside `Define()`. See the `VLimbs` example in [CLAUDE.md](CLAUDE.md).
+- **MiMC import alias:** if you hash inside `Define()` *and* compute the same hash for test inputs in `CircuitProve`, you need both `gnark/std/hash/mimc` (in-circuit) and `gnark-crypto/.../fr/mimc` (native). Alias one of them — both packages are named `mimc`.
+- **Pedersen commitments:** if any secret should be committed for CCA security, compile with `frontend.WithCommitment(commitment.Pedersen, "fieldName")`. The Aiken verifier already handles the extra commitment wire and PoK check.
+- **Setup is destructive:** `./scripts/build` deletes and recreates `go/setup/` every run. If you change your circuit's public-input shape, re-run `./run` (or `./scripts/build && ./scripts/prove`) — stale setup files will fail with "invalid witness size".
+- **Write a `circuit_test.go`:** the pipeline doesn't require it, but Go-level round-trip + negative tests catch the class of bug where a circuit compiles and proves but doesn't actually constrain what you think it does. See the "Negative Tests" section in [CLAUDE.md](CLAUDE.md) for the rules of thumb.
+
+For the full type/expression mapping reference (pattern syntax → gnark code), [CLAUDE.md](CLAUDE.md) is the canonical source even if you're not using Claude — the tables apply equally to hand-written circuits.
+
 ## Requirements
 
 - **Go** >= 1.21 with gnark v0.14.0

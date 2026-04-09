@@ -1,0 +1,33 @@
+# BLS Signature Verification — "I know a signature on m under pk"
+#
+# Proves knowledge of a BLS signature `sig` (kept secret) such that
+#   e(sig, g2) == e(hm, pk)
+# where `hm` is the hash-to-curve of message m (computed off-chain
+# and provided as a public G1 input), and `pk` is the signer's public
+# key in G2.
+#
+# Standard BLS:
+#   sig = [sk] H_to_G1(m)        in G1
+#   pk  = [sk] g2                in G2
+# Verifier checks bilinearity: e(sig, g2) == e(H_to_G1(m), pk)
+#
+# This is a useful primitive on its own — proving you hold a valid
+# signature on a known message without revealing the signature itself
+# (e.g. for anonymous credential systems or signature aggregation).
+#
+# Note: hash-to-curve is too expensive in-circuit, so `hm` is computed
+# off-chain and provided as a public input. The circuit just verifies
+# the pairing equality.
+#
+# This demonstrates: Secret G1 input, Public G1 input, Public G2 input,
+# pairing equality check (Fq12 == Fq12).
+
+Secret G1 Inputs: (sig)
+Public G1 Inputs: (hm)
+Public G2 Inputs: (pk)
+Constants:
+    g2  # G2 generator
+
+compute: lhs = e(sig, g2)
+compute: rhs = e(hm, pk)
+check: lhs == rhs

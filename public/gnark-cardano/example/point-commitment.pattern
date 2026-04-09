@@ -1,0 +1,24 @@
+# Point Commitment — "I know a G1 point P such that H(P) == y"
+#
+# Proves knowledge of a secret G1 curve point whose MiMC hash matches a
+# public commitment. Useful for committing to a curve point (e.g. a public
+# key or shared secret) and revealing it only on demand.
+#
+# This is the curve-point analogue of simple-preimage.pattern: same
+# commit-reveal pattern, but the secret is a G1 point instead of a scalar.
+#
+# How H(G1) works in-circuit (handled automatically by Claude):
+#   - The Fp coordinates X, Y are each reduced to a single native Fr element
+#     via limb arithmetic: x_fr = Σ limb[i] * (2^(64*i) mod r).
+#   - Both Fr elements are fed to MiMC, which produces a single Fr digest.
+#   - The off-chain prover mirrors this exactly: bls12381_fr.Element.SetBigInt
+#     auto-reduces mod r, so writing those marshaled bytes to native MiMC
+#     produces the same digest.
+#
+# This demonstrates: Secret G1 input, hashing a curve point with MiMC.
+
+Secret G1 Inputs: (p)
+Public Int Inputs: (y)
+
+compute: h = H(p)
+check: y == h

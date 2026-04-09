@@ -1,0 +1,6 @@
+{
+  "_comment": "Pattern: range-proof (lo <= x <= hi AND H(x) == y). The secret x and the public range bounds (lo, hi) are all supplied by the user; the digest y is derived from x inside CircuitProve. lo and hi are PUBLIC inputs (verifier sees them), so they appear in this JSON even though they're not 'secrets'.",
+  "x": "100",
+  "lo": "0",
+  "hi": "1000"
+}

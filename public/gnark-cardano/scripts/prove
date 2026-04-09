@@ -89,9 +89,11 @@ commit_lines = []
 for c in proof.get("commitments", []):
     commit_lines.append(f"        {hex_lit(c)},")
 
-# Public values (ChoosePublicInputs already excluded the implicit "1" wire)
+# Public values: drop the leading "1" implicit wire — orchestrate.go normalizes
+# public.json["inputs"] to always start with "1", and the Aiken verifier consumes
+# IC[0] separately as the constant term.
 inputs = pub.get("inputs", [])
-public_values = inputs
+public_values = inputs[1:] if inputs and inputs[0] == "1" else inputs
 # Format in groups of 3 for readability
 pub_lines = []
 for i in range(0, len(public_values), 3):
