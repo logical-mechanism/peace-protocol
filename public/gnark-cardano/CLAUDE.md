@@ -43,11 +43,51 @@ The `./run` script handles everything after circuit generation:
 After the user writes `proof.pattern`, Claude generates TWO files:
 
 1. **`go/circuit.go`** — the gnark circuit + `CircuitSetup()` and `CircuitProve()` functions
-2. **`go/circuit_test.go`** — Go-level round-trip test (optional but recommended)
+2. **`go/circuit_test.go`** — Go-level round-trip test (**required**, see below)
 
 Everything else (build, export, datum conversion, Aiken test generation) is handled by the scripts.
 
-**These files are per-user generated artifacts** (`.gitignore`'d). Running "Generate the circuit from proof.pattern" will overwrite them. The repo ships a placeholder `circuit.go` that returns errors prompting the user to generate.
+**These files are per-user generated artifacts** (`.gitignore`'d). Running "Generate the circuit from proof.pattern" will overwrite them.
+
+### Pattern Mapping Comment (required)
+
+Every generated `circuit.go` MUST include a comment block at the top of `Define()` that maps
+each pattern line to the corresponding gnark code. This lets the user verify the circuit
+faithfully represents their pattern without reading gnark internals.
+
+Format:
+```go
+func (c *MyCircuit) Define(api frontend.API) error {
+	// Pattern mapping:
+	//   Secret Int Inputs: (x)       → c.X (frontend.Variable, secret)
+	//   Public Int Inputs: (y)       → c.Y (frontend.Variable, public)
+	//   Constants: d                 → const d = 42
+	//   compute: result = x * x + d → xSquared := api.Mul(c.X, c.X); result := api.Add(xSquared, d)
+	//   check: y == result           → api.AssertIsEqual(c.Y, result)
+	...
+}
+```
+
+### Negative Tests (required)
+
+Every generated `circuit_test.go` MUST include negative test cases that verify the circuit
+rejects invalid inputs. These catch bugs where the circuit compiles and runs but doesn't
+actually enforce the pattern's constraints.
+
+Rules for negative tests:
+- **At least one negative test per `check:` line** — mutate one side of the equality
+- **At least one negative test per `compute:` line** — provide inputs that don't satisfy the computation
+- **Wrong public output** — correct secret, wrong public value
+- **Wrong secret** — a secret that doesn't produce the claimed public output
+- Use `assert.ProverFailed()` for all negative cases
+
+Example for `check: y == x * x + d`:
+```go
+// Wrong y (off by 1)
+assert.ProverFailed(&Circuit{}, &Circuit{X: 7, Y: 90}, test.WithCurves(ecc.BLS12_381))
+// Wrong x for given y
+assert.ProverFailed(&Circuit{}, &Circuit{X: 8, Y: 91}, test.WithCurves(ecc.BLS12_381))
+```
 
 ## Reading proof.pattern
 
