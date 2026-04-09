@@ -98,6 +98,70 @@ example/
 CLAUDE.md                   — Instructions for Claude to generate circuits
 ```
 
+## After the Pipeline: What You Get
+
+Once `./run` completes and tests pass, here's what you have and how to use it.
+
+### For your prover (off-chain)
+
+| Artifact | Location | What it's for |
+|----------|----------|---------------|
+| `go/snark` | Compiled binary | Generate proofs in production: `./snark prove -setup setup -out out -input secrets.json` |
+| `go/setup/` | `ccs.bin`, `pk.bin`, `vk.bin` | Trusted setup keys. The prover needs all three. Distribute `pk.bin` to anyone who needs to generate proofs. |
+
+The `-input` flag takes a JSON file with your circuit's secret and public values. The `--test` flag (used by `./scripts/prove`) uses hardcoded test values — in production you supply real ones.
+
+### For your Aiken smart contract (on-chain)
+
+| Artifact | Location | What it's for |
+|----------|----------|---------------|
+| `aiken/lib/gnark_cardano/groth.ak` | Verifier library | Copy into your Aiken project's `lib/` or add as a dependency. Provides `verify_groth16()` and `verify_commitments()`. |
+| `data/vk-datum.json` | VK as Cardano datum | Store on-chain once as a reference input. This is your verifying key in Plutus datum format. |
+
+In your Aiken validator, import and call:
+
+```aiken
+use gnark_cardano/groth
+
+// In your validator's spend/withdraw handler:
+groth.verify_groth16(snark_vk, proof, public_inputs, commitment_wires)
+```
+
+The types you'll use: `SnarkVerificationKey`, `GrothProof`, `GrothPublic`, `GrothCommitmentWire`, `CommitmentKey`.
+
+### For transaction submission (runtime)
+
+| Artifact | Location | What it's for |
+|----------|----------|---------------|
+| `data/vk-datum.json` | VK datum | Submit once to store the VK on-chain as a reference input |
+| `python/` converters | `gnark_cardano` package | Convert each new proof to datum format before submitting a transaction |
+
+Each time you generate a proof, convert it before submission:
+
+```python
+from gnark_cardano.groth_convert import convert_all
+
+# After ./snark prove produces out/proof.json and out/public.json:
+convert_all("out/proof.json", "out/public.json", "out/datums/")
+# → groth-proof.json, groth-public.json, groth-commitment-wires.json
+```
+
+These datum files go into your transaction redeemer.
+
+### For the MPC ceremony (production setup)
+
+The `go/snark` binary also supports multi-party computation for trustworthy setup:
+
+```bash
+./snark ceremony init -dir ceremony
+./snark ceremony contribute -dir ceremony -phase 1   # each contributor runs this
+./snark ceremony verify -dir ceremony -phase 1        # anyone can verify
+./snark ceremony finalize -dir ceremony -phase 1 -beacon <random-hex>
+# ... repeat for phase 2
+```
+
+See `example/proof.pattern` README for the full ceremony workflow.
+
 ## On-Chain Verification
 
 The Aiken verifier performs two checks:
