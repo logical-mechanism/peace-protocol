@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Copyright 2025-2026 Logical Mechanism LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Lint/format checks for all components.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/python/venv/bin/activate"
+FAIL=0
+
+echo "==> Go vet..."
+cd "$ROOT/go"
+if go vet ./... 2>&1; then
+  echo "    go vet: OK"
+else
+  echo "    go vet: ISSUES FOUND"
+  FAIL=1
+fi
+
+echo ""
+echo "==> Aiken build (type check)..."
+cd "$ROOT/aiken"
+if aiken build 2>&1; then
+  echo "    aiken build: OK"
+else
+  echo "    aiken build: ISSUES FOUND"
+  FAIL=1
+fi
+
+echo ""
+echo "==> Python lint (ruff, if available)..."
+cd "$ROOT/python"
+if command -v ruff &>/dev/null; then
+  if ruff check gnark_cardano/ tests/ 2>&1; then
+    echo "    ruff: OK"
+  else
+    echo "    ruff: ISSUES FOUND"
+    FAIL=1
+  fi
+else
+  echo "    ruff not installed, skipping (pip install ruff)"
+fi
+
+echo ""
+if [ "$FAIL" -eq 0 ]; then
+  echo "All lint checks passed."
+else
+  echo "Some lint checks failed."
+  exit 1
+fi

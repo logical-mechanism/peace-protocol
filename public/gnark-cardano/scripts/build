@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Copyright 2025-2026 Logical Mechanism LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Build the Go CLI and run trusted setup.
+# After this, you can run ./scripts/prove to generate a proof.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo "==> Setting up Python venv..."
+if [ ! -d "$ROOT/python/venv" ]; then
+  python3 -m venv "$ROOT/python/venv"
+  echo "    Created: python/venv"
+else
+  echo "    venv already exists, skipping."
+fi
+
+source "$ROOT/python/venv/bin/activate"
+pip install -q -r "$ROOT/python/requirements.txt"
+pip install -q -e "$ROOT/python"
+echo "    Dependencies installed."
+
+echo ""
+echo "==> Building Go CLI..."
+cd "$ROOT/go"
+go build -o snark
+echo "    Built: go/snark"
+
+echo ""
+echo "==> Running trusted setup..."
+if [ -f "$ROOT/go/setup/ccs.bin" ]; then
+  echo "    Setup files already exist (use -force to overwrite)"
+  echo "    Skipping setup."
+else
+  ./snark setup -out setup
+  echo "    Setup complete: go/setup/{ccs.bin, pk.bin, vk.bin}"
+fi
+
+echo ""
+echo "Done. Next: ./scripts/prove"

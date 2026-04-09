@@ -1,0 +1,31 @@
+# proof.pattern — Describe your zero-knowledge proof here
+#
+# Format:
+#   Secret <Type> Inputs: (<name1>, <name2>, ...)
+#   Public <Type> Inputs: (<name1>, <name2>, ...)
+#   Constants:
+#       <name>  # description
+#   compute: <name> = <expression>
+#   check: <lhs> == <rhs>
+#
+# Types: Int, G1, G2, Fq12
+#
+# Expressions:
+#   e(A, B)       — BLS12-381 pairing
+#   [scalar]point — scalar multiplication
+#   A + B         — point addition
+#   H(x)          — hash function (MiMC)
+#   q^a           — exponentiation (shorthand for [a]q)
+#
+# Example:
+#
+#   Secret Int Inputs: (x)
+#   Public Int Inputs: (y)
+#   Constants: d  # Fixed Int
+#   compute: result = x * x + d
+#   check: y == result
+#
+# After writing your proof, prompt Claude:
+#   "Generate the circuit from proof.pattern"
+#
+# Then run: ./run

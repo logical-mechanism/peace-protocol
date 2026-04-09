@@ -1,0 +1,19 @@
+# Python
+python/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/*.egg-info/
+
+# Go
+go/snark
+go/gnark-cardano
+go/go.sum
+go/setup/
+go/out/
+
+# Aiken
+aiken/build/
+aiken/lib/tests/circuit.ak
+
+# Generated artifacts
+data/
