@@ -63,7 +63,7 @@ function EncryptionCard({
 
   const handleCopySeller = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const success = await copyToClipboard(encryption.sellerPkh);
+    const success = await copyToClipboard(encryption.seller);
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
