@@ -69,7 +69,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   }, [allBids, userPkh]);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, hideNsfw, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, cardSize, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, hideNsfw, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -644,7 +644,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className={getGridClasses(cardSize)}>
+        <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((encryption, index) => (
             <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <EncryptionCard
@@ -692,7 +692,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
       {/* Load More */}
       {hasMore && (
         <div className="flex flex-col items-center gap-3 mt-6">
-          <div className={`${getGridClasses(cardSize)} w-full`}>
+          <div className={`${getGridClasses(columnCount)} w-full`}>
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">

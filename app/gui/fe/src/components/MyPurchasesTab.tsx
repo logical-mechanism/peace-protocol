@@ -59,7 +59,7 @@ function MyPurchasesTab({
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, searchQuery, cardSize, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -355,7 +355,7 @@ function MyPurchasesTab({
               Some bid data could not be loaded. Decryption may not be available for affected items.
             </div>
           )}
-          <div className={getGridClasses(cardSize)}>
+          <div className={getGridClasses(columnCount)}>
             {purchasedEncryptions.map((enc) => {
               const hasSecretError = secretsLoadErrors.has(enc.tokenName);
               return (
@@ -629,7 +629,7 @@ function MyPurchasesTab({
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className={getGridClasses(cardSize)}>
+        <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((bid, index) => (
             <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <MyPurchaseBidCard
@@ -666,7 +666,7 @@ function MyPurchasesTab({
       {/* Load More */}
       {hasMore && (
         <div className="flex flex-col items-center gap-3 mt-6">
-          <div className={`${getGridClasses(cardSize)} w-full`}>
+          <div className={`${getGridClasses(columnCount)} w-full`}>
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">

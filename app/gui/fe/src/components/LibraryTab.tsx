@@ -36,7 +36,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
   const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, categoryFilter, searchQuery, cardSize, currentPage } = filters;
+  const { viewMode, sortBy, categoryFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
@@ -619,7 +619,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className={getGridClasses(cardSize)}>
+        <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((item, index) => (
             <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
@@ -660,7 +660,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       {/* Load More */}
       {hasMore && (
         <div className="flex flex-col items-center gap-3 mt-6">
-          <div className={`${getGridClasses(cardSize)} w-full`}>
+          <div className={`${getGridClasses(columnCount)} w-full`}>
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">
