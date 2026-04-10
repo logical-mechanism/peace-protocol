@@ -45,12 +45,11 @@ vi.mock('../../hooks/useModalStack', () => ({
     zIndex: 50,
     shouldRender: true,
     animationState: 'entered',
+    isTopmost: true,
   }),
 }));
-
-vi.mock('../../hooks/useFocusTrap', () => ({
-  useFocusTrap: vi.fn(),
-}));
+// Intentionally NOT mocking useFocusTrap — we rely on the real hook to
+// verify that the close button receives initial focus.
 
 vi.mock('../ConfirmModal', () => ({
   default: ({ isOpen, onConfirm, title }: { isOpen: boolean; onConfirm: () => void; title: string }) =>
@@ -189,6 +188,13 @@ describe('LibraryContentModal', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog).toHaveAttribute('aria-labelledby', 'library-content-title');
     expect(screen.getByRole('heading', { name: 'Library' })).toHaveAttribute('id', 'library-content-title');
+  });
+
+  it('focuses the close button on open instead of the navigation arrows', async () => {
+    render(<LibraryContentModal {...defaultProps} />);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByLabelText('Close dialog'));
+    });
   });
 
   it('calls onClose when close dialog button clicked', async () => {

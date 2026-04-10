@@ -46,9 +46,12 @@ export default function DecryptModal({
   const [savedPath, setSavedPath] = useState<string | null>(null);
 
   // Stack-aware Escape key + body scroll lock + animation
-  const { zIndex, shouldRender, animationState } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
+  const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
   const modalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(modalRef, isOpen);
+  // Default focus lands on the Decrypt Now button so a keyboard user can
+  // press Enter to start decrypting (Tab/Shift+Tab still reaches Cancel).
+  const decryptButtonRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap(modalRef, isOpen, { initialFocusRef: decryptButtonRef, isTopmost });
 
   // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
@@ -559,6 +562,7 @@ export default function DecryptModal({
                 Cancel
               </button>
               <button
+                ref={decryptButtonRef}
                 onClick={handleDecrypt}
                 disabled={encryption?.storageLayer === 'iagon' && !isIagonConnected}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"

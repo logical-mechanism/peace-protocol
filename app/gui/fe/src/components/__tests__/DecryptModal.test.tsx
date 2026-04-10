@@ -102,6 +102,13 @@ describe('DecryptModal', () => {
     expect(screen.getByRole('heading', { name: 'Decrypt Content' })).toHaveAttribute('id', 'decrypt-modal-title');
   });
 
+  it('focuses the Decrypt Now button on open', async () => {
+    renderModal();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByText('Decrypt Now'));
+    });
+  });
+
   it('does not render when isOpen is false', () => {
     renderModal({ isOpen: false });
     expect(screen.queryByText('Decrypt Content')).not.toBeInTheDocument();

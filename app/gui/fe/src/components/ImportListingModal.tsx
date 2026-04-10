@@ -109,9 +109,9 @@ export default function ImportListingModal({
   }, [isOpen]);
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('import-listing', isOpen, onClose, isSubmitting);
+  const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('import-listing', isOpen, onClose, isSubmitting);
   const focusTrapRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(focusTrapRef, isOpen);
+  useFocusTrap(focusTrapRef, isOpen, { isTopmost });
 
   const validateField = (fieldName: keyof FormErrors): string | undefined => {
     switch (fieldName) {

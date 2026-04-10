@@ -84,5 +84,15 @@ export function useModalStack(
   // Body scroll lock is managed centrally by ModalContext (based on stack size)
   // to avoid race conditions when multiple modals are open.
 
-  return { zIndex: isOpen ? getZIndex(id) : 50, shouldRender, animationState };
+  return {
+    zIndex: isOpen ? getZIndex(id) : 50,
+    shouldRender,
+    animationState,
+    /**
+     * True when this modal is currently the topmost in the stack.
+     * Pass to useFocusTrap so a parent modal releases keyboard focus when
+     * a child modal opens on top.
+     */
+    isTopmost: isOpen && isTopModal(id),
+  };
 }

@@ -28,12 +28,12 @@ export default function ConfirmModal({
   loading = false,
 }: ConfirmModalProps) {
   // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('confirm', isOpen, onClose, loading);
+  const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('confirm', isOpen, onClose, loading);
   const modalRef = useRef<HTMLDivElement>(null);
   // Default focus lands on the affirmative button so a keyboard user can
   // press Enter to accept (Tab/Shift+Tab still reaches Cancel).
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
-  useFocusTrap(modalRef, isOpen, confirmButtonRef);
+  useFocusTrap(modalRef, isOpen, { initialFocusRef: confirmButtonRef, isTopmost });
 
   if (!shouldRender) return null;
 

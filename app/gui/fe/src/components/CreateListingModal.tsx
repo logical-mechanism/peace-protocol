@@ -274,9 +274,9 @@ export default function CreateListingModal({
   };
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('create-listing', isOpen, handleClose, isSubmitting);
+  const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('create-listing', isOpen, handleClose, isSubmitting);
   const focusTrapRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(focusTrapRef, isOpen);
+  useFocusTrap(focusTrapRef, isOpen, { isTopmost });
 
   const isFileMode = formData.category !== 'text';
   const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
