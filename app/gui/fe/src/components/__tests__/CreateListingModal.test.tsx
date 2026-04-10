@@ -796,6 +796,22 @@ describe('CreateListingModal', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
+  it('focuses the Discard button when the unsaved-changes confirm opens on top', async () => {
+    renderModal();
+    // Mark dirty so the discard confirm fires.
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'Some text', name: 'description' },
+    });
+    fireEvent.click(screen.getByText('Cancel'));
+
+    // The ConfirmModal opens nested inside CreateListingModal. The child
+    // focus trap must take ownership of focus from the parent so a
+    // keyboard user can press Enter to discard immediately.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Discard' }));
+    });
+  });
+
   // --- File size validation ---
 
   it('rejects file over 1 GB via native dialog with inline error', async () => {

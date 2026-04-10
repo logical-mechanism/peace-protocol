@@ -4,19 +4,10 @@ import '@testing-library/jest-dom/vitest';
 import ConfirmModal from '../ConfirmModal';
 import { ModalProvider } from '../../contexts/ModalContext';
 
-// ── Mocks ───────────────────────────────────────────────────────────
-
-vi.mock('../../hooks/useModalStack', () => ({
-  useModalStack: (_name: string, isOpen: boolean, _onClose: () => void, _loading?: boolean) => ({
-    zIndex: 50,
-    shouldRender: isOpen,
-    animationState: isOpen ? 'entered' : 'exiting',
-    shouldHandleEscape: true,
-    isTopmost: isOpen,
-  }),
-}));
-// Intentionally NOT mocking useFocusTrap — we want the real hook so the
-// "Confirm button receives initial focus" test reflects production behavior.
+// Intentionally NOT mocking useModalStack or useFocusTrap — we want the
+// real hooks so the "Confirm button receives initial focus" test reflects
+// production behavior, including the one-render lag where useModalStack's
+// openModal runs in a useEffect and isTopmost flips false → true.
 
 // ── Helpers ─────────────────────────────────────────────────────────
 

@@ -46,11 +46,15 @@ export default function LayoutPopover({
   const isGrid = viewMode === 'grid';
 
   return (
-    <div ref={containerRef} className="relative">
+    // `relative flex` so the inner button stretches to the parent flex
+    // row's cross-axis height, matching sibling buttons (e.g. Refresh).
+    // Without `flex` here the wrapper stretches but the button stays at
+    // its content height, making it visibly shorter.
+    <div ref={containerRef} className="relative flex">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`px-3 py-2 border border-[var(--border-subtle)] rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+        className={`flex items-center justify-center px-3 py-2 border border-[var(--border-subtle)] rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
           open
             ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
             : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'

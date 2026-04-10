@@ -457,7 +457,6 @@ export default function LibraryContentModal({
                 </button>
               )}
               <button
-                ref={closeButtonRef}
                 onClick={onClose}
                 aria-label="Close dialog"
                 className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
@@ -669,6 +668,7 @@ export default function LibraryContentModal({
                 </>
               )}
               <button
+                ref={closeButtonRef}
                 onClick={onClose}
                 className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
                   viewMode === 'download' && showSaveAs
