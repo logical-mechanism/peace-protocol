@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
 import { stat } from '@tauri-apps/plugin-fs';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import LoadingSpinner from './LoadingSpinner';
 import ConfirmModal from './ConfirmModal';
 import { useModalStack } from '../hooks/useModalStack';
@@ -128,9 +129,15 @@ export default function CreateListingModal({
   const [draftSaved, setDraftSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  // Refs read by the drag-drop event listener so it can subscribe once per
+  // open without re-running on every keystroke / state change.
+  const isSubmittingRef = useRef(isSubmitting);
+  const hasFileRef = useRef<boolean>(false);
+  const processSelectedFileRef = useRef<(filePath: string) => Promise<void>>(async () => {});
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -196,6 +203,59 @@ export default function CreateListingModal({
       if (draftSavedTimerRef.current) clearTimeout(draftSavedTimerRef.current);
     };
   }, [isOpen, showDraftPrompt, isSubmitting, formData]);
+
+  // Keep refs in sync so the drag-drop subscription (which runs once per open)
+  // can read the latest values without re-subscribing on every render.
+  isSubmittingRef.current = isSubmitting;
+  hasFileRef.current = formData.filePath !== null;
+
+  // Tauri drag-and-drop file import (file mode only). Subscribes once per
+  // (isOpen, isFileMode) cycle; reads latest isSubmitting / filePath via refs.
+  const isFileModeForDragDrop = formData.category !== 'text';
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!isFileModeForDragDrop) return;
+
+    let unlisten: (() => void) | null = null;
+    let cancelled = false;
+
+    const subscribe = async () => {
+      try {
+        const win = getCurrentWindow();
+        const fn = await win.onDragDropEvent((event) => {
+          const payload = event.payload as { type: string; paths?: string[] };
+          if (payload.type === 'enter' || payload.type === 'over') {
+            if (isSubmittingRef.current || hasFileRef.current) return;
+            setIsDragOver(true);
+          } else if (payload.type === 'leave' || payload.type === 'cancel') {
+            setIsDragOver(false);
+          } else if (payload.type === 'drop') {
+            setIsDragOver(false);
+            if (isSubmittingRef.current || hasFileRef.current) return;
+            const paths = payload.paths;
+            if (paths && paths.length > 0) {
+              processSelectedFileRef.current(paths[0]);
+            }
+          }
+        });
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      } catch {
+        // Drag-drop unsupported (non-Tauri env / test) — silently ignore.
+      }
+    };
+
+    subscribe();
+
+    return () => {
+      cancelled = true;
+      setIsDragOver(false);
+      if (unlisten) unlisten();
+    };
+  }, [isOpen, isFileModeForDragDrop]);
 
   // Close with unsaved changes warning
   const handleClose = () => {
@@ -330,16 +390,8 @@ export default function CreateListingModal({
     setIsDirty(false);
   };
 
-  const handleChooseFile = async () => {
-    if (isSubmitting) return;
+  const processSelectedFile = async (filePath: string) => {
     try {
-      const selected = await open({
-        multiple: false,
-        title: 'Select file for listing',
-      });
-      if (!selected) return; // User cancelled
-
-      const filePath = typeof selected === 'string' ? selected : selected;
       const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
       const fileStat = await stat(filePath);
       const fileSize = fileStat.size;
@@ -351,11 +403,28 @@ export default function CreateListingModal({
 
       const category = detectCategoryFromExtension(fileName);
       setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category, subcategory: '' }));
-      if (errors.file) {
-        setErrors((prev) => ({ ...prev, file: undefined }));
-      }
+      setErrors((prev) => (prev.file ? { ...prev, file: undefined } : prev));
       setSubmitError(null);
       setIsDirty(true);
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, file: `Failed to select file: ${err instanceof Error ? err.message : 'Unknown error'}` }));
+    }
+  };
+
+  // Keep the ref pointing at the latest closure so the drag-drop listener
+  // calls the up-to-date version (which captures fresh state setters).
+  processSelectedFileRef.current = processSelectedFile;
+
+  const handleChooseFile = async () => {
+    if (isSubmitting) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        title: 'Select file for listing',
+      });
+      if (!selected) return; // User cancelled
+      const filePath = typeof selected === 'string' ? selected : selected;
+      await processSelectedFile(filePath);
     } catch (err) {
       setErrors((prev) => ({ ...prev, file: `Failed to select file: ${err instanceof Error ? err.message : 'Unknown error'}` }));
     }
@@ -705,17 +774,20 @@ export default function CreateListingModal({
                     type="button"
                     onClick={handleChooseFile}
                     disabled={isSubmitting}
+                    data-drag-over={isDragOver || undefined}
                     className={`flex flex-col items-center justify-center gap-2 p-6 w-full border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-[var(--transition-fast)] ${
                       errors.file
                         ? 'border-[var(--error)] bg-[var(--error)]/5'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
+                        : isDragOver
+                          ? 'border-[var(--accent)] bg-[var(--accent)]/10 scale-[1.01]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
                     }`}
                   >
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     <span className="text-sm text-[var(--text-secondary)]">
-                      Click to select a file
+                      Drag & drop or click to select
                     </span>
                     <span className="text-xs text-[var(--text-muted)]">
                       Type will be detected automatically
@@ -739,7 +811,7 @@ export default function CreateListingModal({
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <span className="text-sm text-[var(--text-muted)]">Click to select a file</span>
+                    <span className="text-sm text-[var(--text-muted)]">Drag & drop or click to select</span>
                   </div>
                   {/* Iagon not connected overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
