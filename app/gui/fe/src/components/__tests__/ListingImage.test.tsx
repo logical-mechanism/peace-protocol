@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import ListingImage from '../ListingImage';
 
@@ -141,6 +141,48 @@ describe('ListingImage', () => {
 
       await waitFor(() => {
         expect(screen.getByAltText('Loading preview')).toBeInTheDocument();
+      });
+    });
+
+    // Regression: previously, `state` was in the effect's dep array, so the
+    // setState('loading') triggered by the intersection callback caused the
+    // effect cleanup to run and flip cancelled=true BEFORE the in-flight
+    // getCachedImage promise resolved — leaving the image stuck on the spinner.
+    it('resolves the cached image even when the load transitions through state="loading"', async () => {
+      let resolveCache: (v: { content_type: string; base64: string }) => void;
+      mockGetCachedImage.mockImplementation(
+        () => new Promise((resolve) => { resolveCache = resolve; }),
+      );
+      render(
+        <ListingImage
+          tokenName="token1"
+          imageLink="https://example.com/img.png"
+          size="md"
+          initialCached
+        />,
+      );
+
+      // Trigger intersection — fires setState('loading') and calls getCachedImage
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
+      // Spinner should be visible while the promise is pending
+      await waitFor(() => {
+        expect(screen.getByTestId('spinner')).toBeInTheDocument();
+      });
+
+      // Now resolve the cache promise — this is AFTER the state→'loading' rerender
+      await act(async () => {
+        resolveCache!({ content_type: 'image/png', base64: 'cachedbytes' });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Listing preview')).toHaveAttribute(
+          'src',
+          'data:image/png;base64,cachedbytes',
+        );
       });
     });
   });
