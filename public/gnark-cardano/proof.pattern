@@ -1,0 +1,34 @@
+# proof.pattern — Describe your zero-knowledge proof here
+#
+# Format:
+#   Secret <Type> Inputs: (<name1>, <name2>, ...)
+#   Public <Type> Inputs: (<name1>, <name2>, ...)
+#   Constants:
+#       <name>  # description
+#   compute: <name> = <expression>
+#   check: <lhs> == <rhs>
+#
+# Types: Int, G1, G2, Fq12
+#
+# Expressions:
+#   e(A, B)       — BLS12-381 pairing (G1, G2 → Fq12)
+#   [scalar]point — scalar multiplication
+#   A + B         — point addition
+#   H(x)          — MiMC hash (works on any type — Int, Fq12, G1)
+#   q^a           — exponentiation (shorthand for [a]q)
+#   x * y         — field multiplication
+#   x >= y        — range comparison (expensive in-circuit)
+#
+# Example (hash preimage):
+#
+#   Secret Int Inputs: (x)
+#   Public Int Inputs: (y)
+#   compute: h = H(x)
+#   check: y == h
+#
+# More examples in example/ — see peace-protocol.pattern, schnorr-knowledge.pattern, etc.
+#
+# After writing your proof, prompt Claude:
+#   "Generate the circuit from proof.pattern"
+#
+# Then run: ./run

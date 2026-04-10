@@ -1,0 +1,19 @@
+# Diffie-Hellman Knowledge — "I know sk such that pk == [sk]g and shared == [sk]them"
+#
+# Proves knowledge of a secret key that corresponds to a public key
+# AND that a shared point was correctly derived from their public key.
+# This is a ZK proof of a Diffie-Hellman key exchange without
+# revealing the secret key.
+#
+# This demonstrates: secret scalars, multiple G1 public inputs,
+# multiple scalar multiplications, multiple checks.
+
+Secret Int Inputs: (sk)
+Public G1 Inputs: (pk, them, shared)
+Constants:
+    g  # G1 generator
+
+compute: myPk = [sk]g
+compute: dh = [sk]them
+check: pk == myPk
+check: shared == dh

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Copyright 2025-2026 Logical Mechanism LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Full pipeline: build → prove → test
+#
+# Usage:
+#   1. Write proof.pattern
+#   2. Prompt Claude: "Generate the circuit from proof.pattern"
+#   3. ./run
+#
+# That's it. This script handles everything else:
+#   - Checks dependencies
+#   - Builds the Go CLI
+#   - Runs trusted setup (if needed)
+#   - Generates a test proof
+#   - Exports JSON + Cardano datums
+#   - Generates a circuit-specific Aiken test
+#   - Runs all tests (Aiken + Python)
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+echo "╔══════════════════════════════════════╗"
+echo "║       gnark-cardano pipeline         ║"
+echo "╚══════════════════════════════════════╝"
+echo ""
+
+echo "--- Step 1: Check dependencies ---"
+"$ROOT/scripts/check-deps"
+echo ""
+
+echo "--- Step 2: Build + Setup ---"
+"$ROOT/scripts/build"
+echo ""
+
+echo "--- Step 3: Prove + Export + Generate Test ---"
+"$ROOT/scripts/prove"
+echo ""
+
+echo "--- Step 4: Test ---"
+"$ROOT/scripts/test"
+echo ""
+
+echo "╔══════════════════════════════════════╗"
+echo "║           Pipeline complete          ║"
+echo "╚══════════════════════════════════════╝"
+echo ""
+echo "Artifacts:"
+echo "  go/setup/     — trusted setup files (ccs.bin, pk.bin, vk.bin)"
+echo "  go/out/       — proof artifacts (vk.json, proof.json, public.json)"
+echo "  data/         — Cardano datums (vk-datum.json, groth-proof.json, ...)"
+echo "  aiken/lib/tests/circuit.ak — circuit-specific Aiken test"

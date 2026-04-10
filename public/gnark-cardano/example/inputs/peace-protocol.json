@@ -1,0 +1,6 @@
+{
+  "_comment": "Pattern: peace-protocol (blinded identity proof). Two secret scalars: a (the identity scalar, used for both pairing and as a G1 scalar) and r (the blinding factor). The public points v, w0, w1 are derived inside CircuitProve from (a, r) and the hardcoded G1 generator + G2 base point h0. v is supplied as a fixed compressed G1 hex; w0 and w1 are computed.",
+  "a": "31415926535897932384626433832795",
+  "r": "27182818284590452353602874713526",
+  "vHex": "a0ec3e71a719a25208adc97106b122809210faf45a17db24f10ffb1ac014fac1ab95a4a1967e55b185d4df622685b9e8"
+}

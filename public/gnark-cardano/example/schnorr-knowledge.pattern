@@ -1,0 +1,14 @@
+# Schnorr Knowledge — "I know the discrete log of a public key"
+#
+# Proves knowledge of secret key sk such that pk == [sk]g,
+# where g is the BLS12-381 G1 generator.
+#
+# This demonstrates: secret scalars, public G1 points, scalar multiplication.
+
+Secret Int Inputs: (sk)
+Public G1 Inputs: (pk)
+Constants:
+    g  # G1 generator
+
+compute: p = [sk]g
+check: pk == p

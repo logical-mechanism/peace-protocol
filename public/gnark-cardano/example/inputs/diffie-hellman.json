@@ -1,0 +1,5 @@
+{
+  "_comment": "Pattern: diffie-hellman (pk == [sk]g, shared == [sk]them). Supply your secret scalar sk and the counterparty's compressed G1 public key themHex. pk and shared are derived inside CircuitProve. themHex is 96 hex characters (48 bytes IETF compressed G1).",
+  "sk": "42",
+  "themHex": "a0ec3e71a719a25208adc97106b122809210faf45a17db24f10ffb1ac014fac1ab95a4a1967e55b185d4df622685b9e8"
+}

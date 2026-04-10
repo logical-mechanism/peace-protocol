@@ -1,0 +1,4 @@
+{
+  "_comment": "Pattern: square-plus-constant (x*x + d == y). Only the secret x is supplied; the public output y = x*x + d is derived inside CircuitProve from x and the hardcoded constant d.",
+  "x": "7"
+}

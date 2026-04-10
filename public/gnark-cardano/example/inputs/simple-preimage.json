@@ -1,0 +1,4 @@
+{
+  "_comment": "Pattern: simple-preimage. Circuit takes a secret integer x; the public output y = MiMC(x) is derived inside CircuitProve. The decimal-string convention works for any integer that fits in BLS12-381's Fr (up to ~76 digits).",
+  "x": "12345678901234567890"
+}

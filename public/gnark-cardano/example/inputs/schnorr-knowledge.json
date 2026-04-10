@@ -1,0 +1,4 @@
+{
+  "_comment": "Pattern: schnorr-knowledge (pk == [sk]g). The secret scalar sk is supplied as a decimal string (Fr field elements can exceed JSON's 2^53 integer limit). The public point pk is derived inside CircuitProve via [sk]g.",
+  "sk": "42"
+}
