@@ -20,6 +20,8 @@ import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
 import { getNsfwEnabled } from '../services/nsfwStorage';
+import { truncateHex } from '../utils/truncate';
+import { getCategoryLabel } from '../utils/formatListing';
 
 interface MarketplaceTabProps {
   userPkh?: string;
@@ -70,7 +72,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   }, [allBids, userPkh]);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, hideNsfw, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, cardSize, columnCount, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, hideNsfw, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, sellerPkh, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -141,6 +143,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     [userPkh]
   );
 
+  const handleFilterBySeller = useCallback(
+    (pkh: string) => dispatch({ type: 'SET_SELLER_FILTER', payload: pkh }),
+    [dispatch]
+  );
+
+  const handleClearSellerFilter = useCallback(
+    () => dispatch({ type: 'CLEAR_SELLER_FILTER' }),
+    [dispatch]
+  );
+
+  const handleFilterByCategory = useCallback(
+    (category: string) => dispatch({ type: 'SET_CATEGORY', payload: [category] }),
+    [dispatch]
+  );
+
+  const handleClearCategoryFilter = useCallback(
+    () => dispatch({ type: 'SET_CATEGORY', payload: ['all'] }),
+    [dispatch]
+  );
+
   // Pre-compute pending bid counts per encryption token
   const bidCountMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -183,7 +205,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     dateFrom,
     dateTo,
     hideNsfw,
-  }), [statusFilter, categoryFilter, hideOwnListings, hideNsfw, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
+    sellerPkh,
+  }), [statusFilter, categoryFilter, hideOwnListings, hideNsfw, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo, sellerPkh]);
 
   const filtered = useMemo(
     () => filterListings(encryptions, filterParams),
@@ -306,12 +329,48 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     );
   }
 
+  // Single category filter chip is shown when exactly one category is selected.
+  const singleCategorySelected =
+    categoryFilter.length === 1 && categoryFilter[0] !== 'all' ? categoryFilter[0] : null;
+
+  const activeChips = sellerPkh || singleCategorySelected ? (
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      {sellerPkh && (
+        <button
+          type="button"
+          onClick={handleClearSellerFilter}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors duration-[var(--transition-fast)] cursor-pointer"
+          aria-label={`Clear seller filter for ${truncateHex(sellerPkh, 10, 6)}`}
+        >
+          <span>Seller: <span className="font-mono">{truncateHex(sellerPkh, 10, 6)}</span></span>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+      {singleCategorySelected && (
+        <button
+          type="button"
+          onClick={handleClearCategoryFilter}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors duration-[var(--transition-fast)] cursor-pointer"
+          aria-label={`Clear category filter for ${getCategoryLabel(singleCategorySelected)}`}
+        >
+          <span>Category: {getCategoryLabel(singleCategorySelected)}</span>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  ) : null;
+
   return (
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       <RefreshIndicator visible={isRefreshing} />
       {staleBanner}
+      {activeChips}
       {/* Toolbar */}
       <div className="mb-6">
         {/* Primary row: Search + Filters toggle + View toggle + Refresh */}
@@ -586,6 +645,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
+                onFilterBySeller={handleFilterBySeller}
+                onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
               />
@@ -608,6 +669,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
+                onFilterBySeller={handleFilterBySeller}
+                onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
               />
