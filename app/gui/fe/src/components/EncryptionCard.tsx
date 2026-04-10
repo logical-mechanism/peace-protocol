@@ -26,6 +26,8 @@ interface EncryptionCardProps {
   lovelace?: string | null;
   isFavorite?: boolean;
   onToggleFavorite?: (tokenName: string) => void;
+  onFilterBySeller?: (sellerPkh: string) => void;
+  onFilterByCategory?: (category: string) => void;
   searchQuery?: string;
   nsfwEnabled?: boolean;
 }
@@ -43,6 +45,8 @@ function EncryptionCard({
   lovelace,
   isFavorite = false,
   onToggleFavorite,
+  onFilterBySeller,
+  onFilterByCategory,
   searchQuery = '',
   nsfwEnabled = false,
 }: EncryptionCardProps) {
@@ -72,6 +76,16 @@ function EncryptionCard({
     onToggleFavorite?.(encryption.tokenName);
   };
 
+  const handleFilterBySeller = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFilterBySeller?.(encryption.sellerPkh);
+  };
+
+  const handleFilterByCategory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFilterByCategory?.(encryption.category || 'text');
+  };
+
   if (compact) {
     return (
       <>
@@ -92,9 +106,21 @@ function EncryptionCard({
               </button>
             )}
             <TransactionLink txHash={encryption.utxo.txHash} className="text-xs" />
-            <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
-              {getCategoryLabel(encryption.category)}
-            </span>
+            {onFilterByCategory ? (
+              <button
+                type="button"
+                onClick={handleFilterByCategory}
+                title={`Filter by ${getCategoryLabel(encryption.category)}`}
+                aria-label={`Filter by category ${getCategoryLabel(encryption.category)}`}
+                className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
+              >
+                {getCategoryLabel(encryption.category)}
+              </button>
+            ) : (
+              <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
+                {getCategoryLabel(encryption.category)}
+              </span>
+            )}
             {encryption.nsfw && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white flex-shrink-0">NSFW</span>
             )}
@@ -190,9 +216,21 @@ function EncryptionCard({
           </div>
           {/* Row 2: Category (left) + Bid Count (right) */}
           <div className="flex items-center justify-between">
-            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-              {getCategoryLabel(encryption.category)}
-            </span>
+            {onFilterByCategory ? (
+              <button
+                type="button"
+                onClick={handleFilterByCategory}
+                title={`Filter by ${getCategoryLabel(encryption.category)}`}
+                aria-label={`Filter by category ${getCategoryLabel(encryption.category)}`}
+                className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
+              >
+                {getCategoryLabel(encryption.category)}
+              </button>
+            ) : (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
+                {getCategoryLabel(encryption.category)}
+              </span>
+            )}
             {bidCount > 0 ? (
               <span
                 key={bidCount}
@@ -247,9 +285,21 @@ function EncryptionCard({
         <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-mono text-[var(--text-secondary)]">
-              <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
-            </span>
+            {onFilterBySeller ? (
+              <button
+                type="button"
+                onClick={handleFilterBySeller}
+                title="Show all listings from this seller"
+                aria-label="Filter by this seller"
+                className="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] hover:underline transition-colors duration-[var(--transition-fast)] cursor-pointer"
+              >
+                <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
+              </button>
+            ) : (
+              <span className="text-xs font-mono text-[var(--text-secondary)]">
+                <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
+              </span>
+            )}
             <button
               onClick={handleCopySeller}
               className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
@@ -344,7 +394,9 @@ function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): bo
     prev.initialCached === next.initialCached &&
     prev.initialBanned === next.initialBanned &&
     prev.onPlaceBid === next.onPlaceBid &&
-    prev.onToggleFavorite === next.onToggleFavorite
+    prev.onToggleFavorite === next.onToggleFavorite &&
+    prev.onFilterBySeller === next.onFilterBySeller &&
+    prev.onFilterByCategory === next.onFilterByCategory
   );
 }
 
