@@ -91,10 +91,37 @@ describe('marketplaceReducer', () => {
     expect(next.currentPage).toBe(3)
   })
 
+  it('SET_COLUMN_COUNT updates columnCount without resetting page', () => {
+    const state = { ...MARKETPLACE_INITIAL, currentPage: 3 }
+    const next = marketplaceReducer(state, { type: 'SET_COLUMN_COUNT', payload: 4 })
+    expect(next.columnCount).toBe(4)
+    expect(next.currentPage).toBe(3)
+  })
+
+  it('SET_COLUMN_COUNT accepts 2, 3, 4', () => {
+    const a = marketplaceReducer(MARKETPLACE_INITIAL, { type: 'SET_COLUMN_COUNT', payload: 2 })
+    expect(a.columnCount).toBe(2)
+    const b = marketplaceReducer(MARKETPLACE_INITIAL, { type: 'SET_COLUMN_COUNT', payload: 3 })
+    expect(b.columnCount).toBe(3)
+    const c = marketplaceReducer(MARKETPLACE_INITIAL, { type: 'SET_COLUMN_COUNT', payload: 4 })
+    expect(c.columnCount).toBe(4)
+  })
+
+  it('initial columnCount is 3', () => {
+    expect(MARKETPLACE_INITIAL.columnCount).toBe(3)
+  })
+
   it('CLEAR_FILTERS preserves cardSize', () => {
     const state = { ...MARKETPLACE_INITIAL, cardSize: 'small' as const, searchQuery: 'test' }
     const next = marketplaceReducer(state, { type: 'CLEAR_FILTERS' })
     expect(next.cardSize).toBe('small')
+    expect(next.searchQuery).toBe('')
+  })
+
+  it('CLEAR_FILTERS preserves columnCount', () => {
+    const state = { ...MARKETPLACE_INITIAL, columnCount: 4 as const, searchQuery: 'test' }
+    const next = marketplaceReducer(state, { type: 'CLEAR_FILTERS' })
+    expect(next.columnCount).toBe(4)
     expect(next.searchQuery).toBe('')
   })
 
@@ -191,6 +218,15 @@ describe('mySalesReducer', () => {
     const next = mySalesReducer(MY_SALES_INITIAL, { type: 'SET_CARD_SIZE', payload: 'small' })
     expect(next.cardSize).toBe('small')
   })
+
+  it('SET_COLUMN_COUNT updates columnCount', () => {
+    const next = mySalesReducer(MY_SALES_INITIAL, { type: 'SET_COLUMN_COUNT', payload: 4 })
+    expect(next.columnCount).toBe(4)
+  })
+
+  it('initial columnCount is 3', () => {
+    expect(MY_SALES_INITIAL.columnCount).toBe(3)
+  })
 })
 
 describe('myPurchasesReducer', () => {
@@ -216,6 +252,15 @@ describe('myPurchasesReducer', () => {
   it('SET_CARD_SIZE updates cardSize', () => {
     const next = myPurchasesReducer(MY_PURCHASES_INITIAL, { type: 'SET_CARD_SIZE', payload: 'large' })
     expect(next.cardSize).toBe('large')
+  })
+
+  it('SET_COLUMN_COUNT updates columnCount', () => {
+    const next = myPurchasesReducer(MY_PURCHASES_INITIAL, { type: 'SET_COLUMN_COUNT', payload: 2 })
+    expect(next.columnCount).toBe(2)
+  })
+
+  it('initial columnCount is 3', () => {
+    expect(MY_PURCHASES_INITIAL.columnCount).toBe(3)
   })
 })
 
@@ -286,27 +331,48 @@ describe('libraryReducer', () => {
     const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_CARD_SIZE', payload: 'small' })
     expect(next.cardSize).toBe('small')
   })
+
+  it('SET_COLUMN_COUNT updates columnCount', () => {
+    const next = libraryReducer(LIBRARY_INITIAL, { type: 'SET_COLUMN_COUNT', payload: 4 })
+    expect(next.columnCount).toBe(4)
+  })
+
+  it('initial columnCount is 3', () => {
+    expect(LIBRARY_INITIAL.columnCount).toBe(3)
+  })
 })
 
 describe('getGridClasses', () => {
-  it('returns small grid classes', () => {
-    const classes = getGridClasses('small')
-    expect(classes).toContain('grid-cols-2')
-    expect(classes).toContain('xl:grid-cols-5')
-    expect(classes).toContain('gap-4')
+  it('returns 2-column grid classes', () => {
+    const classes = getGridClasses(2)
+    expect(classes).toContain('grid-cols-1')
+    expect(classes).toContain('md:grid-cols-2')
+    expect(classes).not.toContain('lg:grid-cols-3')
+    expect(classes).not.toContain('xl:grid-cols-4')
+    expect(classes).toContain('gap-6')
   })
 
-  it('returns medium grid classes (default)', () => {
-    const classes = getGridClasses('medium')
+  it('returns 3-column grid classes (default)', () => {
+    const classes = getGridClasses(3)
+    expect(classes).toContain('grid-cols-1')
     expect(classes).toContain('md:grid-cols-2')
+    expect(classes).toContain('lg:grid-cols-3')
+    expect(classes).not.toContain('xl:grid-cols-4')
+    expect(classes).toContain('gap-6')
+  })
+
+  it('returns 4-column grid classes', () => {
+    const classes = getGridClasses(4)
+    expect(classes).toContain('grid-cols-1')
+    expect(classes).toContain('md:grid-cols-2')
+    expect(classes).toContain('lg:grid-cols-3')
     expect(classes).toContain('xl:grid-cols-4')
     expect(classes).toContain('gap-6')
   })
 
-  it('returns large grid classes', () => {
-    const classes = getGridClasses('large')
-    expect(classes).toContain('lg:grid-cols-2')
-    expect(classes).toContain('xl:grid-cols-3')
-    expect(classes).toContain('gap-8')
+  it('always starts at 1 column on small screens', () => {
+    expect(getGridClasses(2)).toContain('grid-cols-1')
+    expect(getGridClasses(3)).toContain('grid-cols-1')
+    expect(getGridClasses(4)).toContain('grid-cols-1')
   })
 })
