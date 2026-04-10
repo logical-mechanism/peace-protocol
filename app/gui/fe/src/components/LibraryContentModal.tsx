@@ -387,11 +387,19 @@ export default function LibraryContentModal({
 
   return (
     <>
-      <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+      <div
+        ref={modalRef}
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ zIndex }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="library-content-title"
+      >
         {/* Backdrop */}
         <div
           className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
           onClick={!deleting ? onClose : undefined}
+          aria-hidden="true"
         />
 
         {/* Modal */}
@@ -415,7 +423,7 @@ export default function LibraryContentModal({
               )}
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                  <h2 id="library-content-title" className="text-xl font-semibold text-[var(--text-primary)]">
                     Library
                   </h2>
                   {items && items.length > 1 && currentIndex != null && (
@@ -512,6 +520,7 @@ export default function LibraryContentModal({
                 <div className="absolute top-3 right-3">
                   <button
                     onClick={handleCopy}
+                    aria-label="Copy text content to clipboard"
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] rounded-[var(--radius-md)] btn-base btn-tertiary"
                   >
                     {copied ? (

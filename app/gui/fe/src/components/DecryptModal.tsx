@@ -174,11 +174,19 @@ export default function DecryptModal({
   if (!shouldRender) return null;
 
   return (
-    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+    <div
+      ref={modalRef}
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="decrypt-modal-title"
+    >
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={state !== 'decrypting' ? handleClose : undefined}
+        aria-hidden="true"
       />
 
       {/* Modal */}
@@ -186,7 +194,7 @@ export default function DecryptModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
           <div>
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+            <h2 id="decrypt-modal-title" className="text-xl font-semibold text-[var(--text-primary)]">
               {state === 'success'
                 ? (!encryption?.category || encryption.category === 'text'
                     ? 'Decrypted Message'
@@ -321,7 +329,7 @@ export default function DecryptModal({
 
           {/* Decrypting / Downloading state */}
           {state === 'decrypting' && (
-            <div className="py-12 text-center">
+            <div className="py-12 text-center" aria-live="polite">
               <LoadingSpinner size="lg" className="mx-auto mb-6" />
 
               {phase === 'downloading' ? (
@@ -410,6 +418,7 @@ export default function DecryptModal({
                   <div className="absolute top-3 right-3">
                     <button
                       onClick={handleCopy}
+                      aria-label="Copy decrypted content to clipboard"
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       {copied ? (

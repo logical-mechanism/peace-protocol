@@ -96,11 +96,19 @@ export default function SnarkSetupModal({
   if (!shouldRender) return null
 
   return (
-    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+    <div
+      ref={modalRef}
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="snark-download-title"
+    >
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={status !== 'decompressing' ? onClose : undefined}
+        aria-hidden="true"
       />
 
       {/* Modal */}
@@ -108,7 +116,7 @@ export default function SnarkSetupModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">SNARK Prover Setup</h2>
+            <h2 id="snark-download-title" className="text-xl font-semibold">SNARK Prover Setup</h2>
             {status !== 'decompressing' && status !== 'checking' && (
               <button
                 onClick={onClose}
