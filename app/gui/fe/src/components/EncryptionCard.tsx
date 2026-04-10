@@ -63,7 +63,7 @@ function EncryptionCard({
 
   const handleCopySeller = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const success = await copyToClipboard(encryption.seller);
+    const success = await copyToClipboard(encryption.sellerPkh);
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
@@ -293,11 +293,11 @@ function EncryptionCard({
                 aria-label="Filter by this seller"
                 className="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] hover:underline transition-colors duration-[var(--transition-fast)] cursor-pointer"
               >
-                <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
+                <HighlightText text={truncateHex(encryption.sellerPkh, 10, 6)} query={searchQuery} />
               </button>
             ) : (
               <span className="text-xs font-mono text-[var(--text-secondary)]">
-                <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
+                <HighlightText text={truncateHex(encryption.sellerPkh, 10, 6)} query={searchQuery} />
               </span>
             )}
             <button

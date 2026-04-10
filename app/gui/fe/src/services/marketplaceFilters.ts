@@ -113,7 +113,7 @@ export function filterListings(
     result = result.filter(
       (e) =>
         e.tokenName.toLowerCase().includes(query) ||
-        e.seller.toLowerCase().includes(query) ||
+        e.sellerPkh.toLowerCase().includes(query) ||
         (e.description && e.description.toLowerCase().includes(query)),
     );
   }

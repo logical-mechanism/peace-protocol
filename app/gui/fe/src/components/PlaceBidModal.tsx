@@ -277,8 +277,8 @@ export default function PlaceBidModal({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-[var(--text-muted)]">Seller</span>
-                  <span className="text-xs font-mono text-[var(--text-secondary)]" title={encryption.seller}>
-                    {truncateHex(encryption.seller, 10, 6)}
+                  <span className="text-xs font-mono text-[var(--text-secondary)]" title={encryption.sellerPkh}>
+                    {truncateHex(encryption.sellerPkh, 10, 6)}
                   </span>
                 </div>
                 {encryption.suggestedPrice !== undefined && (

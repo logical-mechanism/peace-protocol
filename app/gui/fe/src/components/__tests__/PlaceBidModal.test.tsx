@@ -74,9 +74,9 @@ describe('PlaceBidModal', () => {
     expect(tokenSpan).toBeInTheDocument();
   });
 
-  it('shows full seller address on hover via title attribute', () => {
+  it('shows full seller pkh on hover via title attribute', () => {
     renderModal();
-    const sellerSpan = screen.getByTitle(baseEncryption.seller);
+    const sellerSpan = screen.getByTitle(baseEncryption.sellerPkh);
     expect(sellerSpan).toBeInTheDocument();
   });
 

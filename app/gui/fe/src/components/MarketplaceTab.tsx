@@ -393,7 +393,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             </svg>
             <input
               type="text"
-              placeholder="Search listings by name or seller..."
+              placeholder="Search listings by name, description, or seller PKH..."
               value={searchQuery}
               onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
               aria-label="Search listings"

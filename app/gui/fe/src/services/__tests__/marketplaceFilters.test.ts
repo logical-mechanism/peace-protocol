@@ -173,9 +173,10 @@ describe('filterListings', () => {
     expect(result[0].tokenName).toBe('a1');
   });
 
-  it('filters by search query (seller, case-insensitive)', () => {
-    const result = filterListings(listings, params({ searchQuery: 'ADDR_TEST1SELLER' }));
-    expect(result).toHaveLength(4);
+  it('filters by search query (sellerPkh, case-insensitive)', () => {
+    const result = filterListings(listings, params({ searchQuery: 'OTHER456' }));
+    expect(result).toHaveLength(2);
+    expect(result.every((e) => e.sellerPkh === 'other456')).toBe(true);
   });
 
   it('filters by search query (tokenName)', () => {

@@ -260,14 +260,14 @@ describe('EncryptionCard', () => {
     });
   });
 
-  describe('copy seller address', () => {
-    it('calls copyToClipboard with bech32 seller address', async () => {
-      renderCard({ seller: 'addr_test1qztheaddress', sellerPkh: 'abc123' });
+  describe('copy seller pkh', () => {
+    it('calls copyToClipboard with seller pkh from datum', async () => {
+      renderCard({ sellerPkh: 'abcdef1234567890' });
       const copyButton = screen.getByTitle('Copy seller address');
       await act(async () => {
         fireEvent.click(copyButton);
       });
-      expect(mockCopyToClipboard).toHaveBeenCalledWith('addr_test1qztheaddress');
+      expect(mockCopyToClipboard).toHaveBeenCalledWith('abcdef1234567890');
     });
   });
 
@@ -315,14 +315,14 @@ describe('EncryptionCard', () => {
 
     it('copy button still works independently of seller filter button', async () => {
       renderCard(
-        { seller: 'addr_test1qzfilter', sellerPkh: 'seller99' },
+        { sellerPkh: 'seller99' },
         { onFilterBySeller: vi.fn() },
       );
       const copyButton = screen.getByTitle('Copy seller address');
       await act(async () => {
         fireEvent.click(copyButton);
       });
-      expect(mockCopyToClipboard).toHaveBeenCalledWith('addr_test1qzfilter');
+      expect(mockCopyToClipboard).toHaveBeenCalledWith('seller99');
     });
   });
 
