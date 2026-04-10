@@ -40,7 +40,6 @@ vi.mock('../../contexts/WalletContext', () => ({
 
 const baseEncryption: EncryptionDisplay = {
   tokenName: 'enc1234567890abcdef1234567890abcd',
-  seller: 'addr_test1seller',
   sellerPkh: 'seller123',
   status: 'active',
   createdAt: '2024-06-15T10:00:00Z',

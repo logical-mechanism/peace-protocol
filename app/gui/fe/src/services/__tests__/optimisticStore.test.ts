@@ -5,7 +5,6 @@ import type { EncryptionDisplay, BidDisplay } from '../api';
 function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionDisplay {
   return {
     tokenName: 'enc1',
-    seller: 'addr1',
     sellerPkh: 'pkh1',
     status: 'active',
     createdAt: '2024-01-01T00:00:00Z',

@@ -471,8 +471,8 @@ export default function LibraryContentModal({
                 )}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-[var(--text-muted)]">
-                {item.seller && (<>
-                  <span><span className="text-[var(--accent)] opacity-70">Seller:</span> <span className="font-mono text-[var(--text-secondary)]" title={item.seller}>{truncateHex(item.seller, 10, 6)}</span></span>
+                {item.sellerPkh && (<>
+                  <span><span className="text-[var(--accent)] opacity-70">Seller:</span> <span className="font-mono text-[var(--text-secondary)]" title={item.sellerPkh}>{truncateHex(item.sellerPkh, 10, 6)}</span></span>
                   <span className="opacity-30">&middot;</span>
                 </>)}
                 {item.createdAt && (<>

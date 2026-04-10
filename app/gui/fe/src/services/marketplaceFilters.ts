@@ -17,6 +17,7 @@ export interface FilterParams {
   dateFrom: string;
   dateTo: string;
   hideNsfw: boolean;
+  sellerPkh: string;
 }
 
 export type SortKey = MarketplaceFilters['sortBy'];
@@ -62,7 +63,13 @@ export function filterListings(
     result = result.filter((e) => !e.nsfw);
   }
 
-  if (params.hideOwnListings && params.userPkh) {
+  if (params.sellerPkh) {
+    result = result.filter((e) => e.sellerPkh === params.sellerPkh);
+  }
+
+  // hideOwnListings is bypassed when a seller filter is active so the user can
+  // still browse their own catalog via "more from this seller".
+  if (params.hideOwnListings && params.userPkh && !params.sellerPkh) {
     result = result.filter((e) => e.sellerPkh !== params.userPkh);
   }
 
@@ -106,7 +113,7 @@ export function filterListings(
     result = result.filter(
       (e) =>
         e.tokenName.toLowerCase().includes(query) ||
-        e.seller.toLowerCase().includes(query) ||
+        e.sellerPkh.toLowerCase().includes(query) ||
         (e.description && e.description.toLowerCase().includes(query)),
     );
   }
@@ -179,6 +186,7 @@ export function countActiveFilters(params: FilterParams): number {
   if (params.priceMax !== '') count++;
   if (params.showFavoritesOnly) count++;
   if (params.hideNsfw) count++;
+  if (params.sellerPkh !== '') count++;
   return count;
 }
 

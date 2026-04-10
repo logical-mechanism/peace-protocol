@@ -42,6 +42,7 @@ describe('filterStorage', () => {
         priceMin: '5',
         priceMax: '100',
         showFavoritesOnly: true,
+        sellerPkh: 'abcdef1234567890',
         currentPage: 3,
       };
       persistFilters('pkh1', filters);

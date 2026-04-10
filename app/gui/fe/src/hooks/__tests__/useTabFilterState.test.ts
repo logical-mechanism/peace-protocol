@@ -84,6 +84,24 @@ describe('marketplaceReducer', () => {
     expect(next.currentPage).toBe(1)
   })
 
+  it('SET_SELLER_FILTER updates sellerPkh and resets page', () => {
+    const state = { ...MARKETPLACE_INITIAL, currentPage: 4 }
+    const next = marketplaceReducer(state, { type: 'SET_SELLER_FILTER', payload: 'abcdef123' })
+    expect(next.sellerPkh).toBe('abcdef123')
+    expect(next.currentPage).toBe(1)
+  })
+
+  it('CLEAR_SELLER_FILTER clears sellerPkh and resets page', () => {
+    const state = { ...MARKETPLACE_INITIAL, sellerPkh: 'abcdef123', currentPage: 4 }
+    const next = marketplaceReducer(state, { type: 'CLEAR_SELLER_FILTER' })
+    expect(next.sellerPkh).toBe('')
+    expect(next.currentPage).toBe(1)
+  })
+
+  it('initial sellerPkh is empty string', () => {
+    expect(MARKETPLACE_INITIAL.sellerPkh).toBe('')
+  })
+
   it('SET_CARD_SIZE updates cardSize without resetting page', () => {
     const state = { ...MARKETPLACE_INITIAL, currentPage: 3 }
     const next = marketplaceReducer(state, { type: 'SET_CARD_SIZE', payload: 'large' })
@@ -138,6 +156,7 @@ describe('marketplaceReducer', () => {
       viewMode: 'list' as const,
       currentPage: 5,
       showFavoritesOnly: true,
+      sellerPkh: 'abcdef123',
     }
     const next = marketplaceReducer(state, { type: 'CLEAR_FILTERS' })
     expect(next.searchQuery).toBe('')
@@ -150,6 +169,7 @@ describe('marketplaceReducer', () => {
     expect(next.viewMode).toBe('list') // preserved
     expect(next.currentPage).toBe(1)
     expect(next.showFavoritesOnly).toBe(false)
+    expect(next.sellerPkh).toBe('')
   })
 
   it('HYDRATE merges partial state and resets page', () => {

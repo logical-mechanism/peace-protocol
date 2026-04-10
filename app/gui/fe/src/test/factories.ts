@@ -120,7 +120,6 @@ export function createEncryption(overrides: Partial<EncryptionDisplay> = {}): En
   const tokenName = overrides.tokenName ?? uniqueTokenName('enc');
   return {
     tokenName,
-    seller: 'addr_test1qzselleraddr',
     sellerPkh: DEFAULT_SELLER_PKH,
     status: 'active',
     description: 'Test listing description',

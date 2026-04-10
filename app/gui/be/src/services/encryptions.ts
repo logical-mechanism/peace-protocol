@@ -119,7 +119,6 @@ function utxoToEncryptionDisplay(utxo: KoiosUtxo, datum: EncryptionDatum, cip20:
 
   return {
     tokenName,
-    seller: utxo.address,
     sellerPkh: datum.owner_vkh,
     status,
     description: cip20.description,

@@ -8,7 +8,7 @@ export interface LibraryItem {
   storageLayer?: string;
   imageLink?: string;
   fileExtension?: string;
-  seller?: string;
+  sellerPkh?: string;
   createdAt?: string;
   decryptedAt: string;
   contentMissing: boolean;

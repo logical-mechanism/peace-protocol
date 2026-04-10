@@ -21,6 +21,7 @@ export interface MarketplaceFilters {
   priceMin: string
   priceMax: string
   showFavoritesOnly: boolean
+  sellerPkh: string
   cardSize: CardSize
   columnCount: ColumnCount
   currentPage: number
@@ -39,6 +40,8 @@ export type MarketplaceAction =
   | { type: 'SET_PRICE_MIN'; payload: string }
   | { type: 'SET_PRICE_MAX'; payload: string }
   | { type: 'SET_FAVORITES_ONLY'; payload: boolean }
+  | { type: 'SET_SELLER_FILTER'; payload: string }
+  | { type: 'CLEAR_SELLER_FILTER' }
   | { type: 'SET_CARD_SIZE'; payload: CardSize }
   | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
   | { type: 'SET_PAGE'; payload: number }
@@ -49,7 +52,7 @@ export const MARKETPLACE_INITIAL: MarketplaceFilters = {
   searchQuery: '', sortBy: 'newest', statusFilter: 'all',
   categoryFilter: ['all'], hideOwnListings: false, hideNsfw: false, dateFrom: '', dateTo: '',
   viewMode: 'grid', priceMin: '', priceMax: '',
-  showFavoritesOnly: false, cardSize: 'medium', columnCount: 3, currentPage: 1,
+  showFavoritesOnly: false, sellerPkh: '', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function marketplaceReducer(state: MarketplaceFilters, action: MarketplaceAction): MarketplaceFilters {
@@ -66,6 +69,8 @@ export function marketplaceReducer(state: MarketplaceFilters, action: Marketplac
     case 'SET_PRICE_MIN': return { ...state, priceMin: action.payload, currentPage: 1 }
     case 'SET_PRICE_MAX': return { ...state, priceMax: action.payload, currentPage: 1 }
     case 'SET_FAVORITES_ONLY': return { ...state, showFavoritesOnly: action.payload, currentPage: 1 }
+    case 'SET_SELLER_FILTER': return { ...state, sellerPkh: action.payload, currentPage: 1 }
+    case 'CLEAR_SELLER_FILTER': return { ...state, sellerPkh: '', currentPage: 1 }
     case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
     case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
     case 'SET_PAGE': return { ...state, currentPage: action.payload }

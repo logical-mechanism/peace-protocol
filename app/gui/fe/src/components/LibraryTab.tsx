@@ -16,7 +16,6 @@ import type { LibraryFilters, LibraryAction, CardSize, ColumnCount } from '../ho
 import LayoutPopover from './LayoutPopover';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
-import { useWalletContext } from '../contexts/WalletContext';
 
 interface LibraryTabProps {
   refreshSignal?: number;
@@ -29,7 +28,6 @@ interface LibraryTabProps {
 }
 
 function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispatch, onBulkDeleteResult, onRelist }: LibraryTabProps) {
-  const { address } = useWalletContext();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -97,7 +95,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         const fields = [
           item.tokenName,
           item.description ?? '',
-          item.seller ?? '',
+          item.sellerPkh ?? '',
           item.category ?? '',
           item.fileExtension ?? '',
           item.storageLayer ?? '',
@@ -551,7 +549,6 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
             <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
                 item={item}
-                walletAddress={address ?? undefined}
                 onView={handleView}
                 onDelete={handleDeleteFromCard}
                 onRelist={onRelist}
@@ -570,7 +567,6 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
             <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
                 item={item}
-                walletAddress={address ?? undefined}
                 onView={handleView}
                 onDelete={handleDeleteFromCard}
                 onRelist={onRelist}

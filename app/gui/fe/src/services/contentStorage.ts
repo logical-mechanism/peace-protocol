@@ -30,7 +30,7 @@ export interface ContentMetadata {
   imageLink?: string;
   category: string;
   fileExtension?: string; // Original file extension from payload field 3 (e.g. ".pdf", ".docx")
-  seller?: string;
+  sellerPkh?: string; // Owner payment key hash from the encryption datum
   createdAt?: string;
   decryptedAt: string; // ISO timestamp of when content was decrypted
   fileSize?: number; // Size of the content file in bytes

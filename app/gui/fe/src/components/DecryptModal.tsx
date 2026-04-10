@@ -117,7 +117,7 @@ export default function DecryptModal({
             imageLink: encryption!.imageLink,
             category,
             fileExtension: result.fileExtension,
-            seller: encryption!.seller,
+            sellerPkh: encryption!.sellerPkh,
             createdAt: encryption!.createdAt,
             decryptedAt: new Date().toISOString(),
             fileSize,

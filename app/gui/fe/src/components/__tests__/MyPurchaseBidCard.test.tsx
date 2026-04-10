@@ -209,9 +209,9 @@ describe('MyPurchaseBidCard', () => {
 
   describe('with encryption data', () => {
     it('shows seller info', () => {
-      const encryption = createEncryption({ seller: 'addr_test1seller' });
+      const encryption = createEncryption({ sellerPkh: 'abcdef1234567890' });
       renderCard({}, { encryption });
-      expect(screen.getByText(/addr_tes/)).toBeInTheDocument();
+      expect(screen.getByText(/abcdef12/)).toBeInTheDocument();
     });
 
     it('shows suggested price comparison', () => {

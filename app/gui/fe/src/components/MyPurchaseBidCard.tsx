@@ -38,8 +38,8 @@ function MyPurchaseBidCard({
   const [copiedSeller, setCopiedSeller] = useState(false);
 
   const handleCopySeller = async () => {
-    if (!encryption?.seller) return;
-    const success = await copyToClipboard(encryption.seller);
+    if (!encryption?.sellerPkh) return;
+    const success = await copyToClipboard(encryption.sellerPkh);
     if (success) {
       setCopiedSeller(true);
       setTimeout(() => setCopiedSeller(false), 1500);
@@ -128,8 +128,8 @@ function MyPurchaseBidCard({
               )}
             </span>
             {encryption && (
-              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1" title={encryption.seller}>
-                {truncateHex(encryption.seller, 8, 4)}
+              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1" title={encryption.sellerPkh}>
+                {truncateHex(encryption.sellerPkh, 8, 4)}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                   className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
@@ -264,8 +264,8 @@ function MyPurchaseBidCard({
       {encryption && (
         <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-          <span className="text-sm font-mono text-[var(--text-secondary)] flex items-center gap-1" title={encryption.seller}>
-            {truncateHex(encryption.seller, 12, 8)}
+          <span className="text-sm font-mono text-[var(--text-secondary)] flex items-center gap-1" title={encryption.sellerPkh}>
+            {truncateHex(encryption.sellerPkh, 12, 8)}
             <button
               onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
               className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
@@ -396,7 +396,7 @@ function arePropsEqual(prev: MyPurchaseBidCardProps, next: MyPurchaseBidCardProp
     prev.encryption?.tokenName === next.encryption?.tokenName &&
     prev.encryption?.status === next.encryption?.status &&
     prev.encryption?.description === next.encryption?.description &&
-    prev.encryption?.seller === next.encryption?.seller &&
+    prev.encryption?.sellerPkh === next.encryption?.sellerPkh &&
     prev.encryption?.suggestedPrice === next.encryption?.suggestedPrice &&
     prev.compact === next.compact &&
     prev.purchaseStage === next.purchaseStage &&

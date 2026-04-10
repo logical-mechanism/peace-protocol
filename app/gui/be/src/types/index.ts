@@ -70,8 +70,7 @@ export interface BidDatum {
 // API display types (enriched for UI)
 export interface EncryptionDisplay {
   tokenName: string;
-  seller: string;                 // bech32 address
-  sellerPkh: string;              // payment key hash
+  sellerPkh: string;              // owner payment key hash from the encryption datum
   status: 'active' | 'pending' | 'completed';
   // CIP-20 metadata fields (parsed from tx metadata key 674)
   description?: string;           // Human-readable description of the encrypted data
