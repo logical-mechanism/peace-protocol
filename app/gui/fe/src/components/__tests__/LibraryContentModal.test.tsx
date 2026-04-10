@@ -180,6 +180,17 @@ describe('LibraryContentModal', () => {
     });
   });
 
+  it('renders with dialog ARIA attributes', async () => {
+    render(<LibraryContentModal {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAttribute('aria-labelledby', 'library-content-title');
+    expect(screen.getByRole('heading', { name: 'Library' })).toHaveAttribute('id', 'library-content-title');
+  });
+
   it('calls onClose when close dialog button clicked', async () => {
     const onClose = vi.fn();
     render(<LibraryContentModal {...defaultProps} onClose={onClose} />);

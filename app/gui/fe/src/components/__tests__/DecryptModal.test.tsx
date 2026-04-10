@@ -94,6 +94,14 @@ describe('DecryptModal', () => {
     expect(screen.getByText('Decrypt Now')).toBeInTheDocument();
   });
 
+  it('renders with dialog ARIA attributes', () => {
+    renderModal();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAttribute('aria-labelledby', 'decrypt-modal-title');
+    expect(screen.getByRole('heading', { name: 'Decrypt Content' })).toHaveAttribute('id', 'decrypt-modal-title');
+  });
+
   it('does not render when isOpen is false', () => {
     renderModal({ isOpen: false });
     expect(screen.queryByText('Decrypt Content')).not.toBeInTheDocument();
