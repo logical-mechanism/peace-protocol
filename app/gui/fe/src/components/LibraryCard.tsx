@@ -14,7 +14,6 @@ import type { CardSize } from '../hooks/useTabFilterState';
 
 interface LibraryCardProps {
   item: LibraryItem;
-  walletAddress?: string;
   onView: (item: LibraryItem) => void;
   onDelete: (item: LibraryItem) => void;
   onRelist?: (item: LibraryItem) => void;
@@ -86,7 +85,6 @@ function CategoryIcon({ category, fileExtension, size = 'md' }: { category: stri
 
 function LibraryCard({
   item,
-  walletAddress,
   onView,
   onDelete,
   onRelist,
@@ -100,11 +98,11 @@ function LibraryCard({
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [copiedSeller, setCopiedSeller] = useState(false);
 
-  const sellerAddress = item.seller || walletAddress || '';
+  const sellerPkh = item.sellerPkh ?? '';
 
   const handleCopySeller = async () => {
-    if (!sellerAddress) return;
-    const success = await copyToClipboard(sellerAddress);
+    if (!sellerPkh) return;
+    const success = await copyToClipboard(sellerPkh);
     if (success) {
       setCopiedSeller(true);
       setTimeout(() => setCopiedSeller(false), 1500);
@@ -176,11 +174,11 @@ function LibraryCard({
             {/* Middle: Seller, Date, Size */}
             <div className="flex items-center gap-6 flex-shrink-0">
               <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs text-right">
-                {sellerAddress && (
+                {sellerPkh && (
                   <>
                     <span className="text-[var(--text-muted)]">Seller</span>
-                    <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={sellerAddress}>
-                      {truncateHex(sellerAddress, 8, 4)}
+                    <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={sellerPkh}>
+                      {truncateHex(sellerPkh, 8, 4)}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                         className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
@@ -368,11 +366,11 @@ function LibraryCard({
         )}
 
         {/* Seller Info */}
-        {sellerAddress && (
+        {sellerPkh && (
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
             <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-            <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={sellerAddress}>
-              {truncateHex(sellerAddress, 12, 8)}
+            <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={sellerPkh}>
+              {truncateHex(sellerPkh, 12, 8)}
               <button
                 onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                 className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
@@ -428,9 +426,8 @@ function arePropsEqual(prev: LibraryCardProps, next: LibraryCardProps): boolean 
     prev.item.contentMissing === next.item.contentMissing &&
     prev.item.fileSize === next.item.fileSize &&
     prev.item.fileExtension === next.item.fileExtension &&
-    prev.item.seller === next.item.seller &&
+    prev.item.sellerPkh === next.item.sellerPkh &&
     prev.item.decryptedAt === next.item.decryptedAt &&
-    prev.walletAddress === next.walletAddress &&
     prev.searchQuery === next.searchQuery &&
     prev.compact === next.compact &&
     prev.cardSize === next.cardSize &&

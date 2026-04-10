@@ -146,7 +146,7 @@ describe('saveContentMetadata', () => {
       tokenName: 'tk',
       category: 'audio',
       fileExtension: '.flac',
-      seller: 'addr_test1...',
+      sellerPkh: 'aabbccdd11223344',
       createdAt: '2025-01-01T00:00:00Z',
       decryptedAt: '2025-06-01T12:00:00Z',
     };
@@ -157,7 +157,7 @@ describe('saveContentMetadata', () => {
     const jsonStr = new TextDecoder().decode(new Uint8Array(callArgs.data));
     const parsed = JSON.parse(jsonStr);
     expect(parsed.fileExtension).toBe('.flac');
-    expect(parsed.seller).toBe('addr_test1...');
+    expect(parsed.sellerPkh).toBe('aabbccdd11223344');
   });
 
   it('includes fileSize in serialized metadata when provided', async () => {

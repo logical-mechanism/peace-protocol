@@ -29,7 +29,7 @@ interface UseSellerActionsParams {
 }
 
 export function useSellerActions({ actions, iagonConnected: _iagonConnected }: UseSellerActionsParams) {
-  const { wallet, address, userPkh, toast, recordTransaction, triggerTransactionRefresh, setConfirmAction, setActiveTab } = actions
+  const { wallet, userPkh, toast, recordTransaction, triggerTransactionRefresh, setConfirmAction, setActiveTab } = actions
   const { isReady: wasmReady, isLoading: wasmLoading } = useWasm()
   const navigate = useNavigate()
 
@@ -200,7 +200,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           storageLayer: 'on-chain',
           imageLink: formData.imageLink || undefined,
           category: 'text',
-          seller: address,
+          sellerPkh: userPkh ?? undefined,
           decryptedAt: new Date().toISOString(),
           fileSize: contentBytes.length,
         });
@@ -236,10 +236,9 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     // Optimistic update — listing appears immediately in tabs
-    if (result.txHash && result.tokenName && userPkh && address) {
+    if (result.txHash && result.tokenName && userPkh) {
       optimisticStore.addEncryption(result.tokenName, result.txHash, {
         tokenName: result.tokenName,
-        seller: address,
         sellerPkh: userPkh,
         status: 'active',
         description: formData.description,
@@ -265,7 +264,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     triggerTransactionRefresh()
-  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRelistFromLibrary = useCallback(async (item: LibraryItem) => {
     try {
@@ -338,10 +337,9 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     // Optimistic update
-    if (result.txHash && result.tokenName && userPkh && address) {
+    if (result.txHash && result.tokenName && userPkh) {
       optimisticStore.addEncryption(result.tokenName, result.txHash, {
         tokenName: result.tokenName,
-        seller: address,
         sellerPkh: userPkh,
         status: 'active',
         description: data.description,
@@ -367,7 +365,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     triggerTransactionRefresh()
-  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {

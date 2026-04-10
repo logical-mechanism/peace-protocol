@@ -50,7 +50,6 @@ const USER_PKH = 'abc123def456abc123def456abc123def456abc123def456abc123def456';
 function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionDisplay {
   return {
     tokenName: 'enc' + Math.random().toString(36).slice(2, 18),
-    seller: 'addr_test1seller',
     sellerPkh: USER_PKH,
     status: 'active',
     createdAt: '2024-06-15T10:00:00Z',

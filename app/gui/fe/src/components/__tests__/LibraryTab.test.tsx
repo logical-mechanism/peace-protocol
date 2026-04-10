@@ -47,7 +47,6 @@ function makeItem(overrides: Partial<LibraryItem> = {}): LibraryItem {
     tokenName: 'lib' + Math.random().toString(36).slice(2, 18),
     category: 'text',
     description: 'A test library item',
-    seller: 'addr_test1seller',
     decryptedAt: '2024-06-15T10:00:00Z',
     contentMissing: false,
     fileSize: 1024,

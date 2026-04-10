@@ -84,11 +84,11 @@ function makeItem(overrides: Partial<LibraryItem> = {}): LibraryItem {
     category: 'text',
     decryptedAt: '2025-01-01T00:00:00Z',
     contentMissing: false,
-    seller: 'seller_pkh_123',
     fileSize: 1024,
     description: 'Test content',
     suggestedPrice: 50,
     storageLayer: 'on-chain',
+    sellerPkh: 'seller_pkh_123',
     ...overrides,
   };
 }

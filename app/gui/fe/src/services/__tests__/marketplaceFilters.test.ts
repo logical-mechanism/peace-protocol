@@ -13,7 +13,6 @@ import type { EncryptionDisplay } from '../api';
 function makeListing(overrides: Partial<EncryptionDisplay> = {}): EncryptionDisplay {
   return {
     tokenName: 'abc123',
-    seller: 'addr_test1seller',
     sellerPkh: 'aabbcc',
     status: 'active',
     createdAt: '2025-06-01T12:00:00Z',

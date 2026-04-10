@@ -31,7 +31,6 @@ function makeEncryption(
 ): EncryptionDisplay {
   return {
     tokenName,
-    seller: 'addr_test1...',
     sellerPkh,
     status,
     createdAt: '2025-01-01T00:00:00Z',
