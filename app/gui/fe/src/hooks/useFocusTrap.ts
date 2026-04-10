@@ -13,13 +13,14 @@ const FOCUSABLE_SELECTOR = [
  * Traps keyboard focus within a container element while active.
  *
  * - Saves the previously focused element on activation
- * - Moves focus to the first focusable child inside the container
+ * - Moves focus to `initialFocusRef` if provided, otherwise the first focusable child
  * - Wraps Tab / Shift+Tab at container boundaries
  * - Restores focus to the saved element on deactivation
  */
 export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
   isActive: boolean,
+  initialFocusRef?: RefObject<HTMLElement | null>,
 ) {
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -28,12 +29,15 @@ export function useFocusTrap(
     if (isActive) {
       previousFocusRef.current = document.activeElement as HTMLElement | null;
 
-      // Focus first focusable element after the render completes
+      // Focus the requested initial element (or fall back to first focusable)
+      // after the render completes.
       const raf = requestAnimationFrame(() => {
         const container = containerRef.current;
         if (!container) return;
-        const first = container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-        first?.focus();
+        const target =
+          initialFocusRef?.current ??
+          container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+        target?.focus();
       });
 
       return () => cancelAnimationFrame(raf);
@@ -41,7 +45,7 @@ export function useFocusTrap(
       previousFocusRef.current.focus();
       previousFocusRef.current = null;
     }
-  }, [isActive, containerRef]);
+  }, [isActive, containerRef, initialFocusRef]);
 
   // Tab key trapping
   useEffect(() => {

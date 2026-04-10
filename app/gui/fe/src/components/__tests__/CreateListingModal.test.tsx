@@ -631,15 +631,35 @@ describe('CreateListingModal', () => {
 
   // --- Blur validation ---
 
-  it('shows error on secretMessage blur when empty', () => {
+  it('does not show error when blurring a pristine secretMessage field', () => {
     renderModal();
+    // Tabbing through a fresh form should not flash a "required" error.
     fireEvent.blur(screen.getByLabelText(/Secret Message/));
+    expect(screen.queryByText('Secret message is required')).not.toBeInTheDocument();
+  });
+
+  it('does not show error when blurring a pristine description field', () => {
+    renderModal();
+    fireEvent.blur(screen.getByLabelText(/Description/));
+    expect(screen.queryByText('Description is required')).not.toBeInTheDocument();
+  });
+
+  it('shows error when blurring secretMessage after the user clears it', () => {
+    renderModal();
+    const field = screen.getByLabelText(/Secret Message/);
+    // Mark the field touched by typing into it.
+    fireEvent.change(field, { target: { value: 'temp', name: 'secretMessage' } });
+    fireEvent.change(field, { target: { value: '', name: 'secretMessage' } });
+    fireEvent.blur(field);
     expect(screen.getByText('Secret message is required')).toBeInTheDocument();
   });
 
-  it('shows error on description blur when empty', () => {
+  it('shows error when blurring description after the user clears it', () => {
     renderModal();
-    fireEvent.blur(screen.getByLabelText(/Description/));
+    const field = screen.getByLabelText(/Description/);
+    fireEvent.change(field, { target: { value: 'temp', name: 'description' } });
+    fireEvent.change(field, { target: { value: '', name: 'description' } });
+    fireEvent.blur(field);
     expect(screen.getByText('Description is required')).toBeInTheDocument();
   });
 
@@ -663,15 +683,18 @@ describe('CreateListingModal', () => {
 
   it('clears error on blur when field becomes valid', () => {
     renderModal();
-    // Trigger error
-    fireEvent.blur(screen.getByLabelText(/Description/));
+    const field = screen.getByLabelText(/Description/);
+    // Mark touched, then clear to surface the error.
+    fireEvent.change(field, { target: { value: 'temp', name: 'description' } });
+    fireEvent.change(field, { target: { value: '', name: 'description' } });
+    fireEvent.blur(field);
     expect(screen.getByText('Description is required')).toBeInTheDocument();
 
-    // Fix the field and blur again
-    fireEvent.change(screen.getByLabelText(/Description/), {
+    // Fix the field and blur again.
+    fireEvent.change(field, {
       target: { value: 'Valid description', name: 'description' },
     });
-    fireEvent.blur(screen.getByLabelText(/Description/));
+    fireEvent.blur(field);
     expect(screen.queryByText('Description is required')).not.toBeInTheDocument();
   });
 

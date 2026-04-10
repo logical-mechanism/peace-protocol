@@ -284,7 +284,11 @@ export default function LibraryContentModal({
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
   const modalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(modalRef, isOpen);
+  // Default focus lands on the close button — content varies wildly by file
+  // type (PDF/audio/video/text), so close is the only stable starting point.
+  // From there Tab walks the user into the type-specific viewer controls.
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap(modalRef, isOpen, closeButtonRef);
 
   const handleCopy = useCallback(async () => {
     if (!textContent) return;
@@ -453,6 +457,7 @@ export default function LibraryContentModal({
                 </button>
               )}
               <button
+                ref={closeButtonRef}
                 onClick={onClose}
                 aria-label="Close dialog"
                 className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"

@@ -118,6 +118,10 @@ export default function CreateListingModal({
   const navigate = useNavigate();
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
+  // Tracks which fields the user has actually interacted with. Blur-time
+  // validation only fires for touched fields so a fresh form does not flash
+  // red the moment the user tabs through it.
+  const [touched, setTouched] = useState<Partial<Record<keyof FormErrors, boolean>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
@@ -132,7 +136,6 @@ export default function CreateListingModal({
   const [isDragOver, setIsDragOver] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   // Refs read by the drag-drop event listener so it can subscribe once per
   // open without re-running on every keystroke / state change.
   const isSubmittingRef = useRef(isSubmitting);
@@ -147,7 +150,6 @@ export default function CreateListingModal({
         setFormData({ ...INITIAL_FORM_DATA, ...prefill });
         setShowDraftPrompt(false);
         setDisplayPrice(formatPrice(prefill.suggestedPrice || ''));
-        setTimeout(() => descriptionRef.current?.focus(), 50);
       } else {
         const savedDraft = getListingFormDraft();
         if (savedDraft && (savedDraft.description || savedDraft.secretMessage || savedDraft.suggestedPrice)) {
@@ -155,13 +157,13 @@ export default function CreateListingModal({
         } else {
           setFormData(INITIAL_FORM_DATA);
           setShowDraftPrompt(false);
-          setTimeout(() => descriptionRef.current?.focus(), 50);
         }
         setDisplayPrice('');
       }
       setImagePreviewState('idle');
       setImagePreviewUrl(null);
       setErrors({});
+      setTouched({});
       setSubmitError(null);
       setCreationStep(null);
       setDraftSaved(false);
@@ -328,6 +330,9 @@ export default function CreateListingModal({
   };
 
   const handleFieldBlur = (fieldName: keyof FormErrors) => {
+    // Skip blur-time validation for fields the user has not interacted with
+    // yet — tabbing through a pristine form should not trigger error styling.
+    if (!touched[fieldName]) return;
     const error = validateField(fieldName);
     setErrors((prev) => ({ ...prev, [fieldName]: error }));
   };
@@ -337,6 +342,7 @@ export default function CreateListingModal({
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -403,6 +409,7 @@ export default function CreateListingModal({
 
       const category = detectCategoryFromExtension(fileName);
       setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category, subcategory: '' }));
+      setTouched((prev) => ({ ...prev, file: true }));
       setErrors((prev) => (prev.file ? { ...prev, file: undefined } : prev));
       setSubmitError(null);
       setIsDirty(true);
@@ -475,6 +482,7 @@ export default function CreateListingModal({
     if (!isNaN(parsed) && parsed > 45_000_000_000) raw = '45000000000';
     setFormData((prev) => ({ ...prev, suggestedPrice: raw }));
     setDisplayPrice(raw);
+    setTouched((prev) => ({ ...prev, suggestedPrice: true }));
     if (errors.suggestedPrice) {
       setErrors((prev) => ({ ...prev, suggestedPrice: undefined }));
     }
@@ -494,9 +502,17 @@ export default function CreateListingModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!canSubmit || !validateForm()) {
-      return;
-    }
+    if (!canSubmit) return;
+    // Mark every field as touched so any errors raised by submit-time
+    // validation stay visible until the user fixes them.
+    setTouched({
+      secretMessage: true,
+      file: true,
+      description: true,
+      suggestedPrice: true,
+      imageLink: true,
+    });
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -850,7 +866,6 @@ export default function CreateListingModal({
                 Description <span className="text-[var(--error)]">*</span>
               </label>
               <textarea
-                ref={descriptionRef}
                 id="description"
                 name="description"
                 value={formData.description}

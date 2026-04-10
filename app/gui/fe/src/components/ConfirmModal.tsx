@@ -30,7 +30,10 @@ export default function ConfirmModal({
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('confirm', isOpen, onClose, loading);
   const modalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(modalRef, isOpen);
+  // Default focus lands on the affirmative button so a keyboard user can
+  // press Enter to accept (Tab/Shift+Tab still reaches Cancel).
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap(modalRef, isOpen, confirmButtonRef);
 
   if (!shouldRender) return null;
 
@@ -83,6 +86,7 @@ export default function ConfirmModal({
             Cancel
           </button>
           <button
+            ref={confirmButtonRef}
             onClick={onConfirm}
             disabled={loading}
             className={`px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center gap-2 ${confirmClass}`}
