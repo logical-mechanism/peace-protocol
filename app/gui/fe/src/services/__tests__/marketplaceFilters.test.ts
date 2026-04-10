@@ -39,6 +39,7 @@ const DEFAULT_PARAMS: FilterParams = {
   dateFrom: '',
   dateTo: '',
   hideNsfw: false,
+  sellerPkh: '',
 };
 
 function params(overrides: Partial<FilterParams> = {}): FilterParams {
@@ -96,6 +97,24 @@ describe('filterListings', () => {
   it('hideOwnListings is no-op when userPkh is undefined', () => {
     const result = filterListings(listings, params({ hideOwnListings: true, userPkh: undefined }));
     expect(result).toHaveLength(4);
+  });
+
+  it('filters by sellerPkh', () => {
+    const result = filterListings(listings, params({ sellerPkh: 'other456' }));
+    expect(result).toHaveLength(2);
+    expect(result.every((e) => e.sellerPkh === 'other456')).toBe(true);
+  });
+
+  it('seller filter overrides hideOwnListings (browse own catalog)', () => {
+    const result = filterListings(listings, params({ sellerPkh: 'user123', hideOwnListings: true }));
+    // Both user123 listings shown despite hideOwnListings being true
+    expect(result).toHaveLength(2);
+    expect(result.every((e) => e.sellerPkh === 'user123')).toBe(true);
+  });
+
+  it('seller filter returns empty when no listings match', () => {
+    const result = filterListings(listings, params({ sellerPkh: 'nobody' }));
+    expect(result).toHaveLength(0);
   });
 
   it('filters by dateFrom', () => {
@@ -257,6 +276,7 @@ describe('countActiveFilters', () => {
     expect(countActiveFilters(params({ priceMin: '5' }))).toBe(1);
     expect(countActiveFilters(params({ priceMax: '50' }))).toBe(1);
     expect(countActiveFilters(params({ showFavoritesOnly: true }))).toBe(1);
+    expect(countActiveFilters(params({ sellerPkh: 'abc123' }))).toBe(1);
   });
 
   it('counts multiple active filters', () => {
