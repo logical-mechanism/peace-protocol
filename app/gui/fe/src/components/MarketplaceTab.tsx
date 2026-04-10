@@ -13,8 +13,9 @@ import PriceRangeSlider from './PriceRangeSlider';
 import CategoryFilter from './CategoryFilter';
 import DateFilter from './DateFilter';
 import RefreshIndicator from './RefreshIndicator';
-import type { MarketplaceFilters, MarketplaceAction, CardSize } from '../hooks/useTabFilterState';
+import type { MarketplaceFilters, MarketplaceAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
 import { getGridClasses } from '../hooks/useTabFilterState';
+import ColumnSelector from './ColumnSelector';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
@@ -454,6 +455,14 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Column Count — grid only */}
+          {viewMode === 'grid' && (
+            <ColumnSelector
+              value={columnCount}
+              onChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+            />
           )}
 
           {/* Refresh */}

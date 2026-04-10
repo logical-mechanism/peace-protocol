@@ -12,7 +12,8 @@ import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import RefreshIndicator from './RefreshIndicator';
-import type { LibraryFilters, LibraryAction, CardSize } from '../hooks/useTabFilterState';
+import type { LibraryFilters, LibraryAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
+import ColumnSelector from './ColumnSelector';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
 import { useWalletContext } from '../contexts/WalletContext';
@@ -551,6 +552,14 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Column Count — grid only */}
+          {viewMode === 'grid' && (
+            <ColumnSelector
+              value={columnCount}
+              onChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+            />
           )}
 
           {/* Refresh */}

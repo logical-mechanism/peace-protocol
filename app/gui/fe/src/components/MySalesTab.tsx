@@ -13,8 +13,9 @@ import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../s
 import { getNsfwEnabled } from '../services/nsfwStorage';
 import RefreshIndicator from './RefreshIndicator';
 import AcceptBidQueuePanel from './AcceptBidQueuePanel';
-import type { MySalesFilters, MySalesAction, CardSize } from '../hooks/useTabFilterState';
+import type { MySalesFilters, MySalesAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
 import { getGridClasses } from '../hooks/useTabFilterState';
+import ColumnSelector from './ColumnSelector';
 import { getTransactions } from '../services/transactionHistory';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatAda } from '../utils/formatAda';
@@ -521,6 +522,14 @@ function MySalesTab({
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Column Count — grid only */}
+          {viewMode === 'grid' && (
+            <ColumnSelector
+              value={columnCount}
+              onChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+            />
           )}
 
           {/* Refresh */}

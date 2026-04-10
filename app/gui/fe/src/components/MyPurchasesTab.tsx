@@ -13,7 +13,8 @@ import { truncateDescription } from './descriptionUtils';
 import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
-import type { MyPurchasesFilters, MyPurchasesAction, CardSize } from '../hooks/useTabFilterState';
+import type { MyPurchasesFilters, MyPurchasesAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
+import ColumnSelector from './ColumnSelector';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
@@ -574,6 +575,14 @@ function MyPurchasesTab({
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Column Count — grid only */}
+          {viewMode === 'grid' && (
+            <ColumnSelector
+              value={columnCount}
+              onChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+            />
           )}
 
           {/* Refresh */}
