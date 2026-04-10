@@ -4,6 +4,7 @@ import type { TransactionType } from '../services/transactionHistory'
 
 type ViewMode = 'grid' | 'list'
 export type CardSize = 'small' | 'medium' | 'large'
+export type ColumnCount = 2 | 3 | 4
 
 // ── Marketplace ───────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ export interface MarketplaceFilters {
   priceMax: string
   showFavoritesOnly: boolean
   cardSize: CardSize
+  columnCount: ColumnCount
   currentPage: number
 }
 
@@ -38,6 +40,7 @@ export type MarketplaceAction =
   | { type: 'SET_PRICE_MAX'; payload: string }
   | { type: 'SET_FAVORITES_ONLY'; payload: boolean }
   | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
   | { type: 'SET_PAGE'; payload: number }
   | { type: 'CLEAR_FILTERS' }
   | { type: 'HYDRATE'; payload: Partial<MarketplaceFilters> }
@@ -46,7 +49,7 @@ export const MARKETPLACE_INITIAL: MarketplaceFilters = {
   searchQuery: '', sortBy: 'newest', statusFilter: 'all',
   categoryFilter: ['all'], hideOwnListings: false, hideNsfw: false, dateFrom: '', dateTo: '',
   viewMode: 'grid', priceMin: '', priceMax: '',
-  showFavoritesOnly: false, cardSize: 'medium', currentPage: 1,
+  showFavoritesOnly: false, cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function marketplaceReducer(state: MarketplaceFilters, action: MarketplaceAction): MarketplaceFilters {
@@ -64,8 +67,9 @@ export function marketplaceReducer(state: MarketplaceFilters, action: Marketplac
     case 'SET_PRICE_MAX': return { ...state, priceMax: action.payload, currentPage: 1 }
     case 'SET_FAVORITES_ONLY': return { ...state, showFavoritesOnly: action.payload, currentPage: 1 }
     case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
     case 'SET_PAGE': return { ...state, currentPage: action.payload }
-    case 'CLEAR_FILTERS': return { ...MARKETPLACE_INITIAL, viewMode: state.viewMode, cardSize: state.cardSize }
+    case 'CLEAR_FILTERS': return { ...MARKETPLACE_INITIAL, viewMode: state.viewMode, cardSize: state.cardSize, columnCount: state.columnCount }
     case 'HYDRATE': return { ...MARKETPLACE_INITIAL, ...action.payload, currentPage: 1 }
     default: return state
   }
@@ -79,6 +83,7 @@ export interface MySalesFilters {
   statusFilter: 'all' | 'active' | 'pending' | 'completed'
   viewMode: ViewMode
   cardSize: CardSize
+  columnCount: ColumnCount
   currentPage: number
 }
 
@@ -88,10 +93,11 @@ export type MySalesAction =
   | { type: 'SET_STATUS'; payload: MySalesFilters['statusFilter'] }
   | { type: 'SET_VIEW'; payload: ViewMode }
   | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
   | { type: 'SET_PAGE'; payload: number }
 
 export const MY_SALES_INITIAL: MySalesFilters = {
-  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', cardSize: 'medium', currentPage: 1,
+  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function mySalesReducer(state: MySalesFilters, action: MySalesAction): MySalesFilters {
@@ -101,6 +107,7 @@ export function mySalesReducer(state: MySalesFilters, action: MySalesAction): My
     case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
     case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
     case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
@@ -114,6 +121,7 @@ export interface MyPurchasesFilters {
   statusFilter: 'all' | 'pending' | 'accepted' | 'complete'
   viewMode: ViewMode
   cardSize: CardSize
+  columnCount: ColumnCount
   currentPage: number
 }
 
@@ -123,10 +131,11 @@ export type MyPurchasesAction =
   | { type: 'SET_STATUS'; payload: MyPurchasesFilters['statusFilter'] }
   | { type: 'SET_VIEW'; payload: ViewMode }
   | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
   | { type: 'SET_PAGE'; payload: number }
 
 export const MY_PURCHASES_INITIAL: MyPurchasesFilters = {
-  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', cardSize: 'medium', currentPage: 1,
+  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function myPurchasesReducer(state: MyPurchasesFilters, action: MyPurchasesAction): MyPurchasesFilters {
@@ -136,6 +145,7 @@ export function myPurchasesReducer(state: MyPurchasesFilters, action: MyPurchase
     case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
     case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
     case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
@@ -180,6 +190,7 @@ export interface LibraryFilters {
   categoryFilter: string
   viewMode: ViewMode
   cardSize: CardSize
+  columnCount: ColumnCount
   currentPage: number
 }
 
@@ -189,10 +200,11 @@ export type LibraryAction =
   | { type: 'SET_CATEGORY'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
   | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
   | { type: 'SET_PAGE'; payload: number }
 
 export const LIBRARY_INITIAL: LibraryFilters = {
-  searchQuery: '', sortBy: 'newest', categoryFilter: 'all', viewMode: 'grid', cardSize: 'medium', currentPage: 1,
+  searchQuery: '', sortBy: 'newest', categoryFilter: 'all', viewMode: 'grid', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function libraryReducer(state: LibraryFilters, action: LibraryAction): LibraryFilters {
@@ -202,6 +214,7 @@ export function libraryReducer(state: LibraryFilters, action: LibraryAction): Li
     case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
     case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
     case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
@@ -209,10 +222,10 @@ export function libraryReducer(state: LibraryFilters, action: LibraryAction): Li
 
 // ── Grid layout helper ───────────────────────────────────────────
 
-export function getGridClasses(size: CardSize): string {
-  switch (size) {
-    case 'small': return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4'
-    case 'medium': return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-    case 'large': return 'grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8'
+export function getGridClasses(columnCount: ColumnCount): string {
+  switch (columnCount) {
+    case 2: return 'grid grid-cols-1 md:grid-cols-2 gap-6'
+    case 3: return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+    case 4: return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
   }
 }

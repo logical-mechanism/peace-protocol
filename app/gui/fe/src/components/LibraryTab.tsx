@@ -12,7 +12,8 @@ import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import RefreshIndicator from './RefreshIndicator';
-import type { LibraryFilters, LibraryAction, CardSize } from '../hooks/useTabFilterState';
+import type { LibraryFilters, LibraryAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
+import LayoutPopover from './LayoutPopover';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
 import { useWalletContext } from '../contexts/WalletContext';
@@ -36,7 +37,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
   const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, categoryFilter, searchQuery, cardSize, currentPage } = filters;
+  const { viewMode, sortBy, categoryFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
@@ -469,89 +470,15 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
             <option value="type-desc">Type: Z to A</option>
           </select>
 
-          {/* View Toggle */}
-          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="Grid view"
-              aria-label="Grid view"
-              aria-pressed={viewMode === 'grid'}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="List view"
-              aria-label="List view"
-              aria-pressed={viewMode === 'list'}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Card Size Toggle — grid only */}
-          {viewMode === 'grid' && (
-            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="Card size">
-              {(['small', 'medium', 'large'] as CardSize[]).map((size) => (
-                <button
-                  key={size}
-                  onClick={() => dispatch({ type: 'SET_CARD_SIZE', payload: size })}
-                  className={`px-2.5 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                    cardSize === size
-                      ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                      : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                  }`}
-                  title={`${size.charAt(0).toUpperCase() + size.slice(1)} cards`}
-                  aria-label={`${size.charAt(0).toUpperCase() + size.slice(1)} cards`}
-                  aria-pressed={cardSize === size}
-                >
-                  {size === 'small' && (
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                      <rect x="1" y="1" width="4" height="4" rx="0.5" /><rect x="6" y="1" width="4" height="4" rx="0.5" /><rect x="11" y="1" width="4" height="4" rx="0.5" />
-                      <rect x="1" y="6" width="4" height="4" rx="0.5" /><rect x="6" y="6" width="4" height="4" rx="0.5" /><rect x="11" y="6" width="4" height="4" rx="0.5" />
-                      <rect x="1" y="11" width="4" height="4" rx="0.5" /><rect x="6" y="11" width="4" height="4" rx="0.5" /><rect x="11" y="11" width="4" height="4" rx="0.5" />
-                    </svg>
-                  )}
-                  {size === 'medium' && (
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                      <rect x="1" y="1" width="6" height="6" rx="0.75" /><rect x="9" y="1" width="6" height="6" rx="0.75" />
-                      <rect x="1" y="9" width="6" height="6" rx="0.75" /><rect x="9" y="9" width="6" height="6" rx="0.75" />
-                    </svg>
-                  )}
-                  {size === 'large' && (
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                      <rect x="1" y="1" width="14" height="6" rx="1" />
-                      <rect x="1" y="9" width="14" height="6" rx="1" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Layout (view + size + columns) */}
+          <LayoutPopover
+            viewMode={viewMode}
+            cardSize={cardSize}
+            columnCount={columnCount}
+            onViewModeChange={(mode) => dispatch({ type: 'SET_VIEW', payload: mode })}
+            onCardSizeChange={(size: CardSize) => dispatch({ type: 'SET_CARD_SIZE', payload: size })}
+            onColumnCountChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+          />
 
           {/* Refresh */}
           <button
@@ -619,7 +546,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className={getGridClasses(cardSize)}>
+        <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((item, index) => (
             <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
@@ -660,7 +587,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       {/* Load More */}
       {hasMore && (
         <div className="flex flex-col items-center gap-3 mt-6">
-          <div className={`${getGridClasses(cardSize)} w-full`}>
+          <div className={`${getGridClasses(columnCount)} w-full`}>
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">

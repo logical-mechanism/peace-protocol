@@ -67,36 +67,41 @@ export default function ListingImage({
     }
   };
 
-  // Load image when scrolled into view (defers both cached and uncached fetches)
+  // Load image when scrolled into view (defers both cached and uncached fetches).
+  // NOTE: `state` is intentionally NOT in the dep array — including it caused the
+  // effect cleanup to fire on the setState('loading') transition, which set
+  // cancelled=true and short-circuited the in-flight getCachedImage promise,
+  // leaving cached images stuck on the spinner forever.
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (state !== 'default' || !imageLink) return;
+    if (!imageLink || initialBanned) return;
     const el = containerRef.current;
     if (!el) return;
     let cancelled = false;
+    let triggered = false;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          observer.disconnect();
-          if (initialCached) {
-            setState('loading');
-            getCachedImage(tokenName)
-              .then((result) => {
-                if (cancelled) return;
-                if (result) {
-                  setDataUrl(`data:${result.content_type};base64,${result.base64}`);
-                  setState('loaded');
-                } else {
-                  setState('default');
-                }
-              })
-              .catch(() => {
-                if (!cancelled) setState('default');
-              });
-          } else {
-            handleClick();
-          }
+        if (!entries[0].isIntersecting || triggered) return;
+        triggered = true;
+        observer.disconnect();
+        if (initialCached) {
+          setState('loading');
+          getCachedImage(tokenName)
+            .then((result) => {
+              if (cancelled) return;
+              if (result) {
+                setDataUrl(`data:${result.content_type};base64,${result.base64}`);
+                setState('loaded');
+              } else {
+                setState('default');
+              }
+            })
+            .catch(() => {
+              if (!cancelled) setState('default');
+            });
+        } else {
+          handleClick();
         }
       },
       { rootMargin: '200px' }
@@ -107,7 +112,7 @@ export default function ListingImage({
       observer.disconnect();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, imageLink]);
+  }, [imageLink, tokenName, initialCached, initialBanned]);
 
   // Lock icon for no-link state
   if (state === 'no-link') {
