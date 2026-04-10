@@ -1734,6 +1734,80 @@ mod tests {
     }
 
     #[test]
+    fn legacy_metadata_with_seller_field_loads_with_none_seller_pkh() {
+        // Old library items were saved with a `seller` bech32 field that we
+        // no longer use. Serde must ignore the unknown key and fall back to
+        // None for seller_pkh — otherwise the entire item would be dropped
+        // from the library list on read.
+        let legacy = r#"{
+            "tokenName": "abc123",
+            "category": "text",
+            "description": "legacy item",
+            "suggestedPrice": 50,
+            "storageLayer": "on-chain",
+            "imageLink": null,
+            "fileExtension": ".txt",
+            "seller": "addr_test1qz_legacy_address",
+            "createdAt": "2025-01-01T00:00:00Z",
+            "decryptedAt": "2025-01-02T00:00:00Z",
+            "fileSize": 1024
+        }"#;
+
+        let parsed: ContentMetadataJson =
+            serde_json::from_str(legacy).expect("legacy metadata should still deserialize");
+        assert_eq!(parsed.token_name, "abc123");
+        assert_eq!(parsed.category, "text");
+        assert_eq!(parsed.description.as_deref(), Some("legacy item"));
+        assert!(
+            parsed.seller_pkh.is_none(),
+            "legacy `seller` field must not populate seller_pkh"
+        );
+        assert_eq!(parsed.file_size, Some(1024));
+    }
+
+    #[test]
+    fn new_metadata_with_seller_pkh_loads_correctly() {
+        // New format writes sellerPkh (camelCase wire, snake_case rust).
+        let new_format = r#"{
+            "tokenName": "def456",
+            "category": "audio",
+            "description": null,
+            "suggestedPrice": null,
+            "storageLayer": "iagon",
+            "imageLink": null,
+            "fileExtension": ".mp3",
+            "sellerPkh": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef01",
+            "createdAt": null,
+            "decryptedAt": "2026-04-10T00:00:00Z",
+            "fileSize": null
+        }"#;
+
+        let parsed: ContentMetadataJson =
+            serde_json::from_str(new_format).expect("new metadata should deserialize");
+        assert_eq!(
+            parsed.seller_pkh.as_deref(),
+            Some("abcdef0123456789abcdef0123456789abcdef0123456789abcdef01")
+        );
+    }
+
+    #[test]
+    fn metadata_missing_seller_pkh_loads_with_none() {
+        // Defensive: even if a metadata file lacks both legacy and new
+        // seller fields entirely, deserialization must still succeed.
+        let minimal = r#"{
+            "tokenName": "ghi789",
+            "category": "text",
+            "decryptedAt": "2026-04-10T00:00:00Z"
+        }"#;
+
+        let parsed: ContentMetadataJson =
+            serde_json::from_str(minimal).expect("minimal metadata should deserialize");
+        assert!(parsed.seller_pkh.is_none());
+        assert!(parsed.description.is_none());
+        assert!(parsed.file_size.is_none());
+    }
+
+    #[test]
     fn cleanup_removes_orphaned_banned() {
         let dir = test_dir("cleanup_orphan_ban");
         // Create a .banned with no corresponding .img
