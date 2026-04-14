@@ -4,7 +4,7 @@ export const searchableSections: { tab: string; title: string; keywords: string[
   { tab: 'wallet', title: 'Wallet Info', keywords: ['wallet', 'address', 'balance', 'ada'] },
   { tab: 'wallet', title: 'Wallet Management', keywords: ['wallet', 'collateral', 'defrag', 'optimize', 'utxo', 'fragment', 'consolidate'] },
   { tab: 'wallet', title: 'Recovery Phrase', keywords: ['recovery', 'phrase', 'mnemonic', 'seed', 'backup'] },
-  { tab: 'wallet', title: 'Theme', keywords: ['theme', 'dark', 'light', 'mode', 'appearance', 'color'] },
+  { tab: 'wallet', title: 'Theme', keywords: ['theme', 'dark', 'light', 'mode', 'appearance', 'color', 'system', 'auto', 'os', 'prefer'] },
   { tab: 'wallet', title: 'NSFW Content', keywords: ['nsfw', 'blur', 'adult', 'content', 'filter', 'hide', 'show'] },
   { tab: 'wallet', title: 'Auto-Lock', keywords: ['auto', 'lock', 'timeout', 'inactivity', 'security'] },
   { tab: 'wallet', title: 'Notification Duration', keywords: ['toast', 'notification', 'duration', 'dismiss', 'alert'] },
