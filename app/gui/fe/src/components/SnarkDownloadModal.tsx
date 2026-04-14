@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSnarkProver } from '../services/snark'
 import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import LoadingSpinner from './LoadingSpinner'
 
 interface SnarkSetupModalProps {
   isOpen: boolean
@@ -138,7 +139,7 @@ export default function SnarkSetupModal({
         <div className="px-6 py-6 space-y-4">
           {(status === 'checking' || status === 'decompressing') && (
             <div className="flex flex-col items-center py-8 space-y-4">
-              <div className="animate-spin w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full" />
+              <LoadingSpinner variant="ring" size="lg" />
               <span className="text-[var(--text-secondary)]">{message}</span>
               {status === 'decompressing' && (
                 <p className="text-sm text-[var(--text-muted)] text-center">
