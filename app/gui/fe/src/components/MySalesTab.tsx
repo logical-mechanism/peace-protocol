@@ -19,6 +19,7 @@ import LayoutPopover from './LayoutPopover';
 import { getTransactions } from '../services/transactionHistory';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatAda } from '../utils/formatAda';
+import Select from './Select';
 
 interface MySalesTabProps {
   userPkh?: string;
@@ -414,31 +415,35 @@ function MySalesTab({
         {/* Filters */}
         <div className="flex gap-3">
           {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MySalesFilters['statusFilter'] })}
-            aria-label="Filter by status"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-          </select>
+          <div className="w-40">
+            <Select
+              value={statusFilter}
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'completed', label: 'Completed' },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as MySalesFilters['statusFilter'] })}
+              ariaLabel="Filter by status"
+            />
+          </div>
 
           {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MySalesFilters['sortBy'] })}
-            aria-label="Sort listings"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="most-bids">Most Bids</option>
-          </select>
+          <div className="w-52">
+            <Select
+              value={sortBy}
+              options={[
+                { value: 'newest', label: 'Newest First' },
+                { value: 'oldest', label: 'Oldest First' },
+                { value: 'price-high', label: 'Price: High to Low' },
+                { value: 'price-low', label: 'Price: Low to High' },
+                { value: 'most-bids', label: 'Most Bids' },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MySalesFilters['sortBy'] })}
+              ariaLabel="Sort listings"
+            />
+          </div>
 
           {/* Layout (view + size + columns) */}
           <LayoutPopover

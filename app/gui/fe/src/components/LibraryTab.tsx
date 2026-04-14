@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
+import Select from './Select';
 import { FILE_CATEGORIES } from '../config/categories';
 import { formatBytes } from '../utils/formatBytes';
 import { fuzzyMatch } from '../utils/fuzzySearch';
@@ -437,36 +438,36 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         {/* Filters */}
         <div className="flex gap-3">
           {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
-            aria-label="Filter by category"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Categories</option>
-            {FILE_CATEGORIES.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
+          <div className="w-44">
+            <Select
+              value={categoryFilter}
+              options={[
+                { value: 'all', label: 'All Categories' },
+                ...FILE_CATEGORIES.map((cat) => ({ value: cat.id, label: cat.label })),
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_CATEGORY', payload: v })}
+              ariaLabel="Filter by category"
+            />
+          </div>
 
           {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as LibraryFilters['sortBy'] })}
-            aria-label="Sort items"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="name-asc">Name: A to Z</option>
-            <option value="name-desc">Name: Z to A</option>
-            <option value="size-desc">Size: Largest First</option>
-            <option value="size-asc">Size: Smallest First</option>
-            <option value="type-asc">Type: A to Z</option>
-            <option value="type-desc">Type: Z to A</option>
-          </select>
+          <div className="w-52">
+            <Select
+              value={sortBy}
+              options={[
+                { value: 'newest', label: 'Newest First' },
+                { value: 'oldest', label: 'Oldest First' },
+                { value: 'name-asc', label: 'Name: A to Z' },
+                { value: 'name-desc', label: 'Name: Z to A' },
+                { value: 'size-desc', label: 'Size: Largest First' },
+                { value: 'size-asc', label: 'Size: Smallest First' },
+                { value: 'type-asc', label: 'Type: A to Z' },
+                { value: 'type-desc', label: 'Type: Z to A' },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as LibraryFilters['sortBy'] })}
+              ariaLabel="Sort items"
+            />
+          </div>
 
           {/* Layout (view + size + columns) */}
           <LayoutPopover
