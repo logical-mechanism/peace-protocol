@@ -14,7 +14,6 @@ import {
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, listenToSystemTheme, type Theme } from '../../services/themeStorage'
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
-import { getOnboardingState, resetTutorials } from '../../services/onboardingStorage'
 import Select from '../../components/Select'
 
 export default function PreferencesSection() {
@@ -42,10 +41,6 @@ export default function PreferencesSection() {
     return initial
   })
   const [desktopNotifEnabled, setDesktopNotifEnabledState] = useState(() => isDesktopNotificationsEnabled())
-  const [tutorialsDismissed, setTutorialsDismissed] = useState(() => {
-    const s = getOnboardingState()
-    return s.firstListingCompleted || s.firstBidCompleted
-  })
 
   return (
     <div className="space-y-6">
@@ -275,28 +270,6 @@ export default function PreferencesSection() {
             })}
           </div>
         )}
-      </div>
-
-      {/* Guided Tutorials */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0 pr-4">
-            <h2 className="text-lg font-medium">Guided Tutorials</h2>
-            <p className="text-sm text-[var(--text-muted)]">
-              Re-enable the first-listing and first-bid walkthroughs.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              resetTutorials()
-              setTutorialsDismissed(false)
-            }}
-            disabled={!tutorialsDismissed}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {tutorialsDismissed ? 'Restart tutorials' : 'Tutorials active'}
-          </button>
-        </div>
       </div>
     </div>
   )
