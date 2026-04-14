@@ -14,7 +14,7 @@ import {
   type SoundEvent,
 } from '../../services/soundPreferences'
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
-import { getTheme, setTheme, applyTheme, type Theme } from '../../services/themeStorage'
+import { getTheme, setTheme, applyTheme, listenToSystemTheme, type Theme } from '../../services/themeStorage'
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
 import { formatAdaDisplay } from '../../utils/formatAda'
 import { setLastActiveTab } from '../../services/tabStorage'
@@ -60,6 +60,12 @@ export default function WalletSection({
 
   // Preferences state
   const [currentTheme, setCurrentTheme] = useState<Theme>(() => getTheme())
+
+  // Re-apply theme on OS dark/light change while 'system' is selected.
+  useEffect(() => {
+    if (currentTheme !== 'system') return
+    return listenToSystemTheme(() => applyTheme('system'))
+  }, [currentTheme])
   const [showNsfw, setShowNsfw] = useState(() => getNsfwEnabled())
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
   const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
@@ -421,12 +427,13 @@ export default function WalletSection({
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
           <h2 className="text-lg font-medium mb-2">Theme</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">
-            Choose between dark and light appearance.
+            Choose dark, light, or follow your system preference.
           </p>
           <div className="flex gap-2">
             {([
               { label: 'Dark', value: 'dark' as Theme },
               { label: 'Light', value: 'light' as Theme },
+              { label: 'System', value: 'system' as Theme },
             ] as const).map((option) => (
               <button
                 key={option.value}

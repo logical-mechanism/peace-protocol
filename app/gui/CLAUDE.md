@@ -108,7 +108,7 @@ app/gui/
 │   │   │   ├── onboardingStorage.ts # localStorage: multi-step onboarding tour state
 │   │   │   ├── errorMessages.ts     # User-facing error message mapping (pattern-matched from raw errors)
 │   │   │   ├── toastSettings.ts     # localStorage: toast auto-dismiss duration configuration
-│   │   │   ├── themeStorage.ts      # localStorage: dark/light theme persistence + apply before first paint
+│   │   │   ├── themeStorage.ts      # localStorage: dark/light/system theme persistence + apply before first paint (resolves 'system' via matchMedia)
 │   │   │   ├── fileExport.ts        # Text file export via Tauri native save dialog
 │   │   │   ├── pdfSearch.ts         # PDF full-text search + highlight for library PdfViewer
 │   │   │   ├── apiCache.ts          # In-memory TTL cache for frontend API responses
@@ -268,7 +268,7 @@ app/gui/
 - `filterStorage` — marketplace filter state persistence, PKH-keyed in localStorage
 - `onboardingStorage` — multi-step onboarding tour state (4 steps)
 - `toastSettings` — toast auto-dismiss duration in ms (localStorage, default 5000, 0 = never)
-- `themeStorage` — dark/light theme preference (localStorage, default dark); applied before first paint via `initializeTheme()`
+- `themeStorage` — dark/light/system theme preference (localStorage, default dark); `resolveTheme()` maps `'system'` to dark/light via `matchMedia('(prefers-color-scheme: dark)')`; `listenToSystemTheme()` subscribes to OS preference changes while 'system' is selected; applied before first paint via `initializeTheme()`
 - `optimisticStore` — in-memory optimistic UI state for pending tx entries (add/remove/update actions, 5-min auto-prune, graduates when tokenName appears in chain data)
 - `audioPreferences` — audio volume, muted state, and playback speed persistence (localStorage)
 - `videoPreferences` — video volume, muted state, and playback speed persistence (localStorage)
@@ -277,7 +277,7 @@ app/gui/
 - `marketplaceFilters` — marketplace filter logic (category, price range, status filtering)
 - `nsfwStorage` — NSFW content visibility preference, PKH-keyed (localStorage)
 
-**Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`); dark is default. All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
+**Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`, always 'dark' or 'light'); three options — dark (default), light, system (follows OS via `matchMedia`). All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
 **Error handling — two tiers:**
 - `ErrorBoundary` (class component) wraps the entire app in main.tsx — catches React render errors only, NOT async/promise rejections. `InlineErrorBoundary` variant for section-level recovery.
@@ -642,7 +642,7 @@ const json: ApiResponse<YourType> = await res.json();
 - **Onboarding system** — `OnboardingOverlay` + `onboardingStorage.ts` provide a multi-step guided tour on first launch (4 steps); state persisted in localStorage
 - **Desktop notifications** — `desktopNotifications.ts` uses `@tauri-apps/plugin-notification` for OS-level notifications; `notificationSound.ts` generates programmatic WAV notification pings
 - **Wallet management** — `walletManagement.ts` provides collateral creation + UTxO defragmentation via MeshTxBuilder; `useWalletHealth` hook monitors UTxO health (collateral presence, fragmentation)
-- **Theme toggle** — `themeStorage.ts` persists dark/light preference in localStorage; `initializeTheme()` applies before first paint to prevent flash; uses `data-theme` attribute on `<html>`
+- **Theme toggle** — `themeStorage.ts` persists dark/light/system preference in localStorage (default dark); `initializeTheme()` applies before first paint to prevent flash; uses `data-theme` attribute on `<html>` (always 'dark' or 'light' — 'system' is resolved via `matchMedia('(prefers-color-scheme: dark)')` in `resolveTheme()`). `listenToSystemTheme()` subscribes to OS preference changes; WalletSection re-applies the theme on change while 'system' is selected
 - **Virtual scrolling** — `@tanstack/react-virtual` available for large list performance optimization
 - **Focus traps** — `useFocusTrap` hook manages Tab key focus wrapping + focus restoration within modal/overlay containers (accessibility)
 - **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout
