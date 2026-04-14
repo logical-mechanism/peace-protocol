@@ -126,11 +126,15 @@ export default function UpdatePriceModal({
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={isSubmitting ? undefined : onClose}
+        aria-hidden="true"
       />
 
       {/* Modal */}
       <div
         ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="update-price-title"
         className={`relative bg-[var(--bg-card)] rounded-[var(--radius-xl)] shadow-[var(--shadow-xl)] border border-[var(--border-subtle)] w-full max-w-md transform transition-transform duration-200 ${
           animationState === 'entering' || animationState === 'exiting' ? 'scale-95' : 'scale-100'
         }`}
@@ -138,7 +142,7 @@ export default function UpdatePriceModal({
         <form onSubmit={handleSubmit}>
           {/* Header */}
           <div className="p-[var(--space-lg)] border-b border-[var(--border-subtle)]">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Update Price</h2>
+            <h2 id="update-price-title" className="text-lg font-semibold text-[var(--text-primary)]">Update Price</h2>
           </div>
 
           {/* Body */}
@@ -168,6 +172,8 @@ export default function UpdatePriceModal({
                 onBlur={() => { if (priceAda.trim()) validateForm(); }}
                 disabled={isSubmitting}
                 placeholder="0"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'update-price-error' : 'update-price-hint'}
                 className={`w-full px-[var(--space-3)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] border bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 ${
                   error
                     ? 'border-[var(--error)] focus:border-[var(--error)]'
@@ -175,11 +181,11 @@ export default function UpdatePriceModal({
                 }`}
               />
               {error && (
-                <p className="mt-[var(--space-1)] text-xs text-[var(--error)]">{error}</p>
+                <p id="update-price-error" role="alert" className="mt-[var(--space-1)] text-xs text-[var(--error)]">{error}</p>
               )}
               {/* Lovelace preview */}
               {priceAda.trim() && !isNaN(parseFloat(priceAda)) && parseFloat(priceAda) >= 0 && (
-                <p className="mt-[var(--space-1)] text-xs text-[var(--text-muted)]">
+                <p id="update-price-hint" className="mt-[var(--space-1)] text-xs text-[var(--text-muted)]">
                   = {Math.floor(parseFloat(priceAda.replace(/,/g, '')) * 1_000_000).toLocaleString()} lovelace
                 </p>
               )}

@@ -1,23 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import ConfirmModal from '../ConfirmModal';
 import { ModalProvider } from '../../contexts/ModalContext';
 
-// ── Mocks ───────────────────────────────────────────────────────────
-
-vi.mock('../../hooks/useModalStack', () => ({
-  useModalStack: (_name: string, isOpen: boolean, _onClose: () => void, _loading?: boolean) => ({
-    zIndex: 50,
-    shouldRender: isOpen,
-    animationState: isOpen ? 'entered' : 'exiting',
-    shouldHandleEscape: true,
-  }),
-}));
-
-vi.mock('../../hooks/useFocusTrap', () => ({
-  useFocusTrap: vi.fn(),
-}));
+// Intentionally NOT mocking useModalStack or useFocusTrap — we want the
+// real hooks so the "Confirm button receives initial focus" test reflects
+// production behavior, including the one-render lag where useModalStack's
+// openModal runs in a useEffect and isTopmost flips false → true.
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -84,6 +74,15 @@ describe('ConfirmModal', () => {
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveAttribute('aria-modal', 'true');
       expect(dialog).toHaveAttribute('aria-labelledby', 'confirm-modal-title');
+    });
+
+    it('focuses the affirmative button on open', async () => {
+      renderModal();
+      // useFocusTrap defers via two requestAnimationFrame ticks; waitFor
+      // polls past them.
+      await waitFor(() => {
+        expect(document.activeElement).toBe(screen.getByText('Confirm'));
+      });
     });
   });
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 
 interface InfoTooltipProps {
@@ -17,6 +17,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
   const [isVisible, setIsVisible] = useState(false);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const tooltipId = useId();
 
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
 
@@ -77,9 +78,11 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
         onBlur={hide}
         onKeyDown={(e) => { if (e.key === 'Escape' && isVisible) { e.stopPropagation(); setIsVisible(false); } }}
         aria-label="More information"
+        aria-describedby={isVisible ? tooltipId : undefined}
+        aria-expanded={isVisible}
         className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] focus-visible:text-[var(--accent)] focus-visible:shadow-[var(--focus-ring)] transition-colors duration-[var(--transition-fast)] cursor-help"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16v-4m0-4h.01" />
         </svg>
@@ -87,6 +90,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
 
       {isVisible && createPortal(
         <span
+          id={tooltipId}
           role="tooltip"
           style={tooltipStyle}
           className="fixed z-[9999] w-max max-w-[250px] px-3 py-2 text-xs leading-relaxed text-[var(--text-secondary)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] shadow-[var(--shadow-md)] tooltip-enter pointer-events-none"

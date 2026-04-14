@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import LibraryContentModal from '../LibraryContentModal';
+import { ModalProvider } from '../../contexts/ModalContext';
 import type { LibraryItem } from '../../services/libraryService';
 
 // ── Mocks ───────────────────────────────────────────────────────────
@@ -40,17 +41,10 @@ vi.mock('../../utils/formatDate', () => ({
   formatDateTime: () => 'Jan 1, 2025',
 }));
 
-vi.mock('../../hooks/useModalStack', () => ({
-  useModalStack: () => ({
-    zIndex: 50,
-    shouldRender: true,
-    animationState: 'entered',
-  }),
-}));
-
-vi.mock('../../hooks/useFocusTrap', () => ({
-  useFocusTrap: vi.fn(),
-}));
+// Intentionally NOT mocking useModalStack or useFocusTrap — render below
+// wraps the modal in a real ModalProvider so the hooks behave exactly as
+// they do in the running app, including the one-render lag where openModal
+// runs in a useEffect.
 
 vi.mock('../ConfirmModal', () => ({
   default: ({ isOpen, onConfirm, title }: { isOpen: boolean; onConfirm: () => void; title: string }) =>
@@ -106,41 +100,41 @@ beforeEach(() => {
   mockReadSubtitleFile.mockResolvedValue(null);
 });
 
+function renderWithProvider(ui: React.ReactElement) {
+  return render(<ModalProvider>{ui}</ModalProvider>);
+}
+
 // ── Tests ───────────────────────────────────────────────────────────
 
 describe('LibraryContentModal', () => {
   it('renders nothing when isOpen is false', () => {
-    render(
-      <LibraryContentModal {...defaultProps} isOpen={false} />,
-    );
-    // useModalStack returns shouldRender=true always in mock, but component
-    // still returns early because isOpen controls content loading
+    renderWithProvider(<LibraryContentModal {...defaultProps} isOpen={false} />);
     expect(screen.queryByText('Hello World')).not.toBeInTheDocument();
   });
 
   it('renders text content when loaded', async () => {
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText('Hello World')).toBeInTheDocument();
     });
   });
 
   it('calls readLibraryContent with token name and category', async () => {
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(mockReadLibraryContent).toHaveBeenCalledWith('abc123def456', 'text');
     });
   });
 
   it('renders metadata section with seller info', async () => {
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText(/Seller:/)).toBeInTheDocument();
     });
   });
 
   it('shows error state when content is missing', async () => {
-    render(
+    renderWithProvider(
       <LibraryContentModal
         {...defaultProps}
         item={makeItem({ contentMissing: true })}
@@ -153,36 +147,64 @@ describe('LibraryContentModal', () => {
 
   it('shows error state when readLibraryContent rejects', async () => {
     mockReadLibraryContent.mockRejectedValueOnce(new Error('Read failed'));
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText('Read failed')).toBeInTheDocument();
     });
   });
 
   it('renders category label', async () => {
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText('Text')).toBeInTheDocument();
     });
   });
 
   it('renders file size', async () => {
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText('1024 B')).toBeInTheDocument();
     });
   });
 
   it('renders close dialog button', async () => {
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByLabelText('Close dialog')).toBeInTheDocument();
     });
   });
 
+  it('renders with dialog ARIA attributes', async () => {
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAttribute('aria-labelledby', 'library-content-title');
+    expect(screen.getByRole('heading', { name: 'Library' })).toHaveAttribute('id', 'library-content-title');
+  });
+
+  it('does not focus the header X or navigation arrows on open', async () => {
+    // User's original complaint was that initial focus landed on the
+    // "Previous/Next item" arrow buttons. Header X + nav arrows are all
+    // tabIndex={-1} now (Escape closes, arrow keys navigate items), so
+    // the first focusable sits in the body/footer where the user's real
+    // type-specific controls live. We assert focus has moved into the
+    // dialog and does not land on any of the opt-out-of-Tab buttons.
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
+    await waitFor(() => {
+      const active = document.activeElement as HTMLElement | null;
+      expect(active).not.toBe(document.body);
+      expect(active?.getAttribute('aria-label')).not.toBe('Previous item');
+      expect(active?.getAttribute('aria-label')).not.toBe('Next item');
+      expect(active?.getAttribute('aria-label')).not.toBe('Close dialog');
+    });
+  });
+
   it('calls onClose when close dialog button clicked', async () => {
     const onClose = vi.fn();
-    render(<LibraryContentModal {...defaultProps} onClose={onClose} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} onClose={onClose} />);
     await waitFor(() => {
       expect(screen.getByLabelText('Close dialog')).toBeInTheDocument();
     });
@@ -191,7 +213,7 @@ describe('LibraryContentModal', () => {
   });
 
   it('shows delete button and opens confirm dialog', async () => {
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText('Delete from Library')).toBeInTheDocument();
     });
@@ -201,7 +223,7 @@ describe('LibraryContentModal', () => {
 
   it('deletes item when confirmed', async () => {
     mockDeleteLibraryItem.mockResolvedValueOnce(undefined);
-    render(<LibraryContentModal {...defaultProps} />);
+    renderWithProvider(<LibraryContentModal {...defaultProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Delete from Library')).toBeInTheDocument();
@@ -219,7 +241,7 @@ describe('LibraryContentModal', () => {
 
 describe('getViewMode (via rendering)', () => {
   it('renders text for text category', async () => {
-    render(
+    renderWithProvider(
       <LibraryContentModal
         {...defaultProps}
         item={makeItem({ category: 'text' })}
@@ -232,7 +254,7 @@ describe('getViewMode (via rendering)', () => {
 
   it('renders image viewer for .png extension', async () => {
     mockReadLibraryContent.mockResolvedValue(new Uint8Array([0x89, 0x50]));
-    render(
+    renderWithProvider(
       <LibraryContentModal
         {...defaultProps}
         item={makeItem({ category: 'image', fileExtension: '.png' })}
@@ -245,7 +267,7 @@ describe('getViewMode (via rendering)', () => {
 
   it('renders audio player for .mp3 extension', async () => {
     // Audio uses rodio (Rust) via Tauri IPC — no content URL needed
-    render(
+    renderWithProvider(
       <LibraryContentModal
         {...defaultProps}
         item={makeItem({ category: 'audio', fileExtension: '.mp3' })}

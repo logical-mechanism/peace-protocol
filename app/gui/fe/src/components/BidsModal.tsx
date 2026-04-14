@@ -65,10 +65,10 @@ export default function BidsModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-xl max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — no overflow-hidden on panel root so focus outlines aren't clipped. */}
+      <div className={`relative w-full max-w-xl max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="bids-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
               Bids for Listing
@@ -77,9 +77,11 @@ export default function BidsModal({
               {truncateHex(encryption.tokenName, 12, 6)}
             </p>
           </div>
+          {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={onClose}
             aria-label="Close dialog"
+            tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -165,7 +167,7 @@ export default function BidsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+        <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
           {!canAcceptBids && encryption.status === 'pending' && (
             <p className="text-xs text-[var(--warning)] text-center mb-3">
               Cannot accept new bids while a sale is pending

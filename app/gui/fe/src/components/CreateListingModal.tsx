@@ -118,6 +118,10 @@ export default function CreateListingModal({
   const navigate = useNavigate();
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
+  // Tracks which fields the user has actually interacted with. Blur-time
+  // validation only fires for touched fields so a fresh form does not flash
+  // red the moment the user tabs through it.
+  const [touched, setTouched] = useState<Partial<Record<keyof FormErrors, boolean>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
@@ -132,7 +136,6 @@ export default function CreateListingModal({
   const [isDragOver, setIsDragOver] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   // Refs read by the drag-drop event listener so it can subscribe once per
   // open without re-running on every keystroke / state change.
   const isSubmittingRef = useRef(isSubmitting);
@@ -147,7 +150,6 @@ export default function CreateListingModal({
         setFormData({ ...INITIAL_FORM_DATA, ...prefill });
         setShowDraftPrompt(false);
         setDisplayPrice(formatPrice(prefill.suggestedPrice || ''));
-        setTimeout(() => descriptionRef.current?.focus(), 50);
       } else {
         const savedDraft = getListingFormDraft();
         if (savedDraft && (savedDraft.description || savedDraft.secretMessage || savedDraft.suggestedPrice)) {
@@ -155,13 +157,13 @@ export default function CreateListingModal({
         } else {
           setFormData(INITIAL_FORM_DATA);
           setShowDraftPrompt(false);
-          setTimeout(() => descriptionRef.current?.focus(), 50);
         }
         setDisplayPrice('');
       }
       setImagePreviewState('idle');
       setImagePreviewUrl(null);
       setErrors({});
+      setTouched({});
       setSubmitError(null);
       setCreationStep(null);
       setDraftSaved(false);
@@ -272,9 +274,9 @@ export default function CreateListingModal({
   };
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('create-listing', isOpen, handleClose, isSubmitting);
+  const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('create-listing', isOpen, handleClose, isSubmitting);
   const focusTrapRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(focusTrapRef, isOpen);
+  useFocusTrap(focusTrapRef, isOpen, { isTopmost });
 
   const isFileMode = formData.category !== 'text';
   const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
@@ -328,6 +330,9 @@ export default function CreateListingModal({
   };
 
   const handleFieldBlur = (fieldName: keyof FormErrors) => {
+    // Skip blur-time validation for fields the user has not interacted with
+    // yet — tabbing through a pristine form should not trigger error styling.
+    if (!touched[fieldName]) return;
     const error = validateField(fieldName);
     setErrors((prev) => ({ ...prev, [fieldName]: error }));
   };
@@ -337,6 +342,7 @@ export default function CreateListingModal({
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -403,6 +409,7 @@ export default function CreateListingModal({
 
       const category = detectCategoryFromExtension(fileName);
       setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category, subcategory: '' }));
+      setTouched((prev) => ({ ...prev, file: true }));
       setErrors((prev) => (prev.file ? { ...prev, file: undefined } : prev));
       setSubmitError(null);
       setIsDirty(true);
@@ -475,6 +482,7 @@ export default function CreateListingModal({
     if (!isNaN(parsed) && parsed > 45_000_000_000) raw = '45000000000';
     setFormData((prev) => ({ ...prev, suggestedPrice: raw }));
     setDisplayPrice(raw);
+    setTouched((prev) => ({ ...prev, suggestedPrice: true }));
     if (errors.suggestedPrice) {
       setErrors((prev) => ({ ...prev, suggestedPrice: undefined }));
     }
@@ -494,9 +502,17 @@ export default function CreateListingModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!canSubmit || !validateForm()) {
-      return;
-    }
+    if (!canSubmit) return;
+    // Mark every field as touched so any errors raised by submit-time
+    // validation stay visible until the user fixes them.
+    setTouched({
+      secretMessage: true,
+      file: true,
+      description: true,
+      suggestedPrice: true,
+      imageLink: true,
+    });
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -547,10 +563,10 @@ export default function CreateListingModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — no overflow-hidden on panel root so focus outlines aren't clipped. */}
+      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="create-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
               {title ?? 'Create New Listing'}
@@ -559,10 +575,12 @@ export default function CreateListingModal({
               {prefill ? 'Re-encrypt and list content from your library' : 'Encrypt and list your data for sale'}
             </p>
           </div>
+          {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={handleClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
+            tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -850,7 +868,6 @@ export default function CreateListingModal({
                 Description <span className="text-[var(--error)]">*</span>
               </label>
               <textarea
-                ref={descriptionRef}
                 id="description"
                 name="description"
                 value={formData.description}
@@ -1015,7 +1032,7 @@ export default function CreateListingModal({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
             {/* Info box about what happens next */}
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
