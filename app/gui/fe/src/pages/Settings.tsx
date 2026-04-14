@@ -21,7 +21,9 @@ import StorageSection from './settings/StorageSection'
 import LogsSection from './settings/LogsSection'
 import UpdateSection from './settings/UpdateSection'
 import ContactSection from './settings/ContactSection'
+import PreferencesSection from './settings/PreferencesSection'
 import AutomationSection from './settings/AutomationSection'
+import ScrollToTop from '../components/ScrollToTop'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -80,6 +82,11 @@ export default function Settings() {
       { id: 'automation', label: 'Automation', icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12" />
+        </svg>
+      )},
+      { id: 'preferences', label: 'Preferences', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
         </svg>
       )},
     ]},
@@ -268,6 +275,11 @@ export default function Settings() {
           <AutomationSection />
         )}
 
+        {/* Preferences Section */}
+        {!searchResults && activeSection === 'preferences' && (
+          <PreferencesSection />
+        )}
+
         {/* Updates Section */}
         {!searchResults && activeSection === 'update' && (
           <UpdateSection />
@@ -281,6 +293,7 @@ export default function Settings() {
       </main>
       </div>
 
+      <ScrollToTop />
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )
