@@ -22,4 +22,5 @@ export const searchableSections: { tab: string; title: string; keywords: string[
   { tab: 'logs', title: 'Developer Mode', keywords: ['debug', 'developer', 'config', 'localstorage', 'advanced'] },
   { tab: 'automation', title: 'Auto-Accept Bids', keywords: ['auto', 'accept', 'automation', 'queue', 'bid', 'snark', 'reencrypt', 'background'] },
   { tab: 'update', title: 'App Updates', keywords: ['update', 'version', 'upgrade', 'download', 'release', 'appimage', 'about'] },
+  { tab: 'contact', title: 'Contact & Support', keywords: ['contact', 'support', 'discord', 'email', 'help', 'about'] },
 ]
