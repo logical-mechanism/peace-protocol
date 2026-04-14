@@ -606,6 +606,7 @@ pub fn run() {
             commands::config::get_app_config,
             commands::config::get_disk_usage,
             commands::config::get_available_disk_space,
+            commands::config::get_os_locale,
             // SNARK commands (Phase 4)
             commands::snark::snark_check_setup,
             commands::snark::snark_decompress_setup,

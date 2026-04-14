@@ -1,0 +1,24 @@
+{
+  "setup": {
+    "title": "Set up your wallet",
+    "subtitle": "Create a new wallet or restore an existing one from a recovery phrase.",
+    "createTab": "Create new",
+    "importTab": "Restore from phrase",
+    "mnemonicLabel": "Recovery phrase",
+    "mnemonicHelp": "Write these words down and keep them somewhere safe. Anyone with this phrase can spend your funds.",
+    "passwordLabel": "Password",
+    "passwordConfirmLabel": "Confirm password",
+    "passwordMismatch": "Passwords do not match.",
+    "create": "Create wallet",
+    "restore": "Restore wallet",
+    "generating": "Generating recovery phrase…"
+  },
+  "unlock": {
+    "title": "Unlock wallet",
+    "subtitle": "Enter your password to continue.",
+    "passwordLabel": "Password",
+    "unlock": "Unlock",
+    "unlocking": "Unlocking…",
+    "forgot": "Forgot password? Reset wallet."
+  }
+}

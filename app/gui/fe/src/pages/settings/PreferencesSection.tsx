@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n from '../../i18n'
+import { AVAILABLE_LANGUAGES, getLanguage, setLanguage, type LanguageCode } from '../../services/languageStorage'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../../services/toastSettings'
 import { previewSound } from '../../services/notificationSound'
 import {
@@ -11,9 +14,12 @@ import {
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, listenToSystemTheme, type Theme } from '../../services/themeStorage'
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
+import Select from '../../components/Select'
 
 export default function PreferencesSection() {
+  const { t } = useTranslation('settings')
   const [currentTheme, setCurrentTheme] = useState<Theme>(() => getTheme())
+  const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(() => getLanguage())
 
   // Re-apply theme on OS dark/light change while 'system' is selected.
   useEffect(() => {
@@ -38,6 +44,27 @@ export default function PreferencesSection() {
 
   return (
     <div className="space-y-6">
+      {/* Language */}
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+        <h2 className="text-lg font-medium mb-2">{t('language.title')}</h2>
+        <p className="text-sm text-[var(--text-muted)] mb-4">
+          {t('language.description')}
+        </p>
+        <div className="max-w-xs">
+          <Select
+            value={currentLanguage}
+            options={AVAILABLE_LANGUAGES.map((lang) => ({ value: lang.code, label: lang.label }))}
+            onChange={(next) => {
+              const code = next as LanguageCode
+              setCurrentLanguage(code)
+              setLanguage(code)
+              void i18n.changeLanguage(code)
+            }}
+            ariaLabel={t('language.selectLabel')}
+          />
+        </div>
+      </div>
+
       {/* Theme */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
         <h2 className="text-lg font-medium mb-2">Theme</h2>

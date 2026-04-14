@@ -1,0 +1,13 @@
+{
+  "placeBid": {
+    "title": "Place bid",
+    "subtitle": "Bid on encrypted data listing",
+    "amountLabel": "Bid amount (ADA)",
+    "amountPlaceholder": "0.00",
+    "minBid": "Minimum bid is {{amount}} ADA",
+    "expiryLabel": "Expires in",
+    "futurePriceLabel": "Future resale price (ADA)",
+    "submit": "Place bid",
+    "submitting": "Placing bid…"
+  }
+}
