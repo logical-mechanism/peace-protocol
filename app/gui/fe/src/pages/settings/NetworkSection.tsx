@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import ConfirmModal from '../../components/ConfirmModal'
 import { useToast } from '../../components/Toast'
@@ -6,7 +7,7 @@ import { useToast } from '../../components/Toast'
 interface NetworkSectionProps {
   currentNetwork: string
   stage: string
-  stopNode: () => void
+  stopNode: () => Promise<void> | void
   setCurrentNetwork: (network: string) => void
 }
 
@@ -17,6 +18,7 @@ export default function NetworkSection({
   setCurrentNetwork,
 }: NetworkSectionProps) {
   const toast = useToast()
+  const navigate = useNavigate()
   const [networkSwitching, setNetworkSwitching] = useState(false)
   const [networkConfirmTarget, setNetworkConfirmTarget] = useState<string | null>(null)
 
@@ -27,20 +29,20 @@ export default function NetworkSection({
     try {
       await invoke('set_network', { network: networkConfirmTarget })
       setCurrentNetwork(networkConfirmTarget)
+      await stopNode()
       setNetworkConfirmTarget(null)
       toast.success(
-        `Network switched to ${networkConfirmTarget}`,
-        'Please restart the application for changes to take effect.',
-        0,
-        { label: 'Stop Node', onClick: () => { stopNode() } }
+        `Switched to ${networkConfirmTarget}`,
+        'All node services stopped. Start the node to sync the new network.'
       )
+      navigate('/')
     } catch (error) {
       console.error('Failed to switch network:', error)
       toast.error('Network switch failed', `${error}`)
     } finally {
       setNetworkSwitching(false)
     }
-  }, [currentNetwork, networkConfirmTarget, toast, stopNode, setCurrentNetwork])
+  }, [currentNetwork, networkConfirmTarget, toast, stopNode, setCurrentNetwork, navigate])
 
   return (
     <>
@@ -91,9 +93,9 @@ export default function NetworkSection({
         onClose={() => setNetworkConfirmTarget(null)}
         onConfirm={handleNetworkSwitch}
         title="Switch Network"
-        message={`Switching to ${networkConfirmTarget} will restart all node services. This may take several minutes to sync. Any pending operations will be interrupted.`}
+        message={`Switching to ${networkConfirmTarget} will stop all node services and re-sync from scratch on the new network. This may take a long time and any pending operations will be interrupted.`}
         description="Each network uses its own chain data directory. Your wallet and settings are preserved."
-        confirmLabel="Switch Network"
+        confirmLabel="Stop & Switch"
         confirmVariant="default"
         loading={networkSwitching}
       />
