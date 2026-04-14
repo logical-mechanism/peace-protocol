@@ -43,6 +43,15 @@ pub fn set_network(app_handle: tauri::AppHandle, network: String) -> Result<(), 
     Ok(())
 }
 
+/// Detect the OS locale (e.g. "en-US", "fr-FR"). Falls back to "en" when
+/// unavailable. Used to seed the i18n language preference on first launch —
+/// WebKitGTK's `navigator.language` is unreliable on Linux, so we query the
+/// OS directly.
+#[tauri::command]
+pub fn get_os_locale() -> String {
+    sys_locale::get_locale().unwrap_or_else(|| "en".to_string())
+}
+
 /// Get the app data directory path
 #[tauri::command]
 pub fn get_data_dir(app_handle: tauri::AppHandle) -> Result<String, String> {
