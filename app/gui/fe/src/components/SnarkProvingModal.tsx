@@ -5,6 +5,7 @@ import { getFriendlyError } from '../services/errorMessages'
 import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import InfoTooltip from './InfoTooltip'
+import LoadingSpinner from './LoadingSpinner'
 
 interface SnarkProvingModalProps {
   isOpen: boolean
@@ -240,7 +241,7 @@ export default function SnarkProvingModal({
                     </svg>
                   </div>
                   {/* Spinning ring */}
-                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[var(--accent)] animate-spin" />
+                  <LoadingSpinner variant="ring" size="lg" className="absolute inset-0 !w-full !h-full" label="Proving" />
                 </div>
               </div>
 

@@ -36,6 +36,28 @@ describe('LoadingSpinner', () => {
     const svg = container.querySelector('svg')!;
     expect(svg.getAttribute('class')).toContain('w-8 h-8');
   });
+
+  it('renders arc variant by default as an svg', () => {
+    const { container } = render(<LoadingSpinner />);
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('renders ring variant as a bordered div', () => {
+    const { container } = render(<LoadingSpinner variant="ring" size="lg" />);
+    expect(container.querySelector('svg')).toBeNull();
+    const div = container.querySelector('div[role="status"]')!;
+    expect(div).toBeInTheDocument();
+    const cls = div.getAttribute('class') || '';
+    expect(cls).toContain('animate-spin');
+    expect(cls).toContain('rounded-full');
+    expect(cls).toContain('border-t-[var(--accent)]');
+    expect(cls).toContain('w-8 h-8');
+  });
+
+  it('ring variant keeps accessible label', () => {
+    render(<LoadingSpinner variant="ring" label="Proving" />);
+    expect(screen.getByLabelText('Proving')).toBeInTheDocument();
+  });
 });
 
 describe('DelayedSpinner', () => {

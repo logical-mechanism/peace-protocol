@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
+  variant?: 'arc' | 'ring';
   className?: string;
   label?: string;
 }
@@ -14,9 +15,20 @@ const sizeClasses = {
 
 export default function LoadingSpinner({
   size = 'md',
+  variant = 'arc',
   className = '',
   label = 'Loading',
 }: LoadingSpinnerProps) {
+  if (variant === 'ring') {
+    return (
+      <div
+        className={`animate-spin rounded-full border-2 border-transparent border-t-[var(--accent)] ${sizeClasses[size]} ${className}`}
+        role="status"
+        aria-label={label}
+      />
+    );
+  }
+
   return (
     <svg
       className={`animate-spin text-[var(--accent)] ${sizeClasses[size]} ${className}`}
