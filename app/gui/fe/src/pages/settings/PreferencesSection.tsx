@@ -130,19 +130,18 @@ export default function PreferencesSection() {
         <p className="text-sm text-[var(--text-muted)] mb-4">
           How long toast notifications stay visible before auto-dismissing.
         </p>
-        <select
-          value={toastDuration}
-          onChange={(e) => {
-            const ms = Number(e.target.value)
-            setToastDuration(ms)
-            setToastDurationMs(ms)
-          }}
-          className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-        >
-          {TOAST_DURATION_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        <div className="max-w-xs">
+          <Select
+            value={String(toastDuration)}
+            options={TOAST_DURATION_OPTIONS.map((opt) => ({ value: String(opt.value), label: opt.label }))}
+            onChange={(v) => {
+              const ms = Number(v)
+              setToastDuration(ms)
+              setToastDurationMs(ms)
+            }}
+            ariaLabel="Notification duration"
+          />
+        </div>
       </div>
 
       {/* Desktop Notifications */}
