@@ -600,6 +600,12 @@ select option {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Tutorial spotlight — subtle pulse around the highlighted element */
+@keyframes tutorial-spotlight {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--accent); }
+  50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 0 6px var(--accent); }
+}
+
 /* Modal entrance/exit — backdrop fade + panel slide-up */
 @keyframes modal-backdrop-enter {
   from { opacity: 0; }

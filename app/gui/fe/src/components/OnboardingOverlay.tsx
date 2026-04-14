@@ -57,7 +57,7 @@ export default function OnboardingOverlay() {
 
   const handleSkip = useCallback(() => {
     completeOnboarding()
-    setState({ step: 3, completed: true })
+    setState((prev) => ({ ...prev, step: 3, completed: true }))
   }, [])
 
   if (!visible || !step) return null
