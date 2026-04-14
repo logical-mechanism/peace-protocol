@@ -12,6 +12,7 @@ import {
   deleteFile,
   searchFiles,
   listFiles,
+  getStorageUsage,
 } from '../iagonApi';
 import type { IagonFileInfo, IagonEncryptUploadResult, IagonDownloadSaveResult } from '../iagonApi';
 
@@ -149,6 +150,41 @@ describe('iagonApi', () => {
         apiKey: 'api-key',
       });
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getStorageUsage', () => {
+    it('aggregates total encrypted byte count and file count from listFiles', async () => {
+      const files: IagonFileInfo[] = [
+        { _id: 'f1', name: 'a.enc', path: '/a.enc', unique_id: 'u1', file_size_byte_native: 100, file_size_byte_encrypted: 120 },
+        { _id: 'f2', name: 'b.enc', path: '/b.enc', unique_id: 'u2', file_size_byte_native: 500, file_size_byte_encrypted: 540 },
+        { _id: 'f3', name: 'c.enc', path: '/c.enc', unique_id: 'u3', file_size_byte_native: 10, file_size_byte_encrypted: 20 },
+      ];
+      mockInvoke.mockResolvedValueOnce({ files });
+      const result = await getStorageUsage('api-key');
+      expect(mockInvoke).toHaveBeenCalledWith('iagon_list_files', { apiKey: 'api-key' });
+      expect(result).toEqual({ totalBytes: 680, fileCount: 3 });
+    });
+
+    it('returns zeros when no files exist', async () => {
+      mockInvoke.mockResolvedValueOnce({ files: [] });
+      const result = await getStorageUsage('api-key');
+      expect(result).toEqual({ totalBytes: 0, fileCount: 0 });
+    });
+
+    it('treats missing file_size_byte_encrypted as 0', async () => {
+      const files = [
+        { _id: 'f1', name: 'a.enc', path: '/a.enc', unique_id: 'u1', file_size_byte_native: 100 },
+        { _id: 'f2', name: 'b.enc', path: '/b.enc', unique_id: 'u2', file_size_byte_native: 200, file_size_byte_encrypted: 220 },
+      ] as IagonFileInfo[];
+      mockInvoke.mockResolvedValueOnce({ files });
+      const result = await getStorageUsage('api-key');
+      expect(result).toEqual({ totalBytes: 220, fileCount: 2 });
+    });
+
+    it('propagates listFiles invoke rejection', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('network error'));
+      await expect(getStorageUsage('api-key')).rejects.toThrow('network error');
     });
   });
 
