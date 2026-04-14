@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n from '../../i18n'
+import { AVAILABLE_LANGUAGES, getLanguage, setLanguage, type LanguageCode } from '../../services/languageStorage'
 import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../../services/toastSettings'
 import { previewSound } from '../../services/notificationSound'
 import {
@@ -13,7 +16,9 @@ import { getTheme, setTheme, applyTheme, listenToSystemTheme, type Theme } from 
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
 
 export default function PreferencesSection() {
+  const { t } = useTranslation('settings')
   const [currentTheme, setCurrentTheme] = useState<Theme>(() => getTheme())
+  const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(() => getLanguage())
 
   // Re-apply theme on OS dark/light change while 'system' is selected.
   useEffect(() => {
@@ -38,6 +43,31 @@ export default function PreferencesSection() {
 
   return (
     <div className="space-y-6">
+      {/* Language */}
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+        <h2 className="text-lg font-medium mb-2">{t('language.title')}</h2>
+        <p className="text-sm text-[var(--text-muted)] mb-4">
+          {t('language.description')}
+        </p>
+        <label className="flex items-center gap-3">
+          <span className="sr-only">{t('language.selectLabel')}</span>
+          <select
+            value={currentLanguage}
+            onChange={(e) => {
+              const next = e.target.value as LanguageCode
+              setCurrentLanguage(next)
+              setLanguage(next)
+              void i18n.changeLanguage(next)
+            }}
+            className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+          >
+            {AVAILABLE_LANGUAGES.map((lang) => (
+              <option key={lang.code} value={lang.code}>{lang.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {/* Theme */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
         <h2 className="text-lg font-medium mb-2">Theme</h2>
