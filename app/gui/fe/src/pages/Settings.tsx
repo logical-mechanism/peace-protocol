@@ -5,7 +5,7 @@
  * and process logs viewer.
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
@@ -24,6 +24,9 @@ import ContactSection from './settings/ContactSection'
 import PreferencesSection from './settings/PreferencesSection'
 import AutomationSection from './settings/AutomationSection'
 import ScrollToTop from '../components/ScrollToTop'
+import CommandPalette from '../components/CommandPalette'
+import { useModal } from '../contexts/ModalContext'
+import { getTheme, setTheme, applyTheme, resolveTheme } from '../services/themeStorage'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -41,6 +44,8 @@ export default function Settings() {
 
   // Settings search
   const [searchQuery, setSearchQuery] = useState('')
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const { hasOpenModal } = useModal()
 
   const toast = useToast()
 
@@ -54,6 +59,59 @@ export default function Settings() {
   useEffect(() => {
     invoke<string>('get_network').then(setCurrentNetwork).catch(console.error)
   }, [])
+
+  // Ctrl/Cmd+K opens command palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (hasOpenModal) return
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setShowCommandPalette(true)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [hasOpenModal])
+
+  const handleCommandExecute = useCallback((commandId: string) => {
+    const settingsMap: Record<string, string> = {
+      'settings-node': 'node',
+      'settings-network': 'network',
+      'settings-wallet': 'wallet',
+      'settings-storage': 'storage',
+      'settings-automation': 'automation',
+      'settings-updates': 'update',
+      'settings-logs': 'logs',
+      'settings-data-layer': 'datalayer',
+    }
+    if (settingsMap[commandId]) {
+      setActiveSection(settingsMap[commandId])
+      setSearchQuery('')
+      return
+    }
+    switch (commandId) {
+      case 'tab-marketplace': navigate('/dashboard', { state: { tab: 'marketplace' } }); break
+      case 'tab-my-sales': navigate('/dashboard', { state: { tab: 'my-sales' } }); break
+      case 'tab-my-purchases': navigate('/dashboard', { state: { tab: 'my-purchases' } }); break
+      case 'tab-history': navigate('/dashboard', { state: { tab: 'history' } }); break
+      case 'tab-library': navigate('/dashboard', { state: { tab: 'library' } }); break
+      case 'nav-settings': break
+      case 'action-toggle-theme': {
+        const current = getTheme()
+        const resolved = resolveTheme(current)
+        const next = resolved === 'dark' ? 'light' : 'dark'
+        setTheme(next)
+        applyTheme(next)
+        break
+      }
+      case 'action-lock-wallet': lock(); break
+      case 'action-copy-address': if (address) void navigator.clipboard?.writeText(address); break
+      case 'action-refresh':
+      case 'action-create-listing':
+        navigate('/dashboard')
+        break
+    }
+  }, [navigate, lock, address])
 
   const sectionGroups = [
     { label: 'Node & Network', sections: [
@@ -298,6 +356,11 @@ export default function Settings() {
       </div>
 
       <ScrollToTop />
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onExecute={handleCommandExecute}
+      />
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )

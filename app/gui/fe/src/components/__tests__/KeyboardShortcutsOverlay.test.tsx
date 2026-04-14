@@ -61,7 +61,7 @@ describe('KeyboardShortcutsOverlay', () => {
     render(<KeyboardShortcutsOverlay isOpen={true} onClose={vi.fn()} />);
 
     const kbds = document.querySelectorAll('kbd');
-    expect(kbds.length).toBe(6);
+    expect(kbds.length).toBe(7);
     kbds.forEach((kbd) => {
       expect(kbd).toHaveAttribute('aria-label');
       expect(kbd.getAttribute('aria-label')).toMatch(/^Key: /);

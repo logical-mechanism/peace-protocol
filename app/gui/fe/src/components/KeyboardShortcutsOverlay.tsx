@@ -9,6 +9,7 @@ interface Shortcut {
 const SHORTCUTS: Shortcut[] = [
   { keys: 'Ctrl + 1–5', description: 'Switch dashboard tab' },
   { keys: 'Ctrl + R', description: 'Refresh data' },
+  { keys: 'Ctrl + K', description: 'Open command palette' },
   { keys: '← →', description: 'Navigate tabs (when focused)' },
   { keys: 'Home / End', description: 'First / last tab' },
   { keys: 'Esc', description: 'Close modal or overlay' },
