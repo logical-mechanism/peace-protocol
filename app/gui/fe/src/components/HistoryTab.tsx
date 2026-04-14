@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNode } from '../contexts/NodeContext';
+import Select from './Select';
 import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
@@ -429,43 +430,47 @@ function HistoryTab({
         {/* Filters row */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as HistoryFilters['statusFilter'] })}
-            aria-label="Filter by status"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Status ({allRecords.length})</option>
-            <option value="pending">Pending ({pendingCount})</option>
-            <option value="confirmed">Confirmed ({allRecords.filter(tx => tx.status === 'confirmed').length})</option>
-            <option value="failed">Failed ({allRecords.filter(tx => tx.status === 'failed').length})</option>
-          </select>
+          <div className="w-48">
+            <Select
+              value={statusFilter}
+              options={[
+                { value: 'all', label: `All Status (${allRecords.length})` },
+                { value: 'pending', label: `Pending (${pendingCount})` },
+                { value: 'confirmed', label: `Confirmed (${allRecords.filter(tx => tx.status === 'confirmed').length})` },
+                { value: 'failed', label: `Failed (${allRecords.filter(tx => tx.status === 'failed').length})` },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as HistoryFilters['statusFilter'] })}
+              ariaLabel="Filter by status"
+            />
+          </div>
 
           {/* Type filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => dispatch({ type: 'SET_TYPE', payload: e.target.value as HistoryFilters['typeFilter'] })}
-            aria-label="Filter by type"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Types</option>
-            {ALL_TX_TYPES.map(t => (
-              <option key={t} value={t}>{getTypeLabel(t)}</option>
-            ))}
-          </select>
+          <div className="w-48">
+            <Select
+              value={typeFilter}
+              options={[
+                { value: 'all', label: 'All Types' },
+                ...ALL_TX_TYPES.map((t) => ({ value: t, label: getTypeLabel(t) })),
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_TYPE', payload: v as HistoryFilters['typeFilter'] })}
+              ariaLabel="Filter by type"
+            />
+          </div>
 
           {/* Date range filter */}
-          <select
-            value={dateRange}
-            onChange={(e) => dispatch({ type: 'SET_DATE_RANGE', payload: e.target.value as HistoryFilters['dateRange'] })}
-            aria-label="Filter by date range"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Time</option>
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-          </select>
+          <div className="w-44">
+            <Select
+              value={dateRange}
+              options={[
+                { value: 'all', label: 'All Time' },
+                { value: '24h', label: 'Last 24 Hours' },
+                { value: '7d', label: 'Last 7 Days' },
+                { value: '30d', label: 'Last 30 Days' },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_DATE_RANGE', payload: v as HistoryFilters['dateRange'] })}
+              ariaLabel="Filter by date range"
+            />
+          </div>
 
           <div className="flex-1" />
 
