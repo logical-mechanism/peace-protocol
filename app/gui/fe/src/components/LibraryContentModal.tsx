@@ -284,11 +284,12 @@ export default function LibraryContentModal({
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
   const modalRef = useRef<HTMLDivElement>(null);
-  // Default focus lands on the close button — content varies wildly by file
-  // type (PDF/audio/video/text), so close is the only stable starting point.
-  // From there Tab walks the user into the type-specific viewer controls.
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  useFocusTrap(modalRef, isOpen, { initialFocusRef: closeButtonRef, isTopmost });
+  // Footer Close is reordered to be first in DOM below so useFocusTrap's
+  // natural "first focusable" fallback lands on it. Content varies wildly
+  // by file type (PDF/audio/video/text) — Close is the only stable
+  // starting point. Header X and Prev/Next nav arrows are tabIndex={-1}
+  // (Escape closes, arrow keys navigate) so they don't crowd the cycle.
+  useFocusTrap(modalRef, isOpen, { isTopmost });
 
   const handleCopy = useCallback(async () => {
     if (!textContent) return;
@@ -406,16 +407,20 @@ export default function LibraryContentModal({
           aria-hidden="true"
         />
 
-        {/* Modal */}
-        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'} ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+        {/* Modal — overflow-hidden moved off the panel so focus outlines on
+         * edge-adjacent buttons aren't clipped in WebKit. */}
+        <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-h-[85vh] flex flex-col ${isWideModal ? 'max-w-4xl' : 'max-w-2xl'} ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-lg)]">
             <div className="flex items-center gap-3">
-              {/* Previous button */}
+              {/* Previous button — tabIndex={-1} because arrow keys handle
+               * item navigation (see keydown effect above) and we don't
+               * want it crowding the Tab cycle. */}
               {items && items.length > 1 && (
                 <button
                   onClick={handlePrev}
                   disabled={!canGoPrev}
+                  tabIndex={-1}
                   className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
                   title="Previous item (←)"
                   aria-label="Previous item"
@@ -442,11 +447,12 @@ export default function LibraryContentModal({
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {/* Next button */}
+              {/* Next button — tabIndex={-1} (arrow keys navigate). */}
               {items && items.length > 1 && (
                 <button
                   onClick={handleNext}
                   disabled={!canGoNext}
+                  tabIndex={-1}
                   className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
                   title="Next item (→)"
                   aria-label="Next item"
@@ -456,9 +462,11 @@ export default function LibraryContentModal({
                   </svg>
                 </button>
               )}
+              {/* Header X — tabIndex={-1} (Escape closes per ARIA pattern). */}
               <button
                 onClick={onClose}
                 aria-label="Close dialog"
+                tabIndex={-1}
                 className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -614,39 +622,23 @@ export default function LibraryContentModal({
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
-            <div className="flex gap-3">
+          {/* Footer — flex-row-reverse so Close is first in DOM (receives
+           * initial focus from useFocusTrap) while still appearing on the
+           * right visually. */}
+          <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-lg)]">
+            <div className="flex flex-row-reverse gap-3">
               <button
-                onClick={() => setConfirmingDelete(true)}
-                className="px-4 py-2.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
+                onClick={onClose}
+                className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                  viewMode === 'download' && showSaveAs
+                    ? 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
+                    : 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
+                }`}
               >
-                Delete from Library
+                Close
               </button>
-              {onRelist && item && !item.contentMissing && (
-                <button
-                  onClick={() => { onRelist(item); onClose(); }}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--accent-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  Relist
-                </button>
-              )}
               {showSaveAs && (
                 <>
-                  <button
-                    onClick={handleOpenExternal}
-                    disabled={state !== 'loaded'}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Open with system default application"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    Open Externally
-                  </button>
                   <button
                     onClick={handleExport}
                     disabled={exporting || state !== 'loaded'}
@@ -665,18 +657,35 @@ export default function LibraryContentModal({
                     )}
                     Save As
                   </button>
+                  <button
+                    onClick={handleOpenExternal}
+                    disabled={state !== 'loaded'}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Open with system default application"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open Externally
+                  </button>
                 </>
               )}
+              {onRelist && item && !item.contentMissing && (
+                <button
+                  onClick={() => { onRelist(item); onClose(); }}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--accent-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Relist
+                </button>
+              )}
               <button
-                ref={closeButtonRef}
-                onClick={onClose}
-                className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                  viewMode === 'download' && showSaveAs
-                    ? 'border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
-                    : 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
-                }`}
+                onClick={() => setConfirmingDelete(true)}
+                className="px-4 py-2.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
-                Close
+                Delete from Library
               </button>
             </div>
           </div>

@@ -185,12 +185,20 @@ describe('LibraryContentModal', () => {
     expect(screen.getByRole('heading', { name: 'Library' })).toHaveAttribute('id', 'library-content-title');
   });
 
-  it('focuses the footer Close button on open instead of the navigation arrows', async () => {
+  it('does not focus the header X or navigation arrows on open', async () => {
+    // User's original complaint was that initial focus landed on the
+    // "Previous/Next item" arrow buttons. Header X + nav arrows are all
+    // tabIndex={-1} now (Escape closes, arrow keys navigate items), so
+    // the first focusable sits in the body/footer where the user's real
+    // type-specific controls live. We assert focus has moved into the
+    // dialog and does not land on any of the opt-out-of-Tab buttons.
     renderWithProvider(<LibraryContentModal {...defaultProps} />);
-    // Footer Close has visible "Close" text; the header X is icon-only and
-    // labelled "Close dialog" via aria-label, so disambiguate by accessible name.
     await waitFor(() => {
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+      const active = document.activeElement as HTMLElement | null;
+      expect(active).not.toBe(document.body);
+      expect(active?.getAttribute('aria-label')).not.toBe('Previous item');
+      expect(active?.getAttribute('aria-label')).not.toBe('Next item');
+      expect(active?.getAttribute('aria-label')).not.toBe('Close dialog');
     });
   });
 

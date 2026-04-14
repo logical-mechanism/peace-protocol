@@ -48,10 +48,10 @@ export default function DecryptModal({
   // Stack-aware Escape key + body scroll lock + animation
   const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
   const modalRef = useRef<HTMLDivElement>(null);
-  // Default focus lands on the Decrypt Now button so a keyboard user can
-  // press Enter to start decrypting (Tab/Shift+Tab still reaches Cancel).
-  const decryptButtonRef = useRef<HTMLButtonElement>(null);
-  useFocusTrap(modalRef, isOpen, { initialFocusRef: decryptButtonRef, isTopmost });
+  // Decrypt Now is first in DOM order below (flex-row-reverse keeps Cancel
+  // visually on the left), so useFocusTrap's natural "first focusable"
+  // fallback lands on it — no raf race with React state batching.
+  useFocusTrap(modalRef, isOpen, { isTopmost });
 
   // Reset state when modal opens — intentional synchronous setState
   useEffect(() => {
@@ -192,10 +192,11 @@ export default function DecryptModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — overflow-hidden moved off the panel so focus outlines on
+       * edge-adjacent buttons aren't clipped in WebKit. */}
+      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-lg)]">
           <div>
             <h2 id="decrypt-modal-title" className="text-xl font-semibold text-[var(--text-primary)]">
               {state === 'success'
@@ -211,9 +212,14 @@ export default function DecryptModal({
             )}
           </div>
           {state !== 'decrypting' && (
+            // tabIndex={-1}: Escape key closes the dialog per ARIA dialog
+            // pattern, so this icon-only X is a mouse convenience — keeping
+            // it out of the Tab cycle lets the primary affirmative button
+            // (Decrypt Now) receive initial focus without timing tricks.
             <button
               onClick={handleClose}
               aria-label="Close dialog"
+              tabIndex={-1}
               className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -552,17 +558,12 @@ export default function DecryptModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+        <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-lg)]">
           {state === 'idle' && (
-            <div className="flex gap-3">
+            // flex-row-reverse: Decrypt Now is first in DOM so it receives
+            // initial focus; Cancel stays visually on the left.
+            <div className="flex flex-row-reverse gap-3">
               <button
-                onClick={handleClose}
-                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
-              >
-                Cancel
-              </button>
-              <button
-                ref={decryptButtonRef}
                 onClick={handleDecrypt}
                 disabled={encryption?.storageLayer === 'iagon' && !isIagonConnected}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
@@ -577,6 +578,12 @@ export default function DecryptModal({
                 </svg>
                 Decrypt Now
               </button>
+              <button
+                onClick={handleClose}
+                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
@@ -590,18 +597,20 @@ export default function DecryptModal({
           )}
 
           {state === 'error' && (
-            <div className="flex gap-3">
-              <button
-                onClick={handleClose}
-                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
-              >
-                Close
-              </button>
+            // flex-row-reverse: Try Again first in DOM (primary retry path),
+            // Close visually on the left.
+            <div className="flex flex-row-reverse gap-3">
               <button
                 onClick={() => setState('idle')}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
                 Try Again
+              </button>
+              <button
+                onClick={handleClose}
+                className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+              >
+                Close
               </button>
             </div>
           )}

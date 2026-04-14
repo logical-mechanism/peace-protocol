@@ -1,11 +1,14 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
+// Exclude tabindex="-1" on every element type so a button/link/input opted
+// out of the Tab cycle (e.g. a mouse-convenience close X whose keyboard
+// equivalent is Escape) is also skipped by the initial-focus fallback.
 const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'textarea:not([disabled])',
-  'select:not([disabled])',
+  'a[href]:not([tabindex="-1"])',
+  'button:not([disabled]):not([tabindex="-1"])',
+  'input:not([disabled]):not([tabindex="-1"])',
+  'textarea:not([disabled]):not([tabindex="-1"])',
+  'select:not([disabled]):not([tabindex="-1"])',
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 

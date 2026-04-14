@@ -30,10 +30,10 @@ export default function ConfirmModal({
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('confirm', isOpen, onClose, loading);
   const modalRef = useRef<HTMLDivElement>(null);
-  // Default focus lands on the affirmative button so a keyboard user can
-  // press Enter to accept (Tab/Shift+Tab still reaches Cancel).
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
-  useFocusTrap(modalRef, isOpen, { initialFocusRef: confirmButtonRef, isTopmost });
+  // Affirmative button is first in DOM order below so useFocusTrap's
+  // natural "first focusable" fallback lands on it without any raf timing
+  // race. flex-row-reverse keeps Cancel visually on the left.
+  useFocusTrap(modalRef, isOpen, { isTopmost });
 
   if (!shouldRender) return null;
 
@@ -58,9 +58,10 @@ export default function ConfirmModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative z-10 w-full max-w-md max-h-[85vh] mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl flex flex-col overflow-hidden ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
-        <div className="flex-1 overflow-y-auto p-6">
+      {/* Modal — overflow-hidden lives on the scroll body, not the panel,
+       * so focus outlines on edge-adjacent buttons don't get clipped. */}
+      <div className={`relative z-10 w-full max-w-md max-h-[85vh] mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-xl flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+        <div className="flex-1 overflow-y-auto p-6 rounded-t-[var(--radius-lg)]">
           <h2
             id="confirm-modal-title"
             className="text-lg font-semibold text-[var(--text-primary)] mb-2"
@@ -77,22 +78,24 @@ export default function ConfirmModal({
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 pb-6">
+        {/* flex-row-reverse: affirmative button is first in DOM (so it
+         * receives initial focus from useFocusTrap) while Cancel stays
+         * visually on the left. */}
+        <div className="flex flex-row-reverse justify-start gap-3 px-6 pb-6 rounded-b-[var(--radius-lg)]">
           <button
-            onClick={onClose}
-            disabled={loading}
-            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
-          >
-            Cancel
-          </button>
-          <button
-            ref={confirmButtonRef}
             onClick={onConfirm}
             disabled={loading}
             className={`px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center gap-2 ${confirmClass}`}
           >
             {loading && <LoadingSpinner size="sm" />}
             {confirmLabel}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
+          >
+            Cancel
           </button>
         </div>
       </div>

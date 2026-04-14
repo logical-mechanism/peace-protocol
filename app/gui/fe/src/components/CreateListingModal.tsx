@@ -563,10 +563,10 @@ export default function CreateListingModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — no overflow-hidden on panel root so focus outlines aren't clipped. */}
+      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="create-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
               {title ?? 'Create New Listing'}
@@ -575,10 +575,12 @@ export default function CreateListingModal({
               {prefill ? 'Re-encrypt and list content from your library' : 'Encrypt and list your data for sale'}
             </p>
           </div>
+          {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={handleClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
+            tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -1030,7 +1032,7 @@ export default function CreateListingModal({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
             {/* Info box about what happens next */}
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">

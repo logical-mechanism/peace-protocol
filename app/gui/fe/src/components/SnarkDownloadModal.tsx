@@ -111,16 +111,19 @@ export default function SnarkSetupModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-lg max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — no overflow-hidden on panel root so focus outlines on
+       * edge-adjacent buttons aren't clipped in WebKit. */}
+      <div className={`relative w-full max-w-lg max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div className="flex items-center justify-between">
             <h2 id="snark-download-title" className="text-xl font-semibold">SNARK Prover Setup</h2>
             {status !== 'decompressing' && status !== 'checking' && (
+              // tabIndex={-1}: Escape closes — header X is a mouse convenience.
               <button
                 onClick={onClose}
                 aria-label="Close dialog"
+                tabIndex={-1}
                 className="p-1 btn-base btn-icon"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -170,7 +173,7 @@ export default function SnarkSetupModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3 rounded-b-[var(--radius-xl)]">
           {status === 'complete' && (
             <button
               onClick={onClose}
