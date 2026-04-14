@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Something Went Wrong",
+    "action": "Try again. If the problem persists, restart the app."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo Unavailable",
+    "message": "The UTxO indexer is starting up or unreachable.",
+    "action": "Wait for the node to finish syncing, then try again."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo Unavailable",
+    "message": "The UTxO indexer is not responding.",
+    "action": "Wait for the node to finish syncing, or check Settings for process status."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios Request Timed Out",
+    "message": "The transaction service did not respond in time. The node connection may be degraded.",
+    "action": "Try restarting the node from Settings, or wait for the node to fully sync."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Cannot Reach Ogmios",
+    "message": "The transaction service is not reachable on its expected port.",
+    "action": "Ensure the node is running, or restart from Settings."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios Unavailable",
+    "message": "The transaction submission service is not responding.",
+    "action": "Wait for the node to finish syncing, or check Settings for process status."
+  },
+  "network": {
+    "title": "Network Error",
+    "message": "Could not connect to the required service.",
+    "action": "Check your internet connection and ensure the node is running."
+  },
+  "noCollateral": {
+    "title": "No Collateral",
+    "message": "Your wallet needs a dedicated 5 ADA collateral UTxO for smart contract transactions.",
+    "action": "Go to Settings > Wallet and click \"Set Collateral\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Insufficient Funds for Collateral",
+    "message": "Your wallet does not have enough ADA to create a collateral UTxO.",
+    "action": "Send at least 10 ADA to your wallet address."
+  },
+  "collateralInsufficient": {
+    "title": "Insufficient Collateral",
+    "message": "The transaction requires more collateral than is available.",
+    "action": "Ensure your wallet has a UTxO set as collateral. Try refreshing your wallet balance."
+  },
+  "insufficientBalance": {
+    "title": "Insufficient Balance",
+    "message": "Your wallet does not have enough ADA for this transaction.",
+    "action": "Add more ADA to your wallet and try again."
+  },
+  "iagonAuth": {
+    "title": "Iagon Authentication Failed",
+    "message": "Your Iagon API key is invalid or expired.",
+    "action": "Go to Settings \u2192 Data Layer and re-authenticate."
+  },
+  "iagonFileTooLarge": {
+    "title": "File Too Large for Iagon",
+    "message": "Iagon does not support uploading files this large.",
+    "action": "Choose a file under 200 MB."
+  },
+  "iagonQuota": {
+    "title": "Iagon Storage Full",
+    "message": "Your Iagon account storage quota is full.",
+    "action": "Check your Iagon account storage usage."
+  },
+  "iagonGeneric": {
+    "title": "Storage Service Error",
+    "message": "Could not reach the Iagon decentralized storage service.",
+    "action": "Check your internet connection. Iagon may be temporarily unavailable."
+  },
+  "timeout": {
+    "title": "Request Timed Out",
+    "message": "The operation took too long to complete.",
+    "action": "Try again. If the problem persists, the service may be under heavy load."
+  },
+  "mnemonicChecksum": {
+    "title": "Invalid Recovery Phrase",
+    "message": "The recovery phrase has an invalid checksum. One or more words may be incorrect.",
+    "action": "Double-check each word against your written backup and try again."
+  },
+  "passwordTooShort": {
+    "title": "Password Too Short",
+    "message": "The password must be at least 12 characters long.",
+    "action": "Choose a longer password that meets all the requirements shown."
+  },
+  "walletGeneric": {
+    "title": "Wallet Error",
+    "message": "There was a problem with the wallet operation.",
+    "action": "Try unlocking your wallet again. If the issue persists, restart the app."
+  },
+  "incorrectPassword": {
+    "title": "Incorrect Password",
+    "message": "The password you entered is incorrect.",
+    "action": "Double-check your password and try again."
+  },
+  "snarkOom": {
+    "title": "Not Enough Memory",
+    "message": "The proof generation ran out of memory.",
+    "action": "Close other applications to free memory and try again."
+  },
+  "snarkSetupMissing": {
+    "title": "SNARK Setup Files Missing",
+    "message": "Required SNARK setup files could not be found.",
+    "action": "Go to Settings to re-download the SNARK setup files."
+  },
+  "snarkInProgress": {
+    "title": "Proof Already Running",
+    "message": "A zero-knowledge proof is already being generated.",
+    "action": "Wait for the current proof to finish before starting another."
+  },
+  "snarkGeneric": {
+    "title": "Proof Generation Error",
+    "message": "The SNARK prover encountered an error.",
+    "action": "Try again. If the problem persists, check that setup files are properly installed."
+  },
+  "scriptValidation": {
+    "title": "Script Validation Failed",
+    "message": "A smart contract script failed during validation.",
+    "action": "The on-chain state may have changed. Refresh and try again."
+  },
+  "txConflict": {
+    "title": "Transaction Conflict",
+    "message": "One or more inputs have already been spent by another transaction.",
+    "action": "Someone else may have acted on this listing. Refresh the page and try again."
+  },
+  "feeError": {
+    "title": "Transaction Fee Error",
+    "message": "The transaction fee was calculated too low.",
+    "action": "Try again. If the issue persists, restart the app to refresh fee parameters."
+  },
+  "txFailed": {
+    "title": "Transaction Failed",
+    "message": "The transaction could not be submitted to the blockchain.",
+    "action": "The on-chain state may have changed. Refresh and try again."
+  },
+  "accessDenied": {
+    "title": "Access Denied",
+    "message": "The request was blocked by the server.",
+    "action": "This may be a configuration issue. Try restarting the app."
+  },
+  "diskFull": {
+    "title": "Disk Full",
+    "message": "There is not enough disk space to complete this operation.",
+    "action": "Free up disk space and try again. Check Settings > Storage for cleanup options."
+  },
+  "portConflict": {
+    "title": "Port Conflict",
+    "message": "A required port is already in use by another process.",
+    "action": "Close other applications that may be using the port, or restart the app."
+  }
+}
