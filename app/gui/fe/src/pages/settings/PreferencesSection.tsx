@@ -14,6 +14,7 @@ import {
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, listenToSystemTheme, type Theme } from '../../services/themeStorage'
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
+import Select from '../../components/Select'
 
 export default function PreferencesSection() {
   const { t } = useTranslation('settings')
@@ -49,23 +50,19 @@ export default function PreferencesSection() {
         <p className="text-sm text-[var(--text-muted)] mb-4">
           {t('language.description')}
         </p>
-        <label className="flex items-center gap-3">
-          <span className="sr-only">{t('language.selectLabel')}</span>
-          <select
+        <div className="max-w-xs">
+          <Select
             value={currentLanguage}
-            onChange={(e) => {
-              const next = e.target.value as LanguageCode
-              setCurrentLanguage(next)
-              setLanguage(next)
-              void i18n.changeLanguage(next)
+            options={AVAILABLE_LANGUAGES.map((lang) => ({ value: lang.code, label: lang.label }))}
+            onChange={(next) => {
+              const code = next as LanguageCode
+              setCurrentLanguage(code)
+              setLanguage(code)
+              void i18n.changeLanguage(code)
             }}
-            className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            {AVAILABLE_LANGUAGES.map((lang) => (
-              <option key={lang.code} value={lang.code}>{lang.label}</option>
-            ))}
-          </select>
-        </label>
+            ariaLabel={t('language.selectLabel')}
+          />
+        </div>
       </div>
 
       {/* Theme */}
