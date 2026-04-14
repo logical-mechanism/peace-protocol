@@ -48,7 +48,7 @@ export default function DataLayerSection({
     try {
       const apiKey = await getStoredApiKey()
       if (!apiKey) {
-        setStorageUsage(null)
+        toastRef.current.error('Storage Usage', 'Iagon API key is not accessible. Reconnect to refresh usage.')
         return
       }
       const usage = await getStorageUsage(apiKey)
