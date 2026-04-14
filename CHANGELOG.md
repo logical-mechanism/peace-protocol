@@ -4,6 +4,28 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.1] - 2026-04-14
+
+### Added
+- Related listings: clickable seller and category chips on EncryptionCard, filter chips in MarketplaceTab, SET_SELLER_FILTER reducer, sellerPkh filter logic (#96)
+- Accessibility: ARIA dialog semantics on modals and overlays, InfoTooltip ARIA, ImportListingModal input/error linking, focus trap stack-awareness, DOM-order focus, footer Close focus, focus ring, deferred blur validation (#97)
+- System theme option that follows OS dark/light preference via `matchMedia`, with live subscription while 'system' is selected (#98)
+- Settings: Contact & Support section (#100)
+- Split Settings into dedicated Preferences tab for appearance/notification prefs (#101)
+- i18n framework bootstrap: react-i18next + English locale (#102)
+- Migrated remaining native `<select>` dropdowns to shared Select component (#103)
+- Command palette (Ctrl+K) (#104)
+- Tutorial framework: state machine, overlay, and storage (#105)
+- Iagon storage usage indicator in Settings (#106)
+
+### Fixed
+- Crypto: handle BLS12-381 identity point in compressG1/G2 (#99)
+- Seller display: render sellerPkh on cards instead of contract address; copy bech32 seller address instead of payment key hash; drop redundant seller bech32 field and use sellerPkh end-to-end (#96)
+- Lock in legacy ContentMetadataJson migration behavior with regression test (#96)
+
+### Changed
+- Consolidated inline spinner SVGs onto shared LoadingSpinner component (#107)
+
 ## [0.5.0] - 2026-04-05
 
 ### Added
