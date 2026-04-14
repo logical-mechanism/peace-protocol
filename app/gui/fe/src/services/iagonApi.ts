@@ -208,3 +208,17 @@ export async function listFiles(apiKey: string): Promise<IagonFileInfo[]> {
   });
   return result.files;
 }
+
+/**
+ * Aggregate total storage consumed on Iagon across all files in the user's root directory.
+ */
+export async function getStorageUsage(
+  apiKey: string
+): Promise<{ totalBytes: number; fileCount: number }> {
+  const files = await listFiles(apiKey);
+  const totalBytes = files.reduce(
+    (sum, f) => sum + (f.file_size_byte_encrypted || 0),
+    0
+  );
+  return { totalBytes, fileCount: files.length };
+}
