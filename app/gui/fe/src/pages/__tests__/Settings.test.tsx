@@ -205,11 +205,14 @@ describe('Settings', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Node Status')).toBeInTheDocument();
-      expect(screen.getByText('Wallet')).toBeInTheDocument();
-      // "Network" also appears as a label in the node status section
+      // "Wallet" appears both as a sidebar group heading and a section button
+      expect(screen.getAllByText('Wallet').length).toBeGreaterThanOrEqual(2);
+      // "Network" appears as group label, sidebar button, and node status section label
       expect(screen.getAllByText('Network').length).toBeGreaterThanOrEqual(2);
-      expect(screen.getByText('Data Layer')).toBeInTheDocument();
-      expect(screen.getByText('Storage')).toBeInTheDocument();
+      // "Data Layer" appears as button and as node status process label
+      expect(screen.getAllByText('Data Layer').length).toBeGreaterThanOrEqual(1);
+      // "Storage" is both a group heading and a section button
+      expect(screen.getAllByText('Storage').length).toBeGreaterThanOrEqual(2);
       expect(screen.getByText('Logs')).toBeInTheDocument();
     });
   });
@@ -227,10 +230,13 @@ describe('Settings', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Wallet')).toBeInTheDocument();
+      expect(screen.getAllByText('Wallet').length).toBeGreaterThanOrEqual(2);
     });
 
-    fireEvent.click(screen.getByText('Wallet'));
+    // The sidebar button for the Wallet section is the second match
+    // (the first is the group heading)
+    const walletMatches = screen.getAllByText('Wallet');
+    fireEvent.click(walletMatches[walletMatches.length - 1]);
 
     await waitFor(() => {
       // Wallet section shows wallet address

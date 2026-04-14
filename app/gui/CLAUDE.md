@@ -43,6 +43,7 @@ app/gui/
 │   │   │   │   ├── NetworkSection.tsx, NodeSection.tsx, WalletSection.tsx
 │   │   │   │   ├── DataLayerSection.tsx, StorageSection.tsx, LogsSection.tsx
 │   │   │   │   ├── AutomationSection.tsx   # Auto-accept queue automation settings
+│   │   │   │   ├── PreferencesSection.tsx  # App-wide preferences (theme, NSFW, notifications, sounds)
 │   │   │   │   ├── UpdateSection.tsx       # App update checker and downloader
 │   │   │   │   ├── settingsTypes.ts     # Settings type definitions
 │   │   │   │   └── settingsSearch.ts    # Settings search/filter logic
