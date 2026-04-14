@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
 import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../../services/iagonAuth'
@@ -37,6 +37,12 @@ export default function DataLayerSection({
   const [storageUsage, setStorageUsage] = useState<{ totalBytes: number; fileCount: number } | null>(null)
   const [storageUsageLoading, setStorageUsageLoading] = useState(false)
 
+  // Hold toast in a ref so refreshStorageUsage stays referentially stable
+  // (useToast() returns a fresh object each render, which would otherwise
+  // retrigger the auto-fetch effect and cause an infinite loop).
+  const toastRef = useRef(toast)
+  toastRef.current = toast
+
   const refreshStorageUsage = useCallback(async () => {
     setStorageUsageLoading(true)
     try {
@@ -50,11 +56,11 @@ export default function DataLayerSection({
     } catch (err) {
       console.error('Failed to fetch Iagon storage usage:', err)
       const msg = err instanceof Error ? err.message : 'Failed to fetch storage usage'
-      toast.error('Storage Usage', msg)
+      toastRef.current.error('Storage Usage', msg)
     } finally {
       setStorageUsageLoading(false)
     }
-  }, [toast])
+  }, [])
 
   useEffect(() => {
     if (iagonConnected) {
