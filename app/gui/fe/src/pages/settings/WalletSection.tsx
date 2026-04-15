@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
 import { getAutolockMinutes, setAutolockMinutes } from '../../services/autolock'

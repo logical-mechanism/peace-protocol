@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../../services/transactionHistory'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../../services/imageCache'

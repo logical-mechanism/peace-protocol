@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
 import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../../services/iagonAuth'

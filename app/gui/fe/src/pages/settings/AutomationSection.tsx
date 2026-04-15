@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { useAcceptBidQueue } from '../../contexts/AcceptBidQueueContext'
 import InfoTooltip from '../../components/InfoTooltip'
 

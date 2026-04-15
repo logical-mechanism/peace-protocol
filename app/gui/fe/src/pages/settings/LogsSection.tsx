@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { getLogLineClass } from '../../utils/logClassification'
 import { type ProcessLog } from './settingsTypes'
