@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css';
+import '../i18n';
 
 interface DateFilterProps {
   label: string;
@@ -23,6 +25,7 @@ function toStr(date: Date): string {
 }
 
 function DateFilter({ label, value, onChange, ariaLabel }: DateFilterProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -70,13 +73,13 @@ function DateFilter({ label, value, onChange, ariaLabel }: DateFilterProps) {
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <span className="font-mono text-xs">{value || 'Any'}</span>
+          <span className="font-mono text-xs">{value || t('dashboard:filters.dateAny')}</span>
         </button>
         {value && (
           <button
             onClick={() => onChange('')}
             className="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-            aria-label={`Clear ${label.toLowerCase()} date`}
+            aria-label={t('dashboard:filters.dateClear', { label: label.toLowerCase() })}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

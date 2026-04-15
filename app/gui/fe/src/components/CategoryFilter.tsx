@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
 import { FILE_CATEGORIES, type CategoryConfig } from '../config/categories';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -46,8 +48,8 @@ function isAllSelected(selected: string[]): boolean {
   return selected.includes('all') || selected.length === TOP_LEVEL_IDS.length;
 }
 
-function getLabel(selected: string[]): string {
-  if (isAllSelected(selected)) return 'All Categories';
+function getLabel(selected: string[], t: (key: string, options?: Record<string, unknown>) => string): string {
+  if (isAllSelected(selected)) return t('dashboard:filters.categoryAllLabel');
   if (selected.length === 1) {
     const id = selected[0];
     // Check top-level
@@ -60,14 +62,15 @@ function getLabel(selected: string[]): string {
       const sub = parent?.subcategories?.find((s) => s.id === parts[1]);
       if (parent && sub) return `${parent.label} > ${sub.label}`;
     }
-    return '1 Category';
+    return t('dashboard:filters.categoryOneSelected');
   }
-  return `${selected.length} Categories`;
+  return t('dashboard:filters.categoryCountSelected', { count: selected.length });
 }
 
 // ── Component ────────────────────────────────────────────────────
 
 function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -180,10 +183,10 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
             : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-primary)]'
         }`}
-        aria-label="Filter by category"
+        aria-label={t('dashboard:filters.filterByCategoryAria')}
         aria-expanded={open}
       >
-        <span>{getLabel(selected)}</span>
+        <span>{getLabel(selected, t)}</span>
         <svg
           className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
@@ -205,7 +208,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
               onChange={handleToggleAll}
               className="accent-[var(--accent)]"
             />
-            All
+            {t('dashboard:filters.categoryAll')}
           </label>
           <div className="border-t border-[var(--border-subtle)] my-1" />
           {/* Category tree */}
