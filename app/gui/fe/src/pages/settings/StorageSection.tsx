@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
 import { getTransactions, clearHistory, clearOlderThan, clearFailed } from '../../services/transactionHistory'
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../../services/imageCache'
@@ -15,6 +16,7 @@ interface StorageSectionProps {
 export default function StorageSection({
   userPkh,
 }: StorageSectionProps) {
+  const { t } = useTranslation('settings')
   // Suppress unused variable warning — toast is used by subcomponents pattern
   const _toast = useToast()
   void _toast
@@ -67,26 +69,32 @@ export default function StorageSection({
     }
   }, [imageCacheStatus])
 
+  const cachedCount = imageCacheStatus?.cached.length ?? 0
+  const cachedBytes = imageCacheStatus?.total_bytes ?? 0
+  const confirmClearCacheMessage = cachedBytes
+    ? t('storage.confirmClearCacheMessageWithSize', { count: cachedCount, size: formatBytes(cachedBytes) })
+    : t('storage.confirmClearCacheMessage', { count: cachedCount })
+
   return (
     <>
       <div className="space-y-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-4">Disk Usage</h2>
+          <h2 className="text-lg font-medium mb-4">{t('storage.diskUsageTitle')}</h2>
 
           {diskUsage ? (
             (() => {
               const otherBytes = Math.max(0, diskUsage.total_bytes - diskUsage.chain_data_bytes - diskUsage.snark_data_bytes - diskUsage.wallet_bytes)
               const segments = [
-                { label: 'Chain Data', bytes: diskUsage.chain_data_bytes, color: 'var(--accent)' },
-                { label: 'SNARK Setup', bytes: diskUsage.snark_data_bytes, color: 'var(--warning)' },
-                { label: 'Wallet', bytes: diskUsage.wallet_bytes, color: 'var(--success)' },
-                ...(otherBytes > 0 ? [{ label: 'Other', bytes: otherBytes, color: 'var(--text-muted)' }] : []),
+                { label: t('storage.chainData'), bytes: diskUsage.chain_data_bytes, color: 'var(--accent)' },
+                { label: t('storage.snarkSetup'), bytes: diskUsage.snark_data_bytes, color: 'var(--warning)' },
+                { label: t('storage.walletLabel'), bytes: diskUsage.wallet_bytes, color: 'var(--success)' },
+                ...(otherBytes > 0 ? [{ label: t('storage.other'), bytes: otherBytes, color: 'var(--text-muted)' }] : []),
               ]
               const total = diskUsage.total_bytes || 1
               return (
                 <div className="space-y-4">
                   <div>
-                    <span className="text-sm text-[var(--text-muted)]">Data Directory</span>
+                    <span className="text-sm text-[var(--text-muted)]">{t('storage.dataDirectory')}</span>
                     <code className="block text-sm font-mono mt-1 bg-[var(--bg-secondary)] px-3 py-2 rounded-[var(--radius-md)] break-all">
                       {diskUsage.data_dir}
                     </code>
@@ -95,7 +103,7 @@ export default function StorageSection({
                   {/* Stacked bar chart */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-[var(--text-muted)]">Usage Breakdown</span>
+                      <span className="text-sm text-[var(--text-muted)]">{t('storage.usageBreakdown')}</span>
                       <span className="text-sm font-medium">{formatBytes(diskUsage.total_bytes)}</span>
                     </div>
                     <div className="h-6 rounded-full overflow-hidden flex bg-[var(--bg-secondary)]">
@@ -132,27 +140,27 @@ export default function StorageSection({
                     onClick={() => invoke<DiskUsage>('get_disk_usage').then(setDiskUsage).catch(console.error)}
                     className="mt-2 px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                   >
-                    Refresh
+                    {t('storage.refresh')}
                   </button>
                 </div>
               )
             })()
           ) : (
-            <p className="text-[var(--text-muted)]">Loading...</p>
+            <p className="text-[var(--text-muted)]">{t('storage.loading')}</p>
           )}
         </div>
 
         {/* Image Cache */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium">Image Cache</h2>
+            <h2 className="text-lg font-medium">{t('storage.imageCacheTitle')}</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => listCachedImages().then(setImageCacheStatus).catch(console.error)}
                 className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
-                aria-label="Refresh image cache status"
+                aria-label={t('storage.refreshAria')}
               >
-                Refresh
+                {t('storage.refresh')}
               </button>
               {imageCacheStatus && imageCacheStatus.cached.length > 0 && (
                 <button
@@ -160,7 +168,7 @@ export default function StorageSection({
                   disabled={cacheClearingAll}
                   className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                 >
-                  {cacheClearingAll ? 'Clearing...' : 'Clear All'}
+                  {cacheClearingAll ? t('storage.clearing') : t('storage.clearAll')}
                 </button>
               )}
             </div>
@@ -170,15 +178,15 @@ export default function StorageSection({
             <div className="space-y-4">
               <div className="flex gap-4">
                 <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
-                  <span className="text-sm text-[var(--text-muted)]">Cached</span>
-                  <p className="text-lg font-medium">{imageCacheStatus.cached.length} image{imageCacheStatus.cached.length !== 1 ? 's' : ''}</p>
+                  <span className="text-sm text-[var(--text-muted)]">{t('storage.cached')}</span>
+                  <p className="text-lg font-medium">{t('storage.cachedCount', { count: imageCacheStatus.cached.length })}</p>
                   {imageCacheStatus.total_bytes > 0 && (
                     <p className="text-sm text-[var(--text-muted)]">{formatBytes(imageCacheStatus.total_bytes)}</p>
                   )}
                 </div>
                 <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] flex-1">
-                  <span className="text-sm text-[var(--text-muted)]">Banned</span>
-                  <p className="text-lg font-medium">{imageCacheStatus.banned.length} image{imageCacheStatus.banned.length !== 1 ? 's' : ''}</p>
+                  <span className="text-sm text-[var(--text-muted)]">{t('storage.banned')}</span>
+                  <p className="text-lg font-medium">{t('storage.bannedCount', { count: imageCacheStatus.banned.length })}</p>
                 </div>
               </div>
 
@@ -193,26 +201,26 @@ export default function StorageSection({
                         onClick={() => handleDeleteCachedImage(tokenName)}
                         disabled={cacheDeleting === tokenName}
                         className="px-2 py-1 text-xs rounded shrink-0 btn-base btn-destructive"
-                        aria-label={`Delete cached image ${tokenName}`}
+                        aria-label={t('storage.deleteCachedAria', { tokenName })}
                       >
-                        {cacheDeleting === tokenName ? '...' : 'Delete'}
+                        {cacheDeleting === tokenName ? t('storage.deletingShort') : t('storage.deleteShort')}
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-[var(--text-muted)] text-center py-2">No cached images.</p>
+                <p className="text-sm text-[var(--text-muted)] text-center py-2">{t('storage.noCachedImages')}</p>
               )}
             </div>
           ) : (
-            <p className="text-[var(--text-muted)]">Loading...</p>
+            <p className="text-[var(--text-muted)]">{t('storage.loading')}</p>
           )}
         </div>
 
         {/* API Response Cache */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-medium">API Response Cache</h2>
+            <h2 className="text-lg font-medium">{t('storage.apiCacheTitle')}</h2>
             <button
               onClick={() => {
                 apiCache.clear()
@@ -221,19 +229,19 @@ export default function StorageSection({
               disabled={apiCacheSize === 0}
               className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
             >
-              Clear
+              {t('storage.apiCacheClear')}
             </button>
           </div>
           <p className="text-sm text-[var(--text-muted)]">
-            {apiCacheSize} cached response{apiCacheSize !== 1 ? 's' : ''} (in-memory, auto-expires after 15s).
+            {t('storage.apiCacheStatus', { count: apiCacheSize })}
           </p>
         </div>
 
         {/* Transaction History */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Transaction History</h2>
+          <h2 className="text-lg font-medium mb-2">{t('storage.txHistoryTitle')}</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">
-            {txHistoryCount} transaction{txHistoryCount !== 1 ? 's' : ''} stored locally.
+            {t('storage.txHistoryStatus', { count: txHistoryCount })}
           </p>
           <div className="flex flex-wrap gap-3">
             <button
@@ -241,7 +249,7 @@ export default function StorageSection({
               disabled={!userPkh || txHistoryCount === 0}
               className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
             >
-              Clear All
+              {t('storage.txClearAll')}
             </button>
             <button
               onClick={() => {
@@ -252,7 +260,7 @@ export default function StorageSection({
               disabled={!userPkh || txHistoryCount === 0}
               className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
             >
-              Clear Older Than 30 Days
+              {t('storage.txClearOlder')}
             </button>
             <button
               onClick={() => {
@@ -263,7 +271,7 @@ export default function StorageSection({
               disabled={!userPkh || txHistoryCount === 0}
               className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
             >
-              Clear Failed Only
+              {t('storage.txClearFailed')}
             </button>
           </div>
         </div>
@@ -274,9 +282,9 @@ export default function StorageSection({
         isOpen={cacheConfirmClearAll}
         onClose={() => setCacheConfirmClearAll(false)}
         onConfirm={handleClearAllCache}
-        title="Clear Image Cache"
-        message={`Delete all ${imageCacheStatus?.cached.length ?? 0} cached image${(imageCacheStatus?.cached.length ?? 0) !== 1 ? 's' : ''}${imageCacheStatus?.total_bytes ? ` (${formatBytes(imageCacheStatus.total_bytes)})` : ''}? They will be re-downloaded when needed.`}
-        confirmLabel="Clear Cache"
+        title={t('storage.confirmClearCacheTitle')}
+        message={confirmClearCacheMessage}
+        confirmLabel={t('storage.confirmClearCacheButton')}
         confirmVariant="danger"
         loading={cacheClearingAll}
       />
@@ -291,9 +299,9 @@ export default function StorageSection({
           clearHistory(userPkh)
           setTxHistoryCount(0)
         }}
-        title="Clear Transaction History"
-        message="Clear all locally recorded transaction history? This cannot be undone."
-        confirmLabel="Clear All"
+        title={t('storage.confirmClearTxTitle')}
+        message={t('storage.confirmClearTxMessage')}
+        confirmLabel={t('storage.confirmClearTxButton')}
         confirmVariant="danger"
       />
     </>
