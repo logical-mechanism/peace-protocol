@@ -5,6 +5,10 @@
 
 import { afterEach, vi } from 'vitest';
 
+// Initialize i18n so components using useTranslation render English strings
+// in tests instead of raw translation keys.
+import '../i18n';
+
 // Clean up after each test
 afterEach(() => {
   vi.clearAllMocks();
