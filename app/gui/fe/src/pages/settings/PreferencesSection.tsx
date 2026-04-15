@@ -98,9 +98,9 @@ export default function PreferencesSection() {
 
       {/* NSFW Content */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-        <h2 className="text-lg font-medium mb-2">NSFW Content</h2>
+        <h2 className="text-lg font-medium mb-2">{t('preferences.nsfwTitle')}</h2>
         <p className="text-sm text-[var(--text-muted)] mb-4">
-          When disabled, NSFW listings have blurred images.
+          {t('preferences.nsfwDescription')}
         </p>
         <label className="flex items-center gap-3 cursor-pointer select-none">
           <button
@@ -114,21 +114,21 @@ export default function PreferencesSection() {
             }`}
             role="switch"
             aria-checked={showNsfw}
-            aria-label="Show NSFW content"
+            aria-label={t('preferences.nsfwToggleAria')}
           >
             <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-[var(--transition-fast)] ${
               showNsfw ? 'translate-x-4' : ''
             }`} />
           </button>
-          <span className="text-sm text-[var(--text-primary)]">Show NSFW content</span>
+          <span className="text-sm text-[var(--text-primary)]">{t('preferences.nsfwLabel')}</span>
         </label>
       </div>
 
       {/* Notification Duration */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-        <h2 className="text-lg font-medium mb-2">Notification Duration</h2>
+        <h2 className="text-lg font-medium mb-2">{t('preferences.notifDurationTitle')}</h2>
         <p className="text-sm text-[var(--text-muted)] mb-4">
-          How long toast notifications stay visible before auto-dismissing.
+          {t('preferences.notifDurationDescription')}
         </p>
         <div className="max-w-xs">
           <Select
@@ -139,7 +139,7 @@ export default function PreferencesSection() {
               setToastDuration(ms)
               setToastDurationMs(ms)
             }}
-            ariaLabel="Notification duration"
+            ariaLabel={t('preferences.notifDurationAria')}
           />
         </div>
       </div>
@@ -148,9 +148,9 @@ export default function PreferencesSection() {
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-medium">Desktop Notifications</h2>
+            <h2 className="text-lg font-medium">{t('preferences.desktopNotifTitle')}</h2>
             <p className="text-sm text-[var(--text-muted)]">
-              Show system notifications when new bids arrive on your listings.
+              {t('preferences.desktopNotifDescription')}
             </p>
           </div>
           <button
@@ -159,7 +159,7 @@ export default function PreferencesSection() {
               setDesktopNotifEnabledState(next)
               setDesktopNotificationsEnabled(next)
               if (next) {
-                sendDesktopNotification('Veiled', 'Desktop notifications enabled!')
+                sendDesktopNotification(t('preferences.desktopNotifTestTitle'), t('preferences.desktopNotifTestBody'))
               }
             }}
             className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
@@ -167,7 +167,7 @@ export default function PreferencesSection() {
             }`}
             role="switch"
             aria-checked={desktopNotifEnabled}
-            aria-label="Toggle desktop notifications"
+            aria-label={t('preferences.desktopNotifToggleAria')}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
               desktopNotifEnabled ? 'translate-x-6' : 'translate-x-0'
@@ -180,9 +180,9 @@ export default function PreferencesSection() {
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-medium">Notification Sounds</h2>
+            <h2 className="text-lg font-medium">{t('preferences.notifSoundsTitle')}</h2>
             <p className="text-sm text-[var(--text-muted)]">
-              Play sounds for bids, transactions, and other events.
+              {t('preferences.notifSoundsDescription')}
             </p>
           </div>
           <button
@@ -197,7 +197,7 @@ export default function PreferencesSection() {
             }`}
             role="switch"
             aria-checked={masterSoundEnabled}
-            aria-label="Toggle all notification sounds"
+            aria-label={t('preferences.notifSoundsToggleAria')}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
               masterSoundEnabled ? 'translate-x-6' : 'translate-x-0'
@@ -229,7 +229,7 @@ export default function PreferencesSection() {
                       }`}
                       role="switch"
                       aria-checked={enabled}
-                      aria-label={`Toggle ${label} sound`}
+                      aria-label={t('preferences.eventSoundToggleAria', { label })}
                     >
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
                         enabled ? 'translate-x-5' : 'translate-x-0'
@@ -238,7 +238,7 @@ export default function PreferencesSection() {
                   </div>
                   {enabled && (
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-[var(--text-secondary)]">Volume</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{t('preferences.volumeLabel')}</span>
                       <input
                         type="range"
                         min={0}
@@ -259,7 +259,7 @@ export default function PreferencesSection() {
                       <button
                         onClick={() => previewSound(event, volume)}
                         className="px-2 py-1 text-xs rounded-[var(--radius-sm)] btn-base btn-tertiary flex-shrink-0"
-                        aria-label={`Preview ${label} sound`}
+                        aria-label={t('preferences.previewSoundAria', { label })}
                       >
                         &#9654;
                       </button>

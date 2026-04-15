@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { getLogLineClass } from '../../utils/logClassification'
 import { type ProcessLog } from './settingsTypes'
@@ -10,6 +12,7 @@ interface LogsSectionProps {
 export default function LogsSection({
   processes,
 }: LogsSectionProps) {
+  const { t } = useTranslation('settings')
   const [selectedProcess, setSelectedProcess] = useState<string>('cardano-node')
   const [processLogs, setProcessLogs] = useState<ProcessLog | null>(null)
   const [logsLoading, setLogsLoading] = useState(false)
@@ -37,11 +40,11 @@ export default function LogsSection({
       setProcessLogs({ name: processName, lines })
     } catch (error) {
       console.error('Failed to fetch logs:', error)
-      setProcessLogs({ name: processName, lines: [`Error: ${error}`] })
+      setProcessLogs({ name: processName, lines: [t('logs.logError', { error: String(error) })] })
     } finally {
       setLogsLoading(false)
     }
-  }, [])
+  }, [t])
 
   const handleToggleDebug = useCallback((enabled: boolean) => {
     setDebugMode(enabled)
@@ -70,13 +73,13 @@ export default function LogsSection({
     <div className="space-y-6">
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium">Process Logs</h2>
+          <h2 className="text-lg font-medium">{t('logs.processLogsTitle')}</h2>
           <button
             onClick={() => handleFetchLogs(selectedProcess)}
             disabled={logsLoading}
             className="px-3 py-1.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            {logsLoading ? 'Loading...' : 'Refresh'}
+            {logsLoading ? t('logs.loading') : t('logs.refresh')}
           </button>
         </div>
 
@@ -103,12 +106,12 @@ export default function LogsSection({
             type="text"
             value={logSearchQuery}
             onChange={(e) => setLogSearchQuery(e.target.value)}
-            placeholder="Search logs..."
+            placeholder={t('logs.searchPlaceholder')}
             className="w-full px-3 py-2 text-sm font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
           />
           {logSearchQuery && (
             <div className="mt-1 text-xs text-[var(--text-muted)]">
-              {filteredLogLines.length} of {processLogs?.lines.length ?? 0} lines match
+              {t('logs.searchMatches', { matching: filteredLogLines.length, total: processLogs?.lines.length ?? 0 })}
             </div>
           )}
         </div>
@@ -134,7 +137,7 @@ export default function LogsSection({
             </div>
           ) : (
             <p className="text-[var(--text-muted)]">
-              {logSearchQuery ? 'No matching lines' : 'No logs available'}
+              {logSearchQuery ? t('logs.noMatchingLines') : t('logs.noLogsAvailable')}
             </p>
           )}
         </div>
@@ -144,9 +147,9 @@ export default function LogsSection({
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-medium">Developer Mode</h2>
+            <h2 className="text-lg font-medium">{t('logs.developerModeTitle')}</h2>
             <p className="text-sm text-[var(--text-muted)]">
-              Show detailed runtime information for debugging.
+              {t('logs.developerModeDescription')}
             </p>
           </div>
           <button
@@ -156,7 +159,7 @@ export default function LogsSection({
             }`}
             role="switch"
             aria-checked={debugMode}
-            aria-label="Toggle developer mode"
+            aria-label={t('logs.toggleAria')}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
               debugMode ? 'translate-x-6' : 'translate-x-0'
@@ -168,20 +171,20 @@ export default function LogsSection({
           <div className="space-y-4 mt-4 pt-4 border-t border-[var(--border-subtle)]">
             {/* App Config */}
             <div>
-              <h3 className="text-sm font-medium mb-2">App Configuration</h3>
+              <h3 className="text-sm font-medium mb-2">{t('logs.appConfigTitle')}</h3>
               <pre className="text-xs font-mono bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-3 max-h-48 overflow-auto text-[var(--text-secondary)]">
-                {appConfig ? JSON.stringify(appConfig, null, 2) : 'Loading...'}
+                {appConfig ? JSON.stringify(appConfig, null, 2) : t('logs.appConfigLoading')}
               </pre>
             </div>
 
             {/* Process PIDs */}
             <div>
-              <h3 className="text-sm font-medium mb-2">Process PIDs</h3>
+              <h3 className="text-sm font-medium mb-2">{t('logs.processPidsTitle')}</h3>
               <div className="grid grid-cols-3 gap-2">
                 {processes.map(proc => (
                   <div key={proc.name} className="p-2 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
                     <span className="text-xs text-[var(--text-muted)]">{proc.name}</span>
-                    <p className="text-sm font-mono">{proc.pid || 'N/A'}</p>
+                    <p className="text-sm font-mono">{proc.pid || t('logs.pidNa')}</p>
                   </div>
                 ))}
               </div>
@@ -189,7 +192,7 @@ export default function LogsSection({
 
             {/* localStorage Keys */}
             <div>
-              <h3 className="text-sm font-medium mb-2">LocalStorage Keys ({localStorageKeys.length})</h3>
+              <h3 className="text-sm font-medium mb-2">{t('logs.localStorageKeysTitle', { count: localStorageKeys.length })}</h3>
               <div className="max-h-48 overflow-y-auto bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] p-3">
                 {localStorageKeys.length > 0 ? (
                   localStorageKeys.map(key => (
@@ -198,7 +201,7 @@ export default function LogsSection({
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-[var(--text-muted)]">No keys found</p>
+                  <p className="text-xs text-[var(--text-muted)]">{t('logs.noLocalStorageKeys')}</p>
                 )}
               </div>
             </div>
@@ -209,7 +212,7 @@ export default function LogsSection({
                 onClick={() => window.location.reload()}
                 className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Force Refresh
+                {t('logs.forceRefresh')}
               </button>
             </div>
           </div>

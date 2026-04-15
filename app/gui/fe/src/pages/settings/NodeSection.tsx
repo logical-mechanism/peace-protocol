@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { nodeStageLabel, stageColor, processStatusColor } from './settingsTypes'
 
 interface NodeSectionProps {
@@ -21,14 +23,15 @@ export default function NodeSection({
   currentNetwork,
   processes,
 }: NodeSectionProps) {
+  const { t } = useTranslation('settings')
   return (
     <div className="space-y-6">
       {/* Overall Status */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-        <h2 className="text-lg font-medium mb-4">Node Infrastructure</h2>
+        <h2 className="text-lg font-medium mb-4">{t('node.infrastructureTitle')}</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <span className="text-sm text-[var(--text-muted)]">Status</span>
+            <span className="text-sm text-[var(--text-muted)]">{t('node.status')}</span>
             <p className="text-lg font-medium flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full"
@@ -38,18 +41,18 @@ export default function NodeSection({
             </p>
           </div>
           <div>
-            <span className="text-sm text-[var(--text-muted)]">Network</span>
+            <span className="text-sm text-[var(--text-muted)]">{t('node.network')}</span>
             <p className="text-lg font-medium capitalize">{network || currentNetwork || '...'}</p>
           </div>
           {tipSlot !== null && (
             <div>
-              <span className="text-sm text-[var(--text-muted)]">Tip Slot</span>
+              <span className="text-sm text-[var(--text-muted)]">{t('node.tipSlot')}</span>
               <p className="text-lg font-mono">{tipSlot?.toLocaleString()}</p>
             </div>
           )}
           {tipHeight !== null && (
             <div>
-              <span className="text-sm text-[var(--text-muted)]">Tip Height</span>
+              <span className="text-sm text-[var(--text-muted)]">{t('node.tipHeight')}</span>
               <p className="text-lg font-mono">{tipHeight?.toLocaleString()}</p>
             </div>
           )}
@@ -59,8 +62,8 @@ export default function NodeSection({
           <div className="mt-4 space-y-3">
             <div>
               <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">
-                <span>Node Sync</span>
-                <span>{syncProgress >= 99.9 ? 'Synced' : `${syncProgress.toFixed(1)}%`}</span>
+                <span>{t('node.nodeSync')}</span>
+                <span>{syncProgress >= 99.9 ? t('node.synced') : `${syncProgress.toFixed(1)}%`}</span>
               </div>
               <div className="w-full h-3 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
                 <div
@@ -71,8 +74,8 @@ export default function NodeSection({
             </div>
             <div>
               <div className="flex justify-between text-sm text-[var(--text-muted)] mb-1">
-                <span>Kupo Indexer</span>
-                <span>{kupoSyncProgress >= 99.9 ? 'Synced' : `${kupoSyncProgress.toFixed(1)}%`}</span>
+                <span>{t('node.kupoIndexer')}</span>
+                <span>{kupoSyncProgress >= 99.9 ? t('node.synced') : `${kupoSyncProgress.toFixed(1)}%`}</span>
               </div>
               <div className="w-full h-3 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
                 <div
@@ -87,10 +90,10 @@ export default function NodeSection({
 
       {/* Process List */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-        <h2 className="text-lg font-medium mb-4">Processes</h2>
+        <h2 className="text-lg font-medium mb-4">{t('node.processesTitle')}</h2>
         <div className="space-y-3">
           {processes.length === 0 ? (
-            <p className="text-[var(--text-muted)]">No processes registered</p>
+            <p className="text-[var(--text-muted)]">{t('node.noProcesses')}</p>
           ) : (
             processes.map((proc) => (
               <div
@@ -106,14 +109,14 @@ export default function NodeSection({
                 </div>
                 <div className="flex items-center gap-4">
                   {proc.pid && (
-                    <span className="text-xs text-[var(--text-muted)] font-mono">PID {proc.pid}</span>
+                    <span className="text-xs text-[var(--text-muted)] font-mono">{t('node.pid', { pid: proc.pid })}</span>
                   )}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
                     {(proc.status as unknown as { type: string }).type}
                   </span>
                   {proc.restart_count > 0 && (
                     <span className="text-xs text-[var(--warning)]">
-                      {proc.restart_count} restart{proc.restart_count > 1 ? 's' : ''}
+                      {t('node.restarts', { count: proc.restart_count })}
                     </span>
                   )}
                 </div>
