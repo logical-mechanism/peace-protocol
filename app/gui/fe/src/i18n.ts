@@ -14,6 +14,7 @@ import { initReactI18next } from 'react-i18next'
 
 import commonEn from './locales/en/common.json'
 import walletEn from './locales/en/wallet.json'
+import nodeSyncEn from './locales/en/nodeSync.json'
 import dashboardEn from './locales/en/dashboard.json'
 import settingsEn from './locales/en/settings.json'
 import modalsEn from './locales/en/modals.json'
@@ -23,6 +24,7 @@ import notificationsEn from './locales/en/notifications.json'
 export const NAMESPACES = [
   'common',
   'wallet',
+  'nodeSync',
   'dashboard',
   'settings',
   'modals',
@@ -34,6 +36,7 @@ export const resources = {
   en: {
     common: commonEn,
     wallet: walletEn,
+    nodeSync: nodeSyncEn,
     dashboard: dashboardEn,
     settings: settingsEn,
     modals: modalsEn,
