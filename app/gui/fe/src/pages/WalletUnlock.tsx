@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import '../i18n'
 import { useWalletContext } from '../contexts/WalletContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { useModalStack } from '../hooks/useModalStack'
@@ -12,6 +14,7 @@ import { copyToClipboard } from '../utils/clipboard'
 export default function WalletUnlock() {
   const { unlockWallet, deleteWallet } = useWalletContext()
   const navigate = useNavigate()
+  const { t } = useTranslation('wallet')
 
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -83,7 +86,7 @@ export default function WalletUnlock() {
             className="text-3xl font-bold mb-2"
             style={{ color: 'var(--text-primary)' }}
           >
-            Veiled
+            {t('appName')}
           </h1>
         </div>
 
@@ -104,7 +107,7 @@ export default function WalletUnlock() {
               className="block text-sm mb-1"
               style={{ color: 'var(--text-muted)' }}
             >
-              Password
+              {t('unlock.passwordLabel')}
             </label>
             <div className="relative">
               <input
@@ -133,7 +136,7 @@ export default function WalletUnlock() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded btn-base btn-icon"
-                aria-label="Toggle password visibility"
+                aria-label={t('unlock.togglePasswordVisibility')}
               >
                 {showPassword ? (
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
@@ -152,7 +155,7 @@ export default function WalletUnlock() {
             </div>
             {capsLockOn && (
               <p className="text-xs mt-1" style={{ color: 'var(--warning)' }}>
-                Caps Lock is on
+                {t('unlock.capsLockOn')}
               </p>
             )}
           </div>
@@ -181,7 +184,7 @@ export default function WalletUnlock() {
                     className="text-xs cursor-pointer"
                     style={{ color: 'var(--text-muted)' }}
                   >
-                    Details
+                    {t('unlock.details')}
                   </summary>
                   <div className="flex items-start gap-2 mt-1">
                     <code
@@ -194,8 +197,8 @@ export default function WalletUnlock() {
                       type="button"
                       onClick={handleCopyError}
                       className="shrink-0 p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
-                      title="Copy error details"
-                      aria-label="Copy error details"
+                      title={t('unlock.copyErrorTitle')}
+                      aria-label={t('unlock.copyErrorTitle')}
                     >
                       {copiedError ? (
                         <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -224,7 +227,7 @@ export default function WalletUnlock() {
             }}
           >
             {isUnlocking && <LoadingSpinner size="sm" className="text-white" />}
-            {isUnlocking ? 'Unlocking...' : 'Unlock'}
+            {isUnlocking ? t('unlock.unlocking') : t('unlock.unlock')}
           </button>
 
           {/* Forgot password */}
@@ -235,7 +238,7 @@ export default function WalletUnlock() {
               className="text-xs cursor-pointer"
               style={{ color: 'var(--text-muted)' }}
             >
-              Forgot password?
+              {t('unlock.forgotPassword')}
             </button>
           </div>
         </form>
@@ -268,12 +271,10 @@ export default function WalletUnlock() {
                 className="text-lg font-semibold mb-3"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Delete Wallet?
+                {t('unlock.delete.title')}
               </h3>
               <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                This will remove the encrypted wallet from this device. Your funds
-                are safe if you have your 24-word recovery phrase backed up. You
-                can re-import it after deleting.
+                {t('unlock.delete.description')}
               </p>
               <div
                 className="p-3 rounded-lg mb-4 text-sm"
@@ -283,7 +284,7 @@ export default function WalletUnlock() {
                   border: '1px solid var(--warning)',
                 }}
               >
-                Without your recovery phrase, your funds will be permanently lost.
+                {t('unlock.delete.warning')}
               </div>
               <label
                 className="flex items-start gap-3 mb-4 text-sm cursor-pointer select-none"
@@ -294,7 +295,7 @@ export default function WalletUnlock() {
                   checked={backupAcknowledged}
                   onChange={(e) => setBackupAcknowledged(e.target.checked)}
                   className="sr-only"
-                  aria-label="I have backed up my 24-word recovery phrase"
+                  aria-label={t('unlock.delete.acknowledge')}
                 />
                 <span
                   className="mt-0.5 w-5 h-5 flex-shrink-0 flex items-center justify-center transition-colors"
@@ -310,7 +311,7 @@ export default function WalletUnlock() {
                     </svg>
                   )}
                 </span>
-                I have backed up my 24-word recovery phrase
+                {t('unlock.delete.acknowledge')}
               </label>
               <div className="flex gap-3">
                 <button
@@ -318,7 +319,7 @@ export default function WalletUnlock() {
                   disabled={isDeleting}
                   className="flex-1 px-4 py-2 rounded-lg text-sm btn-base btn-tertiary"
                 >
-                  Cancel
+                  {t('unlock.delete.cancel')}
                 </button>
                 <button
                   onClick={handleDelete}
@@ -326,7 +327,7 @@ export default function WalletUnlock() {
                   className="flex-1 px-4 py-2 rounded-lg text-sm font-medium btn-base btn-danger flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {isDeleting && <LoadingSpinner size="sm" className="text-white" />}
-                  {isDeleting ? 'Deleting...' : 'Delete Wallet'}
+                  {isDeleting ? t('unlock.delete.deleting') : t('unlock.delete.confirm')}
                 </button>
               </div>
             </div>
