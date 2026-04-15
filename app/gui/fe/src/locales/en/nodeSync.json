@@ -1,0 +1,113 @@
+{
+  "title": {
+    "stopped": "Node Setup",
+    "bootstrapping": "Downloading Snapshot",
+    "starting": "Starting Node",
+    "syncing": "Syncing Chain",
+    "synced": "Node Ready",
+    "error": "Node Error"
+  },
+  "network": {
+    "preprod": "Preprod Network",
+    "mainnet": "Mainnet Network"
+  },
+  "stages": {
+    "bootstrap": "Bootstrap",
+    "starting": "Starting",
+    "syncing": "Syncing",
+    "ready": "Ready"
+  },
+  "progressLabel": "Sync progress",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "Replaying ledger...",
+      "description": "Validates blocks from the Cardano blockchain and maintains a local copy of the ledger."
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "Connecting...",
+      "description": "Translates node data into a WebSocket protocol for transaction building and submission."
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "Starting...",
+      "description": "Indexes UTxOs at contract and wallet addresses for fast balance and listing queries."
+    },
+    "states": {
+      "waiting": "Waiting...",
+      "starting": "Starting...",
+      "ready": "Ready",
+      "error": "Error"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "Backend Server",
+    "syncing": "Syncing {{percent}}%",
+    "indexing": "Indexing {{percent}}%",
+    "disconnected": "Disconnected",
+    "stalled": "Stalled",
+    "starting": "Starting...",
+    "waiting": "Waiting...",
+    "synced": "Synced"
+  },
+  "syncInfo": {
+    "block": "Block {{height}} — {{percent}}%",
+    "epoch": "Epoch {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Blockchain data not found. Download a snapshot to get started.",
+    "stopped": "Node infrastructure is stopped.",
+    "bootstrapDownloading": "Downloading snapshot: {{current}} / {{total}} files",
+    "bootstrapLedgerState": "Downloading ledger state: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Preparing to download blockchain snapshot...",
+    "bootstrapGeneric": "Downloading snapshot...",
+    "startingNode": "Starting Cardano node...",
+    "waitingChainBridge": "Waiting for chain bridge...",
+    "connectingNetwork": "Connecting to network...",
+    "fullySyncedStartingBackend": "Fully synced, starting backend services...",
+    "fullySynced": "Fully synced with {{network}} network",
+    "nodeSyncedWaitingKupo": "Node synced, waiting for Kupo indexer...",
+    "syncing": "Syncing with {{network}} network...",
+    "syncedAtBlock": "Fully synced with {{network}} network at block {{height}}",
+    "genericError": "An error occurred"
+  },
+  "stuckMessage": "The last few blocks take longer as the node validates recent transactions. This is normal. The last few percent may take 5–15 minutes as the node validates recent blocks.",
+  "diskSpace": {
+    "low": "Low disk space: {{available}} GB available, ~{{required}} GB needed for {{network}}. The sync may fail if disk space runs out.",
+    "unknown": "Could not verify disk space. Ensure you have at least 10 GB free before syncing."
+  },
+  "actions": {
+    "starting": "Starting...",
+    "downloadSnapshot": "Download Snapshot & Start",
+    "startNode": "Start Node",
+    "retry": "Retry",
+    "continueDashboard": "Continue to Dashboard",
+    "continueBackground": "Continue in Background",
+    "stop": "Stop"
+  },
+  "console": {
+    "show": "Show Console Output ({{count}} lines)",
+    "hide": "Hide Console Output ({{count}} lines)",
+    "copyLogs": "Copy Logs",
+    "copyLogsAria": "Copy logs to clipboard",
+    "noLogsTitle": "No logs",
+    "noLogsBody": "There are no log lines to copy.",
+    "copiedTitle": "Logs copied",
+    "copiedBody": "Console output copied to clipboard.",
+    "copyFailedTitle": "Copy failed",
+    "copyFailedBody": "Could not copy logs to clipboard."
+  },
+  "errorDetails": {
+    "summary": "Details",
+    "copyAria": "Copy error details",
+    "errorFallback": "Error"
+  },
+  "firstTimeSetup": {
+    "title": "First-time setup",
+    "description": "A Mithril snapshot will be downloaded to bootstrap the Cardano node. This takes approximately 10-20 minutes depending on your connection speed. The snapshot is verified cryptographically before use."
+  }
+}

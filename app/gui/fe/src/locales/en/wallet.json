@@ -1,24 +1,77 @@
 {
+  "appName": "Veiled",
   "setup": {
-    "title": "Set up your wallet",
-    "subtitle": "Create a new wallet or restore an existing one from a recovery phrase.",
-    "createTab": "Create new",
-    "importTab": "Restore from phrase",
-    "mnemonicLabel": "Recovery phrase",
-    "mnemonicHelp": "Write these words down and keep them somewhere safe. Anyone with this phrase can spend your funds.",
-    "passwordLabel": "Password",
-    "passwordConfirmLabel": "Confirm password",
-    "passwordMismatch": "Passwords do not match.",
-    "create": "Create wallet",
-    "restore": "Restore wallet",
-    "generating": "Generating recovery phrase…"
+    "tagline": "Encrypted data marketplace on Cardano",
+    "chooseCreateTitle": "Create New Wallet",
+    "chooseCreateSubtitle": "Generate a new 24-word recovery phrase",
+    "chooseImportTitle": "Import Existing Wallet",
+    "chooseImportSubtitle": "Restore from a 24-word recovery phrase",
+    "back": "Back",
+    "steps": {
+      "backup": "Backup",
+      "verify": "Verify",
+      "password": "Password",
+      "recoveryPhrase": "Recovery Phrase"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Recovery Phrase",
+      "verifyTitle": "Verify Phrase",
+      "passwordTitle": "Set Password",
+      "warning": "Write down these 24 words in order. This is the only way to recover your wallet. Never share them with anyone.",
+      "copyToClipboard": "Copy to Clipboard",
+      "copied": "Copied!",
+      "wroteItDown": "I wrote it down",
+      "verifyInstructions": "Verify your recovery phrase by entering the following words. Start typing and select the matching word.",
+      "continue": "Continue"
+    },
+    "import": {
+      "enterTitle": "Enter Recovery Phrase",
+      "passwordTitle": "Set Password",
+      "instructions": "Enter your 24-word recovery phrase. Start typing each word and select from the suggestions.",
+      "pasteAll": "Paste all 24 words",
+      "wordCount": "{{count}} / 24 words",
+      "continue": "Continue"
+    },
+    "password": {
+      "description": "Set a wallet password to encrypt your recovery phrase. You will need this password each time you open the app.",
+      "label": "Password",
+      "confirmLabel": "Confirm Password",
+      "placeholder": "Enter password",
+      "confirmPlaceholder": "Confirm password",
+      "show": "Show",
+      "hide": "Hide",
+      "capsLockOn": "Caps Lock is on",
+      "creating": "Creating Wallet...",
+      "submit": "Create Wallet"
+    },
+    "errors": {
+      "allWordsRequired": "All 24 words are required",
+      "passwordRequirements": "Password does not meet all requirements",
+      "passwordMismatch": "Passwords do not match",
+      "createFailed": "Failed to create wallet",
+      "copyFailedTitle": "Copy failed",
+      "copyFailedBody": "Could not copy mnemonic to clipboard.",
+      "clipboardUnavailableTitle": "Clipboard unavailable",
+      "clipboardUnavailableBody": "Could not access clipboard. Try pasting directly into the word fields with Ctrl+V."
+    }
   },
   "unlock": {
-    "title": "Unlock wallet",
-    "subtitle": "Enter your password to continue.",
     "passwordLabel": "Password",
+    "togglePasswordVisibility": "Toggle password visibility",
+    "capsLockOn": "Caps Lock is on",
     "unlock": "Unlock",
-    "unlocking": "Unlocking…",
-    "forgot": "Forgot password? Reset wallet."
+    "unlocking": "Unlocking...",
+    "forgotPassword": "Forgot password?",
+    "details": "Details",
+    "copyErrorTitle": "Copy error details",
+    "delete": {
+      "title": "Delete Wallet?",
+      "description": "This will remove the encrypted wallet from this device. Your funds are safe if you have your 24-word recovery phrase backed up. You can re-import it after deleting.",
+      "warning": "Without your recovery phrase, your funds will be permanently lost.",
+      "acknowledge": "I have backed up my 24-word recovery phrase",
+      "cancel": "Cancel",
+      "confirm": "Delete Wallet",
+      "deleting": "Deleting..."
+    }
   }
 }
