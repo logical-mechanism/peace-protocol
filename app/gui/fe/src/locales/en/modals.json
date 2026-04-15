@@ -35,6 +35,30 @@
     "continue": "Continue",
     "retry": "Retry"
   },
+  "updateBid": {
+    "title": "Update Bid",
+    "currentBid": "Current bid",
+    "currentFuturePrice": "Current future price",
+    "bidAmountLabel": "Bid Amount (ADA)",
+    "futurePriceLabel": "Future Price (ADA)",
+    "lovelaceSuffix": "= {{amount}} lovelace",
+    "autoSynced": "Auto-synced to bid amount",
+    "submit": "Update Bid",
+    "submitting": "Updating...",
+    "errors": {
+      "amountRequired": "Bid amount is required",
+      "amountInvalid": "Bid amount must be a valid number",
+      "amountPositive": "Bid amount must be greater than zero",
+      "amountMax": "Bid exceeds maximum (45B ADA)",
+      "priceRequired": "Future price is required",
+      "priceInvalid": "Future price must be a valid number",
+      "priceNegative": "Future price cannot be negative",
+      "priceMax": "Future price exceeds maximum (45B ADA)",
+      "noChange": "At least one value must differ from current",
+      "noBid": "No bid selected",
+      "unknown": "Unknown error"
+    }
+  },
   "bids": {
     "title": "Bids for Listing",
     "suggestedPrice": "Suggested Price",
