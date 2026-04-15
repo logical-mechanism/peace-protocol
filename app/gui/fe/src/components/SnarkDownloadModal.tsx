@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getSnarkProver } from '../services/snark'
 import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -22,6 +23,7 @@ export default function SnarkSetupModal({
   onClose,
   onReady,
 }: SnarkSetupModalProps) {
+  const { t } = useTranslation(['modals', 'common'])
   const [status, setStatus] = useState<'checking' | 'decompressing' | 'complete' | 'error'>('checking')
   const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +43,7 @@ export default function SnarkSetupModal({
     const checkAndSetup = async () => {
       setStatus('checking')
       setError(null)
-      setMessage('Checking setup files...')
+      setMessage(t('modals:snarkDownload.checking'))
 
       try {
         const prover = getSnarkProver()
@@ -52,7 +54,7 @@ export default function SnarkSetupModal({
           onReady()
         } else {
           setStatus('decompressing')
-          setMessage('Decompressing SNARK setup files...')
+          setMessage(t('modals:snarkDownload.decompressing'))
 
           await prover.initialize((progress) => {
             setMessage(progress.message)
@@ -62,19 +64,19 @@ export default function SnarkSetupModal({
           onReady()
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Setup failed'
+        const msg = err instanceof Error ? err.message : t('modals:snarkDownload.failedFallback')
         setError(msg)
         setStatus('error')
       }
     }
 
     checkAndSetup()
-  }, [isOpen, onReady])
+  }, [isOpen, onReady, t])
 
   const handleRetry = useCallback(async () => {
     setStatus('checking')
     setError(null)
-    setMessage('Retrying setup...')
+    setMessage(t('modals:snarkDownload.retrying'))
 
     try {
       const prover = getSnarkProver()
@@ -88,11 +90,11 @@ export default function SnarkSetupModal({
       setStatus('complete')
       onReady()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Setup failed'
+      const msg = err instanceof Error ? err.message : t('modals:snarkDownload.failedFallback')
       setError(msg)
       setStatus('error')
     }
-  }, [onReady])
+  }, [onReady, t])
 
   if (!shouldRender) return null
 
@@ -118,12 +120,12 @@ export default function SnarkSetupModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div className="flex items-center justify-between">
-            <h2 id="snark-download-title" className="text-xl font-semibold">SNARK Prover Setup</h2>
+            <h2 id="snark-download-title" className="text-xl font-semibold">{t('modals:snarkDownload.title')}</h2>
             {status !== 'decompressing' && status !== 'checking' && (
               // tabIndex={-1}: Escape closes — header X is a mouse convenience.
               <button
                 onClick={onClose}
-                aria-label="Close dialog"
+                aria-label={t('modals:common.closeDialog')}
                 tabIndex={-1}
                 className="p-1 btn-base btn-icon"
               >
@@ -143,7 +145,7 @@ export default function SnarkSetupModal({
               <span className="text-[var(--text-secondary)]">{message}</span>
               {status === 'decompressing' && (
                 <p className="text-sm text-[var(--text-muted)] text-center">
-                  This only needs to happen once
+                  {t('modals:snarkDownload.onlyOnce')}
                 </p>
               )}
             </div>
@@ -156,9 +158,9 @@ export default function SnarkSetupModal({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-lg font-medium">Prover Ready</p>
+              <p className="text-lg font-medium">{t('modals:snarkDownload.ready')}</p>
               <p className="text-sm text-[var(--text-muted)] mt-1">
-                SNARK setup files are ready to use
+                {t('modals:snarkDownload.readyBody')}
               </p>
             </div>
           )}
@@ -180,7 +182,7 @@ export default function SnarkSetupModal({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Continue
+              {t('modals:snarkDownload.continue')}
             </button>
           )}
 
@@ -190,13 +192,13 @@ export default function SnarkSetupModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm btn-base btn-icon"
               >
-                Cancel
+                {t('common:actions.cancel')}
               </button>
               <button
                 onClick={handleRetry}
                 className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
-                Retry
+                {t('modals:snarkDownload.retry')}
               </button>
             </>
           )}

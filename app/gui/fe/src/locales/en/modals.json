@@ -5,6 +5,18 @@
   "description": {
     "title": "Description"
   },
+  "snarkDownload": {
+    "title": "SNARK Prover Setup",
+    "checking": "Checking setup files...",
+    "decompressing": "Decompressing SNARK setup files...",
+    "retrying": "Retrying setup...",
+    "onlyOnce": "This only needs to happen once",
+    "ready": "Prover Ready",
+    "readyBody": "SNARK setup files are ready to use",
+    "failedFallback": "Setup failed",
+    "continue": "Continue",
+    "retry": "Retry"
+  },
   "snarkProving": {
     "titleGenerating": "Generating Proof",
     "titleGenerated": "Proof Generated",
