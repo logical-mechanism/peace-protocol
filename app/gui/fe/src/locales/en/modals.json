@@ -5,6 +5,24 @@
   "description": {
     "title": "Description"
   },
+  "snarkProving": {
+    "titleGenerating": "Generating Proof",
+    "titleGenerated": "Proof Generated",
+    "initializing": "Initializing prover...",
+    "generating": "Generating zero-knowledge proof...",
+    "tooltip": "A SNARK proof mathematically proves the data re-encryption was done correctly, without revealing your secret. This lets the buyer verify the sale is honest.",
+    "estimate": "This may take ~3 minutes",
+    "elapsed": "Elapsed:",
+    "provingLabel": "Proving",
+    "doNotClose": "Do not close the app",
+    "successTitle": "Proof Generated!",
+    "successBody": "Zero-knowledge proof generated successfully in {{time}}",
+    "failedFallback": "Proof generation failed",
+    "failedTitle": "Proof Generation Failed",
+    "beforeUnload": "Proof generation is in progress. Are you sure you want to leave?",
+    "continue": "Continue",
+    "retry": "Retry"
+  },
   "decrypt": {
     "title": "Decrypt Content",
     "titleSuccessText": "Decrypted Message",
