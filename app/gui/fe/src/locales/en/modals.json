@@ -1,4 +1,10 @@
 {
+  "common": {
+    "closeDialog": "Close dialog"
+  },
+  "description": {
+    "title": "Description"
+  },
   "placeBid": {
     "title": "Place bid",
     "subtitle": "Bid on encrypted data listing",
