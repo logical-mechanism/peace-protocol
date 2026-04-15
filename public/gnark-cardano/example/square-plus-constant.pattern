@@ -1,0 +1,15 @@
+# Square Plus Constant — "I know x such that x*x + d == y"
+#
+# Proves knowledge of a secret x whose square plus a fixed constant d
+# equals a public value y.
+#
+# This demonstrates: secret inputs, public inputs, constants,
+# field arithmetic (multiply + add).
+
+Secret Int Inputs: (x)
+Public Int Inputs: (y)
+Constants:
+    d  # Fixed integer known to both prover and verifier
+
+compute: result = x * x + d
+check: y == result

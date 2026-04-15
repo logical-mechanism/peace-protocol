@@ -70,15 +70,15 @@ export interface BidDatum {
 // API display types (enriched for UI)
 export interface EncryptionDisplay {
   tokenName: string;
-  seller: string;                 // bech32 address
-  sellerPkh: string;              // payment key hash
+  sellerPkh: string;              // owner payment key hash from the encryption datum
   status: 'active' | 'pending' | 'completed';
   // CIP-20 metadata fields (parsed from tx metadata key 674)
   description?: string;           // Human-readable description of the encrypted data
   suggestedPrice?: number;        // lovelace, from datum new_price field
   storageLayer?: string;          // Storage layer info (e.g., "on-chain", "data-layer")
   imageLink?: string;             // Optional preview image URL (from CIP-20 metadata msg[3])
-  category?: string;              // File category (from CIP-20 metadata msg[4])
+  category?: string;              // File category, colon-delimited path (from CIP-20 metadata field `c`)
+  nsfw?: boolean;                 // NSFW flag (from CIP-20 metadata field `n`)
   createdAt: string | null;       // ISO date, null if block_time unavailable
   utxo: {
     txHash: string;

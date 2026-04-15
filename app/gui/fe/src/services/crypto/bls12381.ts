@@ -59,10 +59,17 @@ export function uncompressG2(hex: string): typeof bls.G2.Point.BASE {
   return bls.G2.Point.fromHex(hex);
 }
 
+// BLS12-381 compressed point-at-infinity encodings.
+// Flag byte 0xc0 = compressed (0x80) | infinity (0x40); remaining bytes are zero.
+// G1 is 48 bytes compressed (96 hex), G2 is 96 bytes compressed (192 hex).
+const G1_INFINITY_HEX = 'c0' + '00'.repeat(47);
+const G2_INFINITY_HEX = 'c0' + '00'.repeat(95);
+
 /**
  * Compress a G1 point to hex string.
  */
 export function compressG1(point: typeof bls.G1.Point.BASE): string {
+  if (point.is0()) return G1_INFINITY_HEX;
   return point.toHex(true);
 }
 
@@ -70,6 +77,7 @@ export function compressG1(point: typeof bls.G1.Point.BASE): string {
  * Compress a G2 point to hex string.
  */
 export function compressG2(point: typeof bls.G2.Point.BASE): string {
+  if (point.is0()) return G2_INFINITY_HEX;
   return point.toHex(true);
 }
 

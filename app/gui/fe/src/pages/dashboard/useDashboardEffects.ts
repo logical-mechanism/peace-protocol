@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useBidNotifications } from '../../hooks/useBidNotifications'
-import { playNotificationSound } from '../../services/notificationSound'
+import { playNotificationSound, playSound } from '../../services/notificationSound'
 import { sendDesktopNotification } from '../../services/desktopNotifications'
 import { cleanupStaleSecrets } from '../../services/secretCleanup'
 import { encryptionsApi, bidsApi } from '../../services/api'
@@ -104,6 +104,26 @@ export function useDashboardEffects({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bidNotifications.unseenBidCount, bidNotifications.isReady])
+
+  // Fire notification when a bid the user placed is accepted by a seller
+  const isInitialAcceptedCheck = useRef(true)
+  const lastAcceptedCountRef = useRef(0)
+  useEffect(() => {
+    if (isInitialAcceptedCheck.current) {
+      isInitialAcceptedCheck.current = false
+      lastAcceptedCountRef.current = acceptedBidCount
+      return
+    }
+    if (acceptedBidCount > lastAcceptedCountRef.current) {
+      const delta = acceptedBidCount - lastAcceptedCountRef.current
+      const label = delta === 1 ? 'bid' : 'bids'
+      toast.success('Bid Accepted!', `${delta} of your ${label} accepted by the seller`)
+      playSound('bid_accepted')
+      sendDesktopNotification('Bid Accepted', `${delta} of your ${label} accepted`)
+    }
+    lastAcceptedCountRef.current = acceptedBidCount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptedBidCount])
 
   // Mark bids as seen when user switches to My Sales tab
   const { markAllSeen } = bidNotifications

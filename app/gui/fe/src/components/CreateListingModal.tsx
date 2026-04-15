@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
 import { stat } from '@tauri-apps/plugin-fs';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import LoadingSpinner from './LoadingSpinner';
 import ConfirmModal from './ConfirmModal';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
+import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 import {
   saveListingFormDraft,
@@ -17,6 +19,8 @@ import {
 
 export interface CreateListingFormData {
   category: FileCategory;
+  subcategory: string;
+  nsfw: boolean;
   secretMessage: string;
   file: File | null;
   /** Absolute path to the file on disk (from native dialog). Used by Rust for encrypt+upload. */
@@ -91,6 +95,8 @@ function formatPrice(raw: string): string {
 
 const INITIAL_FORM_DATA: CreateListingFormData = {
   category: 'text',
+  subcategory: '',
+  nsfw: false,
   secretMessage: '',
   file: null,
   filePath: null,
@@ -112,6 +118,10 @@ export default function CreateListingModal({
   const navigate = useNavigate();
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
+  // Tracks which fields the user has actually interacted with. Blur-time
+  // validation only fires for touched fields so a fresh form does not flash
+  // red the moment the user tabs through it.
+  const [touched, setTouched] = useState<Partial<Record<keyof FormErrors, boolean>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [copiedError, setCopiedError] = useState(false);
@@ -123,9 +133,14 @@ export default function CreateListingModal({
   const [draftSaved, setDraftSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  // Refs read by the drag-drop event listener so it can subscribe once per
+  // open without re-running on every keystroke / state change.
+  const isSubmittingRef = useRef(isSubmitting);
+  const hasFileRef = useRef<boolean>(false);
+  const processSelectedFileRef = useRef<(filePath: string) => Promise<void>>(async () => {});
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -135,7 +150,6 @@ export default function CreateListingModal({
         setFormData({ ...INITIAL_FORM_DATA, ...prefill });
         setShowDraftPrompt(false);
         setDisplayPrice(formatPrice(prefill.suggestedPrice || ''));
-        setTimeout(() => descriptionRef.current?.focus(), 50);
       } else {
         const savedDraft = getListingFormDraft();
         if (savedDraft && (savedDraft.description || savedDraft.secretMessage || savedDraft.suggestedPrice)) {
@@ -143,13 +157,13 @@ export default function CreateListingModal({
         } else {
           setFormData(INITIAL_FORM_DATA);
           setShowDraftPrompt(false);
-          setTimeout(() => descriptionRef.current?.focus(), 50);
         }
         setDisplayPrice('');
       }
       setImagePreviewState('idle');
       setImagePreviewUrl(null);
       setErrors({});
+      setTouched({});
       setSubmitError(null);
       setCreationStep(null);
       setDraftSaved(false);
@@ -171,6 +185,8 @@ export default function CreateListingModal({
       if (formData.description || formData.secretMessage || formData.suggestedPrice || formData.imageLink) {
         saveListingFormDraft({
           category: formData.category,
+          subcategory: formData.subcategory,
+          nsfw: formData.nsfw,
           secretMessage: formData.secretMessage,
           description: formData.description,
           suggestedPrice: formData.suggestedPrice,
@@ -190,6 +206,59 @@ export default function CreateListingModal({
     };
   }, [isOpen, showDraftPrompt, isSubmitting, formData]);
 
+  // Keep refs in sync so the drag-drop subscription (which runs once per open)
+  // can read the latest values without re-subscribing on every render.
+  isSubmittingRef.current = isSubmitting;
+  hasFileRef.current = formData.filePath !== null;
+
+  // Tauri drag-and-drop file import (file mode only). Subscribes once per
+  // (isOpen, isFileMode) cycle; reads latest isSubmitting / filePath via refs.
+  const isFileModeForDragDrop = formData.category !== 'text';
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!isFileModeForDragDrop) return;
+
+    let unlisten: (() => void) | null = null;
+    let cancelled = false;
+
+    const subscribe = async () => {
+      try {
+        const win = getCurrentWindow();
+        const fn = await win.onDragDropEvent((event) => {
+          const payload = event.payload as { type: string; paths?: string[] };
+          if (payload.type === 'enter' || payload.type === 'over') {
+            if (isSubmittingRef.current || hasFileRef.current) return;
+            setIsDragOver(true);
+          } else if (payload.type === 'leave' || payload.type === 'cancel') {
+            setIsDragOver(false);
+          } else if (payload.type === 'drop') {
+            setIsDragOver(false);
+            if (isSubmittingRef.current || hasFileRef.current) return;
+            const paths = payload.paths;
+            if (paths && paths.length > 0) {
+              processSelectedFileRef.current(paths[0]);
+            }
+          }
+        });
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      } catch {
+        // Drag-drop unsupported (non-Tauri env / test) — silently ignore.
+      }
+    };
+
+    subscribe();
+
+    return () => {
+      cancelled = true;
+      setIsDragOver(false);
+      if (unlisten) unlisten();
+    };
+  }, [isOpen, isFileModeForDragDrop]);
+
   // Close with unsaved changes warning
   const handleClose = () => {
     if (isDirty && !isSubmitting) {
@@ -205,9 +274,9 @@ export default function CreateListingModal({
   };
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('create-listing', isOpen, handleClose, isSubmitting);
+  const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('create-listing', isOpen, handleClose, isSubmitting);
   const focusTrapRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(focusTrapRef, isOpen);
+  useFocusTrap(focusTrapRef, isOpen, { isTopmost });
 
   const isFileMode = formData.category !== 'text';
   const canSubmit = (isFileMode ? isIagonConnected : true) && !isSubmitting;
@@ -261,6 +330,9 @@ export default function CreateListingModal({
   };
 
   const handleFieldBlur = (fieldName: keyof FormErrors) => {
+    // Skip blur-time validation for fields the user has not interacted with
+    // yet — tabbing through a pristine form should not trigger error styling.
+    if (!touched[fieldName]) return;
     const error = validateField(fieldName);
     setErrors((prev) => ({ ...prev, [fieldName]: error }));
   };
@@ -270,6 +342,7 @@ export default function CreateListingModal({
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -282,6 +355,7 @@ export default function CreateListingModal({
     setFormData((prev) => ({
       ...prev,
       category: mode === 'text' ? 'text' : 'other',
+      subcategory: '',
       secretMessage: '',
       file: null,
       filePath: null,
@@ -297,6 +371,8 @@ export default function CreateListingModal({
     if (draft) {
       setFormData({
         category: (draft.category as FileCategory) || 'text',
+        subcategory: draft.subcategory || '',
+        nsfw: draft.nsfw || false,
         secretMessage: draft.secretMessage || '',
         file: null,
         filePath: null,
@@ -320,16 +396,8 @@ export default function CreateListingModal({
     setIsDirty(false);
   };
 
-  const handleChooseFile = async () => {
-    if (isSubmitting) return;
+  const processSelectedFile = async (filePath: string) => {
     try {
-      const selected = await open({
-        multiple: false,
-        title: 'Select file for listing',
-      });
-      if (!selected) return; // User cancelled
-
-      const filePath = typeof selected === 'string' ? selected : selected;
       const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
       const fileStat = await stat(filePath);
       const fileSize = fileStat.size;
@@ -340,12 +408,30 @@ export default function CreateListingModal({
       }
 
       const category = detectCategoryFromExtension(fileName);
-      setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category }));
-      if (errors.file) {
-        setErrors((prev) => ({ ...prev, file: undefined }));
-      }
+      setFormData((prev) => ({ ...prev, file: null, filePath, fileName, fileSize, category, subcategory: '' }));
+      setTouched((prev) => ({ ...prev, file: true }));
+      setErrors((prev) => (prev.file ? { ...prev, file: undefined } : prev));
       setSubmitError(null);
       setIsDirty(true);
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, file: `Failed to select file: ${err instanceof Error ? err.message : 'Unknown error'}` }));
+    }
+  };
+
+  // Keep the ref pointing at the latest closure so the drag-drop listener
+  // calls the up-to-date version (which captures fresh state setters).
+  processSelectedFileRef.current = processSelectedFile;
+
+  const handleChooseFile = async () => {
+    if (isSubmitting) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        title: 'Select file for listing',
+      });
+      if (!selected) return; // User cancelled
+      const filePath = typeof selected === 'string' ? selected : selected;
+      await processSelectedFile(filePath);
     } catch (err) {
       setErrors((prev) => ({ ...prev, file: `Failed to select file: ${err instanceof Error ? err.message : 'Unknown error'}` }));
     }
@@ -396,6 +482,7 @@ export default function CreateListingModal({
     if (!isNaN(parsed) && parsed > 45_000_000_000) raw = '45000000000';
     setFormData((prev) => ({ ...prev, suggestedPrice: raw }));
     setDisplayPrice(raw);
+    setTouched((prev) => ({ ...prev, suggestedPrice: true }));
     if (errors.suggestedPrice) {
       setErrors((prev) => ({ ...prev, suggestedPrice: undefined }));
     }
@@ -415,9 +502,17 @@ export default function CreateListingModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!canSubmit || !validateForm()) {
-      return;
-    }
+    if (!canSubmit) return;
+    // Mark every field as touched so any errors raised by submit-time
+    // validation stay visible until the user fixes them.
+    setTouched({
+      secretMessage: true,
+      file: true,
+      description: true,
+      suggestedPrice: true,
+      imageLink: true,
+    });
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -468,10 +563,10 @@ export default function CreateListingModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — no overflow-hidden on panel root so focus outlines aren't clipped. */}
+      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="create-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
               {title ?? 'Create New Listing'}
@@ -480,10 +575,12 @@ export default function CreateListingModal({
               {prefill ? 'Re-encrypt and list content from your library' : 'Encrypt and list your data for sale'}
             </p>
           </div>
+          {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={handleClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
+            tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -578,6 +675,44 @@ export default function CreateListingModal({
               </p>
             </div>
 
+            {/* Sub-category selector — in file mode, only show after file is selected */}
+            {(!isFileMode || formData.filePath) && (
+              <SubCategorySelector
+                category={formData.category}
+                selected={formData.subcategory}
+                onChange={(sub) => {
+                  setFormData((prev) => ({ ...prev, subcategory: sub }));
+                  setIsDirty(true);
+                }}
+                disabled={isSubmitting}
+              />
+            )}
+
+            {/* NSFW toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!isSubmitting) {
+                  setFormData((prev) => ({ ...prev, nsfw: !prev.nsfw }));
+                  setIsDirty(true);
+                }
+              }}
+              disabled={isSubmitting}
+              className={`self-start flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                formData.nsfw
+                  ? 'bg-[var(--error)]/15 text-[var(--error)] border-[var(--error)]/40'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+              }`}
+              title={formData.nsfw ? 'Marked as NSFW — click to remove' : 'Mark as NSFW content'}
+              aria-pressed={formData.nsfw}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                {formData.nsfw && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15.75h.007v.008H12v-.008z" />}
+              </svg>
+              NSFW
+            </button>
+
             {/* Content Area — Text category */}
             {formData.category === 'text' && (
               <div>
@@ -657,17 +792,20 @@ export default function CreateListingModal({
                     type="button"
                     onClick={handleChooseFile}
                     disabled={isSubmitting}
+                    data-drag-over={isDragOver || undefined}
                     className={`flex flex-col items-center justify-center gap-2 p-6 w-full border-2 border-dashed rounded-[var(--radius-md)] cursor-pointer transition-all duration-[var(--transition-fast)] ${
                       errors.file
                         ? 'border-[var(--error)] bg-[var(--error)]/5'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
+                        : isDragOver
+                          ? 'border-[var(--accent)] bg-[var(--accent)]/10 scale-[1.01]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/5'
                     }`}
                   >
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     <span className="text-sm text-[var(--text-secondary)]">
-                      Click to select a file
+                      Drag & drop or click to select
                     </span>
                     <span className="text-xs text-[var(--text-muted)]">
                       Type will be detected automatically
@@ -691,7 +829,7 @@ export default function CreateListingModal({
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <span className="text-sm text-[var(--text-muted)]">Click to select a file</span>
+                    <span className="text-sm text-[var(--text-muted)]">Drag & drop or click to select</span>
                   </div>
                   {/* Iagon not connected overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -730,7 +868,6 @@ export default function CreateListingModal({
                 Description <span className="text-[var(--error)]">*</span>
               </label>
               <textarea
-                ref={descriptionRef}
                 id="description"
                 name="description"
                 value={formData.description}
@@ -895,7 +1032,7 @@ export default function CreateListingModal({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
             {/* Info box about what happens next */}
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">

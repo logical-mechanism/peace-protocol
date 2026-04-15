@@ -4,10 +4,6 @@ import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
 import { getAutolockMinutes, setAutolockMinutes } from '../../services/autolock'
 import { copyToClipboard } from '../../utils/clipboard'
-import { getToastDurationMs, setToastDurationMs, TOAST_DURATION_OPTIONS } from '../../services/toastSettings'
-import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, playNotificationSound } from '../../services/notificationSound'
-import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
-import { getTheme, setTheme, applyTheme, type Theme } from '../../services/themeStorage'
 import { formatAdaDisplay } from '../../utils/formatAda'
 import { setLastActiveTab } from '../../services/tabStorage'
 import { addTransaction } from '../../services/transactionHistory'
@@ -50,13 +46,7 @@ export default function WalletSection({
   const [mnemonicLoading, setMnemonicLoading] = useState(false)
   const [mnemonicCopied, setMnemonicCopied] = useState(false)
 
-  // Preferences state
-  const [currentTheme, setCurrentTheme] = useState<Theme>(() => getTheme())
   const [autolockValue, setAutolockValue] = useState(() => getAutolockMinutes())
-  const [toastDuration, setToastDuration] = useState(() => getToastDurationMs())
-  const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
-  const [soundVolume, setSoundVolumeState] = useState(() => getSoundVolume())
-  const [desktopNotifEnabled, setDesktopNotifEnabledState] = useState(() => isDesktopNotificationsEnabled())
   const [addressCopied, setAddressCopied] = useState(false)
 
   // Wallet management state
@@ -399,36 +389,6 @@ export default function WalletSection({
           )}
         </div>
 
-        {/* Theme */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Theme</h2>
-          <p className="text-sm text-[var(--text-muted)] mb-4">
-            Choose between dark and light appearance.
-          </p>
-          <div className="flex gap-2">
-            {([
-              { label: 'Dark', value: 'dark' as Theme },
-              { label: 'Light', value: 'light' as Theme },
-            ] as const).map((option) => (
-              <button
-                key={option.value}
-                onClick={() => {
-                  setCurrentTheme(option.value)
-                  setTheme(option.value)
-                  applyTheme(option.value)
-                }}
-                className={`px-4 py-2 text-sm rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                  currentTheme === option.value
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Auto-Lock */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
           <h2 className="text-lg font-medium mb-2">Auto-Lock</h2>
@@ -460,111 +420,6 @@ export default function WalletSection({
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Notification Duration */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Notification Duration</h2>
-          <p className="text-sm text-[var(--text-muted)] mb-4">
-            How long toast notifications stay visible before auto-dismissing.
-          </p>
-          <select
-            value={toastDuration}
-            onChange={(e) => {
-              const ms = Number(e.target.value)
-              setToastDuration(ms)
-              setToastDurationMs(ms)
-            }}
-            className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            {TOAST_DURATION_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Desktop Notifications */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-medium">Desktop Notifications</h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                Show system notifications when new bids arrive on your listings.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                const next = !desktopNotifEnabled
-                setDesktopNotifEnabledState(next)
-                setDesktopNotificationsEnabled(next)
-                if (next) {
-                  sendDesktopNotification('Veiled', 'Desktop notifications enabled!')
-                }
-              }}
-              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
-                desktopNotifEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
-              }`}
-              role="switch"
-              aria-checked={desktopNotifEnabled}
-              aria-label="Toggle desktop notifications"
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                desktopNotifEnabled ? 'translate-x-6' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
-        </div>
-
-        {/* Notification Sound */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-medium">Notification Sound</h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                Play a sound when new bids arrive or transactions confirm.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                const next = !soundEnabled
-                setSoundEnabledState(next)
-                setSoundEnabled(next)
-                if (next) playNotificationSound()
-              }}
-              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
-                soundEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
-              }`}
-              role="switch"
-              aria-checked={soundEnabled}
-              aria-label="Toggle notification sound"
-            >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                soundEnabled ? 'translate-x-6' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
-          {soundEnabled && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-[var(--text-secondary)]">Volume</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.1}
-                value={soundVolume}
-                onChange={(e) => {
-                  const v = Number(e.target.value)
-                  setSoundVolumeState(v)
-                  setSoundVolume(v)
-                }}
-                onMouseUp={() => playNotificationSound()}
-                className="flex-1 accent-[var(--accent)]"
-              />
-              <span className="text-sm text-[var(--text-muted)] w-8 text-right">
-                {Math.round(soundVolume * 100)}%
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Lock Wallet */}

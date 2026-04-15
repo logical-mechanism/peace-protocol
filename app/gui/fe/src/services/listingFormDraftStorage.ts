@@ -13,6 +13,8 @@ const STORAGE_KEY = 'veiled_listing_form_draft';
 
 export interface ListingFormDraft {
   category: string;
+  subcategory?: string;
+  nsfw?: boolean;
   secretMessage: string;
   description: string;
   suggestedPrice: string;

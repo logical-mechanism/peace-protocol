@@ -57,6 +57,8 @@ function renderCard(
     lovelace?: string | null;
     isFavorite?: boolean;
     onToggleFavorite?: (tokenName: string) => void;
+    onFilterBySeller?: (sellerPkh: string) => void;
+    onFilterByCategory?: (category: string) => void;
     searchQuery?: string;
   } = {},
 ) {
@@ -72,6 +74,8 @@ function renderCard(
       lovelace={props.lovelace}
       isFavorite={props.isFavorite}
       onToggleFavorite={props.onToggleFavorite}
+      onFilterBySeller={props.onFilterBySeller}
+      onFilterByCategory={props.onFilterByCategory}
       searchQuery={props.searchQuery}
     />,
   );
@@ -256,14 +260,14 @@ describe('EncryptionCard', () => {
     });
   });
 
-  describe('copy seller address', () => {
-    it('calls copyToClipboard with seller pkh', async () => {
-      renderCard({ sellerPkh: 'abc123' });
+  describe('copy seller pkh', () => {
+    it('calls copyToClipboard with seller pkh from datum', async () => {
+      renderCard({ sellerPkh: 'abcdef1234567890' });
       const copyButton = screen.getByTitle('Copy seller address');
       await act(async () => {
         fireEvent.click(copyButton);
       });
-      expect(mockCopyToClipboard).toHaveBeenCalledWith('abc123');
+      expect(mockCopyToClipboard).toHaveBeenCalledWith('abcdef1234567890');
     });
   });
 
@@ -292,6 +296,67 @@ describe('EncryptionCard', () => {
       renderCard({ description: 'Click me' });
       fireEvent.click(screen.getByText('Click me'));
       expect(screen.getByTestId('description-modal')).toBeInTheDocument();
+    });
+  });
+
+  describe('filter by seller', () => {
+    it('calls onFilterBySeller with seller pkh when address clicked', () => {
+      const onFilterBySeller = vi.fn();
+      renderCard({ sellerPkh: 'seller99' }, { onFilterBySeller });
+      const sellerButton = screen.getByLabelText('Filter by this seller');
+      fireEvent.click(sellerButton);
+      expect(onFilterBySeller).toHaveBeenCalledWith('seller99');
+    });
+
+    it('does not render seller as button when onFilterBySeller is absent', () => {
+      renderCard({ sellerPkh: 'seller99' });
+      expect(screen.queryByLabelText('Filter by this seller')).not.toBeInTheDocument();
+    });
+
+    it('copy button still works independently of seller filter button', async () => {
+      renderCard(
+        { sellerPkh: 'seller99' },
+        { onFilterBySeller: vi.fn() },
+      );
+      const copyButton = screen.getByTitle('Copy seller address');
+      await act(async () => {
+        fireEvent.click(copyButton);
+      });
+      expect(mockCopyToClipboard).toHaveBeenCalledWith('seller99');
+    });
+  });
+
+  describe('filter by category', () => {
+    it('calls onFilterByCategory with category when badge clicked (grid mode)', () => {
+      const onFilterByCategory = vi.fn();
+      renderCard({ category: 'audio' }, { onFilterByCategory });
+      const categoryButton = screen.getByLabelText('Filter by category Audio');
+      fireEvent.click(categoryButton);
+      expect(onFilterByCategory).toHaveBeenCalledWith('audio');
+    });
+
+    it('defaults missing category to text when filtered', () => {
+      const onFilterByCategory = vi.fn();
+      renderCard({ category: undefined }, { onFilterByCategory });
+      const categoryButton = screen.getByLabelText('Filter by category Text');
+      fireEvent.click(categoryButton);
+      expect(onFilterByCategory).toHaveBeenCalledWith('text');
+    });
+
+    it('calls onFilterByCategory in compact mode', () => {
+      const onFilterByCategory = vi.fn();
+      renderCard(
+        { category: 'video' },
+        { compact: true, onFilterByCategory },
+      );
+      const categoryButton = screen.getByLabelText('Filter by category Video');
+      fireEvent.click(categoryButton);
+      expect(onFilterByCategory).toHaveBeenCalledWith('video');
+    });
+
+    it('does not render category as button when onFilterByCategory is absent', () => {
+      renderCard({ category: 'audio' });
+      expect(screen.queryByLabelText('Filter by category Audio')).not.toBeInTheDocument();
     });
   });
 

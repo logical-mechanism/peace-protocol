@@ -1,18 +1,22 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
+import Select from './Select';
 import { FILE_CATEGORIES } from '../config/categories';
 import { formatBytes } from '../utils/formatBytes';
+import { fuzzyMatch } from '../utils/fuzzySearch';
 import LibraryCard from './LibraryCard';
 import LibraryContentModal from './LibraryContentModal';
 import ConfirmModal from './ConfirmModal';
 import { deleteLibraryItem } from '../services/libraryService';
-import { SkeletonGrid } from './SkeletonCard';
+import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { LibraryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import RefreshIndicator from './RefreshIndicator';
-import type { LibraryFilters, LibraryAction } from '../hooks/useTabFilterState';
+import type { LibraryFilters, LibraryAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
+import LayoutPopover from './LayoutPopover';
+import { getGridClasses } from '../hooks/useTabFilterState';
 import { useDebounce } from '../hooks/useDebounce';
-import { useWalletContext } from '../contexts/WalletContext';
 
 interface LibraryTabProps {
   refreshSignal?: number;
@@ -25,7 +29,6 @@ interface LibraryTabProps {
 }
 
 function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispatch, onBulkDeleteResult, onRelist }: LibraryTabProps) {
-  const { address } = useWalletContext();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -33,7 +36,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
   const [prevDataCount, setPrevDataCount] = useState(0);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, categoryFilter, searchQuery } = filters;
+  const { viewMode, sortBy, categoryFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Modal state
@@ -85,15 +88,31 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       result = result.filter((item) => item.category === categoryFilter);
     }
 
-    // Search filter
+    // Search filter (fuzzy matching across all metadata fields)
+    const searchScores = new Map<string, number>();
     if (debouncedSearch.trim()) {
-      const query = debouncedSearch.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.tokenName.toLowerCase().includes(query) ||
-          (item.description && item.description.toLowerCase().includes(query)) ||
-          (item.seller && item.seller.toLowerCase().includes(query))
-      );
+      const query = debouncedSearch.trim();
+      result = result.filter((item) => {
+        const fields = [
+          item.tokenName,
+          item.description ?? '',
+          item.sellerPkh ?? '',
+          item.category ?? '',
+          item.fileExtension ?? '',
+          item.storageLayer ?? '',
+        ];
+        let bestScore = 0;
+        for (const field of fields) {
+          if (!field) continue;
+          const { match, score } = fuzzyMatch(query, field);
+          if (match && score > bestScore) bestScore = score;
+        }
+        if (bestScore > 0) {
+          searchScores.set(item.tokenName, bestScore);
+          return true;
+        }
+        return false;
+      });
     }
 
     // Sort
@@ -132,8 +151,27 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         break;
     }
 
+    // When searching, use fuzzy score as tiebreaker (best matches first)
+    if (searchScores.size > 0) {
+      result.sort((a, b) => (searchScores.get(b.tokenName) ?? 0) - (searchScores.get(a.tokenName) ?? 0));
+    }
+
     return result;
   }, [items, categoryFilter, debouncedSearch, sortBy]);
+
+  // Load more pagination
+  const ITEMS_PER_PAGE = 24;
+
+  const paginatedResults = useMemo(() => {
+    return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
+  }, [filteredAndSorted, currentPage]);
+
+  const hasMore = paginatedResults.length < filteredAndSorted.length;
+
+  const sentinelRef = useInfiniteScroll({
+    hasMore,
+    onLoadMore: useCallback(() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 }), [currentPage, dispatch]),
+  });
 
   // Compute storage stats from all items (not filtered)
   const libraryStats = useMemo(() => {
@@ -389,7 +427,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           </svg>
           <input
             type="text"
-            placeholder="Search by token, description, or seller..."
+            placeholder="Search library..."
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             aria-label="Search library"
@@ -400,80 +438,46 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         {/* Filters */}
         <div className="flex gap-3">
           {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => dispatch({ type: 'SET_CATEGORY', payload: e.target.value })}
-            aria-label="Filter by category"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Categories</option>
-            {FILE_CATEGORIES.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
+          <div className="w-44">
+            <Select
+              value={categoryFilter}
+              options={[
+                { value: 'all', label: 'All Categories' },
+                ...FILE_CATEGORIES.map((cat) => ({ value: cat.id, label: cat.label })),
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_CATEGORY', payload: v })}
+              ariaLabel="Filter by category"
+            />
+          </div>
 
           {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as LibraryFilters['sortBy'] })}
-            aria-label="Sort items"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="name-asc">Name: A to Z</option>
-            <option value="name-desc">Name: Z to A</option>
-            <option value="size-desc">Size: Largest First</option>
-            <option value="size-asc">Size: Smallest First</option>
-            <option value="type-asc">Type: A to Z</option>
-            <option value="type-desc">Type: Z to A</option>
-          </select>
-
-          {/* View Toggle */}
-          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="Grid view"
-              aria-label="Grid view"
-              aria-pressed={viewMode === 'grid'}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="List view"
-              aria-label="List view"
-              aria-pressed={viewMode === 'list'}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
+          <div className="w-52">
+            <Select
+              value={sortBy}
+              options={[
+                { value: 'newest', label: 'Newest First' },
+                { value: 'oldest', label: 'Oldest First' },
+                { value: 'name-asc', label: 'Name: A to Z' },
+                { value: 'name-desc', label: 'Name: Z to A' },
+                { value: 'size-desc', label: 'Size: Largest First' },
+                { value: 'size-asc', label: 'Size: Smallest First' },
+                { value: 'type-asc', label: 'Type: A to Z' },
+                { value: 'type-desc', label: 'Type: Z to A' },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as LibraryFilters['sortBy'] })}
+              ariaLabel="Sort items"
+            />
           </div>
+
+          {/* Layout (view + size + columns) */}
+          <LayoutPopover
+            viewMode={viewMode}
+            cardSize={cardSize}
+            columnCount={columnCount}
+            onViewModeChange={(mode) => dispatch({ type: 'SET_VIEW', payload: mode })}
+            onCardSizeChange={(size: CardSize) => dispatch({ type: 'SET_CARD_SIZE', payload: size })}
+            onColumnCountChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+          />
 
           {/* Refresh */}
           <button
@@ -508,7 +512,9 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
 
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
-        {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'item' : 'items'}
+        {hasMore
+          ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'item' : 'items'}`
+          : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'item' : 'items'}`}
         {categoryFilter !== 'all' && ` (${categoryFilter})`}
       </div>
 
@@ -539,15 +545,16 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((item, index) => (
+        <div className={getGridClasses(columnCount)}>
+          {paginatedResults.map((item, index) => (
             <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
                 item={item}
-                walletAddress={address ?? undefined}
                 onView={handleView}
                 onDelete={handleDeleteFromCard}
                 onRelist={onRelist}
+                searchQuery={debouncedSearch}
+                cardSize={cardSize}
                 selectMode={selectMode}
                 selected={selectedItems.has(item.tokenName)}
                 onToggleSelect={handleToggleSelect}
@@ -557,11 +564,10 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((item, index) => (
+          {paginatedResults.map((item, index) => (
             <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
                 item={item}
-                walletAddress={address ?? undefined}
                 onView={handleView}
                 onDelete={handleDeleteFromCard}
                 onRelist={onRelist}
@@ -572,6 +578,25 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
               />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex flex-col items-center gap-3 mt-6">
+          <div className={`${getGridClasses(columnCount)} w-full`}>
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Showing {paginatedResults.length} of {filteredAndSorted.length}
+          </p>
+          <button
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
+            className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
+          >
+            Load More
+          </button>
+          <div ref={sentinelRef} className="h-1" />
         </div>
       )}
 

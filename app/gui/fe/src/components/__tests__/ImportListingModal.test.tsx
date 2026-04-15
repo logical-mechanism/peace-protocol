@@ -14,6 +14,8 @@ vi.mock('../../config/categories', () => ({
     if (filename.endsWith('.mp4')) return 'video';
     return 'other';
   },
+  getSubcategories: () => [],
+  buildCategoryPath: (cat: string, sub?: string) => sub ? `${cat}:${sub}` : cat,
 }));
 
 vi.mock('../../utils/clipboard', () => ({

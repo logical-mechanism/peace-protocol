@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gnark-cardano"
+version = "0.1.0"
+description = "Convert gnark Groth16 proofs to Cardano/Aiken datum format"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

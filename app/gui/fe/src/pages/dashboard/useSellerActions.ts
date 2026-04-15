@@ -13,11 +13,13 @@ import {
 import { getAcceptBidSecrets } from '../../services/acceptBidStorage'
 import { bidsApi } from '../../services/api'
 import { optimisticStore } from '../../services/optimisticStore'
+import { playSound } from '../../services/notificationSound'
 import { saveDecryptedContent, saveContentMetadata } from '../../services/contentStorage'
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../../services/listingDraftStorage'
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 import type { CreateListingFormData } from '../../components/CreateListingModal'
+import { buildCategoryPath } from '../../config/categories'
 import { readLibraryContent, type LibraryItem } from '../../services/libraryService'
 import { invoke } from '@tauri-apps/api/core'
 
@@ -27,7 +29,7 @@ interface UseSellerActionsParams {
 }
 
 export function useSellerActions({ actions, iagonConnected: _iagonConnected }: UseSellerActionsParams) {
-  const { wallet, address, userPkh, toast, recordTransaction, triggerTransactionRefresh, setConfirmAction, setActiveTab } = actions
+  const { wallet, userPkh, toast, recordTransaction, triggerTransactionRefresh, setConfirmAction, setActiveTab } = actions
   const { isReady: wasmReady, isLoading: wasmLoading } = useWasm()
   const navigate = useNavigate()
 
@@ -93,6 +95,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         })
       })
       if (!result.success) {
+        playSound('tx_failed')
         toast.error('Retry Failed', result.error || 'Failed to retry listing')
         return
       }
@@ -136,6 +139,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         })
       })
       if (!result.success) {
+        playSound('tx_failed')
         toast.error('Retry Failed', result.error || 'Failed to retry listing')
         return
       }
@@ -179,6 +183,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to create listing')
     }
 
@@ -195,7 +200,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           storageLayer: 'on-chain',
           imageLink: formData.imageLink || undefined,
           category: 'text',
-          seller: address,
+          sellerPkh: userPkh ?? undefined,
           decryptedAt: new Date().toISOString(),
           fileSize: contentBytes.length,
         });
@@ -231,17 +236,17 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     // Optimistic update — listing appears immediately in tabs
-    if (result.txHash && result.tokenName && userPkh && address) {
+    if (result.txHash && result.tokenName && userPkh) {
       optimisticStore.addEncryption(result.tokenName, result.txHash, {
         tokenName: result.tokenName,
-        seller: address,
         sellerPkh: userPkh,
         status: 'active',
         description: formData.description,
         suggestedPrice: formData.suggestedPrice ? Math.round(parseFloat(formData.suggestedPrice) * 1_000_000) : undefined,
         storageLayer: formData.category === 'text' ? 'on-chain' : 'iagon',
         imageLink: formData.imageLink || undefined,
-        category: formData.category,
+        category: buildCategoryPath(formData.category, formData.subcategory),
+        nsfw: formData.nsfw || undefined,
         createdAt: new Date().toISOString(),
         utxo: { txHash: result.txHash, outputIndex: 0 },
         datum: {
@@ -259,7 +264,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     triggerTransactionRefresh()
-  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRelistFromLibrary = useCallback(async (item: LibraryItem) => {
     try {
@@ -319,6 +324,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to create listing from import')
     }
 
@@ -331,17 +337,17 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     // Optimistic update
-    if (result.txHash && result.tokenName && userPkh && address) {
+    if (result.txHash && result.tokenName && userPkh) {
       optimisticStore.addEncryption(result.tokenName, result.txHash, {
         tokenName: result.tokenName,
-        seller: address,
         sellerPkh: userPkh,
         status: 'active',
         description: data.description,
         suggestedPrice: data.suggestedPrice ? Math.round(parseFloat(data.suggestedPrice) * 1_000_000) : undefined,
         storageLayer: 'iagon',
         imageLink: data.imageLink || undefined,
-        category: data.category,
+        category: buildCategoryPath(data.category, data.subcategory),
+        nsfw: data.nsfw || undefined,
         createdAt: new Date().toISOString(),
         utxo: { txHash: result.txHash, outputIndex: 0 },
         datum: {
@@ -359,7 +365,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     triggerTransactionRefresh()
-  }, [wallet, address, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
+  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
@@ -391,6 +397,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           })
 
           if (!result.success) {
+            playSound('tx_failed')
             throw new Error(result.error || 'Failed to remove listing')
           }
 
@@ -499,6 +506,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           })
 
           if (!result.success) {
+            playSound('tx_failed')
             throw new Error(result.error || 'Failed to cancel pending listing')
           }
 
@@ -581,6 +589,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       })
 
       if (!result.success) {
+        playSound('tx_failed')
         throw new Error(result.error || 'Failed to complete re-encryption')
       }
 
@@ -644,6 +653,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     })
 
     if (!result.success) {
+      playSound('tx_failed')
       throw new Error(result.error || 'Failed to update price')
     }
 

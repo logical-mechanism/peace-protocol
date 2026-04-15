@@ -4,7 +4,7 @@ import { encryptionsApi, bidsApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import EncryptionCard from './EncryptionCard';
-import { SkeletonGrid } from './SkeletonCard';
+import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { MarketplaceEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, type ImageCacheStatus } from '../services/imageCache';
@@ -13,9 +13,16 @@ import PriceRangeSlider from './PriceRangeSlider';
 import CategoryFilter from './CategoryFilter';
 import DateFilter from './DateFilter';
 import RefreshIndicator from './RefreshIndicator';
-import type { MarketplaceFilters, MarketplaceAction } from '../hooks/useTabFilterState';
+import type { MarketplaceFilters, MarketplaceAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
+import { getGridClasses } from '../hooks/useTabFilterState';
+import LayoutPopover from './LayoutPopover';
 import { useDebounce } from '../hooks/useDebounce';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
+import { getNsfwEnabled } from '../services/nsfwStorage';
+import { truncateHex } from '../utils/truncate';
+import { getCategoryLabel } from '../utils/formatListing';
+import Select from './Select';
 
 interface MarketplaceTabProps {
   userPkh?: string;
@@ -40,6 +47,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [nsfwEnabled] = useState(() => getNsfwEnabled());
 
   // Close filters panel on Escape key
   useEffect(() => {
@@ -65,7 +73,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   }, [allBids, userPkh]);
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, currentPage } = filters;
+  const { viewMode, sortBy, statusFilter, categoryFilter, hideOwnListings, hideNsfw, dateFrom, dateTo, searchQuery, priceMin, priceMax, showFavoritesOnly, sellerPkh, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -136,6 +144,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     [userPkh]
   );
 
+  const handleFilterBySeller = useCallback(
+    (pkh: string) => dispatch({ type: 'SET_SELLER_FILTER', payload: pkh }),
+    [dispatch]
+  );
+
+  const handleClearSellerFilter = useCallback(
+    () => dispatch({ type: 'CLEAR_SELLER_FILTER' }),
+    [dispatch]
+  );
+
+  const handleFilterByCategory = useCallback(
+    (category: string) => dispatch({ type: 'SET_CATEGORY', payload: [category] }),
+    [dispatch]
+  );
+
+  const handleClearCategoryFilter = useCallback(
+    () => dispatch({ type: 'SET_CATEGORY', payload: ['all'] }),
+    [dispatch]
+  );
+
   // Pre-compute pending bid counts per encryption token
   const bidCountMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -177,7 +205,9 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     searchQuery: debouncedSearch,
     dateFrom,
     dateTo,
-  }), [statusFilter, categoryFilter, hideOwnListings, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo]);
+    hideNsfw,
+    sellerPkh,
+  }), [statusFilter, categoryFilter, hideOwnListings, hideNsfw, userPkh, showFavoritesOnly, favorites, priceMin, priceMax, debouncedSearch, dateFrom, dateTo, sellerPkh]);
 
   const filtered = useMemo(
     () => filterListings(encryptions, filterParams),
@@ -201,7 +231,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const panelFilterCount = useMemo(() => countPanelFilters(filterParams), [filterParams]);
 
   // Load more pagination — accumulate batches instead of showing a single page
-  const ITEMS_PER_PAGE = 20;
+  const ITEMS_PER_PAGE = 24;
 
   const paginatedResults = useMemo(() => {
     return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
@@ -209,25 +239,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
 
   const hasMore = paginatedResults.length < filteredAndSorted.length;
 
-  // IntersectionObserver for auto-loading when scrolling near the bottom
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          dispatch({ type: 'SET_PAGE', payload: currentPage + 1 });
-        }
-      },
-      { rootMargin: '200px' }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, currentPage, dispatch]);
+  const sentinelRef = useInfiniteScroll({
+    hasMore,
+    onLoadMore: useCallback(() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 }), [currentPage, dispatch]),
+  });
 
   const screenReaderMessage = loading
     ? 'Loading marketplace listings…'
@@ -315,12 +330,48 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     );
   }
 
+  // Single category filter chip is shown when exactly one category is selected.
+  const singleCategorySelected =
+    categoryFilter.length === 1 && categoryFilter[0] !== 'all' ? categoryFilter[0] : null;
+
+  const activeChips = sellerPkh || singleCategorySelected ? (
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      {sellerPkh && (
+        <button
+          type="button"
+          onClick={handleClearSellerFilter}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors duration-[var(--transition-fast)] cursor-pointer"
+          aria-label={`Clear seller filter for ${truncateHex(sellerPkh, 10, 6)}`}
+        >
+          <span>Seller: <span className="font-mono">{truncateHex(sellerPkh, 10, 6)}</span></span>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+      {singleCategorySelected && (
+        <button
+          type="button"
+          onClick={handleClearCategoryFilter}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors duration-[var(--transition-fast)] cursor-pointer"
+          aria-label={`Clear category filter for ${getCategoryLabel(singleCategorySelected)}`}
+        >
+          <span>Category: {getCategoryLabel(singleCategorySelected)}</span>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  ) : null;
+
   return (
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       <RefreshIndicator visible={isRefreshing} />
       {staleBanner}
+      {activeChips}
       {/* Toolbar */}
       <div className="mb-6">
         {/* Primary row: Search + Filters toggle + View toggle + Refresh */}
@@ -343,7 +394,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             </svg>
             <input
               type="text"
-              placeholder="Search listings by name or seller..."
+              placeholder="Search listings by name, description, or seller PKH..."
               value={searchQuery}
               onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
               aria-label="Search listings"
@@ -382,49 +433,15 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             )}
           </button>
 
-          {/* View Toggle */}
-          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="Grid view"
-              aria-label="Grid view"
-              aria-pressed={viewMode === 'grid'}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="List view"
-              aria-label="List view"
-              aria-pressed={viewMode === 'list'}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-          </div>
+          {/* Layout (view + size + columns) */}
+          <LayoutPopover
+            viewMode={viewMode}
+            cardSize={cardSize}
+            columnCount={columnCount}
+            onViewModeChange={(mode) => dispatch({ type: 'SET_VIEW', payload: mode })}
+            onCardSizeChange={(size: CardSize) => dispatch({ type: 'SET_CARD_SIZE', payload: size })}
+            onColumnCountChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+          />
 
           {/* Refresh */}
           <button
@@ -448,16 +465,18 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
         {filtersOpen && (
           <div className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
             {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as MarketplaceFilters['statusFilter'] })}
-              aria-label="Filter by status"
-              className="px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-            </select>
+            <div className="w-40">
+              <Select
+                value={statusFilter}
+                options={[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'pending', label: 'Pending' },
+                ]}
+                onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as MarketplaceFilters['statusFilter'] })}
+                ariaLabel="Filter by status"
+              />
+            </div>
 
             {/* Category Filter */}
             <CategoryFilter
@@ -490,20 +509,22 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             />
 
             {/* Sort */}
-            <select
-              value={sortBy}
-              onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MarketplaceFilters['sortBy'] })}
-              aria-label="Sort listings"
-              className="px-3 py-2 text-sm bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="most-bids">Most Bids</option>
-              <option value="alpha-asc">A → Z (Description)</option>
-              <option value="alpha-desc">Z → A (Description)</option>
-            </select>
+            <div className="w-56">
+              <Select
+                value={sortBy}
+                options={[
+                  { value: 'newest', label: 'Newest First' },
+                  { value: 'oldest', label: 'Oldest First' },
+                  { value: 'price-high', label: 'Price: High to Low' },
+                  { value: 'price-low', label: 'Price: Low to High' },
+                  { value: 'most-bids', label: 'Most Bids' },
+                  { value: 'alpha-asc', label: 'A → Z (Description)' },
+                  { value: 'alpha-desc', label: 'Z → A (Description)' },
+                ]}
+                onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MarketplaceFilters['sortBy'] })}
+                ariaLabel="Sort listings"
+              />
+            </div>
 
             {/* Favorites Toggle */}
             <button
@@ -540,6 +561,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 20L20 4" />
                 )}
               </svg>
+            </button>
+
+            {/* Hide NSFW Toggle */}
+            <button
+              onClick={() => dispatch({ type: 'SET_HIDE_NSFW', payload: !hideNsfw })}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
+                hideNsfw
+                  ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
+                  : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+              title={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
+              aria-label={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
+              aria-pressed={hideNsfw}
+            >
+              <span className="text-xs font-bold">NSFW</span>
+              {hideNsfw && (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
             </button>
           </div>
         )}
@@ -594,7 +635,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((encryption, index) => (
             <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <EncryptionCard
@@ -602,13 +643,17 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 onPlaceBid={onPlaceBid}
                 isOwnListing={isOwnListing(encryption)}
                 hasBid={userBidEncryptionTokens.has(encryption.tokenName)}
+                cardSize={cardSize}
                 initialCached={imageCacheStatus.cached.includes(encryption.tokenName)}
                 initialBanned={imageCacheStatus.banned.includes(encryption.tokenName)}
                 bidCount={getBidCount(encryption.tokenName)}
                 lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
+                onFilterBySeller={handleFilterBySeller}
+                onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}
@@ -629,7 +674,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 lovelace={lovelace}
                 isFavorite={favorites.has(encryption.tokenName)}
                 onToggleFavorite={handleToggleFavorite}
+                onFilterBySeller={handleFilterBySeller}
+                onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
+                nsfwEnabled={nsfwEnabled}
               />
             </div>
           ))}
@@ -639,6 +687,9 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
       {/* Load More */}
       {hasMore && (
         <div className="flex flex-col items-center gap-3 mt-6">
+          <div className={`${getGridClasses(columnCount)} w-full`}>
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
           <p className="text-xs text-[var(--text-muted)]">
             Showing {paginatedResults.length} of {filteredAndSorted.length}
           </p>

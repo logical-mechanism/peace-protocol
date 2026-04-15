@@ -95,7 +95,6 @@ export interface Cip20Metadata {
 
 export interface EncryptionDisplay {
   tokenName: string;
-  seller: string;
   sellerPkh: string;
   status: 'active' | 'pending' | 'completed';
   // CIP-20 metadata fields (description, storageLayer, imageLink, category from tx metadata key 674)
@@ -104,6 +103,7 @@ export interface EncryptionDisplay {
   storageLayer?: string;
   imageLink?: string;
   category?: string;
+  nsfw?: boolean;
   createdAt: string;
   utxo: {
     txHash: string;

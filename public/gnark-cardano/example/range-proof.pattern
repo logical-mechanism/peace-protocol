@@ -1,0 +1,15 @@
+# Range Proof — "I know x such that x is in [lo, hi] and H(x) == y"
+#
+# Proves a secret value falls within a public range without
+# revealing the value itself. The hash binds the secret to a
+# public commitment so the same proof can't be reused.
+#
+# This demonstrates: secret inputs, public inputs, comparisons, hashing.
+
+Secret Int Inputs: (x)
+Public Int Inputs: (lo, hi, y)
+
+compute: h = H(x)
+check: y == h
+check: x >= lo
+check: x <= hi

@@ -10,7 +10,6 @@ const mockOnAcceptBid = vi.fn();
 
 const baseEncryption: EncryptionDisplay = {
   tokenName: 'abcdef1234567890abcdef1234567890',
-  seller: 'addr_test1qzabcdef1234567890abcdef1234567890abcdef12345678',
   sellerPkh: 'abc123def456',
   status: 'active',
   createdAt: '2024-06-15T10:00:00Z',

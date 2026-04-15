@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNode } from '../contexts/NodeContext';
+import Select from './Select';
 import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import TransactionLink from './TransactionLink';
 import EmptyState from './EmptyState';
 import { HistoryEmptyIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
-import { DelayedSpinner } from './LoadingSpinner';
+import LoadingSpinner, { DelayedSpinner } from './LoadingSpinner';
 import { SkeletonHistoryList } from './SkeletonCard';
 import ConfirmModal from './ConfirmModal';
 import InfoTooltip from './InfoTooltip';
@@ -429,43 +430,47 @@ function HistoryTab({
         {/* Filters row */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => dispatch({ type: 'SET_STATUS', payload: e.target.value as HistoryFilters['statusFilter'] })}
-            aria-label="Filter by status"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Status ({allRecords.length})</option>
-            <option value="pending">Pending ({pendingCount})</option>
-            <option value="confirmed">Confirmed ({allRecords.filter(tx => tx.status === 'confirmed').length})</option>
-            <option value="failed">Failed ({allRecords.filter(tx => tx.status === 'failed').length})</option>
-          </select>
+          <div className="w-48">
+            <Select
+              value={statusFilter}
+              options={[
+                { value: 'all', label: `All Status (${allRecords.length})` },
+                { value: 'pending', label: `Pending (${pendingCount})` },
+                { value: 'confirmed', label: `Confirmed (${allRecords.filter(tx => tx.status === 'confirmed').length})` },
+                { value: 'failed', label: `Failed (${allRecords.filter(tx => tx.status === 'failed').length})` },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as HistoryFilters['statusFilter'] })}
+              ariaLabel="Filter by status"
+            />
+          </div>
 
           {/* Type filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => dispatch({ type: 'SET_TYPE', payload: e.target.value as HistoryFilters['typeFilter'] })}
-            aria-label="Filter by type"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Types</option>
-            {ALL_TX_TYPES.map(t => (
-              <option key={t} value={t}>{getTypeLabel(t)}</option>
-            ))}
-          </select>
+          <div className="w-48">
+            <Select
+              value={typeFilter}
+              options={[
+                { value: 'all', label: 'All Types' },
+                ...ALL_TX_TYPES.map((t) => ({ value: t, label: getTypeLabel(t) })),
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_TYPE', payload: v as HistoryFilters['typeFilter'] })}
+              ariaLabel="Filter by type"
+            />
+          </div>
 
           {/* Date range filter */}
-          <select
-            value={dateRange}
-            onChange={(e) => dispatch({ type: 'SET_DATE_RANGE', payload: e.target.value as HistoryFilters['dateRange'] })}
-            aria-label="Filter by date range"
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="all">All Time</option>
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-          </select>
+          <div className="w-44">
+            <Select
+              value={dateRange}
+              options={[
+                { value: 'all', label: 'All Time' },
+                { value: '24h', label: 'Last 24 Hours' },
+                { value: '7d', label: 'Last 7 Days' },
+                { value: '30d', label: 'Last 30 Days' },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_DATE_RANGE', payload: v as HistoryFilters['dateRange'] })}
+              ariaLabel="Filter by date range"
+            />
+          </div>
 
           <div className="flex-1" />
 
@@ -478,10 +483,7 @@ function HistoryTab({
             aria-label="Recover history from chain"
           >
             {recovering ? (
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+              <LoadingSpinner size="sm" />
             ) : (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />

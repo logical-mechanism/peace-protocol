@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useNode } from '../contexts/NodeContext';
+import Select from './Select';
 import { bidsApi, encryptionsApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
@@ -9,10 +11,12 @@ import { truncateHex } from '../utils/truncate';
 import MyPurchaseBidCard from './MyPurchaseBidCard';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
-import { SkeletonGrid } from './SkeletonCard';
+import { SkeletonCard, SkeletonGrid } from './SkeletonCard';
 import EmptyState, { PackageIcon } from './EmptyState';
 import { NoPurchasesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
-import type { MyPurchasesFilters, MyPurchasesAction } from '../hooks/useTabFilterState';
+import type { MyPurchasesFilters, MyPurchasesAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
+import LayoutPopover from './LayoutPopover';
+import { getGridClasses } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
 
@@ -57,7 +61,7 @@ function MyPurchasesTab({
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
 
   // Destructure filter state from Dashboard-level reducer
-  const { viewMode, sortBy, statusFilter, searchQuery } = filters;
+  const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   const hasDataRef = useRef(false);
@@ -240,6 +244,20 @@ function MyPurchasesTab({
     return result;
   }, [bids, statusFilter, debouncedSearch, sortBy, encryptionsMap, isCompletedAfterBid]);
 
+  // Load more pagination
+  const ITEMS_PER_PAGE = 24;
+
+  const paginatedResults = useMemo(() => {
+    return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
+  }, [filteredAndSorted, currentPage]);
+
+  const hasMore = paginatedResults.length < filteredAndSorted.length;
+
+  const sentinelRef = useInfiniteScroll({
+    hasMore,
+    onLoadMore: useCallback(() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 }), [currentPage, dispatch]),
+  });
+
   // Handlers
   const handleCancelBid = useCallback(
     (bid: BidDisplay) => {
@@ -339,7 +357,7 @@ function MyPurchasesTab({
               Some bid data could not be loaded. Decryption may not be available for affected items.
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className={getGridClasses(columnCount)}>
             {purchasedEncryptions.map((enc) => {
               const hasSecretError = secretsLoadErrors.has(enc.tokenName);
               return (
@@ -469,56 +487,29 @@ function MyPurchasesTab({
           </div>
 
           {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => dispatch({ type: 'SET_SORT', payload: e.target.value as MyPurchasesFilters['sortBy'] })}
-            className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="amount-high">Amount: High to Low</option>
-            <option value="amount-low">Amount: Low to High</option>
-          </select>
-
-          {/* View Toggle */}
-          <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'grid' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="Grid view"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW', payload: 'list' })}
-              className={`px-3 py-2 transition-all duration-[var(--transition-fast)] cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              title="List view"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
+          <div className="w-52">
+            <Select
+              value={sortBy}
+              options={[
+                { value: 'newest', label: 'Newest First' },
+                { value: 'oldest', label: 'Oldest First' },
+                { value: 'amount-high', label: 'Amount: High to Low' },
+                { value: 'amount-low', label: 'Amount: Low to High' },
+              ]}
+              onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MyPurchasesFilters['sortBy'] })}
+              ariaLabel="Sort purchases"
+            />
           </div>
+
+          {/* Layout (view + size + columns) */}
+          <LayoutPopover
+            viewMode={viewMode}
+            cardSize={cardSize}
+            columnCount={columnCount}
+            onViewModeChange={(mode) => dispatch({ type: 'SET_VIEW', payload: mode })}
+            onCardSizeChange={(size: CardSize) => dispatch({ type: 'SET_CARD_SIZE', payload: size })}
+            onColumnCountChange={(cols: ColumnCount) => dispatch({ type: 'SET_COLUMN_COUNT', payload: cols })}
+          />
 
           {/* Refresh */}
           <button
@@ -540,7 +531,9 @@ function MyPurchasesTab({
 
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
-        {filteredAndSorted.length} {filteredAndSorted.length === 1 ? 'bid' : 'bids'}
+        {hasMore
+          ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'bid' : 'bids'}`
+          : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'bid' : 'bids'}`}
         {statusFilter !== 'all' && ` (${statusFilter})`}
       </div>
 
@@ -571,8 +564,8 @@ function MyPurchasesTab({
           />
         )
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSorted.map((bid, index) => (
+        <div className={getGridClasses(columnCount)}>
+          {paginatedResults.map((bid, index) => (
             <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <MyPurchaseBidCard
                 bid={bid}
@@ -588,7 +581,7 @@ function MyPurchasesTab({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredAndSorted.map((bid, index) => (
+          {paginatedResults.map((bid, index) => (
             <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <MyPurchaseBidCard
                 bid={bid}
@@ -602,6 +595,25 @@ function MyPurchasesTab({
               />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex flex-col items-center gap-3 mt-6">
+          <div className={`${getGridClasses(columnCount)} w-full`}>
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Showing {paginatedResults.length} of {filteredAndSorted.length}
+          </p>
+          <button
+            onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
+            className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
+          >
+            Load More
+          </button>
+          <div ref={sentinelRef} className="h-1" />
         </div>
       )}
     </div>)}

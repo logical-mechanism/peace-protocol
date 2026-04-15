@@ -42,6 +42,7 @@ describe('filterStorage', () => {
         priceMin: '5',
         priceMax: '100',
         showFavoritesOnly: true,
+        sellerPkh: 'abcdef1234567890',
         currentPage: 3,
       };
       persistFilters('pkh1', filters);
@@ -117,6 +118,20 @@ describe('filterStorage', () => {
       expect(loaded!.hideOwnListings).toBeUndefined();
       expect(loaded!.dateFrom).toBeUndefined();
       expect(loaded!.dateTo).toBeUndefined();
+    });
+
+    it('tolerates missing cardSize field (v4 → v5 migration)', () => {
+      // Legacy data has no cardSize
+      localStorage.setItem('veiled_marketplace_filters_pkh1', JSON.stringify({
+        searchQuery: 'hello',
+        categoryFilter: ['audio'],
+        viewMode: 'grid',
+      }));
+      const loaded = getPersistedFilters('pkh1');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.searchQuery).toBe('hello');
+      // cardSize absent — HYDRATE fills default 'medium'
+      expect(loaded!.cardSize).toBeUndefined();
     });
   });
 

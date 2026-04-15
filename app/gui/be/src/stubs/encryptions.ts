@@ -14,7 +14,6 @@ const SAMPLE_G2 = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a
 export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
   {
     tokenName: '00abc123def456789012345678901234567890123456789012345678901234',
-    seller: 'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp',
     sellerPkh: '945d86e1c34b11c345e32d90a8c27c4a2e34f5678901234567890123',
     status: 'active',
     // CIP-20 metadata
@@ -52,7 +51,6 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
   },
   {
     tokenName: '01def456abc789012345678901234567890123456789012345678901234567',
-    seller: 'addr_test1qpq6z3s7a9qlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yqdxyrt',
     sellerPkh: '006a1214ff4a07de150060b802930df8501720b829bf8501720b8f50',
     status: 'active',
     // CIP-20 metadata
@@ -90,7 +88,6 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
   },
   {
     tokenName: '02ghi789jkl012345678901234567890123456789012345678901234567890',
-    seller: 'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp',
     sellerPkh: '945d86e1c34b11c345e32d90a8c27c4a2e34f5678901234567890123',
     status: 'pending',
     // CIP-20 metadata
@@ -143,7 +140,6 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
   },
   {
     tokenName: '03mno012pqr345678901234567890123456789012345678901234567890123',
-    seller: 'addr_test1qrxhyr2flena4ams5pcx26n0yj4ttpmjq2tmuesu4waw8n0qkvxuy9e4kdpz0s7r67jr8pjl9q6ezm2jgg247y9q3zpqxga37s',
     sellerPkh: 'cd720d49f33ed6f7b8283069a9bcc9556b0ee40297be6619571d71e7',
     status: 'active',
     // CIP-20 metadata
@@ -180,7 +176,6 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
   },
   {
     tokenName: '04stu345vwx678901234567890123456789012345678901234567890123456',
-    seller: 'addr_test1qpq6z3s7a9qlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yxlhs4qcghs9yqdxyrt',
     sellerPkh: '006a1214ff4a07de150060b802930df8501720b829bf8501720b8f50',
     status: 'active',
     // CIP-20 metadata
@@ -219,7 +214,6 @@ export const STUB_ENCRYPTIONS: EncryptionDisplay[] = [
   // Edge case test: long description, missing price, unknown storage layer
   {
     tokenName: '05edge999test12345678901234567890123456789012345678901234567890',
-    seller: 'addr_test1qrxhyr2flena4ams5pcx26n0yj4ttpmjq2tmuesu4waw8n0qkvxuy9e4kdpz0s7r67jr8pjl9q6ezm2jgg247y9q3zpqxga37s',
     sellerPkh: 'cd720d49f33ed6f7b8283069a9bcc9556b0ee40297be6619571d71e7',
     status: 'active',
     // CIP-20 metadata - EDGE CASES:

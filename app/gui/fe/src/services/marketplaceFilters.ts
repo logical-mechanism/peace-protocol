@@ -1,5 +1,6 @@
 import type { EncryptionDisplay } from './api';
 import type { MarketplaceFilters } from '../hooks/useTabFilterState';
+import { categoryMatchesFilter } from '../config/categories';
 
 // ── Filter params ────────────────────────────────────────────────
 
@@ -15,6 +16,8 @@ export interface FilterParams {
   searchQuery: string;
   dateFrom: string;
   dateTo: string;
+  hideNsfw: boolean;
+  sellerPkh: string;
 }
 
 export type SortKey = MarketplaceFilters['sortBy'];
@@ -50,12 +53,23 @@ export function filterListings(
   }
 
   if (!params.categoryFilter.includes('all')) {
-    result = result.filter((e) =>
-      params.categoryFilter.includes(e.category || 'text'),
-    );
+    result = result.filter((e) => {
+      const cat = e.category || 'text';
+      return params.categoryFilter.some((f) => categoryMatchesFilter(cat, f));
+    });
   }
 
-  if (params.hideOwnListings && params.userPkh) {
+  if (params.hideNsfw) {
+    result = result.filter((e) => !e.nsfw);
+  }
+
+  if (params.sellerPkh) {
+    result = result.filter((e) => e.sellerPkh === params.sellerPkh);
+  }
+
+  // hideOwnListings is bypassed when a seller filter is active so the user can
+  // still browse their own catalog via "more from this seller".
+  if (params.hideOwnListings && params.userPkh && !params.sellerPkh) {
     result = result.filter((e) => e.sellerPkh !== params.userPkh);
   }
 
@@ -99,7 +113,7 @@ export function filterListings(
     result = result.filter(
       (e) =>
         e.tokenName.toLowerCase().includes(query) ||
-        e.seller.toLowerCase().includes(query) ||
+        e.sellerPkh.toLowerCase().includes(query) ||
         (e.description && e.description.toLowerCase().includes(query)),
     );
   }
@@ -171,6 +185,8 @@ export function countActiveFilters(params: FilterParams): number {
   if (params.priceMin !== '') count++;
   if (params.priceMax !== '') count++;
   if (params.showFavoritesOnly) count++;
+  if (params.hideNsfw) count++;
+  if (params.sellerPkh !== '') count++;
   return count;
 }
 
@@ -184,5 +200,6 @@ export function countPanelFilters(params: FilterParams): number {
   if (params.priceMin !== '') count++;
   if (params.priceMax !== '') count++;
   if (params.showFavoritesOnly) count++;
+  if (params.hideNsfw) count++;
   return count;
 }

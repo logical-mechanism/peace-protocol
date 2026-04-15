@@ -13,8 +13,11 @@ const MyPurchasesTab = lazy(() => import('../components/MyPurchasesTab'))
 const HistoryTab = lazy(() => import('../components/HistoryTab'))
 const LibraryTab = lazy(() => import('../components/LibraryTab'))
 import { SkeletonGrid } from '../components/SkeletonCard'
+import LoadingSpinner from '../components/LoadingSpinner'
 import ScrollToTop from '../components/ScrollToTop'
 import KeyboardShortcutsOverlay from '../components/KeyboardShortcutsOverlay'
+import CommandPalette from '../components/CommandPalette'
+import { getTheme, setTheme, applyTheme, resolveTheme } from '../services/themeStorage'
 import CreateListingModal from '../components/CreateListingModal'
 import ImportListingModal from '../components/ImportListingModal'
 import PlaceBidModal from '../components/PlaceBidModal'
@@ -115,6 +118,7 @@ export default function Dashboard() {
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [relativeTime, setRelativeTime] = useState('just now')
   const toast = useToast()
 
@@ -248,6 +252,12 @@ export default function Dashboard() {
 
       if (!e.ctrlKey && !e.metaKey) return
 
+      if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault()
+        setShowCommandPalette(true)
+        return
+      }
+
       const tabIds: TabId[] = ['marketplace', 'my-sales', 'my-purchases', 'history', 'library']
       const digit = parseInt(e.key, 10)
 
@@ -282,6 +292,39 @@ export default function Dashboard() {
   }, [disconnect])
 
   const handleOpenCreateListing = useCallback(() => seller.setShowCreateListing(true), [seller])
+
+  const handleCommandExecute = useCallback((commandId: string) => {
+    switch (commandId) {
+      case 'tab-marketplace': setActiveTab('marketplace'); break
+      case 'tab-my-sales': setActiveTab('my-sales'); break
+      case 'tab-my-purchases': setActiveTab('my-purchases'); break
+      case 'tab-history': setActiveTab('history'); break
+      case 'tab-library': setActiveTab('library'); break
+      case 'nav-settings': navigate('/settings'); break
+      case 'action-refresh': handleRefresh(); break
+      case 'action-create-listing': seller.setShowCreateListing(true); break
+      case 'action-toggle-theme': {
+        const current = getTheme()
+        const resolved = resolveTheme(current)
+        const next = resolved === 'dark' ? 'light' : 'dark'
+        setTheme(next)
+        applyTheme(next)
+        break
+      }
+      case 'action-copy-address': handleCopy(); break
+      case 'action-lock-wallet': handleDisconnect(); break
+      case 'settings-node':
+      case 'settings-network':
+      case 'settings-wallet':
+      case 'settings-storage':
+      case 'settings-automation':
+      case 'settings-updates':
+      case 'settings-logs':
+      case 'settings-data-layer':
+        navigate('/settings')
+        break
+    }
+  }, [setActiveTab, navigate, handleRefresh, seller, handleCopy, handleDisconnect])
 
   // Close create-listing dropdown on outside click
   useEffect(() => {
@@ -338,10 +381,7 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
               title="Click to view node progress"
             >
-              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+              <LoadingSpinner size="sm" />
               {nodeStage === 'bootstrapping' ? 'Bootstrapping' : 'Starting'}
             </button>
           ) : (
@@ -366,10 +406,7 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
               title="Click to view loading progress"
             >
-              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+              <LoadingSpinner size="sm" />
               Prover {Math.round(wasmProgress)}%
             </button>
           ) : null}
@@ -928,6 +965,11 @@ export default function Dashboard() {
 
       {/* Toast Notifications */}
       <KeyboardShortcutsOverlay isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onExecute={handleCommandExecute}
+      />
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )

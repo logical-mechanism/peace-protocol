@@ -42,7 +42,12 @@ export default function ShutdownOverlay() {
   if (!isShuttingDown) return null
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[var(--bg-primary)]/95 backdrop-blur-sm flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-[100] bg-[var(--bg-primary)]/95 backdrop-blur-sm flex items-center justify-center"
+      role="alert"
+      aria-live="assertive"
+      aria-label="Application shutting down"
+    >
       <div className="text-center">
         <div className="flex justify-center mb-4">
           <LoadingSpinner size="lg" label="Shutting down" />

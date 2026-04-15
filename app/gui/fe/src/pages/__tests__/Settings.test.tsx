@@ -122,11 +122,23 @@ vi.mock('../../services/apiCache', () => ({
 }));
 
 vi.mock('../../services/notificationSound', () => ({
-  isSoundEnabled: vi.fn().mockReturnValue(true),
-  setSoundEnabled: vi.fn(),
-  getSoundVolume: vi.fn().mockReturnValue(50),
-  setSoundVolume: vi.fn(),
-  playNotificationSound: vi.fn(),
+  previewSound: vi.fn(),
+}));
+
+vi.mock('../../services/soundPreferences', () => ({
+  isMasterSoundEnabled: vi.fn().mockReturnValue(true),
+  setMasterSoundEnabled: vi.fn(),
+  isEventSoundEnabled: vi.fn().mockReturnValue(true),
+  setEventSoundEnabled: vi.fn(),
+  getEventSoundVolume: vi.fn().mockReturnValue(0.5),
+  setEventSoundVolume: vi.fn(),
+  SOUND_EVENTS: ['new_bid', 'tx_confirmed', 'tx_failed', 'bid_accepted'],
+  SOUND_EVENT_LABELS: {
+    new_bid: { label: 'New Bid', description: 'A new bid is placed on one of your listings' },
+    tx_confirmed: { label: 'Transaction Confirmed', description: 'A transaction reaches 15 confirmations' },
+    tx_failed: { label: 'Transaction Failed', description: 'A transaction submission fails' },
+    bid_accepted: { label: 'Bid Accepted', description: 'A bid you placed was accepted by the seller' },
+  },
 }));
 
 vi.mock('../../services/desktopNotifications', () => ({
@@ -193,11 +205,14 @@ describe('Settings', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Node Status')).toBeInTheDocument();
-      expect(screen.getByText('Wallet')).toBeInTheDocument();
-      // "Network" also appears as a label in the node status section
+      // "Wallet" appears both as a sidebar group heading and a section button
+      expect(screen.getAllByText('Wallet').length).toBeGreaterThanOrEqual(2);
+      // "Network" appears as group label, sidebar button, and node status section label
       expect(screen.getAllByText('Network').length).toBeGreaterThanOrEqual(2);
-      expect(screen.getByText('Data Layer')).toBeInTheDocument();
-      expect(screen.getByText('Storage')).toBeInTheDocument();
+      // "Data Layer" appears as button and as node status process label
+      expect(screen.getAllByText('Data Layer').length).toBeGreaterThanOrEqual(1);
+      // "Storage" is both a group heading and a section button
+      expect(screen.getAllByText('Storage').length).toBeGreaterThanOrEqual(2);
       expect(screen.getByText('Logs')).toBeInTheDocument();
     });
   });
@@ -215,10 +230,13 @@ describe('Settings', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Wallet')).toBeInTheDocument();
+      expect(screen.getAllByText('Wallet').length).toBeGreaterThanOrEqual(2);
     });
 
-    fireEvent.click(screen.getByText('Wallet'));
+    // The sidebar button for the Wallet section is the second match
+    // (the first is the group heading)
+    const walletMatches = screen.getAllByText('Wallet');
+    fireEvent.click(walletMatches[walletMatches.length - 1]);
 
     await waitFor(() => {
       // Wallet section shows wallet address

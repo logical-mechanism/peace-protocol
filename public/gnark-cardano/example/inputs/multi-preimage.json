@@ -1,0 +1,5 @@
+{
+  "_comment": "Pattern: multi-preimage. Two secret integers (x, y); the public output z = MiMC(x, y) is derived inside CircuitProve. Use this shape when your circuit hashes multiple secret components together (e.g. value + nonce in a commit-reveal scheme).",
+  "x": "42",
+  "y": "98765432109876543210"
+}

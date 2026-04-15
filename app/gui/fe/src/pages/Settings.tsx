@@ -5,7 +5,7 @@
  * and process logs viewer.
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
@@ -20,7 +20,13 @@ import DataLayerSection from './settings/DataLayerSection'
 import StorageSection from './settings/StorageSection'
 import LogsSection from './settings/LogsSection'
 import UpdateSection from './settings/UpdateSection'
+import ContactSection from './settings/ContactSection'
+import PreferencesSection from './settings/PreferencesSection'
 import AutomationSection from './settings/AutomationSection'
+import ScrollToTop from '../components/ScrollToTop'
+import CommandPalette from '../components/CommandPalette'
+import { useModal } from '../contexts/ModalContext'
+import { getTheme, setTheme, applyTheme, resolveTheme } from '../services/themeStorage'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -38,6 +44,8 @@ export default function Settings() {
 
   // Settings search
   const [searchQuery, setSearchQuery] = useState('')
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const { hasOpenModal } = useModal()
 
   const toast = useToast()
 
@@ -52,6 +60,59 @@ export default function Settings() {
     invoke<string>('get_network').then(setCurrentNetwork).catch(console.error)
   }, [])
 
+  // Ctrl/Cmd+K opens command palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (hasOpenModal) return
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setShowCommandPalette(true)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [hasOpenModal])
+
+  const handleCommandExecute = useCallback((commandId: string) => {
+    const settingsMap: Record<string, string> = {
+      'settings-node': 'node',
+      'settings-network': 'network',
+      'settings-wallet': 'wallet',
+      'settings-storage': 'storage',
+      'settings-automation': 'automation',
+      'settings-updates': 'update',
+      'settings-logs': 'logs',
+      'settings-data-layer': 'datalayer',
+    }
+    if (settingsMap[commandId]) {
+      setActiveSection(settingsMap[commandId])
+      setSearchQuery('')
+      return
+    }
+    switch (commandId) {
+      case 'tab-marketplace': navigate('/dashboard', { state: { tab: 'marketplace' } }); break
+      case 'tab-my-sales': navigate('/dashboard', { state: { tab: 'my-sales' } }); break
+      case 'tab-my-purchases': navigate('/dashboard', { state: { tab: 'my-purchases' } }); break
+      case 'tab-history': navigate('/dashboard', { state: { tab: 'history' } }); break
+      case 'tab-library': navigate('/dashboard', { state: { tab: 'library' } }); break
+      case 'nav-settings': break
+      case 'action-toggle-theme': {
+        const current = getTheme()
+        const resolved = resolveTheme(current)
+        const next = resolved === 'dark' ? 'light' : 'dark'
+        setTheme(next)
+        applyTheme(next)
+        break
+      }
+      case 'action-lock-wallet': lock(); break
+      case 'action-copy-address': if (address) void navigator.clipboard?.writeText(address); break
+      case 'action-refresh':
+      case 'action-create-listing':
+        navigate('/dashboard')
+        break
+    }
+  }, [navigate, lock, address])
+
   const sectionGroups = [
     { label: 'Node & Network', sections: [
       { id: 'node', label: 'Node Status', icon: (
@@ -64,25 +125,27 @@ export default function Settings() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9 9 0 013 12c0-1.605.42-3.113 1.157-4.418" />
         </svg>
       )},
-      { id: 'logs', label: 'Logs', icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
-        </svg>
-      )},
     ]},
-    { label: 'Wallet & Security', sections: [
+    { label: 'Wallet', sections: [
       { id: 'wallet', label: 'Wallet', icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 110-6h5.25A2.25 2.25 0 0121 6v6zm0 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V6a2.25 2.25 0 012.25-2.25h13.5" />
         </svg>
       )},
+    ]},
+    { label: 'Marketplace', sections: [
       { id: 'automation', label: 'Automation', icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12" />
         </svg>
       )},
+      { id: 'preferences', label: 'Preferences', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+        </svg>
+      )},
     ]},
-    { label: 'Storage & Data', sections: [
+    { label: 'Storage', sections: [
       { id: 'datalayer', label: 'Data Layer', icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
@@ -94,10 +157,22 @@ export default function Settings() {
         </svg>
       )},
     ]},
+    { label: 'Diagnostics', sections: [
+      { id: 'logs', label: 'Logs', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+        </svg>
+      )},
+    ]},
     { label: 'About', sections: [
       { id: 'update', label: 'Updates', icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+        </svg>
+      )},
+      { id: 'contact', label: 'Contact', icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.67 1.09-.086 2.17-.208 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
         </svg>
       )},
     ]},
@@ -262,14 +337,30 @@ export default function Settings() {
           <AutomationSection />
         )}
 
+        {/* Preferences Section */}
+        {!searchResults && activeSection === 'preferences' && (
+          <PreferencesSection />
+        )}
+
         {/* Updates Section */}
         {!searchResults && activeSection === 'update' && (
           <UpdateSection />
         )}
 
+        {/* Contact Section */}
+        {!searchResults && activeSection === 'contact' && (
+          <ContactSection />
+        )}
+
       </main>
       </div>
 
+      <ScrollToTop />
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onExecute={handleCommandExecute}
+      />
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} queuedCount={toast.queuedCount} onDismissAll={toast.dismissAll} />
     </div>
   )

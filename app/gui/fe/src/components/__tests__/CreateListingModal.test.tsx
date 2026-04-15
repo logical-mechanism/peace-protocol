@@ -27,6 +27,8 @@ vi.mock('../../config/categories', () => ({
     if (filename.endsWith('.mp3')) return 'audio';
     return 'other';
   },
+  getSubcategories: () => [],
+  buildCategoryPath: (cat: string, sub?: string) => sub ? `${cat}:${sub}` : cat,
 }));
 
 vi.mock('../../utils/clipboard', () => ({
@@ -43,6 +45,32 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   stat: (...args: unknown[]) => mockStat(...args),
 }));
 
+// --- Tauri drag-drop event mock ---
+type DragDropPayload =
+  | { type: 'enter'; paths?: string[] }
+  | { type: 'over'; paths?: string[] }
+  | { type: 'leave' }
+  | { type: 'cancel' }
+  | { type: 'drop'; paths: string[] };
+let dragDropCallback: ((event: { payload: DragDropPayload }) => void) | null = null;
+const mockUnlisten = vi.fn();
+const mockOnDragDropEvent = vi.fn().mockImplementation(
+  (cb: (event: { payload: DragDropPayload }) => void) => {
+    dragDropCallback = cb;
+    return Promise.resolve(mockUnlisten);
+  },
+);
+vi.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: () => ({ onDragDropEvent: mockOnDragDropEvent }),
+}));
+
+function fireDragDrop(payload: DragDropPayload) {
+  if (!dragDropCallback) throw new Error('drag-drop listener not subscribed');
+  act(() => {
+    dragDropCallback!({ payload });
+  });
+}
+
 // --- Test helpers ---
 
 const mockOnClose = vi.fn();
@@ -52,6 +80,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockOnSubmit.mockResolvedValue(undefined);
   mockGetDraft.mockReturnValue(null);
+  dragDropCallback = null;
 });
 
 function renderModal(overrides: Partial<Parameters<typeof CreateListingModal>[0]> = {}) {
@@ -94,7 +123,7 @@ describe('CreateListingModal', () => {
     fireEvent.click(screen.getByText('File'));
     expect(screen.queryByLabelText(/Secret Message/)).not.toBeInTheDocument();
     // File upload area should appear
-    expect(screen.getByText(/Click to select a file/)).toBeInTheDocument();
+    expect(screen.getByText(/click to select/i)).toBeInTheDocument();
   });
 
   it('switches back to text mode and clears file state', () => {
@@ -483,7 +512,7 @@ describe('CreateListingModal', () => {
     renderModal();
     // Switch to file mode and add a file via native dialog
     fireEvent.click(screen.getByText('File'));
-    const selectButton = screen.getByText(/Click to select a file/);
+    const selectButton = screen.getByText(/click to select/i);
     await act(async () => { fireEvent.click(selectButton); });
     await waitFor(() => expect(screen.getByText('test.pdf')).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText(/Description/), {
@@ -602,15 +631,35 @@ describe('CreateListingModal', () => {
 
   // --- Blur validation ---
 
-  it('shows error on secretMessage blur when empty', () => {
+  it('does not show error when blurring a pristine secretMessage field', () => {
     renderModal();
+    // Tabbing through a fresh form should not flash a "required" error.
     fireEvent.blur(screen.getByLabelText(/Secret Message/));
+    expect(screen.queryByText('Secret message is required')).not.toBeInTheDocument();
+  });
+
+  it('does not show error when blurring a pristine description field', () => {
+    renderModal();
+    fireEvent.blur(screen.getByLabelText(/Description/));
+    expect(screen.queryByText('Description is required')).not.toBeInTheDocument();
+  });
+
+  it('shows error when blurring secretMessage after the user clears it', () => {
+    renderModal();
+    const field = screen.getByLabelText(/Secret Message/);
+    // Mark the field touched by typing into it.
+    fireEvent.change(field, { target: { value: 'temp', name: 'secretMessage' } });
+    fireEvent.change(field, { target: { value: '', name: 'secretMessage' } });
+    fireEvent.blur(field);
     expect(screen.getByText('Secret message is required')).toBeInTheDocument();
   });
 
-  it('shows error on description blur when empty', () => {
+  it('shows error when blurring description after the user clears it', () => {
     renderModal();
-    fireEvent.blur(screen.getByLabelText(/Description/));
+    const field = screen.getByLabelText(/Description/);
+    fireEvent.change(field, { target: { value: 'temp', name: 'description' } });
+    fireEvent.change(field, { target: { value: '', name: 'description' } });
+    fireEvent.blur(field);
     expect(screen.getByText('Description is required')).toBeInTheDocument();
   });
 
@@ -634,15 +683,18 @@ describe('CreateListingModal', () => {
 
   it('clears error on blur when field becomes valid', () => {
     renderModal();
-    // Trigger error
-    fireEvent.blur(screen.getByLabelText(/Description/));
+    const field = screen.getByLabelText(/Description/);
+    // Mark touched, then clear to surface the error.
+    fireEvent.change(field, { target: { value: 'temp', name: 'description' } });
+    fireEvent.change(field, { target: { value: '', name: 'description' } });
+    fireEvent.blur(field);
     expect(screen.getByText('Description is required')).toBeInTheDocument();
 
-    // Fix the field and blur again
-    fireEvent.change(screen.getByLabelText(/Description/), {
+    // Fix the field and blur again.
+    fireEvent.change(field, {
       target: { value: 'Valid description', name: 'description' },
     });
-    fireEvent.blur(screen.getByLabelText(/Description/));
+    fireEvent.blur(field);
     expect(screen.queryByText('Description is required')).not.toBeInTheDocument();
   });
 
@@ -744,6 +796,22 @@ describe('CreateListingModal', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
+  it('focuses the Discard button when the unsaved-changes confirm opens on top', async () => {
+    renderModal();
+    // Mark dirty so the discard confirm fires.
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'Some text', name: 'description' },
+    });
+    fireEvent.click(screen.getByText('Cancel'));
+
+    // The ConfirmModal opens nested inside CreateListingModal. The child
+    // focus trap must take ownership of focus from the parent so a
+    // keyboard user can press Enter to discard immediately.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Discard' }));
+    });
+  });
+
   // --- File size validation ---
 
   it('rejects file over 1 GB via native dialog with inline error', async () => {
@@ -752,7 +820,7 @@ describe('CreateListingModal', () => {
 
     renderModal();
     fireEvent.click(screen.getByText('File'));
-    const selectButton = screen.getByText(/Click to select a file/);
+    const selectButton = screen.getByText(/click to select/i);
     await act(async () => { fireEvent.click(selectButton); });
     await waitFor(() => {
       expect(screen.getByText('File too large (max 1 GB)')).toBeInTheDocument();
@@ -766,7 +834,7 @@ describe('CreateListingModal', () => {
 
     renderModal();
     fireEvent.click(screen.getByText('File'));
-    const selectButton = screen.getByText(/Click to select a file/);
+    const selectButton = screen.getByText(/click to select/i);
     await act(async () => { fireEvent.click(selectButton); });
     await waitFor(() => {
       expect(screen.queryByText('File too large (max 1 GB)')).not.toBeInTheDocument();
@@ -829,6 +897,165 @@ describe('CreateListingModal', () => {
     });
     // Should show the file name in the file info display
     expect(screen.getByText('song.mp3')).toBeInTheDocument();
+  });
+
+  // --- Drag and drop file import ---
+
+  describe('drag-and-drop file import', () => {
+    async function openInFileMode() {
+      renderModal();
+      fireEvent.click(screen.getByText('File'));
+      await waitFor(() => expect(mockOnDragDropEvent).toHaveBeenCalled());
+    }
+
+    it('shows updated upload zone label', async () => {
+      await openInFileMode();
+      expect(screen.getByText('Drag & drop or click to select')).toBeInTheDocument();
+    });
+
+    it('does not subscribe to drag-drop in text mode', () => {
+      renderModal();
+      // Default mode is text — no subscription should happen
+      expect(mockOnDragDropEvent).not.toHaveBeenCalled();
+    });
+
+    it('subscribes when entering file mode and unsubscribes when leaving', async () => {
+      await openInFileMode();
+      expect(mockOnDragDropEvent).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByText('Text'));
+      await waitFor(() => expect(mockUnlisten).toHaveBeenCalled());
+    });
+
+    it('drop populates filePath, fileName, fileSize, and category', async () => {
+      mockStat.mockResolvedValueOnce({ size: 2048 });
+      await openInFileMode();
+
+      fireDragDrop({ type: 'drop', paths: ['/tmp/dropped.pdf'] });
+
+      await waitFor(() => expect(screen.getByText('dropped.pdf')).toBeInTheDocument());
+      expect(mockStat).toHaveBeenCalledWith('/tmp/dropped.pdf');
+      // Category badge derived from extension via mocked detectCategoryFromExtension
+      expect(screen.getByText('Document')).toBeInTheDocument();
+    });
+
+    it('uses only the first file when multiple files are dropped', async () => {
+      mockStat.mockResolvedValueOnce({ size: 1024 });
+      await openInFileMode();
+
+      fireDragDrop({ type: 'drop', paths: ['/tmp/first.pdf', '/tmp/second.pdf'] });
+
+      await waitFor(() => expect(screen.getByText('first.pdf')).toBeInTheDocument());
+      expect(screen.queryByText('second.pdf')).not.toBeInTheDocument();
+      expect(mockStat).toHaveBeenCalledTimes(1);
+      expect(mockStat).toHaveBeenCalledWith('/tmp/first.pdf');
+    });
+
+    it('drag enter sets visual highlight on upload zone', async () => {
+      await openInFileMode();
+      const button = screen.getByText('Drag & drop or click to select').closest('button');
+      expect(button).not.toHaveAttribute('data-drag-over');
+
+      fireDragDrop({ type: 'enter' });
+
+      expect(button).toHaveAttribute('data-drag-over', 'true');
+    });
+
+    it('drag leave clears visual highlight', async () => {
+      await openInFileMode();
+      fireDragDrop({ type: 'enter' });
+      const button = screen.getByText('Drag & drop or click to select').closest('button');
+      expect(button).toHaveAttribute('data-drag-over', 'true');
+
+      fireDragDrop({ type: 'leave' });
+
+      expect(button).not.toHaveAttribute('data-drag-over');
+    });
+
+    it('drop clears visual highlight', async () => {
+      mockStat.mockResolvedValueOnce({ size: 1024 });
+      await openInFileMode();
+      fireDragDrop({ type: 'enter' });
+
+      fireDragDrop({ type: 'drop', paths: ['/tmp/x.pdf'] });
+
+      await waitFor(() => expect(screen.getByText('x.pdf')).toBeInTheDocument());
+      // Selected-file display replaces the drop zone — drag-over attribute is gone
+      expect(screen.queryByText('Drag & drop or click to select')).not.toBeInTheDocument();
+    });
+
+    it('rejects file over 1 GB via drag-drop with inline error', async () => {
+      mockStat.mockResolvedValueOnce({ size: 1024 * 1024 * 1024 + 1 });
+      await openInFileMode();
+
+      fireDragDrop({ type: 'drop', paths: ['/tmp/huge.pdf'] });
+
+      await waitFor(() => {
+        expect(screen.getByText('File too large (max 1 GB)')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('huge.pdf')).not.toBeInTheDocument();
+    });
+
+    it('ignores drop when a file is already selected', async () => {
+      mockStat.mockResolvedValueOnce({ size: 1024 });
+      await openInFileMode();
+      fireDragDrop({ type: 'drop', paths: ['/tmp/first.pdf'] });
+      await waitFor(() => expect(screen.getByText('first.pdf')).toBeInTheDocument());
+
+      fireDragDrop({ type: 'drop', paths: ['/tmp/second.pdf'] });
+
+      // Still shows first file; second drop ignored
+      expect(screen.getByText('first.pdf')).toBeInTheDocument();
+      expect(screen.queryByText('second.pdf')).not.toBeInTheDocument();
+      expect(mockStat).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores drop with empty paths', async () => {
+      await openInFileMode();
+      fireDragDrop({ type: 'drop', paths: [] });
+      // No state change — no file rendered, no stat call
+      expect(mockStat).not.toHaveBeenCalled();
+      expect(screen.getByText('Drag & drop or click to select')).toBeInTheDocument();
+    });
+
+    it('ignores drag-over highlight when file already selected', async () => {
+      mockStat.mockResolvedValueOnce({ size: 1024 });
+      await openInFileMode();
+      fireDragDrop({ type: 'drop', paths: ['/tmp/picked.pdf'] });
+      await waitFor(() => expect(screen.getByText('picked.pdf')).toBeInTheDocument());
+      // Selected file display has no drop zone button to highlight
+      fireDragDrop({ type: 'enter' });
+      // Nothing to assert visually — verify state didn't crash and file still shown
+      expect(screen.getByText('picked.pdf')).toBeInTheDocument();
+    });
+
+    it('cleanup unsubscribes when modal closes', async () => {
+      const { rerender } = render(
+        <ModalProvider>
+          <CreateListingModal
+            isOpen={true}
+            onClose={mockOnClose}
+            onSubmit={mockOnSubmit}
+            isIagonConnected={true}
+          />
+        </ModalProvider>,
+      );
+      fireEvent.click(screen.getByText('File'));
+      await waitFor(() => expect(mockOnDragDropEvent).toHaveBeenCalled());
+
+      rerender(
+        <ModalProvider>
+          <CreateListingModal
+            isOpen={false}
+            onClose={mockOnClose}
+            onSubmit={mockOnSubmit}
+            isIagonConnected={true}
+          />
+        </ModalProvider>,
+      );
+
+      await waitFor(() => expect(mockUnlisten).toHaveBeenCalled());
+    });
   });
 
   it('skips draft prompt when prefill is provided even if draft exists', () => {

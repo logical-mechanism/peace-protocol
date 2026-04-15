@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
 import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../../services/iagonAuth'
-import { verifyApiKey, deleteFile as iagonDeleteFile } from '../../services/iagonApi'
+import { verifyApiKey, deleteFile as iagonDeleteFile, getStorageUsage } from '../../services/iagonApi'
 import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../../services/listingDraftStorage'
 import ConfirmModal from '../../components/ConfirmModal'
+import LoadingSpinner, { DelayedSpinner } from '../../components/LoadingSpinner'
 import { useToast } from '../../components/Toast'
+import { formatBytes } from '../../utils/formatBytes'
 
 interface DataLayerSectionProps {
   wallet: IWallet | null
@@ -31,6 +33,43 @@ export default function DataLayerSection({
   const [orphanedDrafts, setOrphanedDrafts] = useState<ListingDraft[]>([])
   const [orphanCleanupLoading, setOrphanCleanupLoading] = useState<string | null>(null)
   const [orphanDeleteAllConfirm, setOrphanDeleteAllConfirm] = useState(false)
+
+  // Iagon storage usage
+  const [storageUsage, setStorageUsage] = useState<{ totalBytes: number; fileCount: number } | null>(null)
+  const [storageUsageLoading, setStorageUsageLoading] = useState(false)
+
+  // Hold toast in a ref so refreshStorageUsage stays referentially stable
+  // (useToast() returns a fresh object each render, which would otherwise
+  // retrigger the auto-fetch effect and cause an infinite loop).
+  const toastRef = useRef(toast)
+  toastRef.current = toast
+
+  const refreshStorageUsage = useCallback(async () => {
+    setStorageUsageLoading(true)
+    try {
+      const apiKey = await getStoredApiKey()
+      if (!apiKey) {
+        toastRef.current.error('Storage Usage', 'Iagon API key is not accessible. Reconnect to refresh usage.')
+        return
+      }
+      const usage = await getStorageUsage(apiKey)
+      setStorageUsage(usage)
+    } catch (err) {
+      console.error('Failed to fetch Iagon storage usage:', err)
+      const msg = err instanceof Error ? err.message : 'Failed to fetch storage usage'
+      toastRef.current.error('Storage Usage', msg)
+    } finally {
+      setStorageUsageLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (iagonConnected) {
+      refreshStorageUsage()
+    } else {
+      setStorageUsage(null)
+    }
+  }, [iagonConnected, refreshStorageUsage])
 
   // Load Iagon status on mount
   useEffect(() => {
@@ -224,10 +263,7 @@ export default function DataLayerSection({
               >
                 {iagonLoading ? (
                   <>
-                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
+                    <LoadingSpinner size="sm" />
                     Connecting...
                   </>
                 ) : (
@@ -299,6 +335,53 @@ export default function DataLayerSection({
                 {iagonLoading ? 'Saving...' : 'Save Key'}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Iagon Storage Usage */}
+        {iagonConnected && (
+          <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-medium">Storage Usage</h3>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Total encrypted data stored on Iagon across all your files.
+                </p>
+              </div>
+              <button
+                onClick={refreshStorageUsage}
+                disabled={storageUsageLoading}
+                className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
+              >
+                {storageUsageLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+
+            {storageUsageLoading && !storageUsage ? (
+              <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-2">
+                <DelayedSpinner size="sm" label="Loading usage" />
+                Loading usage...
+              </div>
+            ) : storageUsage ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+                  <p className="text-xs text-[var(--text-muted)] mb-1">Total Used</p>
+                  <p className="text-lg font-medium text-[var(--text-primary)]">
+                    {formatBytes(storageUsage.totalBytes)}
+                  </p>
+                </div>
+                <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+                  <p className="text-xs text-[var(--text-muted)] mb-1">Files</p>
+                  <p className="text-lg font-medium text-[var(--text-primary)]">
+                    {storageUsage.fileCount}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">
+                Usage unavailable.
+              </p>
+            )}
           </div>
         )}
 

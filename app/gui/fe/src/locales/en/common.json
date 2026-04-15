@@ -1,0 +1,23 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "retry": "Retry",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "states": {
+    "loading": "Loading",
+    "processing": "Processing",
+    "submitting": "Submitting",
+    "success": "Success",
+    "failed": "Failed"
+  },
+  "units": {
+    "ada": "ADA"
+  }
+}

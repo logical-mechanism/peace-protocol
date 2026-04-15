@@ -1,0 +1,12 @@
+# Simple Hash Preimage — "I know x such that H(x) == y"
+#
+# The simplest useful ZK proof: prove you know a secret
+# whose hash matches a public value, without revealing the secret.
+#
+# This demonstrates: secret inputs, public inputs, hashing.
+
+Secret Int Inputs: (x)
+Public Int Inputs: (y)
+
+compute: h = H(x)
+check: y == h

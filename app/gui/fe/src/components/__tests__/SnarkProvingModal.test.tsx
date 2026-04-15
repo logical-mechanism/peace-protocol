@@ -84,6 +84,15 @@ describe('SnarkProvingModal', () => {
       renderModal({ inputs: null });
       expect(mockGenerateProof).not.toHaveBeenCalled();
     });
+
+    it('renders with dialog ARIA attributes when open', () => {
+      mockGenerateProof.mockImplementation(() => new Promise(() => {}));
+      renderModal();
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-labelledby', 'snark-proving-title');
+      expect(screen.getByRole('heading', { name: 'Generating Proof' })).toHaveAttribute('id', 'snark-proving-title');
+    });
   });
 
   describe('proving flow', () => {

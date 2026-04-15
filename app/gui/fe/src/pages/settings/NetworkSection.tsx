@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
 import ConfirmModal from '../../components/ConfirmModal'
 import { useToast } from '../../components/Toast'
@@ -6,7 +8,7 @@ import { useToast } from '../../components/Toast'
 interface NetworkSectionProps {
   currentNetwork: string
   stage: string
-  stopNode: () => void
+  stopNode: () => Promise<void> | void
   setCurrentNetwork: (network: string) => void
 }
 
@@ -16,7 +18,9 @@ export default function NetworkSection({
   stopNode,
   setCurrentNetwork,
 }: NetworkSectionProps) {
+  const { t } = useTranslation('settings')
   const toast = useToast()
+  const navigate = useNavigate()
   const [networkSwitching, setNetworkSwitching] = useState(false)
   const [networkConfirmTarget, setNetworkConfirmTarget] = useState<string | null>(null)
 
@@ -27,28 +31,28 @@ export default function NetworkSection({
     try {
       await invoke('set_network', { network: networkConfirmTarget })
       setCurrentNetwork(networkConfirmTarget)
+      await stopNode()
       setNetworkConfirmTarget(null)
       toast.success(
-        `Network switched to ${networkConfirmTarget}`,
-        'Please restart the application for changes to take effect.',
-        0,
-        { label: 'Stop Node', onClick: () => { stopNode() } }
+        t('network.switchedToast', { network: networkConfirmTarget }),
+        t('network.switchedToastBody'),
       )
+      navigate('/')
     } catch (error) {
       console.error('Failed to switch network:', error)
-      toast.error('Network switch failed', `${error}`)
+      toast.error(t('network.switchFailedToast'), `${error}`)
     } finally {
       setNetworkSwitching(false)
     }
-  }, [currentNetwork, networkConfirmTarget, toast, stopNode, setCurrentNetwork])
+  }, [currentNetwork, networkConfirmTarget, toast, stopNode, setCurrentNetwork, navigate, t])
 
   return (
     <>
       <div className="space-y-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Network Selection</h2>
+          <h2 className="text-lg font-medium mb-2">{t('network.title')}</h2>
           <p className="text-sm text-[var(--text-muted)] mb-6">
-            Switching networks requires a full restart. Each network uses a separate chain data directory.
+            {t('network.description')}
           </p>
 
           <div className="grid grid-cols-2 gap-4">
@@ -67,11 +71,11 @@ export default function NetworkSection({
                   <h3 className="text-lg font-medium capitalize">{net}</h3>
                   <p className="text-sm text-[var(--text-muted)] mt-1">
                     {net === 'preprod'
-                      ? 'Test network (~4GB RAM, ~30GB disk)'
-                      : 'Production network (~8GB RAM, ~300GB disk)'}
+                      ? t('network.preprodDescription')
+                      : t('network.mainnetDescription')}
                   </p>
                   {currentNetwork === net && (
-                    <span className="inline-block mt-2 text-xs text-[var(--accent)]">Current</span>
+                    <span className="inline-block mt-2 text-xs text-[var(--accent)]">{t('network.currentBadge')}</span>
                   )}
                 </div>
               </button>
@@ -79,7 +83,7 @@ export default function NetworkSection({
           </div>
           {stage !== 'stopped' && stage !== 'synced' && (
             <p className="text-xs text-[var(--text-muted)] mt-3">
-              Stop the node before switching networks.
+              {t('network.stopNodeHint')}
             </p>
           )}
         </div>
@@ -90,10 +94,10 @@ export default function NetworkSection({
         isOpen={networkConfirmTarget !== null}
         onClose={() => setNetworkConfirmTarget(null)}
         onConfirm={handleNetworkSwitch}
-        title="Switch Network"
-        message={`Switching to ${networkConfirmTarget} will restart all node services. This may take several minutes to sync. Any pending operations will be interrupted.`}
-        description="Each network uses its own chain data directory. Your wallet and settings are preserved."
-        confirmLabel="Switch Network"
+        title={t('network.confirmTitle')}
+        message={t('network.confirmMessage', { network: networkConfirmTarget ?? '' })}
+        description={t('network.confirmDescription')}
+        confirmLabel={t('network.confirmButton')}
         confirmVariant="default"
         loading={networkSwitching}
       />

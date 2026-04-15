@@ -154,6 +154,28 @@ describe('buildEncryptionMetadata', () => {
     }
     expect(encoder.encode(result.c as string).length).toBeLessThanOrEqual(64);
   });
+
+  it('includes n: "1" when nsfw is true', () => {
+    const result = buildEncryptionMetadata('desc', 'on-chain', '', 'text', true);
+    expect(result.n).toBe('1');
+  });
+
+  it('omits n key when nsfw is false', () => {
+    const result = buildEncryptionMetadata('desc', 'on-chain', '', 'text', false);
+    expect(result.n).toBeUndefined();
+    expect('n' in result).toBe(false);
+  });
+
+  it('omits n key when nsfw is undefined', () => {
+    const result = buildEncryptionMetadata('desc', 'on-chain', '', 'text');
+    expect(result.n).toBeUndefined();
+    expect('n' in result).toBe(false);
+  });
+
+  it('accepts colon-delimited category paths', () => {
+    const result = buildEncryptionMetadata('desc', 'on-chain', '', 'audio:music');
+    expect(result.c).toBe('audio:music');
+  });
 });
 
 describe('buildBidMetadata', () => {

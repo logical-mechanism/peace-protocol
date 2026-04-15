@@ -35,8 +35,9 @@ describe('useFocusTrap', () => {
 
     renderHook(() => useFocusTrap(ref, true));
 
-    // requestAnimationFrame is used internally
-    await new Promise((r) => requestAnimationFrame(r));
+    // useFocusTrap defers via two requestAnimationFrame ticks so the focus
+    // call lands after any sibling Suspense children stop fighting for focus.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     expect(document.activeElement).toBe(buttons[0]);
   });
@@ -149,6 +150,46 @@ describe('useFocusTrap', () => {
 
     // Should NOT be prevented since trap is inactive
     expect(preventSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not auto-focus or trap Tab when isTopmost is false', async () => {
+    const buttons = addButtons(container, 3);
+    const ref = createRef(container);
+    // Park focus elsewhere to detect any stomping.
+    const external = document.createElement('button');
+    external.textContent = 'External';
+    document.body.appendChild(external);
+    external.focus();
+
+    renderHook(() => useFocusTrap(ref, true, { isTopmost: false }));
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // External focus untouched — the parent trap released for a child.
+    expect(document.activeElement).toBe(external);
+
+    // Tab is not intercepted either.
+    buttons[2].focus();
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventSpy = vi.spyOn(event, 'preventDefault');
+    document.dispatchEvent(event);
+    expect(preventSpy).not.toHaveBeenCalled();
+
+    document.body.removeChild(external);
+  });
+
+  it('focuses the initial element specified via options.initialFocusRef', async () => {
+    const buttons = addButtons(container, 3);
+    const ref = createRef(container);
+    const initialRef = createRef(buttons[2]);
+
+    renderHook(() => useFocusTrap(ref, true, { initialFocusRef: initialRef }));
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    expect(document.activeElement).toBe(buttons[2]);
   });
 
   it('skips disabled buttons in focusable query', () => {

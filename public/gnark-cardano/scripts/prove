@@ -1,0 +1,254 @@
+#!/usr/bin/env bash
+# Copyright 2025-2026 Logical Mechanism LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Generate a test proof, export JSON, convert to Cardano datums,
+# and generate a circuit-specific Aiken test file.
+#
+# This script:
+#   1. Runs ./snark prove --test to generate proof artifacts
+#   2. Converts JSON to Cardano datum format (data/ folder)
+#   3. Generates aiken/lib/tests/circuit.ak with real proof data
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ ! -d "$ROOT/python/venv" ]; then
+  echo "ERROR: Python venv not found. Run ./scripts/build first."
+  exit 1
+fi
+source "$ROOT/python/venv/bin/activate"
+
+# ---------- 1. Generate proof ----------
+
+echo "==> Generating test proof..."
+cd "$ROOT/go"
+
+if [ ! -f "setup/ccs.bin" ]; then
+  echo "ERROR: No setup files found. Run ./scripts/build first."
+  exit 1
+fi
+
+./snark prove -setup setup -out out --test
+echo "    Proof artifacts: go/out/{vk.json, proof.json, public.json}"
+
+# ---------- 2. Convert to Cardano datums ----------
+
+echo ""
+echo "==> Converting to Cardano datum format..."
+mkdir -p "$ROOT/data"
+
+cd "$ROOT/python"
+python3 -m gnark_cardano.vk_convert "$ROOT/go/out/vk.json" "$ROOT/data/vk-datum.json"
+python3 -c "
+from gnark_cardano.groth_convert import convert_all, convert_redeemer_file
+convert_all('$ROOT/go/out/proof.json', '$ROOT/go/out/public.json', '$ROOT/data')
+convert_redeemer_file('$ROOT/go/out/proof.json', '$ROOT/go/out/public.json', '$ROOT/data/redeemer.json')
+"
+
+echo "    Datums written to data/"
+ls -1 "$ROOT/data/"
+
+# ---------- 3. Generate circuit-specific Aiken test ----------
+
+echo ""
+echo "==> Generating Aiken test from proof data..."
+
+python3 - "$ROOT/go/out/vk.json" "$ROOT/go/out/proof.json" "$ROOT/go/out/public.json" "$ROOT/aiken/lib/tests/circuit.ak" <<'PYEOF'
+import json
+import sys
+
+vk_path, proof_path, public_path, out_path = sys.argv[1:5]
+
+with open(vk_path) as f:
+    vk = json.load(f)
+with open(proof_path) as f:
+    proof = json.load(f)
+with open(public_path) as f:
+    pub = json.load(f)
+
+def hex_lit(s):
+    return f'#"{s}"'
+
+# Build VK IC list
+ic_lines = []
+for ic in vk["vkIC"]:
+    ic_lines.append(f"        {hex_lit(ic)},")
+
+# Build commitment keys
+ck_lines = []
+for ck in vk.get("commitmentKeys", []):
+    ck_lines.append(f"""        CommitmentKey {{
+          g: {hex_lit(ck['g'])},
+          gSigmaNeg: {hex_lit(ck['gSigmaNeg'])},
+        }},""")
+
+# Build commitments list
+commit_lines = []
+for c in proof.get("commitments", []):
+    commit_lines.append(f"        {hex_lit(c)},")
+
+# Public values: drop the leading "1" implicit wire — orchestrate.go normalizes
+# public.json["inputs"] to always start with "1", and the Aiken verifier consumes
+# IC[0] separately as the constant term.
+inputs = pub.get("inputs", [])
+public_values = inputs[1:] if inputs and inputs[0] == "1" else inputs
+# Format in groups of 3 for readability
+pub_lines = []
+for i in range(0, len(public_values), 3):
+    chunk = public_values[i:i+3]
+    pub_lines.append("      " + ", ".join(chunk) + ",")
+
+# Commitment wire
+wire = pub.get("commitmentWire", "")
+
+# Commitment wire as hex bytes (for GrothRedeemer's ByteArray field)
+if wire:
+    wire_int = int(wire)
+    wire_hex = format(wire_int, "x")
+    if len(wire_hex) % 2 != 0:
+        wire_hex = "0" + wire_hex
+    wire_list = f"\n      {wire},\n    "
+    redeemer_wires = "[groth.wire_to_int(redeemer.groth_commitment_wire)]"
+else:
+    wire_hex = ""
+    wire_list = ""
+    redeemer_wires = "[]"
+
+imports_list = ["GrothProof", "GrothRedeemer", "SnarkVerificationKey"]
+if ck_lines:
+    imports_list.insert(0, "CommitmentKey")
+imports = ", ".join(imports_list)
+
+test = f"""//// Copyright 2025-2026 Logical Mechanism LLC
+//// SPDX-License-Identifier: Apache-2.0
+////
+//// Auto-generated circuit test from proof artifacts.
+//// Re-generate by running: ./scripts/prove
+
+use gnark_cardano/groth.{{{imports}}}
+
+test circuit_proof_valid() {{
+  let vk: SnarkVerificationKey =
+    SnarkVerificationKey {{
+      nPublic: {vk['nPublic']},
+      vkAlpha: {hex_lit(vk['vkAlpha'])},
+      vkBeta: {hex_lit(vk['vkBeta'])},
+      vkGamma: {hex_lit(vk['vkGamma'])},
+      vkDelta: {hex_lit(vk['vkDelta'])},
+      vkIC: [
+{chr(10).join(ic_lines)}
+      ],
+      commitmentKeys: [
+{chr(10).join(ck_lines)}
+      ],
+    }}
+
+  let proof: GrothProof =
+    GrothProof {{
+      piA: {hex_lit(proof['piA'])},
+      piB: {hex_lit(proof['piB'])},
+      piC: {hex_lit(proof['piC'])},
+      commitments: [
+{chr(10).join(commit_lines)}
+      ],
+      commitmentPok: {hex_lit(proof.get('commitmentPok', ''))},
+    }}
+
+  let public_values: List<Int> =
+    [
+{chr(10).join(pub_lines)}
+    ]
+
+  let commitment_wires: List<Int> =
+    [{wire_list}]
+
+  groth.verify_groth16(vk, proof, public_values, commitment_wires)
+}}
+
+test circuit_commitments_valid() {{
+  let vk: SnarkVerificationKey =
+    SnarkVerificationKey {{
+      nPublic: {vk['nPublic']},
+      vkAlpha: {hex_lit(vk['vkAlpha'])},
+      vkBeta: {hex_lit(vk['vkBeta'])},
+      vkGamma: {hex_lit(vk['vkGamma'])},
+      vkDelta: {hex_lit(vk['vkDelta'])},
+      vkIC: [
+{chr(10).join(ic_lines)}
+      ],
+      commitmentKeys: [
+{chr(10).join(ck_lines)}
+      ],
+    }}
+
+  let proof: GrothProof =
+    GrothProof {{
+      piA: {hex_lit(proof['piA'])},
+      piB: {hex_lit(proof['piB'])},
+      piC: {hex_lit(proof['piC'])},
+      commitments: [
+{chr(10).join(commit_lines)}
+      ],
+      commitmentPok: {hex_lit(proof.get('commitmentPok', ''))},
+    }}
+
+  groth.verify_commitments(vk, proof)
+}}
+
+test circuit_redeemer_valid() {{
+  // Demonstrates using GrothRedeemer to bundle proof + wire + public
+  // into a single redeemer datum for on-chain transaction submission.
+  let vk: SnarkVerificationKey =
+    SnarkVerificationKey {{
+      nPublic: {vk['nPublic']},
+      vkAlpha: {hex_lit(vk['vkAlpha'])},
+      vkBeta: {hex_lit(vk['vkBeta'])},
+      vkGamma: {hex_lit(vk['vkGamma'])},
+      vkDelta: {hex_lit(vk['vkDelta'])},
+      vkIC: [
+{chr(10).join(ic_lines)}
+      ],
+      commitmentKeys: [
+{chr(10).join(ck_lines)}
+      ],
+    }}
+
+  let redeemer: GrothRedeemer =
+    GrothRedeemer {{
+      groth_proof: GrothProof {{
+        piA: {hex_lit(proof['piA'])},
+        piB: {hex_lit(proof['piB'])},
+        piC: {hex_lit(proof['piC'])},
+        commitments: [
+{chr(10).join(commit_lines)}
+        ],
+        commitmentPok: {hex_lit(proof.get('commitmentPok', ''))},
+      }},
+      groth_commitment_wire: {hex_lit(wire_hex)},
+      groth_public: [
+{chr(10).join(pub_lines)}
+      ],
+    }}
+
+  // Extract fields from redeemer and verify
+  // In a real validator, the redeemer comes from the transaction
+  groth.verify_groth16(
+    vk,
+    redeemer.groth_proof,
+    redeemer.groth_public,
+    {redeemer_wires},
+  )
+}}
+"""
+
+with open(out_path, "w") as f:
+    f.write(test)
+
+print(f"    Generated: {out_path}")
+print(f"    Tests: circuit_proof_valid, circuit_commitments_valid")
+PYEOF
+
+echo ""
+echo "Done. Next: ./scripts/test"

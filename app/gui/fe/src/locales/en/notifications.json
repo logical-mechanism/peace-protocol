@@ -1,0 +1,10 @@
+{
+  "transactionSubmitted": "Transaction submitted",
+  "transactionConfirmed": "Transaction confirmed",
+  "transactionFailed": "Transaction failed",
+  "newBid": "New bid received",
+  "newBid_other": "{{count}} new bids received",
+  "bidAccepted": "Your bid was accepted",
+  "listingCreated": "Listing created",
+  "copiedToClipboard": "Copied to clipboard"
+}

@@ -9,14 +9,17 @@ import { getContentType } from '../utils/contentType';
 import { formatDate } from '../utils/formatDate';
 import { copyToClipboard } from '../utils/clipboard';
 import ListingImage from './ListingImage';
+import HighlightText from './HighlightText';
+import type { CardSize } from '../hooks/useTabFilterState';
 
 interface LibraryCardProps {
   item: LibraryItem;
-  walletAddress?: string;
   onView: (item: LibraryItem) => void;
   onDelete: (item: LibraryItem) => void;
   onRelist?: (item: LibraryItem) => void;
+  searchQuery?: string;
   compact?: boolean;
+  cardSize?: CardSize;
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (tokenName: string) => void;
@@ -82,11 +85,12 @@ function CategoryIcon({ category, fileExtension, size = 'md' }: { category: stri
 
 function LibraryCard({
   item,
-  walletAddress,
   onView,
   onDelete,
   onRelist,
+  searchQuery = '',
   compact = false,
+  cardSize = 'medium',
   selectMode = false,
   selected = false,
   onToggleSelect,
@@ -94,11 +98,11 @@ function LibraryCard({
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [copiedSeller, setCopiedSeller] = useState(false);
 
-  const sellerAddress = item.seller || walletAddress || '';
+  const sellerPkh = item.sellerPkh ?? '';
 
   const handleCopySeller = async () => {
-    if (!sellerAddress) return;
-    const success = await copyToClipboard(sellerAddress);
+    if (!sellerPkh) return;
+    const success = await copyToClipboard(sellerPkh);
     if (success) {
       setCopiedSeller(true);
       setTimeout(() => setCopiedSeller(false), 1500);
@@ -157,7 +161,11 @@ function LibraryCard({
                     onClick={() => setDescriptionModalOpen(true)}
                     title={item.description}
                   >
-                    {truncateDescription(item.description)}
+                    {searchQuery ? (
+                      <HighlightText text={truncateDescription(item.description)} query={searchQuery} />
+                    ) : (
+                      truncateDescription(item.description)
+                    )}
                   </p>
                 )}
               </div>
@@ -166,11 +174,11 @@ function LibraryCard({
             {/* Middle: Seller, Date, Size */}
             <div className="flex items-center gap-6 flex-shrink-0">
               <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs text-right">
-                {sellerAddress && (
+                {sellerPkh && (
                   <>
                     <span className="text-[var(--text-muted)]">Seller</span>
-                    <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={sellerAddress}>
-                      {truncateHex(sellerAddress, 8, 4)}
+                    <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={sellerPkh}>
+                      {truncateHex(sellerPkh, 8, 4)}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                         className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
@@ -245,10 +253,15 @@ function LibraryCard({
     );
   }
 
+  const padClass = cardSize === 'small' ? 'p-3' : cardSize === 'large' ? 'p-8' : 'p-6';
+  const mbNum = cardSize === 'small' ? 'mb-2' : cardSize === 'large' ? 'mb-6' : 'mb-4';
+  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-1';
+  const imgHeight = cardSize === 'small' ? 'h-28' : cardSize === 'large' ? 'h-52' : 'h-40';
+
   return (
     <>
       <article
-        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 transition-all duration-[var(--transition-fast)] ${
+        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] ${padClass} transition-all duration-[var(--transition-fast)] ${
           selected
             ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
             : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]'
@@ -270,14 +283,18 @@ function LibraryCard({
         )}
 
         {/* Header */}
-        <div className="mb-4 space-y-1">
+        <div className={`${mbNum} space-y-1`}>
           {/* Row 1: Category Icon + Token Name + Category Badge */}
           <div className="flex items-center gap-[var(--space-2)] min-w-0">
             <div className="w-5 h-5 flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
               <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
             </div>
             <span className="text-xs font-mono text-[var(--text-muted)] tracking-wide truncate" title={item.tokenName}>
-              {truncateHex(item.tokenName, 12, 8)}
+              {searchQuery ? (
+                <HighlightText text={truncateHex(item.tokenName, 12, 8)} query={searchQuery} />
+              ) : (
+                truncateHex(item.tokenName, 12, 8)
+              )}
             </span>
             <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
             {item.contentMissing && (
@@ -311,19 +328,23 @@ function LibraryCard({
         {/* Description */}
         {item.description ? (
           <div
-            className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+            className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]`}
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
+              className={`text-sm font-medium text-[var(--text-secondary)] ${descClamp}`}
               title={item.description}
             >
-              {truncateDescription(item.description)}
+              {searchQuery ? (
+                <HighlightText text={truncateDescription(item.description)} query={searchQuery} />
+              ) : (
+                truncateDescription(item.description)
+              )}
             </p>
           </div>
         ) : (
-          <div className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-            <p className="text-sm font-medium text-[var(--text-muted)] line-clamp-1">
+          <div className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]`}>
+            <p className={`text-sm font-medium text-[var(--text-muted)] ${descClamp}`}>
               No description
             </p>
           </div>
@@ -337,7 +358,7 @@ function LibraryCard({
             size="md"
           />
         ) : (
-          <div className="w-full h-40 rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]">
+          <div className={`w-full ${imgHeight} rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]`}>
             <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
               <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
             </div>
@@ -345,11 +366,11 @@ function LibraryCard({
         )}
 
         {/* Seller Info */}
-        {sellerAddress && (
+        {sellerPkh && (
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
             <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
-            <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={sellerAddress}>
-              {truncateHex(sellerAddress, 12, 8)}
+            <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={sellerPkh}>
+              {truncateHex(sellerPkh, 12, 8)}
               <button
                 onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                 className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
@@ -370,7 +391,7 @@ function LibraryCard({
 
         {/* Action Buttons */}
         {!selectMode && (
-          <div className="mt-4 space-y-2">
+          <div className={`mt-${cardSize === 'small' ? '2' : cardSize === 'large' ? '6' : '4'} space-y-2`}>
             <button
               onClick={() => onView(item)}
               className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
@@ -405,10 +426,11 @@ function arePropsEqual(prev: LibraryCardProps, next: LibraryCardProps): boolean 
     prev.item.contentMissing === next.item.contentMissing &&
     prev.item.fileSize === next.item.fileSize &&
     prev.item.fileExtension === next.item.fileExtension &&
-    prev.item.seller === next.item.seller &&
+    prev.item.sellerPkh === next.item.sellerPkh &&
     prev.item.decryptedAt === next.item.decryptedAt &&
-    prev.walletAddress === next.walletAddress &&
+    prev.searchQuery === next.searchQuery &&
     prev.compact === next.compact &&
+    prev.cardSize === next.cardSize &&
     prev.selectMode === next.selectMode &&
     prev.selected === next.selected &&
     prev.onView === next.onView &&

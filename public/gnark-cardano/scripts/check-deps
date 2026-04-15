@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Copyright 2025-2026 Logical Mechanism LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Check that all required tools are on PATH.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+ok=true
+
+check() {
+  local cmd="$1"
+  local min_version="${2:-}"
+  local purpose="$3"
+
+  if command -v "$cmd" &>/dev/null; then
+    local version
+    version=$("$cmd" --version 2>/dev/null || "$cmd" version 2>/dev/null || echo "unknown")
+    version=$(echo "$version" | head -1)
+    printf "${GREEN}✓${NC} %-10s %s\n" "$cmd" "$version"
+  else
+    printf "${RED}✗${NC} %-10s missing — %s\n" "$cmd" "$purpose"
+    ok=false
+  fi
+}
+
+echo "Checking dependencies..."
+echo ""
+
+check go       ""       "Go compiler (https://go.dev/dl/)"
+check aiken    ""       "Aiken smart contract language (https://aiken-lang.org)"
+check python3  ""       "Python 3.11+ (for datum converters)"
+
+# Check python3 has venv module
+if command -v python3 &>/dev/null; then
+  if python3 -m venv --help &>/dev/null 2>&1; then
+    printf "${GREEN}✓${NC} %-10s %s\n" "venv" "python3 -m venv available"
+  else
+    printf "${RED}✗${NC} %-10s missing — install python3-venv package\n" "venv"
+    ok=false
+  fi
+fi
+
+echo ""
+
+if [ "$ok" = true ]; then
+  echo "All dependencies found."
+else
+  echo ""
+  echo "Some dependencies are missing. Install them and try again."
+  exit 1
+fi

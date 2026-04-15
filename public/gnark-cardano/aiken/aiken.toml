@@ -1,0 +1,16 @@
+name = "logical-mechanism/gnark-cardano"
+version = "0.1.0"
+compiler = "v1.1.21"
+plutus = "v3"
+license = "Apache-2.0"
+description = "Generic Groth16 on-chain verifier for Cardano (gnark variant with commitment extension)"
+
+[repository]
+user = "logical-mechanism"
+project = "gnark-cardano"
+platform = "github"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v3.0.0"
+source = "github"

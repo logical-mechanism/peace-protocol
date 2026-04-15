@@ -57,7 +57,7 @@ export default function OnboardingOverlay() {
 
   const handleSkip = useCallback(() => {
     completeOnboarding()
-    setState({ step: 3, completed: true })
+    setState((prev) => ({ ...prev, step: 3, completed: true }))
   }, [])
 
   if (!visible || !step) return null
@@ -71,6 +71,9 @@ export default function OnboardingOverlay() {
       style={{
         animation: 'onboarding-slide-up 0.3s ease-out',
       }}
+      role="dialog"
+      aria-label="Onboarding tour"
+      aria-labelledby="onboarding-step-title"
     >
       <div
         className="rounded-xl p-5 shadow-lg"
@@ -81,7 +84,14 @@ export default function OnboardingOverlay() {
         }}
       >
         {/* Step indicator dots */}
-        <div className="flex items-center gap-1.5 mb-3">
+        <div
+          className="flex items-center gap-1.5 mb-3"
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={TOUR_STEPS.length}
+          aria-valuenow={stepNumber + 1}
+          aria-label={`Step ${stepNumber + 1} of ${TOUR_STEPS.length}`}
+        >
           {TOUR_STEPS.map((_, i) => (
             <div
               key={i}
@@ -94,6 +104,7 @@ export default function OnboardingOverlay() {
                     ? 'var(--success)'
                     : 'var(--bg-secondary)',
               }}
+              aria-hidden="true"
             />
           ))}
           <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -102,6 +113,7 @@ export default function OnboardingOverlay() {
         </div>
 
         <h3
+          id="onboarding-step-title"
           className="text-sm font-semibold mb-1.5"
           style={{ color: 'var(--text-primary)' }}
         >
@@ -114,6 +126,7 @@ export default function OnboardingOverlay() {
         <div className="flex items-center justify-between">
           <button
             onClick={handleSkip}
+            aria-label="Skip onboarding tour"
             className="text-xs cursor-pointer px-2 py-1 rounded"
             style={{ color: 'var(--text-muted)' }}
           >
@@ -121,6 +134,7 @@ export default function OnboardingOverlay() {
           </button>
           <button
             onClick={handleNext}
+            aria-label={isLast ? 'Finish onboarding tour' : `Next step (${stepNumber + 2} of ${TOUR_STEPS.length})`}
             className="px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
             style={{
               background: 'var(--accent)',

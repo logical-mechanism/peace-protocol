@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getSnarkProver } from '../services/snark'
 import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import LoadingSpinner from './LoadingSpinner'
 
 interface SnarkSetupModalProps {
   isOpen: boolean
@@ -96,23 +97,34 @@ export default function SnarkSetupModal({
   if (!shouldRender) return null
 
   return (
-    <div ref={modalRef} className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+    <div
+      ref={modalRef}
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="snark-download-title"
+    >
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={status !== 'decompressing' ? onClose : undefined}
+        aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-lg max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — no overflow-hidden on panel root so focus outlines on
+       * edge-adjacent buttons aren't clipped in WebKit. */}
+      <div className={`relative w-full max-w-lg max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">SNARK Prover Setup</h2>
+            <h2 id="snark-download-title" className="text-xl font-semibold">SNARK Prover Setup</h2>
             {status !== 'decompressing' && status !== 'checking' && (
+              // tabIndex={-1}: Escape closes — header X is a mouse convenience.
               <button
                 onClick={onClose}
                 aria-label="Close dialog"
+                tabIndex={-1}
                 className="p-1 btn-base btn-icon"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -127,7 +139,7 @@ export default function SnarkSetupModal({
         <div className="px-6 py-6 space-y-4">
           {(status === 'checking' || status === 'decompressing') && (
             <div className="flex flex-col items-center py-8 space-y-4">
-              <div className="animate-spin w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full" />
+              <LoadingSpinner variant="ring" size="lg" />
               <span className="text-[var(--text-secondary)]">{message}</span>
               {status === 'decompressing' && (
                 <p className="text-sm text-[var(--text-muted)] text-center">
@@ -162,7 +174,7 @@ export default function SnarkSetupModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-[var(--border-subtle)] flex justify-end gap-3 rounded-b-[var(--radius-xl)]">
           {status === 'complete' && (
             <button
               onClick={onClose}

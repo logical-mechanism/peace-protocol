@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Copyright 2025-2026 Logical Mechanism LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Run all tests: Aiken on-chain verifier + Python converters.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ ! -d "$ROOT/python/venv" ]; then
+  echo "ERROR: Python venv not found. Run ./scripts/build first."
+  exit 1
+fi
+source "$ROOT/python/venv/bin/activate"
+FAIL=0
+
+echo "==> Aiken tests..."
+cd "$ROOT/aiken"
+if aiken check; then
+  echo "    Aiken: ALL PASSED"
+else
+  echo "    Aiken: FAILED"
+  FAIL=1
+fi
+
+echo ""
+echo "==> Python tests..."
+cd "$ROOT/python"
+if python3 -m pytest tests/ -v; then
+  echo "    Python: ALL PASSED"
+else
+  echo "    Python: FAILED"
+  FAIL=1
+fi
+
+echo ""
+if [ "$FAIL" -eq 0 ]; then
+  echo "All tests passed."
+else
+  echo "Some tests failed."
+  exit 1
+fi

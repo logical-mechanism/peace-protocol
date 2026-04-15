@@ -486,7 +486,7 @@ struct ContentMetadataJson {
     image_link: Option<String>,
     category: String,
     file_extension: Option<String>,
-    seller: Option<String>,
+    seller_pkh: Option<String>,
     created_at: Option<String>,
     decrypted_at: String,
     file_size: Option<u64>,
@@ -503,7 +503,7 @@ pub struct LibraryItem {
     pub storage_layer: Option<String>,
     pub image_link: Option<String>,
     pub file_extension: Option<String>,
-    pub seller: Option<String>,
+    pub seller_pkh: Option<String>,
     pub created_at: Option<String>,
     pub decrypted_at: String,
     pub content_missing: bool,
@@ -576,7 +576,7 @@ pub fn list_library_items(state: tauri::State<'_, ContentDir>) -> Result<Vec<Lib
                 storage_layer: meta.storage_layer,
                 image_link: meta.image_link,
                 file_extension: meta.file_extension,
-                seller: meta.seller,
+                seller_pkh: meta.seller_pkh,
                 created_at: meta.created_at,
                 decrypted_at: meta.decrypted_at,
                 content_missing,
@@ -1731,6 +1731,80 @@ mod tests {
         assert!(!img1.exists(), "Oldest file should be deleted");
         assert!(img2.exists(), "Newer file should be kept");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn legacy_metadata_with_seller_field_loads_with_none_seller_pkh() {
+        // Old library items were saved with a `seller` bech32 field that we
+        // no longer use. Serde must ignore the unknown key and fall back to
+        // None for seller_pkh — otherwise the entire item would be dropped
+        // from the library list on read.
+        let legacy = r#"{
+            "tokenName": "abc123",
+            "category": "text",
+            "description": "legacy item",
+            "suggestedPrice": 50,
+            "storageLayer": "on-chain",
+            "imageLink": null,
+            "fileExtension": ".txt",
+            "seller": "addr_test1qz_legacy_address",
+            "createdAt": "2025-01-01T00:00:00Z",
+            "decryptedAt": "2025-01-02T00:00:00Z",
+            "fileSize": 1024
+        }"#;
+
+        let parsed: ContentMetadataJson =
+            serde_json::from_str(legacy).expect("legacy metadata should still deserialize");
+        assert_eq!(parsed.token_name, "abc123");
+        assert_eq!(parsed.category, "text");
+        assert_eq!(parsed.description.as_deref(), Some("legacy item"));
+        assert!(
+            parsed.seller_pkh.is_none(),
+            "legacy `seller` field must not populate seller_pkh"
+        );
+        assert_eq!(parsed.file_size, Some(1024));
+    }
+
+    #[test]
+    fn new_metadata_with_seller_pkh_loads_correctly() {
+        // New format writes sellerPkh (camelCase wire, snake_case rust).
+        let new_format = r#"{
+            "tokenName": "def456",
+            "category": "audio",
+            "description": null,
+            "suggestedPrice": null,
+            "storageLayer": "iagon",
+            "imageLink": null,
+            "fileExtension": ".mp3",
+            "sellerPkh": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef01",
+            "createdAt": null,
+            "decryptedAt": "2026-04-10T00:00:00Z",
+            "fileSize": null
+        }"#;
+
+        let parsed: ContentMetadataJson =
+            serde_json::from_str(new_format).expect("new metadata should deserialize");
+        assert_eq!(
+            parsed.seller_pkh.as_deref(),
+            Some("abcdef0123456789abcdef0123456789abcdef0123456789abcdef01")
+        );
+    }
+
+    #[test]
+    fn metadata_missing_seller_pkh_loads_with_none() {
+        // Defensive: even if a metadata file lacks both legacy and new
+        // seller fields entirely, deserialization must still succeed.
+        let minimal = r#"{
+            "tokenName": "ghi789",
+            "category": "text",
+            "decryptedAt": "2026-04-10T00:00:00Z"
+        }"#;
+
+        let parsed: ContentMetadataJson =
+            serde_json::from_str(minimal).expect("minimal metadata should deserialize");
+        assert!(parsed.seller_pkh.is_none());
+        assert!(parsed.description.is_none());
+        assert!(parsed.file_size.is_none());
     }
 
     #[test]

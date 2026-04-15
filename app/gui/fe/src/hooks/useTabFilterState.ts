@@ -3,6 +3,8 @@ import type { TransactionType } from '../services/transactionHistory'
 // ── Shared types ──────────────────────────────────────────────────
 
 type ViewMode = 'grid' | 'list'
+export type CardSize = 'small' | 'medium' | 'large'
+export type ColumnCount = 2 | 3 | 4
 
 // ── Marketplace ───────────────────────────────────────────────────
 
@@ -12,12 +14,16 @@ export interface MarketplaceFilters {
   statusFilter: 'all' | 'active' | 'pending'
   categoryFilter: string[]
   hideOwnListings: boolean
+  hideNsfw: boolean
   dateFrom: string
   dateTo: string
   viewMode: ViewMode
   priceMin: string
   priceMax: string
   showFavoritesOnly: boolean
+  sellerPkh: string
+  cardSize: CardSize
+  columnCount: ColumnCount
   currentPage: number
 }
 
@@ -27,21 +33,26 @@ export type MarketplaceAction =
   | { type: 'SET_STATUS'; payload: MarketplaceFilters['statusFilter'] }
   | { type: 'SET_CATEGORY'; payload: string[] }
   | { type: 'SET_HIDE_OWN'; payload: boolean }
+  | { type: 'SET_HIDE_NSFW'; payload: boolean }
   | { type: 'SET_DATE_FROM'; payload: string }
   | { type: 'SET_DATE_TO'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
   | { type: 'SET_PRICE_MIN'; payload: string }
   | { type: 'SET_PRICE_MAX'; payload: string }
   | { type: 'SET_FAVORITES_ONLY'; payload: boolean }
+  | { type: 'SET_SELLER_FILTER'; payload: string }
+  | { type: 'CLEAR_SELLER_FILTER' }
+  | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
   | { type: 'SET_PAGE'; payload: number }
   | { type: 'CLEAR_FILTERS' }
   | { type: 'HYDRATE'; payload: Partial<MarketplaceFilters> }
 
 export const MARKETPLACE_INITIAL: MarketplaceFilters = {
   searchQuery: '', sortBy: 'newest', statusFilter: 'all',
-  categoryFilter: ['all'], hideOwnListings: false, dateFrom: '', dateTo: '',
+  categoryFilter: ['all'], hideOwnListings: false, hideNsfw: false, dateFrom: '', dateTo: '',
   viewMode: 'grid', priceMin: '', priceMax: '',
-  showFavoritesOnly: false, currentPage: 1,
+  showFavoritesOnly: false, sellerPkh: '', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function marketplaceReducer(state: MarketplaceFilters, action: MarketplaceAction): MarketplaceFilters {
@@ -51,14 +62,19 @@ export function marketplaceReducer(state: MarketplaceFilters, action: Marketplac
     case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload, currentPage: 1 }
     case 'SET_HIDE_OWN': return { ...state, hideOwnListings: action.payload, currentPage: 1 }
+    case 'SET_HIDE_NSFW': return { ...state, hideNsfw: action.payload, currentPage: 1 }
     case 'SET_DATE_FROM': return { ...state, dateFrom: action.payload, currentPage: 1 }
     case 'SET_DATE_TO': return { ...state, dateTo: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
     case 'SET_PRICE_MIN': return { ...state, priceMin: action.payload, currentPage: 1 }
     case 'SET_PRICE_MAX': return { ...state, priceMax: action.payload, currentPage: 1 }
     case 'SET_FAVORITES_ONLY': return { ...state, showFavoritesOnly: action.payload, currentPage: 1 }
+    case 'SET_SELLER_FILTER': return { ...state, sellerPkh: action.payload, currentPage: 1 }
+    case 'CLEAR_SELLER_FILTER': return { ...state, sellerPkh: '', currentPage: 1 }
+    case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
     case 'SET_PAGE': return { ...state, currentPage: action.payload }
-    case 'CLEAR_FILTERS': return { ...MARKETPLACE_INITIAL, viewMode: state.viewMode }
+    case 'CLEAR_FILTERS': return { ...MARKETPLACE_INITIAL, viewMode: state.viewMode, cardSize: state.cardSize, columnCount: state.columnCount }
     case 'HYDRATE': return { ...MARKETPLACE_INITIAL, ...action.payload, currentPage: 1 }
     default: return state
   }
@@ -71,6 +87,9 @@ export interface MySalesFilters {
   sortBy: 'newest' | 'oldest' | 'price-high' | 'price-low' | 'most-bids'
   statusFilter: 'all' | 'active' | 'pending' | 'completed'
   viewMode: ViewMode
+  cardSize: CardSize
+  columnCount: ColumnCount
+  currentPage: number
 }
 
 export type MySalesAction =
@@ -78,17 +97,23 @@ export type MySalesAction =
   | { type: 'SET_SORT'; payload: MySalesFilters['sortBy'] }
   | { type: 'SET_STATUS'; payload: MySalesFilters['statusFilter'] }
   | { type: 'SET_VIEW'; payload: ViewMode }
+  | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
+  | { type: 'SET_PAGE'; payload: number }
 
 export const MY_SALES_INITIAL: MySalesFilters = {
-  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid',
+  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function mySalesReducer(state: MySalesFilters, action: MySalesAction): MySalesFilters {
   switch (action.type) {
-    case 'SET_SEARCH': return { ...state, searchQuery: action.payload }
-    case 'SET_SORT': return { ...state, sortBy: action.payload }
-    case 'SET_STATUS': return { ...state, statusFilter: action.payload }
+    case 'SET_SEARCH': return { ...state, searchQuery: action.payload, currentPage: 1 }
+    case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
+    case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
+    case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
+    case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
 }
@@ -100,6 +125,9 @@ export interface MyPurchasesFilters {
   sortBy: 'newest' | 'oldest' | 'amount-high' | 'amount-low'
   statusFilter: 'all' | 'pending' | 'accepted' | 'complete'
   viewMode: ViewMode
+  cardSize: CardSize
+  columnCount: ColumnCount
+  currentPage: number
 }
 
 export type MyPurchasesAction =
@@ -107,17 +135,23 @@ export type MyPurchasesAction =
   | { type: 'SET_SORT'; payload: MyPurchasesFilters['sortBy'] }
   | { type: 'SET_STATUS'; payload: MyPurchasesFilters['statusFilter'] }
   | { type: 'SET_VIEW'; payload: ViewMode }
+  | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
+  | { type: 'SET_PAGE'; payload: number }
 
 export const MY_PURCHASES_INITIAL: MyPurchasesFilters = {
-  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid',
+  searchQuery: '', sortBy: 'newest', statusFilter: 'all', viewMode: 'grid', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function myPurchasesReducer(state: MyPurchasesFilters, action: MyPurchasesAction): MyPurchasesFilters {
   switch (action.type) {
-    case 'SET_SEARCH': return { ...state, searchQuery: action.payload }
-    case 'SET_SORT': return { ...state, sortBy: action.payload }
-    case 'SET_STATUS': return { ...state, statusFilter: action.payload }
+    case 'SET_SEARCH': return { ...state, searchQuery: action.payload, currentPage: 1 }
+    case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
+    case 'SET_STATUS': return { ...state, statusFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
+    case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
+    case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
   }
 }
@@ -160,6 +194,9 @@ export interface LibraryFilters {
   sortBy: 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc' | 'type-asc' | 'type-desc'
   categoryFilter: string
   viewMode: ViewMode
+  cardSize: CardSize
+  columnCount: ColumnCount
+  currentPage: number
 }
 
 export type LibraryAction =
@@ -167,17 +204,33 @@ export type LibraryAction =
   | { type: 'SET_SORT'; payload: LibraryFilters['sortBy'] }
   | { type: 'SET_CATEGORY'; payload: string }
   | { type: 'SET_VIEW'; payload: ViewMode }
+  | { type: 'SET_CARD_SIZE'; payload: CardSize }
+  | { type: 'SET_COLUMN_COUNT'; payload: ColumnCount }
+  | { type: 'SET_PAGE'; payload: number }
 
 export const LIBRARY_INITIAL: LibraryFilters = {
-  searchQuery: '', sortBy: 'newest', categoryFilter: 'all', viewMode: 'grid',
+  searchQuery: '', sortBy: 'newest', categoryFilter: 'all', viewMode: 'grid', cardSize: 'medium', columnCount: 3, currentPage: 1,
 }
 
 export function libraryReducer(state: LibraryFilters, action: LibraryAction): LibraryFilters {
   switch (action.type) {
-    case 'SET_SEARCH': return { ...state, searchQuery: action.payload }
-    case 'SET_SORT': return { ...state, sortBy: action.payload }
-    case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload }
+    case 'SET_SEARCH': return { ...state, searchQuery: action.payload, currentPage: 1 }
+    case 'SET_SORT': return { ...state, sortBy: action.payload, currentPage: 1 }
+    case 'SET_CATEGORY': return { ...state, categoryFilter: action.payload, currentPage: 1 }
     case 'SET_VIEW': return { ...state, viewMode: action.payload }
+    case 'SET_CARD_SIZE': return { ...state, cardSize: action.payload }
+    case 'SET_COLUMN_COUNT': return { ...state, columnCount: action.payload }
+    case 'SET_PAGE': return { ...state, currentPage: action.payload }
     default: return state
+  }
+}
+
+// ── Grid layout helper ───────────────────────────────────────────
+
+export function getGridClasses(columnCount: ColumnCount): string {
+  switch (columnCount) {
+    case 2: return 'grid grid-cols-1 md:grid-cols-2 gap-6'
+    case 3: return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+    case 4: return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
   }
 }

@@ -10,6 +10,7 @@ import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
 import { formatPrice, getCategoryLabel } from '../utils/formatListing';
 import TransactionLink, { TransactionLinkInline } from './TransactionLink';
+import type { CardSize } from '../hooks/useTabFilterState';
 
 
 interface EncryptionCardProps {
@@ -18,13 +19,17 @@ interface EncryptionCardProps {
   isOwnListing?: boolean;
   hasBid?: boolean;
   compact?: boolean;
+  cardSize?: CardSize;
   initialCached?: boolean;
   initialBanned?: boolean;
   bidCount?: number;
   lovelace?: string | null;
   isFavorite?: boolean;
   onToggleFavorite?: (tokenName: string) => void;
+  onFilterBySeller?: (sellerPkh: string) => void;
+  onFilterByCategory?: (category: string) => void;
   searchQuery?: string;
+  nsfwEnabled?: boolean;
 }
 
 function EncryptionCard({
@@ -33,13 +38,17 @@ function EncryptionCard({
   isOwnListing = false,
   hasBid = false,
   compact = false,
+  cardSize = 'medium',
   initialCached = false,
   initialBanned = false,
   bidCount = 0,
   lovelace,
   isFavorite = false,
   onToggleFavorite,
+  onFilterBySeller,
+  onFilterByCategory,
   searchQuery = '',
+  nsfwEnabled = false,
 }: EncryptionCardProps) {
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [initialBidCount] = useState(bidCount);
@@ -67,6 +76,16 @@ function EncryptionCard({
     onToggleFavorite?.(encryption.tokenName);
   };
 
+  const handleFilterBySeller = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFilterBySeller?.(encryption.sellerPkh);
+  };
+
+  const handleFilterByCategory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFilterByCategory?.(encryption.category || 'text');
+  };
+
   if (compact) {
     return (
       <>
@@ -87,9 +106,24 @@ function EncryptionCard({
               </button>
             )}
             <TransactionLink txHash={encryption.utxo.txHash} className="text-xs" />
-            <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
-              {getCategoryLabel(encryption.category)}
-            </span>
+            {onFilterByCategory ? (
+              <button
+                type="button"
+                onClick={handleFilterByCategory}
+                title={`Filter by ${getCategoryLabel(encryption.category)}`}
+                aria-label={`Filter by category ${getCategoryLabel(encryption.category)}`}
+                className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
+              >
+                {getCategoryLabel(encryption.category)}
+              </button>
+            ) : (
+              <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
+                {getCategoryLabel(encryption.category)}
+              </span>
+            )}
+            {encryption.nsfw && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white flex-shrink-0">NSFW</span>
+            )}
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
@@ -146,11 +180,17 @@ function EncryptionCard({
     );
   }
 
+  const padClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-xl)]' : 'p-[var(--space-lg)]';
+  const mbClass = cardSize === 'small' ? 'mb-[var(--space-sm)]' : cardSize === 'large' ? 'mb-[var(--space-lg)]' : 'mb-[var(--space-md)]';
+  const priceClass = cardSize === 'small' ? 'text-lg' : cardSize === 'large' ? 'text-3xl' : 'text-2xl';
+  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-1';
+  const imgSize = 'md' as const;
+
   return (
     <>
-      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-lg)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]">
+      <article className={`bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] ${padClass} hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]`}>
         {/* Header */}
-        <div className="mb-[var(--space-md)] space-y-[var(--space-1)]">
+        <div className={`${mbClass} space-y-[var(--space-1)]`}>
           {/* Row 1: Star + Status + Transaction Hash */}
           <div className="flex items-center gap-[var(--space-2)] min-w-0">
             {onToggleFavorite && (
@@ -176,9 +216,21 @@ function EncryptionCard({
           </div>
           {/* Row 2: Category (left) + Bid Count (right) */}
           <div className="flex items-center justify-between">
-            <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-              {getCategoryLabel(encryption.category)}
-            </span>
+            {onFilterByCategory ? (
+              <button
+                type="button"
+                onClick={handleFilterByCategory}
+                title={`Filter by ${getCategoryLabel(encryption.category)}`}
+                aria-label={`Filter by category ${getCategoryLabel(encryption.category)}`}
+                className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
+              >
+                {getCategoryLabel(encryption.category)}
+              </button>
+            ) : (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
+                {getCategoryLabel(encryption.category)}
+              </span>
+            )}
             {bidCount > 0 ? (
               <span
                 key={bidCount}
@@ -199,11 +251,11 @@ function EncryptionCard({
         {/* Description */}
         {encryption.description && (
           <div
-            className="mb-[var(--space-md)] p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]"
+            className={`${mbClass} p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]`}
             onClick={() => setDescriptionModalOpen(true)}
           >
             <p
-              className="text-sm font-medium text-[var(--text-secondary)] line-clamp-1"
+              className={`text-sm font-medium text-[var(--text-secondary)] ${descClamp}`}
               title={encryption.description}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
@@ -215,14 +267,16 @@ function EncryptionCard({
         <ListingImage
           tokenName={encryption.tokenName}
           imageLink={encryption.imageLink}
-          size="md"
+          size={imgSize}
           initialCached={initialCached}
           initialBanned={initialBanned}
+          nsfw={encryption.nsfw}
+          nsfwEnabled={nsfwEnabled}
         />
 
         {/* Price */}
-        <div className="text-center mb-[var(--space-md)]">
-          <p className="text-2xl font-semibold text-[var(--accent)]">
+        <div className={`text-center ${mbClass}`}>
+          <p className={`${priceClass} font-semibold text-[var(--accent)]`}>
             {formatPrice(encryption.suggestedPrice)}
           </p>
         </div>
@@ -231,9 +285,21 @@ function EncryptionCard({
         <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
           <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-mono text-[var(--text-secondary)]">
-              <HighlightText text={truncateHex(encryption.seller, 10, 6)} query={searchQuery} />
-            </span>
+            {onFilterBySeller ? (
+              <button
+                type="button"
+                onClick={handleFilterBySeller}
+                title="Show all listings from this seller"
+                aria-label="Filter by this seller"
+                className="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] hover:underline transition-colors duration-[var(--transition-fast)] cursor-pointer"
+              >
+                <HighlightText text={truncateHex(encryption.sellerPkh, 10, 6)} query={searchQuery} />
+              </button>
+            ) : (
+              <span className="text-xs font-mono text-[var(--text-secondary)]">
+                <HighlightText text={truncateHex(encryption.sellerPkh, 10, 6)} query={searchQuery} />
+              </span>
+            )}
             <button
               onClick={handleCopySeller}
               className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
@@ -314,9 +380,12 @@ function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): bo
     prev.encryption.imageLink === next.encryption.imageLink &&
     prev.encryption.description === next.encryption.description &&
     prev.encryption.category === next.encryption.category &&
+    prev.encryption.nsfw === next.encryption.nsfw &&
     prev.encryption.createdAt === next.encryption.createdAt &&
+    prev.nsfwEnabled === next.nsfwEnabled &&
     prev.bidCount === next.bidCount &&
     prev.compact === next.compact &&
+    prev.cardSize === next.cardSize &&
     prev.isOwnListing === next.isOwnListing &&
     prev.hasBid === next.hasBid &&
     prev.isFavorite === next.isFavorite &&
@@ -325,7 +394,9 @@ function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): bo
     prev.initialCached === next.initialCached &&
     prev.initialBanned === next.initialBanned &&
     prev.onPlaceBid === next.onPlaceBid &&
-    prev.onToggleFavorite === next.onToggleFavorite
+    prev.onToggleFavorite === next.onToggleFavorite &&
+    prev.onFilterBySeller === next.onFilterBySeller &&
+    prev.onFilterByCategory === next.onFilterByCategory
   );
 }
 

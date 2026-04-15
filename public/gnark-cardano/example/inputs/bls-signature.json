@@ -1,0 +1,8 @@
+{
+  "_comment": "Pattern: bls-signature (e(sig, g2) == e(hm, pk)). Three independent points: sig is the secret BLS signature (G1, 96 hex chars), hm is the public 'message point' (G1, the hash-to-curve output, 96 hex chars), and pk is the public BLS key (G2, 192 hex chars). All three are supplied raw because the circuit only checks the bilinearity equation — it doesn't know sk or m.",
+  "sigHex": "8c00aaecf4d4f78f70d44b75c20a0a8d2a1f96f2c3e0e60f4a4ed5e1c4f0e0d4e5b1d8c1c9c8e9b5a4c8f1e2d3a4b5c6d7",
+  "hmHex":  "a0ec3e71a719a25208adc97106b122809210faf45a17db24f10ffb1ac014fac1ab95a4a1967e55b185d4df622685b9e8",
+  "pkHex":  "a5acbe8bdb762cf7b4bfa9171b9ffa23b6ed710b290280b271a0258e285354aac338bb9e5a9ee41b4454e4c410f40eea16c82b493986bfc754aa789e1408b2b526f8b92e9ddcd4eee1a6c4daa84d561a6ceb452afc4559fe81a1c7f3f26715db",
+
+  "_warning": "These hex bytes are PLACEHOLDERS. To produce a self-consistent triple, write a small Go script that picks sk and msg, computes pk=[sk]g2, hm=[msg]g1, sig=[sk*msg]g1, then prints the .Bytes() of each. Or just use --test which builds a valid triple internally."
+}

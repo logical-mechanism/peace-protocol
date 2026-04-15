@@ -5,6 +5,7 @@ import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { detectCategoryFromExtension, type FileCategory } from '../config/categories';
+import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
 import type { ImportListingData } from '../services/transactionBuilder';
 
@@ -18,6 +19,8 @@ interface ImportFormData {
   suggestedPrice: string;
   imageLink: string;
   category: FileCategory;
+  subcategory: string;
+  nsfw: boolean;
 }
 
 interface FormErrors {
@@ -47,6 +50,8 @@ const INITIAL_FORM_DATA: ImportFormData = {
   suggestedPrice: '',
   imageLink: '',
   category: 'other',
+  subcategory: '',
+  nsfw: false,
 };
 
 const HEX_REGEX = /^[0-9a-fA-F]+$/;
@@ -104,9 +109,9 @@ export default function ImportListingModal({
   }, [isOpen]);
 
   // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('import-listing', isOpen, onClose, isSubmitting);
+  const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('import-listing', isOpen, onClose, isSubmitting);
   const focusTrapRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(focusTrapRef, isOpen);
+  useFocusTrap(focusTrapRef, isOpen, { isTopmost });
 
   const validateField = (fieldName: keyof FormErrors): string | undefined => {
     switch (fieldName) {
@@ -189,7 +194,7 @@ export default function ImportListingModal({
     const ext = e.target.value;
     setFormData((prev) => {
       const category = ext ? detectCategoryFromExtension(`file${ext}`) : 'other';
-      return { ...prev, fileExtension: ext, category };
+      return { ...prev, fileExtension: ext, category, subcategory: '' };
     });
     if (errors.fileExtension) {
       setErrors((prev) => ({ ...prev, fileExtension: undefined }));
@@ -211,6 +216,7 @@ export default function ImportListingModal({
         const ext = parsed.ext || parsed.fileExtension;
         updates.fileExtension = ext;
         updates.category = ext ? detectCategoryFromExtension(`file${ext}`) : 'other';
+        updates.subcategory = '';
       }
 
       if (Object.keys(updates).length > 0) {
@@ -267,6 +273,8 @@ export default function ImportListingModal({
         suggestedPrice: formData.suggestedPrice,
         imageLink: formData.imageLink,
         category: formData.category,
+        subcategory: formData.subcategory,
+        nsfw: formData.nsfw,
       }, setCreationStep);
       onClose();
     } catch (error) {
@@ -304,10 +312,10 @@ export default function ImportListingModal({
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg overflow-hidden flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      {/* Modal — no overflow-hidden on panel root so focus outlines aren't clipped. */}
+      <div className={`relative w-full max-w-2xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="import-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
               Import from Iagon
@@ -316,10 +324,12 @@ export default function ImportListingModal({
               Create a listing from a file already uploaded to Iagon
             </p>
           </div>
+          {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Close dialog"
+            tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -362,9 +372,11 @@ export default function ImportListingModal({
                   onBlur={() => handleFieldBlur('iagonFileId')}
                   disabled={isSubmitting}
                   placeholder="e.g. 507f1f77bcf86cd799439011"
+                  aria-invalid={!!errors.iagonFileId}
+                  aria-describedby={errors.iagonFileId ? 'iagonFileId-error' : undefined}
                   className={monoInputClass('iagonFileId')}
                 />
-                {errors.iagonFileId && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.iagonFileId}</p>}
+                {errors.iagonFileId && <p id="iagonFileId-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.iagonFileId}</p>}
               </div>
 
               {/* AES Key + Nonce row */}
@@ -384,9 +396,11 @@ export default function ImportListingModal({
                     disabled={isSubmitting}
                     placeholder="64 hex characters"
                     maxLength={64}
+                    aria-invalid={!!errors.aesKeyHex}
+                    aria-describedby={errors.aesKeyHex ? 'aesKeyHex-error' : undefined}
                     className={monoInputClass('aesKeyHex')}
                   />
-                  {errors.aesKeyHex && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.aesKeyHex}</p>}
+                  {errors.aesKeyHex && <p id="aesKeyHex-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.aesKeyHex}</p>}
                 </div>
                 <div>
                   <label htmlFor="gcmNonceHex" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
@@ -403,9 +417,11 @@ export default function ImportListingModal({
                     disabled={isSubmitting}
                     placeholder="24 hex characters"
                     maxLength={24}
+                    aria-invalid={!!errors.gcmNonceHex}
+                    aria-describedby={errors.gcmNonceHex ? 'gcmNonceHex-error' : undefined}
                     className={monoInputClass('gcmNonceHex')}
                   />
-                  {errors.gcmNonceHex && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.gcmNonceHex}</p>}
+                  {errors.gcmNonceHex && <p id="gcmNonceHex-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.gcmNonceHex}</p>}
                 </div>
               </div>
 
@@ -426,9 +442,11 @@ export default function ImportListingModal({
                     disabled={isSubmitting}
                     placeholder="64 hex characters"
                     maxLength={64}
+                    aria-invalid={!!errors.sha256DigestHex}
+                    aria-describedby={errors.sha256DigestHex ? 'sha256DigestHex-error' : undefined}
                     className={monoInputClass('sha256DigestHex')}
                   />
-                  {errors.sha256DigestHex && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.sha256DigestHex}</p>}
+                  {errors.sha256DigestHex && <p id="sha256DigestHex-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.sha256DigestHex}</p>}
                 </div>
                 <div>
                   <label htmlFor="fileExtension" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
@@ -444,9 +462,11 @@ export default function ImportListingModal({
                     onBlur={() => handleFieldBlur('fileExtension')}
                     disabled={isSubmitting}
                     placeholder=".pdf"
+                    aria-invalid={!!errors.fileExtension}
+                    aria-describedby={errors.fileExtension ? 'fileExtension-error' : undefined}
                     className={inputClass('fileExtension')}
                   />
-                  {errors.fileExtension && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.fileExtension}</p>}
+                  {errors.fileExtension && <p id="fileExtension-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.fileExtension}</p>}
                 </div>
               </div>
             </div>
@@ -473,9 +493,11 @@ export default function ImportListingModal({
                   rows={2}
                   maxLength={500}
                   placeholder="Brief description of what you're selling (visible to buyers)"
+                  aria-invalid={!!errors.description}
+                  aria-describedby={errors.description ? 'import-description-error' : undefined}
                   className={`${inputClass('description')} resize-none`}
                 />
-                {errors.description && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.description}</p>}
+                {errors.description && <p id="import-description-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.description}</p>}
                 <p className={`mt-1 text-xs ${
                   formData.description.length > 500 ? 'text-[var(--error)]'
                     : formData.description.length > 400 ? 'text-[var(--warning)]'
@@ -503,11 +525,13 @@ export default function ImportListingModal({
                       onBlur={handlePriceBlur}
                       disabled={isSubmitting}
                       placeholder="0.00"
+                      aria-invalid={!!errors.suggestedPrice}
+                      aria-describedby={errors.suggestedPrice ? 'import-suggestedPrice-error' : undefined}
                       className={`${inputClass('suggestedPrice')} pr-12`}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">ADA</span>
                   </div>
-                  {errors.suggestedPrice && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>}
+                  {errors.suggestedPrice && <p id="import-suggestedPrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>}
                   <p className="mt-1 text-xs text-[var(--text-muted)]">Optional. Buyers can bid any amount.</p>
                 </div>
                 <div>
@@ -523,9 +547,11 @@ export default function ImportListingModal({
                     onBlur={() => handleFieldBlur('imageLink')}
                     disabled={isSubmitting}
                     placeholder="https://example.com/preview.png"
+                    aria-invalid={!!errors.imageLink}
+                    aria-describedby={errors.imageLink ? 'import-imageLink-error' : undefined}
                     className={inputClass('imageLink')}
                   />
-                  {errors.imageLink && <p role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>}
+                  {errors.imageLink && <p id="import-imageLink-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>}
                   <p className="mt-1 text-xs text-[var(--text-muted)]">Optional. Public preview image URL.</p>
                 </div>
               </div>
@@ -536,6 +562,36 @@ export default function ImportListingModal({
                   Category auto-detected: <span className="font-medium text-[var(--text-secondary)]">{formData.category}</span>
                 </p>
               )}
+
+              {/* Sub-category selector */}
+              <SubCategorySelector
+                category={formData.category}
+                selected={formData.subcategory}
+                onChange={(sub) => setFormData((prev) => ({ ...prev, subcategory: sub }))}
+                disabled={isSubmitting}
+              />
+
+              {/* NSFW checkbox */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSubmitting) setFormData((prev) => ({ ...prev, nsfw: !prev.nsfw }));
+                }}
+                disabled={isSubmitting}
+                className={`self-start flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                  formData.nsfw
+                    ? 'bg-[var(--error)]/15 text-[var(--error)] border-[var(--error)]/40'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+                }`}
+                title={formData.nsfw ? 'Marked as NSFW — click to remove' : 'Mark as NSFW content'}
+                aria-pressed={formData.nsfw}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                  {formData.nsfw && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15.75h.007v.008H12v-.008z" />}
+                </svg>
+                NSFW
+              </button>
             </div>
 
             {/* Submit Error */}
@@ -565,7 +621,7 @@ export default function ImportListingModal({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+          <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
                 <strong>Note:</strong> The file must already be encrypted and uploaded to Iagon.

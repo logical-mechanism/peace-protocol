@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import ListingImage from '../ListingImage';
 
@@ -77,8 +77,8 @@ describe('ListingImage', () => {
     });
   });
 
-  describe('loading from cache', () => {
-    it('shows spinner when initialCached is true', () => {
+  describe('loading from cache (deferred)', () => {
+    it('does not call getCachedImage on mount — waits for intersection', () => {
       mockGetCachedImage.mockImplementation(() => new Promise(() => {}));
       render(
         <ListingImage
@@ -88,10 +88,13 @@ describe('ListingImage', () => {
           initialCached
         />,
       );
-      expect(screen.getByTestId('spinner')).toBeInTheDocument();
+      // Before intersection, getCachedImage should NOT be called
+      expect(mockGetCachedImage).not.toHaveBeenCalled();
+      // Should show default state (blurred preview), not spinner
+      expect(screen.getByAltText('Loading preview')).toBeInTheDocument();
     });
 
-    it('loads cached image on mount', async () => {
+    it('shows spinner then loaded image after intersection triggers cache fetch', async () => {
       mockGetCachedImage.mockResolvedValue({
         content_type: 'image/png',
         base64: 'abc123',
@@ -104,7 +107,15 @@ describe('ListingImage', () => {
           initialCached
         />,
       );
+
+      // Simulate intersection
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
       await waitFor(() => {
+        expect(mockGetCachedImage).toHaveBeenCalledWith('token1');
         expect(screen.getByAltText('Listing preview')).toHaveAttribute(
           'src',
           'data:image/png;base64,abc123',
@@ -112,7 +123,7 @@ describe('ListingImage', () => {
       });
     });
 
-    it('falls back to default state if cache returns null', async () => {
+    it('falls back to default state if cache returns null after intersection', async () => {
       mockGetCachedImage.mockResolvedValue(null);
       render(
         <ListingImage
@@ -122,9 +133,108 @@ describe('ListingImage', () => {
           initialCached
         />,
       );
+
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
       await waitFor(() => {
         expect(screen.getByAltText('Loading preview')).toBeInTheDocument();
       });
+    });
+
+    // Regression: previously, `state` was in the effect's dep array, so the
+    // setState('loading') triggered by the intersection callback caused the
+    // effect cleanup to run and flip cancelled=true BEFORE the in-flight
+    // getCachedImage promise resolved — leaving the image stuck on the spinner.
+    it('resolves the cached image even when the load transitions through state="loading"', async () => {
+      let resolveCache: (v: { content_type: string; base64: string }) => void;
+      mockGetCachedImage.mockImplementation(
+        () => new Promise((resolve) => { resolveCache = resolve; }),
+      );
+      render(
+        <ListingImage
+          tokenName="token1"
+          imageLink="https://example.com/img.png"
+          size="md"
+          initialCached
+        />,
+      );
+
+      // Trigger intersection — fires setState('loading') and calls getCachedImage
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
+      // Spinner should be visible while the promise is pending
+      await waitFor(() => {
+        expect(screen.getByTestId('spinner')).toBeInTheDocument();
+      });
+
+      // Now resolve the cache promise — this is AFTER the state→'loading' rerender
+      await act(async () => {
+        resolveCache!({ content_type: 'image/png', base64: 'cachedbytes' });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByAltText('Listing preview')).toHaveAttribute(
+          'src',
+          'data:image/png;base64,cachedbytes',
+        );
+      });
+    });
+  });
+
+  describe('deferred loading: cached vs uncached', () => {
+    it('calls getCachedImage (not downloadImage) on intersection when initialCached', async () => {
+      mockGetCachedImage.mockResolvedValue({
+        content_type: 'image/png',
+        base64: 'cached',
+      });
+      render(
+        <ListingImage
+          tokenName="token1"
+          imageLink="https://example.com/img.png"
+          size="md"
+          initialCached
+        />,
+      );
+
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
+      await waitFor(() => {
+        expect(mockGetCachedImage).toHaveBeenCalledWith('token1');
+      });
+      expect(mockDownloadImage).not.toHaveBeenCalled();
+    });
+
+    it('calls downloadImage (not getCachedImage) on intersection when not initialCached', async () => {
+      mockDownloadImage.mockResolvedValue({
+        content_type: 'image/jpeg',
+        base64: 'downloaded',
+      });
+      render(
+        <ListingImage
+          tokenName="token1"
+          imageLink="https://example.com/img.png"
+          size="md"
+        />,
+      );
+
+      intersectionCallback(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+
+      await waitFor(() => {
+        expect(mockDownloadImage).toHaveBeenCalledWith('token1', 'https://example.com/img.png');
+      });
+      expect(mockGetCachedImage).not.toHaveBeenCalled();
     });
   });
 

@@ -79,7 +79,12 @@
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
   --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
-  --focus-ring: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
+  /* Layered focus ring: 2px dark page-bg spacer (creates a visible gap on
+   * any button surface, including bg-[var(--accent)]), then a 2px accent
+   * ring on top. Used by components that opt in via Tailwind, e.g.
+   * `focus-visible:shadow-[var(--focus-ring)]`. Global :focus-visible
+   * uses CSS outline + outline-offset for the same effect. */
+  --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 
   /* Transitions */
   --transition-fast: 150ms;
@@ -125,7 +130,7 @@
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
   --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.1);
-  --focus-ring: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
+  --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 
   color-scheme: light;
 }
@@ -148,10 +153,20 @@ body {
   min-height: 100vh;
 }
 
-/* Focus visible indicators for keyboard navigation — subtle glow */
+/* Focus visible indicators for keyboard navigation.
+ *
+ * Uses a CSS outline with outline-offset so the ring sits in the parent's
+ * space, NOT on the element's surface. A box-shadow inset on the surface
+ * would blend into accent-coloured buttons (button bg = ring colour =
+ * invisible). The 2px offset puts a gap between the element and the ring
+ * so it stays visible on any background, including bg-[var(--accent)],
+ * bg-[var(--success)], bg-[var(--error)], etc. The accompanying soft
+ * box-shadow halo extends the ring further so it survives busy
+ * backgrounds. */
 :focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--accent-muted);
 }
 
 button:focus-visible,
@@ -159,8 +174,9 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--accent-muted);
 }
 
 /* Range slider thumb focus indicator */
@@ -582,6 +598,12 @@ select option {
 @keyframes onboarding-slide-up {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tutorial spotlight — subtle pulse around the highlighted element */
+@keyframes tutorial-spotlight {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--accent); }
+  50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 0 6px var(--accent); }
 }
 
 /* Modal entrance/exit — backdrop fade + panel slide-up */

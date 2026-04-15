@@ -63,6 +63,15 @@ describe('SnarkSetupModal', () => {
       renderModal();
       expect(screen.getByText('Checking setup files...')).toBeInTheDocument();
     });
+
+    it('renders with dialog ARIA attributes when open', () => {
+      mockCheckSetup.mockImplementation(() => new Promise(() => {}));
+      renderModal();
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-labelledby', 'snark-download-title');
+      expect(screen.getByRole('heading', { name: 'SNARK Prover Setup' })).toHaveAttribute('id', 'snark-download-title');
+    });
   });
 
   describe('setup already exists', () => {

@@ -1,0 +1,22 @@
+{
+  "language": {
+    "title": "Language",
+    "description": "Choose the display language for the app interface. More languages can be added by the community.",
+    "selectLabel": "Interface language"
+  },
+  "network": {
+    "title": "Network Selection",
+    "description": "Switching networks requires a full restart. Each network uses a separate chain data directory.",
+    "preprodDescription": "Test network (~4GB RAM, ~30GB disk)",
+    "mainnetDescription": "Production network (~8GB RAM, ~300GB disk)",
+    "currentBadge": "Current",
+    "stopNodeHint": "Stop the node before switching networks.",
+    "confirmTitle": "Switch Network",
+    "confirmMessage": "Switching to {{network}} will stop all node services and re-sync from scratch on the new network. This may take a long time and any pending operations will be interrupted.",
+    "confirmDescription": "Each network uses its own chain data directory. Your wallet and settings are preserved.",
+    "confirmButton": "Stop & Switch",
+    "switchedToast": "Switched to {{network}}",
+    "switchedToastBody": "All node services stopped. Start the node to sync the new network.",
+    "switchFailedToast": "Network switch failed"
+  }
+}
