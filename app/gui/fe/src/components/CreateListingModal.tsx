@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
 import { stat } from '@tauri-apps/plugin-fs';
@@ -57,20 +58,13 @@ interface CreateListingModalProps {
 const LARGE_FILE_THRESHOLD_BYTES = 1024 * 1024 * 1024; // 1 GB
 
 /** All steps for file-based listing creation. */
-const FILE_LISTING_STEPS: { key: ListingCreationStep; label: string }[] = [
-  { key: 'encrypting', label: 'Encrypting file' },
-  { key: 'uploading', label: 'Uploading to Iagon' },
-  { key: 'verifying', label: 'Verifying upload' },
-  { key: 'building', label: 'Building transaction' },
-  { key: 'signing', label: 'Signing transaction' },
-  { key: 'submitting', label: 'Submitting to chain' },
+const FILE_LISTING_STEPS: ListingCreationStep[] = [
+  'encrypting', 'uploading', 'verifying', 'building', 'signing', 'submitting',
 ];
 
 /** Steps for text-only listing creation (no file upload). */
-const TEXT_LISTING_STEPS: { key: ListingCreationStep; label: string }[] = [
-  { key: 'building', label: 'Building transaction' },
-  { key: 'signing', label: 'Signing transaction' },
-  { key: 'submitting', label: 'Submitting to chain' },
+const TEXT_LISTING_STEPS: ListingCreationStep[] = [
+  'building', 'signing', 'submitting',
 ];
 
 /** Maps each step to its ordinal index for comparison. */
@@ -115,6 +109,7 @@ export default function CreateListingModal({
   prefill,
   title,
 }: CreateListingModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   const navigate = useNavigate();
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -285,31 +280,31 @@ export default function CreateListingModal({
     switch (fieldName) {
       case 'secretMessage':
         if (formData.category === 'text') {
-          if (!formData.secretMessage.trim()) return 'Secret message is required';
-          if (formData.secretMessage.length > 280) return 'Message must be 280 characters or less';
+          if (!formData.secretMessage.trim()) return t('modals:createListing.errors.secretRequired');
+          if (formData.secretMessage.length > 280) return t('modals:createListing.errors.secretMax');
         }
         return undefined;
       case 'file':
-        if (isFileMode && !formData.filePath) return 'File is required';
+        if (isFileMode && !formData.filePath) return t('modals:createListing.errors.fileRequired');
         return undefined;
       case 'description':
-        if (!formData.description.trim()) return 'Description is required';
-        if (formData.description.length > 500) return 'Description must be less than 500 characters';
+        if (!formData.description.trim()) return t('modals:createListing.errors.descRequired');
+        if (formData.description.length > 500) return t('modals:createListing.errors.descMax');
         return undefined;
       case 'suggestedPrice':
         if (formData.suggestedPrice) {
           const price = parseFloat(formData.suggestedPrice);
-          if (isNaN(price) || price < 0) return 'Price must be a positive number';
-          if (price > 45_000_000_000) return 'Price exceeds maximum (45B ADA)';
+          if (isNaN(price) || price < 0) return t('modals:createListing.errors.pricePositive');
+          if (price > 45_000_000_000) return t('modals:createListing.errors.priceMax');
         }
         return undefined;
       case 'imageLink':
         if (formData.imageLink.trim()) {
           try {
             const url = new URL(formData.imageLink.trim());
-            if (!['http:', 'https:'].includes(url.protocol)) return 'Image link must use http:// or https://';
+            if (!['http:', 'https:'].includes(url.protocol)) return t('modals:createListing.errors.imageInvalidProtocol');
           } catch {
-            return 'Invalid URL format';
+            return t('modals:createListing.errors.imageInvalid');
           }
         }
         return undefined;
@@ -403,7 +398,7 @@ export default function CreateListingModal({
       const fileSize = fileStat.size;
 
       if (fileSize > LARGE_FILE_THRESHOLD_BYTES) {
-        setErrors((prev) => ({ ...prev, file: 'File too large (max 1 GB)' }));
+        setErrors((prev) => ({ ...prev, file: t('modals:createListing.errors.fileTooLarge') }));
         return;
       }
 
@@ -414,7 +409,7 @@ export default function CreateListingModal({
       setSubmitError(null);
       setIsDirty(true);
     } catch (err) {
-      setErrors((prev) => ({ ...prev, file: `Failed to select file: ${err instanceof Error ? err.message : 'Unknown error'}` }));
+      setErrors((prev) => ({ ...prev, file: t('modals:createListing.errors.fileSelectFailed', { message: err instanceof Error ? err.message : t('modals:createListing.errors.unknown') }) }));
     }
   };
 
@@ -427,13 +422,13 @@ export default function CreateListingModal({
     try {
       const selected = await open({
         multiple: false,
-        title: 'Select file for listing',
+        title: t('modals:createListing.fileDialogTitle'),
       });
       if (!selected) return; // User cancelled
       const filePath = typeof selected === 'string' ? selected : selected;
       await processSelectedFile(filePath);
     } catch (err) {
-      setErrors((prev) => ({ ...prev, file: `Failed to select file: ${err instanceof Error ? err.message : 'Unknown error'}` }));
+      setErrors((prev) => ({ ...prev, file: t('modals:createListing.errors.fileSelectFailed', { message: err instanceof Error ? err.message : t('modals:createListing.errors.unknown') }) }));
     }
   };
 
@@ -526,7 +521,7 @@ export default function CreateListingModal({
     } catch (error) {
       console.error('Failed to create listing:', error);
       setSubmitError(
-        error instanceof Error ? error.message : 'Failed to create listing. Please try again.'
+        error instanceof Error ? error.message : t('modals:createListing.errors.submitFailed')
       );
     } finally {
       setIsSubmitting(false);
@@ -539,9 +534,9 @@ export default function CreateListingModal({
       isOpen={showCloseConfirm}
       onClose={() => setShowCloseConfirm(false)}
       onConfirm={handleConfirmClose}
-      title="Discard changes?"
-      message="You have unsaved changes that will be lost if you close this form."
-      confirmLabel="Discard"
+      title={t('modals:createListing.discardTitle')}
+      message={t('modals:createListing.discardMessage')}
+      confirmLabel={t('modals:createListing.discardButton')}
       confirmVariant="danger"
     />
   );
@@ -569,17 +564,17 @@ export default function CreateListingModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="create-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
-              {title ?? 'Create New Listing'}
+              {title ?? t('modals:createListing.title')}
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {prefill ? 'Re-encrypt and list content from your library' : 'Encrypt and list your data for sale'}
+              {prefill ? t('modals:createListing.titleRelist') : t('modals:createListing.subtitle')}
             </p>
           </div>
           {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={handleClose}
             disabled={isSubmitting}
-            aria-label="Close dialog"
+            aria-label={t('modals:common.closeDialog')}
             tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
@@ -601,7 +596,7 @@ export default function CreateListingModal({
             {showDraftPrompt && (
               <div className="p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
                 <p className="text-sm text-[var(--text-primary)] mb-2">
-                  You have an unsaved draft. Would you like to resume?
+                  {t('modals:createListing.draftPrompt')}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -609,14 +604,14 @@ export default function CreateListingModal({
                     onClick={handleResumeDraft}
                     className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
                   >
-                    Resume Draft
+                    {t('modals:createListing.resumeDraft')}
                   </button>
                   <button
                     type="button"
                     onClick={handleDiscardDraft}
                     className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
                   >
-                    Start Fresh
+                    {t('modals:createListing.startFresh')}
                   </button>
                 </div>
               </div>
@@ -625,7 +620,7 @@ export default function CreateListingModal({
             {/* Mode Toggle: Text vs File */}
             <div>
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                Data Type <span className="text-[var(--error)]">*</span>
+                {t('modals:createListing.dataType')} <span className="text-[var(--error)]">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -641,7 +636,7 @@ export default function CreateListingModal({
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
-                  <span className="font-medium">Text</span>
+                  <span className="font-medium">{t('modals:createListing.text')}</span>
                 </button>
                 <button
                   type="button"
@@ -665,13 +660,13 @@ export default function CreateListingModal({
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <span className="font-medium">File</span>
+                  <span className="font-medium">{t('modals:createListing.file')}</span>
                 </button>
               </div>
               <p className="mt-1.5 text-xs text-[var(--text-muted)]">
                 {isFileMode
-                  ? 'Files are encrypted and uploaded to Iagon decentralized storage.'
-                  : 'Text listings store content directly on-chain in the encrypted capsule.'}
+                  ? t('modals:createListing.fileHint')
+                  : t('modals:createListing.textHint')}
               </p>
             </div>
 
@@ -703,14 +698,14 @@ export default function CreateListingModal({
                   ? 'bg-[var(--error)]/15 text-[var(--error)] border-[var(--error)]/40'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
               }`}
-              title={formData.nsfw ? 'Marked as NSFW — click to remove' : 'Mark as NSFW content'}
+              title={formData.nsfw ? t('modals:createListing.nsfwUnmark') : t('modals:createListing.nsfwMark')}
               aria-pressed={formData.nsfw}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
                 {formData.nsfw && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15.75h.007v.008H12v-.008z" />}
               </svg>
-              NSFW
+              {t('modals:createListing.nsfwLabel')}
             </button>
 
             {/* Content Area — Text category */}
@@ -720,7 +715,7 @@ export default function CreateListingModal({
                   htmlFor="secretMessage"
                   className="block text-sm font-medium text-[var(--text-primary)] mb-2"
                 >
-                  Secret Message <span className="text-[var(--error)]">*</span>
+                  {t('modals:createListing.secretMessage')} <span className="text-[var(--error)]">*</span>
                 </label>
                 <textarea
                   id="secretMessage"
@@ -731,7 +726,7 @@ export default function CreateListingModal({
                   disabled={isSubmitting}
                   rows={4}
                   maxLength={280}
-                  placeholder="Enter the secret data you want to sell..."
+                  placeholder={t('modals:createListing.secretPlaceholder')}
                   aria-invalid={!!errors.secretMessage}
                   aria-describedby={errors.secretMessage ? 'secretMessage-error' : undefined}
                   className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] resize-none disabled:opacity-50 ${
@@ -748,7 +743,7 @@ export default function CreateListingModal({
                       ? 'text-[var(--warning)]'
                       : 'text-[var(--text-muted)]'
                 }`}>
-                  {formData.secretMessage.length}/280 characters
+                  {t('modals:createListing.charsCount', { current: formData.secretMessage.length, max: 280 })}
                 </p>
               </div>
             )}
@@ -757,7 +752,7 @@ export default function CreateListingModal({
             {isFileMode && isIagonConnected && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                  Upload File <span className="text-[var(--error)]">*</span>
+                  {t('modals:createListing.uploadFile')} <span className="text-[var(--error)]">*</span>
                 </label>
                 {formData.filePath ? (
                   <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
@@ -771,7 +766,7 @@ export default function CreateListingModal({
                       <p className="text-xs text-[var(--text-muted)]">{formatFileSize(formData.fileSize ?? 0)}</p>
                       {(formData.fileSize ?? 0) > LARGE_FILE_THRESHOLD_BYTES && (
                         <p className="text-xs text-[var(--warning)] mt-0.5">
-                          Large files take longer to encrypt and upload.
+                          {t('modals:createListing.largeFileWarning')}
                         </p>
                       )}
                     </div>
@@ -779,7 +774,7 @@ export default function CreateListingModal({
                       type="button"
                       onClick={handleRemoveFile}
                       disabled={isSubmitting}
-                      aria-label="Remove selected file"
+                      aria-label={t('modals:createListing.removeFile')}
                       className="p-1 text-[var(--text-muted)] hover:text-[var(--error)] transition-colors cursor-pointer disabled:opacity-50"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -805,10 +800,10 @@ export default function CreateListingModal({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     <span className="text-sm text-[var(--text-secondary)]">
-                      Drag & drop or click to select
+                      {t('modals:createListing.dragDrop')}
                     </span>
                     <span className="text-xs text-[var(--text-muted)]">
-                      Type will be detected automatically
+                      {t('modals:createListing.typeAutoDetect')}
                     </span>
                   </button>
                 )}
@@ -829,7 +824,7 @@ export default function CreateListingModal({
                     <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <span className="text-sm text-[var(--text-muted)]">Drag & drop or click to select</span>
+                    <span className="text-sm text-[var(--text-muted)]">{t('modals:createListing.dragDrop')}</span>
                   </div>
                   {/* Iagon not connected overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -838,10 +833,10 @@ export default function CreateListingModal({
                         <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        <span className="text-sm font-medium text-[var(--text-primary)]">Iagon Required</span>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{t('modals:createListing.iagonRequired')}</span>
                       </div>
                       <p className="text-xs text-[var(--text-muted)] mb-2">
-                        Connect your Iagon account to upload files.
+                        {t('modals:createListing.iagonRequiredBody')}
                       </p>
                       <button
                         type="button"
@@ -851,7 +846,7 @@ export default function CreateListingModal({
                         }}
                         className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
                       >
-                        Go to Settings
+                        {t('modals:createListing.goToSettings')}
                       </button>
                     </div>
                   </div>
@@ -865,7 +860,7 @@ export default function CreateListingModal({
                 htmlFor="description"
                 className="block text-sm font-medium text-[var(--text-primary)] mb-2"
               >
-                Description <span className="text-[var(--error)]">*</span>
+                {t('modals:createListing.description')} <span className="text-[var(--error)]">*</span>
               </label>
               <textarea
                 id="description"
@@ -876,7 +871,7 @@ export default function CreateListingModal({
                 disabled={isSubmitting}
                 rows={2}
                 maxLength={500}
-                placeholder="Brief description of what you're selling (visible to buyers)"
+                placeholder={t('modals:createListing.descriptionPlaceholder')}
                 aria-invalid={!!errors.description}
                 aria-describedby={errors.description ? 'description-error' : undefined}
                 className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] resize-none disabled:opacity-50 ${
@@ -893,7 +888,7 @@ export default function CreateListingModal({
                     ? 'text-[var(--warning)]'
                     : 'text-[var(--text-muted)]'
               }`}>
-                {formData.description.length}/500 characters (stored in CIP-20 metadata)
+                {t('modals:createListing.descriptionCharsCount', { current: formData.description.length, max: 500 })}
               </p>
             </div>
 
@@ -905,7 +900,7 @@ export default function CreateListingModal({
                   htmlFor="suggestedPrice"
                   className="block text-sm font-medium text-[var(--text-primary)] mb-2"
                 >
-                  Suggested Price (ADA)
+                  {t('modals:createListing.suggestedPrice')}
                 </label>
                 <div className="relative">
                   <input
@@ -918,7 +913,7 @@ export default function CreateListingModal({
                     onFocus={handlePriceFocus}
                     onBlur={handlePriceBlur}
                     disabled={isSubmitting}
-                    placeholder="0.00"
+                    placeholder={t('modals:createListing.pricePlaceholder')}
                     aria-invalid={!!errors.suggestedPrice}
                     aria-describedby={errors.suggestedPrice ? 'suggestedPrice-error' : undefined}
                     className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
@@ -933,7 +928,7 @@ export default function CreateListingModal({
                   <p id="suggestedPrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>
                 )}
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Optional. Buyers can bid any amount.
+                  {t('modals:createListing.priceHelp')}
                 </p>
               </div>
 
@@ -943,7 +938,7 @@ export default function CreateListingModal({
                   htmlFor="imageLink"
                   className="block text-sm font-medium text-[var(--text-primary)] mb-2"
                 >
-                  Image Link
+                  {t('modals:createListing.imageLink')}
                 </label>
                 <input
                   type="text"
@@ -953,7 +948,7 @@ export default function CreateListingModal({
                   onChange={handleInputChange}
                   onBlur={handleImageLinkBlur}
                   disabled={isSubmitting}
-                  placeholder="https://example.com/preview.png"
+                  placeholder={t('modals:createListing.imageLinkPlaceholder')}
                   aria-invalid={!!errors.imageLink}
                   aria-describedby={errors.imageLink ? 'imageLink-error' : undefined}
                   className={`w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 ${
@@ -964,7 +959,7 @@ export default function CreateListingModal({
                   <p id="imageLink-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>
                 )}
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Optional. Public preview image URL.
+                  {t('modals:createListing.imageLinkHelp')}
                 </p>
                 {imagePreviewState !== 'idle' && (
                   <div className="mt-2 flex items-center gap-2">
@@ -997,7 +992,7 @@ export default function CreateListingModal({
                         <svg className="w-4 h-4 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        <span className="text-xs text-[var(--text-muted)]">Could not load preview</span>
+                        <span className="text-xs text-[var(--text-muted)]">{t('modals:createListing.previewFailed')}</span>
                       </div>
                     )}
                   </div>
@@ -1015,7 +1010,7 @@ export default function CreateListingModal({
                     if (ok) { setCopiedError(true); setTimeout(() => setCopiedError(false), 1500); }
                   }}
                   className="flex-shrink-0 p-1 text-[var(--error)]/60 hover:text-[var(--error)] transition-colors cursor-pointer"
-                  aria-label="Copy error to clipboard"
+                  aria-label={t('modals:createListing.copyErrorLabel')}
                 >
                   {copiedError ? (
                     <svg className="w-4 h-4 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1036,31 +1031,32 @@ export default function CreateListingModal({
             {/* Info box about what happens next */}
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
-                <strong>Note:</strong> Creating a listing will encrypt your data as a standardized CBOR payload.
-                {isFileMode
-                  ? ' Files are encrypted and uploaded to Iagon, with a reference stored on-chain.'
-                  : ' Text data is stored on-chain.'}
-                {' '}You'll need to sign a transaction with your wallet.
+                <strong>{t('modals:createListing.infoNoteLabel')}</strong> {t('modals:createListing.infoNoteCore')}
+                {' '}{isFileMode
+                  ? t('modals:createListing.infoNoteFile')
+                  : t('modals:createListing.infoNoteText')}
+                {' '}{t('modals:createListing.infoNoteSign')}
               </p>
             </div>
 
             {draftSaved && (
               <p className="mb-2 text-xs text-[var(--text-muted)] draft-saved-indicator text-center">
-                Draft saved
+                {t('modals:createListing.draftSaved')}
               </p>
             )}
 
             {/* Progress stepper — shown during submission */}
             {isSubmitting && creationStep && (
-              <div className="mb-4 space-y-1" role="status" aria-label="Listing creation progress">
-                {(isFileMode ? FILE_LISTING_STEPS : TEXT_LISTING_STEPS).map((step) => {
+              <div className="mb-4 space-y-1" role="status" aria-label={t('modals:createListing.progressLabel')}>
+                {(isFileMode ? FILE_LISTING_STEPS : TEXT_LISTING_STEPS).map((stepKey) => {
                   const currentOrder = STEP_ORDER[creationStep];
-                  const stepOrder = STEP_ORDER[step.key];
+                  const stepOrder = STEP_ORDER[stepKey];
                   const isCompleted = stepOrder < currentOrder;
-                  const isCurrent = step.key === creationStep;
+                  const isCurrent = stepKey === creationStep;
+                  const label = t(`modals:createListing.steps.${stepKey}`);
 
                   return (
-                    <div key={step.key} className="flex items-center gap-2.5">
+                    <div key={stepKey} className="flex items-center gap-2.5">
                       {/* Step indicator */}
                       <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
                         {isCompleted ? (
@@ -1068,7 +1064,7 @@ export default function CreateListingModal({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         ) : isCurrent ? (
-                          <LoadingSpinner size="sm" label={step.label} />
+                          <LoadingSpinner size="sm" label={label} />
                         ) : (
                           <div className="w-2.5 h-2.5 rounded-full border-2 border-[var(--border-subtle)]" aria-hidden="true" />
                         )}
@@ -1081,7 +1077,7 @@ export default function CreateListingModal({
                             ? 'text-[var(--text-primary)] font-medium'
                             : 'text-[var(--text-muted)]'
                       }`}>
-                        {step.label}{isCurrent && '...'}
+                        {label}{isCurrent && '...'}
                       </span>
                     </div>
                   );
@@ -1096,7 +1092,7 @@ export default function CreateListingModal({
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Cancel
+                {t('common:actions.cancel')}
               </button>
               <button
                 type="submit"
@@ -1106,13 +1102,9 @@ export default function CreateListingModal({
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    {creationStep === 'encrypting' && 'Encrypting file...'}
-                    {creationStep === 'uploading' && 'Uploading to Iagon...'}
-                    {creationStep === 'verifying' && 'Verifying upload...'}
-                    {creationStep === 'building' && 'Building transaction...'}
-                    {creationStep === 'signing' && 'Waiting for signature...'}
-                    {creationStep === 'submitting' && 'Submitting transaction...'}
-                    {!creationStep && 'Creating...'}
+                    {creationStep
+                      ? t(`modals:createListing.submittingSteps.${creationStep}`)
+                      : t('modals:createListing.creating')}
                   </>
                 ) : (
                   <>
@@ -1124,7 +1116,7 @@ export default function CreateListingModal({
                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                       />
                     </svg>
-                    Create Listing
+                    {t('modals:createListing.submit')}
                   </>
                 )}
               </button>
@@ -1137,9 +1129,9 @@ export default function CreateListingModal({
       isOpen={showCloseConfirm}
       onClose={() => setShowCloseConfirm(false)}
       onConfirm={handleConfirmClose}
-      title="Discard changes?"
-      message="You have unsaved changes that will be lost if you close this form."
-      confirmLabel="Discard"
+      title={t('modals:createListing.discardTitle')}
+      message={t('modals:createListing.discardMessage')}
+      confirmLabel={t('modals:createListing.discardButton')}
       confirmVariant="danger"
     />
     </>
