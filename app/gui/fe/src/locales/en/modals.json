@@ -35,6 +35,25 @@
     "continue": "Continue",
     "retry": "Retry"
   },
+  "bids": {
+    "title": "Bids for Listing",
+    "suggestedPrice": "Suggested Price",
+    "noPriceSet": "No price set",
+    "totalBids": "Total Bids",
+    "totalBidsValue": "{{total}} ({{pending}} pending)",
+    "emptyTitle": "No bids yet",
+    "emptyBody": "Once buyers place bids on this listing, they will appear here",
+    "pendingSection": "Pending Bids ({{count}})",
+    "pastSection": "Past Bids ({{count}})",
+    "cannotAcceptPending": "Cannot accept new bids while a sale is pending",
+    "sold": "This listing has been sold",
+    "acceptBid": "Accept Bid",
+    "placed": "Placed {{date}}",
+    "lockStatus": "Lock Status",
+    "lockedUntil": "Locked until {{date}}",
+    "unlocked": "Unlocked",
+    "bidToken": "Bid Token"
+  },
   "decrypt": {
     "title": "Decrypt Content",
     "titleSuccessText": "Decrypted Message",
