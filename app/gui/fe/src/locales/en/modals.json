@@ -35,6 +35,23 @@
     "continue": "Continue",
     "retry": "Retry"
   },
+  "updatePrice": {
+    "title": "Update Price",
+    "currentPrice": "Current price",
+    "newPriceLabel": "New Price (ADA)",
+    "lovelaceSuffix": "= {{amount}} lovelace",
+    "submit": "Update Price",
+    "submitting": "Updating...",
+    "errors": {
+      "required": "Price is required",
+      "invalid": "Price must be a valid number",
+      "negative": "Price cannot be negative",
+      "max": "Price exceeds maximum (45B ADA)",
+      "same": "New price is the same as the current price",
+      "noEncryption": "No encryption selected",
+      "unknown": "Unknown error"
+    }
+  },
   "updateBid": {
     "title": "Update Bid",
     "currentBid": "Current bid",
