@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { listLibraryItems, type LibraryItem } from '../services/libraryService';
 import Select from './Select';
@@ -29,6 +31,7 @@ interface LibraryTabProps {
 }
 
 function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispatch, onBulkDeleteResult, onRelist }: LibraryTabProps) {
+  const { t } = useTranslation('dashboard');
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -67,12 +70,12 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       setPrevDataCount(result.length);
       hasDataRef.current = true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load library');
+      setError(err instanceof Error ? err.message : t('library.failedTitle'));
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   // Fetch on mount and re-fetch when refreshSignal changes (background refresh after first load)
   useEffect(() => {
@@ -299,25 +302,27 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
     // Notify parent with summary
     if (onBulkDeleteResult) {
       if (failedCount.value === 0) {
-        onBulkDeleteResult(`Deleted ${total} ${total === 1 ? 'item' : 'items'} from library`, false);
+        onBulkDeleteResult(t('library.bulkDeletedSummary', { count: total }), false);
       } else {
         onBulkDeleteResult(
-          `Deleted ${succeededTokens.length} of ${total} items. ${failedCount.value} ${failedCount.value === 1 ? 'item' : 'items'} could not be removed.`,
+          t('library.bulkDeletedPartial', { succeeded: succeededTokens.length, total, failed: failedCount.value, count: failedCount.value }),
           true
         );
       }
     }
-  }, [selectedItems, items, onBulkDeleteResult]);
+  }, [selectedItems, items, onBulkDeleteResult, t]);
 
   const bulkDeleteMessage = deleteProgress
-    ? `Deleting ${deleteProgress.completed} of ${deleteProgress.total}...${deleteProgress.failed > 0 ? ` (${deleteProgress.failed} failed)` : ''}`
-    : `This will permanently remove ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'} from your local library. You can re-download them by decrypting again.`;
+    ? (deleteProgress.failed > 0
+      ? t('library.bulkDeletingMessageWithFailed', { completed: deleteProgress.completed, total: deleteProgress.total, failed: deleteProgress.failed })
+      : t('library.bulkDeletingMessage', { completed: deleteProgress.completed, total: deleteProgress.total }))
+    : t('library.bulkDeleteMessage', { count: selectedItems.size });
 
   const screenReaderMessage = loading
-    ? 'Loading your library…'
+    ? t('library.loading')
     : error
-    ? 'Error loading your library'
-    : `${items.length} ${items.length === 1 ? 'item' : 'items'} loaded`;
+    ? t('library.loadError')
+    : t('library.loadedCount', { count: items.length });
 
   if (loading) {
     return (
@@ -334,14 +339,14 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         <EmptyState
           icon={<PackageIcon />}
-          title="Failed to load your library"
+          title={t('library.failedTitle')}
           description={error}
           action={
             <button
               onClick={() => { fetchItems(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Try Again
+              {t('library.tryAgain')}
             </button>
           }
         />
@@ -355,14 +360,14 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         <EmptyState
           illustration={<LibraryEmptyIllustration />}
-          title="Your library is empty"
-          description="Purchase and decrypt a listing to see it here"
+          title={t('library.emptyTitle')}
+          description={t('library.emptyDesc')}
           action={onSwitchTab && (
             <button
               onClick={() => onSwitchTab('marketplace')}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Browse Marketplace
+              {t('library.browseMarketplace')}
             </button>
           )}
         />
@@ -378,13 +383,13 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       {/* Storage Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">Total Items</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">{t('library.totalItems')}</p>
           <p className="text-xl font-semibold text-[var(--text-primary)]">
             {libraryStats.totalCount}
           </p>
         </div>
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">Total Size</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">{t('library.totalSize')}</p>
           <p className="text-xl font-semibold text-[var(--accent)]">
             {formatBytes(libraryStats.totalSize)}
           </p>
@@ -427,10 +432,10 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           </svg>
           <input
             type="text"
-            placeholder="Search library..."
+            placeholder={t('library.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
-            aria-label="Search library"
+            aria-label={t('library.searchAria')}
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
           />
         </div>
@@ -442,11 +447,11 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
             <Select
               value={categoryFilter}
               options={[
-                { value: 'all', label: 'All Categories' },
+                { value: 'all', label: t('library.allCategories') },
                 ...FILE_CATEGORIES.map((cat) => ({ value: cat.id, label: cat.label })),
               ]}
               onChange={(v) => dispatch({ type: 'SET_CATEGORY', payload: v })}
-              ariaLabel="Filter by category"
+              ariaLabel={t('library.filterByCategoryAria')}
             />
           </div>
 
@@ -455,17 +460,17 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
             <Select
               value={sortBy}
               options={[
-                { value: 'newest', label: 'Newest First' },
-                { value: 'oldest', label: 'Oldest First' },
-                { value: 'name-asc', label: 'Name: A to Z' },
-                { value: 'name-desc', label: 'Name: Z to A' },
-                { value: 'size-desc', label: 'Size: Largest First' },
-                { value: 'size-asc', label: 'Size: Smallest First' },
-                { value: 'type-asc', label: 'Type: A to Z' },
-                { value: 'type-desc', label: 'Type: Z to A' },
+                { value: 'newest', label: t('filters.sortNewest') },
+                { value: 'oldest', label: t('filters.sortOldest') },
+                { value: 'name-asc', label: t('filters.sortNameAsc') },
+                { value: 'name-desc', label: t('filters.sortNameDesc') },
+                { value: 'size-desc', label: t('filters.sortSizeDesc') },
+                { value: 'size-asc', label: t('filters.sortSizeAsc') },
+                { value: 'type-asc', label: t('filters.sortTypeAsc') },
+                { value: 'type-desc', label: t('filters.sortTypeDesc') },
               ]}
               onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as LibraryFilters['sortBy'] })}
-              ariaLabel="Sort items"
+              ariaLabel={t('library.sortAria')}
             />
           </div>
 
@@ -483,8 +488,8 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           <button
             onClick={() => { fetchItems(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Refresh library"
-            aria-label="Refresh library"
+            title={t('library.refreshTitle')}
+            aria-label={t('library.refreshAria')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -505,7 +510,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 : 'bg-[var(--bg-secondary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {selectMode ? <><span>Cancel</span> <kbd className="ml-1 text-xs text-[var(--text-muted)]">Esc</kbd></> : 'Select'}
+            {selectMode ? <><span>{t('library.cancelButton')}</span> <kbd className="ml-1 text-xs text-[var(--text-muted)]">{t('library.escKey')}</kbd></> : t('library.selectButton')}
           </button>
         </div>
       </div>
@@ -513,9 +518,9 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {hasMore
-          ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'item' : 'items'}`
-          : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'item' : 'items'}`}
-        {categoryFilter !== 'all' && ` (${categoryFilter})`}
+          ? t('library.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })
+          : t('library.totalCount', { count: filteredAndSorted.length })}
+        {categoryFilter !== 'all' && ` ${t('library.categorySuffix', { category: categoryFilter })}`}
       </div>
 
       {/* Content */}
@@ -523,8 +528,8 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         searchQuery || categoryFilter !== 'all' ? (
           <EmptyState
             illustration={<NoResultsIllustration />}
-            title="No matching items"
-            description="Try adjusting your search or filters"
+            title={t('library.noMatchingTitle')}
+            description={t('library.noMatchingDesc')}
             action={
               <button
                 onClick={() => {
@@ -533,15 +538,15 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
                 }}
                 className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Clear Filters
+                {t('filters.clearFilters')}
               </button>
             }
           />
         ) : (
           <EmptyState
             illustration={<LibraryEmptyIllustration />}
-            title="No items found"
-            description="Your library items will appear here"
+            title={t('library.noItemsTitle')}
+            description={t('library.noItemsDesc')}
           />
         )
       ) : viewMode === 'grid' ? (
@@ -588,13 +593,13 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">
-            Showing {paginatedResults.length} of {filteredAndSorted.length}
+            {t('library.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })}
           </p>
           <button
             onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
             className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Load More
+            {t('filters.loadMore')}
           </button>
           <div ref={sentinelRef} className="h-1" />
         </div>
@@ -616,25 +621,25 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       {selectMode && selectedItems.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-6 py-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-full shadow-lg">
           <span className="text-sm text-[var(--text-secondary)]">
-            {selectedItems.size} {selectedItems.size === 1 ? 'item' : 'items'} selected
+            {t('library.itemsSelected', { count: selectedItems.size })}
           </span>
           <button
             onClick={handleSelectAll}
             className="text-sm text-[var(--accent)] hover:underline cursor-pointer"
           >
-            Select All
+            {t('library.selectAll')}
           </button>
           <button
             onClick={handleDeselectAll}
             className="text-sm text-[var(--text-muted)] hover:underline cursor-pointer"
           >
-            Deselect All
+            {t('library.deselectAll')}
           </button>
           <button
             onClick={() => setShowBulkDeleteConfirm(true)}
             className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-danger"
           >
-            Delete {selectedItems.size}
+            {t('library.deleteCount', { count: selectedItems.size })}
           </button>
         </div>
       )}
@@ -644,9 +649,9 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         isOpen={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
-        title="Delete from Library"
-        message="This will permanently remove the decrypted content and metadata from your device. This action cannot be undone."
-        confirmLabel="Delete"
+        title={t('library.deleteConfirmTitle')}
+        message={t('library.deleteConfirmMessage')}
+        confirmLabel={t('library.deleteConfirmButton')}
         confirmVariant="danger"
         loading={deleting}
       />
@@ -656,9 +661,9 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
         isOpen={showBulkDeleteConfirm}
         onClose={() => setShowBulkDeleteConfirm(false)}
         onConfirm={handleBulkDelete}
-        title={`Delete ${selectedItems.size} ${selectedItems.size === 1 ? 'item' : 'items'}`}
+        title={t('library.bulkDeleteTitle', { count: selectedItems.size })}
         message={bulkDeleteMessage}
-        confirmLabel={bulkDeleting ? 'Deleting...' : `Delete ${selectedItems.size}`}
+        confirmLabel={bulkDeleting ? t('library.bulkDeletingButton') : t('library.deleteCount', { count: selectedItems.size })}
         confirmVariant="danger"
         loading={bulkDeleting}
       />

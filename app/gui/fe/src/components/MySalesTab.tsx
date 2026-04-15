@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi } from '../services/api';
@@ -50,6 +52,7 @@ function MySalesTab({
   filters,
   dispatch,
 }: MySalesTabProps) {
+  const { t } = useTranslation('dashboard');
   const { expressReady } = useNode();
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [bidsMap, setBidsMap] = useState<Map<string, BidDisplay[]>>(new Map());
@@ -106,12 +109,12 @@ function MySalesTab({
         setBidsMap(new Map());
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch your listings');
+      setError(err instanceof Error ? err.message : t('mySales.failedTitle'));
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [userPkh]);
+  }, [userPkh, t]);
 
   // Fetch on mount and re-fetch when refreshSignal changes (waits for Express backend)
   useEffect(() => {
@@ -282,10 +285,10 @@ function MySalesTab({
   );
 
   const screenReaderMessage = loading
-    ? 'Loading your listings…'
+    ? t('mySales.loading')
     : error
-    ? 'Error loading your listings'
-    : `${encryptions.length} ${encryptions.length === 1 ? 'listing' : 'listings'} loaded`;
+    ? t('mySales.loadError')
+    : t('mySales.loadedCount', { count: encryptions.length });
 
   if (loading) {
     return (
@@ -302,14 +305,14 @@ function MySalesTab({
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         <EmptyState
           icon={<PackageIcon />}
-          title="Failed to load your listings"
+          title={t('mySales.failedTitle')}
           description={error}
           action={
             <button
               onClick={() => { fetchData(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Try Again
+              {t('mySales.tryAgain')}
             </button>
           }
         />
@@ -324,14 +327,14 @@ function MySalesTab({
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         <EmptyState
           illustration={<NoSalesIllustration />}
-          title="No listings yet"
-          description="Create your first encryption listing to start selling on the marketplace"
+          title={t('mySales.emptyTitle')}
+          description={t('mySales.emptyDesc')}
           action={
             <button
               onClick={onCreateListing}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Create Listing
+              {t('mySales.createListing')}
             </button>
           }
         />
@@ -349,35 +352,35 @@ function MySalesTab({
       {/* Earnings Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">Active Listings</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">{t('mySales.summaryActive')}</p>
           <p className="text-xl font-semibold text-[var(--text-primary)]">
             {salesStats.activeCount}
           </p>
           {salesStats.listedValue > 0 && (
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              {formatAda(salesStats.listedValue)} ADA listed
+              {t('mySales.summaryListed', { amount: formatAda(salesStats.listedValue) })}
             </p>
           )}
         </div>
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">Pending Bids</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">{t('mySales.summaryPendingBids')}</p>
           <p className="text-xl font-semibold text-[var(--accent)]">
             {salesStats.totalBidCount}
           </p>
           {salesStats.totalBidValue > 0 && (
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              {(salesStats.totalBidValue / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} ADA total
+              {t('mySales.summaryBidsTotal', { amount: (salesStats.totalBidValue / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 }) })}
             </p>
           )}
         </div>
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">Pending Sales</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">{t('mySales.summaryPendingSales')}</p>
           <p className="text-xl font-semibold text-[var(--warning)]">
             {salesStats.pendingCount}
           </p>
         </div>
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">Completed Sales</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">{t('mySales.summaryCompletedSales')}</p>
           <p className="text-xl font-semibold text-[var(--success)]">
             {salesStats.completedSales}
           </p>
@@ -404,10 +407,10 @@ function MySalesTab({
           </svg>
           <input
             type="text"
-            placeholder="Search by token or description..."
+            placeholder={t('mySales.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
-            aria-label="Search sales"
+            aria-label={t('mySales.searchAria')}
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
           />
         </div>
@@ -419,13 +422,13 @@ function MySalesTab({
             <Select
               value={statusFilter}
               options={[
-                { value: 'all', label: 'All Status' },
-                { value: 'active', label: 'Active' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'completed', label: 'Completed' },
+                { value: 'all', label: t('filters.allStatus') },
+                { value: 'active', label: t('filters.statusActive') },
+                { value: 'pending', label: t('filters.statusPending') },
+                { value: 'completed', label: t('filters.statusCompleted') },
               ]}
               onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as MySalesFilters['statusFilter'] })}
-              ariaLabel="Filter by status"
+              ariaLabel={t('filters.filterByStatus')}
             />
           </div>
 
@@ -434,14 +437,14 @@ function MySalesTab({
             <Select
               value={sortBy}
               options={[
-                { value: 'newest', label: 'Newest First' },
-                { value: 'oldest', label: 'Oldest First' },
-                { value: 'price-high', label: 'Price: High to Low' },
-                { value: 'price-low', label: 'Price: Low to High' },
-                { value: 'most-bids', label: 'Most Bids' },
+                { value: 'newest', label: t('filters.sortNewest') },
+                { value: 'oldest', label: t('filters.sortOldest') },
+                { value: 'price-high', label: t('filters.sortPriceHigh') },
+                { value: 'price-low', label: t('filters.sortPriceLow') },
+                { value: 'most-bids', label: t('filters.sortMostBids') },
               ]}
               onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MySalesFilters['sortBy'] })}
-              ariaLabel="Sort listings"
+              ariaLabel={t('mySales.sortListingsAria')}
             />
           </div>
 
@@ -459,8 +462,8 @@ function MySalesTab({
           <button
             onClick={() => { fetchData(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Refresh listings"
-            aria-label="Refresh listings"
+            title={t('mySales.refreshTitle')}
+            aria-label={t('mySales.refreshAria')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -477,9 +480,9 @@ function MySalesTab({
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {hasMore
-          ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`
-          : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`}
-        {statusFilter !== 'all' && ` (${statusFilter})`}
+          ? t('mySales.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })
+          : t('mySales.totalCount', { count: filteredAndSorted.length })}
+        {statusFilter !== 'all' && ` ${t('mySales.statusSuffix', { status: statusFilter })}`}
       </div>
 
       {/* Content */}
@@ -487,8 +490,8 @@ function MySalesTab({
         searchQuery || statusFilter !== 'all' ? (
           <EmptyState
             illustration={<NoResultsIllustration />}
-            title="No matching listings"
-            description="Try adjusting your search or filters"
+            title={t('mySales.noMatchingTitle')}
+            description={t('mySales.noMatchingDesc')}
             action={
               <button
                 onClick={() => {
@@ -497,15 +500,15 @@ function MySalesTab({
                 }}
                 className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Clear Filters
+                {t('filters.clearFilters')}
               </button>
             }
           />
         ) : (
           <EmptyState
             illustration={<NoSalesIllustration />}
-            title="No listings found"
-            description="Your listings will appear here"
+            title={t('mySales.noListingsTitle')}
+            description={t('mySales.noListingsDesc')}
           />
         )
       ) : viewMode === 'grid' ? (
@@ -556,13 +559,13 @@ function MySalesTab({
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">
-            Showing {paginatedResults.length} of {filteredAndSorted.length}
+            {t('mySales.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })}
           </p>
           <button
             onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
             className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Load More
+            {t('filters.loadMore')}
           </button>
           <div ref={sentinelRef} className="h-1" />
         </div>
