@@ -51,7 +51,10 @@
     "timeMinutesAgo": "{{count}}m ago",
     "timeHoursAgo": "{{count}}h ago",
     "refreshTitle": "Refresh data (Ctrl+R)",
-    "refreshAria": "Refresh data"
+    "refreshAria": "Refresh data",
+    "tabsAria": "Dashboard tabs",
+    "relistFromLibraryTitle": "Relist from Library",
+    "confirmFallback": "Confirm"
   },
   "tabs": {
     "marketplace": "Marketplace",

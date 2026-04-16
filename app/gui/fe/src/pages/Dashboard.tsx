@@ -48,7 +48,7 @@ import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
 export type { TabId } from './dashboard/dashboardTypes'
 
 export default function Dashboard() {
-  const { t } = useTranslation('notifications')
+  const { t } = useTranslation(['notifications', 'dashboard'])
   const { disconnect, wallet, refreshBalance } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
@@ -121,7 +121,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
-  const [relativeTime, setRelativeTime] = useState('just now')
+  const [relativeTime, setRelativeTime] = useState(() => t('dashboard:shell.timeJustNow'))
   const toast = useToast()
 
   // ── Update check (auto-check on startup) ────────────────────────
@@ -211,33 +211,33 @@ export default function Dashboard() {
     setIsRefreshing(true)
     triggerRefresh()
     setLastRefreshTime(Date.now())
-    setRelativeTime('just now')
+    setRelativeTime(t('dashboard:shell.timeJustNow'))
     setTimeout(() => setIsRefreshing(false), 2000)
-  }, [isRefreshing, triggerRefresh])
+  }, [isRefreshing, triggerRefresh, t])
 
   // Handler for tab-level refresh buttons to update the timestamp without triggering all tabs
   const handleLocalRefresh = useCallback(() => {
     setLastRefreshTime(Date.now())
-    setRelativeTime('just now')
-  }, [])
+    setRelativeTime(t('dashboard:shell.timeJustNow'))
+  }, [t])
 
   // Update relative time display every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const seconds = Math.floor((Date.now() - lastRefreshTime) / 1000)
-      if (seconds < 10) setRelativeTime('just now')
-      else if (seconds < 60) setRelativeTime(`${seconds}s ago`)
-      else if (seconds < 3600) setRelativeTime(`${Math.floor(seconds / 60)}m ago`)
-      else setRelativeTime(`${Math.floor(seconds / 3600)}h ago`)
+      if (seconds < 10) setRelativeTime(t('dashboard:shell.timeJustNow'))
+      else if (seconds < 60) setRelativeTime(t('dashboard:shell.timeSecondsAgo', { count: seconds }))
+      else if (seconds < 3600) setRelativeTime(t('dashboard:shell.timeMinutesAgo', { count: Math.floor(seconds / 60) }))
+      else setRelativeTime(t('dashboard:shell.timeHoursAgo', { count: Math.floor(seconds / 3600) }))
     }, 5000)
     return () => clearInterval(interval)
-  }, [lastRefreshTime])
+  }, [lastRefreshTime, t])
 
   // Reset timestamp when data refreshes externally (e.g. after tx submission)
   useEffect(() => {
     setLastRefreshTime(Date.now())
-    setRelativeTime('just now')
-  }, [refreshSignal])
+    setRelativeTime(t('dashboard:shell.timeJustNow'))
+  }, [refreshSignal, t])
 
   // Keyboard shortcuts: Ctrl+1-5 for tabs, Ctrl+R for refresh
   useEffect(() => {
@@ -348,84 +348,84 @@ export default function Dashboard() {
       {/* Navigation */}
       <nav className="h-16 border-b border-[var(--border-subtle)] px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold">Veiled</h1>
+          <h1 className="text-lg font-semibold">{t('dashboard:shell.appName')}</h1>
           <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>
-            Preprod
+            {t('dashboard:shell.networkPreprod')}
           </span>
           {/* Node Sync Indicator */}
           {nodeStage === 'synced' ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-              Node Ready
+              {t('dashboard:shell.nodeReady')}
             </span>
           ) : nodeStage === 'syncing' ? (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-full hover:bg-[var(--warning)]/20 transition-all cursor-pointer"
-              title="Click to view sync progress"
+              title={t('dashboard:shell.nodeSyncingTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
-              Syncing {Math.round(Math.min(nodeSyncProgress, kupoSyncProgress))}%
+              {t('dashboard:shell.nodeSyncing', { count: Math.round(Math.min(nodeSyncProgress, kupoSyncProgress)) })}
             </button>
           ) : nodeStage === 'error' ? (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--error)] bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-full hover:bg-[var(--error)]/20 transition-all cursor-pointer"
-              title="Node error - click for details"
+              title={t('dashboard:shell.nodeErrorTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)]"></span>
-              Node Error
+              {t('dashboard:shell.nodeError')}
             </button>
           ) : nodeStage === 'starting' || nodeStage === 'bootstrapping' ? (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
-              title="Click to view node progress"
+              title={t('dashboard:shell.nodeProgressTitle')}
             >
               <LoadingSpinner size="sm" />
-              {nodeStage === 'bootstrapping' ? 'Bootstrapping' : 'Starting'}
+              {nodeStage === 'bootstrapping' ? t('dashboard:shell.nodeBootstrapping') : t('dashboard:shell.nodeStarting')}
             </button>
           ) : (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all cursor-pointer"
-              title="Node offline - click to start"
+              title={t('dashboard:shell.nodeOfflineTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></span>
-              Node Offline
+              {t('dashboard:shell.nodeOffline')}
             </button>
           )}
           {/* WASM Prover Indicator */}
           {wasmReady ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-              Prover Ready
+              {t('dashboard:shell.proverReady')}
             </span>
           ) : wasmLoading ? (
             <button
               onClick={() => navigate('/loading')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
-              title="Click to view loading progress"
+              title={t('dashboard:shell.proverLoadingTitle')}
             >
               <LoadingSpinner size="sm" />
-              Prover {Math.round(wasmProgress)}%
+              {t('dashboard:shell.proverProgress', { count: Math.round(wasmProgress) })}
             </button>
           ) : null}
           {/* Iagon Connection Indicator */}
           {effects.iagonConnected ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-              Iagon Ready
+              {t('dashboard:shell.iagonReady')}
             </span>
           ) : (
             <button
               onClick={() => navigate('/settings')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all cursor-pointer"
-              title="Iagon not connected - click to configure"
+              title={t('dashboard:shell.iagonOfflineTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></span>
-              Iagon Offline
+              {t('dashboard:shell.iagonOffline')}
             </button>
           )}
           {/* Collateral Indicator */}
@@ -433,16 +433,16 @@ export default function Dashboard() {
             walletHealth.hasCollateral ? (
               <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-                Collateral Set
+                {t('dashboard:shell.collateralSet')}
               </span>
             ) : (
               <button
                 onClick={() => navigate('/settings', { state: { section: 'wallet' } })}
                 className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-full hover:bg-[var(--warning)]/20 transition-all cursor-pointer"
-                title="No collateral UTxO found — click to set up in Settings"
+                title={t('dashboard:shell.noCollateralTitle')}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
-                No Collateral
+                {t('dashboard:shell.noCollateral')}
               </button>
             )
           )}
@@ -458,12 +458,12 @@ export default function Dashboard() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Create Listing
+                {t('dashboard:shell.createListing')}
               </button>
               <button
                 onClick={() => setCreateListingDropdownOpen((prev) => !prev)}
                 className="flex items-center px-2 py-2 text-sm font-medium rounded-r-[var(--radius-md)] border-l border-white/20 btn-base btn-primary"
-                aria-label="More listing options"
+                aria-label={t('dashboard:shell.moreListingOptionsAria')}
                 aria-expanded={createListingDropdownOpen}
                 aria-haspopup="true"
               >
@@ -481,7 +481,7 @@ export default function Dashboard() {
                   <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  New Listing
+                  {t('dashboard:shell.newListing')}
                 </button>
                 <button
                   onClick={() => { setCreateListingDropdownOpen(false); seller.setShowImportListing(true); }}
@@ -490,7 +490,7 @@ export default function Dashboard() {
                   <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  Import from Iagon
+                  {t('dashboard:shell.importFromIagon')}
                 </button>
               </div>
             )}
@@ -504,12 +504,12 @@ export default function Dashboard() {
           ) : (
             <div
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
-              title="Waiting for Kupo to start. Your funds are safe."
+              title={t('dashboard:shell.balanceUnavailableTitle')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Balance unavailable
+              {t('dashboard:shell.balanceUnavailable')}
             </div>
           )}
 
@@ -517,7 +517,7 @@ export default function Dashboard() {
           <button
             onClick={handleCopy}
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-tertiary"
-            title={address || 'Loading...'}
+            title={address || t('dashboard:shell.addressLoading')}
           >
             <span>{address ? truncateHex(address, 12, 8) : '...'}</span>
             <svg
@@ -548,8 +548,8 @@ export default function Dashboard() {
           <button
             onClick={() => navigate('/settings')}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Settings"
-            aria-label="Settings"
+            title={t('dashboard:shell.settingsTitle')}
+            aria-label={t('dashboard:shell.settingsAria')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -562,7 +562,7 @@ export default function Dashboard() {
             onClick={handleDisconnect}
             className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Disconnect
+            {t('dashboard:shell.disconnect')}
           </button>
         </div>
       </nav>
@@ -574,11 +574,10 @@ export default function Dashboard() {
             <div className="p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                  Unfinished Listing Found
+                  {t('dashboard:shell.unfinishedListingTitle')}
                 </h3>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  A file listing for "{seller.recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
-                  The file is still on Iagon — you can resume without re-uploading.
+                  {t('dashboard:shell.unfinishedListingBody', { filename: seller.recoverableDraft.originalFilename })}
                 </p>
               </div>
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
@@ -586,19 +585,19 @@ export default function Dashboard() {
                   onClick={() => seller.handleDraftRecovery('discard')}
                   className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
-                  Discard
+                  {t('dashboard:shell.discard')}
                 </button>
                 <button
                   onClick={() => seller.handleDraftRecovery('resume')}
                   className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                 >
-                  Resume Listing
+                  {t('dashboard:shell.resumeListing')}
                 </button>
                 <button
                   onClick={() => seller.setRecoverableDraft(null)}
                   className="p-1 btn-base btn-icon"
-                  title="Dismiss"
-                  aria-label="Dismiss draft recovery banner"
+                  title={t('dashboard:shell.dismissTitle')}
+                  aria-label={t('dashboard:shell.dismissDraftRecoveryAria')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -623,9 +622,9 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">My Listings</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyListings')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.myListingsCount === null ? '...' : `${effects.myListingsCount} active`}
+              {effects.myListingsCount === null ? '...' : t('dashboard:shell.statActiveCount', { count: effects.myListingsCount })}
             </p>
             {effects.bidNotifications.unseenBidCount > 0 && (
               <p className="text-sm text-[var(--success)] mt-1" aria-live="polite">
@@ -641,9 +640,9 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">My Bids</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyBids')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.myBidsCount === null ? '...' : `${effects.myBidsCount} pending`}
+              {effects.myBidsCount === null ? '...' : t('dashboard:shell.statPendingCount', { count: effects.myBidsCount })}
             </p>
           </button>
           <button
@@ -654,7 +653,7 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">Library</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statLibrary')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
               {effects.libraryCount === null ? '...' : t('dashboard:library.totalCount', { count: effects.libraryCount })}
             </p>
@@ -667,15 +666,15 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">Transactions</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statTransactions')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.pendingTxCount > 0 ? `${effects.pendingTxCount} pending` : 'None pending'}
+              {effects.pendingTxCount > 0 ? t('dashboard:shell.statPendingCount', { count: effects.pendingTxCount }) : t('dashboard:shell.statNonePending')}
             </p>
           </button>
         </div>
 
         {/* Tabs */}
-        <nav className="border-b border-[var(--border-subtle)] mb-6" aria-label="Dashboard tabs">
+        <nav className="border-b border-[var(--border-subtle)] mb-6" aria-label={t('dashboard:shell.tabsAria')}>
           <div className="flex items-center justify-between">
           <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
             {TABS.map((tab, index) => (
@@ -687,7 +686,7 @@ export default function Dashboard() {
                 aria-controls={`tabpanel-${tab.id}`}
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
-                title={`${tab.label} (Ctrl+${index + 1})`}
+                title={t('dashboard:shell.tabShortcutTitle', { label: tab.label, number: index + 1 })}
                 className={`pb-3 transition-all duration-[var(--transition-fast)] cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
@@ -716,14 +715,14 @@ export default function Dashboard() {
           {/* Refresh button + timestamp */}
           <div className="flex items-center gap-3 pb-3">
             <span className="text-xs text-[var(--text-muted)]">
-              Updated {relativeTime}
+              {t('dashboard:shell.updatedRelative', { time: relativeTime })}
             </span>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Refresh data (Ctrl+R)"
-              aria-label="Refresh data"
+              title={t('dashboard:shell.refreshTitle')}
+              aria-label={t('dashboard:shell.refreshAria')}
             >
               <svg
                 className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
@@ -888,7 +887,7 @@ export default function Dashboard() {
         onSubmit={seller.handleCreateListing}
         isIagonConnected={effects.iagonConnected}
         prefill={seller.relistPrefill}
-        title={seller.relistPrefill ? 'Relist from Library' : undefined}
+        title={seller.relistPrefill ? t('dashboard:shell.relistFromLibraryTitle') : undefined}
       />
 
       {/* Import Listing Modal */}
@@ -960,7 +959,7 @@ export default function Dashboard() {
         title={confirmAction?.title ?? ''}
         message={confirmAction?.message ?? ''}
         description={confirmAction?.description}
-        confirmLabel={confirmAction?.confirmLabel ?? 'Confirm'}
+        confirmLabel={confirmAction?.confirmLabel ?? t('dashboard:shell.confirmFallback')}
         confirmVariant="danger"
         loading={confirmLoading}
       />
