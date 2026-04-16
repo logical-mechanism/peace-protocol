@@ -1,4 +1,34 @@
 {
+  "shell": {
+    "title": "Settings",
+    "back": "Back",
+    "searchPlaceholder": "Search settings...",
+    "searchAria": "Search settings",
+    "resultsFor_one": "{{count}} result for \u201c{{query}}\u201d",
+    "resultsFor_other": "{{count}} results for \u201c{{query}}\u201d",
+    "noMatches": "No matching settings found.",
+    "inLabel": "in {{label}}"
+  },
+  "navGroup": {
+    "nodeNetwork": "Node & Network",
+    "wallet": "Wallet",
+    "marketplace": "Marketplace",
+    "storage": "Storage",
+    "diagnostics": "Diagnostics",
+    "about": "About"
+  },
+  "section": {
+    "node": "Node Status",
+    "network": "Network",
+    "wallet": "Wallet",
+    "automation": "Automation",
+    "preferences": "Preferences",
+    "dataLayer": "Data Layer",
+    "storage": "Storage",
+    "logs": "Logs",
+    "updates": "Updates",
+    "contact": "Contact"
+  },
   "language": {
     "title": "Language",
     "description": "Choose the display language for the app interface. More languages can be added by the community.",
