@@ -35,4 +35,31 @@ describe('i18n', () => {
     await i18n.changeLanguage('en')
     expect(i18n.language).toBe('en')
   })
+
+  describe('pluralization', () => {
+    it('resolves dashboard newBidCount for singular and plural', () => {
+      expect(i18n.t('notifications:newBidCount', { count: 1 })).toBe('1 new bid')
+      expect(i18n.t('notifications:newBidCount', { count: 5 })).toBe('5 new bids')
+    })
+
+    it('resolves dashboard library totalCount for singular and plural', () => {
+      expect(i18n.t('dashboard:library.totalCount', { count: 1 })).toBe('1 item')
+      expect(i18n.t('dashboard:library.totalCount', { count: 5 })).toBe('5 items')
+    })
+
+    it('resolves marketplace totalCount for singular and plural', () => {
+      expect(i18n.t('dashboard:marketplace.totalCount', { count: 1 })).toBe('1 listing')
+      expect(i18n.t('dashboard:marketplace.totalCount', { count: 5 })).toBe('5 listings')
+    })
+
+    it('resolves history loadedCount for singular and plural', () => {
+      expect(i18n.t('dashboard:history.loadedCount', { count: 1 })).toBe('1 transaction loaded')
+      expect(i18n.t('dashboard:history.loadedCount', { count: 5 })).toBe('5 transactions loaded')
+    })
+
+    it('resolves common card bid counts for singular and plural', () => {
+      expect(i18n.t('common:card.bid', { count: 1 })).toBe('1 bid')
+      expect(i18n.t('common:card.bid', { count: 5 })).toBe('5 bids')
+    })
+  })
 })
