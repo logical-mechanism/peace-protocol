@@ -51,37 +51,31 @@ describe('SessionWarningBanner', () => {
   it('displays MM:SS format when seconds >= 60', () => {
     mockSessionWarningSeconds = 60;
     render(<SessionWarningBanner />);
-    expect(screen.getByText('1:00')).toBeInTheDocument();
+    expect(screen.getByText(/1:00/)).toBeInTheDocument();
   });
 
   it('displays Ns format when seconds < 60', () => {
     mockSessionWarningSeconds = 42;
     render(<SessionWarningBanner />);
-    expect(screen.getByText('42s')).toBeInTheDocument();
+    expect(screen.getByText(/42s/)).toBeInTheDocument();
   });
 
   it('displays single-digit seconds with no padding in Ns format', () => {
     mockSessionWarningSeconds = 5;
     render(<SessionWarningBanner />);
-    expect(screen.getByText('5s')).toBeInTheDocument();
+    expect(screen.getByText(/5s/)).toBeInTheDocument();
   });
 
   it('pads seconds in MM:SS format', () => {
-    // 65 seconds = 1:05
-    mockSessionWarningSeconds = 65;
-    // >60 means null render, but the boundary is sessionWarningSeconds > 60
-    // Actually the component returns null when > 60, so 65 won't render.
-    // Let's not test this — the component caps at 60.
-    // The only MM:SS case is exactly 60 → 1:00
     mockSessionWarningSeconds = 60;
     render(<SessionWarningBanner />);
-    expect(screen.getByText('1:00')).toBeInTheDocument();
+    expect(screen.getByText(/1:00/)).toBeInTheDocument();
   });
 
   it('"Stay Active" button calls extendSession', () => {
     mockSessionWarningSeconds = 30;
     render(<SessionWarningBanner />);
-    fireEvent.click(screen.getByText('Stay Active'));
+    fireEvent.click(screen.getByRole('button', { name: /extend session/i }));
     expect(mockExtendSession).toHaveBeenCalledTimes(1);
   });
 
@@ -95,7 +89,7 @@ describe('SessionWarningBanner', () => {
   it('has "Extend session" aria-label on the button', () => {
     mockSessionWarningSeconds = 10;
     render(<SessionWarningBanner />);
-    expect(screen.getByLabelText('Extend session')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Extend session/)).toBeInTheDocument();
   });
 
   it('progress bar width is proportional to remaining seconds', () => {

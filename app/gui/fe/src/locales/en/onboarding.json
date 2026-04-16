@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Onboarding tour",
+  "skip": "Skip tour",
+  "skipAria": "Skip onboarding tour",
+  "next": "Next",
+  "done": "Done",
+  "nextAria": "Next step ({{current}} of {{total}})",
+  "finishAria": "Finish onboarding tour",
+  "stepProgress": "Step {{current}} of {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Create Your Wallet",
+      "description": "Welcome to Veiled! Start by creating a new wallet or importing an existing one. Your wallet secures your identity on the marketplace."
+    },
+    "nodeSync": {
+      "title": "Sync With the Blockchain",
+      "description": "Your node will download and sync with the Cardano blockchain. This is a one-time setup that takes 10-20 minutes. You can continue in the background."
+    },
+    "marketplace": {
+      "title": "Browse the Marketplace",
+      "description": "The Marketplace tab shows all available encrypted data listings. Browse categories, check prices, and find data you want to purchase."
+    },
+    "firstBid": {
+      "title": "Place Your First Bid",
+      "description": "Found something interesting? Click on a listing to see details, then place a bid with your desired price. The seller can accept your bid to complete the exchange."
+    }
+  }
+}

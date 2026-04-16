@@ -20,6 +20,7 @@ import settingsEn from './locales/en/settings.json'
 import modalsEn from './locales/en/modals.json'
 import errorsEn from './locales/en/errors.json'
 import notificationsEn from './locales/en/notifications.json'
+import onboardingEn from './locales/en/onboarding.json'
 
 export const NAMESPACES = [
   'common',
@@ -30,6 +31,7 @@ export const NAMESPACES = [
   'modals',
   'errors',
   'notifications',
+  'onboarding',
 ] as const
 
 export const resources = {
@@ -42,6 +44,7 @@ export const resources = {
     modals: modalsEn,
     errors: errorsEn,
     notifications: notificationsEn,
+    onboarding: onboardingEn,
   },
 } as const
 

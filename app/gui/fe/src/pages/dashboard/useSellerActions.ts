@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useWasm } from '../../contexts/WasmContext'
 import { useAcceptBidQueue } from '../../contexts/AcceptBidQueueContext'
@@ -29,6 +30,7 @@ interface UseSellerActionsParams {
 }
 
 export function useSellerActions({ actions, iagonConnected: _iagonConnected }: UseSellerActionsParams) {
+  const { t } = useTranslation('notifications')
   const { wallet, userPkh, toast, recordTransaction, triggerTransactionRefresh, setConfirmAction, setActiveTab } = actions
   const { isReady: wasmReady, isLoading: wasmLoading } = useWasm()
   const navigate = useNavigate()
@@ -79,7 +81,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
 
     // Resume: retry from draft
     if (!wallet) {
-      toast.error('Wallet Required', 'Connect your wallet to resume the listing.')
+      toast.error(t('toast.walletRequiredTitle'), t('toast.walletRequiredResumeBody'))
       return
     }
 
@@ -96,26 +98,26 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       })
       if (!result.success) {
         playSound('tx_failed')
-        toast.error('Retry Failed', result.error || 'Failed to retry listing')
+        toast.error(t('toast.retryFailedTitle'), result.error || t('toast.retryFailedBody'))
         return
       }
 
       if (result.txHash) {
-        toast.transactionSuccess('Listing Resumed!', result.txHash, { type: 'create-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
+        toast.transactionSuccess(t('toast.listingResumedTitle'), result.txHash, { type: 'create-listing' }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
       }
       setRecoverableDraft(null)
       triggerTransactionRefresh()
     } catch (error) {
       toast.error(
-        'Retry Failed',
-        error instanceof Error ? error.message : 'Unknown error'
+        t('toast.retryFailedTitle'),
+        error instanceof Error ? error.message : t('toast.unknownError')
       )
     }
-  }, [recoverableDraft, wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [recoverableDraft, wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   const handleRetryListing = useCallback(async (draftId: string) => {
     if (!wallet) {
-      toast.error('Wallet Required', 'Connect your wallet to retry the listing.')
+      toast.error(t('toast.walletRequiredTitle'), t('toast.walletRequiredRetryBody'))
       return
     }
 
@@ -123,7 +125,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       const { getListingDraft } = await import('../../services/listingDraftStorage')
       const draft = await getListingDraft(draftId)
       if (!draft) {
-        toast.error('Draft Not Found', 'The listing draft could not be found. It may have been cleaned up.')
+        toast.error(t('toast.draftNotFoundTitle'), t('toast.draftNotFoundBody'))
         return
       }
 
@@ -140,21 +142,21 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       })
       if (!result.success) {
         playSound('tx_failed')
-        toast.error('Retry Failed', result.error || 'Failed to retry listing')
+        toast.error(t('toast.retryFailedTitle'), result.error || t('toast.retryFailedBody'))
         return
       }
 
       if (result.txHash) {
-        toast.transactionSuccess('Listing Retried!', result.txHash, { type: 'create-listing' })
+        toast.transactionSuccess(t('toast.listingRetriedTitle'), result.txHash, { type: 'create-listing' })
       }
       triggerTransactionRefresh()
     } catch (error) {
       toast.error(
-        'Retry Failed',
-        error instanceof Error ? error.message : 'Unknown error'
+        t('toast.retryFailedTitle'),
+        error instanceof Error ? error.message : t('toast.unknownError')
       )
     }
-  }, [wallet, toast, recordTransaction, triggerTransactionRefresh])
+  }, [wallet, toast, t, recordTransaction, triggerTransactionRefresh])
 
   const handleCreateListing = useCallback(async (
     formData: CreateListingFormData,
@@ -212,14 +214,14 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     // Show success message
     if (result.isStub) {
       toast.warning(
-        'Listing Created (Stub Mode)',
-        `Listing created in stub mode. No real transaction submitted. Token: ${result.tokenName?.slice(0, 12)}...`,
+        t('toast.listingCreatedStubTitle'),
+        t('toast.listingCreatedStubBody', { token: result.tokenName?.slice(0, 12) }),
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
+      toast.transactionSuccess(t('toast.listingCreatedTitle'), result.txHash, { type: 'create-listing' }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
     } else {
-      toast.success('Listing Created!', 'Transaction submitted successfully')
+      toast.success(t('toast.listingCreatedTitle'), t('toast.listingCreatedBody'))
     }
 
     // Record stub in history (real txs are recorded via onSubmitted callback)
@@ -264,7 +266,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     triggerTransactionRefresh()
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
+  }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRelistFromLibrary = useCallback(async (item: LibraryItem) => {
     try {
@@ -297,9 +299,9 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       setRelistPrefill(prefill)
       setShowCreateListing(true)
     } catch (err) {
-      toast.error('Relist Failed', err instanceof Error ? err.message : 'Could not find library content file')
+      toast.error(t('toast.relistFailedTitle'), err instanceof Error ? err.message : t('toast.relistFailedBody'))
     }
-  }, [toast])
+  }, [toast, t])
 
   const handleImportListing = useCallback(async (
     data: ImportListingData,
@@ -329,11 +331,11 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     if (result.isStub) {
-      toast.warning('Listing Created (Stub Mode)', `Import listing created in stub mode.`, 8000)
+      toast.warning(t('toast.listingCreatedStubTitle'), t('toast.importListingStubBody'), 8000)
     } else if (result.txHash) {
-      toast.transactionSuccess('Listing Created!', result.txHash, { type: 'create-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
+      toast.transactionSuccess(t('toast.listingCreatedTitle'), result.txHash, { type: 'create-listing' }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
     } else {
-      toast.success('Listing Created!', 'Transaction submitted successfully')
+      toast.success(t('toast.listingCreatedTitle'), t('toast.listingCreatedBody'))
     }
 
     // Optimistic update
@@ -365,20 +367,20 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     triggerTransactionRefresh()
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
+  }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])
 
   const handleRemoveListing = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
-      toast.error('Error', 'Wallet not connected')
+      toast.error(t('toast.errorTitle'), t('toast.walletNotConnected'))
       return
     }
 
     const label = encryption.tokenName.slice(0, 16) + '...'
     setConfirmAction({
-      title: 'Remove Listing?',
-      message: `This will permanently remove "${label}" from the marketplace and burn the encryption token. This action submits an on-chain transaction and cannot be undone.`,
+      title: t('toast.removeListingConfirmTitle'),
+      message: t('toast.removeListingConfirmBody', { label }),
       description: encryption.description,
-      confirmLabel: 'Remove Listing',
+      confirmLabel: t('toast.removeListingConfirmLabel'),
       onConfirm: async () => {
         try {
           const result = await removeListing(wallet, {
@@ -403,8 +405,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
 
           if (result.isStub) {
             toast.warning(
-              'Listing Removed (Stub Mode)',
-              `Listing removed in stub mode. No real transaction submitted.`,
+              t('toast.listingRemovedStubTitle'),
+              t('toast.listingRemovedStubBody'),
               8000
             )
             if (result.txHash) {
@@ -418,9 +420,9 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
               })
             }
           } else if (result.txHash) {
-            toast.transactionSuccess('Listing Removed!', result.txHash, { type: 'remove-listing' }, { label: 'View History', onClick: () => setActiveTab('history') })
+            toast.transactionSuccess(t('toast.listingRemovedTitle'), result.txHash, { type: 'remove-listing' }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
           } else {
-            toast.success('Listing Removed!', 'Transaction submitted successfully')
+            toast.success(t('toast.listingRemovedTitle'), t('toast.listingRemovedBody'))
           }
 
           // Optimistic update — listing disappears immediately
@@ -432,22 +434,22 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         } catch (error) {
           console.error('Failed to remove listing:', error)
           toast.error(
-            'Failed to Remove Listing',
-            error instanceof Error ? error.message : 'Unknown error occurred',
+            t('toast.failedToRemoveTitle'),
+            error instanceof Error ? error.message : t('toast.unknownErrorOccurred'),
             0,
-            { label: 'Retry', onClick: () => handleRemoveListing(encryption) }
+            { label: t('toast.actionRetry'), onClick: () => handleRemoveListing(encryption) }
           )
         }
       },
     })
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, setConfirmAction])
+  }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh, setConfirmAction])
 
   const handleAcceptBid = useCallback((encryption: EncryptionDisplay, bid: BidDisplay) => {
     // Check if WASM prover is ready
     if (!wasmReady) {
       toast.warning(
-        'Prover Not Ready',
-        'Accepting bids requires the zero-knowledge prover. Click the loading indicator in the header to start loading.',
+        t('toast.proverNotReadyTitle'),
+        t('toast.proverNotReadyBody'),
         8000
       )
       if (!wasmLoading) {
@@ -457,7 +459,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     if (!wallet) {
-      toast.error('Error', 'Wallet not connected')
+      toast.error(t('toast.errorTitle'), t('toast.walletNotConnected'))
       return
     }
 
@@ -466,32 +468,32 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       : encryption.tokenName.slice(0, 16) + '...'
     const bidAda = (bid.amount / 1_000_000).toFixed(1)
     setConfirmAction({
-      title: 'Accept Bid?',
-      message: `Accept bid of ${bidAda} ADA on "${label}"? The buyer will receive the decryption key and your listing will close. This cannot be undone.`,
+      title: t('toast.acceptBidConfirmTitle'),
+      message: t('toast.acceptBidConfirmBody', { amount: bidAda, label }),
       description: encryption.description,
-      confirmLabel: 'Accept Bid',
+      confirmLabel: t('toast.acceptBidConfirmLabel'),
       onConfirm: async () => {
         const id = queue.enqueue(encryption, bid, true)
         if (id) {
-          toast.info('Bid Queued', `"${label}" queued for processing. SNARK proof will generate in the background.`)
+          toast.info(t('toast.bidQueuedTitle'), t('toast.bidQueuedBody', { label }))
         } else {
-          toast.warning('Already Queued', `"${label}" is already in the processing queue.`)
+          toast.warning(t('toast.alreadyQueuedTitle'), t('toast.alreadyQueuedBody', { label }))
         }
       },
     })
-  }, [toast, wasmReady, wasmLoading, navigate, wallet, setConfirmAction, queue])
+  }, [toast, t, wasmReady, wasmLoading, navigate, wallet, setConfirmAction, queue])
 
   const handleCancelPending = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
-      toast.error('Error', 'Wallet not connected')
+      toast.error(t('toast.errorTitle'), t('toast.walletNotConnected'))
       return
     }
 
     const label = encryption.description || encryption.tokenName.slice(0, 16) + '...'
     setConfirmAction({
-      title: 'Cancel Pending Sale?',
-      message: `This will cancel the pending sale for "${label}" and return the listing to active status. This submits an on-chain transaction.`,
-      confirmLabel: 'Cancel Sale',
+      title: t('toast.cancelPendingConfirmTitle'),
+      message: t('toast.cancelPendingConfirmBody', { label }),
+      confirmLabel: t('toast.cancelPendingConfirmLabel'),
       onConfirm: async () => {
         try {
           const result = await cancelPendingListing(wallet, encryption, (txHash) => {
@@ -512,8 +514,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
 
           if (result.isStub) {
             toast.warning(
-              'Pending Cancelled (Stub Mode)',
-              `Pending listing cancelled in stub mode. No real transaction submitted.`,
+              t('toast.pendingCancelledStubTitle'),
+              t('toast.pendingCancelledStubBody'),
               8000
             )
             if (result.txHash) {
@@ -527,26 +529,26 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
               })
             }
           } else if (result.txHash) {
-            toast.transactionSuccess('Pending Listing Cancelled!', result.txHash, { type: 'cancel-pending' }, { label: 'View History', onClick: () => setActiveTab('history') })
+            toast.transactionSuccess(t('toast.pendingCancelledTitle'), result.txHash, { type: 'cancel-pending' }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
           }
 
           triggerTransactionRefresh()
         } catch (error) {
           console.error('Failed to cancel pending listing:', error)
           toast.error(
-            'Failed to Cancel Pending',
-            error instanceof Error ? error.message : 'Unknown error occurred',
+            t('toast.failedToCancelPendingTitle'),
+            error instanceof Error ? error.message : t('toast.unknownErrorOccurred'),
             0,
-            { label: 'Retry', onClick: () => handleCancelPending(encryption) }
+            { label: t('toast.actionRetry'), onClick: () => handleCancelPending(encryption) }
           )
         }
       },
     })
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, setConfirmAction])
+  }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh, setConfirmAction])
 
   const handleCompleteSale = useCallback(async (encryption: EncryptionDisplay) => {
     if (!wallet) {
-      toast.error('Error', 'Wallet not connected')
+      toast.error(t('toast.errorTitle'), t('toast.walletNotConnected'))
       return
     }
 
@@ -555,8 +557,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       const secrets = await getAcceptBidSecrets(encryption.tokenName)
       if (!secrets) {
         toast.error(
-          'Cannot Complete Sale',
-          'Accept-bid secrets not found. The SNARK transaction may have been submitted from another browser, or browser data was cleared.'
+          t('toast.cannotCompleteSaleTitle'),
+          t('toast.cannotCompleteSaleBody')
         )
         return
       }
@@ -566,15 +568,15 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
       const acceptedBid = allBids.find(b => b.tokenName === secrets.bidTokenName)
       if (!acceptedBid) {
         toast.error(
-          'Bid Not Found',
-          'The accepted bid could not be found on-chain. It may have been cancelled.'
+          t('toast.bidNotFoundTitle'),
+          t('toast.bidNotFoundBody')
         )
         return
       }
 
       console.log('[handleCompleteSale] acceptedBid:', JSON.stringify({ tokenName: acceptedBid.tokenName, futurePrice: acceptedBid.futurePrice, amount: acceptedBid.amount }))
 
-      toast.info('Submitting', 'Submitting re-encryption transaction...')
+      toast.info(t('toast.submittingTitle'), t('toast.submittingReEncryption'))
       const result = await completeReEncryption(wallet, encryption, acceptedBid, (txHash) => {
         recordTransaction({
           txHash,
@@ -595,8 +597,8 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
 
       if (result.isStub) {
         toast.warning(
-          'Sale Completed (Stub Mode)',
-          'Re-encryption submitted in stub mode. No real transaction submitted.',
+          t('toast.saleCompletedStubTitle'),
+          t('toast.saleCompletedStubBody'),
           8000
         )
         if (result.txHash) {
@@ -612,31 +614,31 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
           })
         }
       } else if (result.txHash) {
-        toast.transactionSuccess('Sale Completed!', result.txHash, { type: 'complete-sale', amountLovelace: acceptedBid.amount }, { label: 'View History', onClick: () => setActiveTab('history') })
+        toast.transactionSuccess(t('toast.saleCompletedTitle'), result.txHash, { type: 'complete-sale', amountLovelace: acceptedBid.amount }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
       }
 
       triggerTransactionRefresh()
     } catch (error) {
       console.error('Failed to complete sale:', error)
       toast.error(
-        'Failed to Complete Sale',
-        error instanceof Error ? error.message : 'Unknown error occurred',
+        t('toast.failedToCompleteSaleTitle'),
+        error instanceof Error ? error.message : t('toast.unknownErrorOccurred'),
         0,
-        { label: 'Retry', onClick: () => handleCompleteSale(encryption) }
+        { label: t('toast.actionRetry'), onClick: () => handleCompleteSale(encryption) }
       )
     }
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh])
+  }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh])
 
   // ── Update Price ──────────────────────────────────────────────────
 
   const handleOpenUpdatePrice = useCallback((encryption: EncryptionDisplay) => {
     if (!wallet) {
-      toast.error('Error', 'Wallet not connected')
+      toast.error(t('toast.errorTitle'), t('toast.walletNotConnected'))
       return
     }
     setUpdatePriceEncryption(encryption)
     setShowUpdatePriceModal(true)
-  }, [wallet, toast])
+  }, [wallet, toast, t])
 
   const handleSubmitUpdatePrice = useCallback(async (encryption: EncryptionDisplay, newPriceLovelace: number) => {
     if (!wallet) throw new Error('Wallet not connected')
@@ -658,7 +660,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     }
 
     if (result.isStub) {
-      toast.warning('Price Updated (Stub Mode)', 'Price updated in stub mode.', 8000)
+      toast.warning(t('toast.priceUpdatedStubTitle'), t('toast.priceUpdatedStubBody'), 8000)
       if (result.txHash) {
         recordTransaction({
           txHash: result.txHash,
@@ -670,13 +672,13 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         })
       }
     } else if (result.txHash) {
-      toast.transactionSuccess('Price Updated!', result.txHash, { type: 'update-price' }, { label: 'View History', onClick: () => setActiveTab('history') })
+      toast.transactionSuccess(t('toast.priceUpdatedTitle'), result.txHash, { type: 'update-price' }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
     }
 
     triggerTransactionRefresh()
     setShowUpdatePriceModal(false)
     setUpdatePriceEncryption(null)
-  }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
+  }, [wallet, toast, t, recordTransaction, triggerTransactionRefresh, setActiveTab])
 
   return {
     // Create listing

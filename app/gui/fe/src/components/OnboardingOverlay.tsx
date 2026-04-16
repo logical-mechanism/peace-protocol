@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   getOnboardingState,
   advanceOnboardingStep,
@@ -9,38 +10,35 @@ import {
 
 interface TourStep {
   route: string
-  title: string
-  description: string
+  titleKey: string
+  descriptionKey: string
 }
 
 const TOUR_STEPS: TourStep[] = [
   {
     route: '/wallet-setup',
-    title: 'Create Your Wallet',
-    description:
-      'Welcome to Veiled! Start by creating a new wallet or importing an existing one. Your wallet secures your identity on the marketplace.',
+    titleKey: 'steps.walletSetup.title',
+    descriptionKey: 'steps.walletSetup.description',
   },
   {
     route: '/node-sync',
-    title: 'Sync With the Blockchain',
-    description:
-      'Your node will download and sync with the Cardano blockchain. This is a one-time setup that takes 10-20 minutes. You can continue in the background.',
+    titleKey: 'steps.nodeSync.title',
+    descriptionKey: 'steps.nodeSync.description',
   },
   {
     route: '/dashboard',
-    title: 'Browse the Marketplace',
-    description:
-      'The Marketplace tab shows all available encrypted data listings. Browse categories, check prices, and find data you want to purchase.',
+    titleKey: 'steps.marketplace.title',
+    descriptionKey: 'steps.marketplace.description',
   },
   {
     route: '/dashboard',
-    title: 'Place Your First Bid',
-    description:
-      'Found something interesting? Click on a listing to see details, then place a bid with your desired price. The seller can accept your bid to complete the exchange.',
+    titleKey: 'steps.firstBid.title',
+    descriptionKey: 'steps.firstBid.description',
   },
 ]
 
 export default function OnboardingOverlay() {
+  const { t } = useTranslation('onboarding')
   const location = useLocation()
   const [state, setState] = useState(getOnboardingState)
 
@@ -64,6 +62,7 @@ export default function OnboardingOverlay() {
 
   const stepNumber = state.step as OnboardingStep
   const isLast = stepNumber === 3
+  const total = TOUR_STEPS.length
 
   return (
     <div
@@ -72,7 +71,7 @@ export default function OnboardingOverlay() {
         animation: 'onboarding-slide-up 0.3s ease-out',
       }}
       role="dialog"
-      aria-label="Onboarding tour"
+      aria-label={t('tourLabel')}
       aria-labelledby="onboarding-step-title"
     >
       <div
@@ -88,9 +87,9 @@ export default function OnboardingOverlay() {
           className="flex items-center gap-1.5 mb-3"
           role="progressbar"
           aria-valuemin={1}
-          aria-valuemax={TOUR_STEPS.length}
+          aria-valuemax={total}
           aria-valuenow={stepNumber + 1}
-          aria-label={`Step ${stepNumber + 1} of ${TOUR_STEPS.length}`}
+          aria-label={t('stepProgress', { current: stepNumber + 1, total })}
         >
           {TOUR_STEPS.map((_, i) => (
             <div
@@ -108,7 +107,7 @@ export default function OnboardingOverlay() {
             />
           ))}
           <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
-            {stepNumber + 1} / {TOUR_STEPS.length}
+            {t('stepCounter', { current: stepNumber + 1, total })}
           </span>
         </div>
 
@@ -117,31 +116,31 @@ export default function OnboardingOverlay() {
           className="text-sm font-semibold mb-1.5"
           style={{ color: 'var(--text-primary)' }}
         >
-          {step.title}
+          {t(step.titleKey)}
         </h3>
         <p className="text-xs mb-4 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          {step.description}
+          {t(step.descriptionKey)}
         </p>
 
         <div className="flex items-center justify-between">
           <button
             onClick={handleSkip}
-            aria-label="Skip onboarding tour"
+            aria-label={t('skipAria')}
             className="text-xs cursor-pointer px-2 py-1 rounded"
             style={{ color: 'var(--text-muted)' }}
           >
-            Skip tour
+            {t('skip')}
           </button>
           <button
             onClick={handleNext}
-            aria-label={isLast ? 'Finish onboarding tour' : `Next step (${stepNumber + 2} of ${TOUR_STEPS.length})`}
+            aria-label={isLast ? t('finishAria') : t('nextAria', { current: stepNumber + 2, total })}
             className="px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
             style={{
               background: 'var(--accent)',
               color: '#fff',
             }}
           >
-            {isLast ? 'Done' : 'Next'}
+            {isLast ? t('done') : t('next')}
           </button>
         </div>
       </div>

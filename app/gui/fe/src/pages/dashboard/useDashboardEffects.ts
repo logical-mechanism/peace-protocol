@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useBidNotifications } from '../../hooks/useBidNotifications'
 import { playNotificationSound, playSound } from '../../services/notificationSound'
 import { sendDesktopNotification } from '../../services/desktopNotifications'
@@ -39,6 +40,7 @@ export function useDashboardEffects({
   activeTab, toast, wallet, address,
   marketplaceFilters, marketplaceDispatch,
 }: UseDashboardEffectsParams) {
+  const { t } = useTranslation('notifications')
   // Stats state
   const [myListingsCount, setMyListingsCount] = useState<number | null>(null)
   const [myBidsCount, setMyBidsCount] = useState<number | null>(null)
@@ -89,14 +91,13 @@ export function useDashboardEffects({
       lastNotifiedCountRef.current = newCount
       if (delta <= 0) return
 
-      const label = delta === 1 ? 'bid' : 'bids'
       toast.info(
-        'New Bids Received',
-        `You have ${delta} new ${label} on your listings`,
+        t('toast.newBidsReceivedTitle'),
+        t('toast.newBidsReceivedBody', { count: delta }),
         8000
       )
       playNotificationSound()
-      sendDesktopNotification('New Bids Received', `You have ${delta} new ${label} on your listings`)
+      sendDesktopNotification(t('toast.newBidsReceivedTitle'), t('toast.newBidsReceivedBody', { count: delta }))
     }, 5000)
 
     return () => {
@@ -116,10 +117,9 @@ export function useDashboardEffects({
     }
     if (acceptedBidCount > lastAcceptedCountRef.current) {
       const delta = acceptedBidCount - lastAcceptedCountRef.current
-      const label = delta === 1 ? 'bid' : 'bids'
-      toast.success('Bid Accepted!', `${delta} of your ${label} accepted by the seller`)
+      toast.success(t('toast.bidAcceptedTitle'), t('toast.bidAcceptedBody', { count: delta }))
       playSound('bid_accepted')
-      sendDesktopNotification('Bid Accepted', `${delta} of your ${label} accepted`)
+      sendDesktopNotification(t('toast.desktopBidAcceptedTitle'), t('toast.desktopBidAcceptedBody', { count: delta }))
     }
     lastAcceptedCountRef.current = acceptedBidCount
     // eslint-disable-next-line react-hooks/exhaustive-deps
