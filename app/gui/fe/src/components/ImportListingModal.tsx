@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from './LoadingSpinner';
 import InfoTooltip from './InfoTooltip';
 import { useModalStack } from '../hooks/useModalStack';
@@ -57,10 +58,8 @@ const INITIAL_FORM_DATA: ImportFormData = {
 const HEX_REGEX = /^[0-9a-fA-F]+$/;
 
 /** Steps for import listing creation (no file upload). */
-const IMPORT_LISTING_STEPS: { key: ListingCreationStep; label: string }[] = [
-  { key: 'building', label: 'Building transaction' },
-  { key: 'signing', label: 'Signing transaction' },
-  { key: 'submitting', label: 'Submitting to chain' },
+const IMPORT_LISTING_STEPS: ListingCreationStep[] = [
+  'building', 'signing', 'submitting',
 ];
 
 const STEP_ORDER: Record<ListingCreationStep, number> = {
@@ -87,6 +86,7 @@ export default function ImportListingModal({
   onClose,
   onSubmit,
 }: ImportListingModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   const [formData, setFormData] = useState<ImportFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,44 +116,44 @@ export default function ImportListingModal({
   const validateField = (fieldName: keyof FormErrors): string | undefined => {
     switch (fieldName) {
       case 'iagonFileId':
-        if (!formData.iagonFileId.trim()) return 'File ID is required';
+        if (!formData.iagonFileId.trim()) return t('modals:importListing.errors.fileIdRequired');
         return undefined;
       case 'aesKeyHex':
-        if (!formData.aesKeyHex.trim()) return 'AES key is required';
-        if (formData.aesKeyHex.length !== 64) return 'AES key must be 64 hex characters (32 bytes)';
-        if (!HEX_REGEX.test(formData.aesKeyHex)) return 'Must be valid hexadecimal';
+        if (!formData.aesKeyHex.trim()) return t('modals:importListing.errors.aesRequired');
+        if (formData.aesKeyHex.length !== 64) return t('modals:importListing.errors.aesLength');
+        if (!HEX_REGEX.test(formData.aesKeyHex)) return t('modals:importListing.errors.hexInvalid');
         return undefined;
       case 'gcmNonceHex':
-        if (!formData.gcmNonceHex.trim()) return 'GCM nonce is required';
-        if (formData.gcmNonceHex.length !== 24) return 'GCM nonce must be 24 hex characters (12 bytes)';
-        if (!HEX_REGEX.test(formData.gcmNonceHex)) return 'Must be valid hexadecimal';
+        if (!formData.gcmNonceHex.trim()) return t('modals:importListing.errors.gcmRequired');
+        if (formData.gcmNonceHex.length !== 24) return t('modals:importListing.errors.gcmLength');
+        if (!HEX_REGEX.test(formData.gcmNonceHex)) return t('modals:importListing.errors.hexInvalid');
         return undefined;
       case 'sha256DigestHex':
-        if (!formData.sha256DigestHex.trim()) return 'SHA-256 digest is required';
-        if (formData.sha256DigestHex.length !== 64) return 'SHA-256 digest must be 64 hex characters (32 bytes)';
-        if (!HEX_REGEX.test(formData.sha256DigestHex)) return 'Must be valid hexadecimal';
+        if (!formData.sha256DigestHex.trim()) return t('modals:importListing.errors.digestRequired');
+        if (formData.sha256DigestHex.length !== 64) return t('modals:importListing.errors.digestLength');
+        if (!HEX_REGEX.test(formData.sha256DigestHex)) return t('modals:importListing.errors.hexInvalid');
         return undefined;
       case 'fileExtension':
-        if (formData.fileExtension && !formData.fileExtension.startsWith('.')) return 'Must start with "." (e.g. ".pdf")';
+        if (formData.fileExtension && !formData.fileExtension.startsWith('.')) return t('modals:importListing.errors.extensionPrefix');
         return undefined;
       case 'description':
-        if (!formData.description.trim()) return 'Description is required';
-        if (formData.description.length > 500) return 'Description must be less than 500 characters';
+        if (!formData.description.trim()) return t('modals:importListing.errors.descRequired');
+        if (formData.description.length > 500) return t('modals:importListing.errors.descMax');
         return undefined;
       case 'suggestedPrice':
         if (formData.suggestedPrice) {
           const price = parseFloat(formData.suggestedPrice);
-          if (isNaN(price) || price < 0) return 'Price must be a positive number';
-          if (price > 45_000_000_000) return 'Price exceeds maximum (45B ADA)';
+          if (isNaN(price) || price < 0) return t('modals:importListing.errors.pricePositive');
+          if (price > 45_000_000_000) return t('modals:importListing.errors.priceMax');
         }
         return undefined;
       case 'imageLink':
         if (formData.imageLink.trim()) {
           try {
             const url = new URL(formData.imageLink.trim());
-            if (!['http:', 'https:'].includes(url.protocol)) return 'Must use http:// or https://';
+            if (!['http:', 'https:'].includes(url.protocol)) return t('modals:importListing.errors.imageInvalidProtocol');
           } catch {
-            return 'Invalid URL format';
+            return t('modals:importListing.errors.imageInvalid');
           }
         }
         return undefined;
@@ -279,7 +279,7 @@ export default function ImportListingModal({
       onClose();
     } catch (error) {
       console.error('Failed to create listing from import:', error);
-      setSubmitError(error instanceof Error ? error.message : 'Failed to create listing. Please try again.');
+      setSubmitError(error instanceof Error ? error.message : t('modals:importListing.errors.submitFailed'));
     } finally {
       setIsSubmitting(false);
       setCreationStep(null);
@@ -318,17 +318,17 @@ export default function ImportListingModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="import-listing-title" className="text-lg font-semibold text-[var(--text-primary)]">
-              Import from Iagon
+              {t('modals:importListing.title')}
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Create a listing from a file already uploaded to Iagon
+              {t('modals:importListing.subtitle')}
             </p>
           </div>
           {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close dialog"
+            aria-label={t('modals:common.closeDialog')}
             tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
@@ -344,23 +344,23 @@ export default function ImportListingModal({
             {/* Section 1: Iagon File Reference */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-[var(--text-primary)]">Iagon File Reference</h3>
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">{t('modals:importListing.iagonRef')}</h3>
                 <button
                   type="button"
                   onClick={handlePasteAll}
                   disabled={isSubmitting}
                   className="px-2.5 py-1 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
-                  title="Paste JSON with fileId, key, nonce, digest, ext fields"
+                  title={t('modals:importListing.pasteAllTitle')}
                 >
-                  Paste All
+                  {t('modals:importListing.pasteAll')}
                 </button>
               </div>
 
               {/* File ID */}
               <div>
                 <label htmlFor="iagonFileId" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                  File ID <span className="text-[var(--error)]">*</span>
-                  <InfoTooltip text="The Iagon file _id returned from the upload API." />
+                  {t('modals:importListing.fileIdLabel')} <span className="text-[var(--error)]">*</span>
+                  <InfoTooltip text={t('modals:importListing.fileIdTooltip')} />
                 </label>
                 <input
                   ref={fileIdRef}
@@ -371,7 +371,7 @@ export default function ImportListingModal({
                   onChange={handleInputChange}
                   onBlur={() => handleFieldBlur('iagonFileId')}
                   disabled={isSubmitting}
-                  placeholder="e.g. 507f1f77bcf86cd799439011"
+                  placeholder={t('modals:importListing.fileIdPlaceholder')}
                   aria-invalid={!!errors.iagonFileId}
                   aria-describedby={errors.iagonFileId ? 'iagonFileId-error' : undefined}
                   className={monoInputClass('iagonFileId')}
@@ -383,8 +383,8 @@ export default function ImportListingModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="aesKeyHex" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                    AES Key <span className="text-[var(--error)]">*</span>
-                    <InfoTooltip text="The 32-byte AES-256 encryption key (64 hex characters) used to encrypt the file." />
+                    {t('modals:importListing.aesKeyLabel')} <span className="text-[var(--error)]">*</span>
+                    <InfoTooltip text={t('modals:importListing.aesKeyTooltip')} />
                   </label>
                   <input
                     type="text"
@@ -394,7 +394,7 @@ export default function ImportListingModal({
                     onChange={handleInputChange}
                     onBlur={() => handleFieldBlur('aesKeyHex')}
                     disabled={isSubmitting}
-                    placeholder="64 hex characters"
+                    placeholder={t('modals:importListing.hex64Placeholder')}
                     maxLength={64}
                     aria-invalid={!!errors.aesKeyHex}
                     aria-describedby={errors.aesKeyHex ? 'aesKeyHex-error' : undefined}
@@ -404,8 +404,8 @@ export default function ImportListingModal({
                 </div>
                 <div>
                   <label htmlFor="gcmNonceHex" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                    GCM Nonce <span className="text-[var(--error)]">*</span>
-                    <InfoTooltip text="The 12-byte GCM initialization vector (24 hex characters) used during encryption." />
+                    {t('modals:importListing.gcmNonceLabel')} <span className="text-[var(--error)]">*</span>
+                    <InfoTooltip text={t('modals:importListing.gcmNonceTooltip')} />
                   </label>
                   <input
                     type="text"
@@ -415,7 +415,7 @@ export default function ImportListingModal({
                     onChange={handleInputChange}
                     onBlur={() => handleFieldBlur('gcmNonceHex')}
                     disabled={isSubmitting}
-                    placeholder="24 hex characters"
+                    placeholder={t('modals:importListing.hex24Placeholder')}
                     maxLength={24}
                     aria-invalid={!!errors.gcmNonceHex}
                     aria-describedby={errors.gcmNonceHex ? 'gcmNonceHex-error' : undefined}
@@ -429,8 +429,8 @@ export default function ImportListingModal({
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
                   <label htmlFor="sha256DigestHex" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                    SHA-256 Digest <span className="text-[var(--error)]">*</span>
-                    <InfoTooltip text="SHA-256 hash of the original (unencrypted) file (64 hex characters). Used to verify integrity after decryption." />
+                    {t('modals:importListing.digestLabel')} <span className="text-[var(--error)]">*</span>
+                    <InfoTooltip text={t('modals:importListing.digestTooltip')} />
                   </label>
                   <input
                     type="text"
@@ -440,7 +440,7 @@ export default function ImportListingModal({
                     onChange={handleInputChange}
                     onBlur={() => handleFieldBlur('sha256DigestHex')}
                     disabled={isSubmitting}
-                    placeholder="64 hex characters"
+                    placeholder={t('modals:importListing.hex64Placeholder')}
                     maxLength={64}
                     aria-invalid={!!errors.sha256DigestHex}
                     aria-describedby={errors.sha256DigestHex ? 'sha256DigestHex-error' : undefined}
@@ -450,8 +450,8 @@ export default function ImportListingModal({
                 </div>
                 <div>
                   <label htmlFor="fileExtension" className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                    Extension
-                    <InfoTooltip text="Original file extension (e.g. .pdf, .mp3). Determines how buyers view the file." />
+                    {t('modals:importListing.extensionLabel')}
+                    <InfoTooltip text={t('modals:importListing.extensionTooltip')} />
                   </label>
                   <input
                     type="text"
@@ -461,7 +461,7 @@ export default function ImportListingModal({
                     onChange={handleExtensionChange}
                     onBlur={() => handleFieldBlur('fileExtension')}
                     disabled={isSubmitting}
-                    placeholder=".pdf"
+                    placeholder={t('modals:importListing.extensionPlaceholder')}
                     aria-invalid={!!errors.fileExtension}
                     aria-describedby={errors.fileExtension ? 'fileExtension-error' : undefined}
                     className={inputClass('fileExtension')}
@@ -476,12 +476,12 @@ export default function ImportListingModal({
 
             {/* Section 2: Listing Details */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-[var(--text-primary)]">Listing Details</h3>
+              <h3 className="text-sm font-medium text-[var(--text-primary)]">{t('modals:importListing.listingDetails')}</h3>
 
               {/* Description */}
               <div>
                 <label htmlFor="import-description" className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                  Description <span className="text-[var(--error)]">*</span>
+                  {t('modals:importListing.description')} <span className="text-[var(--error)]">*</span>
                 </label>
                 <textarea
                   id="import-description"
@@ -492,7 +492,7 @@ export default function ImportListingModal({
                   disabled={isSubmitting}
                   rows={2}
                   maxLength={500}
-                  placeholder="Brief description of what you're selling (visible to buyers)"
+                  placeholder={t('modals:importListing.descriptionPlaceholder')}
                   aria-invalid={!!errors.description}
                   aria-describedby={errors.description ? 'import-description-error' : undefined}
                   className={`${inputClass('description')} resize-none`}
@@ -503,7 +503,7 @@ export default function ImportListingModal({
                     : formData.description.length > 400 ? 'text-[var(--warning)]'
                     : 'text-[var(--text-muted)]'
                 }`}>
-                  {formData.description.length}/500 characters
+                  {t('modals:importListing.descriptionCharsCount', { current: formData.description.length, max: 500 })}
                 </p>
               </div>
 
@@ -511,7 +511,7 @@ export default function ImportListingModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="import-suggestedPrice" className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                    Suggested Price (ADA)
+                    {t('modals:importListing.suggestedPrice')}
                   </label>
                   <div className="relative">
                     <input
@@ -524,7 +524,7 @@ export default function ImportListingModal({
                       onFocus={handlePriceFocus}
                       onBlur={handlePriceBlur}
                       disabled={isSubmitting}
-                      placeholder="0.00"
+                      placeholder={t('modals:importListing.pricePlaceholder')}
                       aria-invalid={!!errors.suggestedPrice}
                       aria-describedby={errors.suggestedPrice ? 'import-suggestedPrice-error' : undefined}
                       className={`${inputClass('suggestedPrice')} pr-12`}
@@ -532,11 +532,11 @@ export default function ImportListingModal({
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">ADA</span>
                   </div>
                   {errors.suggestedPrice && <p id="import-suggestedPrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>}
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">Optional. Buyers can bid any amount.</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{t('modals:importListing.priceHelp')}</p>
                 </div>
                 <div>
                   <label htmlFor="import-imageLink" className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                    Image Link
+                    {t('modals:importListing.imageLink')}
                   </label>
                   <input
                     type="text"
@@ -546,20 +546,20 @@ export default function ImportListingModal({
                     onChange={handleInputChange}
                     onBlur={() => handleFieldBlur('imageLink')}
                     disabled={isSubmitting}
-                    placeholder="https://example.com/preview.png"
+                    placeholder={t('modals:importListing.imageLinkPlaceholder')}
                     aria-invalid={!!errors.imageLink}
                     aria-describedby={errors.imageLink ? 'import-imageLink-error' : undefined}
                     className={inputClass('imageLink')}
                   />
                   {errors.imageLink && <p id="import-imageLink-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.imageLink}</p>}
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">Optional. Public preview image URL.</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{t('modals:importListing.imageLinkHelp')}</p>
                 </div>
               </div>
 
               {/* Auto-detected category */}
               {formData.category !== 'other' && (
                 <p className="text-xs text-[var(--text-muted)]">
-                  Category auto-detected: <span className="font-medium text-[var(--text-secondary)]">{formData.category}</span>
+                  {t('modals:importListing.categoryAutoDetected')} <span className="font-medium text-[var(--text-secondary)]">{formData.category}</span>
                 </p>
               )}
 
@@ -583,14 +583,14 @@ export default function ImportListingModal({
                     ? 'bg-[var(--error)]/15 text-[var(--error)] border-[var(--error)]/40'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
                 }`}
-                title={formData.nsfw ? 'Marked as NSFW — click to remove' : 'Mark as NSFW content'}
+                title={formData.nsfw ? t('modals:importListing.nsfwUnmark') : t('modals:importListing.nsfwMark')}
                 aria-pressed={formData.nsfw}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
                   {formData.nsfw && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15.75h.007v.008H12v-.008z" />}
                 </svg>
-                NSFW
+                {t('modals:importListing.nsfwLabel')}
               </button>
             </div>
 
@@ -604,7 +604,7 @@ export default function ImportListingModal({
                     if (ok) { setCopiedError(true); setTimeout(() => setCopiedError(false), 1500); }
                   }}
                   className="flex-shrink-0 p-1 text-[var(--error)]/60 hover:text-[var(--error)] transition-colors cursor-pointer"
-                  aria-label="Copy error to clipboard"
+                  aria-label={t('modals:importListing.copyErrorLabel')}
                 >
                   {copiedError ? (
                     <svg className="w-4 h-4 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -624,29 +624,29 @@ export default function ImportListingModal({
           <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
-                <strong>Note:</strong> The file must already be encrypted and uploaded to Iagon.
-                This will create an on-chain listing referencing that file. You'll need to sign a transaction with your wallet.
+                <strong>{t('modals:importListing.infoNoteLabel')}</strong> {t('modals:importListing.infoNote')}
               </p>
             </div>
 
             {/* Progress stepper */}
             {isSubmitting && creationStep && (
-              <div className="mb-4 space-y-1" role="status" aria-label="Import listing progress">
-                {IMPORT_LISTING_STEPS.map((step) => {
+              <div className="mb-4 space-y-1" role="status" aria-label={t('modals:importListing.progressLabel')}>
+                {IMPORT_LISTING_STEPS.map((stepKey) => {
                   const currentOrder = STEP_ORDER[creationStep];
-                  const stepOrder = STEP_ORDER[step.key];
+                  const stepOrder = STEP_ORDER[stepKey];
                   const isCompleted = stepOrder < currentOrder;
-                  const isCurrent = step.key === creationStep;
+                  const isCurrent = stepKey === creationStep;
+                  const label = t(`modals:importListing.steps.${stepKey}`);
 
                   return (
-                    <div key={step.key} className="flex items-center gap-2.5">
+                    <div key={stepKey} className="flex items-center gap-2.5">
                       <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
                         {isCompleted ? (
                           <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         ) : isCurrent ? (
-                          <LoadingSpinner size="sm" label={step.label} />
+                          <LoadingSpinner size="sm" label={label} />
                         ) : (
                           <div className="w-2.5 h-2.5 rounded-full border-2 border-[var(--border-subtle)]" aria-hidden="true" />
                         )}
@@ -656,7 +656,7 @@ export default function ImportListingModal({
                           : isCurrent ? 'text-[var(--text-primary)] font-medium'
                           : 'text-[var(--text-muted)]'
                       }`}>
-                        {step.label}{isCurrent && '...'}
+                        {label}{isCurrent && '...'}
                       </span>
                     </div>
                   );
@@ -671,7 +671,7 @@ export default function ImportListingModal({
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Cancel
+                {t('common:actions.cancel')}
               </button>
               <button
                 type="submit"
@@ -681,17 +681,16 @@ export default function ImportListingModal({
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    {creationStep === 'building' && 'Building transaction...'}
-                    {creationStep === 'signing' && 'Waiting for signature...'}
-                    {creationStep === 'submitting' && 'Submitting transaction...'}
-                    {!creationStep && 'Creating...'}
+                    {creationStep && (creationStep === 'building' || creationStep === 'signing' || creationStep === 'submitting')
+                      ? t(`modals:importListing.submittingSteps.${creationStep}`)
+                      : t('modals:importListing.creating')}
                   </>
                 ) : (
                   <>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    Create Listing
+                    {t('modals:importListing.submit')}
                   </>
                 )}
               </button>

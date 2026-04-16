@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { truncateHex } from '../utils/truncate';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -17,6 +18,7 @@ export default function DescriptionModal({
   description,
   tokenName,
 }: DescriptionModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('description', isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -46,7 +48,7 @@ export default function DescriptionModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="description-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
-              Description
+              {t('modals:description.title')}
             </h2>
             {tokenName && (
               <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5" title={tokenName ?? ''}>
@@ -57,7 +59,7 @@ export default function DescriptionModal({
           {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t('modals:common.closeDialog')}
             tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
@@ -85,7 +87,7 @@ export default function DescriptionModal({
             onClick={onClose}
             className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Close
+            {t('common:actions.close')}
           </button>
         </div>
       </div>

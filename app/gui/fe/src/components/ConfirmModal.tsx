@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from './LoadingSpinner';
 import { truncateDescription } from './descriptionUtils';
 import { useModalStack } from '../hooks/useModalStack';
@@ -23,10 +24,11 @@ export default function ConfirmModal({
   title,
   message,
   description,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   confirmVariant = 'danger',
   loading = false,
 }: ConfirmModalProps) {
+  const { t } = useTranslation('common');
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('confirm', isOpen, onClose, loading);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -88,14 +90,14 @@ export default function ConfirmModal({
             className={`px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center gap-2 ${confirmClass}`}
           >
             {loading && <LoadingSpinner size="sm" />}
-            {confirmLabel}
+            {confirmLabel ?? t('actions.confirm')}
           </button>
           <button
             onClick={onClose}
             disabled={loading}
             className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Cancel
+            {t('actions.cancel')}
           </button>
         </div>
       </div>

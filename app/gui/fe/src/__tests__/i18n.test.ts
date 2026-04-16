@@ -20,7 +20,7 @@ describe('i18n', () => {
   })
 
   it('interpolates values', () => {
-    const msg = i18n.t('modals:placeBid.minBid', { amount: '10' })
+    const msg = i18n.t('modals:placeBid.errors.bidMin', { amount: '10' })
     expect(msg).toContain('10')
   })
 
