@@ -301,7 +301,7 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
     } catch (err) {
       toast.error(t('toast.relistFailedTitle'), err instanceof Error ? err.message : t('toast.relistFailedBody'))
     }
-  }, [toast])
+  }, [toast, t])
 
   const handleImportListing = useCallback(async (
     data: ImportListingData,

@@ -286,7 +286,7 @@ export default function Dashboard() {
     } else {
       toast.warning(t('toast.copyFailedTitle'), t('toast.copyAddressFailedBody'))
     }
-  }, [address, toast])
+  }, [address, toast, t])
 
   const handleDisconnect = useCallback(() => {
     clearLastActiveTab()
