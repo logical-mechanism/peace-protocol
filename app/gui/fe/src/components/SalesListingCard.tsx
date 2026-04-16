@@ -1,4 +1,5 @@
 import { useState, useEffect, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { EncryptionDisplay } from '../services/api';
 import { EncryptionStatusBadge } from './Badge';
 import DescriptionModal from './DescriptionModal';
@@ -38,6 +39,7 @@ function SalesListingCard({
   initialBanned = false,
   nsfwEnabled = false,
 }: SalesListingCardProps) {
+  const { t } = useTranslation('common');
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [prevBidCount, setPrevBidCount] = useState(bidCount);
   const [bidPulseKey, setBidPulseKey] = useState(0);
@@ -52,12 +54,12 @@ function SalesListingCard({
 
   // Get storage layer label - returns "No data layer" for unknown/missing values
   const getStorageLayerLabel = (storageLayer?: string): string => {
-    if (!storageLayer) return 'No data layer';
-    if (storageLayer === 'on-chain') return 'On-chain';
-    if (storageLayer === 'iagon') return 'Iagon';
-    if (storageLayer.startsWith('ipfs://')) return 'IPFS';
-    if (storageLayer.startsWith('arweave://')) return 'Arweave';
-    return 'No data layer';
+    if (!storageLayer) return t('storageLayer.none');
+    if (storageLayer === 'on-chain') return t('storageLayer.onChain');
+    if (storageLayer === 'iagon') return t('storageLayer.iagon');
+    if (storageLayer.startsWith('ipfs://')) return t('storageLayer.ipfs');
+    if (storageLayer.startsWith('arweave://')) return t('storageLayer.arweave');
+    return t('storageLayer.none');
   };
 
   // Check if storage layer is unknown/missing
@@ -80,15 +82,15 @@ function SalesListingCard({
     const now = Date.now();
     const remaining = ttl - now;
 
-    if (remaining <= 0) return 'Expired';
+    if (remaining <= 0) return t('card.expired');
 
     const minutes = Math.floor(remaining / 60000);
     const hours = Math.floor(minutes / 60);
 
     if (hours > 0) {
-      return `${hours}h ${minutes % 60}m remaining`;
+      return t('card.timeRemainingWithHours', { hours, minutes: minutes % 60 });
     }
-    return `${minutes}m remaining`;
+    return t('card.minutesRemaining', { minutes });
   };
 
   const pendingTTL = getPendingTTL();
@@ -115,7 +117,7 @@ function SalesListingCard({
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
-                Awaiting confirmation
+                {t('card.awaitingConfirmation')}
               </span>
             )}
           </div>
@@ -138,8 +140,8 @@ function SalesListingCard({
                   <button
                     onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
                     className="inline-flex items-center justify-center w-5 h-5 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
-                    title="Update price"
-                    aria-label="Update price"
+                    title={t('card.updatePrice')}
+                    aria-label={t('card.updatePrice')}
                   >
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
@@ -159,7 +161,7 @@ function SalesListingCard({
                       onClick={() => onViewBids?.(encryption)}
                       className="px-[var(--space-3)] py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                     >
-                      View Bids
+                      {t('card.viewBids')}
                       {bidCount > 0 && (
                         <span
                           key={bidPulseKey}
@@ -172,9 +174,9 @@ function SalesListingCard({
                     <button
                       onClick={() => onRemove?.(encryption)}
                       className="px-[var(--space-3)] py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
-                      title="Remove listing"
+                      title={t('card.removeListing')}
                     >
-                      Remove
+                      {t('card.remove')}
                     </button>
                   </>
                 )}
@@ -184,13 +186,13 @@ function SalesListingCard({
                       onClick={() => onCompleteSale?.(encryption)}
                       className="px-[var(--space-3)] py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
                     >
-                      Complete Sale
+                      {t('card.completeSale')}
                     </button>
                     <button
                       onClick={() => onCancelPending?.(encryption)}
                       className="px-[var(--space-3)] py-1.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
                     >
-                      Cancel
+                      {t('card.cancel')}
                     </button>
                   </>
                 )}
@@ -238,7 +240,7 @@ function SalesListingCard({
           </span>
           {/* Row 3: Created Date */}
           <p className="text-xs text-[var(--text-muted)] text-center">
-            Created: {formatRelativeTime(encryption.createdAt)}
+            {t('card.created', { date: formatRelativeTime(encryption.createdAt) })}
           </p>
         </div>
 
@@ -276,8 +278,8 @@ function SalesListingCard({
               <button
                 onClick={(e) => { e.stopPropagation(); onUpdatePrice(encryption); }}
                 className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] transition-colors"
-                title="Update price"
-                    aria-label="Update price"
+                title={t('card.updatePrice')}
+                    aria-label={t('card.updatePrice')}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
@@ -291,13 +293,13 @@ function SalesListingCard({
         {isPending && (
           <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-[var(--warning)]">Sale in progress</p>
+              <p className="text-xs font-medium text-[var(--warning)]">{t('card.saleInProgress')}</p>
               {pendingTTL && (
                 <p className="text-xs text-[var(--warning)]">{pendingTTL}</p>
               )}
             </div>
             <p className="text-xs text-[var(--text-muted)] mt-[var(--space-1)]">
-              Complete the sale or it will automatically cancel
+              {t('card.completeSaleBeforeCancel')}
             </p>
           </div>
         )}
@@ -305,7 +307,7 @@ function SalesListingCard({
         {/* Completed Status Info */}
         {isCompleted && (
           <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
-            <p className="text-xs font-medium text-[var(--success)]">Sale completed</p>
+            <p className="text-xs font-medium text-[var(--success)]">{t('card.saleCompleted')}</p>
           </div>
         )}
 
@@ -317,7 +319,7 @@ function SalesListingCard({
                 onClick={() => onViewBids?.(encryption)}
                 className="w-full px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-[var(--space-2)] btn-base btn-primary"
               >
-                <span>View Bids</span>
+                <span>{t('card.viewBids')}</span>
                 {bidCount > 0 && (
                   <span
                     key={bidPulseKey}
@@ -331,7 +333,7 @@ function SalesListingCard({
                 onClick={() => onRemove?.(encryption)}
                 className="w-full px-[var(--space-md)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
-                Remove Listing
+                {t('card.removeListing')}
               </button>
             </>
           )}
@@ -341,13 +343,13 @@ function SalesListingCard({
                 onClick={() => onCompleteSale?.(encryption)}
                 className="w-full px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-success"
               >
-                Complete Sale
+                {t('card.completeSale')}
               </button>
               <button
                 onClick={() => onCancelPending?.(encryption)}
                 className="w-full px-[var(--space-md)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
-                Cancel Pending Sale
+                {t('card.cancelPendingSale')}
               </button>
             </>
           )}
