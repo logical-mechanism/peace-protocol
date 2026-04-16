@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
 import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -47,6 +48,7 @@ import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
 export type { TabId } from './dashboard/dashboardTypes'
 
 export default function Dashboard() {
+  const { t } = useTranslation('notifications')
   const { disconnect, wallet, refreshBalance } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
@@ -130,11 +132,11 @@ export default function Dashboard() {
     if (updateState.status === 'available' && !updateToastShownRef.current) {
       updateToastShownRef.current = true
       toast.info(
-        `Update available: v${updateState.info.latest_version}`,
-        `You are running v${updateState.info.current_version}`,
+        t('toast.updateAvailableTitle', { version: updateState.info.latest_version }),
+        t('toast.updateAvailableBody', { currentVersion: updateState.info.current_version }),
         0,
         {
-          label: 'Download',
+          label: t('toast.updateDownload'),
           onClick: () => {
             downloadAppUpdate(updateState.info.download_url)
           },
@@ -143,13 +145,13 @@ export default function Dashboard() {
     }
     if (updateState.status === 'downloaded') {
       toast.success(
-        'Update downloaded',
-        `Saved to: ${updateState.filePath}. Close and reopen the app to use the new version.`,
+        t('toast.updateDownloadedTitle'),
+        t('toast.updateDownloadedBody', { path: updateState.filePath }),
         0
       )
     }
     if (updateState.status === 'error' && updateToastShownRef.current) {
-      toast.error('Update check failed', updateState.message)
+      toast.error(t('toast.updateCheckFailedTitle'), updateState.message)
     }
   }, [updateState.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -282,7 +284,7 @@ export default function Dashboard() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } else {
-      toast.warning('Copy failed', 'Could not copy address to clipboard.')
+      toast.warning(t('toast.copyFailedTitle'), t('toast.copyAddressFailedBody'))
     }
   }, [address, toast])
 
@@ -864,7 +866,7 @@ export default function Dashboard() {
                 filters={libraryFilters}
                 dispatch={libraryDispatch}
                 onBulkDeleteResult={(message, hadErrors) =>
-                  hadErrors ? toast.warning('Bulk Delete', message) : toast.success('Bulk Delete', message)
+                  hadErrors ? toast.warning(t('toast.bulkDeleteTitle'), message) : toast.success(t('toast.bulkDeleteTitle'), message)
                 }
                 onRelist={seller.handleRelistFromLibrary}
               />
@@ -933,7 +935,7 @@ export default function Dashboard() {
         encryption={buyer.selectedEncryption}
         isIagonConnected={effects.iagonConnected}
         onDecryptResult={buyer.handleDecryptResult}
-        onSaveWarning={(msg) => toast.warning('Save failed', msg)}
+        onSaveWarning={(msg) => toast.warning(t('toast.saveFailedTitle'), msg)}
         ownerPkh={buyer.decryptOwnerPkh}
       />
 

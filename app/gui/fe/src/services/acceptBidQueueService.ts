@@ -21,6 +21,7 @@ import {
   setPersistedQueue, type SerializedQueueItem,
 } from './acceptBidQueueStorage'
 import { addTransaction } from './transactionHistory'
+import i18n from '../i18n'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -281,6 +282,7 @@ export class AcceptBidQueueService {
   }
 
   private async processItem(item: QueueItem, deps: ProcessingDeps): Promise<void> {
+    const t = (key: string, opts?: Record<string, unknown>) => i18n.t(key, { ns: 'notifications', ...opts })
     const label = item.encryption.description
       ? item.encryption.description.slice(0, 30)
       : item.encryption.tokenName.slice(0, 16) + '...'
@@ -313,7 +315,7 @@ export class AcceptBidQueueService {
       item.bid = freshBid
 
       // Step 1: Prepare SNARK inputs
-      toast.info('Queue: Preparing', `Computing SNARK inputs for "${label}"...`)
+      toast.info(t('toast.queue.preparingTitle'), t('toast.queue.preparingBody', { label }))
       const { inputs, a0, r0, hk } = await prepareSnarkInputs(item.bid)
 
       // Step 2: Generate proof
@@ -321,7 +323,7 @@ export class AcceptBidQueueService {
       this.persistQueue()
       this.emit('change')
 
-      toast.info('Queue: Proving', `Generating ZK proof for "${label}" (~3 min)...`)
+      toast.info(t('toast.queue.provingTitle'), t('toast.queue.provingBody', { label }))
       const provingStart = Date.now()
       const prover = getSnarkProver()
       const proof = await prover.generateProof(inputs)
@@ -340,11 +342,11 @@ export class AcceptBidQueueService {
         proof,
         a0, r0, hk,
         (step: ChainedAcceptStep) => {
-          if (step === 'submitting-snark') toast.info('Queue: Step 1/2', `Submitting SNARK proof for "${label}"...`)
-          else if (step === 'building-reencrypt') toast.info('Queue: Step 2/2', `Building re-encryption for "${label}"...`)
-          else if (step === 'submitting-reencrypt') toast.info('Queue: Step 2/2', `Submitting re-encryption for "${label}"...`)
-          else if (step === 'complete') toast.success('Queue: Sale Complete', `"${label}" — both transactions submitted!`)
-          else if (step === 'fallback') toast.warning('Queue: Partial', `"${label}" — SNARK submitted, re-encryption needs manual completion.`)
+          if (step === 'submitting-snark') toast.info(t('toast.queue.step1Title'), t('toast.queue.step1SubmittingBody', { label }))
+          else if (step === 'building-reencrypt') toast.info(t('toast.queue.step2Title'), t('toast.queue.step2BuildingBody', { label }))
+          else if (step === 'submitting-reencrypt') toast.info(t('toast.queue.step2Title'), t('toast.queue.step2SubmittingBody', { label }))
+          else if (step === 'complete') toast.success(t('toast.queue.completeTitle'), t('toast.queue.completeBody', { label }))
+          else if (step === 'fallback') toast.warning(t('toast.queue.partialTitle'), t('toast.queue.partialBody', { label }))
         },
         // onSnarkSubmitted — record directly to localStorage (works even if Dashboard is unmounted)
         (txHash) => {
@@ -415,7 +417,7 @@ export class AcceptBidQueueService {
       item.error = error instanceof Error ? error.message : 'Unknown error'
       item.completedAt = Date.now()
       this.persistQueue()
-      toast.error('Queue: Failed', `"${label}" — ${item.error}`)
+      toast.error(t('toast.queue.failedTitle'), t('toast.queue.failedBody', { label, error: item.error }))
       this.emit('item-failed', item)
       this.emit('change')
     }
