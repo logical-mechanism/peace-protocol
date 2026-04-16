@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
 import { useNode } from '../contexts/NodeContext'
@@ -29,6 +30,7 @@ import { useModal } from '../contexts/ModalContext'
 import { getTheme, setTheme, applyTheme, resolveTheme } from '../services/themeStorage'
 
 export default function Settings() {
+  const { t } = useTranslation('settings')
   const navigate = useNavigate()
   const { walletState, lock, wallet } = useWalletContext()
   const address = useAddress()
@@ -114,63 +116,63 @@ export default function Settings() {
   }, [navigate, lock, address])
 
   const sectionGroups = [
-    { label: 'Node & Network', sections: [
-      { id: 'node', label: 'Node Status', icon: (
+    { label: t('navGroup.nodeNetwork'), sections: [
+      { id: 'node', label: t('section.node'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
         </svg>
       )},
-      { id: 'network', label: 'Network', icon: (
+      { id: 'network', label: t('section.network'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9 9 0 013 12c0-1.605.42-3.113 1.157-4.418" />
         </svg>
       )},
     ]},
-    { label: 'Wallet', sections: [
-      { id: 'wallet', label: 'Wallet', icon: (
+    { label: t('navGroup.wallet'), sections: [
+      { id: 'wallet', label: t('section.wallet'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 110-6h5.25A2.25 2.25 0 0121 6v6zm0 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18V6a2.25 2.25 0 012.25-2.25h13.5" />
         </svg>
       )},
     ]},
-    { label: 'Marketplace', sections: [
-      { id: 'automation', label: 'Automation', icon: (
+    { label: t('navGroup.marketplace'), sections: [
+      { id: 'automation', label: t('section.automation'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12" />
         </svg>
       )},
-      { id: 'preferences', label: 'Preferences', icon: (
+      { id: 'preferences', label: t('section.preferences'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
         </svg>
       )},
     ]},
-    { label: 'Storage', sections: [
-      { id: 'datalayer', label: 'Data Layer', icon: (
+    { label: t('navGroup.storage'), sections: [
+      { id: 'datalayer', label: t('section.dataLayer'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
         </svg>
       )},
-      { id: 'storage', label: 'Storage', icon: (
+      { id: 'storage', label: t('section.storage'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
         </svg>
       )},
     ]},
-    { label: 'Diagnostics', sections: [
-      { id: 'logs', label: 'Logs', icon: (
+    { label: t('navGroup.diagnostics'), sections: [
+      { id: 'logs', label: t('section.logs'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
         </svg>
       )},
     ]},
-    { label: 'About', sections: [
-      { id: 'update', label: 'Updates', icon: (
+    { label: t('navGroup.about'), sections: [
+      { id: 'update', label: t('section.updates'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
         </svg>
       )},
-      { id: 'contact', label: 'Contact', icon: (
+      { id: 'contact', label: t('section.contact'), icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.67 1.09-.086 2.17-.208 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
         </svg>
@@ -199,17 +201,17 @@ export default function Settings() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back
+            {t('shell.back')}
           </button>
-          <h1 className="text-lg font-semibold">Settings</h1>
+          <h1 className="text-lg font-semibold">{t('shell.title')}</h1>
         </div>
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search settings..."
+          placeholder={t('shell.searchPlaceholder')}
           className="px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] w-48"
-          aria-label="Search settings"
+          aria-label={t('shell.searchAria')}
         />
       </nav>
 
@@ -250,10 +252,10 @@ export default function Settings() {
         {searchResults && (
           <div className="mb-8 space-y-2">
             <p className="text-sm text-[var(--text-muted)] mb-3">
-              {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+              {t('shell.resultsFor', { count: searchResults.length, query: searchQuery })}
             </p>
             {searchResults.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] text-center py-4">No matching settings found.</p>
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('shell.noMatches')}</p>
             ) : (
               searchResults.map(s => (
                 <button
@@ -263,7 +265,7 @@ export default function Settings() {
                 >
                   <span className="text-sm font-medium">{s.title}</span>
                   <span className="text-xs text-[var(--text-muted)] ml-2">
-                    in {sectionGroups.flatMap(g => g.sections).find(sec => sec.id === s.tab)?.label}
+                    {t('shell.inLabel', { label: sectionGroups.flatMap(g => g.sections).find(sec => sec.id === s.tab)?.label ?? '' })}
                   </span>
                 </button>
               ))
