@@ -629,7 +629,7 @@ export default function Dashboard() {
             </p>
             {effects.bidNotifications.unseenBidCount > 0 && (
               <p className="text-sm text-[var(--success)] mt-1" aria-live="polite">
-                {effects.bidNotifications.unseenBidCount} new {effects.bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'}
+                {t('newBidCount', { count: effects.bidNotifications.unseenBidCount })}
               </p>
             )}
           </button>
@@ -656,7 +656,7 @@ export default function Dashboard() {
           >
             <h2 className="text-lg font-medium mb-2">Library</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.libraryCount === null ? '...' : `${effects.libraryCount} ${effects.libraryCount === 1 ? 'item' : 'items'}`}
+              {effects.libraryCount === null ? '...' : t('dashboard:library.totalCount', { count: effects.libraryCount })}
             </p>
           </button>
           <button

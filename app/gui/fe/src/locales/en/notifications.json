@@ -4,6 +4,8 @@
   "transactionFailed": "Transaction failed",
   "newBid": "New bid received",
   "newBid_other": "{{count}} new bids received",
+  "newBidCount_one": "{{count}} new bid",
+  "newBidCount_other": "{{count}} new bids",
   "bidAccepted": "Your bid was accepted",
   "listingCreated": "Listing created",
   "copiedToClipboard": "Copied to clipboard",
