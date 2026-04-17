@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Hướng dẫn làm quen",
+  "skip": "Bỏ qua hướng dẫn",
+  "skipAria": "Bỏ qua hướng dẫn làm quen",
+  "next": "Tiếp theo",
+  "done": "Xong",
+  "nextAria": "Bước tiếp theo ({{current}} trên {{total}})",
+  "finishAria": "Hoàn thành hướng dẫn làm quen",
+  "stepProgress": "Bước {{current}} trên {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Tạo ví của bạn",
+      "description": "Chào mừng đến Veiled! Bắt đầu bằng cách tạo ví mới hoặc nhập ví hiện có. Ví bảo mật danh tính của bạn trên sàn giao dịch."
+    },
+    "nodeSync": {
+      "title": "Đồng bộ với chuỗi khối",
+      "description": "Nút của bạn sẽ tải xuống và đồng bộ với chuỗi khối Cardano. Đây là thiết lập một lần mất 10-20 phút. Bạn có thể tiếp tục nền."
+    },
+    "marketplace": {
+      "title": "Duyệt sàn giao dịch",
+      "description": "Tab Sàn giao dịch hiển thị tất cả danh mục dữ liệu mã hóa có sẵn. Duyệt danh mục, kiểm tra giá và tìm dữ liệu bạn muốn mua."
+    },
+    "firstBid": {
+      "title": "Đặt giá đầu tiên",
+      "description": "Tìm thấy thứ thú vị? Nhấp vào danh mục để xem chi tiết, sau đó đặt giá với mức giá mong muốn. Người bán có thể chấp nhận đặt giá để hoàn tất giao dịch."
+    }
+  }
+}
