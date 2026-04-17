@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type BadgeVariant = 'success' | 'warning' | 'error' | 'neutral' | 'accent';
 
@@ -45,25 +46,27 @@ export default function Badge({
 
 // Encryption status badge helper
 export function EncryptionStatusBadge({ status }: { status: 'active' | 'pending' | 'completed' }) {
-  const config: Record<typeof status, { variant: BadgeVariant; label: string }> = {
-    active: { variant: 'success', label: 'Active' },
-    pending: { variant: 'warning', label: 'Pending' },
-    completed: { variant: 'neutral', label: 'Completed' },
+  const { t } = useTranslation('common');
+  const config: Record<typeof status, { variant: BadgeVariant; labelKey: string }> = {
+    active: { variant: 'success', labelKey: 'badge.active' },
+    pending: { variant: 'warning', labelKey: 'badge.pending' },
+    completed: { variant: 'neutral', labelKey: 'badge.completed' },
   };
 
-  const { variant, label } = config[status];
-  return <Badge variant={variant} dot>{label}</Badge>;
+  const { variant, labelKey } = config[status];
+  return <Badge variant={variant} dot>{t(labelKey)}</Badge>;
 }
 
 // Bid status badge helper
 export function BidStatusBadge({ status }: { status: 'pending' | 'accepted' | 'rejected' | 'cancelled' }) {
-  const config: Record<typeof status, { variant: BadgeVariant; label: string }> = {
-    pending: { variant: 'warning', label: 'Pending' },
-    accepted: { variant: 'success', label: 'Accepted' },
-    rejected: { variant: 'error', label: 'Rejected' },
-    cancelled: { variant: 'neutral', label: 'Cancelled' },
+  const { t } = useTranslation('common');
+  const config: Record<typeof status, { variant: BadgeVariant; labelKey: string }> = {
+    pending: { variant: 'warning', labelKey: 'badge.pending' },
+    accepted: { variant: 'success', labelKey: 'badge.accepted' },
+    rejected: { variant: 'error', labelKey: 'badge.rejected' },
+    cancelled: { variant: 'neutral', labelKey: 'badge.cancelled' },
   };
 
-  const { variant, label } = config[status];
-  return <Badge variant={variant} dot>{label}</Badge>;
+  const { variant, labelKey } = config[status];
+  return <Badge variant={variant} dot>{t(labelKey)}</Badge>;
 }

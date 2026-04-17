@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DelayedSpinner } from './LoadingSpinner';
 
 const ZOOM_STEP = 0.25;
@@ -12,6 +13,7 @@ interface ImageViewerProps {
 }
 
 export default function ImageViewer({ data, mimeType, onExport }: ImageViewerProps) {
+  const { t } = useTranslation('common');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +137,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
   if (error) {
     return (
       <div className="p-4 bg-[var(--error-muted)] rounded-[var(--radius-md)] text-center">
-        <p className="text-sm text-[var(--error)]">Failed to load image: {error}</p>
+        <p className="text-sm text-[var(--error)]">{t('imageViewer.failedToLoad')}: {error}</p>
       </div>
     );
   }
@@ -152,8 +154,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
           onClick={zoomOut}
           disabled={scale <= ZOOM_MIN}
           className={btnClass}
-          title="Zoom out"
-          aria-label="Zoom out"
+          title={t('imageViewer.zoomOut')}
+          aria-label={t('imageViewer.zoomOut')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -162,8 +164,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         <button
           onClick={zoomReset}
           className={`${btnClass} min-w-[52px] text-center`}
-          title="Reset zoom"
-          aria-label="Reset zoom"
+          title={t('imageViewer.resetZoom')}
+          aria-label={t('imageViewer.resetZoom')}
         >
           {Math.round(scale * 100)}%
         </button>
@@ -171,8 +173,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
           onClick={zoomIn}
           disabled={scale >= ZOOM_MAX}
           className={btnClass}
-          title="Zoom in"
-          aria-label="Zoom in"
+          title={t('imageViewer.zoomIn')}
+          aria-label={t('imageViewer.zoomIn')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -186,17 +188,17 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         <button
           onClick={setFitToScreen}
           className={`${btnClass} ${fitMode === 'fit' ? 'text-[var(--accent)]' : ''}`}
-          title="Fit to screen"
-          aria-label="Fit to screen"
+          title={t('imageViewer.fitToScreen')}
+          aria-label={t('imageViewer.fitToScreen')}
         >
-          Fit
+          {t('imageViewer.fit')}
         </button>
         {/* Actual size 1:1 */}
         <button
           onClick={setActualSize}
           className={`${btnClass} ${fitMode === 'actual' ? 'text-[var(--accent)]' : ''}`}
-          title="Actual size (1:1)"
-          aria-label="Actual size"
+          title={t('imageViewer.actualSize')}
+          aria-label={t('imageViewer.actualSize')}
         >
           1:1
         </button>
@@ -206,8 +208,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         <button
           onClick={rotateClockwise}
           className={btnClass}
-          title="Rotate 90°"
-          aria-label="Rotate clockwise"
+          title={t('imageViewer.rotateClockwise')}
+          aria-label={t('imageViewer.rotateClockwise')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -217,8 +219,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         <button
           onClick={toggleFlipH}
           className={`${btnClass} ${flippedH ? 'text-[var(--accent)]' : ''}`}
-          title="Flip horizontal"
-          aria-label="Flip horizontal"
+          title={t('imageViewer.flipHorizontal')}
+          aria-label={t('imageViewer.flipHorizontal')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -232,8 +234,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
             <button
               onClick={onExport}
               className={btnClass}
-              title="Save As"
-              aria-label="Save image to file"
+              title={t('imageViewer.saveAs')}
+              aria-label={t('imageViewer.saveImageAria')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -247,8 +249,8 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         <button
           onClick={() => setIsFullscreen(fs => !fs)}
           className={btnClass}
-          title={isFullscreen ? 'Exit fullscreen' : 'Expand'}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          title={isFullscreen ? t('imageViewer.exitFullscreen') : t('imageViewer.expand')}
+          aria-label={isFullscreen ? t('imageViewer.exitFullscreen') : t('imageViewer.expand')}
         >
           {isFullscreen ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -297,7 +299,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
   const imageElement = blobUrl ? (
     <img
       src={blobUrl}
-      alt="Decrypted content"
+      alt={t('ui.decryptedContent')}
       className="select-none"
       draggable={false}
       style={getImageStyle()}
@@ -308,7 +310,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
       }}
       onError={() => {
         setLoading(false);
-        setError('The image could not be rendered.');
+        setError(t('imageViewer.cannotRender'));
       }}
     />
   ) : null;
@@ -329,7 +331,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
       <>
         {/* Inline placeholder so LibraryContentModal layout isn't disrupted */}
         <div className="p-4 text-center text-sm text-[var(--text-muted)]">
-          Image is expanded to fullscreen. Press Esc or the collapse button to return.
+          {t('imageViewer.fullscreenMessage')}
         </div>
 
         {/* Fullscreen overlay */}
@@ -375,7 +377,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
         {loading && blobUrl && (
           <div className="py-12 text-center">
             <DelayedSpinner size="lg" className="mx-auto mb-4" />
-            <p className="text-sm text-[var(--text-muted)]">Loading image...</p>
+            <p className="text-sm text-[var(--text-muted)]">{t('imageViewer.loadingImage')}</p>
           </div>
         )}
         {imageElement}

@@ -1,4 +1,5 @@
 import { memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PriceRangeSliderProps {
   min: number;
@@ -10,6 +11,7 @@ interface PriceRangeSliderProps {
 }
 
 function PriceRangeSlider({ min, max, valueMin, valueMax, onChangeMin, onChangeMax }: PriceRangeSliderProps) {
+  const { t } = useTranslation('dashboard');
   const effectiveMin = valueMin !== '' ? Number(valueMin) : min;
   const effectiveMax = valueMax !== '' ? Number(valueMax) : max;
 
@@ -28,7 +30,7 @@ function PriceRangeSlider({ min, max, valueMin, valueMax, onChangeMin, onChangeM
   const rightPercent = ((effectiveMax - min) / range) * 100;
 
   return (
-    <div role="group" aria-label="Price range filter" className="flex flex-col gap-1 min-w-[180px]">
+    <div role="group" aria-label={t('filters.priceRange.groupLabel')} className="flex flex-col gap-1 min-w-[180px]">
       <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
         <span>{effectiveMin} ADA</span>
         <span>{effectiveMax} ADA</span>
@@ -53,7 +55,7 @@ function PriceRangeSlider({ min, max, valueMin, valueMax, onChangeMin, onChangeM
             [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full
             [&::-webkit-slider-thumb]:bg-[var(--accent)] [&::-webkit-slider-thumb]:cursor-pointer
             [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[var(--bg-primary)]"
-          aria-label="Minimum price"
+          aria-label={t('filters.priceRange.minPrice')}
         />
         {/* Max thumb */}
         <input
@@ -67,7 +69,7 @@ function PriceRangeSlider({ min, max, valueMin, valueMax, onChangeMin, onChangeM
             [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full
             [&::-webkit-slider-thumb]:bg-[var(--accent)] [&::-webkit-slider-thumb]:cursor-pointer
             [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[var(--bg-primary)]"
-          aria-label="Maximum price"
+          aria-label={t('filters.priceRange.maxPrice')}
         />
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { TutorialStep } from '../hooks/useTutorial'
 
 const PADDING = 8
@@ -74,6 +75,7 @@ export default function TutorialOverlay({
   onNext,
   onSkip,
 }: TutorialOverlayProps) {
+  const { t } = useTranslation('common')
   const [targetRect, setTargetRect] = useState<Rect | null>(null)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
   const [tooltipPos, setTooltipPos] = useState<TooltipPos>({ top: 0, left: 0 })
@@ -197,7 +199,7 @@ export default function TutorialOverlay({
       <div
         ref={tooltipRef}
         role="dialog"
-        aria-label="Tutorial step"
+        aria-label={t('tutorial.stepAria')}
         aria-labelledby="tutorial-step-title"
         className="fixed rounded-[var(--radius-lg)] p-5 shadow-lg bg-[var(--bg-card)] border border-[var(--border-subtle)]"
         style={tooltipStyle}
@@ -209,7 +211,7 @@ export default function TutorialOverlay({
           <button
             onClick={onSkip}
             className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-            aria-label="Skip tutorial"
+            aria-label={t('tutorial.skipTutorial')}
           >
             Skip
           </button>
@@ -225,7 +227,7 @@ export default function TutorialOverlay({
             onClick={onNext}
             className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary cursor-pointer"
           >
-            {isLast ? 'Finish' : 'Next'}
+            {isLast ? t('tutorial.finish') : t('actions.next')}
           </button>
         </div>
       </div>

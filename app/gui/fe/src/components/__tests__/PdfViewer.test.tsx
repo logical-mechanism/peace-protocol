@@ -121,7 +121,7 @@ describe('PdfViewer', () => {
       });
       simulateDocumentLoad(3);
       await waitFor(() => {
-        expect(screen.getByLabelText('Find in PDF')).toBeInTheDocument();
+        expect(screen.getByLabelText('Find in PDF (Ctrl+F)')).toBeInTheDocument();
       });
     });
 
@@ -158,7 +158,7 @@ describe('PdfViewer', () => {
       });
       simulateDocumentLoad(2);
       await waitFor(() => {
-        expect(screen.getByLabelText('Enter fullscreen')).toBeInTheDocument();
+        expect(screen.getByLabelText('Expand')).toBeInTheDocument();
       });
     });
   });

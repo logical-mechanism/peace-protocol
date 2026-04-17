@@ -8,6 +8,7 @@
  * Named "WasmContext" for backward compatibility with Dashboard imports.
  */
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
@@ -51,6 +52,7 @@ export function useWasm(): WasmContextValue {
 }
 
 export function WasmProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation('nodeSync')
   const [stage, setStage] = useState<WasmStage>('idle')
   const [progress, setProgress] = useState(0)
   const [statusMessage, setStatusMessage] = useState('')
@@ -78,31 +80,31 @@ export function WasmProvider({ children }: { children: ReactNode }) {
     if (stage === 'ready' || stage === 'decompressing') return
 
     setStage('checking-cache')
-    setStatusMessage('Checking SNARK setup files...')
-    addLog('Checking if setup files exist...')
+    setStatusMessage(t('wasm.checkingSetup'))
+    addLog(t('wasm.checkingExist'))
 
     try {
       const exists = await invoke<boolean>('snark_check_setup')
       if (exists) {
         setStage('ready')
         setProgress(100)
-        setStatusMessage('SNARK prover ready')
-        addLog('Setup files found', 'success')
+        setStatusMessage(t('wasm.proverReady'))
+        addLog(t('wasm.setupFound'), 'success')
         return
       }
 
       // Need to decompress
       setStage('decompressing')
       setProgress(10)
-      setStatusMessage('Decompressing SNARK setup files...')
-      addLog('Decompressing pk.bin and ccs.bin (~500MB)...')
+      setStatusMessage(t('wasm.decompressing'))
+      addLog(t('wasm.decompressingDetail'))
 
       await invoke('snark_decompress_setup')
 
       setStage('ready')
       setProgress(100)
-      setStatusMessage('SNARK prover ready')
-      addLog('Setup files decompressed', 'success')
+      setStatusMessage(t('wasm.proverReady'))
+      addLog(t('wasm.decompressed'), 'success')
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setStage('error')
@@ -110,7 +112,7 @@ export function WasmProvider({ children }: { children: ReactNode }) {
       setStatusMessage(`Error: ${msg}`)
       addLog(msg, 'error')
     }
-  }, [stage, addLog])
+  }, [stage, addLog, t])
 
   const clearError = useCallback(() => {
     setError(null)

@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type PurchaseStage = 'placed' | 'accepted' | 'complete' | 'failed';
 
@@ -8,11 +9,11 @@ interface BidTimelineProps {
   compact?: boolean;
 }
 
-const STEPS = [
-  { label: 'Bid Placed', key: 'placed' },
-  { label: 'Accepted', key: 'accepted' },
-  { label: 'Decrypting', key: 'decrypting' },
-  { label: 'Complete', key: 'complete' },
+const STEP_KEYS = [
+  { labelKey: 'bidTimeline.bidPlaced', key: 'placed' },
+  { labelKey: 'bidTimeline.accepted', key: 'accepted' },
+  { labelKey: 'bidTimeline.decrypting', key: 'decrypting' },
+  { labelKey: 'bidTimeline.complete', key: 'complete' },
 ] as const;
 
 const STAGE_INDEX: Record<PurchaseStage, number> = {
@@ -22,14 +23,16 @@ const STAGE_INDEX: Record<PurchaseStage, number> = {
   complete: 3,
 };
 
-const STAGE_TEXT: Record<PurchaseStage, string> = {
-  placed: 'Bid placed, awaiting acceptance',
-  accepted: 'Bid accepted, awaiting decryption',
-  complete: 'Complete',
-  failed: 'Decryption failed',
+const STAGE_TEXT_KEYS: Record<PurchaseStage, string> = {
+  placed: 'bidTimeline.awaitingAcceptance',
+  accepted: 'bidTimeline.awaitingDecryption',
+  complete: 'bidTimeline.complete',
+  failed: 'bidTimeline.decryptionFailed',
 };
 
 export default function BidTimeline({ stage, bidStatus, compact = false }: BidTimelineProps) {
+  const { t } = useTranslation('common');
+
   // Don't show timeline for terminal non-success states
   if (bidStatus === 'rejected' || bidStatus === 'cancelled') return null;
 
@@ -38,14 +41,14 @@ export default function BidTimeline({ stage, bidStatus, compact = false }: BidTi
   return (
     <div
       role="progressbar"
-      aria-label="Bid progress"
+      aria-label={t('bidTimeline.progressAria')}
       aria-valuemin={0}
       aria-valuemax={3}
       aria-valuenow={currentIdx}
-      aria-valuetext={STAGE_TEXT[stage]}
+      aria-valuetext={t(STAGE_TEXT_KEYS[stage])}
       className="flex items-center w-full"
     >
-      {STEPS.map((step, i) => {
+      {STEP_KEYS.map((step, i) => {
         const isCompleted = stage === 'complete' ? true : i < currentIdx;
         const isCurrent = stage === 'failed' ? i === 2 : i === currentIdx;
         const isError = stage === 'failed' && i === 2;
@@ -84,7 +87,7 @@ export default function BidTimeline({ stage, bidStatus, compact = false }: BidTi
                       : 'text-[var(--text-muted)]'
                   }`}
                 >
-                  {isError ? 'Failed' : step.label}
+                  {isError ? t('bidTimeline.failed') : t(step.labelKey)}
                 </span>
               )}
             </div>

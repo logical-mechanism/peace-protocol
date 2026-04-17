@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getSubcategories, getCategoryConfig, type FileCategory, type SubCategory } from '../config/categories';
 import Select, { type SelectOption } from './Select';
 
@@ -24,6 +25,7 @@ function toOptions(items: SubCategory[]): SelectOption[] {
 }
 
 function SubCategorySelector({ category, selected, onChange, disabled }: SubCategorySelectorProps) {
+  const { t } = useTranslation('dashboard');
   const subcategories = getSubcategories(category);
 
   if (subcategories.length === 0) return null;
@@ -66,7 +68,7 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
   return (
     <div>
       <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-        Sub-category <span className="text-xs font-normal text-[var(--text-muted)]">(optional)</span>
+        {t('filters.subcategory.label')} <span className="text-xs font-normal text-[var(--text-muted)]">{t('filters.subcategory.optional')}</span>
       </label>
 
       {level1Id && (
@@ -88,7 +90,7 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
             onClick={level2Id ? handleClearLevel2 : handleClear}
             disabled={disabled}
             className="ml-1 p-0.5 rounded hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer disabled:cursor-not-allowed"
-            aria-label={level2Id ? 'Clear genre' : 'Clear sub-category'}
+            aria-label={level2Id ? t('filters.subcategory.clearGenre') : t('filters.subcategory.clearSubcategory')}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -101,9 +103,9 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
         value={level1Id}
         options={toOptions(subcategories)}
         onChange={handleLevel1Select}
-        placeholder="None"
+        placeholder={t('filters.subcategory.placeholder')}
         disabled={disabled}
-        ariaLabel="Sub-category"
+        ariaLabel={t('filters.subcategory.ariaLabel')}
       />
 
       {level1Id && level2Items.length > 0 && (
@@ -112,9 +114,9 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
             value={level2Id}
             options={toOptions(level2Items)}
             onChange={handleLevel2Select}
-            placeholder="None"
+            placeholder={t('filters.subcategory.placeholder')}
             disabled={disabled}
-            ariaLabel="Sub-category level 2"
+            ariaLabel={t('filters.subcategory.ariaLabelLevel2')}
           />
         </div>
       )}

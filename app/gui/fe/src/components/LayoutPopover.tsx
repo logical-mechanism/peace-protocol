@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CardSize, ColumnCount } from '../hooks/useTabFilterState';
 
 type ViewMode = 'grid' | 'list';
@@ -23,6 +24,7 @@ export default function LayoutPopover({
   onCardSizeChange,
   onColumnCountChange,
 }: LayoutPopoverProps) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -59,8 +61,8 @@ export default function LayoutPopover({
             ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
             : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
         }`}
-        title="Layout options"
-        aria-label="Layout options"
+        title={t('layoutPopover.layoutOptions')}
+        aria-label={t('layoutPopover.layoutOptions')}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
@@ -77,13 +79,13 @@ export default function LayoutPopover({
       {open && (
         <div
           role="dialog"
-          aria-label="Layout options"
+          aria-label={t('layoutPopover.layoutOptions')}
           className="absolute right-0 top-full mt-2 z-30 w-56 p-3 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)]"
         >
           {/* View mode */}
           <div className="mb-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">View</div>
-            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">{t('layoutPopover.view')}</div>
+            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label={t('layoutPopover.viewModeAria')}>
               <button
                 type="button"
                 onClick={() => onViewModeChange('grid')}
@@ -92,7 +94,7 @@ export default function LayoutPopover({
                     ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
-                aria-label="Grid view"
+                aria-label={t('layoutPopover.gridView')}
                 aria-pressed={viewMode === 'grid'}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -112,7 +114,7 @@ export default function LayoutPopover({
                     ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
-                aria-label="List view"
+                aria-label={t('layoutPopover.listView')}
                 aria-pressed={viewMode === 'list'}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -124,8 +126,8 @@ export default function LayoutPopover({
 
           {/* Card size — grid only */}
           <div className={`mb-3 transition-opacity duration-[var(--transition-fast)] ${isGrid ? '' : 'opacity-40 pointer-events-none'}`}>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Card size</div>
-            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="Card size">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">{t('layoutPopover.cardSize')}</div>
+            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label={t('layoutPopover.cardSizeAria')}>
               {SIZE_OPTIONS.map((size) => (
                 <button
                   key={size}
@@ -167,8 +169,8 @@ export default function LayoutPopover({
 
           {/* Column count — grid only */}
           <div className={`transition-opacity duration-[var(--transition-fast)] ${isGrid ? '' : 'opacity-40 pointer-events-none'}`}>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Columns</div>
-            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="Column count">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">{t('layoutPopover.columns')}</div>
+            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label={t('layoutPopover.columnCountAria')}>
               {COLUMN_OPTIONS.map((cols) => (
                 <button
                   key={cols}

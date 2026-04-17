@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { Translation } from 'react-i18next';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -41,6 +42,8 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       }
 
       return (
+        <Translation ns="common">
+          {(t) => (
         <div className="min-h-[400px] flex items-center justify-center p-8">
           <div className="max-w-md w-full text-center">
             <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[var(--error)]/10 flex items-center justify-center">
@@ -60,15 +63,15 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-              Something went wrong
+              {t('errorBoundary.title')}
             </h2>
             <p className="text-sm text-[var(--text-muted)] mb-6">
-              An unexpected error occurred. Please try refreshing the page.
+              {t('errorBoundary.message')}
             </p>
             {this.state.error && (
               <details className="text-left mb-6">
                 <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-secondary)]">
-                  Error details
+                  {t('errorBoundary.errorDetails')}
                 </summary>
                 <pre className="mt-2 p-3 text-xs font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-x-auto text-[var(--error)]">
                   {this.state.error.message}
@@ -80,17 +83,19 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
                 onClick={this.handleReset}
                 className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Try Again
+                {t('errorBoundary.tryAgain')}
               </button>
               <button
                 onClick={() => window.location.reload()}
                 className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
-                Reload Page
+                {t('errorBoundary.reloadPage')}
               </button>
             </div>
           </div>
         </div>
+          )}
+        </Translation>
       );
     }
 
@@ -127,6 +132,8 @@ export class InlineErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
       }
 
       return (
+        <Translation ns="common">
+          {(t) => (
         <div className="p-4 bg-[var(--error)]/5 border border-[var(--error)]/20 rounded-[var(--radius-md)]">
           <div className="flex items-start gap-3">
             <svg
@@ -145,20 +152,22 @@ export class InlineErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
             </svg>
             <div className="flex-1">
               <p className="text-sm font-medium text-[var(--error)]">
-                Failed to load this section
+                {t('errorBoundary.sectionFailed')}
               </p>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                {this.state.error?.message || 'An unexpected error occurred'}
+                {this.state.error?.message || t('errorBoundary.message')}
               </p>
               <button
                 onClick={this.handleReset}
                 className="mt-2 text-xs text-[var(--accent)] hover:underline cursor-pointer"
               >
-                Try again
+                {t('errorBoundary.tryAgain')}
               </button>
             </div>
           </div>
         </div>
+          )}
+        </Translation>
       );
     }
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import wordlist from 'bip39/src/wordlists/english.json'
 
 const WORDLIST: string[] = wordlist
@@ -26,6 +27,7 @@ export default function MnemonicInput({
   disabled = false,
   autoFocus = false,
 }: MnemonicInputProps) {
+  const { t } = useTranslation('common')
   const [focused, setFocused] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -154,7 +156,7 @@ export default function MnemonicInput({
       </div>
       {hasError && (
         <span id={errorId} className="sr-only">
-          Not a valid BIP-39 word
+          {t('mnemonic.invalidWord')}
         </span>
       )}
 
