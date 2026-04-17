@@ -27,7 +27,8 @@
     "storage": "存储",
     "logs": "日志",
     "updates": "更新",
-    "contact": "联系方式"
+    "contact": "联系方式",
+    "tutorials": "教程与帮助"
   },
   "language": {
     "title": "语言",
@@ -365,6 +366,40 @@
     "title": "联系与支持",
     "discordLabel": "加入我们的 Discord",
     "emailLabel": "邮件支持"
+  },
+  "tutorials": {
+    "title": "教程与帮助",
+    "description": "重新播放分步指南或查看键盘快捷键。",
+    "resetAll": "全部重置",
+    "resetAllDone": "全部已重置",
+    "statusCompleted": "已完成",
+    "statusNotStarted": "未开始",
+    "start": "开始",
+    "replay": "重播",
+    "comingSoon": "即将推出",
+    "shortcutsTitle": "键盘快捷键",
+    "flows": {
+      "firstListing": {
+        "title": "创建您的第一个列表",
+        "description": "了解如何在市场上出售内容。"
+      },
+      "firstBid": {
+        "title": "提交您的第一个出价",
+        "description": "了解如何对市场列表出价。"
+      },
+      "firstDecrypt": {
+        "title": "解密购买",
+        "description": "了解如何解密和访问您购买的内容。"
+      },
+      "firstBidAccepted": {
+        "title": "接受出价（卖家）",
+        "description": "了解如何接受出价并使用 SNARK 证明完成销售。"
+      },
+      "iagonPrimer": {
+        "title": "Iagon 存储设置",
+        "description": "为基于文件的列表设置 Iagon 去中心化存储。"
+      }
+    }
   },
   "update": {
     "title": "应用更新",

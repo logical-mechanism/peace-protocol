@@ -27,7 +27,8 @@
     "storage": "Almacenamiento",
     "logs": "Registros",
     "updates": "Actualizaciones",
-    "contact": "Contacto"
+    "contact": "Contacto",
+    "tutorials": "Tutoriales y Ayuda"
   },
   "language": {
     "title": "Idioma",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "Actualización descargada",
     "downloadSuccessBody": "Guardado en: {{path}}. Cierra y vuelve a abrir la app para usar la nueva versión.",
     "retry": "Reintentar"
+  },
+  "tutorials": {
+    "title": "Tutoriales y Ayuda",
+    "description": "Repite las guías paso a paso o consulta los atajos de teclado.",
+    "resetAll": "Restablecer todo",
+    "resetAllDone": "Todo restablecido",
+    "statusCompleted": "Completado",
+    "statusNotStarted": "No iniciado",
+    "start": "Iniciar",
+    "replay": "Repetir",
+    "comingSoon": "Próximamente",
+    "shortcutsTitle": "Atajos de teclado",
+    "flows": {
+      "firstListing": {
+        "title": "Crea tu primer anuncio",
+        "description": "Aprende a publicar contenido en venta en el mercado."
+      },
+      "firstBid": {
+        "title": "Haz tu primera oferta",
+        "description": "Aprende a pujar por un anuncio del mercado."
+      },
+      "firstDecrypt": {
+        "title": "Descifra una compra",
+        "description": "Aprende a descifrar y acceder al contenido que has comprado."
+      },
+      "firstBidAccepted": {
+        "title": "Acepta una oferta (Vendedor)",
+        "description": "Aprende a aceptar una oferta y completar una venta con prueba SNARK."
+      },
+      "iagonPrimer": {
+        "title": "Configuración de almacenamiento Iagon",
+        "description": "Configura el almacenamiento descentralizado Iagon para anuncios basados en archivos."
+      }
+    }
   }
 }

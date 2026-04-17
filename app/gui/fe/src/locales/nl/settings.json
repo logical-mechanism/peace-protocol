@@ -27,7 +27,8 @@
     "storage": "Opslag",
     "logs": "Logs",
     "updates": "Updates",
-    "contact": "Contact"
+    "contact": "Contact",
+    "tutorials": "Tutorials & Hulp"
   },
   "language": {
     "title": "Taal",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "Update gedownload",
     "downloadSuccessBody": "Opgeslagen in: {{path}}. Sluit de app en open deze opnieuw om de nieuwe versie te gebruiken.",
     "retry": "Opnieuw proberen"
+  },
+  "tutorials": {
+    "title": "Tutorials & Hulp",
+    "description": "Speel stapsgewijze handleidingen opnieuw af of bekijk sneltoetsen.",
+    "resetAll": "Alles resetten",
+    "resetAllDone": "Alles gereset",
+    "statusCompleted": "Voltooid",
+    "statusNotStarted": "Niet gestart",
+    "start": "Starten",
+    "replay": "Opnieuw afspelen",
+    "comingSoon": "Binnenkort",
+    "shortcutsTitle": "Sneltoetsen",
+    "flows": {
+      "firstListing": {
+        "title": "Maak je eerste advertentie",
+        "description": "Leer hoe je content te koop aanbiedt op de marktplaats."
+      },
+      "firstBid": {
+        "title": "Plaats je eerste bod",
+        "description": "Leer hoe je biedt op een marktplaatsadvertentie."
+      },
+      "firstDecrypt": {
+        "title": "Ontcijfer een aankoop",
+        "description": "Leer hoe je gekochte content ontcijfert en opent."
+      },
+      "firstBidAccepted": {
+        "title": "Accepteer een bod (Verkoper)",
+        "description": "Leer hoe je een bod accepteert en een verkoop afrondt met SNARK-bewijs."
+      },
+      "iagonPrimer": {
+        "title": "Iagon opslag instellen",
+        "description": "Stel Iagon gedecentraliseerde opslag in voor bestandsgebaseerde advertenties."
+      }
+    }
   }
 }

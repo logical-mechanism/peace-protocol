@@ -27,7 +27,8 @@
     "storage": "ストレージ",
     "logs": "ログ",
     "updates": "アップデート",
-    "contact": "お問い合わせ"
+    "contact": "お問い合わせ",
+    "tutorials": "チュートリアルとヘルプ"
   },
   "language": {
     "title": "言語",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "アップデートをダウンロードしました",
     "downloadSuccessBody": "保存先: {{path}}。アプリを閉じて再度開くと新しいバージョンが使用されます。",
     "retry": "再試行"
+  },
+  "tutorials": {
+    "title": "チュートリアルとヘルプ",
+    "description": "ステップバイステップガイドを再生するか、キーボードショートカットを確認します。",
+    "resetAll": "すべてリセット",
+    "resetAllDone": "すべてリセット済み",
+    "statusCompleted": "完了",
+    "statusNotStarted": "未開始",
+    "start": "開始",
+    "replay": "再生",
+    "comingSoon": "近日公開",
+    "shortcutsTitle": "キーボードショートカット",
+    "flows": {
+      "firstListing": {
+        "title": "最初のリスティングを作成",
+        "description": "マーケットプレイスでコンテンツを販売する方法を学びます。"
+      },
+      "firstBid": {
+        "title": "最初の入札をする",
+        "description": "マーケットプレイスのリスティングに入札する方法を学びます。"
+      },
+      "firstDecrypt": {
+        "title": "購入を復号化",
+        "description": "購入したコンテンツを復号化してアクセスする方法を学びます。"
+      },
+      "firstBidAccepted": {
+        "title": "入札を承認（売り手）",
+        "description": "入札を承認しSNARK証明で販売を完了する方法を学びます。"
+      },
+      "iagonPrimer": {
+        "title": "Iagonストレージセットアップ",
+        "description": "ファイルベースのリスティング用にIagon分散ストレージを設定します。"
+      }
+    }
   }
 }

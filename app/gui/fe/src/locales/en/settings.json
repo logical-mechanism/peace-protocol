@@ -27,7 +27,8 @@
     "storage": "Storage",
     "logs": "Logs",
     "updates": "Updates",
-    "contact": "Contact"
+    "contact": "Contact",
+    "tutorials": "Tutorials & Help"
   },
   "language": {
     "title": "Language",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "Update downloaded",
     "downloadSuccessBody": "Saved to: {{path}}. Close and reopen the app to use the new version.",
     "retry": "Retry"
+  },
+  "tutorials": {
+    "title": "Tutorials & Help",
+    "description": "Replay step-by-step guided walkthroughs or view keyboard shortcuts.",
+    "resetAll": "Reset All",
+    "resetAllDone": "All Reset",
+    "statusCompleted": "Completed",
+    "statusNotStarted": "Not started",
+    "start": "Start",
+    "replay": "Replay",
+    "comingSoon": "Coming soon",
+    "shortcutsTitle": "Keyboard Shortcuts",
+    "flows": {
+      "firstListing": {
+        "title": "Create Your First Listing",
+        "description": "Learn how to list content for sale on the marketplace."
+      },
+      "firstBid": {
+        "title": "Place Your First Bid",
+        "description": "Learn how to bid on a marketplace listing."
+      },
+      "firstDecrypt": {
+        "title": "Decrypt a Purchase",
+        "description": "Learn how to decrypt and access content you've purchased."
+      },
+      "firstBidAccepted": {
+        "title": "Accept a Bid (Seller)",
+        "description": "Learn how to accept a bid and complete a sale with SNARK proof."
+      },
+      "iagonPrimer": {
+        "title": "Iagon Storage Setup",
+        "description": "Set up Iagon decentralized storage for file-based listings."
+      }
+    }
   }
 }

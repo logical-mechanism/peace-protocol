@@ -331,6 +331,7 @@
     "transactionFallback": "Giao dịch: {{hash}}..."
   },
   "tutorial": {
+    "skip": "Bỏ qua",
     "skipTutorial": "Bỏ qua hướng dẫn",
     "finish": "Hoàn thành",
     "stepAria": "Bước hướng dẫn",

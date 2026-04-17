@@ -331,6 +331,7 @@
     "transactionFallback": "Transaksi: {{hash}}..."
   },
   "tutorial": {
+    "skip": "Lewati",
     "skipTutorial": "Lewati tutorial",
     "finish": "Selesai",
     "stepAria": "Langkah tutorial",

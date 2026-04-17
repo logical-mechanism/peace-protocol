@@ -27,7 +27,8 @@
     "storage": "Przechowywanie",
     "logs": "Logi",
     "updates": "Aktualizacje",
-    "contact": "Kontakt"
+    "contact": "Kontakt",
+    "tutorials": "Samouczki i Pomoc"
   },
   "language": {
     "title": "Jezyk",
@@ -365,6 +366,40 @@
     "title": "Kontakt i wsparcie",
     "discordLabel": "Dolacz do naszego Discord",
     "emailLabel": "Wsparcie e-mail"
+  },
+  "tutorials": {
+    "title": "Samouczki i Pomoc",
+    "description": "Odtwórz ponownie przewodniki krok po kroku lub sprawdź skróty klawiaturowe.",
+    "resetAll": "Resetuj wszystko",
+    "resetAllDone": "Wszystko zresetowane",
+    "statusCompleted": "Ukończony",
+    "statusNotStarted": "Nie rozpoczęty",
+    "start": "Rozpocznij",
+    "replay": "Odtwórz ponownie",
+    "comingSoon": "Wkrótce",
+    "shortcutsTitle": "Skróty klawiaturowe",
+    "flows": {
+      "firstListing": {
+        "title": "Utwórz swoje pierwsze ogłoszenie",
+        "description": "Naucz się, jak wystawiać treści na sprzedaż na rynku."
+      },
+      "firstBid": {
+        "title": "Złóż swoją pierwszą ofertę",
+        "description": "Naucz się, jak licytować ogłoszenie na rynku."
+      },
+      "firstDecrypt": {
+        "title": "Odszyfruj zakup",
+        "description": "Naucz się, jak odszyfrować i uzyskać dostęp do zakupionej treści."
+      },
+      "firstBidAccepted": {
+        "title": "Zaakceptuj ofertę (Sprzedawca)",
+        "description": "Naucz się, jak zaakceptować ofertę i sfinalizować sprzedaż z dowodem SNARK."
+      },
+      "iagonPrimer": {
+        "title": "Konfiguracja pamięci Iagon",
+        "description": "Skonfiguruj zdecentralizowaną pamięć Iagon dla ogłoszeń opartych na plikach."
+      }
+    }
   },
   "update": {
     "title": "Aktualizacje aplikacji",

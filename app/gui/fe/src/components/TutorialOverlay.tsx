@@ -213,7 +213,7 @@ export default function TutorialOverlay({
             className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
             aria-label={t('tutorial.skipTutorial')}
           >
-            Skip
+            {t('tutorial.skip')}
           </button>
         </div>
         <h3 id="tutorial-step-title" className="text-base font-semibold text-[var(--text-primary)] mb-2">

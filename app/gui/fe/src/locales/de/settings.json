@@ -27,7 +27,8 @@
     "storage": "Speicher",
     "logs": "Logs",
     "updates": "Updates",
-    "contact": "Kontakt"
+    "contact": "Kontakt",
+    "tutorials": "Tutorials & Hilfe"
   },
   "language": {
     "title": "Sprache",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "Update heruntergeladen",
     "downloadSuccessBody": "Gespeichert unter: {{path}}. Schließe und öffne die App erneut, um die neue Version zu verwenden.",
     "retry": "Erneut versuchen"
+  },
+  "tutorials": {
+    "title": "Tutorials & Hilfe",
+    "description": "Schritt-für-Schritt-Anleitungen wiederholen oder Tastenkombinationen anzeigen.",
+    "resetAll": "Alle zurücksetzen",
+    "resetAllDone": "Alle zurückgesetzt",
+    "statusCompleted": "Abgeschlossen",
+    "statusNotStarted": "Nicht gestartet",
+    "start": "Starten",
+    "replay": "Wiederholen",
+    "comingSoon": "Demnächst",
+    "shortcutsTitle": "Tastenkombinationen",
+    "flows": {
+      "firstListing": {
+        "title": "Erstelle dein erstes Angebot",
+        "description": "Lerne, wie du Inhalte auf dem Marktplatz zum Verkauf anbietest."
+      },
+      "firstBid": {
+        "title": "Gib dein erstes Gebot ab",
+        "description": "Lerne, wie du auf ein Angebot im Marktplatz bietest."
+      },
+      "firstDecrypt": {
+        "title": "Einen Kauf entschlüsseln",
+        "description": "Lerne, wie du gekaufte Inhalte entschlüsselst und darauf zugreifst."
+      },
+      "firstBidAccepted": {
+        "title": "Ein Gebot annehmen (Verkäufer)",
+        "description": "Lerne, wie du ein Gebot annimmst und einen Verkauf mit SNARK-Beweis abschließt."
+      },
+      "iagonPrimer": {
+        "title": "Iagon-Speicher einrichten",
+        "description": "Richte den dezentralen Iagon-Speicher für dateibasierte Angebote ein."
+      }
+    }
   }
 }

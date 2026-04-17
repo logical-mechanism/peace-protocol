@@ -331,6 +331,7 @@
     "transactionFallback": "交易：{{hash}}..."
   },
   "tutorial": {
+    "skip": "跳过",
     "skipTutorial": "跳过教程",
     "finish": "完成",
     "stepAria": "教程步骤",

@@ -27,7 +27,8 @@
     "storage": "Depolama",
     "logs": "Günlükler",
     "updates": "Güncellemeler",
-    "contact": "İletişim"
+    "contact": "İletişim",
+    "tutorials": "Eğitimler ve Yardım"
   },
   "language": {
     "title": "Dil",
@@ -365,6 +366,40 @@
     "title": "İletişim ve Destek",
     "discordLabel": "Discord'umuza katılın",
     "emailLabel": "E-posta Desteği"
+  },
+  "tutorials": {
+    "title": "Eğitimler ve Yardım",
+    "description": "Adım adım kılavuzları tekrar oynatın veya klavye kısayollarını görüntüleyin.",
+    "resetAll": "Tümünü sıfırla",
+    "resetAllDone": "Tümü sıfırlandı",
+    "statusCompleted": "Tamamlandı",
+    "statusNotStarted": "Başlanmadı",
+    "start": "Başla",
+    "replay": "Tekrar oynat",
+    "comingSoon": "Yakında",
+    "shortcutsTitle": "Klavye kısayolları",
+    "flows": {
+      "firstListing": {
+        "title": "İlk ilanınızı oluşturun",
+        "description": "Pazaryerinde içerik satışa sunmayı öğrenin."
+      },
+      "firstBid": {
+        "title": "İlk teklifinizi verin",
+        "description": "Pazaryeri ilanına teklif vermeyi öğrenin."
+      },
+      "firstDecrypt": {
+        "title": "Bir satın almayı şifre çözün",
+        "description": "Satın aldığınız içeriğin şifresini çözmeyi ve erişmeyi öğrenin."
+      },
+      "firstBidAccepted": {
+        "title": "Teklifi kabul et (Satıcı)",
+        "description": "Bir teklifi kabul etmeyi ve SNARK kanıtıyla satışı tamamlamayı öğrenin."
+      },
+      "iagonPrimer": {
+        "title": "Iagon depolama kurulumu",
+        "description": "Dosya tabanlı ilanlar için Iagon merkezi olmayan depolamayı kurun."
+      }
+    }
   },
   "update": {
     "title": "Uygulama Güncellemeleri",
