@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Konfiguracja wezla",
+    "bootstrapping": "Pobieranie migawki",
+    "starting": "Uruchamianie wezla",
+    "syncing": "Synchronizacja lancucha",
+    "synced": "Wezel gotowy",
+    "error": "Blad wezla"
+  },
+  "network": {
+    "preprod": "Siec Preprod",
+    "mainnet": "Siec Mainnet"
+  },
+  "stages": {
+    "bootstrap": "Inicjalizacja",
+    "starting": "Uruchamianie",
+    "syncing": "Synchronizacja",
+    "ready": "Gotowy"
+  },
+  "progressLabel": "Postep synchronizacji",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "Odtwarzanie rejestru...",
+      "description": "Waliduje bloki z blockchaina Cardano i utrzymuje lokalna kopie rejestru."
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "Laczenie...",
+      "description": "Tlumacz danych wezla na protokol WebSocket do budowania i wysylania transakcji."
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "Uruchamianie...",
+      "description": "Indeksuje UTxO na adresach kontraktow i portfeli dla szybkich zapytan o salda i aukcje."
+    },
+    "states": {
+      "waiting": "Oczekiwanie...",
+      "starting": "Uruchamianie...",
+      "ready": "Gotowy",
+      "error": "Blad"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "Serwer backendu",
+    "syncing": "Synchronizacja {{percent}}%",
+    "indexing": "Indeksowanie {{percent}}%",
+    "disconnected": "Rozlaczony",
+    "stalled": "Zatrzymany",
+    "starting": "Uruchamianie...",
+    "waiting": "Oczekiwanie...",
+    "synced": "Zsynchronizowany"
+  },
+  "syncInfo": {
+    "block": "Blok {{height}} — {{percent}}%",
+    "epoch": "Epoka {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Nie znaleziono danych blockchaina. Pobierz migawke, aby rozpoczac.",
+    "stopped": "Infrastruktura wezla jest zatrzymana.",
+    "bootstrapDownloading": "Pobieranie migawki: {{current}} / {{total}} plikow",
+    "bootstrapLedgerState": "Pobieranie stanu rejestru: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Przygotowanie do pobrania migawki blockchaina...",
+    "bootstrapGeneric": "Pobieranie migawki...",
+    "startingNode": "Uruchamianie wezla Cardano...",
+    "waitingChainBridge": "Oczekiwanie na most lancucha...",
+    "connectingNetwork": "Laczenie z siecia...",
+    "fullySyncedStartingBackend": "W pelni zsynchronizowany, uruchamianie uslug backendu...",
+    "fullySynced": "W pelni zsynchronizowany z siecia {{network}}",
+    "nodeSyncedWaitingKupo": "Wezel zsynchronizowany, oczekiwanie na Kupo Indexer...",
+    "syncing": "Synchronizacja z siecia {{network}}...",
+    "syncedAtBlock": "W pelni zsynchronizowany z siecia {{network}} na bloku {{height}}",
+    "genericError": "Wystapil blad"
+  },
+  "stuckMessage": "Ostatnie bloki trwaja dluzej, poniewaz wezel waliduje najnowsze transakcje. To jest normalne. Ostatnie kilka procent moze zajac 5-15 minut, gdy wezel waliduje najnowsze bloki.",
+  "diskSpace": {
+    "low": "Malo miejsca na dysku: {{available}} GB dostepne, potrzeba ok. {{required}} GB dla {{network}}. Synchronizacja moze sie nie powiesc, jesli zabraknie miejsca na dysku.",
+    "unknown": "Nie mozna zweryfikowac miejsca na dysku. Upewnij sie, ze masz co najmniej 10 GB wolnego miejsca przed synchronizacja."
+  },
+  "actions": {
+    "starting": "Uruchamianie...",
+    "downloadSnapshot": "Pobierz migawke i uruchom",
+    "startNode": "Uruchom wezel",
+    "retry": "Ponow",
+    "continueDashboard": "Przejdz do pulpitu",
+    "continueBackground": "Kontynuuj w tle",
+    "stop": "Zatrzymaj"
+  },
+  "console": {
+    "show": "Pokaz dane konsoli ({{count}} linii)",
+    "hide": "Ukryj dane konsoli ({{count}} linii)",
+    "copyLogs": "Kopiuj logi",
+    "copyLogsAria": "Kopiuj logi do schowka",
+    "noLogsTitle": "Brak logow",
+    "noLogsBody": "Nie ma zadnych linii logow do skopiowania.",
+    "copiedTitle": "Logi skopiowane",
+    "copiedBody": "Dane konsoli skopiowane do schowka.",
+    "copyFailedTitle": "Kopiowanie nie powiodlo sie",
+    "copyFailedBody": "Nie udalo sie skopiowac logow do schowka."
+  },
+  "errorDetails": {
+    "summary": "Szczegoly",
+    "copyAria": "Kopiuj szczegoly bledu",
+    "errorFallback": "Blad"
+  },
+  "wasm": {
+    "checkingSetup": "Sprawdzanie plikow konfiguracyjnych SNARK...",
+    "checkingExist": "Sprawdzanie, czy pliki konfiguracyjne istnieja...",
+    "proverReady": "SNARK prover gotowy",
+    "setupFound": "Znaleziono pliki konfiguracyjne",
+    "decompressing": "Dekompresja plikow konfiguracyjnych SNARK...",
+    "decompressingDetail": "Dekompresja pk.bin i ccs.bin (~500MB)...",
+    "decompressed": "Pliki konfiguracyjne zdekompresowane"
+  },
+  "firstTimeSetup": {
+    "title": "Konfiguracja poczatkowa",
+    "description": "Migawka Mithril zostanie pobrana, aby zainicjalizowac wezel Cardano. Zajmie to okolo 10-20 minut w zaleznosci od predkosci polaczenia. Migawka jest kryptograficznie weryfikowana przed uzyciem."
+  }
+}

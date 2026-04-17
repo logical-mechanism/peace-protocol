@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Zaszyfrowany rynek danych na Cardano",
+    "chooseCreateTitle": "Utworz nowy portfel",
+    "chooseCreateSubtitle": "Wygeneruj nowa 24-wyrazowa fraze odzyskiwania",
+    "chooseImportTitle": "Importuj istniejacy portfel",
+    "chooseImportSubtitle": "Przywroc z 24-wyrazowej frazy odzyskiwania",
+    "back": "Wstecz",
+    "steps": {
+      "backup": "Kopia zapasowa",
+      "verify": "Weryfikacja",
+      "password": "Haslo",
+      "recoveryPhrase": "Fraza odzyskiwania"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Fraza odzyskiwania",
+      "verifyTitle": "Zweryfikuj fraze",
+      "passwordTitle": "Ustaw haslo",
+      "warning": "Zapisz te 24 slowa w odpowiedniej kolejnosci. To jedyny sposob na odzyskanie portfela. Nigdy nie udostepniaj ich nikomu.",
+      "copyToClipboard": "Kopiuj do schowka",
+      "copied": "Skopiowano!",
+      "wroteItDown": "Zapisalem je",
+      "verifyInstructions": "Zweryfikuj fraze odzyskiwania, wpisujac nastepujace slowa. Zacznij pisac i wybierz pasujace slowo.",
+      "continue": "Kontynuuj"
+    },
+    "import": {
+      "enterTitle": "Wprowadz fraze odzyskiwania",
+      "passwordTitle": "Ustaw haslo",
+      "instructions": "Wprowadz swoja 24-wyrazowa fraze odzyskiwania. Zacznij wpisywac kazde slowo i wybierz z podpowiedzi.",
+      "pasteAll": "Wklej wszystkie 24 slowa",
+      "wordCount": "{{count}} / 24 slow",
+      "continue": "Kontynuuj"
+    },
+    "password": {
+      "description": "Ustaw haslo portfela, aby zaszyfrowac fraze odzyskiwania. Bedziesz potrzebowac tego hasla za kazdym razem, gdy otworzysz aplikacje.",
+      "label": "Haslo",
+      "confirmLabel": "Potwierdz haslo",
+      "placeholder": "Wprowadz haslo",
+      "confirmPlaceholder": "Potwierdz haslo",
+      "show": "Pokaz",
+      "hide": "Ukryj",
+      "capsLockOn": "Caps Lock jest wlaczony",
+      "creating": "Tworzenie portfela...",
+      "submit": "Utworz portfel"
+    },
+    "errors": {
+      "allWordsRequired": "Wszystkie 24 slowa sa wymagane",
+      "passwordRequirements": "Haslo nie spelnia wszystkich wymagan",
+      "passwordMismatch": "Hasla nie sa zgodne",
+      "createFailed": "Nie udalo sie utworzyc portfela",
+      "copyFailedTitle": "Kopiowanie nie powiodlo sie",
+      "copyFailedBody": "Nie udalo sie skopiowac mnemonic do schowka.",
+      "clipboardUnavailableTitle": "Schowek niedostepny",
+      "clipboardUnavailableBody": "Nie udalo sie uzyskac dostepu do schowka. Sprobuj wkleic bezposrednio w pola slow za pomoca Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Haslo",
+    "togglePasswordVisibility": "Przelacz widocznosc hasla",
+    "capsLockOn": "Caps Lock jest wlaczony",
+    "unlock": "Odblokuj",
+    "unlocking": "Odblokowywanie...",
+    "forgotPassword": "Zapomniales hasla?",
+    "details": "Szczegoly",
+    "copyErrorTitle": "Kopiuj szczegoly bledu",
+    "delete": {
+      "title": "Usunac portfel?",
+      "description": "To usunie zaszyfrowany portfel z tego urzadzenia. Twoje srodki sa bezpieczne, jesli masz kopie zapasowa 24-wyrazowej frazy odzyskiwania. Mozesz go ponownie zaimportowac po usunieciu.",
+      "warning": "Bez frazy odzyskiwania Twoje srodki zostana trwale utracone.",
+      "acknowledge": "Mam kopie zapasowa mojej 24-wyrazowej frazy odzyskiwania",
+      "cancel": "Anuluj",
+      "confirm": "Usun portfel",
+      "deleting": "Usuwanie..."
+    }
+  }
+}
