@@ -374,7 +374,7 @@
     "futurePriceOptional": "(optionnel)",
     "futurePriceTooltip": "Le prix auquel vous comptez relister ces données après avoir remporté l'offre. Enregistré on-chain comme métadonnées pour les futurs acheteurs.",
     "futurePriceHelp": "Le prix suggéré pour la prochaine annonce après avoir gagné. Par défaut, le prix actuel.",
-    "infoNote": "Placer une offre générera une clé de chiffrement unique et verrouillera vos ADA dans le contrat. Vous pouvez annuler l'offre à tout moment avant que le vendeur ne l'accepte.",
+    "infoNote": "Placer une offre verrouille vos ADA dans le contrat. Vous pouvez annuler l'offre après l'expiration du délai de verrouillage si le vendeur n'a pas accepté.",
     "infoNoteLabel": "Note :",
     "submit": "Placer l'offre",
     "submitting": "Placement de l'offre...",
@@ -391,9 +391,9 @@
       "submitFailed": "Impossible de placer l'offre. Veuillez réessayer."
     },
     "hints": {
-      "bidAmount": "C'est le montant d'ADA que vous offrez. Il est verrouillé sur la chaîne jusqu'à ce que le vendeur accepte ou que vous annuliez.",
+      "bidAmount": "C'est le montant d'ADA que vous offrez. Il est verrouillé sur la chaîne jusqu'à ce que le vendeur accepte ou que le délai expire et que vous annuliez.",
       "futurePrice": "Si vous gagnez, vous pouvez remettre les données en vente. Cela définit le prix suggéré pour le prochain acheteur.",
-      "submit": "Soumettre crée un jeton d'offre sur la chaîne. Vos ADA sont verrouillés dans le contrat — vous pouvez annuler à tout moment avant l'acceptation."
+      "submit": "Soumettre crée un jeton d'offre sur la chaîne. Vos ADA sont verrouillés dans le contrat — vous pouvez annuler après l'expiration du délai de verrouillage."
     }
   }
 }

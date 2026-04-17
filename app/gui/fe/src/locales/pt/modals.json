@@ -374,7 +374,7 @@
     "futurePriceOptional": "(opcional)",
     "futurePriceTooltip": "O preço pelo qual você pretende relistar estes dados após vencer o lance. Registrado on-chain como metadados para futuros compradores.",
     "futurePriceHelp": "O preço sugerido para a próxima listagem após você vencer. Padrão é o preço atual.",
-    "infoNote": "Fazer um lance gerará uma chave de criptografia única e bloqueará seu ADA no contrato. Você pode cancelar o lance a qualquer momento antes do vendedor aceitar.",
+    "infoNote": "Fazer uma oferta bloqueia os seus ADA no contrato. Pode cancelar a oferta após o período de bloqueio expirar se o vendedor não tiver aceitado.",
     "infoNoteLabel": "Nota:",
     "submit": "Fazer Lance",
     "submitting": "Fazendo Lance...",
@@ -391,9 +391,9 @@
       "submitFailed": "Falha ao fazer lance. Por favor, tente novamente."
     },
     "hints": {
-      "bidAmount": "Este é o montante de ADA que está a oferecer. Fica bloqueado on-chain até o vendedor aceitar ou cancelar.",
+      "bidAmount": "Este é o montante de ADA que está a oferecer. Fica bloqueado on-chain até o vendedor aceitar ou o período de bloqueio expirar e cancelar.",
       "futurePrice": "Se ganhar, pode voltar a listar os dados. Isto define o preço sugerido para o próximo comprador.",
-      "submit": "Submeter cria um token de oferta on-chain. Os seus ADA ficam bloqueados no contrato — pode cancelar a qualquer momento antes da aceitação."
+      "submit": "Submeter cria um token de oferta on-chain. Os seus ADA ficam bloqueados no contrato — pode cancelar após o período de bloqueio expirar."
     }
   }
 }

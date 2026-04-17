@@ -374,7 +374,7 @@
     "futurePriceOptional": "(opcional)",
     "futurePriceTooltip": "El precio al que pretendes re-listar estos datos después de ganar la oferta. Se registra on-chain como metadatos para futuros compradores.",
     "futurePriceHelp": "El precio sugerido para el siguiente anuncio después de ganar. Por defecto es el precio actual.",
-    "infoNote": "Hacer una oferta generará una clave de cifrado única y bloqueará tus ADA en el contrato. Puedes cancelar la oferta en cualquier momento antes de que el vendedor la acepte.",
+    "infoNote": "Colocar una oferta bloquea tu ADA en el contrato. Puedes cancelar la oferta después de que expire el período de bloqueo si el vendedor no ha aceptado.",
     "infoNoteLabel": "Nota:",
     "submit": "Hacer oferta",
     "submitting": "Haciendo oferta...",
@@ -391,9 +391,9 @@
       "submitFailed": "Error al hacer oferta. Inténtalo de nuevo."
     },
     "hints": {
-      "bidAmount": "Esta es la cantidad de ADA que ofreces. Se bloquea en la cadena hasta que el vendedor acepte o canceles.",
+      "bidAmount": "Esta es la cantidad de ADA que ofreces. Se bloquea en la cadena hasta que el vendedor acepte o expire el período de bloqueo y canceles.",
       "futurePrice": "Si ganas, puedes volver a listar los datos. Esto establece el precio sugerido para el próximo comprador.",
-      "submit": "Enviar crea un token de oferta en la cadena. Tu ADA queda bloqueado en el contrato — puedes cancelar en cualquier momento antes de la aceptación."
+      "submit": "Enviar crea un token de oferta en la cadena. Tu ADA queda bloqueado en el contrato — puedes cancelar después de que expire el período de bloqueo."
     }
   }
 }

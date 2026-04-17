@@ -374,15 +374,15 @@
     "futurePriceOptional": "(optional)",
     "futurePriceTooltip": "The price you intend to re-list this data for after you win the bid. Recorded on-chain as metadata for future buyers.",
     "futurePriceHelp": "The suggested price for the next listing after you win. Defaults to the current price.",
-    "infoNote": "Placing a bid will generate a unique encryption key and lock your ADA in the contract. You can cancel the bid anytime before the seller accepts.",
+    "infoNote": "Placing a bid locks your ADA in the contract. You can cancel the bid after the timelock period expires if the seller has not accepted.",
     "infoNoteLabel": "Note:",
     "submit": "Place Bid",
     "submitting": "Placing Bid...",
     "copyErrorLabel": "Copy error to clipboard",
     "hints": {
-      "bidAmount": "This is how much ADA you're offering. It gets locked on-chain until the seller accepts or you cancel.",
+      "bidAmount": "This is how much ADA you're offering. It gets locked on-chain until the seller accepts or the timelock expires and you cancel.",
       "futurePrice": "If you win, you can re-list the data. This sets the suggested price for the next buyer.",
-      "submit": "Submitting creates a bid token on-chain. Your ADA is locked in the contract — you can cancel anytime before acceptance."
+      "submit": "Submitting creates a bid token on-chain. Your ADA is locked in the contract — you can cancel after the timelock period expires."
     },
     "errors": {
       "bidRequired": "Bid amount is required",

@@ -24,6 +24,7 @@ const TUTORIAL_FLOWS: TutorialFlow[] = [
     titleKey: 'tutorials.flows.firstBid.title',
     descriptionKey: 'tutorials.flows.firstBid.description',
     completedFlag: 'firstBidCompleted',
+    navigateTo: { path: '/dashboard', state: { tab: 'marketplace' } },
   },
   {
     id: 'first-decrypt',

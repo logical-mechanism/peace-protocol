@@ -374,7 +374,7 @@
     "futurePriceOptional": "(isteğe bağlı)",
     "futurePriceTooltip": "Teklifi kazandıktan sonra bu veriyi yeniden listelemek istediğiniz fiyat. Gelecekteki alıcılar için zincir üstünde meta veri olarak kaydedilir.",
     "futurePriceHelp": "Kazandıktan sonraki bir sonraki listeleme için önerilen fiyat. Varsayılan olarak mevcut fiyattır.",
-    "infoNote": "Teklif vermek benzersiz bir şifreleme anahtarı oluşturacak ve ADA'nızı sözleşmede kilitleyecektir. Satıcı kabul etmeden önce teklifi istediğiniz zaman iptal edebilirsiniz.",
+    "infoNote": "Teklif vermek ADA'nızı sözleşmede kilitler. Satıcı kabul etmediyse zaman kilidi süresi dolduktan sonra teklifi iptal edebilirsiniz.",
     "infoNoteLabel": "Not:",
     "submit": "Teklif Ver",
     "submitting": "Teklif Veriliyor...",
@@ -391,9 +391,9 @@
       "submitFailed": "Teklif verilemedi. Lütfen tekrar deneyin."
     },
     "hints": {
-      "bidAmount": "Bu, teklif ettiğiniz ADA miktarıdır. Satıcı kabul edene veya iptal edene kadar zincir üzerinde kilitlenir.",
+      "bidAmount": "Bu, teklif ettiğiniz ADA miktarıdır. Satıcı kabul edene veya zaman kilidi süresi dolana ve iptal edene kadar zincir üzerinde kilitlenir.",
       "futurePrice": "Kazanırsanız verileri yeniden listeleyebilirsiniz. Bu, bir sonraki alıcı için önerilen fiyatı belirler.",
-      "submit": "Göndermek zincir üzerinde bir teklif tokeni oluşturur. ADA'nız sözleşmede kilitlenir — kabul edilmeden önce istediğiniz zaman iptal edebilirsiniz."
+      "submit": "Göndermek zincir üzerinde bir teklif tokeni oluşturur. ADA'nız sözleşmede kilitlenir — zaman kilidi süresi dolduktan sonra iptal edebilirsiniz."
     }
   }
 }

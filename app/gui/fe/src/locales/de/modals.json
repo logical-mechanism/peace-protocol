@@ -374,7 +374,7 @@
     "futurePriceOptional": "(optional)",
     "futurePriceTooltip": "Der Preis, zu dem du diese Daten nach dem Gewinn des Gebots erneut listen möchtest. Wird on-chain als Metadaten für zukünftige Käufer gespeichert.",
     "futurePriceHelp": "Der empfohlene Preis für das nächste Angebot nach deinem Gewinn. Standardmäßig der aktuelle Preis.",
-    "infoNote": "Beim Abgeben eines Gebots wird ein einzigartiger Verschlüsselungsschlüssel generiert und deine ADA im Vertrag gesperrt. Du kannst das Gebot jederzeit vor der Annahme durch den Verkäufer abbrechen.",
+    "infoNote": "Das Platzieren eines Gebots sperrt Ihre ADA im Vertrag. Sie können das Gebot stornieren, nachdem die Sperrfrist abgelaufen ist, sofern der Verkäufer nicht akzeptiert hat.",
     "infoNoteLabel": "Hinweis:",
     "submit": "Gebot abgeben",
     "submitting": "Gebot wird abgegeben...",
@@ -391,9 +391,9 @@
       "submitFailed": "Gebot konnte nicht abgegeben werden. Bitte erneut versuchen."
     },
     "hints": {
-      "bidAmount": "Dies ist der ADA-Betrag, den Sie anbieten. Er wird on-chain gesperrt, bis der Verkäufer akzeptiert oder Sie stornieren.",
+      "bidAmount": "Dies ist der ADA-Betrag, den Sie anbieten. Er wird on-chain gesperrt, bis der Verkäufer akzeptiert oder die Sperrfrist abläuft und Sie stornieren.",
       "futurePrice": "Wenn Sie gewinnen, können Sie die Daten erneut listen. Dies legt den vorgeschlagenen Preis für den nächsten Käufer fest.",
-      "submit": "Das Absenden erstellt ein Gebot-Token on-chain. Ihre ADA werden im Vertrag gesperrt — Sie können jederzeit vor der Annahme stornieren."
+      "submit": "Das Absenden erstellt ein Gebot-Token on-chain. Ihre ADA werden im Vertrag gesperrt — Sie können nach Ablauf der Sperrfrist stornieren."
     }
   }
 }

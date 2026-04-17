@@ -374,7 +374,7 @@
     "futurePriceOptional": "(opcjonalnie)",
     "futurePriceTooltip": "Cena, po jakiej zamierzasz ponownie wystawic te dane po wygraniu oferty. Zapisywana on-chain jako metadane dla przyszlych kupujacych.",
     "futurePriceHelp": "Sugerowana cena nastepnej aukcji po wygranej. Domyslnie aktualna cena.",
-    "infoNote": "Zlozenie oferty wygeneruje unikalny klucz szyfrowania i zablokuje Twoje ADA w kontrakcie. Mozesz anulowac oferte w kazdej chwili przed akceptacja przez sprzedawce.",
+    "infoNote": "Złożenie oferty blokuje Twoje ADA w kontrakcie. Możesz anulować ofertę po wygaśnięciu okresu blokady, jeśli sprzedawca nie zaakceptował.",
     "infoNoteLabel": "Uwaga:",
     "submit": "Zloz oferte",
     "submitting": "Skladanie oferty...",
@@ -391,9 +391,9 @@
       "submitFailed": "Nie udalo sie zlozyc oferty. Sprobuj ponownie."
     },
     "hints": {
-      "bidAmount": "To jest kwota ADA, którą oferujesz. Jest blokowana on-chain, dopóki sprzedawca nie zaakceptuje lub nie anulujesz.",
+      "bidAmount": "To jest kwota ADA, którą oferujesz. Jest blokowana on-chain, dopóki sprzedawca nie zaakceptuje lub blokada czasowa nie wygaśnie i anulujesz.",
       "futurePrice": "Jeśli wygrasz, możesz ponownie wystawić dane. To ustala sugerowaną cenę dla następnego kupującego.",
-      "submit": "Wysłanie tworzy token oferty on-chain. Twoje ADA są zablokowane w kontrakcie — możesz anulować w dowolnym momencie przed akceptacją."
+      "submit": "Wysłanie tworzy token oferty on-chain. Twoje ADA są zablokowane w kontrakcie — możesz anulować po wygaśnięciu okresu blokady."
     }
   }
 }

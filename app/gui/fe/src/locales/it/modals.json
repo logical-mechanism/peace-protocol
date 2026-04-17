@@ -374,7 +374,7 @@
     "futurePriceOptional": "(opzionale)",
     "futurePriceTooltip": "Il prezzo al quale intendi ripubblicare questi dati dopo aver vinto l'offerta. Registrato on-chain come metadato per i futuri acquirenti.",
     "futurePriceHelp": "Il prezzo suggerito per il prossimo annuncio dopo la vittoria. Predefinito al prezzo attuale.",
-    "infoNote": "Effettuare un'offerta generera una chiave di crittografia unica e blocchera i tuoi ADA nel contratto. Puoi annullare l'offerta in qualsiasi momento prima che il venditore accetti.",
+    "infoNote": "Piazzare un'offerta blocca i tuoi ADA nel contratto. Puoi annullare l'offerta dopo la scadenza del periodo di blocco se il venditore non ha accettato.",
     "infoNoteLabel": "Nota:",
     "submit": "Fai un'offerta",
     "submitting": "Invio offerta...",
@@ -391,9 +391,9 @@
       "submitFailed": "Impossibile effettuare l'offerta. Riprova."
     },
     "hints": {
-      "bidAmount": "Questo è l'importo di ADA che offri. Viene bloccato on-chain finché il venditore non accetta o non annulli.",
+      "bidAmount": "Questo è l'importo di ADA che offri. Viene bloccato on-chain finché il venditore non accetta o il periodo di blocco scade e annulli.",
       "futurePrice": "Se vinci, puoi rimettere in vendita i dati. Questo imposta il prezzo suggerito per il prossimo acquirente.",
-      "submit": "L'invio crea un token di offerta on-chain. I tuoi ADA sono bloccati nel contratto — puoi annullare in qualsiasi momento prima dell'accettazione."
+      "submit": "L'invio crea un token di offerta on-chain. I tuoi ADA sono bloccati nel contratto — puoi annullare dopo la scadenza del periodo di blocco."
     }
   }
 }

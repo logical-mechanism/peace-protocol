@@ -54,9 +54,10 @@ describe('TutorialsSection', () => {
     expect(badges.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows Start button for incomplete flow with navigation', () => {
+  it('shows Start buttons for incomplete flows with navigation', () => {
     render(<TutorialsSection />)
-    expect(screen.getByText('Start')).toBeInTheDocument()
+    const starts = screen.getAllByText('Start')
+    expect(starts.length).toBe(2) // first-listing + first-bid
   })
 
   it('shows Replay button for completed flow with navigation', () => {
@@ -76,12 +77,23 @@ describe('TutorialsSection', () => {
     expect(comingSoon.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('calls resetTutorials and navigates on Start click', () => {
+  it('calls resetTutorials and navigates on first-listing Start click', () => {
     render(<TutorialsSection />)
-    fireEvent.click(screen.getByText('Start'))
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[0]) // first-listing Start button
     expect(mockResetTutorials).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
       state: { tab: 'marketplace', startTutorial: 'first-listing' },
+    })
+  })
+
+  it('calls resetTutorials and navigates on first-bid Start click', () => {
+    render(<TutorialsSection />)
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[1]) // first-bid Start button
+    expect(mockResetTutorials).toHaveBeenCalled()
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
+      state: { tab: 'marketplace' },
     })
   })
 

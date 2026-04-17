@@ -374,7 +374,7 @@
     "futurePriceOptional": "(opsional)",
     "futurePriceTooltip": "Harga yang Anda rencanakan untuk mendaftarkan ulang data ini setelah Anda memenangkan tawaran. Dicatat di rantai sebagai metadata untuk pembeli masa depan.",
     "futurePriceHelp": "Harga yang disarankan untuk daftar berikutnya setelah Anda menang. Secara bawaan menggunakan harga saat ini.",
-    "infoNote": "Mengajukan tawaran akan menghasilkan kunci enkripsi unik dan mengunci ADA Anda dalam kontrak. Anda dapat membatalkan tawaran kapan saja sebelum penjual menerima.",
+    "infoNote": "Menempatkan tawaran mengunci ADA Anda dalam kontrak. Anda dapat membatalkan tawaran setelah periode kunci waktu berakhir jika penjual belum menerima.",
     "infoNoteLabel": "Catatan:",
     "submit": "Ajukan Tawaran",
     "submitting": "Mengajukan Tawaran...",
@@ -391,9 +391,9 @@
       "submitFailed": "Gagal mengajukan tawaran. Silakan coba lagi."
     },
     "hints": {
-      "bidAmount": "Ini adalah jumlah ADA yang Anda tawarkan. Ini dikunci di on-chain sampai penjual menerima atau Anda membatalkan.",
+      "bidAmount": "Ini adalah jumlah ADA yang Anda tawarkan. Ini dikunci di on-chain sampai penjual menerima atau periode kunci waktu berakhir dan Anda membatalkan.",
       "futurePrice": "Jika Anda menang, Anda dapat mendaftarkan ulang data. Ini menetapkan harga yang disarankan untuk pembeli berikutnya.",
-      "submit": "Mengirim membuat token tawaran on-chain. ADA Anda dikunci dalam kontrak — Anda dapat membatalkan kapan saja sebelum diterima."
+      "submit": "Mengirim membuat token tawaran on-chain. ADA Anda dikunci dalam kontrak — Anda dapat membatalkan setelah periode kunci waktu berakhir."
     }
   }
 }
