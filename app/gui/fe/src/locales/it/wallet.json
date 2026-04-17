@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Marketplace di dati crittografati su Cardano",
+    "chooseCreateTitle": "Crea nuovo portafoglio",
+    "chooseCreateSubtitle": "Genera una nuova frase di recupero di 24 parole",
+    "chooseImportTitle": "Importa portafoglio esistente",
+    "chooseImportSubtitle": "Ripristina da una frase di recupero di 24 parole",
+    "back": "Indietro",
+    "steps": {
+      "backup": "Backup",
+      "verify": "Verifica",
+      "password": "Password",
+      "recoveryPhrase": "Frase di recupero"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Frase di recupero",
+      "verifyTitle": "Verifica frase",
+      "passwordTitle": "Imposta password",
+      "warning": "Scrivi queste 24 parole in ordine. Questo e l'unico modo per recuperare il tuo portafoglio. Non condividerle mai con nessuno.",
+      "copyToClipboard": "Copia negli appunti",
+      "copied": "Copiato!",
+      "wroteItDown": "L'ho scritto",
+      "verifyInstructions": "Verifica la tua frase di recupero inserendo le seguenti parole. Inizia a digitare e seleziona la parola corrispondente.",
+      "continue": "Continua"
+    },
+    "import": {
+      "enterTitle": "Inserisci frase di recupero",
+      "passwordTitle": "Imposta password",
+      "instructions": "Inserisci la tua frase di recupero di 24 parole. Inizia a digitare ogni parola e seleziona dai suggerimenti.",
+      "pasteAll": "Incolla tutte le 24 parole",
+      "wordCount": "{{count}} / 24 parole",
+      "continue": "Continua"
+    },
+    "password": {
+      "description": "Imposta una password per il portafoglio per crittografare la frase di recupero. Questa password sara necessaria ogni volta che apri l'app.",
+      "label": "Password",
+      "confirmLabel": "Conferma password",
+      "placeholder": "Inserisci password",
+      "confirmPlaceholder": "Conferma password",
+      "show": "Mostra",
+      "hide": "Nascondi",
+      "capsLockOn": "Blocco maiuscole attivo",
+      "creating": "Creazione portafoglio...",
+      "submit": "Crea portafoglio"
+    },
+    "errors": {
+      "allWordsRequired": "Tutte le 24 parole sono obbligatorie",
+      "passwordRequirements": "La password non soddisfa tutti i requisiti",
+      "passwordMismatch": "Le password non corrispondono",
+      "createFailed": "Impossibile creare il portafoglio",
+      "copyFailedTitle": "Copia non riuscita",
+      "copyFailedBody": "Impossibile copiare il mnemonic negli appunti.",
+      "clipboardUnavailableTitle": "Appunti non disponibili",
+      "clipboardUnavailableBody": "Impossibile accedere agli appunti. Prova a incollare direttamente nei campi parola con Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Password",
+    "togglePasswordVisibility": "Mostra/nascondi password",
+    "capsLockOn": "Blocco maiuscole attivo",
+    "unlock": "Sblocca",
+    "unlocking": "Sblocco in corso...",
+    "forgotPassword": "Password dimenticata?",
+    "details": "Dettagli",
+    "copyErrorTitle": "Copia dettagli errore",
+    "delete": {
+      "title": "Eliminare il portafoglio?",
+      "description": "Questo rimuovera il portafoglio crittografato da questo dispositivo. I tuoi fondi sono al sicuro se hai un backup della frase di recupero di 24 parole. Puoi reimportarlo dopo l'eliminazione.",
+      "warning": "Senza la frase di recupero, i tuoi fondi andranno persi in modo permanente.",
+      "acknowledge": "Ho eseguito il backup della mia frase di recupero di 24 parole",
+      "cancel": "Annulla",
+      "confirm": "Elimina portafoglio",
+      "deleting": "Eliminazione..."
+    }
+  }
+}
