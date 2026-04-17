@@ -335,16 +335,16 @@
     "finish": "Selesai",
     "stepAria": "Langkah tutorial",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "Buat Daftar",
+      "step1Desc": "Klik tombol ini untuk membuka formulir daftar. Anda dapat mendaftarkan konten teks on-chain atau mengunggah berkas terenkripsi melalui Iagon.",
+      "step2Title": "Pilih Tipe Data",
+      "step2Desc": "Pilih apakah daftar Anda berisi teks (disimpan on-chain) atau berkas (dienkripsi dan diunggah ke Iagon).",
+      "step3Title": "Tambahkan Deskripsi",
+      "step3Desc": "Tulis deskripsi yang jelas agar pembeli tahu apa yang mereka beli. Ini terlihat oleh semua orang di pasar.",
+      "step4Title": "Tetapkan Harga Anda",
+      "step4Desc": "Masukkan harga yang disarankan dalam ADA. Pembeli dapat menawar berapa pun, tetapi ini membantu menetapkan ekspektasi.",
+      "step5Title": "Kirim & Tanda Tangani",
+      "step5Desc": "Tinjau daftar Anda dan klik kirim. Dompet Anda akan meminta Anda untuk menandatangani transaksi."
     }
   },
   "mnemonic": {

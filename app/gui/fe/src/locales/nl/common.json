@@ -335,16 +335,16 @@
     "finish": "Voltooien",
     "stepAria": "Tutorialstap",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "Vermelding aanmaken",
+      "step1Desc": "Klik op deze knop om het vermeldingsformulier te openen. Je kunt tekstinhoud on-chain plaatsen of versleutelde bestanden uploaden via Iagon.",
+      "step2Title": "Datatype kiezen",
+      "step2Desc": "Selecteer of je vermelding tekst (on-chain opgeslagen) of een bestand (versleuteld en geüpload naar Iagon) bevat.",
+      "step3Title": "Beschrijving toevoegen",
+      "step3Desc": "Schrijf een duidelijke beschrijving zodat kopers weten wat ze kopen. Dit is zichtbaar voor iedereen op de marktplaats.",
+      "step4Title": "Stel je prijs in",
+      "step4Desc": "Voer een adviesprijs in ADA in. Kopers kunnen elk bedrag bieden, maar dit helpt verwachtingen te scheppen.",
+      "step5Title": "Versturen en ondertekenen",
+      "step5Desc": "Controleer je vermelding en klik op versturen. Je wallet vraagt je om de transactie te ondertekenen."
     }
   },
   "mnemonic": {

@@ -335,16 +335,16 @@
     "finish": "完了",
     "stepAria": "チュートリアルステップ",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "リスティングを作成",
+      "step1Desc": "このボタンをクリックしてリスティングフォームを開きます。テキストコンテンツをオンチェーンに掲載するか、暗号化ファイルをIagon経由でアップロードできます。",
+      "step2Title": "データタイプを選択",
+      "step2Desc": "リスティングにテキスト（オンチェーンに保存）またはファイル（暗号化してIagonにアップロード）のどちらを含めるかを選択してください。",
+      "step3Title": "説明を追加",
+      "step3Desc": "購入者が何を購入するかわかるように、明確な説明を記入してください。マーケットプレイスで誰でも閲覧できます。",
+      "step4Title": "価格を設定",
+      "step4Desc": "ADAで希望価格を入力してください。購入者は任意の金額で入札できますが、価格の目安になります。",
+      "step5Title": "送信して署名",
+      "step5Desc": "リスティングを確認して送信をクリックしてください。ウォレットがトランザクションへの署名を求めます。"
     }
   },
   "mnemonic": {

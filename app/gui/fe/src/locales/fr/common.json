@@ -335,16 +335,16 @@
     "finish": "Terminer",
     "stepAria": "Étape du tutoriel",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "Créer une annonce",
+      "step1Desc": "Cliquez sur ce bouton pour ouvrir le formulaire d'annonce. Vous pouvez publier du contenu texte on-chain ou téléverser des fichiers chiffrés via Iagon.",
+      "step2Title": "Choisir le type de données",
+      "step2Desc": "Sélectionnez si votre annonce contient du texte (stocké on-chain) ou un fichier (chiffré et téléversé sur Iagon).",
+      "step3Title": "Ajouter une description",
+      "step3Desc": "Rédigez une description claire pour que les acheteurs sachent ce qu'ils achètent. Elle est visible par tous sur le marché.",
+      "step4Title": "Définir votre prix",
+      "step4Desc": "Entrez un prix suggéré en ADA. Les acheteurs peuvent offrir n'importe quel montant, mais cela aide à fixer les attentes.",
+      "step5Title": "Soumettre et signer",
+      "step5Desc": "Vérifiez votre annonce et cliquez sur soumettre. Votre portefeuille vous demandera de signer la transaction."
     }
   },
   "mnemonic": {

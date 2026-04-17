@@ -335,16 +335,16 @@
     "finish": "Finalizar",
     "stepAria": "Paso del tutorial",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "Crear un anuncio",
+      "step1Desc": "Haz clic en este botón para abrir el formulario de anuncio. Puedes publicar contenido de texto on-chain o subir archivos cifrados a través de Iagon.",
+      "step2Title": "Elegir tipo de datos",
+      "step2Desc": "Selecciona si tu anuncio contiene texto (almacenado on-chain) o un archivo (cifrado y subido a Iagon).",
+      "step3Title": "Añadir una descripción",
+      "step3Desc": "Escribe una descripción clara para que los compradores sepan qué están adquiriendo. Es visible para todos en el mercado.",
+      "step4Title": "Establecer tu precio",
+      "step4Desc": "Introduce un precio sugerido en ADA. Los compradores pueden ofertar cualquier cantidad, pero esto ayuda a establecer expectativas.",
+      "step5Title": "Enviar y firmar",
+      "step5Desc": "Revisa tu anuncio y haz clic en enviar. Tu billetera te pedirá firmar la transacción."
     }
   },
   "mnemonic": {

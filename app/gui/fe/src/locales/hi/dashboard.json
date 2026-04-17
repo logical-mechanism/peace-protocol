@@ -155,10 +155,10 @@
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW छिपी",
     "nsfwHide": "NSFW लिस्टिंग छिपाएँ",
-    "tutorialBannerTitle": "New to Veiled?",
-    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
-    "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerTitle": "Veiled पर नए हैं?",
+    "tutorialBannerDesc": "अपनी पहली लिस्टिंग बनाना सीखने के लिए एक गाइडेड टूर लें।",
+    "tutorialBannerStart": "टूर शुरू करें",
+    "tutorialBannerDismiss": "बंद करें"
   },
   "mySales": {
     "loading": "आपकी लिस्टिंग लोड हो रही हैं…",

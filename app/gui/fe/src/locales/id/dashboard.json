@@ -155,10 +155,10 @@
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW disembunyikan",
     "nsfwHide": "Sembunyikan daftar NSFW",
-    "tutorialBannerTitle": "New to Veiled?",
-    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
-    "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerTitle": "Baru di Veiled?",
+    "tutorialBannerDesc": "Ikuti tur panduan untuk mempelajari cara membuat daftar pertama Anda.",
+    "tutorialBannerStart": "Mulai Tur",
+    "tutorialBannerDismiss": "Tutup"
   },
   "mySales": {
     "loading": "Memuat daftar Anda…",

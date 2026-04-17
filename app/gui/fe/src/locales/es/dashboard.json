@@ -155,10 +155,10 @@
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW oculto",
     "nsfwHide": "Ocultar anuncios NSFW",
-    "tutorialBannerTitle": "New to Veiled?",
-    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
-    "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerTitle": "¿Nuevo en Veiled?",
+    "tutorialBannerDesc": "Haz un recorrido guiado para aprender a crear tu primer anuncio.",
+    "tutorialBannerStart": "Iniciar recorrido",
+    "tutorialBannerDismiss": "Descartar"
   },
   "mySales": {
     "loading": "Cargando tus anuncios…",

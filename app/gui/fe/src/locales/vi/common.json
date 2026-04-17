@@ -335,16 +335,16 @@
     "finish": "Hoàn thành",
     "stepAria": "Bước hướng dẫn",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "Tạo danh mục",
+      "step1Desc": "Nhấp vào nút này để mở biểu mẫu tạo danh mục. Bạn có thể đăng nội dung văn bản trên chuỗi hoặc tải lên tệp được mã hóa qua Iagon.",
+      "step2Title": "Chọn loại dữ liệu",
+      "step2Desc": "Chọn danh mục của bạn chứa văn bản (lưu trên chuỗi) hay tệp (được mã hóa và tải lên Iagon).",
+      "step3Title": "Thêm mô tả",
+      "step3Desc": "Viết mô tả rõ ràng để người mua biết họ đang mua gì. Mô tả này hiển thị với tất cả mọi người trên sàn giao dịch.",
+      "step4Title": "Đặt giá của bạn",
+      "step4Desc": "Nhập giá đề xuất bằng ADA. Người mua có thể đặt giá bất kỳ số tiền nào, nhưng điều này giúp thiết lập kỳ vọng.",
+      "step5Title": "Gửi và ký",
+      "step5Desc": "Xem lại danh mục của bạn và nhấp gửi. Ví của bạn sẽ yêu cầu bạn ký giao dịch."
     }
   },
   "mnemonic": {

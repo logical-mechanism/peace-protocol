@@ -155,10 +155,10 @@
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW скрыто",
     "nsfwHide": "Скрыть NSFW объявления",
-    "tutorialBannerTitle": "New to Veiled?",
-    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
-    "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerTitle": "Впервые в Veiled?",
+    "tutorialBannerDesc": "Пройдите обзорную экскурсию, чтобы узнать, как создать своё первое объявление.",
+    "tutorialBannerStart": "Начать экскурсию",
+    "tutorialBannerDismiss": "Закрыть"
   },
   "mySales": {
     "loading": "Загрузка ваших объявлений…",

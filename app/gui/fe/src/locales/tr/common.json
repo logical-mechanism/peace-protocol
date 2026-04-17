@@ -335,16 +335,16 @@
     "finish": "Bitir",
     "stepAria": "Öğretici adımı",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "İlan Oluştur",
+      "step1Desc": "İlan formunu açmak için bu düğmeye tıklayın. Metin içeriğini zincir üstünde listeleyebilir veya şifrelenmiş dosyaları Iagon aracılığıyla yükleyebilirsiniz.",
+      "step2Title": "Veri Türünü Seçin",
+      "step2Desc": "İlanınızın metin (zincir üstünde depolanır) mi yoksa dosya (şifrelenerek Iagon'a yüklenir) mı içerdiğini seçin.",
+      "step3Title": "Açıklama Ekleyin",
+      "step3Desc": "Alıcıların ne satın aldıklarını bilmeleri için net bir açıklama yazın. Bu, pazar yerindeki herkes tarafından görülebilir.",
+      "step4Title": "Fiyatınızı Belirleyin",
+      "step4Desc": "ADA cinsinden önerilen bir fiyat girin. Alıcılar herhangi bir tutar teklif edebilir, ancak bu beklentileri belirlemeye yardımcı olur.",
+      "step5Title": "Gönder ve İmzala",
+      "step5Desc": "İlanınızı gözden geçirin ve gönder'e tıklayın. Cüzdanınız işlemi imzalamanızı isteyecektir."
     }
   },
   "mnemonic": {

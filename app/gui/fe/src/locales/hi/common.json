@@ -335,16 +335,16 @@
     "finish": "समाप्त",
     "stepAria": "ट्यूटोरियल चरण",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "लिस्टिंग बनाएँ",
+      "step1Desc": "लिस्टिंग फॉर्म खोलने के लिए इस बटन पर क्लिक करें। आप टेक्स्ट सामग्री on-chain लिस्ट कर सकते हैं या Iagon के माध्यम से एन्क्रिप्टेड फ़ाइलें अपलोड कर सकते हैं।",
+      "step2Title": "डेटा प्रकार चुनें",
+      "step2Desc": "चुनें कि आपकी लिस्टिंग में टेक्स्ट (on-chain संग्रहीत) है या फ़ाइल (एन्क्रिप्टेड और Iagon पर अपलोड की गई)।",
+      "step3Title": "विवरण जोड़ें",
+      "step3Desc": "एक स्पष्ट विवरण लिखें ताकि खरीदारों को पता चले कि वे क्या खरीद रहे हैं। यह मार्केटप्लेस पर सभी को दिखाई देता है।",
+      "step4Title": "अपनी कीमत निर्धारित करें",
+      "step4Desc": "ADA में एक सुझाई गई कीमत दर्ज करें। खरीदार कोई भी राशि बोली लगा सकते हैं, लेकिन यह अपेक्षाएँ निर्धारित करने में मदद करता है।",
+      "step5Title": "सबमिट करें और साइन करें",
+      "step5Desc": "अपनी लिस्टिंग की समीक्षा करें और सबमिट पर क्लिक करें। आपका वॉलेट आपको लेनदेन पर हस्ताक्षर करने के लिए कहेगा।"
     }
   },
   "mnemonic": {

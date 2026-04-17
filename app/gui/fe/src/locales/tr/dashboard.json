@@ -155,10 +155,10 @@
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW gizlendi",
     "nsfwHide": "NSFW ilanları gizle",
-    "tutorialBannerTitle": "New to Veiled?",
-    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
-    "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerTitle": "Veiled'da yeni misiniz?",
+    "tutorialBannerDesc": "İlk ilanınızı nasıl oluşturacağınızı öğrenmek için rehberli bir tur yapın.",
+    "tutorialBannerStart": "Turu Başlat",
+    "tutorialBannerDismiss": "Kapat"
   },
   "mySales": {
     "loading": "İlanlarınız yükleniyor…",

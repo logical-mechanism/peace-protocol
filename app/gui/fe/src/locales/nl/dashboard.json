@@ -155,10 +155,10 @@
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW verborgen",
     "nsfwHide": "NSFW-vermeldingen verbergen",
-    "tutorialBannerTitle": "New to Veiled?",
-    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
-    "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerTitle": "Nieuw bij Veiled?",
+    "tutorialBannerDesc": "Volg een rondleiding om te leren hoe je je eerste vermelding aanmaakt.",
+    "tutorialBannerStart": "Rondleiding starten",
+    "tutorialBannerDismiss": "Sluiten"
   },
   "mySales": {
     "loading": "Je vermeldingen laden…",

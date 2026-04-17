@@ -335,16 +335,16 @@
     "finish": "เสร็จสิ้น",
     "stepAria": "ขั้นตอนบทช่วยสอน",
     "listing": {
-      "step1Title": "Create a Listing",
-      "step1Desc": "Click this button to open the listing form. You can list text content on-chain or upload encrypted files via Iagon.",
-      "step2Title": "Choose Data Type",
-      "step2Desc": "Select whether your listing contains text (stored on-chain) or a file (encrypted and uploaded to Iagon).",
-      "step3Title": "Add a Description",
-      "step3Desc": "Write a clear description so buyers know what they're purchasing. This is visible to everyone on the marketplace.",
-      "step4Title": "Set Your Price",
-      "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
-      "step5Title": "Submit & Sign",
-      "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+      "step1Title": "สร้างรายการ",
+      "step1Desc": "คลิกปุ่มนี้เพื่อเปิดแบบฟอร์มสร้างรายการ คุณสามารถลงรายการเนื้อหาข้อความบนเชนหรืออัปโหลดไฟล์ที่เข้ารหัสผ่าน Iagon",
+      "step2Title": "เลือกประเภทข้อมูล",
+      "step2Desc": "เลือกว่ารายการของคุณมีข้อความ (เก็บบนเชน) หรือไฟล์ (เข้ารหัสและอัปโหลดไปยัง Iagon)",
+      "step3Title": "เพิ่มคำอธิบาย",
+      "step3Desc": "เขียนคำอธิบายที่ชัดเจนเพื่อให้ผู้ซื้อทราบว่ากำลังซื้ออะไร ข้อมูลนี้จะแสดงให้ทุกคนเห็นบนตลาด",
+      "step4Title": "กำหนดราคา",
+      "step4Desc": "ใส่ราคาแนะนำเป็น ADA ผู้ซื้อสามารถเสนอราคาเท่าใดก็ได้ แต่สิ่งนี้ช่วยกำหนดความคาดหวัง",
+      "step5Title": "ส่งและลงนาม",
+      "step5Desc": "ตรวจสอบรายการของคุณแล้วคลิกส่ง กระเป๋าเงินจะขอให้คุณลงนามธุรกรรม"
     }
   },
   "mnemonic": {

@@ -155,10 +155,10 @@
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW 已隐藏",
     "nsfwHide": "隐藏 NSFW 商品",
-    "tutorialBannerTitle": "New to Veiled?",
-    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
-    "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerTitle": "初次使用 Veiled？",
+    "tutorialBannerDesc": "参加引导之旅，了解如何创建您的第一个商品。",
+    "tutorialBannerStart": "开始引导",
+    "tutorialBannerDismiss": "关闭"
   },
   "mySales": {
     "loading": "加载您的商品中…",
