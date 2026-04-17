@@ -6,11 +6,13 @@
  * failed items with retry actions, and recent completions.
  */
 import { useState, useEffect, memo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
 import type { QueueItem } from '../services/acceptBidQueueService'
 import { formatAda } from '../utils/formatAda'
 
 function AcceptBidQueuePanel() {
+  const { t } = useTranslation('notifications')
   const {
     queue, currentItem, isProcessing, autoAcceptEnabled,
     queuedCount, completedCount, failedCount,
@@ -32,12 +34,12 @@ function AcceptBidQueuePanel() {
   const completedItems = queue.filter(i => i.status === 'complete').slice(0, 5)
 
   const statusText = isProcessing
-    ? `Processing ${currentItem ? '1' : '0'} of ${queuedCount + 1}`
+    ? t('toast.acceptBidQueue.processing', { current: currentItem ? 1 : 0, total: queuedCount + 1 })
     : failedCount > 0
-      ? `${failedCount} failed`
+      ? t('toast.acceptBidQueue.failedCount', { count: failedCount })
       : queuedCount > 0
-        ? `${queuedCount} queued`
-        : 'Idle'
+        ? t('toast.acceptBidQueue.queuedCount', { count: queuedCount })
+        : t('toast.acceptBidQueue.idle')
 
   return (
     <div className="mb-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden">
@@ -61,7 +63,7 @@ function AcceptBidQueuePanel() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
             </svg>
           </div>
-          <span className="text-sm font-medium text-[var(--text-primary)]">Auto-Accept Queue</span>
+          <span className="text-sm font-medium text-[var(--text-primary)]">{t('toast.acceptBidQueue.heading')}</span>
           <span className="text-xs text-[var(--text-muted)]">{statusText}</span>
         </div>
 
@@ -71,14 +73,14 @@ function AcceptBidQueuePanel() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={e => e.stopPropagation()}
           >
-            <span className="text-xs text-[var(--text-muted)]">Auto</span>
+            <span className="text-xs text-[var(--text-muted)]">{t('toast.acceptBidQueue.autoLabel')}</span>
             <div className="relative">
               <input
                 type="checkbox"
                 checked={autoAcceptEnabled}
                 onChange={e => setAutoAccept(e.target.checked)}
                 className="sr-only"
-                aria-label="Toggle auto-accept"
+                aria-label={t('toast.acceptBidQueue.toggleAutoAccept')}
               />
               <div className={`w-9 h-5 rounded-full transition-colors duration-200 ${autoAcceptEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-tertiary)]'}`}>
                 <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${autoAcceptEnabled ? 'translate-x-4' : ''}`} />
@@ -101,14 +103,14 @@ function AcceptBidQueuePanel() {
         <div id="queue-panel-content" className="border-t border-[var(--border-subtle)] px-4 py-3 space-y-4">
           {/* Currently processing */}
           {currentItem && (
-            <QueueSection title="Currently Processing">
+            <QueueSection title={t('toast.acceptBidQueue.currentlyProcessing')}>
               <QueueItemCard item={currentItem} showElapsed />
             </QueueSection>
           )}
 
           {/* Queued items */}
           {queuedItems.length > 0 && (
-            <QueueSection title={`Queued (${queuedItems.length})`}>
+            <QueueSection title={t('toast.acceptBidQueue.queued', { count: queuedItems.length })}>
               <div className="space-y-2">
                 {queuedItems.map(item => (
                   <QueueItemCard
@@ -119,7 +121,7 @@ function AcceptBidQueuePanel() {
                         onClick={() => remove(item.id)}
                         className="text-xs text-[var(--error)] hover:underline"
                       >
-                        Remove
+                        {t('toast.acceptBidQueue.remove')}
                       </button>
                     }
                   />
@@ -130,7 +132,7 @@ function AcceptBidQueuePanel() {
 
           {/* Failed items */}
           {failedItems.length > 0 && (
-            <QueueSection title={`Failed (${failedItems.length})`}>
+            <QueueSection title={t('toast.acceptBidQueue.failed', { count: failedItems.length })}>
               <div className="space-y-2">
                 {failedItems.map(item => (
                   <QueueItemCard
@@ -142,13 +144,13 @@ function AcceptBidQueuePanel() {
                           onClick={() => retry(item.id)}
                           className="text-xs text-[var(--accent)] hover:underline"
                         >
-                          Retry
+                          {t('toast.acceptBidQueue.retry')}
                         </button>
                         <button
                           onClick={() => remove(item.id)}
                           className="text-xs text-[var(--text-muted)] hover:underline"
                         >
-                          Dismiss
+                          {t('toast.acceptBidQueue.dismiss')}
                         </button>
                       </div>
                     }
@@ -160,7 +162,7 @@ function AcceptBidQueuePanel() {
 
           {/* Recent completions */}
           {completedItems.length > 0 && (
-            <QueueSection title={`Completed (${completedCount})`}>
+            <QueueSection title={t('toast.acceptBidQueue.completed', { count: completedCount })}>
               <div className="space-y-2">
                 {completedItems.map(item => (
                   <QueueItemCard
@@ -171,7 +173,7 @@ function AcceptBidQueuePanel() {
                         onClick={() => remove(item.id)}
                         className="text-xs text-[var(--text-muted)] hover:underline"
                       >
-                        Dismiss
+                        {t('toast.acceptBidQueue.dismiss')}
                       </button>
                     }
                   />
@@ -184,8 +186,8 @@ function AcceptBidQueuePanel() {
           {!currentItem && queuedItems.length === 0 && failedItems.length === 0 && completedItems.length === 0 && (
             <p className="text-sm text-[var(--text-muted)] text-center py-2">
               {autoAcceptEnabled
-                ? 'Waiting for eligible bids at or above your suggested price...'
-                : 'Queue is empty. Accept a bid manually or enable auto-accept.'}
+                ? t('toast.acceptBidQueue.emptyAutoEnabled')
+                : t('toast.acceptBidQueue.emptyAutoDisabled')}
             </p>
           )}
 
@@ -196,7 +198,7 @@ function AcceptBidQueuePanel() {
                 onClick={clear}
                 className="text-xs text-[var(--text-muted)] hover:text-[var(--error)] hover:underline"
               >
-                Clear all
+                {t('toast.acceptBidQueue.clearAll')}
               </button>
             </div>
           )}
@@ -219,13 +221,22 @@ function QueueSection({ title, children }: { title: string; children: React.Reac
   )
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  queued: { label: 'Queued', color: 'var(--text-muted)' },
-  preparing: { label: 'Preparing inputs...', color: 'var(--accent)' },
-  proving: { label: 'Generating ZK proof...', color: 'var(--accent)' },
-  submitting: { label: 'Submitting transactions...', color: 'var(--accent)' },
-  complete: { label: 'Complete', color: 'var(--success)' },
-  failed: { label: 'Failed', color: 'var(--error)' },
+const STATUS_COLORS: Record<string, string> = {
+  queued: 'var(--text-muted)',
+  preparing: 'var(--accent)',
+  proving: 'var(--accent)',
+  submitting: 'var(--accent)',
+  complete: 'var(--success)',
+  failed: 'var(--error)',
+}
+
+const STATUS_KEYS: Record<string, string> = {
+  queued: 'toast.acceptBidQueue.statusQueued',
+  preparing: 'toast.acceptBidQueue.statusPreparing',
+  proving: 'toast.acceptBidQueue.statusProving',
+  submitting: 'toast.acceptBidQueue.statusSubmitting',
+  complete: 'toast.acceptBidQueue.statusComplete',
+  failed: 'toast.acceptBidQueue.statusFailed',
 }
 
 function QueueItemCard({
@@ -237,11 +248,13 @@ function QueueItemCard({
   showElapsed?: boolean
   actions?: React.ReactNode
 }) {
+  const { t } = useTranslation('notifications')
   const label = item.encryption.description
     ? item.encryption.description.slice(0, 40)
     : item.encryption.tokenName.slice(0, 16) + '...'
   const bidAda = formatAda(item.bid.amount)
-  const statusInfo = STATUS_LABELS[item.status] || STATUS_LABELS.queued
+  const statusColor = STATUS_COLORS[item.status] || STATUS_COLORS.queued
+  const statusKey = STATUS_KEYS[item.status] || STATUS_KEYS.queued
 
   return (
     <div className="flex items-center justify-between gap-3 p-2.5 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
@@ -250,19 +263,19 @@ function QueueItemCard({
           <span className="text-sm text-[var(--text-primary)] truncate">{label}</span>
           {item.priority && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
-              Manual
+              {t('toast.acceptBidQueue.manual')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-xs" style={{ color: statusInfo.color }}>{statusInfo.label}</span>
+          <span className="text-xs" style={{ color: statusColor }}>{t(statusKey)}</span>
           <span className="text-xs text-[var(--text-muted)]">{bidAda} ADA</span>
           {showElapsed && item.status === 'proving' && item.startedAt && (
             <ElapsedTimer startTime={item.startedAt} />
           )}
           {item.provingElapsed && item.status === 'complete' && (
             <span className="text-xs text-[var(--text-muted)]">
-              ({(item.provingElapsed / 1000).toFixed(0)}s proof)
+              {t('toast.acceptBidQueue.proofTime', { seconds: (item.provingElapsed / 1000).toFixed(0) })}
             </span>
           )}
         </div>
@@ -270,7 +283,7 @@ function QueueItemCard({
           <p className="text-xs text-[var(--error)] mt-1 truncate" title={item.error}>{item.error}</p>
         )}
         {item.partialSuccess === 'snark-only' && (
-          <p className="text-xs text-[var(--warning)] mt-1">SNARK submitted — complete re-encryption from My Sales</p>
+          <p className="text-xs text-[var(--warning)] mt-1">{t('toast.acceptBidQueue.partialSuccess')}</p>
         )}
       </div>
 
