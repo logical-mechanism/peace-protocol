@@ -31,8 +31,8 @@ interface LibraryContentModalProps {
 type ModalState = 'loading' | 'loaded' | 'error';
 
 
-const getCategoryLabel = (category: string): string => {
-  if (!category) return 'Text';
+const getCategoryLabel = (category: string, fallback: string): string => {
+  if (!category) return fallback;
   return category.charAt(0).toUpperCase() + category.slice(1);
 };
 
@@ -357,7 +357,7 @@ export default function LibraryContentModal({
     ? (i18n.exists(`modals:libraryContent.fileTypes.${extKey}`)
         ? t(`modals:libraryContent.fileTypes.${extKey}`)
         : t('modals:libraryContent.fileDefault', { type: item.fileExtension.toUpperCase().slice(1) }))
-    : t('modals:libraryContent.fileDefault', { type: getCategoryLabel(item.category) });
+    : t('modals:libraryContent.fileDefault', { type: getCategoryLabel(item.category, t('common:categories.text')) });
   // Show Save As for all non-text categories (documents, other, audio, image, video)
   const showSaveAs = item.category !== 'text' && !!item.category;
 
@@ -452,7 +452,7 @@ export default function LibraryContentModal({
             {/* Metadata — compact two-row layout */}
             <div className="mb-3 px-3 py-2 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="accent">{getCategoryLabel(item.category)}</Badge>
+                <Badge variant="accent">{getCategoryLabel(item.category, t('common:categories.text'))}</Badge>
                 {item.fileExtension && (
                   <Badge variant="neutral">{item.fileExtension.toUpperCase().slice(1)}</Badge>
                 )}
