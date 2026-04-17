@@ -100,7 +100,18 @@
     "categoryAll": "All",
     "categoryAllLabel": "All Categories",
     "categoryOneSelected": "1 Category",
-    "categoryCountSelected": "{{count}} Categories"
+    "categoryCountSelected": "{{count}} Categories",
+    "priceRange": {
+      "groupLabel": "Price range filter",
+      "minPrice": "Minimum price",
+      "maxPrice": "Maximum price"
+    },
+    "subcategory": {
+      "label": "Sub-category",
+      "optional": "(optional)",
+      "clearGenre": "Clear genre",
+      "clearSubcategory": "Clear sub-category"
+    }
   },
   "marketplace": {
     "loading": "Loading marketplace listings…",

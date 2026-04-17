@@ -114,6 +114,34 @@
     "arweave": "Arweave",
     "none": "No data layer"
   },
+  "commandPalette": {
+    "categoryNavigation": "Navigation",
+    "categoryActions": "Actions",
+    "categorySettings": "Settings",
+    "searchPlaceholder": "Type a command...",
+    "searchAria": "Command search",
+    "dialogAria": "Command palette",
+    "noMatching": "No matching commands"
+  },
+  "mediaPlayer": {
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "muteShortcut": "Mute ({{key}})",
+    "unmuteShortcut": "Unmute ({{key}})",
+    "volume": "Volume",
+    "muted": "Muted",
+    "volumePercent": "{{percent}}%",
+    "albumArt": "Album art"
+  },
+  "toast": {
+    "copyError": "Copy error to clipboard",
+    "dismiss": "Dismiss notification",
+    "dismissAll": "Dismiss all",
+    "dismissAllQueued": "Dismiss all ({{count}} queued)"
+  },
+  "categories": {
+    "text": "Text"
+  },
   "overlay": {
     "shuttingDown": "Shutting down...",
     "shuttingDownDescription": "Stopping services safely. Please wait.",
