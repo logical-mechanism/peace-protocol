@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Une erreur est survenue",
+    "action": "Réessayez. Si le problème persiste, redémarrez l'application."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo indisponible",
+    "message": "L'indexeur UTxO est en cours de démarrage ou inaccessible.",
+    "action": "Attendez que le nœud termine la synchronisation, puis réessayez."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo indisponible",
+    "message": "L'indexeur UTxO ne répond pas.",
+    "action": "Attendez que le nœud termine la synchronisation, ou vérifiez l'état des processus dans les Paramètres."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Délai d'attente Ogmios dépassé",
+    "message": "Le service de transactions n'a pas répondu à temps. La connexion au nœud peut être dégradée.",
+    "action": "Essayez de redémarrer le nœud depuis les Paramètres, ou attendez la synchronisation complète du nœud."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Impossible de joindre Ogmios",
+    "message": "Le service de transactions n'est pas joignable sur le port attendu.",
+    "action": "Assurez-vous que le nœud est en cours d'exécution, ou redémarrez-le depuis les Paramètres."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios indisponible",
+    "message": "Le service de soumission de transactions ne répond pas.",
+    "action": "Attendez que le nœud termine la synchronisation, ou vérifiez l'état des processus dans les Paramètres."
+  },
+  "network": {
+    "title": "Erreur réseau",
+    "message": "Impossible de se connecter au service requis.",
+    "action": "Vérifiez votre connexion internet et assurez-vous que le nœud est en cours d'exécution."
+  },
+  "noCollateral": {
+    "title": "Pas de collatéral",
+    "message": "Votre portefeuille a besoin d'un UTxO de collatéral dédié de 5 ADA pour les transactions de contrats intelligents.",
+    "action": "Allez dans Paramètres > Portefeuille et cliquez sur \"Définir le collatéral\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Fonds insuffisants pour le collatéral",
+    "message": "Votre portefeuille ne dispose pas de suffisamment d'ADA pour créer un UTxO de collatéral.",
+    "action": "Envoyez au moins 10 ADA à l'adresse de votre portefeuille."
+  },
+  "collateralInsufficient": {
+    "title": "Collatéral insuffisant",
+    "message": "La transaction nécessite plus de collatéral que ce qui est disponible.",
+    "action": "Assurez-vous que votre portefeuille dispose d'un UTxO défini comme collatéral. Essayez d'actualiser le solde de votre portefeuille."
+  },
+  "insufficientBalance": {
+    "title": "Solde insuffisant",
+    "message": "Votre portefeuille ne dispose pas de suffisamment d'ADA pour cette transaction.",
+    "action": "Ajoutez plus d'ADA à votre portefeuille et réessayez."
+  },
+  "iagonAuth": {
+    "title": "Échec de l'authentification Iagon",
+    "message": "Votre clé API Iagon est invalide ou expirée.",
+    "action": "Allez dans Paramètres \u2192 Couche de données et réauthentifiez-vous."
+  },
+  "iagonFileTooLarge": {
+    "title": "Fichier trop volumineux pour Iagon",
+    "message": "Iagon ne prend pas en charge le téléversement de fichiers de cette taille.",
+    "action": "Choisissez un fichier de moins de 200 Mo."
+  },
+  "iagonQuota": {
+    "title": "Stockage Iagon plein",
+    "message": "Le quota de stockage de votre compte Iagon est plein.",
+    "action": "Vérifiez l'utilisation du stockage de votre compte Iagon."
+  },
+  "iagonGeneric": {
+    "title": "Erreur du service de stockage",
+    "message": "Impossible de joindre le service de stockage décentralisé Iagon.",
+    "action": "Vérifiez votre connexion internet. Iagon peut être temporairement indisponible."
+  },
+  "timeout": {
+    "title": "Délai d'attente dépassé",
+    "message": "L'opération a pris trop de temps.",
+    "action": "Réessayez. Si le problème persiste, le service peut être surchargé."
+  },
+  "mnemonicChecksum": {
+    "title": "Phrase de récupération invalide",
+    "message": "La phrase de récupération a une somme de contrôle invalide. Un ou plusieurs mots peuvent être incorrects.",
+    "action": "Vérifiez chaque mot par rapport à votre sauvegarde écrite et réessayez."
+  },
+  "passwordTooShort": {
+    "title": "Mot de passe trop court",
+    "message": "Le mot de passe doit contenir au moins 12 caractères.",
+    "action": "Choisissez un mot de passe plus long qui remplit toutes les exigences affichées."
+  },
+  "walletGeneric": {
+    "title": "Erreur du portefeuille",
+    "message": "Un problème est survenu avec l'opération du portefeuille.",
+    "action": "Essayez de déverrouiller votre portefeuille à nouveau. Si le problème persiste, redémarrez l'application."
+  },
+  "incorrectPassword": {
+    "title": "Mot de passe incorrect",
+    "message": "Le mot de passe que vous avez saisi est incorrect.",
+    "action": "Vérifiez votre mot de passe et réessayez."
+  },
+  "snarkOom": {
+    "title": "Mémoire insuffisante",
+    "message": "La génération de la preuve a manqué de mémoire.",
+    "action": "Fermez d'autres applications pour libérer de la mémoire et réessayez."
+  },
+  "snarkSetupMissing": {
+    "title": "Fichiers de configuration SNARK manquants",
+    "message": "Les fichiers de configuration SNARK requis n'ont pas pu être trouvés.",
+    "action": "Allez dans les Paramètres pour retélécharger les fichiers de configuration SNARK."
+  },
+  "snarkInProgress": {
+    "title": "Preuve déjà en cours",
+    "message": "Une preuve à connaissance nulle est déjà en cours de génération.",
+    "action": "Attendez que la preuve actuelle soit terminée avant d'en lancer une autre."
+  },
+  "snarkGeneric": {
+    "title": "Erreur de génération de preuve",
+    "message": "Le prouveur SNARK a rencontré une erreur.",
+    "action": "Réessayez. Si le problème persiste, vérifiez que les fichiers de configuration sont correctement installés."
+  },
+  "scriptValidation": {
+    "title": "Échec de la validation du script",
+    "message": "Un script de contrat intelligent a échoué lors de la validation.",
+    "action": "L'état on-chain a peut-être changé. Actualisez et réessayez."
+  },
+  "txConflict": {
+    "title": "Conflit de transaction",
+    "message": "Une ou plusieurs entrées ont déjà été dépensées par une autre transaction.",
+    "action": "Quelqu'un d'autre a peut-être agi sur cette annonce. Actualisez la page et réessayez."
+  },
+  "feeError": {
+    "title": "Erreur de frais de transaction",
+    "message": "Les frais de transaction ont été calculés trop bas.",
+    "action": "Réessayez. Si le problème persiste, redémarrez l'application pour actualiser les paramètres de frais."
+  },
+  "txFailed": {
+    "title": "Échec de la transaction",
+    "message": "La transaction n'a pas pu être soumise à la blockchain.",
+    "action": "L'état on-chain a peut-être changé. Actualisez et réessayez."
+  },
+  "accessDenied": {
+    "title": "Accès refusé",
+    "message": "La requête a été bloquée par le serveur.",
+    "action": "Cela peut être un problème de configuration. Essayez de redémarrer l'application."
+  },
+  "diskFull": {
+    "title": "Disque plein",
+    "message": "Il n'y a pas assez d'espace disque pour terminer cette opération.",
+    "action": "Libérez de l'espace disque et réessayez. Vérifiez Paramètres > Stockage pour les options de nettoyage."
+  },
+  "portConflict": {
+    "title": "Conflit de port",
+    "message": "Un port requis est déjà utilisé par un autre processus.",
+    "action": "Fermez les autres applications qui pourraient utiliser le port, ou redémarrez l'application."
+  }
+}
