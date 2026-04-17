@@ -14,7 +14,7 @@ import {
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, listenToSystemTheme, type Theme } from '../../services/themeStorage'
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
-import { getOnboardingState, resetTutorials } from '../../services/onboardingStorage'
+import { resetTutorials } from '../../services/onboardingStorage'
 import Select from '../../components/Select'
 
 export default function PreferencesSection() {
@@ -43,10 +43,6 @@ export default function PreferencesSection() {
   })
   const [desktopNotifEnabled, setDesktopNotifEnabledState] = useState(() => isDesktopNotificationsEnabled())
   const [tutorialsReset, setTutorialsReset] = useState(false)
-  const tutorialsCompleted = !tutorialsReset && (() => {
-    const s = getOnboardingState()
-    return s.firstListingCompleted || s.firstBidCompleted
-  })()
 
   const handleResetTutorials = useCallback(() => {
     resetTutorials()
@@ -296,7 +292,7 @@ export default function PreferencesSection() {
           </div>
           <button
             onClick={handleResetTutorials}
-            disabled={tutorialsReset || !tutorialsCompleted}
+            disabled={tutorialsReset}
             className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {tutorialsReset ? t('preferences.tutorialsResetDone') : t('preferences.tutorialsReset')}
