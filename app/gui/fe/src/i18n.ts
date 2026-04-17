@@ -142,6 +142,46 @@ import errorsRu from './locales/ru/errors.json'
 import notificationsRu from './locales/ru/notifications.json'
 import onboardingRu from './locales/ru/onboarding.json'
 
+import commonIt from './locales/it/common.json'
+import walletIt from './locales/it/wallet.json'
+import nodeSyncIt from './locales/it/nodeSync.json'
+import dashboardIt from './locales/it/dashboard.json'
+import settingsIt from './locales/it/settings.json'
+import modalsIt from './locales/it/modals.json'
+import errorsIt from './locales/it/errors.json'
+import notificationsIt from './locales/it/notifications.json'
+import onboardingIt from './locales/it/onboarding.json'
+
+import commonPl from './locales/pl/common.json'
+import walletPl from './locales/pl/wallet.json'
+import nodeSyncPl from './locales/pl/nodeSync.json'
+import dashboardPl from './locales/pl/dashboard.json'
+import settingsPl from './locales/pl/settings.json'
+import modalsPl from './locales/pl/modals.json'
+import errorsPl from './locales/pl/errors.json'
+import notificationsPl from './locales/pl/notifications.json'
+import onboardingPl from './locales/pl/onboarding.json'
+
+import commonHi from './locales/hi/common.json'
+import walletHi from './locales/hi/wallet.json'
+import nodeSyncHi from './locales/hi/nodeSync.json'
+import dashboardHi from './locales/hi/dashboard.json'
+import settingsHi from './locales/hi/settings.json'
+import modalsHi from './locales/hi/modals.json'
+import errorsHi from './locales/hi/errors.json'
+import notificationsHi from './locales/hi/notifications.json'
+import onboardingHi from './locales/hi/onboarding.json'
+
+import commonTh from './locales/th/common.json'
+import walletTh from './locales/th/wallet.json'
+import nodeSyncTh from './locales/th/nodeSync.json'
+import dashboardTh from './locales/th/dashboard.json'
+import settingsTh from './locales/th/settings.json'
+import modalsTh from './locales/th/modals.json'
+import errorsTh from './locales/th/errors.json'
+import notificationsTh from './locales/th/notifications.json'
+import onboardingTh from './locales/th/onboarding.json'
+
 export const NAMESPACES = [
   'common',
   'wallet',
@@ -297,6 +337,50 @@ export const resources = {
     errors: errorsRu,
     notifications: notificationsRu,
     onboarding: onboardingRu,
+  },
+  it: {
+    common: commonIt,
+    wallet: walletIt,
+    nodeSync: nodeSyncIt,
+    dashboard: dashboardIt,
+    settings: settingsIt,
+    modals: modalsIt,
+    errors: errorsIt,
+    notifications: notificationsIt,
+    onboarding: onboardingIt,
+  },
+  pl: {
+    common: commonPl,
+    wallet: walletPl,
+    nodeSync: nodeSyncPl,
+    dashboard: dashboardPl,
+    settings: settingsPl,
+    modals: modalsPl,
+    errors: errorsPl,
+    notifications: notificationsPl,
+    onboarding: onboardingPl,
+  },
+  hi: {
+    common: commonHi,
+    wallet: walletHi,
+    nodeSync: nodeSyncHi,
+    dashboard: dashboardHi,
+    settings: settingsHi,
+    modals: modalsHi,
+    errors: errorsHi,
+    notifications: notificationsHi,
+    onboarding: onboardingHi,
+  },
+  th: {
+    common: commonTh,
+    wallet: walletTh,
+    nodeSync: nodeSyncTh,
+    dashboard: dashboardTh,
+    settings: settingsTh,
+    modals: modalsTh,
+    errors: errorsTh,
+    notifications: notificationsTh,
+    onboarding: onboardingTh,
   },
 } as const
 
